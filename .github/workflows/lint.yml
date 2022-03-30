@@ -1,11 +1,15 @@
 name: Lint
 
-on: [push, pull_request]
+on: 
+  push:
+    paths:
+      - '*.py'
+  pull_request:
     paths:
       - '*.py'
 
 jobs:
-  flake8_py3:
+  format_and_lint:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Python
