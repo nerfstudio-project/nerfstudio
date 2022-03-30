@@ -2,7 +2,7 @@ name: Lint
 
 on:
   push:
-    paths:
+    [paths, pull_request]:
       - '*.py'
 
 jobs:
@@ -16,7 +16,11 @@ jobs:
           architecture: x64
       - name: Checkout PyTorch
         uses: actions/checkout@master
-      - name: Python Pylin GitHub Action
+      - name: Run Black
+        uses: psf/black@stable
+        with:
+          options: "--check --verbose --line-length=120"
+      - name: Python Pylint GitHub Action
         uses: vcoder4c/git_pylint@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
