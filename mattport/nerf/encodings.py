@@ -26,6 +26,7 @@ class Encoding(nn.Module):
 
 class RFFEncoding(Encoding):
     """Random Fourier Feature encoding"""
+
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Encodes an input tensor.
 
@@ -40,6 +41,7 @@ class RFFEncoding(Encoding):
 
 class HashEncoding(Encoding):
     """Hash encoding"""
+
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Encodes an input tensor.
 
@@ -50,6 +52,7 @@ class HashEncoding(Encoding):
             TensorType[..., "output_dim"]: A encoded input tensor
         """
         raise NotImplementedError
+
 
 encodings_dict = {
     "RFF": RFFEncoding,

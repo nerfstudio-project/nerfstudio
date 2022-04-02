@@ -1,0 +1,16 @@
+{
+    // "python.pythonPath": "/path/to/bin/python",
+    "files.watcherExclude": {
+        "**/__pycache__/": true,
+        "**/.ipynb_checkpoints": true,
+        "**/*.ipynb": true,
+        "**/runs*": true,
+    },
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": [
+        "--line-length=120"
+    ],
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+}
