@@ -14,6 +14,7 @@
     "python.linting.flake8Enabled": false,
     "python.linting.enabled": true,
     "python.linting.pylintArgs": [
-        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*"
+        "--generated-members=numpy.* ,torch.* ,cv2.* , cv.*",
+        "--max-line-length=120"
     ],
 }
