@@ -1,0 +1,6 @@
+defaults:
+  - experiment: lego_bulldozer
+  - dataset: blender
+batch_size: 10
+optimizer:
+  - lr: 1e-4
