@@ -9,17 +9,13 @@ logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=loggin
 
 
 @hydra.main(config_path="../configs", config_name="config.yaml")
-def main(cfg: DictConfig):
-    print(cfg)
-
-    print("hello mattport")
-
-    # TODO(ethan): add some sort of config script
-
-    config = {}
+def main(config: DictConfig):
     trainer = Trainer(config)
     print("trainer!")
-    trainer.train()
+
+    trainer.setup_dataset()
+    # trainer.setup_graph()
+    # trainer.setup_optimizer()
 
 
 if __name__ == "__main__":
