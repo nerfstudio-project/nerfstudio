@@ -1,4 +1,15 @@
+"""
+The Graph module contains all trainable parameters.
+"""
+from dataclasses import dataclass
 from torch import nn
+
+
+@dataclass
+class GraphInputs:
+    """Datastucture to encode the inputs to the graph."""
+
+    points: float
 
 
 class Graph(nn.Module):
@@ -8,8 +19,10 @@ class Graph(nn.Module):
         nn (_type_): _description_
     """
 
-    def __init__(self, config) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.config = config
+        raise NotImplementedError
 
-    
+    def forward(self):
+        """_summary_"""
+        raise NotImplementedError

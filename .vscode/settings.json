@@ -11,6 +11,7 @@
         "--line-length=120"
     ],
     "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [],
     "python.linting.flake8Enabled": false,
     "python.linting.enabled": true,
     "python.testing.pytestArgs": [

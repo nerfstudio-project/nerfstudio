@@ -1,15 +1,20 @@
-from abc import abstractmethod
-import logging
-import torch
-
+"""
+Code to train model.
+"""
+from mattport.nerf.dataset.build import build_dataset
 from mattport.nerf.optimizer import Optimizer
 from mattport.nerf.graph import Graph
-from mattport.nerf.dataset.build import build_dataset
 
 
 class Trainer(object):
+    """Training class"""
+
     def __init__(self, config: dict):
         self.config = config
+        self.train_dataset = None
+        self.test_dataset = None
+        self.graph = None
+        self.optimizer = None
 
     def setup_dataset(self):
         """_summary_
@@ -20,13 +25,11 @@ class Trainer(object):
     def setup_graph(self):
         """_summary_
         """
-        self.graph = Graph(
-            encodings_config=self.config.encodings,
-            renderer_config=self.config.renderer,
-            loss_config=self.config.loss
-        )
+        self.graph = Graph()
 
     def setup_optimizer(self):
+        """_summary_
+        """
         self.optimizer = Optimizer(params=self.graph.parameters(), **self.config.optimizer)
 
     def load_checkpoint(self):
@@ -47,12 +50,12 @@ class Trainer(object):
 
     def train(self):
         """_summary_"""
-        pass
+        raise NotImplementedError
 
     def train_epoch(self):
         """_summary_"""
-        pass
+        raise NotImplementedError
 
     def train_iteration(self):
         """_summary_"""
-        pass
+        raise NotImplementedError

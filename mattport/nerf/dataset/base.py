@@ -1,5 +1,11 @@
+"""
+The dataset baseclass.
+"""
+
 from abc import abstractmethod
 import torch
+
+from mattport.nerf.cameras import Camera
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -12,20 +18,51 @@ class Dataset(torch.utils.data.Dataset):
     def __init__(
         self,
         data_directory: str,
-    ) -> None:
+        dataset_type: str,
+        scene: str
+    ):
+        """_summary_
+
+        Args:
+            data_directory (str): _description_
+            type (str): _description_
+            scene (str): _description_
+        """
         super().__init__()
-        pass
+        self.data_directory = data_directory
+        self.dataset_type = dataset_type
+        self.scene = scene
+
 
     def __len__(self):
         pass
 
     @abstractmethod
     def get_image(self, idx):
-        pass
+        """_summary_
+
+        Args:
+            idx (_type_): _description_
+
+        Raises:
+            NotImplementedError: _description_
+        """
+        raise NotImplementedError
 
     @abstractmethod
-    def get_pose(self, idx):
-        pass
+    def get_camera(self, idx) -> Camera:
+        """_summary_
+
+        Args:
+            idx (_type_): _description_
+
+        Raises:
+            NotImplementedError: _description_
+
+        Returns:
+            Camera: _description_
+        """
+        raise NotImplementedError
 
     def __getitem__(self, idx):
         raise NotImplementedError

@@ -1,7 +1,3 @@
-# defaults:
-#   - experiment: lego_bulldozer
-#   - dataset: blender
-
 # OPTIONS FOR DIFFERENT NERF VARIANTS
 # ----
 # sampler options
@@ -28,7 +24,8 @@ loss:
 
 # dataset options
 dataset:
-  dataset: blender # type of dataset
+  data_directory: /path/to/data
+  dataset_type: blender # type of dataset
   scene: lego
   num_workers: 4
 

@@ -1,7 +1,11 @@
-from argon2 import DEFAULT_RANDOM_SALT_LENGTH
-from mattport.nerf.dataset.base import Dataset
+"""
+Builds the dataset
+"""
 import importlib
 import logging
+
+from mattport.nerf.dataset.base import Dataset
+
 
 def build_dataset(config: dict) -> Dataset:
     """Returns the dataset according to the specified config.
@@ -11,7 +15,12 @@ def build_dataset(config: dict) -> Dataset:
         config (dict): _description_
     """
 
+    # TODO(ethan): better handle this with configs
     module = importlib.import_module("mattport.nerf.dataset.base")
-    dataset = module.Dataset(**config)
+    dataset = module.Dataset(
+        data_directory=config.data_directory,
+        dataset_type=config.dataset_type,
+        scene=config.scene,
+    )
     logging.info(dataset)
     return dataset
