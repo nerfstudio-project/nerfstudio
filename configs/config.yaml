@@ -1,0 +1,47 @@
+# OPTIONS FOR DIFFERENT NERF VARIANTS
+# ----
+# sampler options
+sampler:
+  asdf: null
+  num_coarse_samples: 64
+  num_importance_samples: 128
+  perturb: 1.0
+  noise_std: 1.0
+# encoding options
+encodings:
+  asdf: null
+# network options
+network:
+  asdf: null
+# renderer options
+renderer:
+  asdf: null
+# loss options
+loss:
+  asdf: null
+  type: mse
+# ----
+
+# dataset options
+dataset:
+  data_directory: /path/to/data
+  dataset_type: blender # type of dataset
+  scene: lego
+  num_workers: 4
+
+# camera options
+camera:
+  model: pinhole
+
+# optimizer options
+optimizer:
+  lr: 1e-4
+  lr_scheduler: null
+  momentum: null
+  weight_decay: null
+
+# trainer options
+trainer:
+  batch_size: 2 # rays per batch
+  chunk_size: 1024 # chunks per batch
+  device: cpu
