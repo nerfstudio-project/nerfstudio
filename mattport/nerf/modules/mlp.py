@@ -1,10 +1,4 @@
-"""
-Collection of Models
-"""
-from typing import Optional
-
 from torch import nn
-from torchtyping import TensorType
 
 
 class MLP(nn.Module):
@@ -30,7 +24,6 @@ class MLP(nn.Module):
             out_activation (Optional[nn.Module], optional): output activation function. Defaults to None.
         """
         super().__init__()
-
         layers = []
         for i in range(num_layers):
             if i == 0:

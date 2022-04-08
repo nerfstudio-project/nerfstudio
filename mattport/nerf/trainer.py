@@ -17,19 +17,16 @@ class Trainer(object):
         self.optimizer = None
 
     def setup_dataset(self):
-        """_summary_
-        """
+        """_summary_"""
         self.train_dataset = build_dataset(self.config.dataset)
         self.test_dataset = build_dataset(self.config.dataset)
 
     def setup_graph(self):
-        """_summary_
-        """
+        """_summary_"""
         self.graph = Graph()
 
     def setup_optimizer(self):
-        """_summary_
-        """
+        """_summary_"""
         self.optimizer = Optimizer(params=self.graph.parameters(), **self.config.optimizer)
 
     def load_checkpoint(self):

@@ -4,7 +4,7 @@ Builds the dataset
 import importlib
 import logging
 
-from mattport.nerf.dataset.base import Dataset
+from mattport.nerf.dataset.dataset import Dataset
 
 
 def build_dataset(config: dict) -> Dataset:
