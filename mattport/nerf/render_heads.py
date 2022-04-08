@@ -8,19 +8,17 @@ from torch import nn
 from torchtyping import TensorType
 
 
-class RenderHeadKeys(Enum):
-    """Keys for model outputs"""
-
-    DENSITY = "density"
-    DISTS = "dists"
-    RGB = "rgb"
-    SH_RGB = "sh_rgb"
-
-
 class RenderHead(nn.Module):
     """Base Render head"""
 
     def __init__(self, in_dim: int, out_dim: int, activation: Optional[nn.Module]) -> None:
+        """
+
+        Args:
+            in_dim (int): input dimension
+            out_dim (int): output dimension for renderer
+            activation (Optional[nn.Module]): output head activation
+        """
         super().__init__()
         layers = [nn.Linear(in_dim, out_dim)]
         if activation:
