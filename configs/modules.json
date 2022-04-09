@@ -1,6 +1,6 @@
 {
-    "PositionalEncoder": {
-        "name": "encoder_0",
+    "encoder_0": {
+        "class": "PositionalEncoder",
         "inputs": [
             "x"
         ],
@@ -8,8 +8,9 @@
             "output_dim": 8
         }
     },
-    "MLP": {
-        "name": "mlp_0",
+
+    "mlp_0": {
+        "class": "MLP",
         "inputs": [
             "encoder_0", "encoder_0"
         ],

@@ -1,4 +1,7 @@
+from typing import Optional
+
 from torch import nn
+from torchtyping import TensorType
 
 
 class MLP(nn.Module):
@@ -10,7 +13,7 @@ class MLP(nn.Module):
         out_dim: int,
         num_layers: int,
         layer_width: int,
-        activation: Optional[nn.Module] = nn.ReLU,
+        activation: Optional[nn.Module] = None,
         out_activation: Optional[nn.Module] = None,
     ) -> None:
         """Initialize mulilayer perceptron.
@@ -24,6 +27,7 @@ class MLP(nn.Module):
             out_activation (Optional[nn.Module], optional): output activation function. Defaults to None.
         """
         super().__init__()
+        self.in_dim = in_dim
         layers = []
         for i in range(num_layers):
             if i == 0:
