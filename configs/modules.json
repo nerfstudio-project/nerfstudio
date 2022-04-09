@@ -1,0 +1,35 @@
+{
+    "encoder_0": {
+        "class": "PositionalEncoder",
+        "inputs": [
+            "x"
+        ],
+        "meta_data": {
+            "output_dim": 8
+        }
+    },
+
+    "mlp_0": {
+        "class": "MLP",
+        "inputs": [
+            "encoder_0", "encoder_0"
+        ],
+        "meta_data": {
+            "num_layers": 8,
+            "num_skip_connections": [
+                3,
+                7
+            ],
+            "hidden_dim": 256,
+            "output_dim": 8
+        }
+    },
+    "RGB": {
+        "name": "rgb_0",
+        "inputs": ["mlp_0"]
+    },
+    "Density": {
+        "name": "rgb_1",
+        "inputs": ["mlp_0"]
+    }
+}

@@ -8,6 +8,10 @@ from torchtyping import TensorType
 class Encoding(nn.Module):
     """Encode an input tensor. Intended to be subclassed"""
 
+    def __init__(self, out_dim: int) -> None:
+        super().__init__()
+        self.out_dim = out_dim
+
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Encodes an input tensor.
 
