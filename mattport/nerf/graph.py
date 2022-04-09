@@ -3,6 +3,7 @@ The Graph module contains all trainable parameters.
 """
 import importlib
 from dataclasses import dataclass
+from typing import Optional
 
 from torch import nn
 
@@ -20,6 +21,7 @@ class Node:
 
     name: str
     children: dict
+    visited: Optional[bool] = False
 
     def __hash__(self):
         return hash(self.name)
@@ -72,6 +74,19 @@ class Graph(nn.Module):
                     roots.add(curr_module)
         return roots
 
+    def topological_sort(self, curr_node: "Node", ordering_stack: list) -> None:
+        """utility function to sort the call order in the dependency graph
+
+        Args:
+            curr_node (Node): pointer to current node in process
+            ordering_stack (list): cumulative ordering of graph nodes
+        """
+        curr_node.visited = True
+        for child_node in curr_node.children.values():
+            if not child_node.visited:
+                self.topological_sort(child_node, ordering_stack)
+        ordering_stack.append(curr_node.name)
+
     def get_module_order(self) -> list:
         """Generates a graph and determines order of module operations using topological sorting
 
@@ -81,10 +96,13 @@ class Graph(nn.Module):
         Returns:
             list: ordering of the module names that should be executed
         """
+        roots = self.construct_graph()
+        ordering_stack = []
+        for root in roots:
+            if not root.visited:
+                self.topological_sort(root, ordering_stack)
 
-        # call construct graph
-        # function to do topological sort to get ordering
-        return self.modules_config.keys()
+        return ordering_stack[::-1]
 
     def forward(self, x):
         """_summary_
