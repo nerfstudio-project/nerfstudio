@@ -1,7 +1,6 @@
 """
 Collection of render heads
 """
-from enum import Enum
 from typing import Optional
 
 from torch import nn
@@ -39,7 +38,7 @@ class RenderHead(nn.Module):
 
 
 class DensityHead(RenderHead):
-    """RGB head"""
+    """Density head"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Softplus) -> None:
         super().__init__(in_dim, 1, activation)
