@@ -89,12 +89,12 @@ def create_complex_graph():
 def check_consistency(root: "Node", targets: list):
     """rudimentary check on predicted graph versus expected target ordering"""
     curr_pointer = root
-    for target_name, target_children in targets:
+    for i, (target_name, target_children) in enumerate(targets):
         assert curr_pointer.name == target_name
         assert len(curr_pointer.children) == target_children
         if len(curr_pointer.children) > 0:
-            # for now traversing smaller parts of graph.. need stabler checks
-            curr_pointer = list(curr_pointer.children)[0]
+            assert targets[i + 1][0] in curr_pointer.children
+            curr_pointer = curr_pointer.children[targets[i + 1][0]]
 
 
 def test_graph_init():
@@ -146,5 +146,14 @@ def test_construct_graph_complex():
     roots = test_graph.construct_graph()
     assert len(roots) == 1
     roots = list(roots)
-    targets = [("encoder_0", 3), ("mlp_0", 2), ("mlp_3", 0)]
-    check_consistency(roots[0], targets)
+    targets_p0 = [("encoder_0", 3), ("mlp_0", 2), ("mlp_3", 0)]
+    check_consistency(roots[0], targets_p0)
+
+    targets_p1 = [("encoder_0", 3), ("mlp_0", 2), ("mlp_2", 0)]
+    check_consistency(roots[0], targets_p1)
+
+    targets_p2 = [("encoder_0", 3), ("mlp_1", 0)]
+    check_consistency(roots[0], targets_p2)
+
+    targets_p3 = [("encoder_0", 3), ("mlp_2", 0)]
+    check_consistency(roots[0], targets_p3)

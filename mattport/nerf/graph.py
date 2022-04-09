@@ -19,7 +19,7 @@ class Node:
     """Node datastructure for graph composition."""
 
     name: str
-    children: set
+    children: dict
 
     def __hash__(self):
         return hash(self.name)
@@ -44,7 +44,7 @@ class Graph(nn.Module):
         # generate dependency ordering for module calls
         self.module_order = self.get_module_order()
 
-    def construct_graph(self) -> set:
+    def construct_graph(self) -> dict:
         """Constructs a dependency graph given the module configuration
 
         Args:
@@ -57,17 +57,17 @@ class Graph(nn.Module):
         roots = set()
         for module_name, module_dict in self.modules_config.items():
             if not module_name in processed_modules:
-                curr_module = Node(name=module_name, children=set())
+                curr_module = Node(name=module_name, children={})
                 processed_modules[module_name] = curr_module
             else:
                 curr_module = processed_modules[module_name]
             inputs = module_dict["inputs"]
             for input_module in inputs:
                 if not input_module in processed_modules:
-                    parent_module = Node(name=input_module, children=set([curr_module]))
+                    parent_module = Node(name=input_module, children={module_name: curr_module})
                     processed_modules[input_module] = parent_module
                 else:
-                    processed_modules[input_module].children.add(curr_module)
+                    processed_modules[input_module].children[module_name] = curr_module
                 if input_module == "x":
                     roots.add(curr_module)
         return roots
