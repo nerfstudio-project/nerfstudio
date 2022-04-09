@@ -24,6 +24,7 @@ class Node:
     def __hash__(self):
         return hash(self.name)
 
+
 class Graph(nn.Module):
     """_summary_"""
 
