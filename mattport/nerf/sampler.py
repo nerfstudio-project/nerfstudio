@@ -1,10 +1,16 @@
 """
 Collection of sampling strategies
 """
+from typing import NamedTuple
 from torchtyping import TensorType
 from torch import nn
 import torch
 import nerf.cameras as cameras
+
+
+RaySamples = NamedTuple(
+    "RaySamples", [("locations", TensorType[..., "num_samples", 3]), ("deltas", TensorType[..., "num_samples"])]
+)
 
 
 class Sampler(nn.Module):
@@ -26,17 +32,18 @@ class Sampler(nn.Module):
 
     def generate_samples(
         self, camera_rays: cameras.Rays, near_plane: float, far_plane: float, num_samples: int
-    ) -> TensorType[..., "num_samples", 3]:
+    ) -> RaySamples:
         """Encodes an input tensor.
 
         Args:
             camera_rays (cameras.Rays): Rays to generate samples for
-
-        Returns:
             TensorType[..., "output_dim"]: A encoded input tensor
             near_plane (float): Minimum distance along ray to sample
             far_plane (float): Maximum distance along ray to sample
             num_samples (int): Number of samples per ray
+
+        Returns:
+            RaySamples: Positions and deltas for samples along a ray
         """
         raise NotImplementedError
 
@@ -55,15 +62,21 @@ class UniformSampler(Sampler):
 
         Args:
             camera_rays (cameras.Rays): Rays to generate samples for
-
-        Returns:
             TensorType[..., "output_dim"]: A encoded input tensor
             near_plane (float): Minimum distance along ray to sample
             far_plane (float): Maximum distance along ray to sample
             num_samples (int): Number of samples per ray
+
+        Returns:
+            RaySamples: Positions and deltas for samples along a ray
         """
         near_plane = near_plane or self.near_plane
         far_plane = far_plane or self.far_plane
         num_samples = num_samples or self.num_samples
 
-        return torch.linspace(near_plane, far_plane, num_samples)
+        bins = torch.linspace(near_plane, far_plane, num_samples + 1)
+
+        positions = (bins[..., 1:] + bins[..., :-1]) / 2.0
+        deltas = bins[..., 1:] - bins[..., :-1]
+
+        return RaySamples(locations=positions, deltas=deltas)
