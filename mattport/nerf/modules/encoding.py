@@ -12,8 +12,6 @@ class Encoding(nn.Module):
         super().__init__()
         self.out_dim = out_dim
 
-        raise NotImplementedError
-
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Encodes an input tensor.
 

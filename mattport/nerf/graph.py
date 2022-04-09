@@ -15,7 +15,7 @@ class GraphInputs:
 
 
 class Graph(nn.Module):
-    """_summary_ """
+    """_summary_"""
 
     def __init__(self, modules_config: dict) -> None:
         super().__init__()
@@ -39,7 +39,7 @@ class Graph(nn.Module):
         Returns:
             list: ordering of the module names that should be executed
         """
-        raise NotImplementedError
+        return modules_config.keys()
 
     def forward(self, x):
         """_summary_
