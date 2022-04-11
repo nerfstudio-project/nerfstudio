@@ -1,4 +1,4 @@
-name: Python application
+name: Format Lint and Test
 
 on:
   push:
@@ -25,6 +25,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r environment/requirements.txt
         python setup.py develop
+    - name: Run Black
+      uses: psf/black@stable
+      with:
+        options: "--check --verbose --line-length=120"
+    - name: Python Pylint GitHub Action
+      uses: vcoder4c/git_pylint@v3
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Test with pytest
       run: |
         pytest tests
