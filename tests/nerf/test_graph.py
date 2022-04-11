@@ -173,13 +173,17 @@ def test_ordering():
     assert np.array_equal(target, order)
 
     test_repeated_graph.modules_config["mlp_0"]["inputs"][1] = "encoder_1"
-    test_repeated_graph.modules_config["encoder_1"] = {"class_name": "Encoding", "inputs": ["x"], "meta_data": {"out_dim": 8}}
+    test_repeated_graph.modules_config["encoder_1"] = {
+        "class_name": "Encoding",
+        "inputs": ["x"],
+        "meta_data": {"out_dim": 8},
+    }
     order = test_repeated_graph.get_module_order()
-    assert order.index('mlp_0') > order.index('encoder_0') and order.index('mlp_0') > order.index('encoder_1')
+    assert order.index("mlp_0") > order.index("encoder_0") and order.index("mlp_0") > order.index("encoder_1")
 
     test_complex_graph = Graph(create_complex_graph())
     _ = test_complex_graph.construct_graph()
     order = test_complex_graph.get_module_order()
-    assert order.index('mlp_2') > order.index('mlp_0')
-    assert order.index('mlp_2') > order.index('encoder_0')
-    assert order.index('mlp_3') > order.index('encoder_0')
+    assert order.index("mlp_2") > order.index("mlp_0")
+    assert order.index("mlp_2") > order.index("encoder_0")
+    assert order.index("mlp_3") > order.index("encoder_0")

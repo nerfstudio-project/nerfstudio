@@ -1,4 +1,4 @@
-name: Format Lint and Test
+name: Check code for formating and run tests.
 
 on:
   push:

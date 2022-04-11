@@ -15,12 +15,7 @@ class Dataset(torch.utils.data.Dataset):
         torch (_type_): _description_
     """
 
-    def __init__(
-        self,
-        data_directory: str,
-        dataset_type: str,
-        scene: str
-    ):
+    def __init__(self, data_directory: str, dataset_type: str, scene: str):
         """_summary_
 
         Args:
@@ -32,7 +27,6 @@ class Dataset(torch.utils.data.Dataset):
         self.data_directory = data_directory
         self.dataset_type = dataset_type
         self.scene = scene
-
 
     def __len__(self):
         pass
