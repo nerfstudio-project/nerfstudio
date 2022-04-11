@@ -1,7 +1,6 @@
 """
 Encoding functions
 """
-from base64 import encode
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -16,6 +15,8 @@ class Encoding(nn.Module):
             in_dim (int): Input dimension of tensor
         """
         super().__init__()
+        if in_dim <= 0:
+            raise ValueError("Input dimension should be greater than zero")
         self.in_dim = in_dim
 
     def get_out_dim(self) -> int:
@@ -55,12 +56,11 @@ class ScalingAndOffset(Encoding):
         """
         super().__init__(in_dim)
 
-        self.in_dim = in_dim
         self.scaling = scaling
         self.offset = offset
 
     def get_out_dim(self) -> int:
-        return self.in_dim * self.num_frequencies * 2
+        return self.in_dim
 
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         return self.scaling * in_tensor + self.offset
@@ -105,16 +105,36 @@ class NeRFEncoding(Encoding):
 class RFFEncoding(Encoding):
     """Random Fourier Feature encoding"""
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """Encodes an input tensor.
+    def __init__(self, in_dim: int, num_frequencies: int, scale: float) -> None:
+        """
 
         Args:
-            x (TensorType[..., "input_dim"]): Input tensor to be encoded
+            in_dim (int): Input dimension of tensor
+            num_frequencies (int): Number of encoding frequencies
+            scale (float): Std of Gaussian to sample frequencies. Must be greater than zero
+        """
+        super().__init__(in_dim)
+
+        self.num_frequencies = num_frequencies
+        if not scale > 0:
+            raise ValueError("RFF encoding scale should be greater than zero")
+        self.scale = scale
+
+    def get_out_dim(self) -> int:
+        return self.num_frequencies * 2
+
+    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+        """
+        Args:
+            in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
 
         Returns:
-            TensorType[..., "output_dim"]: A encoded input tensor
+            TensorType[..., "output_dim"]: Output values will be between -1 and 1
         """
-        raise NotImplementedError
+        B = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
+        scaled_inputs = in_tensor @ B  # [..., "num_frequencies"]
+        encoded_inputs = torch.cat([torch.sin(scaled_inputs), torch.cos(scaled_inputs)], axis=-1)
+        return encoded_inputs
 
 
 class HashEncoding(Encoding):
@@ -130,9 +150,3 @@ class HashEncoding(Encoding):
             TensorType[..., "output_dim"]: A encoded input tensor
         """
         raise NotImplementedError
-
-
-encodings_dict = {
-    "RFF": RFFEncoding,
-    "hash": HashEncoding,
-}
