@@ -24,3 +24,7 @@ class Optimizer:
             NotImplementedError: _description_
         """
         raise NotImplementedError
+
+    def test2(self):
+        """Summary"""
+        raise NotImplementedError

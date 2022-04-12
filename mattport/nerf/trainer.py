@@ -3,10 +3,9 @@ Code to train model.
 """
 from mattport.nerf.dataset.build import build_dataset
 from mattport.nerf.optimizer import Optimizer
-from mattport.nerf.graph import Graph
 
 
-class Trainer(object):
+class Trainer:
     """Training class"""
 
     def __init__(self, config: dict):
@@ -23,7 +22,8 @@ class Trainer(object):
 
     def setup_graph(self):
         """_summary_"""
-        self.graph = Graph()
+        # self.graph = Graph()
+        raise NotImplementedError
 
     def setup_optimizer(self):
         """_summary_"""
