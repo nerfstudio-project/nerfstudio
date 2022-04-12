@@ -1,7 +1,8 @@
+black
 hydra-core
+imageio==2.16.1
 pylint==2.13.4
 pytest
 torch==1.11.0
 torchtyping
 torchvision==0.12.0
-black

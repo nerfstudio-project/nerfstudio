@@ -8,7 +8,7 @@
 git clone --recurse-submodules git@github.com:ethanweber/mattport.git
 
 # Create the python environment
-conda create --name mattport python=3.8
+conda create --name mattport python=3.8.13
 conda activate mattport
 pip install -r environment/requirements.txt
 

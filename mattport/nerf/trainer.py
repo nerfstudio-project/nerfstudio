@@ -18,11 +18,10 @@ class Trainer:
     def setup_dataset(self):
         """_summary_"""
         self.train_dataset = build_dataset(self.config.dataset)
-        self.test_dataset = build_dataset(self.config.dataset)
+        # self.test_dataset = build_dataset(self.config.dataset)
 
     def setup_graph(self):
         """_summary_"""
-        # self.graph = Graph()
         raise NotImplementedError
 
     def setup_optimizer(self):

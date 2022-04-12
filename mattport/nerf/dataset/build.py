@@ -4,7 +4,7 @@ Builds the dataset
 import importlib
 import logging
 
-from mattport.nerf.dataset.dataset import Dataset
+from mattport.nerf.dataset.base import Dataset
 
 
 def build_dataset(config: dict) -> Dataset:
@@ -16,11 +16,9 @@ def build_dataset(config: dict) -> Dataset:
     """
 
     # TODO(ethan): better handle this with configs
-    module = importlib.import_module("mattport.nerf.dataset.base")
-    dataset = module.Dataset(
-        data_directory=config.data_directory,
-        dataset_type=config.dataset_type,
-        scene=config.scene,
+    module = importlib.import_module("mattport.nerf.dataset.blender_dataset")
+    dataset = module.BlenderDataset(
+        data_directory=config.data_directory, dataset_type=config.dataset_type, scene=config.scene
     )
     logging.info(dataset)
     return dataset
