@@ -15,8 +15,7 @@ class Module(nn.Module):
     """
 
     def __init__(self) -> None:
-        """Default initialization of module
-        """
+        """Default initialization of module"""
         super().__init__()
         self.in_dim = 0
         self.out_dim = 0
