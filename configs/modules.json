@@ -4,15 +4,13 @@
         "inputs": [
             "x"
         ],
-        "meta_data": {
-            "output_dim": 8
-        }
+        "meta_data": {}
     },
-
     "mlp_0": {
         "class": "MLP",
         "inputs": [
-            "encoder_0", "encoder_0"
+            "encoder_0",
+            "encoder_0"
         ],
         "meta_data": {
             "num_layers": 8,
@@ -26,10 +24,14 @@
     },
     "RGB": {
         "name": "rgb_0",
-        "inputs": ["mlp_0"]
+        "inputs": [
+            "mlp_0"
+        ]
     },
     "Density": {
         "name": "rgb_1",
-        "inputs": ["mlp_0"]
+        "inputs": [
+            "mlp_0"
+        ]
     }
 }

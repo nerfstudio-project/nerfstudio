@@ -3,7 +3,7 @@ The Graph module contains all trainable parameters.
 """
 import importlib
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, List, Optional, Set
 
 from torch import nn
 
@@ -20,8 +20,10 @@ class Node:
     """Node datastructure for graph composition."""
 
     name: str
-    children: dict
-    visited: Optional[bool] = False
+    children: Dict[str, "Node"]
+    parents: Dict[str, "Node"]
+    visited_order: Optional[bool] = False
+    visited_in_dim: Optional[bool] = False
 
     def __hash__(self):
         return hash(self.name)
@@ -30,64 +32,91 @@ class Node:
 class Graph(nn.Module):
     """_summary_"""
 
-    def __init__(self, modules_config: dict) -> None:
+    def __init__(self, modules_config: Dict[str, Dict[str, Any]]) -> None:
         super().__init__()
         self.modules_config = modules_config
-        # calculate input dimensions based on module dependencies
-        self.modules = {}
-        for module_name, module_dict in modules_config.items():
-            module = getattr(importlib.import_module("mattport.nerf.modules"), module_dict["class_name"])
-            if module_dict["class_name"] != "Encoding":
-                in_dim = 0
-                for inputs in module_dict["inputs"]:
-                    in_dim += modules_config[inputs]["meta_data"]["out_dim"]
-                module_dict["meta_data"]["in_dim"] = in_dim
-            self.modules[module_name] = module(**module_dict["meta_data"])
-        # generate dependency ordering for module calls
+        # create graph and get ordering
+        self.roots = self.construct_graph()
         self.module_order = self.get_module_order()
 
-    def construct_graph(self) -> dict:
+        self.modules = {}
+        # initialize graph with known input dimensions; set default in_dim to 0
+        for module_name, module_dict in modules_config.items():
+            module = getattr(importlib.import_module("mattport.nerf.modules"), module_dict["class_name"])
+            if "in_dim" not in module_dict["meta_data"]:
+                module_dict["meta_data"]["in_dim"] = 0
+            self.modules[module_name] = module(**module_dict["meta_data"])
+
+        # calculate input dimensions based on module dependencies
+        for root in self.roots:
+            self.get_in_dim(root)
+
+        # instantiate torch.nn members of network
+        for _, module in self.modules.items():
+            module.build_nn_modules()
+
+    def get_in_dim(self, curr_node: Node) -> None:
+        """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
+
+        Args:
+            curr_node (Node): pointer to current node in process
+        """
+        curr_node.visited_in_dim = True
+        if len(curr_node.parents) > 0:
+            in_dim = 0
+            for parent_name in curr_node.parents.keys():
+                in_dim += self.modules[parent_name].get_out_dim()
+            self.modules[curr_node.name].set_in_dim(in_dim)
+            self.modules_config[curr_node.name]["meta_data"]["in_dim"] = in_dim
+
+        for child_node in curr_node.children.values():
+            if not child_node.visited_in_dim:
+                self.get_in_dim(child_node)
+
+    def construct_graph(self) -> Set[Node]:
         """Constructs a dependency graph given the module configuration
 
         Args:
             modules_config (dict): module definitions that make up the network
 
         Returns:
-            list: root nodes for the constructed dependency graph
+            set: all root nodes of the constructed dependency graph
         """
         processed_modules = {}
         roots = set()
         for module_name, module_dict in self.modules_config.items():
             if not module_name in processed_modules:
-                curr_module = Node(name=module_name, children={})
+                curr_module = Node(name=module_name, children={}, parents={})
                 processed_modules[module_name] = curr_module
             else:
                 curr_module = processed_modules[module_name]
             inputs = module_dict["inputs"]
             for input_module in inputs:
                 if not input_module in processed_modules:
-                    parent_module = Node(name=input_module, children={module_name: curr_module})
+                    parent_module = Node(name=input_module, children={module_name: curr_module}, parents={})
                     processed_modules[input_module] = parent_module
                 else:
                     processed_modules[input_module].children[module_name] = curr_module
                 if input_module == "x":
                     roots.add(curr_module)
+                else:
+                    curr_module.parents[input_module] = parent_module
         return roots
 
-    def topological_sort(self, curr_node: "Node", ordering_stack: list) -> None:
+    def topological_sort(self, curr_node: Node, ordering_stack: List[str]) -> None:
         """utility function to sort the call order in the dependency graph
 
         Args:
             curr_node (Node): pointer to current node in process
             ordering_stack (list): cumulative ordering of graph nodes
         """
-        curr_node.visited = True
+        curr_node.visited_order = True
         for child_node in curr_node.children.values():
-            if not child_node.visited:
+            if not child_node.visited_order:
                 self.topological_sort(child_node, ordering_stack)
         ordering_stack.append(curr_node.name)
 
-    def get_module_order(self) -> list:
+    def get_module_order(self) -> List[str]:
         """Generates a graph and determines order of module operations using topological sorting
 
         Args:
@@ -96,12 +125,11 @@ class Graph(nn.Module):
         Returns:
             list: ordering of the module names that should be executed
         """
-        roots = self.construct_graph()
+        roots = self.roots
         ordering_stack = []
         for root in roots:
-            if not root.visited:
+            if not root.visited_order:
                 self.topological_sort(root, ordering_stack)
-
         return ordering_stack[::-1]
 
     def forward(self, x):

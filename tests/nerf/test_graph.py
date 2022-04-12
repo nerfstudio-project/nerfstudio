@@ -16,7 +16,7 @@ def create_basic_graph():
             "inputs": ["encoder_0"],
             "meta_data": {"in_dim": 0, "out_dim": 1, "num_layers": 2, "layer_width": 3},
         },
-        "encoder_0": {"class_name": "Encoding", "inputs": ["x"], "meta_data": {"out_dim": 8}},
+        "encoder_0": {"class_name": "ScalingAndOffset", "inputs": ["x"], "meta_data": {"in_dim": 16}},
         "mlp_1": {
             "class_name": "MLP",
             "inputs": ["mlp_0"],
@@ -35,7 +35,7 @@ def create_repeat_graph():
         dict: module definitions for constructing a graph
     """
     repeat_graph = {
-        "encoder_0": {"class_name": "Encoding", "inputs": ["x"], "meta_data": {"out_dim": 8}},
+        "encoder_0": {"class_name": "ScalingAndOffset", "inputs": ["x"], "meta_data": {"in_dim": 16}},
         "mlp_0": {
             "class_name": "MLP",
             "inputs": ["encoder_0", "encoder_0"],
@@ -61,7 +61,7 @@ def create_complex_graph():
         dict: module definitions for constructing a graph
     """
     complex_graph = {
-        "encoder_0": {"class_name": "Encoding", "inputs": ["x"], "meta_data": {"out_dim": 8}},
+        "encoder_0": {"class_name": "ScalingAndOffset", "inputs": ["x"], "meta_data": {"in_dim": 16}},
         "mlp_0": {
             "class_name": "MLP",
             "inputs": ["encoder_0"],
@@ -101,7 +101,7 @@ def test_graph_init():
     """test modules dictionary is instantiated properly"""
     test_graph = Graph(create_basic_graph())
     assert test_graph.modules is not None
-    assert type(test_graph.modules["encoder_0"]).__name__ == "Encoding"
+    assert type(test_graph.modules["encoder_0"]).__name__ == "ScalingAndOffset"
     assert type(test_graph.modules["mlp_0"]).__name__ == "MLP"
     assert type(test_graph.modules["mlp_1"]).__name__ == "MLP"
 
@@ -109,7 +109,6 @@ def test_graph_init():
 def test_input_dimension():
     """test module input dimension calculation"""
     test_graph = Graph(create_repeat_graph())
-    assert not hasattr(test_graph.modules["encoder_0"], "in_dim")
     assert test_graph.modules["mlp_0"].in_dim == 16
     assert test_graph.modules["mlp_1"].in_dim == 1
 
@@ -134,7 +133,11 @@ def test_construct_graph_repeat():
     check_consistency(roots[0], targets)
 
     test_graph.modules_config["mlp_0"]["inputs"][1] = "encoder_1"
-    test_graph.modules_config["encoder_1"] = {"class_name": "Encoding", "inputs": ["x"], "meta_data": {"out_dim": 8}}
+    test_graph.modules_config["encoder_1"] = {
+        "class_name": "ScalingAndOffset",
+        "inputs": ["x"],
+        "meta_data": {"out_dim": 8},
+    }
     roots = test_graph.construct_graph()
     assert len(roots) == 2
 
@@ -162,28 +165,29 @@ def test_ordering():
     """test dependency ordering of constructed graph"""
     test_basic_graph = Graph(create_basic_graph())
     _ = test_basic_graph.construct_graph()
-    order = test_basic_graph.get_module_order()
+    order = test_basic_graph.module_order
     target = ["encoder_0", "mlp_0", "mlp_1"]
     assert np.array_equal(target, order)
 
     test_repeated_graph = Graph(create_repeat_graph())
     _ = test_repeated_graph.construct_graph()
-    order = test_repeated_graph.get_module_order()
+    order = test_repeated_graph.module_order
     target = ["encoder_0", "mlp_0", "mlp_1"]
     assert np.array_equal(target, order)
 
     test_repeated_graph.modules_config["mlp_0"]["inputs"][1] = "encoder_1"
     test_repeated_graph.modules_config["encoder_1"] = {
-        "class_name": "Encoding",
+        "class_name": "ScalingAndOffset",
         "inputs": ["x"],
-        "meta_data": {"out_dim": 8},
+        "meta_data": {"in_dim": 16},
     }
-    order = test_repeated_graph.get_module_order()
+    test_repeated_graph = Graph(test_repeated_graph.modules_config)
+    order = test_repeated_graph.module_order
     assert order.index("mlp_0") > order.index("encoder_0") and order.index("mlp_0") > order.index("encoder_1")
 
     test_complex_graph = Graph(create_complex_graph())
     _ = test_complex_graph.construct_graph()
-    order = test_complex_graph.get_module_order()
+    order = test_complex_graph.module_order
     assert order.index("mlp_2") > order.index("mlp_0")
     assert order.index("mlp_2") > order.index("encoder_0")
     assert order.index("mlp_3") > order.index("encoder_0")

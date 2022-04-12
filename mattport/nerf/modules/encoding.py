@@ -2,11 +2,11 @@
 Encoding functions
 """
 import torch
-from torch import nn
 from torchtyping import TensorType
+from mattport.nerf.modules.module import Module
 
 
-class Encoding(nn.Module):
+class Encoding(Module):
     """Encode an input tensor. Intended to be subclassed"""
 
     def __init__(self, in_dim: int) -> None:
@@ -18,14 +18,6 @@ class Encoding(nn.Module):
         if in_dim <= 0:
             raise ValueError("Input dimension should be greater than zero")
         self.in_dim = in_dim
-
-    def get_out_dim(self) -> int:
-        """Calculates output dimension of encoding.
-
-        Returns:
-            int: output dimension
-        """
-        raise NotImplementedError
 
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Encodes an input tensor.
