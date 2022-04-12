@@ -1,4 +1,4 @@
 """init modules"""
-from .encoding import Encoding
-from .encoding import ScalingAndOffset
+from .encoding import Encoding, ScalingAndOffset
 from .mlp import MLP
+from .module import Module

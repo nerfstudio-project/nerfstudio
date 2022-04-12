@@ -5,9 +5,10 @@ from typing import Optional
 
 from torch import nn
 from torchtyping import TensorType
+from mattport.nerf.modules.module import Module
 
 
-class MLP(nn.Module):
+class MLP(Module):
     """Multilayer perceptron"""
 
     def __init__(
@@ -53,14 +54,6 @@ class MLP(nn.Module):
             layers.append(self.out_activation)
 
         self.net = nn.Sequential(*layers)
-
-    def set_in_dim(self, in_dim: int) -> None:
-        """TODO: create base module class from which this extends"""
-        self.in_dim = in_dim
-
-    def get_out_dim(self) -> int:
-        """TODO: create base module class from which this extends"""
-        return self.out_dim
 
     def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType[..., "out_dim"]:
         """Process input with a multilayer perceptron.

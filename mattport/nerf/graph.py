@@ -3,7 +3,7 @@ The Graph module contains all trainable parameters.
 """
 import importlib
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, List, Optional, Set
 
 from torch import nn
 
@@ -20,8 +20,8 @@ class Node:
     """Node datastructure for graph composition."""
 
     name: str
-    children: dict
-    parents: dict
+    children: Dict[str, "Node"]
+    parents: Dict[str, "Node"]
     visited_order: Optional[bool] = False
     visited_in_dim: Optional[bool] = False
 
@@ -32,7 +32,7 @@ class Node:
 class Graph(nn.Module):
     """_summary_"""
 
-    def __init__(self, modules_config: dict) -> None:
+    def __init__(self, modules_config: Dict[str, Dict[str, Any]]) -> None:
         super().__init__()
         self.modules_config = modules_config
         # create graph and get ordering
@@ -51,11 +51,11 @@ class Graph(nn.Module):
         for root in self.roots:
             self.get_in_dim(root)
 
-        # instantiate network
+        # instantiate torch.nn members of network
         for _, module in self.modules.items():
-            module.build_model()
+            module.build_nn_modules()
 
-    def get_in_dim(self, curr_node: "Node") -> None:
+    def get_in_dim(self, curr_node: Node) -> None:
         """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
 
         Args:
@@ -73,14 +73,14 @@ class Graph(nn.Module):
             if not child_node.visited_in_dim:
                 self.get_in_dim(child_node)
 
-    def construct_graph(self) -> dict:
+    def construct_graph(self) -> Set[Node]:
         """Constructs a dependency graph given the module configuration
 
         Args:
             modules_config (dict): module definitions that make up the network
 
         Returns:
-            list: root nodes for the constructed dependency graph
+            set: all root nodes of the constructed dependency graph
         """
         processed_modules = {}
         roots = set()
@@ -103,7 +103,7 @@ class Graph(nn.Module):
                     curr_module.parents[input_module] = parent_module
         return roots
 
-    def topological_sort(self, curr_node: "Node", ordering_stack: list) -> None:
+    def topological_sort(self, curr_node: Node, ordering_stack: List[str]) -> None:
         """utility function to sort the call order in the dependency graph
 
         Args:
@@ -116,7 +116,7 @@ class Graph(nn.Module):
                 self.topological_sort(child_node, ordering_stack)
         ordering_stack.append(curr_node.name)
 
-    def get_module_order(self) -> list:
+    def get_module_order(self) -> List[str]:
         """Generates a graph and determines order of module operations using topological sorting
 
         Args:
@@ -130,7 +130,6 @@ class Graph(nn.Module):
         for root in roots:
             if not root.visited_order:
                 self.topological_sort(root, ordering_stack)
-        print(ordering_stack)
         return ordering_stack[::-1]
 
     def forward(self, x):
