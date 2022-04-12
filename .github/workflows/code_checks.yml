@@ -29,12 +29,9 @@ jobs:
       uses: psf/black@stable
       with:
         options: "--check --verbose --line-length=120"
-    - name: Python Pylint GitHub Action
-      uses: vcoder4c/git_pylint@v3
-      with:
-        args: "--max-line-length=120 --generated-members=numpy.*,torch.*,cv2.*,cv.* --good-names=i,j,x,y,lr --disable=too-many-arguments"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Python Pylint
+      run: |
+        pylint mattport --max-line-length=120 --generated-members=numpy.*,torch.*,cv2.*,cv.* --good-names=i,j,x,y,lr --disable=too-many-arguments
     - name: Test with pytest
       run: |
         pytest tests
