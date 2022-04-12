@@ -19,6 +19,13 @@ class Encoding(nn.Module):
             raise ValueError("Input dimension should be greater than zero")
         self.in_dim = in_dim
 
+    def build_model(self) -> None:
+        """TODO: create base module class from which this extends"""
+
+    def set_in_dim(self, in_dim: int) -> None:
+        """TODO: create base module class from which this extends"""
+        self.in_dim = in_dim
+
     def get_out_dim(self) -> int:
         """Calculates output dimension of encoding.
 

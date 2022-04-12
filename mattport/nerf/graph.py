@@ -39,6 +39,7 @@ class Graph(nn.Module):
         self.roots = self.construct_graph()
         self.module_order = self.get_module_order()
 
+        self.modules = {}
         # initialize graph with known input dimensions; set default in_dim to 0
         for module_name, module_dict in modules_config.items():
             module = getattr(importlib.import_module("mattport.nerf.modules"), module_dict["class_name"])
@@ -48,26 +49,29 @@ class Graph(nn.Module):
 
         # calculate input dimensions based on module dependencies
         for root in self.roots:
-            self.set_in_dim(root)
+            self.get_in_dim(root)
 
-    def set_in_dim(self, curr_node: "Node") -> None:
+        # instantiate network
+        for _, module in self.modules.items():
+            module.build_model()
+
+    def get_in_dim(self, curr_node: "Node") -> None:
         """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
 
         Args:
             curr_node (Node): pointer to current node in process
         """
         curr_node.visited_in_dim = True
-
         if len(curr_node.parents) > 0:
             in_dim = 0
             for parent_name in curr_node.parents.keys():
                 in_dim += self.modules[parent_name].get_out_dim()
-            self.modules[curr_node.name].set_in_dim()
+            self.modules[curr_node.name].set_in_dim(in_dim)
             self.modules_config[curr_node.name]["meta_data"]["in_dim"] = in_dim
 
         for child_node in curr_node.children.values():
-            if not child_node.visited_order:
-                self.set_in_dim(child_node)
+            if not child_node.visited_in_dim:
+                self.get_in_dim(child_node)
 
     def construct_graph(self) -> dict:
         """Constructs a dependency graph given the module configuration
@@ -93,9 +97,10 @@ class Graph(nn.Module):
                     processed_modules[input_module] = parent_module
                 else:
                     processed_modules[input_module].children[module_name] = curr_module
-                curr_module.parents[input_module] = parent_module
                 if input_module == "x":
                     roots.add(curr_module)
+                else:
+                    curr_module.parents[input_module] = parent_module
         return roots
 
     def topological_sort(self, curr_node: "Node", ordering_stack: list) -> None:
@@ -125,7 +130,7 @@ class Graph(nn.Module):
         for root in roots:
             if not root.visited_order:
                 self.topological_sort(root, ordering_stack)
-
+        print(ordering_stack)
         return ordering_stack[::-1]
 
     def forward(self, x):

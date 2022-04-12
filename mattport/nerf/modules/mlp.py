@@ -19,7 +19,7 @@ class MLP(nn.Module):
         activation: Optional[nn.Module] = None,
         out_activation: Optional[nn.Module] = None,
     ) -> None:
-        """Initialize mulilayer perceptron.
+        """Initialize parameters of mulilayer perceptron.
 
         Args:
             in_dim (int): Input layer dimension
@@ -31,19 +31,36 @@ class MLP(nn.Module):
         """
         super().__init__()
         self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.num_layers = num_layers
+        self.layer_width = layer_width
+        self.activation = activation
+        self.out_activation = out_activation
+        self.net = None
+
+    def build_model(self) -> None:
+        """Initialize mulilayer perceptron."""
         layers = []
-        for i in range(num_layers):
+        for i in range(self.num_layers):
             if i == 0:
-                layers.append(nn.Linear(in_dim, layer_width))
+                layers.append(nn.Linear(self.in_dim, self.layer_width))
             else:
-                layers.append(nn.Linear(layer_width, layer_width))
-            if activation is not None:
-                layers.append(activation)
-        layers.append(nn.Linear(layer_width, out_dim))
-        if out_activation is not None:
-            layers.append(out_activation)
+                layers.append(nn.Linear(self.layer_width, self.layer_width))
+            if self.activation is not None:
+                layers.append(self.activation)
+        layers.append(nn.Linear(self.layer_width, self.out_dim))
+        if self.out_activation is not None:
+            layers.append(self.out_activation)
 
         self.net = nn.Sequential(*layers)
+
+    def set_in_dim(self, in_dim: int) -> None:
+        """TODO: create base module class from which this extends"""
+        self.in_dim = in_dim
+
+    def get_out_dim(self) -> int:
+        """TODO: create base module class from which this extends"""
+        return self.out_dim
 
     def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType[..., "out_dim"]:
         """Process input with a multilayer perceptron.
