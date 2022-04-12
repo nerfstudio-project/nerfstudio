@@ -131,8 +131,8 @@ class RFFEncoding(Encoding):
         Returns:
             TensorType[..., "output_dim"]: Output values will be between -1 and 1
         """
-        B = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
-        scaled_inputs = in_tensor @ B  # [..., "num_frequencies"]
+        b_matrix = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
+        scaled_inputs = in_tensor @ b_matrix  # [..., "num_frequencies"]
         encoded_inputs = torch.cat([torch.sin(scaled_inputs), torch.cos(scaled_inputs)], axis=-1)
         return encoded_inputs
 

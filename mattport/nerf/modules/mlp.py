@@ -1,3 +1,6 @@
+"""
+Multi Layer Perceptron
+"""
 from typing import Optional
 
 from torch import nn

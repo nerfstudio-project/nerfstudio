@@ -1,4 +1,4 @@
-name: Python application
+name: Check code for formating and run tests.
 
 on:
   push:
@@ -25,6 +25,13 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r environment/requirements.txt
         python setup.py develop
+    - name: Run Black
+      uses: psf/black@stable
+      with:
+        options: "--check --verbose --line-length=120"
+    - name: Python Pylint
+      run: |
+        pylint mattport --max-line-length=120 --generated-members=numpy.*,torch.*,cv2.*,cv.* --good-names=i,j,x,y,lr --disable=too-many-arguments
     - name: Test with pytest
       run: |
         pytest tests
