@@ -116,9 +116,7 @@ def test_ordering():
         }
     test_repeated_graph = Graph(cfg.network)
     order = test_repeated_graph.module_order
-    assert order.index("mlp_0") > order.index("encoder_0") and order.index(
-        "mlp_0"
-    ) > order.index("encoder_1")
+    assert order.index("mlp_0") > order.index("encoder_0") and order.index("mlp_0") > order.index("encoder_1")
 
     test_complex_graph, _ = instantiate_graph("test_complex_graph")
     _ = test_complex_graph.construct_graph()
