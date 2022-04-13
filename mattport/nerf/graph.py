@@ -3,7 +3,8 @@ The Graph module contains all trainable parameters.
 """
 import importlib
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set
+from omegaconf import DictConfig
 
 from torch import nn
 
@@ -32,7 +33,7 @@ class Node:
 class Graph(nn.Module):
     """_summary_"""
 
-    def __init__(self, modules_config: Dict[str, Dict[str, Any]]) -> None:
+    def __init__(self, modules_config: DictConfig) -> None:
         super().__init__()
         self.modules_config = modules_config
         # create graph and get ordering
@@ -42,10 +43,10 @@ class Graph(nn.Module):
         self.modules = {}
         # initialize graph with known input dimensions; set default in_dim to 0
         for module_name, module_dict in modules_config.items():
-            module = getattr(importlib.import_module("mattport.nerf.modules"), module_dict["class_name"])
-            if "in_dim" not in module_dict["meta_data"]:
-                module_dict["meta_data"]["in_dim"] = 0
-            self.modules[module_name] = module(**module_dict["meta_data"])
+            module = getattr(importlib.import_module("mattport.nerf.modules"), module_dict.class_name)
+            if not module_dict.meta_data.in_dim:
+                module_dict.meta_data.in_dim = 0
+            self.modules[module_name] = module(**module_dict.meta_data)
 
         # calculate input dimensions based on module dependencies
         for root in self.roots:
@@ -67,7 +68,7 @@ class Graph(nn.Module):
             for parent_name in curr_node.parents.keys():
                 in_dim += self.modules[parent_name].get_out_dim()
             self.modules[curr_node.name].set_in_dim(in_dim)
-            self.modules_config[curr_node.name]["meta_data"]["in_dim"] = in_dim
+            self.modules_config[curr_node.name].meta_data.in_dim = in_dim
 
         for child_node in curr_node.children.values():
             if not child_node.visited_in_dim:
@@ -90,10 +91,14 @@ class Graph(nn.Module):
                 processed_modules[module_name] = curr_module
             else:
                 curr_module = processed_modules[module_name]
-            inputs = module_dict["inputs"]
+            inputs = module_dict.inputs
             for input_module in inputs:
                 if not input_module in processed_modules:
-                    parent_module = Node(name=input_module, children={module_name: curr_module}, parents={})
+                    parent_module = Node(
+                        name=input_module,
+                        children={module_name: curr_module},
+                        parents={},
+                    )
                     processed_modules[input_module] = parent_module
                 else:
                     processed_modules[input_module].children[module_name] = curr_module
