@@ -1,0 +1,22 @@
+network:
+  mlp_0:
+    class_name: MLP
+    inputs: ['encoder_0']
+    meta_data: 
+      in_dim: 0
+      out_dim: 1
+      num_layers: 2
+      layer_width: 3
+  encoder_0:
+    class_name: ScalingAndOffset
+    inputs: ['x']
+    meta_data:
+      in_dim: 16
+  mlp_1:
+    class_name: MLP
+    inputs: ['mlp_0']
+    meta_data:
+      in_dim: 4
+      out_dim: 5
+      num_layers: 6
+      layer_width: 7
