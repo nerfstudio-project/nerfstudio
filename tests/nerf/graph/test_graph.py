@@ -32,17 +32,17 @@ def instantiate_graph(config_name: str) -> Graph:
 def test_graph_init():
     """test field modules dictionary is instantiated properly"""
     test_graph, _ = instantiate_graph("test_basic_graph")
-    assert test_graph.modules is not None
-    assert type(test_graph.modules["encoder_0"]).__name__ == "ScalingAndOffset"
-    assert type(test_graph.modules["mlp_0"]).__name__ == "MLP"
-    assert type(test_graph.modules["mlp_1"]).__name__ == "MLP"
+    assert test_graph is not None
+    assert type(test_graph["encoder_0"]).__name__ == "ScalingAndOffset"
+    assert type(test_graph["mlp_0"]).__name__ == "MLP"
+    assert type(test_graph["mlp_1"]).__name__ == "MLP"
 
 
 def test_input_dimension():
     """test field module input dimension calculation"""
     test_graph, _ = instantiate_graph("test_repeat_graph")
-    assert test_graph.modules["mlp_0"].in_dim == 16
-    assert test_graph.modules["mlp_1"].in_dim == 1
+    assert test_graph["mlp_0"].in_dim == 16
+    assert test_graph["mlp_1"].in_dim == 1
 
 
 def test_construct_graph_basic():

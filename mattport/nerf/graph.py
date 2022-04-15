@@ -30,7 +30,7 @@ class Node:
         return hash(self.name)
 
 
-class Graph(nn.Module):
+class Graph(nn.ModuleDict):
     """_summary_"""
 
     def __init__(self, modules_config: DictConfig) -> None:
@@ -40,20 +40,19 @@ class Graph(nn.Module):
         self.roots = self.construct_graph()
         self.module_order = self.get_module_order()
 
-        self.modules = {}
         # initialize graph with known input dimensions; set default in_dim to 0
         for module_name, module_dict in modules_config.items():
             module = getattr(importlib.import_module("mattport.nerf.field_modules"), module_dict.class_name)
             if not module_dict.meta_data.in_dim:
                 module_dict.meta_data.in_dim = 0
-            self.modules[module_name] = module(**module_dict.meta_data)
+            self[module_name] = module(**module_dict.meta_data)
 
         # calculate input dimensions based on module dependencies
         for root in self.roots:
             self.get_in_dim(root)
 
         # instantiate torch.nn members of network
-        for _, module in self.modules.items():
+        for _, module in self.items():
             module.build_nn_modules()
 
     def get_in_dim(self, curr_node: Node) -> None:
@@ -66,8 +65,8 @@ class Graph(nn.Module):
         if len(curr_node.parents) > 0:
             in_dim = 0
             for parent_name in curr_node.parents.keys():
-                in_dim += self.modules[parent_name].get_out_dim()
-            self.modules[curr_node.name].set_in_dim(in_dim)
+                in_dim += self[parent_name].get_out_dim()
+            self[curr_node.name].set_in_dim(in_dim)
             self.modules_config[curr_node.name].meta_data.in_dim = in_dim
 
         for child_node in curr_node.children.values():

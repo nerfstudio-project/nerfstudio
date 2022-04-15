@@ -1,6 +1,7 @@
 """
 Code to train model.
 """
+from omegaconf import DictConfig
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -12,7 +13,7 @@ from mattport.nerf.optimizer import Optimizer
 class Trainer:
     """Training class"""
 
-    def __init__(self, local_rank: int, world_size: int, config: dict):
+    def __init__(self, local_rank: int, world_size: int, config: DictConfig):
         self.local_rank = local_rank
         self.world_size = world_size
         self.config = config
@@ -31,11 +32,10 @@ class Trainer:
 
     def setup_graph(self):
         """_summary_"""
-        self.graph = Graph(self.config).to(self.device)
+        self.graph = Graph(self.config.network).to(self.device)
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
-        raise NotImplementedError
 
     def setup_optimizer(self):
         """_summary_"""

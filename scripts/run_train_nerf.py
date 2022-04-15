@@ -174,7 +174,7 @@ def launch(
                 process.join()
                 logger.info("Process %s finished", str(i))
     else:
-        main_func(config)
+        main_func(local_rank=0, world_size=1, config=config)
 
 
 @hydra.main(config_path="../configs", config_name="config.yaml")
@@ -186,7 +186,7 @@ def main(config: DictConfig):
         num_machines=config.machine_config.num_machines,
         machine_rank=config.machine_config.machine_rank,
         dist_url=config.machine_config.dist_url,
-        config=(config,),
+        config=config,
     )
 
 

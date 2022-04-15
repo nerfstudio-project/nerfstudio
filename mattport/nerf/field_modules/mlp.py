@@ -39,7 +39,7 @@ class MLP(FieldModule):
         self.out_activation = out_activation
         self.net = None
 
-    def build_model(self) -> None:
+    def build_nn_modules(self) -> None:
         """Initialize mulilayer perceptron."""
         layers = []
         for i in range(self.num_layers):
