@@ -112,8 +112,11 @@ def _train(local_rank: int, world_size: int, config: DictConfig) -> Any:
     Returns:
         Any: TODO(): determine the return type
     """
-    # trainer = Trainer(local_rank, world_size, config)
-    # trainer.train()
+    trainer = Trainer(local_rank, world_size, config)
+    trainer.setup_graph()
+    trainer.setup_optimizer()
+    trainer.setup_dataset()
+    trainer.train()
     return 0
 
 

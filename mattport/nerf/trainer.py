@@ -1,27 +1,28 @@
 """
 Code to train model.
 """
-import os
-
-import numpy as np
-import torch
 import torch.distributed as dist
-import torch.multiprocessing as mp
-from omegaconf import DictConfig
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from mattport.nerf.dataset.build import build_dataset
+from mattport.nerf.graph import Graph
 from mattport.nerf.optimizer import Optimizer
 
 
 class Trainer:
     """Training class"""
 
-    def __init__(self, config: dict):
+    def __init__(self, local_rank: int, world_size: int, config: dict):
+        self.local_rank = local_rank
+        self.world_size = world_size
         self.config = config
         self.train_dataset = None
         self.test_dataset = None
         self.graph = None
         self.optimizer = None
+
+        self.device = f"cuda:{local_rank}"
+        self.is_main_thread = self.local_rank % self.world_size == 0
 
     def setup_dataset(self):
         """_summary_"""
@@ -30,6 +31,10 @@ class Trainer:
 
     def setup_graph(self):
         """_summary_"""
+        self.graph = Graph(self.config).to(self.device)
+        if self.world_size > 1:
+            self.graph = DDP(self.graph, device_ids=[self.local_rank])
+            dist.barrier(device_ids=[self.local_rank])
         raise NotImplementedError
 
     def setup_optimizer(self):
