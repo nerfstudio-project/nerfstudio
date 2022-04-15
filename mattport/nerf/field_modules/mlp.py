@@ -5,10 +5,10 @@ from typing import Optional
 
 from torch import nn
 from torchtyping import TensorType
-from mattport.nerf.modules.module import Module
+from mattport.nerf.field_modules.base import FieldModule
 
 
-class MLP(Module):
+class MLP(FieldModule):
     """Multilayer perceptron"""
 
     def __init__(
