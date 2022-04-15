@@ -7,13 +7,13 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from mattport.nerf.modules import render_heads as rh
+from mattport.nerf.field_modules import field_outputs
 
 
 class Renderer(nn.Module):
     """Base Renderer. Intended to be subclassed"""
 
-    def required_render_heads(self) -> Set[rh.RenderHead]:
+    def required_render_heads(self) -> Set[field_outputs.FieldOutput]:
         """
         Returns:
             Set[RenderHead]: RenderHeads required for this renderer.
@@ -45,8 +45,8 @@ class RGB(Renderer):
         self.rgb_name = rgb_name
         self.density_name = density_name
 
-    def required_render_heads(self) -> Set[rh.RenderHead]:
-        return set(rh.RGBHead, rh.DensityHead)
+    def required_render_heads(self) -> Set[field_outputs.FieldOutput]:
+        return set(field_outputs.RGBFieldOutput, field_outputs.DensityFieldOutput)
 
     def forward(
         self,
@@ -83,8 +83,8 @@ class Depth(Renderer):
         Renderer (_type_): _description_
     """
 
-    def required_render_heads(self) -> Set[rh.RenderHead]:
-        return set(rh.DensityHead)
+    def required_render_heads(self) -> Set[field_outputs.FieldOutput]:
+        return set(field_outputs.DensityFieldOutput)
 
     def forward(
         self,

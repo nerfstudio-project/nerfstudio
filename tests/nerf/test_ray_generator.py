@@ -4,7 +4,7 @@ Test ray generation.
 import torch
 
 from mattport.nerf.dataset.blender_dataset import load_blender_data
-from mattport.nerf.modules.ray_generator import RayGenerator
+from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.structures.rays import RayBundle
 from mattport.utils.io import get_absolute_path
 

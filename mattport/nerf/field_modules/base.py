@@ -1,5 +1,5 @@
 """
-The module baseclass.
+The field module baseclass.
 """
 from abc import abstractmethod
 
@@ -7,12 +7,8 @@ from torch import nn
 from torchtyping import TensorType
 
 
-class Module(nn.Module):
-    """_summary_
-
-    Args:
-        nn (_type_): _description_
-    """
+class FieldModule(nn.Module):
+    """Field modules that can be combined to store and compute the fields."""
 
     def __init__(self) -> None:
         """Default initialization of module"""
