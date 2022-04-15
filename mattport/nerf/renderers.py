@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from mattport.nerf import render_heads as rh
+from mattport.nerf.modules import render_heads as rh
 
 
 class Renderer(nn.Module):
