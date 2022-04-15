@@ -26,6 +26,7 @@
         "--generated-members=numpy.*,torch.*,cv2.*,cv.*",
         "--max-line-length=120",
         "--good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W",
-        "--disable=too-many-arguments"
+        "--disable=too-many-arguments",
+        "--disable=fixme"
     ],
 }

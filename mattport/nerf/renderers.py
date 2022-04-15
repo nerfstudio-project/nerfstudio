@@ -13,7 +13,7 @@ from mattport.nerf.field_modules import field_outputs
 class Renderer(nn.Module):
     """Base Renderer. Intended to be subclassed"""
 
-    def required_render_heads(self) -> Set[field_outputs.FieldOutput]:
+    def required_field_outputs(self) -> Set[field_outputs.FieldOutput]:
         """
         Returns:
             Set[RenderHead]: RenderHeads required for this renderer.
@@ -22,7 +22,7 @@ class Renderer(nn.Module):
 
     def forward(
         self,
-        render_head_outputs: Dict["str", TensorType[..., "num_samples", "features"]],
+        field_output_dict: Dict["str", TensorType[..., "num_samples", "features"]],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         """Composite samples along ray and render image
@@ -45,12 +45,12 @@ class RGB(Renderer):
         self.rgb_name = rgb_name
         self.density_name = density_name
 
-    def required_render_heads(self) -> Set[field_outputs.FieldOutput]:
+    def required_field_outputs(self) -> Set[field_outputs.FieldOutput]:
         return set(field_outputs.RGBFieldOutput, field_outputs.DensityFieldOutput)
 
     def forward(
         self,
-        render_head_outputs: Dict["str", TensorType[..., "num_samples", "features"]],
+        field_output_dict: Dict["str", TensorType[..., "num_samples", "features"]],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         """Composite samples along ray and render color image
@@ -62,16 +62,16 @@ class RGB(Renderer):
         Returns:
             TensorType[..., "out_dim"]: Composited RGB ray
         """
-
-        delta_density = deltas * render_head_outputs[self.density_name]
+        delta_density = deltas * field_output_dict[self.density_name][..., 0]
         alphas = 1 - torch.exp(-delta_density)
 
-        transmittance = torch.cat(0, torch.cumsum(delta_density[..., :-1], dim=-1), dim=-1)
+        transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
+        transmittance = torch.cat([torch.zeros((*transmittance.shape[:1], 1)), transmittance], axis=-1)
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
 
         weights = alphas * transmittance  # [..., "num_samples"]
 
-        rgb = torch.sum(weights[..., None] * render_head_outputs[self.rgb_name], dim=-2)
+        rgb = torch.sum(weights[..., None] * field_output_dict[self.rgb_name], dim=-2)
 
         return rgb
 
@@ -83,12 +83,12 @@ class Depth(Renderer):
         Renderer (_type_): _description_
     """
 
-    def required_render_heads(self) -> Set[field_outputs.FieldOutput]:
+    def required_field_outputs(self) -> Set[field_outputs.FieldOutput]:
         return set(field_outputs.DensityFieldOutput)
 
     def forward(
         self,
-        render_head_outputs: Dict["str", TensorType[..., "num_samples", "features"]],
+        field_output_dict: Dict["str", TensorType[..., "num_samples", "features"]],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         raise NotImplementedError
