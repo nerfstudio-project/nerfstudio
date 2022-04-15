@@ -2,11 +2,11 @@
 run_train_nerf.py
 """
 import logging
+
 import hydra
 from omegaconf import DictConfig
 
 from mattport.nerf.trainer import Trainer
-
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 
@@ -15,9 +15,7 @@ logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=loggin
 def main(config: DictConfig):
     """Main function."""
     trainer = Trainer(config)
-    trainer.setup_dataset()
-    trainer.setup_graph()
-    trainer.setup_optimizer()
+    trainer.run_multiprocess_train()
 
 
 if __name__ == "__main__":

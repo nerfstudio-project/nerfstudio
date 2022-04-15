@@ -1,3 +1,4 @@
+world_size: 0
 network:
   mlp_0:
     class_name: MLP
