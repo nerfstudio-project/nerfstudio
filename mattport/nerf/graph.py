@@ -43,7 +43,7 @@ class Graph(nn.Module):
         self.modules = {}
         # initialize graph with known input dimensions; set default in_dim to 0
         for module_name, module_dict in modules_config.items():
-            module = getattr(importlib.import_module("mattport.nerf.modules"), module_dict.class_name)
+            module = getattr(importlib.import_module("mattport.nerf.field_modules"), module_dict.class_name)
             if not module_dict.meta_data.in_dim:
                 module_dict.meta_data.in_dim = 0
             self.modules[module_name] = module(**module_dict.meta_data)

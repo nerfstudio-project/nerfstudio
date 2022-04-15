@@ -1,4 +1,4 @@
-"""init modules"""
+"""init field modules"""
 from .encoding import Encoding, ScalingAndOffset
 from .mlp import MLP
-from .module import Module
+from .base import FieldModule

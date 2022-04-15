@@ -1,5 +1,7 @@
+"""
+Tests of graph construction
+"""
 import numpy as np
-import pytest
 from hydra import compose, initialize
 from omegaconf import open_dict
 
@@ -28,7 +30,7 @@ def instantiate_graph(config_name: str) -> Graph:
 
 
 def test_graph_init():
-    """test modules dictionary is instantiated properly"""
+    """test field modules dictionary is instantiated properly"""
     test_graph, _ = instantiate_graph("test_basic_graph")
     assert test_graph.modules is not None
     assert type(test_graph.modules["encoder_0"]).__name__ == "ScalingAndOffset"
@@ -37,7 +39,7 @@ def test_graph_init():
 
 
 def test_input_dimension():
-    """test module input dimension calculation"""
+    """test field module input dimension calculation"""
     test_graph, _ = instantiate_graph("test_repeat_graph")
     assert test_graph.modules["mlp_0"].in_dim == 16
     assert test_graph.modules["mlp_1"].in_dim == 1

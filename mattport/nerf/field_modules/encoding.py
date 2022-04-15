@@ -3,10 +3,10 @@ Encoding functions
 """
 import torch
 from torchtyping import TensorType
-from mattport.nerf.modules.module import Module
+from mattport.nerf.field_modules.base import FieldModule
 
 
-class Encoding(Module):
+class Encoding(FieldModule):
     """Encode an input tensor. Intended to be subclassed"""
 
     def __init__(self, in_dim: int) -> None:
