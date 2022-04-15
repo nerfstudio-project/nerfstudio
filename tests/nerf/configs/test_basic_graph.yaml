@@ -1,4 +1,8 @@
-world_size: 0
+machine_config:
+  num_gpus: 8
+  num_machines: 1
+  machine_rank: 0
+  dist_url: auto
 network:
   mlp_0:
     class_name: MLP
