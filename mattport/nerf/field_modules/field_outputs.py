@@ -9,8 +9,8 @@ from torchtyping import TensorType
 from mattport.nerf.field_modules.base import FieldModule
 
 
-class RenderHead(FieldModule):
-    """Base Render head"""
+class FieldOutput(FieldModule):
+    """Base field output"""
 
     def __init__(self, in_dim: int, out_dim: int, activation: Optional[nn.Module] = None) -> None:
         """
@@ -47,15 +47,15 @@ class RenderHead(FieldModule):
         return self.net(in_tensor)
 
 
-class DensityHead(RenderHead):
-    """Density head"""
+class DensityFieldOutput(FieldOutput):
+    """Density output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Softplus()) -> None:
         super().__init__(in_dim, 1, activation)
 
 
-class RGBHead(RenderHead):
-    """RGB head"""
+class RGBFieldOutput(FieldOutput):
+    """RGB output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
         super().__init__(in_dim, 3, activation)
