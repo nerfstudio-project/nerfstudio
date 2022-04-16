@@ -18,7 +18,9 @@
         "--src=${workspaceFolder}"
     ],
     "python.testing.pytestArgs": [
-        "tests"
+        "--ignore=tests/nerf/test_ray_generator.py",
+        "--typeguard-packages=mattport",
+        "--torchtyping-patch-typeguard"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,

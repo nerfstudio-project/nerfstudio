@@ -22,13 +22,13 @@ class Renderer(nn.Module):
 
     def forward(
         self,
-        field_output_dict: Dict["str", TensorType[..., "num_samples", "features"]],
+        field_output_dict: Dict["str", TensorType[..., "num_samples", -1]],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         """Composite samples along ray and render image
 
         Args:
-            in_tensor (TensorType[..., "num_samples", "features"]): feature for each sample
+            in_tensor (TensorType[..., "num_samples", -1]): feature for each sample
             deltas (TensorType[..., "num_samples"]): depth of each sample
 
         Returns:
@@ -50,13 +50,13 @@ class RGB(Renderer):
 
     def forward(
         self,
-        field_output_dict: Dict["str", TensorType[..., "num_samples", "features"]],
+        field_output_dict: Dict[str, TensorType[..., "num_samples", -1]],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         """Composite samples along ray and render color image
 
         Args:
-            in_tensor (TensorType[..., "num_samples", 3]): RGB for each sample
+            in_tensor (TensorType[..., "num_samples", -1]): RGB for each sample
             deltas (TensorType[..., "num_samples"]): depth influence for each sample
 
         Returns:
@@ -88,7 +88,7 @@ class Depth(Renderer):
 
     def forward(
         self,
-        field_output_dict: Dict["str", TensorType[..., "num_samples", "features"]],
+        field_output_dict: Dict["str", TensorType[..., "num_samples", -1]],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         raise NotImplementedError
