@@ -22,9 +22,6 @@ class Trainer:
         self.graph = None
         self.optimizer = None
 
-        self.device = f"cuda:{local_rank}"
-        self.is_main_thread = self.local_rank % self.world_size == 0
-
     def setup_dataset(self):
         """_summary_"""
         self.train_dataset = build_dataset(self.config.dataset)
@@ -32,7 +29,7 @@ class Trainer:
 
     def setup_graph(self):
         """_summary_"""
-        self.graph = Graph(self.config.network).to(self.device)
+        self.graph = Graph(self.config.network).to(f"cuda:{self.local_rank}")
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
@@ -59,6 +56,7 @@ class Trainer:
 
     def train(self) -> None:
         """_summary_"""
+        # is_main_thread = self.local_rank % self.world_size == 0
         raise NotImplementedError
 
     def train_epoch(self):
