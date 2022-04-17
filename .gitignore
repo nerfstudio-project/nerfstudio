@@ -166,5 +166,6 @@ outputs/
 # Data
 data/
 
-# Old
+# Misc
 old/
+temp*

@@ -1,7 +1,6 @@
 """
 Code to train model.
 """
-from mattport.nerf.dataset.build import build_dataset
 from mattport.nerf.optimizer import Optimizer
 
 
@@ -17,8 +16,8 @@ class Trainer:
 
     def setup_dataset(self):
         """_summary_"""
-        self.train_dataset = build_dataset(self.config.dataset)
-        # self.test_dataset = build_dataset(self.config.dataset)
+        self.train_dataset = None
+        self.test_dataset = None
 
     def setup_graph(self):
         """_summary_"""

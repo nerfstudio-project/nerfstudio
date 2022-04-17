@@ -62,7 +62,7 @@ class Camera:
         """_summary_"""
         return
 
-    def get_image_coords(self) -> TensorType["image_height", "image_width", 2]:
+    def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["image_height", "image_width", 2]:
         """_summary_
 
         Returns:
@@ -71,7 +71,7 @@ class Camera:
         image_height = self.get_image_height()
         image_width = self.get_image_width()
         image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
-        image_coords = torch.stack(image_coords, dim=-1)
+        image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
     @classmethod
@@ -179,12 +179,13 @@ class PinholeCamera(Camera):
         cy = intrinsics[:, 1:2]
         fx = intrinsics[:, cls.fx_index() : cls.fx_index() + 1]
         fy = intrinsics[:, cls.fy_index() : cls.fy_index() + 1]
-
         y = coords[:, 0:1]  # (num_rays, 1)
         x = coords[:, 1:2]  # (num_rays, 1)
         directions = torch.cat([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)  # (num_rays, 3)
         rotation = camera_to_world[:, :3, :3]  # (num_rays, 3, 3)
-        directions = torch.bmm(rotation, directions.unsqueeze(-1)).squeeze(-1)  # (num_rays, 3)
+        directions = torch.sum(
+            directions[:, None, :] * rotation, dim=-1
+        )  # (num_rays, 1, 3) * (num_rays, 3, 3) -> (num_rays, 3)
         directions = normalize(directions, dim=-1)
         origins = camera_to_world[:, :3, 3]  # (num_rays, 3)
         return RayBundle(origins=origins, directions=directions)
