@@ -5,7 +5,6 @@ from omegaconf import DictConfig
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from mattport.nerf.dataset.build import build_dataset
 from mattport.nerf.graph import Graph
 from mattport.nerf.optimizer import Optimizer
 
