@@ -17,9 +17,6 @@ cd external/goat
 python setup.py develop
 # then go back, i.e., `cd /path/to/mattport`
 
-# For using with Jupyter
-python -m ipykernel install --user --name mattport --display-name "mattport"
-
 # Install mattport as a library
 python setup.py develop
 
@@ -31,4 +28,11 @@ pytest tests
 
 ```
 python scripts/run_train_nerf.py
+```
+
+# Setting up Jupyter
+
+```
+python -m jupyter lab build
+bash environments/run_jupyter.sh
 ```

@@ -1,0 +1,21 @@
+# dataset options
+dataset:
+  data_directory: data/lego
+  dataset_type: blender
+  downscale_factor: 1.0
+
+# dataloader options
+dataloader:
+  num_workers: 0
+  shuffle: true
+  num_images_to_sample_from: 8
+  num_rays_per_batch: 1024
+
+# ray generation module and its option
+network:
+  ray_generator:
+    class_name: RayGenerator
+    inputs: ['cxy'] # camera, x, and y indices
+    meta_data:
+      in_dim: 0
+      learning_rate: 0.0

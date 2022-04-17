@@ -1,18 +1,11 @@
 """
 Some ray datastructures.
 """
+import random
 from dataclasses import dataclass
 from typing import Optional
+
 from torchtyping import TensorType
-
-
-@dataclass
-class CameraRayBundle:
-    """_summary_"""
-
-    origins: TensorType["image_height", "image_width", 3]
-    directions: TensorType["image_height", "image_width", 3]
-    camera_index: int = None
 
 
 @dataclass
@@ -27,7 +20,7 @@ class RayBundle:
     directions: TensorType["num_rays", 3]
     camera_indices: Optional[TensorType["num_rays"]] = None
 
-    def to_camera_ray_bundle(self, image_height, image_width) -> CameraRayBundle:
+    def to_camera_ray_bundle(self, image_height, image_width) -> "CameraRayBundle":
         """_summary_
 
         Args:
@@ -42,3 +35,33 @@ class RayBundle:
             directions=self.directions.view(image_height, image_width, 3),
         )
         return camera_ray_bundle
+
+    def __len__(self):
+        num_rays = self.origins.shape[0]
+        return num_rays
+
+    def sample(self, num_rays: int):
+        """Returns a RayBundle as a subset of rays.
+
+        Args:
+            num_rays (int):
+
+        Returns:
+            RayBundle: _description_
+        """
+        assert num_rays <= len(self)
+        indices = random.sample(range(len(self)), k=num_rays)
+        return RayBundle(
+            origins=self.origins[indices],
+            directions=self.directions[indices],
+            camera_indices=self.camera_indices[indices],
+        )
+
+
+@dataclass
+class CameraRayBundle:
+    """_summary_"""
+
+    origins: TensorType["image_height", "image_width", 3]
+    directions: TensorType["image_height", "image_width", 3]
+    camera_index: int = None
