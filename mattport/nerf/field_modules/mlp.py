@@ -17,7 +17,7 @@ class MLP(FieldModule):
         out_dim: int,
         num_layers: int,
         layer_width: int,
-        activation: Optional[nn.Module] = None,
+        activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
         """Initialize parameters of mulilayer perceptron.
