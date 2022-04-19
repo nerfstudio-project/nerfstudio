@@ -1,8 +1,11 @@
 """
 Code to train model.
 """
+import pprint
+
 import torch.distributed as dist
 from omegaconf import DictConfig
+from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -10,18 +13,20 @@ from tqdm import tqdm
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.nerf.graph.base import Graph
-from mattport.nerf.optimizer import Optimizer
+from hydra.utils import instantiate
 
 
 class Trainer:
     """Training class"""
 
-    def __init__(self, local_rank: int, world_size: int, config: DictConfig):
+    def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
+        self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
-        self.config = config
         self.train_dataset = None
+        self.train_dataloader = None
         self.test_dataset = None
+        self.test_dataloader = None
         self.graph = None
         self.optimizer = None
 
@@ -40,18 +45,21 @@ class Trainer:
             num_workers=self.config.dataloader.num_workers,
             shuffle=True,
         )
-        # TODO(ethan): implement test data
+        # TODO(ethan): implement the test data
 
     def setup_graph(self):
         """_summary_"""
-        self.graph = Graph(self.config.network).to(f"cuda:{self.local_rank}")
+        dataset_inputs = get_dataset_inputs(**self.config.dataset)
+        self.graph = instantiate(
+            self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
+        ).to(f"cuda:{self.local_rank}")
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
 
     def setup_optimizer(self):
         """_summary_"""
-        self.optimizer = Optimizer(params=self.graph.parameters(), **self.config.optimizer)
+        self.optimizer = optim.Adam(self.graph.parameters(), lr=self.config.optimizer.lr)
 
     def load_checkpoint(self):
         """_summary_
@@ -72,21 +80,29 @@ class Trainer:
     def train(self) -> None:
         """_summary_"""
         # is_main_thread = self.local_rank % self.world_size == 0
-        raise NotImplementedError
+        # raise NotImplementedError
+        num_epochs = 10
+        for _ in range(num_epochs):
+            self.train_epoch()
 
     def train_epoch(self):
         """_summary_"""
-        for _ in range(len(self.train_dataset)):
+        num_iters = 100
+        for _ in range(num_iters):
             batch = next(iter(self.train_dataloader))
             self.train_iteration(batch)
 
     def train_iteration(self, batch):
         """_summary_"""
         # TODO(): save checkpoints, and do logging only on rank 0 device only
-        # if gpu == 0:
-        output_dict = self.graph(batch.indices)
-        
-        loss = self.graph.get_loss(batch, )
+        if self.local_rank == 0:
+            pass
 
-        loss.backward()
-        # update model
+        # move batch to correct device
+        batch.indices = batch.indices.to(f"cuda:{self.local_rank}")
+
+        ray_indices = batch.indices
+        graph_outputs = self.graph(ray_indices)
+        losses = self.graph.get_losses(batch, graph_outputs)
+
+        # TODO(ethan): update the network parameters

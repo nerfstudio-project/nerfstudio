@@ -33,7 +33,7 @@ jobs:
           pylint mattport tests \
             --max-line-length=120 \
             --generated-members=numpy.*,torch.*,cv2.*,cv.* \
-            --good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W \
+            --good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts \
             --disable=too-many-arguments \
             --disable=fixme
       - name: Test with pytest
