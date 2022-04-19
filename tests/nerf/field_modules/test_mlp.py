@@ -1,7 +1,6 @@
 """
 MLP Test
 """
-import pytest
 import torch
 from torch import nn
 
