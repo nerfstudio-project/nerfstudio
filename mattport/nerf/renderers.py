@@ -37,20 +37,19 @@ class Renderer(nn.Module):
         raise NotImplementedError
 
 
-class RGB(Renderer):
+class RGBRenderer(Renderer):
     """Standard volumetic rendering."""
 
-    def __init__(self, rgb_name, density_name) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.rgb_name = rgb_name
-        self.density_name = density_name
 
     def required_field_outputs(self) -> Set[field_outputs.FieldOutput]:
         return set(field_outputs.RGBFieldOutput, field_outputs.DensityFieldOutput)
 
     def forward(
         self,
-        field_output_dict: Dict[str, TensorType[..., "num_samples", -1]],
+        rgb: TensorType[..., "num_samples", 3],
+        density: TensorType[..., "num_samples", 1],
         deltas: TensorType[..., "num_samples"],
     ) -> TensorType[..., "out_dim"]:
         """Composite samples along ray and render color image
@@ -62,7 +61,7 @@ class RGB(Renderer):
         Returns:
             TensorType[..., "out_dim"]: Composited RGB ray
         """
-        delta_density = deltas * field_output_dict[self.density_name][..., 0]
+        delta_density = deltas * density[..., 0]
         alphas = 1 - torch.exp(-delta_density)
 
         transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
@@ -71,12 +70,12 @@ class RGB(Renderer):
 
         weights = alphas * transmittance  # [..., "num_samples"]
 
-        rgb = torch.sum(weights[..., None] * field_output_dict[self.rgb_name], dim=-2)
+        rgb = torch.sum(weights[..., None] * rgb, dim=-2)
 
         return rgb
 
 
-class Depth(Renderer):
+class DepthRenderer(Renderer):
     """_summary_
 
     Args:

@@ -23,8 +23,7 @@ class FieldOutput(FieldModule):
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.activation = activation
-
-        self.net = None
+        self.net = self.build_nn_modules()
 
     def build_nn_modules(self) -> None:
         layers = [nn.Linear(self.in_dim, self.out_dim)]

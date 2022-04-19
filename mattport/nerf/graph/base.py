@@ -4,6 +4,7 @@ The Graph module contains all trainable parameters.
 import importlib
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set
+from black import Priority
 from omegaconf import DictConfig
 
 from torch import nn
@@ -146,4 +147,10 @@ class Graph(nn.ModuleDict):
         #     x = self.modules[name](x)
 
         ## can index into previous results using dictionary
-        raise NotImplementedError
+        # raise NotImplementedError
+        for inputs, node_name, out_name in priority_queue:
+            self.outputs[out_name] = self.modules[node_name](inputs)
+
+            # possibly delete things from output if no longer needed
+            for old_name in :
+                del self.outputs[old_name]
