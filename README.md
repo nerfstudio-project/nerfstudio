@@ -24,6 +24,16 @@ python setup.py develop
 pytest tests
 ```
 
+# Getting the data
+
+Download the original NeRF dataset and put it in the following format.
+
+```
+- data/
+    - fern/
+    - lego/
+```
+
 # Training a model
 
 ```
