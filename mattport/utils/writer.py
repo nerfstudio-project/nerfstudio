@@ -4,12 +4,17 @@ Generic Writer class
 
 
 from abc import abstractmethod
+import os
+import imageio
+import numpy as np
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
 from mattport.utils.decorators import check_main_thread
+
+to8b = lambda x: (255 * torch.clip(x, 0, 1)).to(torch.uint8)
 
 
 class Writer:
@@ -78,7 +83,6 @@ class TensorboardWriter(Writer):
             name (str): data identifier
             x (TensorType["H", "W", 3]): rendered image to write
         """
-        to8b = lambda x: (255 * torch.clip(x, 0, 1)).to(torch.uint8)
         x = to8b(x)
         self.writer.add_images(name, x)
 
@@ -102,3 +106,44 @@ class TensorboardWriter(Writer):
             y (float): y value to write
         """
         self.writer.add_scalar(name, x, y)
+
+
+class LocalWriter(Writer):
+    """Local Writer Class"""
+
+    def __init__(self, local_rank: int, world_size: int, save_dir: str):
+        super().__init__(local_rank, world_size, save_dir)
+        if self.is_main_thread:
+            self.writer = SummaryWriter(log_dir=self.save_dir)
+
+    @check_main_thread
+    def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:
+        """Logs image to a jpg file in save_directory
+
+        Args:
+            name (str): data identifier to be used as file name
+            x (TensorType["H", "W", 3]): rendered image to write
+        """
+        x = to8b(x)
+        image_path = os.path.join(self.save_dir, f"{name}.jpg")
+        imageio.imwrite(image_path, np.uint8(x.cpu().numpy() * 255.0))
+
+    @check_main_thread
+    def write_text(self, name: str, x: str) -> None:
+        """Logs text locally to the terminal in place
+        Args:
+            name (str): data identifier
+            x (str): string to write
+        """
+        print(f"{name}: {x}", end="\r")
+
+    @check_main_thread
+    def write_scalar(self, name: str, x: float, y: float) -> None:
+        """Logs scalar locally to the terminal in place
+
+        Args:
+            name (str): data identifier
+            x (float): x value to write
+            y (float): y value to write
+        """
+        self.write_text(name, f"x: {x:04f} y: {y:04f}")
