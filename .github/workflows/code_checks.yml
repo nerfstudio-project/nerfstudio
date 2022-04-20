@@ -35,6 +35,7 @@ jobs:
             --generated-members=numpy.*,torch.*,cv2.*,cv.* \
             --good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts,t,u \
             --disable=too-many-arguments \
+            --disable-msg=too-many-locals \
             --disable=fixme
       - name: Test with pytest
         run: |

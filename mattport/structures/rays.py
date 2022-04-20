@@ -86,7 +86,7 @@ class RaySamples:
         t_mid = (self.bins[:, 1:] + self.bins[:, :-1]) / 2  # (num_rays, num_samples)
         return ray_bundle.origins[:, None] + t_mid[:, :, None] * ray_bundle.directions[:, None]
 
-    def get_deltas(self) -> TensorType["num_samples"]:
+    def get_deltas(self) -> TensorType[..., "num_samples"]:
         """Returns deltas."""
         deltas = self.bins[..., 1:] - self.bins[..., :-1]
         # TODO(ethan): check this with Matt

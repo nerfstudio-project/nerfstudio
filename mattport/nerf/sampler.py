@@ -32,7 +32,7 @@ class UniformSampler(nn.Module):
         near_plane: Optional[float] = None,
         far_plane: Optional[float] = None,
         num_samples: Optional[int] = None,
-    ) -> TensorType[..., "num_samples", 3]:
+    ) -> RaySamples:
         """Generates position samples uniformly.
 
         Args:
@@ -77,12 +77,12 @@ class PDFSampler(nn.Module):
     def forward(
         self,
         ray_bundle: RayBundle,
-        coase_ray_samples: RaySamples,
+        coarse_ray_samples: RaySamples,
         density: TensorType[..., "num_samples", 1],
         num_samples: Optional[int] = None,
         randomized: bool = True,
         eps: float = 1e-5,
-    ) -> TensorType[..., "num_samples", 3]:
+    ) -> RaySamples:
         """Generates position samples given a distribution.
 
         Args:
@@ -102,7 +102,7 @@ class PDFSampler(nn.Module):
 
         # Calculate weight contributions along ray
         # Todo(matt): This computation is duplicated
-        delta_density = coase_ray_samples.deltas * density[..., 0]
+        delta_density = coarse_ray_samples.deltas * density[..., 0]
         alphas = 1 - torch.exp(-delta_density)
 
         transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
@@ -136,7 +136,7 @@ class PDFSampler(nn.Module):
         indicies_g = torch.stack([below, above], -1)
         matched_shape = (indicies_g.shape[0], indicies_g.shape[1], cdf.shape[-1])
         cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
-        bins_g = torch.gather(coase_ray_samples.bins.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
+        bins_g = torch.gather(coarse_ray_samples.bins.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
 
         denom = cdf_g[..., 1] - cdf_g[..., 0]
         denom = torch.where(denom < eps, torch.ones_like(denom), denom)
@@ -144,7 +144,7 @@ class PDFSampler(nn.Module):
         samples = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
 
         ray_samples = RaySamples(
-            bins=samples,
+            bins=samples,  # TODO(matt) These are not bins!
             ray_bundle=ray_bundle,
         )
 
