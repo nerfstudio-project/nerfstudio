@@ -4,8 +4,21 @@ Generic Writer class
 
 
 from abc import abstractmethod
+from typing import Callable
+import torch
 
 from torch.utils.tensorboard import SummaryWriter
+from torchtyping import TensorType
+
+
+def require_main_thread(func: Callable) -> Callable:
+    """Declarator: check if you are on main thread"""
+
+    def wrapper(self, *args, **kwargs):
+        if self.is_main_thread:
+            func(self, *args, **kwargs)
+
+    return wrapper
 
 
 class Writer:
@@ -15,6 +28,16 @@ class Writer:
         self.save_dir = save_dir
         self.writer = None
         self.is_main_thread = local_rank % world_size == 0
+
+    @abstractmethod
+    def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:
+        """_summary_
+
+        Args:
+            name (str): data identifier
+            x (TensorType["H", "W", 3]): rendered image to write
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def write_text(self, name: str, x: str) -> None:
@@ -31,7 +54,7 @@ class Writer:
         """Required method to write a single scalar value to the logger
 
         Args:
-            name (str): name of chart to which you log (x,y)
+            name (str): data identifier
             x (float): x value to write
             y (float): y value to write
         """
@@ -56,6 +79,19 @@ class TensorboardWriter(Writer):
         if self.is_main_thread:
             self.writer = SummaryWriter(log_dir=self.save_dir)
 
+    @require_main_thread
+    def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:
+        """_summary_
+
+        Args:
+            name (str): data identifier
+            x (TensorType["H", "W", 3]): rendered image to write
+        """
+        to8b = lambda x: (255 * torch.clip(x, 0, 1)).to(torch.uint8)
+        x = to8b(x)
+        self.writer.add_images(name, x)
+
+    @require_main_thread
     def write_text(self, name: str, x: str) -> None:
         """Tensorboard method to write a string to summary
 
@@ -63,17 +99,15 @@ class TensorboardWriter(Writer):
             name (str): data identifier
             x (str): string to write
         """
-        if self.is_main_thread:
-            self.writer.add_text(name, x)
+        self.writer.add_text(name, x)
 
-    @abstractmethod
+    @require_main_thread
     def write_scalar(self, name: str, x: float, y: float) -> None:
         """Tensorboard method to write a single scalar value to the logger
 
         Args:
-            name (str): name of chart to which you log (x,y)
+            name (str): data identifier
             x (float): x value to write
             y (float): y value to write
         """
-        if self.is_main_thread:
-            self.writer.add_scalar(name, x, y)
+        self.writer.add_scalar(name, x, y)
