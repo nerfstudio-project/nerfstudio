@@ -2,11 +2,12 @@
 The Graph module contains all trainable parameters.
 """
 import importlib
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set
-from omegaconf import DictConfig
 
 from torch import nn
+from torchtyping import TensorType
 
 
 @dataclass
@@ -33,27 +34,37 @@ class Node:
 class Graph(nn.ModuleDict):
     """_summary_"""
 
-    def __init__(self, modules_config: DictConfig) -> None:
+    def __init__(self, intrinsics=None, camera_to_world=None) -> None:
         super().__init__()
-        self.modules_config = modules_config
-        # create graph and get ordering
-        self.roots = self.construct_graph()
-        self.module_order = self.get_module_order()
+        self.intrinsics = intrinsics
+        self.camera_to_world = camera_to_world
 
-        # initialize graph with known input dimensions; set default in_dim to 0
-        for module_name, module_dict in modules_config.items():
-            module = getattr(importlib.import_module("mattport.nerf.field_modules"), module_dict.class_name)
-            if not module_dict.meta_data.in_dim:
-                module_dict.meta_data.in_dim = 0
-            self[module_name] = module(**module_dict.meta_data)
+        self.modules = None  # NOTE(ethan): I'm turning off these features for now
+        if self.modules is not None:
+            # create graph and get ordering
+            self.roots = self.construct_graph()
+            self.module_order = self.get_module_order()
 
-        # calculate input dimensions based on module dependencies
-        for root in self.roots:
-            self.get_in_dim(root)
+            # initialize graph with known input dimensions; set default in_dim to 0
+            for module_name, module_dict in self.modules.items():
+                module = getattr(importlib.import_module("mattport.nerf.field_modules"), module_dict.class_name)
+                if not module_dict.meta_data.in_dim:
+                    module_dict.meta_data.in_dim = 0
+                self[module_name] = module(**module_dict.meta_data)
 
-        # instantiate torch.nn members of network
-        for _, module in self.items():
-            module.build_nn_modules()
+            # calculate input dimensions based on module dependencies
+            for root in self.roots:
+                self.get_in_dim(root)
+
+            # instantiate torch.nn members of network
+            for _, module in self.items():
+                module.build_nn_modules()
+
+        self.populate_modules()  # populate the modules
+
+    @abstractmethod
+    def populate_modules(self):
+        """Initializes the modules that are part of the network."""
 
     def get_in_dim(self, curr_node: Node) -> None:
         """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
@@ -67,7 +78,7 @@ class Graph(nn.ModuleDict):
             for parent_name in curr_node.parents.keys():
                 in_dim += self[parent_name].get_out_dim()
             self[curr_node.name].set_in_dim(in_dim)
-            self.modules_config[curr_node.name].meta_data.in_dim = in_dim
+            self.modules[curr_node.name].meta_data.in_dim = in_dim
 
         for child_node in curr_node.children.values():
             if not child_node.visited_in_dim:
@@ -77,14 +88,14 @@ class Graph(nn.ModuleDict):
         """Constructs a dependency graph given the module configuration
 
         Args:
-            modules_config (dict): module definitions that make up the network
+            config (dict): module definitions that make up the network
 
         Returns:
             set: all root nodes of the constructed dependency graph
         """
         processed_modules = {}
         roots = set()
-        for module_name, module_dict in self.modules_config.items():
+        for module_name, module_dict in self.modules.items():
             if not module_name in processed_modules:
                 curr_module = Node(name=module_name, children={}, parents={})
                 processed_modules[module_name] = curr_module
@@ -124,7 +135,7 @@ class Graph(nn.ModuleDict):
         """Generates a graph and determines order of module operations using topological sorting
 
         Args:
-            modules_config (dict): module definitions that make up the network
+            config (dict): module definitions that make up the network
 
         Returns:
             list: ordering of the module names that should be executed
@@ -136,14 +147,10 @@ class Graph(nn.ModuleDict):
                 self.topological_sort(root, ordering_stack)
         return ordering_stack[::-1]
 
-    def forward(self, x):
-        """_summary_
+    @abstractmethod
+    def forward(self, ray_indices: TensorType["num_rays", 3]):
+        """Forward function that needs to be overridden."""
 
-        Args:
-            x (_type_): _description_
-        """
-        # for name in self.module_order:
-        #     x = self.modules[name](x)
-
-        ## can index into previous results using dictionary
-        raise NotImplementedError
+    @abstractmethod
+    def get_losses(self, batch, graph_outputs):
+        """Computes and returns the losses."""

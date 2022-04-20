@@ -32,12 +32,14 @@ class MLP(FieldModule):
         """
         super().__init__()
         self.in_dim = in_dim
+        assert self.in_dim > 0
         self.out_dim = out_dim
         self.num_layers = num_layers
         self.layer_width = layer_width
         self.activation = activation
         self.out_activation = out_activation
         self.net = None
+        self.build_nn_modules()
 
     def build_nn_modules(self) -> None:
         """Initialize mulilayer perceptron."""

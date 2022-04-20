@@ -1,47 +1,28 @@
-# OPTIONS FOR DIFFERENT NERF VARIANTS
-# ----
-# sampler options
-sampler:
-  asdf: null
-  num_coarse_samples: 64
-  num_importance_samples: 128
-  perturb: 1.0
-  noise_std: 1.0
-# encoding options
-encodings:
-  asdf: null
-# network options
-network:
-  asdf: null
-# renderer options
-renderer:
-  asdf: null
-# loss options
-loss:
-  asdf: null
-  type: mse
-# ----
-
 # dataset options
 dataset:
-  data_directory: /path/to/data
-  dataset_type: blender # type of dataset
-  scene: lego
-  num_workers: 4
+  data_directory: data/lego
+  dataset_type: blender
+  downscale_factor: 1.0
 
-# camera options
-camera:
-  model: pinhole
+# dataloader options
+dataloader:
+  num_workers: 0
+  shuffle: true
+  num_images_to_sample_from: 8
+  num_rays_per_batch: 1024
 
 # optimizer options
 optimizer:
   lr: 1e-4
-  lr_scheduler: null
-  momentum: null
-  weight_decay: null
 
-# trainer options
-trainer:
-  batch_size: 2 # rays per batch
-  chunk_size: 1024 # chunks per batch
-  device: cpu
+# machine options
+machine_config:
+  num_gpus: 1
+  num_machines: 1
+  machine_rank: 0
+  dist_url: auto
+
+# graph options
+graph:
+  # NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
+  _target_: mattport.nerf.graph.nerf.NeRFGraph

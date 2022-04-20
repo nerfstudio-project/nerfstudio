@@ -1,17 +1,12 @@
 """
 Collection of sampling strategies
 """
-from typing import NamedTuple
 
 import torch
 from torch import nn
 from torchtyping import TensorType
 
-from mattport.structures import cameras
-
-RaySamples = NamedTuple(
-    "RaySamples", [("locations", TensorType[..., "num_samples", 3]), ("deltas", TensorType[..., "num_samples"])]
-)
+from mattport.structures.rays import RayBundle, RaySamples
 
 
 class Sampler(nn.Module):
@@ -32,7 +27,7 @@ class Sampler(nn.Module):
         self.num_samples = num_samples
 
     def generate_samples(
-        self, camera_rays: cameras.Rays, near_plane: float, far_plane: float, num_samples: int
+        self, ray_bundle: RayBundle, near_plane: float, far_plane: float, num_samples: int
     ) -> RaySamples:
         """Encodes an input tensor.
 
@@ -48,17 +43,19 @@ class Sampler(nn.Module):
         """
         raise NotImplementedError
 
-    def forward(self, camera_rays: cameras.Rays, num_samples: int) -> TensorType[..., "num_samples", 3]:
+    def forward(self, ray_bundle: RayBundle) -> TensorType[..., "num_samples", 3]:
         """Call forward"""
-        return self.Sampler(camera_rays, num_samples)
+        return self.generate_samples(
+            ray_bundle, near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_samples
+        )
 
 
 class UniformSampler(Sampler):
     """Base Sampler. Intended to be subclassed"""
 
     def generate_samples(
-        self, camera_rays: cameras.Rays, near_plane: float, far_plane: float, num_samples: int
-    ) -> TensorType[..., "num_samples", 3]:
+        self, ray_bundle: RayBundle, near_plane: float, far_plane: float, num_samples: int
+    ) -> RaySamples:
         """Encodes an input tensor.
 
         Args:
@@ -75,9 +72,13 @@ class UniformSampler(Sampler):
         far_plane = far_plane or self.far_plane
         num_samples = num_samples or self.num_samples
 
-        bins = torch.linspace(near_plane, far_plane, num_samples + 1)
+        bins = torch.linspace(near_plane, far_plane, num_samples + 1).to(ray_bundle.origins.device)  # (num_samples,)
 
-        positions = (bins[..., 1:] + bins[..., :-1]) / 2.0
-        deltas = bins[..., 1:] - bins[..., :-1]
-
-        return RaySamples(locations=positions, deltas=deltas)
+        num_rays = ray_bundle.origins.shape[0]
+        ray_samples = RaySamples(
+            t_min=torch.ones_like(ray_bundle.origins[:, 0]) * near_plane,
+            t_max=torch.ones_like(ray_bundle.origins[:, 0]) * far_plane,
+            ts=bins.unsqueeze(0).repeat(num_rays, 1),  # (num_rays, num_samples)
+            ray_bundle=ray_bundle,
+        )
+        return ray_samples

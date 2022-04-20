@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import nn
 
-from mattport.nerf.field_modules import field_outputs
+from mattport.nerf.field_modules import field_heads
 
 
 def test_field_output():
@@ -13,7 +13,7 @@ def test_field_output():
     in_dim = 6
     out_dim = 4
     activation = nn.ReLU()
-    render_head = field_outputs.FieldOutput(in_dim=in_dim, out_dim=out_dim, activation=activation)
+    render_head = field_heads.FieldHead(in_dim=in_dim, out_dim=out_dim, activation=activation)
     assert render_head.get_out_dim() == out_dim
 
     x = torch.ones((9, in_dim))
@@ -29,7 +29,7 @@ def test_field_output():
 def test_density_output():
     """Test rgb output"""
     in_dim = 6
-    density_head = field_outputs.DensityFieldOutput(in_dim)
+    density_head = field_heads.DensityFieldHead(in_dim)
     assert density_head.get_out_dim() == 1
 
     x = torch.ones((9, in_dim))
@@ -44,7 +44,7 @@ def test_density_output():
 def test_rgb_output():
     """Test rgb output"""
     in_dim = 6
-    rgb_head = field_outputs.RGBFieldOutput(in_dim)
+    rgb_head = field_heads.RGBFieldHead(in_dim)
     assert rgb_head.get_out_dim() == 3
 
     x = torch.ones((9, in_dim))

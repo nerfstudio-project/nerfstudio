@@ -10,7 +10,7 @@ import imageio
 import numpy as np
 import torch
 
-from mattport.utils.io import load_from_json
+from mattport.utils.io import get_absolute_path, load_from_json
 
 
 class DotDict(dict):
@@ -93,7 +93,7 @@ def get_dataset_inputs(data_directory: str, dataset_type: str, downscale_factor:
         DatasetInputs: The inputs needed for generating rays.
     """
     if dataset_type == "blender":
-        dataset_inputs = load_blender_data(data_directory, downscale_factor=downscale_factor)
+        dataset_inputs = load_blender_data(get_absolute_path(data_directory), downscale_factor=downscale_factor)
     else:
         raise NotImplementedError()
 

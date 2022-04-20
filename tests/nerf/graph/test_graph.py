@@ -5,7 +5,7 @@ import numpy as np
 from hydra import compose, initialize
 from omegaconf import open_dict
 
-from mattport.nerf.graph import Graph, Node
+from mattport.nerf.graph.base import Graph, Node
 
 CONFIG_DIR = "configs"
 
