@@ -19,6 +19,7 @@ class NeRFGraph(Graph):
     Args:
         Graph (_type_): _description_
     """
+
     def __init__(self, intrinsics=None, camera_to_world=None) -> None:
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world)
 

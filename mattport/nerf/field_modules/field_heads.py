@@ -59,6 +59,7 @@ class FieldHead(FieldModule):
         setattr(field_head_outputs, self.field_quantity_name, out_tensor)
         return field_head_outputs
 
+
 class DensityFieldHead(FieldHead):
     """Density output"""
 

@@ -105,4 +105,3 @@ class Trainer:
         batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
         losses = self.graph.get_losses(batch, graph_outputs)
         logging.info(losses)
-        

@@ -68,8 +68,8 @@ class CameraRayBundle:
 
 
 class RaySamples:
-    """_summary_
-    """
+    """_summary_"""
+
     def __init__(
         self,
         t_min: TensorType["num_rays"],
