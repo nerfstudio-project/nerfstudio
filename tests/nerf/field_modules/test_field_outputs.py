@@ -1,7 +1,6 @@
 """
 Field output tests
 """
-import pytest
 import torch
 from torch import nn
 
@@ -19,7 +18,7 @@ def test_field_output():
     assert render_head.get_out_dim() == out_dim
 
     x = torch.ones((9, in_dim))
-    y = render_head(x)
+    render_head(x)
 
 
 def test_density_output():
@@ -29,7 +28,7 @@ def test_density_output():
     assert density_head.get_out_dim() == 1
 
     x = torch.ones((9, in_dim))
-    y = density_head(x)
+    density_head(x)
 
 
 def test_rgb_output():
@@ -39,4 +38,4 @@ def test_rgb_output():
     assert rgb_head.get_out_dim() == 3
 
     x = torch.ones((9, in_dim))
-    y = rgb_head(x)
+    rgb_head(x)

@@ -1,12 +1,9 @@
 """
 Test samplers
 """
-from random import uniform
-import pytest
 import torch
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 
-from mattport.structures.cameras import Rays
 from mattport.structures.rays import RayBundle
 
 
@@ -45,7 +42,7 @@ def test_pdf_sampler():
 
     # Just check that it doesn't crash. Need to add some actual tests.
     pdf_sampler = PDFSampler(num_samples)
-    ray_samples = pdf_sampler(ray_bundle, coarse_ray_samples, density, num_samples)
+    pdf_sampler(ray_bundle, coarse_ray_samples, density, num_samples)
 
     # TODO Tancik: Add more precise tests
 

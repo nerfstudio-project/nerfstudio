@@ -116,7 +116,7 @@ class Trainer:
     def train_epoch(self):
         """_summary_"""
         num_iters = 100
-        for step in tqdm(range(num_iters)):
+        for _ in tqdm(range(num_iters)):
             batch = next(iter(self.train_dataloader))
             self.train_iteration(batch)
             # TODO(): proper saving with the correct directory path and such
