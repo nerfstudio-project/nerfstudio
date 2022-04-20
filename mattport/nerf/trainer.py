@@ -1,8 +1,10 @@
 """
 Code to train model.
 """
-
 import logging
+import os
+
+import torch
 import torch.distributed as dist
 from hydra.utils import instantiate
 from omegaconf import DictConfig
@@ -13,6 +15,7 @@ from tqdm import tqdm
 
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
+from mattport.utils.decorators import check_main_thread
 
 
 class Trainer:
@@ -30,6 +33,7 @@ class Trainer:
         self.test_dataloader = None
         self.graph = None
         self.optimizer = None
+        self.is_main_thread = self.local_rank % self.world_size == 0
 
     def setup_dataset(self):
         """_summary_"""
@@ -54,6 +58,9 @@ class Trainer:
         self.graph = instantiate(
             self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
         ).to(f"cuda:{self.local_rank}")
+
+        ## TODO(): we need to call load_checkpoint here if need be (before we wrap it in DDP)
+        
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
@@ -62,26 +69,46 @@ class Trainer:
         """_summary_"""
         self.optimizer = optim.Adam(self.graph.parameters(), lr=self.config.optimizer.lr)
 
-    def load_checkpoint(self):
-        """_summary_
+    def load_checkpoint(self, load_path: str) -> int:
+        """Load the checkpoint from the given path
 
-        Raises:
-            NotImplementedError: _description_
+        Args:
+            load_path (str): path from which to load the model
+
+        Returns:
+            int: step iteration associated with the loaded checkpoint
         """
-        raise NotImplementedError
+        assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+        loaded_state = torch.load(load_path, map_location="cpu")
+        self.graph.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
+        self.optimizer.optimizer.load_state_dict(loaded_state["optimizer"])
+        step = loaded_state["step"]
+        logging.info("done loading checkpoint from %s", load_path)
+        return step
 
-    def save_checkpoint(self):
-        """_summary_
+    @check_main_thread
+    def save_checkpoint(self, output_dir: str, step: int) -> None:
+        """Save the model and optimizer
 
-        Raises:
-            NotImplementedError: _description_
+        Args:
+            output_dir (str): directory to save the checkpoint
+            step (int): number of steps in training for given checkpoint
+            model (Graph): Graph model to be saved
+            optimizer (Optimizer): Optimizer to be saved
         """
-        raise NotImplementedError
+        ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
+        torch.save(
+            {
+                "step": step,
+                "model": self.graph.module.state_dict() if hasattr(self.graph, "module") else self.graph.state_dict(),
+                "optimizer": self.optimizer.optimizer.state_dict(),
+            },
+            ckpt_path,
+        )
+        logging.info("done saving checkpoint to %s", ckpt_path)
 
     def train(self) -> None:
         """_summary_"""
-        # is_main_thread = self.local_rank % self.world_size == 0
-        # raise NotImplementedError
         num_epochs = 10
         for _ in range(num_epochs):
             self.train_epoch()
@@ -89,16 +116,15 @@ class Trainer:
     def train_epoch(self):
         """_summary_"""
         num_iters = 100
-        for _ in tqdm(range(num_iters)):
+        for step in tqdm(range(num_iters)):
             batch = next(iter(self.train_dataloader))
             self.train_iteration(batch)
+            # TODO(): proper saving with the correct directory path and such
+            # if step % self.config.save_step == 0:
+            #     self.save_checkpoint(self.config.model_dir)
 
     def train_iteration(self, batch):
         """_summary_"""
-        # TODO(): save checkpoints, and do logging only on rank 0 device only
-        if self.local_rank == 0:
-            pass
-
         # move batch to correct device
         ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
         graph_outputs = self.graph(ray_indices)

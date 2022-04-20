@@ -4,21 +4,12 @@ Generic Writer class
 
 
 from abc import abstractmethod
-from typing import Callable
 import torch
 
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-
-def require_main_thread(func: Callable) -> Callable:
-    """Declarator: check if you are on main thread"""
-
-    def wrapper(self, *args, **kwargs):
-        if self.is_main_thread:
-            func(self, *args, **kwargs)
-
-    return wrapper
+from mattport.utils.decorators import check_main_thread
 
 
 class Writer:
@@ -79,7 +70,7 @@ class TensorboardWriter(Writer):
         if self.is_main_thread:
             self.writer = SummaryWriter(log_dir=self.save_dir)
 
-    @require_main_thread
+    @check_main_thread
     def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:
         """_summary_
 
@@ -91,7 +82,7 @@ class TensorboardWriter(Writer):
         x = to8b(x)
         self.writer.add_images(name, x)
 
-    @require_main_thread
+    @check_main_thread
     def write_text(self, name: str, x: str) -> None:
         """Tensorboard method to write a string to summary
 
@@ -101,7 +92,7 @@ class TensorboardWriter(Writer):
         """
         self.writer.add_text(name, x)
 
-    @require_main_thread
+    @check_main_thread
     def write_scalar(self, name: str, x: float, y: float) -> None:
         """Tensorboard method to write a single scalar value to the logger
 
