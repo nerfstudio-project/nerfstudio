@@ -19,7 +19,6 @@ class FieldModule(nn.Module):
     def build_nn_modules(self) -> None:
         """Function instantiates any torch.nn members within the module.
         If none exist, do nothing."""
-        pass
 
     def set_in_dim(self, in_dim: int) -> None:
         """Sets input dimension of encoding

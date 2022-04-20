@@ -5,7 +5,6 @@ import random
 from dataclasses import dataclass
 from typing import Optional
 
-import torch
 from torchtyping import TensorType
 
 
@@ -68,44 +67,31 @@ class CameraRayBundle:
     camera_index: int = None
 
 
-@dataclass
 class RaySamples:
     """_summary_
-
-    Args:
-        t_min: maximum times
-        t_max: minimum times
-        ts: time steps
     """
-
-    t_min: TensorType["num_rays"]
-    t_max: TensorType["num_rays"]
-    ts: TensorType["num_rays", "num_samples+1"]  # TODO(ethan): check with Matt about this. 2nd dimension is num_samples+1
+    def __init__(
+        self,
+        t_min: TensorType["num_rays"],
+        t_max: TensorType["num_rays"],
+        ts: TensorType["num_rays", "num_samples+1"],
+        ray_bundle: RayBundle,
+    ) -> None:
+        self.t_min = t_min
+        self.t_max = t_max
+        self.ts = ts
+        self.positions = self.get_positions(ray_bundle)
+        self.directions = ray_bundle.directions.unsqueeze(1).repeat(1, self.positions.shape[1], 1)
+        self.deltas = self.get_deltas()
 
     def get_positions(self, ray_bundle: RayBundle) -> TensorType["num_rays", "num_samples", 3]:
         """Returns positions."""
         # TODO(ethan): check with Matt about this
-        t_mid = (self.ts[:, 1:] + self.ts[:, :-1]) / 2 # (num_rays, num_samples)
+        t_mid = (self.ts[:, 1:] + self.ts[:, :-1]) / 2  # (num_rays, num_samples)
         return ray_bundle.origins[:, None] + t_mid[:, :, None] * ray_bundle.directions[:, None]
-
-    def get_starts(self):
-        """_summary_
-
-        Returns:
-            _type_: _description_
-        """
-        t_mid = (self.ts[:, 1:] + self.ts[:, :-1]) / 2
-        return torch.cat([self.t_min[:, None], t_mid], dim=-1)
-
-    def get_ends(self):
-        """_summary_
-
-        Returns:
-            _type_: _description_
-        """
-        t_mid = (self.ts[:, 1:] + self.ts[:, :-1]) / 2
-        return torch.cat([t_mid, self.t_max[:, None]], dim=-1)
 
     def get_deltas(self) -> TensorType["num_samples"]:
         """Returns deltas."""
-        return self.get_ends() - self.get_starts()
+        deltas = self.ts[..., 1:] - self.ts[..., :-1]
+        # TODO(ethan): check this with Matt
+        return deltas

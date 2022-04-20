@@ -1,9 +1,10 @@
 """
 Code to train model.
 """
-import pprint
 
+import logging
 import torch.distributed as dist
+from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -12,12 +13,12 @@ from tqdm import tqdm
 
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
-from mattport.nerf.graph.base import Graph
-from hydra.utils import instantiate
 
 
 class Trainer:
     """Training class"""
+
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
@@ -88,7 +89,7 @@ class Trainer:
     def train_epoch(self):
         """_summary_"""
         num_iters = 100
-        for _ in range(num_iters):
+        for _ in tqdm(range(num_iters)):
             batch = next(iter(self.train_dataloader))
             self.train_iteration(batch)
 
@@ -99,10 +100,9 @@ class Trainer:
             pass
 
         # move batch to correct device
-        batch.indices = batch.indices.to(f"cuda:{self.local_rank}")
-
-        ray_indices = batch.indices
+        ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
         graph_outputs = self.graph(ray_indices)
+        batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
         losses = self.graph.get_losses(batch, graph_outputs)
-
-        # TODO(ethan): update the network parameters
+        logging.info(losses)
+        

@@ -1,16 +1,13 @@
 """
 The Graph module contains all trainable parameters.
 """
-from abc import abstractmethod
 import importlib
+from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Set
-from black import Priority
-from omegaconf import DictConfig
 
 from torch import nn
-
-from mattport.nerf.dataset.utils import DatasetInputs
+from torchtyping import TensorType
 
 
 @dataclass
@@ -68,7 +65,6 @@ class Graph(nn.ModuleDict):
     @abstractmethod
     def populate_modules(self):
         """Initializes the modules that are part of the network."""
-        pass
 
     def get_in_dim(self, curr_node: Node) -> None:
         """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
@@ -152,11 +148,9 @@ class Graph(nn.ModuleDict):
         return ordering_stack[::-1]
 
     @abstractmethod
-    def forward(self):
+    def forward(self, ray_indices: TensorType["num_rays", 3]):
         """Forward function that needs to be overridden."""
-        pass
 
     @abstractmethod
-    def get_losses(self):
+    def get_losses(self, batch, graph_outputs):
         """Computes and returns the losses."""
-        pass

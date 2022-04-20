@@ -1,7 +1,6 @@
 """
 Collection of sampling strategies
 """
-from typing import NamedTuple
 
 import torch
 from torch import nn
@@ -80,5 +79,6 @@ class UniformSampler(Sampler):
             t_min=torch.ones_like(ray_bundle.origins[:, 0]) * near_plane,
             t_max=torch.ones_like(ray_bundle.origins[:, 0]) * far_plane,
             ts=bins.unsqueeze(0).repeat(num_rays, 1),  # (num_rays, num_samples)
+            ray_bundle=ray_bundle
         )
         return ray_samples

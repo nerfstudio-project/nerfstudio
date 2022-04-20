@@ -1,6 +1,7 @@
 """
 Collection of render heads
 """
+from dataclasses import dataclass
 from typing import Optional
 
 from torch import nn
@@ -9,7 +10,15 @@ from torchtyping import TensorType
 from mattport.nerf.field_modules.base import FieldModule
 
 
-class FieldOutput(FieldModule):
+@dataclass
+class FieldHeadOutputs:
+    """_summary_"""
+
+    rgb: TensorType["...", 3] = None
+    density: TensorType["...", 1] = None
+
+
+class FieldHead(FieldModule):
     """Base field output"""
 
     def __init__(self, in_dim: int, out_dim: int, activation: Optional[nn.Module] = None) -> None:
@@ -41,20 +50,26 @@ class FieldOutput(FieldModule):
         Returns:
             TensorType[..., "out_dim"]: Render head output
         """
+        if not self.field_quantity_name:
+            raise ValueError("field_quantity_name should be set in the child class. E.g., as 'rgb' or 'density'.")
         if not self.net:
             raise SystemError("Render head network not initialized. build_nn_modules() should be called.")
-        return self.net(in_tensor)
+        out_tensor = self.net(in_tensor)
+        field_head_outputs = FieldHeadOutputs()
+        setattr(field_head_outputs, self.field_quantity_name, out_tensor)
+        return field_head_outputs
 
-
-class DensityFieldOutput(FieldOutput):
+class DensityFieldHead(FieldHead):
     """Density output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Softplus()) -> None:
         super().__init__(in_dim, 1, activation)
+        self.field_quantity_name = "density"
 
 
-class RGBFieldOutput(FieldOutput):
+class RGBFieldHead(FieldHead):
     """RGB output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
         super().__init__(in_dim, 3, activation)
+        self.field_quantity_name = "rgb"
