@@ -10,7 +10,7 @@ from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import RGBRenderer
-from mattport.nerf.sampler import UniformSampler
+from mattport.nerf.sampler import PDFSampler, UniformSampler
 
 
 class NeRFGraph(Graph):
@@ -29,7 +29,7 @@ class NeRFGraph(Graph):
 
         # samplers
         self.sampler_uniform = UniformSampler(near_plane=0.1, far_plane=4.0, num_samples=64)
-        self.sampler_pdf = UniformSampler(near_plane=0.1, far_plane=4.0, num_samples=64)
+        self.sampler_pdf = PDFSampler(num_samples=64)
 
         # field
         self.field_coarse = NeRFField()
@@ -52,7 +52,7 @@ class NeRFGraph(Graph):
             rgb=coarse_field_outputs.rgb, density=coarse_field_outputs.density, deltas=uniform_ray_samples.deltas
         )  # RendererOutputs
         # fine network:
-        pdf_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
+        pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs.density)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
         fine_renderer_outputs = self.renderer_rgb(
             rgb=fine_field_outputs.rgb, density=fine_field_outputs.density, deltas=pdf_ray_samples.deltas

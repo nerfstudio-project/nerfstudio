@@ -60,7 +60,7 @@ class Trainer:
         ).to(f"cuda:{self.local_rank}")
 
         ## TODO(): we need to call load_checkpoint here if need be (before we wrap it in DDP)
-        
+
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
@@ -116,7 +116,7 @@ class Trainer:
     def train_epoch(self):
         """_summary_"""
         num_iters = 100
-        for step in tqdm(range(num_iters)):
+        for _ in tqdm(range(num_iters)):
             batch = next(iter(self.train_dataloader))
             self.train_iteration(batch)
             # TODO(): proper saving with the correct directory path and such

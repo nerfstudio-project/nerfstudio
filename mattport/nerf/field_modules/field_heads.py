@@ -21,16 +21,20 @@ class FieldHeadOutputs:
 class FieldHead(FieldModule):
     """Base field output"""
 
-    def __init__(self, in_dim: int, out_dim: int, activation: Optional[nn.Module] = None) -> None:
+    def __init__(
+        self, in_dim: int, out_dim: int, field_quantity_name: str, activation: Optional[nn.Module] = None
+    ) -> None:
         """
         Args:
             in_dim (int): input dimension
             out_dim (int): output dimension for renderer
+            field_quantity_name (srt): name of field head
             activation (Optional[nn.Module]): output head activation
         """
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.field_quantity_name = field_quantity_name
         self.activation = activation
         self.net = None
         self.build_nn_modules()
@@ -41,7 +45,7 @@ class FieldHead(FieldModule):
             layers.append(self.activation)
         self.net = nn.Sequential(*layers)
 
-    def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType[..., "out_dim"]:
+    def forward(self, in_tensor: TensorType[..., "in_dim"]) -> FieldHeadOutputs:
         """Process network output for renderer
 
         Args:
@@ -64,13 +68,11 @@ class DensityFieldHead(FieldHead):
     """Density output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Softplus()) -> None:
-        super().__init__(in_dim, 1, activation)
-        self.field_quantity_name = "density"
+        super().__init__(in_dim, out_dim=1, field_quantity_name="density", activation=activation)
 
 
 class RGBFieldHead(FieldHead):
     """RGB output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
-        super().__init__(in_dim, 3, activation)
-        self.field_quantity_name = "rgb"
+        super().__init__(in_dim, out_dim=3, field_quantity_name="rgb", activation=activation)

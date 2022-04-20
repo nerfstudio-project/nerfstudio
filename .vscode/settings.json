@@ -29,8 +29,9 @@
     "python.linting.pylintArgs": [
         "--generated-members=numpy.*,torch.*,cv2.*,cv.*",
         "--max-line-length=120",
-        "--good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts",
+        "--good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts,t,u",
         "--disable=too-many-arguments",
-        "--disable=fixme"
+        "--disable=fixme",
+        "--disable=too-many-locals"
     ],
 }
