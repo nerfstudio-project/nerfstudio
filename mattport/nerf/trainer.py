@@ -60,7 +60,7 @@ class Trainer:
         ).to(f"cuda:{self.local_rank}")
 
         ## TODO(): we need to call load_checkpoint here if need be (before we wrap it in DDP)
-        
+
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
