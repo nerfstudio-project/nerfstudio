@@ -1,8 +1,8 @@
 """
 Collection of render heads
 """
-from dataclasses import dataclass
-from typing import Optional
+from enum import Enum
+from typing import Dict, Optional
 
 from torch import nn
 from torchtyping import TensorType
@@ -10,31 +10,32 @@ from torchtyping import TensorType
 from mattport.nerf.field_modules.base import FieldModule
 
 
-@dataclass
-class FieldHeadOutputs:
-    """_summary_"""
+class FieldHeadNames(Enum):
+    """Possible field outputs"""
 
-    rgb: TensorType["...", 3] = None
-    density: TensorType["...", 1] = None
+    RGB = "rgb"
+    DENSITY = "density"
 
 
 class FieldHead(FieldModule):
     """Base field output"""
 
     def __init__(
-        self, in_dim: int, out_dim: int, field_quantity_name: str, activation: Optional[nn.Module] = None
+        self, in_dim: int, out_dim: int, field_head_name: FieldHeadNames, activation: Optional[nn.Module] = None
     ) -> None:
         """
         Args:
             in_dim (int): input dimension
             out_dim (int): output dimension for renderer
-            field_quantity_name (srt): name of field head
+            field_head_name (FieldHeadNames): name of field head
             activation (Optional[nn.Module]): output head activation
         """
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.field_quantity_name = field_quantity_name
+        # if field_head_name not in FieldHeadNames:
+        #     raise ValueError("Incorrect field output name. Should be one of FieldHeadNames.")
+        self.field_head_name = field_head_name
         self.activation = activation
         self.net = None
         self.build_nn_modules()
@@ -45,7 +46,7 @@ class FieldHead(FieldModule):
             layers.append(self.activation)
         self.net = nn.Sequential(*layers)
 
-    def forward(self, in_tensor: TensorType[..., "in_dim"]) -> FieldHeadOutputs:
+    def forward(self, in_tensor: TensorType[..., "in_dim"]) -> Dict[FieldHeadNames, TensorType]:
         """Process network output for renderer
 
         Args:
@@ -54,25 +55,23 @@ class FieldHead(FieldModule):
         Returns:
             TensorType[..., "out_dim"]: Render head output
         """
-        if not self.field_quantity_name:
+        if not self.field_head_name:
             raise ValueError("field_quantity_name should be set in the child class. E.g., as 'rgb' or 'density'.")
         if not self.net:
             raise SystemError("Render head network not initialized. build_nn_modules() should be called.")
         out_tensor = self.net(in_tensor)
-        field_head_outputs = FieldHeadOutputs()
-        setattr(field_head_outputs, self.field_quantity_name, out_tensor)
-        return field_head_outputs
+        return {self.field_head_name: out_tensor}
 
 
 class DensityFieldHead(FieldHead):
     """Density output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Softplus()) -> None:
-        super().__init__(in_dim, out_dim=1, field_quantity_name="density", activation=activation)
+        super().__init__(in_dim, out_dim=1, field_head_name=FieldHeadNames.DENSITY, activation=activation)
 
 
 class RGBFieldHead(FieldHead):
     """RGB output"""
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
-        super().__init__(in_dim, out_dim=3, field_quantity_name="rgb", activation=activation)
+        super().__init__(in_dim, out_dim=3, field_head_name=FieldHeadNames.RGB, activation=activation)

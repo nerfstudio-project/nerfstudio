@@ -23,8 +23,6 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 class Trainer:
     """Training class"""
 
-    # pylint: disable=too-many-instance-attributes
-
     def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
