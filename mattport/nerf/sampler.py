@@ -2,10 +2,11 @@
 Collection of sampling strategies
 """
 
-from typing import Optional
+from typing import Dict, Optional
 import torch
 from torch import nn
 from torchtyping import TensorType
+from mattport.nerf.field_modules.field_heads import FieldHeadNames
 
 from mattport.structures.rays import RayBundle, RaySamples
 
@@ -78,7 +79,7 @@ class PDFSampler(nn.Module):
         self,
         ray_bundle: RayBundle,
         coarse_ray_samples: RaySamples,
-        density: TensorType[..., "num_samples", 1],
+        field_outputs: Dict[FieldHeadNames, TensorType],
         num_samples: Optional[int] = None,
         randomized: bool = True,
         eps: float = 1e-5,
@@ -102,6 +103,7 @@ class PDFSampler(nn.Module):
 
         # Calculate weight contributions along ray
         # Todo(matt): This computation is duplicated
+        density = field_outputs[FieldHeadNames.DENSITY]
         delta_density = coarse_ray_samples.deltas * density[..., 0]
         alphas = 1 - torch.exp(-delta_density)
 
