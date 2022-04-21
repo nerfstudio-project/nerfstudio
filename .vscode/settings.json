@@ -32,6 +32,7 @@
         "--good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts,t,u,k,v",
         "--disable=too-many-arguments",
         "--disable=fixme",
-        "--disable=too-many-locals"
+        "--disable=too-many-locals",
+        "--disable=too-many-instance-attributes"
     ],
 }
