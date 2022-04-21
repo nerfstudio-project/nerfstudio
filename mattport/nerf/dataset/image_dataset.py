@@ -9,7 +9,7 @@ import torch
 from PIL import Image
 from torch.utils.data import default_collate
 
-from mattport.nerf.dataset.utils import DotDict
+from mattport.utils.misc import DotDict
 
 
 class ImageDataset(torch.utils.data.Dataset):

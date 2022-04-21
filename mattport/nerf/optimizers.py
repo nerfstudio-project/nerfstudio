@@ -2,6 +2,8 @@
 Optimizers class.
 """
 
+import logging
+
 from typing import Dict, List
 from omegaconf import DictConfig
 import torch
@@ -48,3 +50,19 @@ class Optimizers:
         """
         if self.config.param_name.scheduler:
             self.schedulers[param_name].step()
+
+    def zero_grad_all(self):
+        """zero the gradients for all optimizer parameters"""
+        for param_name, optimizer in self.optimizers.items():
+            # print(param_name)
+            pass
+
+    def optimizer_step_all(self):
+        """Run step for all optimizers."""
+        # logging.info("optimizer_step_all")
+        pass
+
+    def scheduler_step_all(self):
+        """Run step for all schedulers."""
+        # logging.info("optimizer_step_all")
+        pass

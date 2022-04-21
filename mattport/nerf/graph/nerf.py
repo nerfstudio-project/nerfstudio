@@ -13,6 +13,7 @@ from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
+from mattport.nerf.field_modules.field_heads import FieldHeadNames
 
 
 class NeRFGraph(Graph):
@@ -61,14 +62,20 @@ class NeRFGraph(Graph):
         # coarse network:
         uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
         coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
+
         coarse_renderer_outputs = self.renderer_rgb(
-            field_outputs=coarse_field_outputs.rgb, deltas=uniform_ray_samples.deltas
+            rgb=coarse_field_outputs[FieldHeadNames.RGB],
+            density=coarse_field_outputs[FieldHeadNames.DENSITY],
+            deltas=uniform_ray_samples.deltas,
         )  # RendererOutputs
         # fine network:
         pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
+
         fine_renderer_outputs = self.renderer_rgb(
-            field_outputs=fine_field_outputs, deltas=pdf_ray_samples.deltas
+            rgb=fine_field_outputs[FieldHeadNames.RGB],
+            density=fine_field_outputs[FieldHeadNames.DENSITY],
+            deltas=pdf_ray_samples.deltas,
         )  # RendererOutputs
         # outputs:
         outputs = {"rgb_coarse": coarse_renderer_outputs.rgb, "rgb_fine": fine_renderer_outputs.rgb}

@@ -74,6 +74,7 @@ class Trainer:
 
     def setup_optimizers(self):
         """_summary_"""
+        # TODO(ethan): handle different world sizes
         self.optimizers = Optimizers(self.config.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
@@ -116,6 +117,13 @@ class Trainer:
             ckpt_path,
         )
 
+    def get_aggregated_loss(self, losses):
+        aggregated_loss = 0.0
+        for loss_name in losses.keys():
+            # TODO(ethan): add loss weightings here from a config
+            aggregated_loss += losses[loss_name]
+        return aggregated_loss
+
     def train(self) -> None:
         """_summary_"""
         num_iterations = 1000
@@ -123,7 +131,7 @@ class Trainer:
             batch = next(iter(self.train_dataloader))
             losses = self.train_iteration(step, batch)
             self.local_writer.write_text(f"{step}/{num_iterations}: losses", losses)
-            if step % self.config.save_step == 0:
+            if step % self.config.steps_per_save == 0:
                 self.save_checkpoint(self.config.model_dir, step)
                 self.local_writer.write_text(f"ckpt at {step}", f"{losses}\n")
 
@@ -133,11 +141,17 @@ class Trainer:
         ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
         graph_outputs = self.graph(ray_indices)
         batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
-        losses = self.graph.module.get_losses(batch, graph_outputs)
+        # print(batch)
+        losses = self.graph.get_losses(batch, graph_outputs)  # or self.graph.module
+        loss = self.get_aggregated_loss(losses)
+        self.optimizers.zero_grad_all()
+        loss.backward()
+        self.optimizers.scheduler_step_all()
+        self.optimizers.optimizer_step_all()
         return losses
 
     def test(self, image_idx):
         """Test a specific image."""
         with torch.no_grad():
             ray_indices = None
-            
+            pass

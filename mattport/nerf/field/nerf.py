@@ -52,5 +52,7 @@ class NeRFField(nn.Module):
         field_rgb_output = self.field_output_rgb(rgb_mlp_out)
         field_density_out = self.field_output_density(base_mlp_out)
 
-        field_outputs = field_rgb_output | field_density_out
+        field_outputs = {}
+        field_outputs.update(field_rgb_output)
+        field_outputs.update(field_density_out)
         return field_outputs
