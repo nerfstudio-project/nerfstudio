@@ -11,13 +11,14 @@ from omegaconf import DictConfig
 from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.utils.decorators import check_main_thread
+from mattport.utils.writer import LocalWriter
 
-logging.getLogger('PIL').setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+
 
 class Trainer:
     """Training class"""
@@ -28,13 +29,18 @@ class Trainer:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
+        # dataset variables
         self.train_dataset = None
         self.train_dataloader = None
         self.test_dataset = None
         self.test_dataloader = None
+        # model variables
         self.graph = None
         self.optimizer = None
-        self.is_main_thread = self.local_rank % self.world_size == 0
+        self.start_step = 0
+        # logging variables
+        self.is_main_thread = local_rank % world_size == 0
+        self.local_writer = LocalWriter(local_rank, world_size, save_dir=None)
 
     def setup_dataset(self):
         """_summary_"""
@@ -59,8 +65,10 @@ class Trainer:
         self.graph = instantiate(
             self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
         ).to(f"cuda:{self.local_rank}")
+        self.setup_optimizer()
 
-        ## TODO(): we need to call load_checkpoint here if need be (before we wrap it in DDP)
+        if self.config.resume_train:
+            self.load_checkpoint(self.config.resume_train)
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
@@ -70,7 +78,7 @@ class Trainer:
         """_summary_"""
         self.optimizer = optim.Adam(self.graph.parameters(), lr=self.config.optimizer.lr)
 
-    def load_checkpoint(self, load_path: str) -> int:
+    def load_checkpoint(self, load_config: DictConfig) -> int:
         """Load the checkpoint from the given path
 
         Args:
@@ -79,13 +87,13 @@ class Trainer:
         Returns:
             int: step iteration associated with the loaded checkpoint
         """
+        load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
         assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
         loaded_state = torch.load(load_path, map_location="cpu")
         self.graph.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
-        self.optimizer.optimizer.load_state_dict(loaded_state["optimizer"])
-        step = loaded_state["step"]
+        self.optimizer.load_state_dict(loaded_state["optimizer"])
+        self.start_step = loaded_state["step"] + 1
         logging.info("done loading checkpoint from %s", load_path)
-        return step
 
     @check_main_thread
     def save_checkpoint(self, output_dir: str, step: int) -> None:
@@ -97,38 +105,35 @@ class Trainer:
             model (Graph): Graph model to be saved
             optimizer (Optimizer): Optimizer to be saved
         """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
         torch.save(
             {
                 "step": step,
                 "model": self.graph.module.state_dict() if hasattr(self.graph, "module") else self.graph.state_dict(),
-                "optimizer": self.optimizer.optimizer.state_dict(),
+                "optimizer": self.optimizer.state_dict(),
             },
             ckpt_path,
         )
-        logging.info("done saving checkpoint to %s", ckpt_path)
 
     def train(self) -> None:
         """_summary_"""
         num_epochs = 10
         for _ in range(num_epochs):
-            self.train_epoch()
+            self.train_iteration()
 
-    def train_epoch(self):
+    def train_iteration(self):
         """_summary_"""
         num_iters = 100
-        for _ in tqdm(range(num_iters)):
+        for step in range(self.start_step, self.start_step + num_iters):
             batch = next(iter(self.train_dataloader))
-            self.train_iteration(batch)
-            # TODO(): proper saving with the correct directory path and such
-            # if step % self.config.save_step == 0:
-            #     self.save_checkpoint(self.config.model_dir)
-
-    def train_iteration(self, batch):
-        """_summary_"""
-        # move batch to correct device
-        ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
-        graph_outputs = self.graph(ray_indices)
-        batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
-        losses = self.graph.module.get_losses(batch, graph_outputs)
-        # logging.info(losses)
+            # move batch to correct device
+            ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
+            graph_outputs = self.graph(ray_indices)
+            batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
+            losses = self.graph.module.get_losses(batch, graph_outputs)
+            self.local_writer.write_text(f"{step}/{num_iters}: losses", losses)
+            if step % self.config.save_step == 0:
+                self.save_checkpoint(self.config.model_dir, step)
+                self.local_writer.write_text(f"ckpt at {step}", f"{losses}\n")
