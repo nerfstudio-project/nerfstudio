@@ -1,3 +1,11 @@
+# pretrained loading options
+resume_train:
+  load_dir: /tmp/mattport_models/
+  load_step: 10
+
+save_step: 10
+model_dir: /tmp/mattport_models/
+
 # dataset options
 dataset:
   data_directory: data/lego

@@ -3,12 +3,12 @@ Generic Writer class
 """
 
 
-from abc import abstractmethod
 import os
+from abc import abstractmethod
+
 import imageio
 import numpy as np
 import torch
-
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
