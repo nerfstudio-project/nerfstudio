@@ -8,6 +8,7 @@ mediapy
 plotly==5.7.0
 pylint==2.13.4
 pytest
+tensorboard==2.8.0
 torch==1.11.0
 torchtyping
 torchvision==0.12.0
