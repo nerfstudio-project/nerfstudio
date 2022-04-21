@@ -17,12 +17,11 @@ from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.utils.decorators import check_main_thread
 
-logging.getLogger('PIL').setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.WARNING)
+
 
 class Trainer:
     """Training class"""
-
-    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
@@ -131,4 +130,4 @@ class Trainer:
         graph_outputs = self.graph(ray_indices)
         batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
         losses = self.graph.module.get_losses(batch, graph_outputs)
-        # logging.info(losses)
+        logging.info(losses)
