@@ -3,6 +3,8 @@ Implementation of vanilla nerf.
 """
 
 
+from typing import Dict, List
+from torch.nn import Parameter
 from torchtyping import TensorType
 
 from mattport.nerf.field.nerf import NeRFField
@@ -40,6 +42,17 @@ class NeRFGraph(Graph):
 
         # losses
         self.rgb_loss = MSELoss()
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Obtain the parameter groups for the optimizers
+
+        Returns:
+            Dict[str, List[Parameter]]: Mapping of different parameter groups
+        """
+        param_groups = {}
+        param_groups["camera"] = [dict(params=self.ray_generator.parameters())]
+        param_groups["graph"] = [dict(params=self.field_coarse.parameters()), dict(params=self.field_fine.parameters())]
+        return param_groups
 
     def forward(self, ray_indices: TensorType["num_rays", 3]):
         """Takes in the ray indices and renders out values."""

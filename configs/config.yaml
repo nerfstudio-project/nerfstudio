@@ -1,7 +1,7 @@
 # pretrained loading options
 resume_train:
-  load_dir: /tmp/mattport_models/
-  load_step: 10
+  load_dir: # pretrained model directory
+  load_step: # pretrained model's step number
 
 save_step: 10
 model_dir: /tmp/mattport_models/
@@ -20,8 +20,23 @@ dataloader:
   num_rays_per_batch: 1024
 
 # optimizer options
-optimizer:
-  lr: 1e-4
+param_groups:
+  graph:
+    optimizer:
+      type: Adam
+      lr: 1e-4
+    scheduler:
+      type: StepLR
+      step_size: 30
+      gamma: 0.1
+  camera:
+    optimizer:
+      type: SGD
+      lr: 1e-4
+    scheduler:
+      type: ExponentialLR 
+      gamma: 0.1
+
 
 # machine options
 machine_config:

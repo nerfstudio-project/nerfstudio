@@ -18,18 +18,19 @@ class Optimizers:
             config (DictConfig): _description_
             param_dict (Dict[str, List[Parameter]]): _description_
         """
-        # TODO() add param_name `learning_rate`` and `weight_decay`, etc... to config file
         self.config = config
         self.optimizers = {}
         self.schedulers = {}
         for param_name, params in param_groups.items():
-            optimizer = getattr(torch.optim, config.param_name.optimizer.type)
-            kwargs = {k: v for k, v in config.param_name.optimizer.items() if k != "type"}
+            optimizer_config = config[param_name].optimizer
+            optimizer = getattr(torch.optim, optimizer_config.type)
+            kwargs = {k: v for k, v in optimizer_config.items() if k != "type"}
             self.optimizers[param_name] = optimizer(params, **kwargs)
-            if config.param_name.scheduler:
-                scheduler = getattr(torch.optim.lr_scheduler, config.param_name.scheduler.type)
-                kwargs = {k: v for k, v in config.param_name.scheduler.items() if k != "type"}
-                self.schedulers[param_name] = scheduler(optimizer, **kwargs)
+            if config[param_name].scheduler:
+                scheduler_config = config[param_name].scheduler
+                scheduler = getattr(torch.optim.lr_scheduler, scheduler_config.type)
+                kwargs = {k: v for k, v in scheduler_config.items() if k != "type"}
+                self.schedulers[param_name] = scheduler(self.optimizers[param_name], **kwargs)
 
     def optimizer_step(self, param_name: str) -> None:
         """fetch and step corresponding optimizer

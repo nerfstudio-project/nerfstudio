@@ -8,12 +8,12 @@ import torch
 import torch.distributed as dist
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from torch import optim
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
+from mattport.nerf.optimizers import Optimizers
 from mattport.utils.decorators import check_main_thread
 from mattport.utils.writer import LocalWriter
 
@@ -36,7 +36,7 @@ class Trainer:
         self.test_dataloader = None
         # model variables
         self.graph = None
-        self.optimizer = None
+        self.optimizers = None
         self.start_step = 0
         # logging variables
         self.is_main_thread = local_rank % world_size == 0
@@ -65,18 +65,18 @@ class Trainer:
         self.graph = instantiate(
             self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
         ).to(f"cuda:{self.local_rank}")
-        self.setup_optimizer()
+        self.setup_optimizers()
 
-        if self.config.resume_train:
+        if self.config.resume_train.load_dir:
             self.load_checkpoint(self.config.resume_train)
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
 
-    def setup_optimizer(self):
+    def setup_optimizers(self):
         """_summary_"""
-        self.optimizer = optim.Adam(self.graph.parameters(), lr=self.config.optimizer.lr)
+        self.optimizers = Optimizers(self.config.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
         """Load the checkpoint from the given path
@@ -91,19 +91,20 @@ class Trainer:
         assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
         loaded_state = torch.load(load_path, map_location="cpu")
         self.graph.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
-        self.optimizer.load_state_dict(loaded_state["optimizer"])
+        for k, v in loaded_state["optimizers"].items():
+            self.optimizers.optimizers[k].load_state_dict(v)
         self.start_step = loaded_state["step"] + 1
         logging.info("done loading checkpoint from %s", load_path)
 
     @check_main_thread
     def save_checkpoint(self, output_dir: str, step: int) -> None:
-        """Save the model and optimizer
+        """Save the model and optimizers
 
         Args:
             output_dir (str): directory to save the checkpoint
             step (int): number of steps in training for given checkpoint
             model (Graph): Graph model to be saved
-            optimizer (Optimizer): Optimizer to be saved
+            optimizers (Optimizers): Optimizers to be saved
         """
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -112,7 +113,7 @@ class Trainer:
             {
                 "step": step,
                 "model": self.graph.module.state_dict() if hasattr(self.graph, "module") else self.graph.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
+                "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
             },
             ckpt_path,
         )

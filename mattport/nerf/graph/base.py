@@ -3,9 +3,10 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from torch import nn
+from torch.nn import Parameter
 from torchtyping import TensorType
 
 
@@ -42,6 +43,10 @@ class Graph(nn.Module):
     @abstractmethod
     def populate_modules(self):
         """Initializes the modules that are part of the network."""
+
+    @abstractmethod
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Returns the parameter groups of the network in a dictionary format"""
 
     def get_in_dim(self, curr_node: Node) -> None:
         """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
