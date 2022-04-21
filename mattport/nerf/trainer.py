@@ -17,6 +17,7 @@ from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.utils.decorators import check_main_thread
 
+logging.getLogger('PIL').setLevel(logging.WARNING)
 
 class Trainer:
     """Training class"""
@@ -129,5 +130,5 @@ class Trainer:
         ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
         graph_outputs = self.graph(ray_indices)
         batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
-        losses = self.graph.get_losses(batch, graph_outputs)
-        logging.info(losses)
+        losses = self.graph.module.get_losses(batch, graph_outputs)
+        # logging.info(losses)

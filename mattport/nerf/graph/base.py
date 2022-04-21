@@ -31,35 +31,13 @@ class Node:
         return hash(self.name)
 
 
-class Graph(nn.ModuleDict):
+class Graph(nn.Module):
     """_summary_"""
 
     def __init__(self, intrinsics=None, camera_to_world=None) -> None:
         super().__init__()
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
-
-        self.modules = None  # NOTE(ethan): I'm turning off these features for now
-        if self.modules is not None:
-            # create graph and get ordering
-            self.roots = self.construct_graph()
-            self.module_order = self.get_module_order()
-
-            # initialize graph with known input dimensions; set default in_dim to 0
-            for module_name, module_dict in self.modules.items():
-                module = getattr(importlib.import_module("mattport.nerf.field_modules"), module_dict.class_name)
-                if not module_dict.meta_data.in_dim:
-                    module_dict.meta_data.in_dim = 0
-                self[module_name] = module(**module_dict.meta_data)
-
-            # calculate input dimensions based on module dependencies
-            for root in self.roots:
-                self.get_in_dim(root)
-
-            # instantiate torch.nn members of network
-            for _, module in self.items():
-                module.build_nn_modules()
-
         self.populate_modules()  # populate the modules
 
     @abstractmethod

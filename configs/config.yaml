@@ -17,7 +17,7 @@ optimizer:
 
 # machine options
 machine_config:
-  num_gpus: 1
+  num_gpus: 4
   num_machines: 1
   machine_rank: 0
   dist_url: auto
