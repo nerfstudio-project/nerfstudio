@@ -3,7 +3,11 @@ resume_train:
   load_dir: # pretrained model directory
   load_step: # pretrained model's step number
 
-save_step: 10
+max_num_iterations: 1000000
+steps_per_save: 1000
+steps_per_log: 100
+steps_per_test: 5000
+
 model_dir: /tmp/mattport_models/
 
 # dataset options
@@ -34,9 +38,8 @@ param_groups:
       type: SGD
       lr: 1e-4
     scheduler:
-      type: ExponentialLR 
+      type: ExponentialLR
       gamma: 0.1
-
 
 # machine options
 machine_config:

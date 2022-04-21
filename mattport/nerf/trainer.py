@@ -120,21 +120,26 @@ class Trainer:
 
     def train(self) -> None:
         """_summary_"""
-        num_epochs = 10
-        for _ in range(num_epochs):
-            self.train_iteration()
-
-    def train_iteration(self):
-        """_summary_"""
-        num_iters = 100
-        for step in range(self.start_step, self.start_step + num_iters):
+        num_iterations = 1000
+        for step in range(self.start_step, self.start_step + num_iterations):
             batch = next(iter(self.train_dataloader))
-            # move batch to correct device
-            ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
-            graph_outputs = self.graph(ray_indices)
-            batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
-            losses = self.graph.module.get_losses(batch, graph_outputs)
-            self.local_writer.write_text(f"{step}/{num_iters}: losses", losses)
+            losses = self.train_iteration(step, batch)
+            self.local_writer.write_text(f"{step}/{num_iterations}: losses", losses)
             if step % self.config.save_step == 0:
                 self.save_checkpoint(self.config.model_dir, step)
                 self.local_writer.write_text(f"ckpt at {step}", f"{losses}\n")
+
+    def train_iteration(self, step: int, batch: dict):
+        """Run one iteration with a batch of inputs."""
+        # move batch to correct device
+        ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
+        graph_outputs = self.graph(ray_indices)
+        batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
+        losses = self.graph.module.get_losses(batch, graph_outputs)
+        return losses
+
+    def test(self, image_idx):
+        """Test a specific image."""
+        with torch.no_grad():
+            ray_indices = None
+            

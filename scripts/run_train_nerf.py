@@ -21,6 +21,9 @@ logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=loggin
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
+# speedup for when input size to model doesn't change (much)
+torch.backends.cudnn.benchmark = True
+
 
 def _find_free_port() -> str:
     """Find free port on open socket"""
