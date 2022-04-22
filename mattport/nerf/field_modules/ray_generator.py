@@ -37,8 +37,8 @@ class RayGenerator(nn.Module):
             x (_type_): _description_
         """
         c = ray_indices[:, 0]  # camera indices
-        i = ray_indices[:, 1]  # row indices
-        j = ray_indices[:, 2]  # col indices
+        y = ray_indices[:, 1]  # row indices
+        x = ray_indices[:, 2]  # col indices
         intrinsics = self.intrinsics[c]
         camera_to_world = self.camera_to_world[c]
         # NOTE(ethan): we currently assume all images have the same height and width
@@ -46,7 +46,7 @@ class RayGenerator(nn.Module):
         camera_class = get_camera_model(self.num_intrinsics_params)
         camera = camera_class(*self.intrinsics[camera_index].tolist())
         image_coords = camera.get_image_coords().to(ray_indices.device)
-        coords = image_coords[i, j]
+        coords = image_coords[y, x]
 
         ray_bundle = camera_class.generate_rays(intrinsics=intrinsics, camera_to_world=camera_to_world, coords=coords)
         ray_bundle.camera_indices = c
