@@ -4,24 +4,68 @@ Implementation of vanilla nerf.
 
 
 from typing import Dict, List
+
+import torch
+from torch import nn
 from torch.nn import Parameter
 from torchtyping import TensorType
 
-from mattport.nerf.field.nerf import NeRFField
+from mattport.nerf.field_modules.encoding import NeRFEncoding
+from mattport.nerf.field_modules.field_heads import (DensityFieldHead,
+                                                     FieldHeadNames,
+                                                     RGBFieldHead)
+from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
-from mattport.nerf.field_modules.field_heads import FieldHeadNames
+from mattport.structures.rays import RaySamples
+
+
+class NeRFField(nn.Module):
+    """NeRF module"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.encoding_xyz = NeRFEncoding(in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0)
+        self.encoding_dir = NeRFEncoding(in_dim=3, num_frequencies=6, min_freq_exp=0.0, max_freq_exp=4.0)
+        self.mlp_base = MLP(
+            in_dim=self.encoding_xyz.get_out_dim(), out_dim=64, num_layers=8, layer_width=64, activation=nn.ReLU()
+        )
+        self.mlp_rgb = MLP(
+            in_dim=self.mlp_base.get_out_dim() + self.encoding_dir.get_out_dim(),
+            out_dim=64,
+            num_layers=2,
+            layer_width=64,
+            activation=nn.ReLU(),
+        )
+        self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
+        self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
+
+    def forward(self, ray_samples: RaySamples):
+        """Evaluates the field at points along the ray
+        Args:
+            xyz: ()
+        # TODO(ethan): change the input to be something more abstracted
+        e.g., a FieldInput structure
+        """
+        positions = ray_samples.positions
+        directions = ray_samples.directions
+        encoded_xyz = self.encoding_xyz(positions)
+        encoded_dir = self.encoding_dir(directions)
+        base_mlp_out = self.mlp_base(encoded_xyz)
+        rgb_mlp_out = self.mlp_rgb(torch.cat([encoded_dir, base_mlp_out], dim=-1))
+
+        field_rgb_output = self.field_output_rgb(rgb_mlp_out)
+        field_density_out = self.field_output_density(base_mlp_out)
+
+        field_outputs = field_rgb_output | field_density_out
+        return field_outputs
 
 
 class NeRFGraph(Graph):
-    """_summary_
-
-    Args:
-        Graph (_type_): _description_
-    """
+    """Vanilla NeRF graph"""
 
     def __init__(self, intrinsics=None, camera_to_world=None) -> None:
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world)

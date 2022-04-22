@@ -36,7 +36,8 @@ jobs:
             --good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts,t,u,k,v \
             --disable=too-many-arguments \
             --disable=too-many-locals \
-            --disable=fixme
+            --disable=fixme \
+            --disable=too-many-instance-attributes
       - name: Test with pytest
         run: |
           pytest tests --ignore tests/nerf/dataloader/test_ray_generator.py --typeguard-packages=mattport --torchtyping-patch-typeguard
