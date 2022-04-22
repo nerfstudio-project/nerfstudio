@@ -62,7 +62,7 @@ def load_blender_data(basedir, downscale_factor=1.0, split="train"):
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=downscale_factor,
-        intrinsics=intrinsics,
+        intrinsics=intrinsics * 1.0 / downscale_factor,  # downscaling the intrinsics here
         camera_to_world=camera_to_world,
     )
 

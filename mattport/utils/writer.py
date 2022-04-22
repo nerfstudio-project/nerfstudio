@@ -56,7 +56,7 @@ class Writer:
         """
         raise NotImplementedError
 
-    def write_scalar_dict(self, scalar_dict: Dict[str, float], step: int, group: str = None) -> None:
+    def write_scalar_dict(self, scalar_dict: Dict[str, float], step: int, group: str = None,  prefix: str = None) -> None:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
@@ -64,7 +64,7 @@ class Writer:
         """
         if self.is_main_thread:
             for name, scalar in scalar_dict.items():
-                self.write_scalar(name, scalar, step, group=group)
+                self.write_scalar(name, scalar, step, group=group, prefix=prefix)
 
 
 class TensorboardWriter(Writer):
@@ -97,7 +97,7 @@ class TensorboardWriter(Writer):
         self.tb_writer.add_text(name, x)
 
     @check_main_thread
-    def write_scalar(self, name: str, scalar: float, step: float, group: str = None) -> None:
+    def write_scalar(self, name: str, scalar: float, step: float, group: str = None, prefix: str = None) -> None:
         """Tensorboard method to write a single scalar value to the logger
 
         Args:
@@ -106,8 +106,9 @@ class TensorboardWriter(Writer):
             y (float): y value to write
             group (str)): a prefix to group tensorboard scalars
         """
-        prefix = f"{group}/" if group else ""
-        self.tb_writer.add_scalar(f"{prefix}{name}", scalar, step)
+        group_s = f"{group}/" if group else ""
+        prefix_s = f"{prefix}" if prefix else ""
+        self.tb_writer.add_scalar(f"{group_s}{prefix_s}{name}", scalar, step)
 
 
 class LocalWriter(Writer):
