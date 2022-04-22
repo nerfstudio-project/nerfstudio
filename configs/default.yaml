@@ -1,12 +1,21 @@
+hydra: 
+  run:
+    # Configure output dir of each experiment programmatically from the arguments
+    # Example "outputs/mnist/classifier/baseline/2021-03-10-141516"
+    dir: outputs/${experiment_name}/${method_name}/${now:%Y-%m-%d_%H%M%S}
+
+experiment_name: blender_lego
+method_name: vanilla_nerf
+
 # pretrained loading options
 resume_train:
   load_dir: # pretrained model directory
   load_step: # pretrained model's step number
 
 max_num_iterations: 1000000
-steps_per_save: 1000
-steps_per_log: 100
-steps_per_test: 5000
+steps_per_save: null
+steps_per_log: 10
+steps_per_test: 100
 
 model_dir: /tmp/mattport_models/
 
@@ -25,7 +34,7 @@ dataloader:
 
 # optimizer options
 param_groups:
-  graph:
+  fields:
     optimizer:
       type: Adam
       lr: 1e-4
@@ -33,7 +42,7 @@ param_groups:
       type: StepLR
       step_size: 30
       gamma: 0.1
-  camera:
+  cameras:
     optimizer:
       type: SGD
       lr: 1e-4
@@ -43,7 +52,7 @@ param_groups:
 
 # machine options
 machine_config:
-  num_gpus: 4
+  num_gpus: 1
   num_machines: 1
   machine_rank: 0
   dist_url: auto

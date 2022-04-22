@@ -43,7 +43,7 @@ class ImageDataset(torch.utils.data.Dataset):
         # e.g., we should be able to downscale the images or set a max height, width, etc.
 
         # the image might be RGB or RGBA, so we separate it
-        original_image = self.get_image(image_idx).astype("float32") / 255.0
+        original_image = torch.from_numpy(self.get_image(image_idx).astype("float32") / 255.0)
         image = original_image[:, :, :3]
         num_channels = original_image.shape[2]
         if num_channels == 4:

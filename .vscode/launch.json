@@ -8,9 +8,11 @@
             "name": "Python: run_train_nerf",
             "type": "python",
             "request": "launch",
-            "program": "scripts/run_train_nerf.py",
+            "program": "scripts/run_train.py",
             "console": "integratedTerminal",
-            "args": []
+            "args": [
+                "machine_config.num_gpus=1"
+            ]
         }
     ]
 }

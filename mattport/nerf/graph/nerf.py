@@ -51,8 +51,8 @@ class NeRFGraph(Graph):
             Dict[str, List[Parameter]]: Mapping of different parameter groups
         """
         param_groups = {}
-        param_groups["camera"] = [dict(params=self.ray_generator.parameters())]
-        param_groups["graph"] = [dict(params=self.field_coarse.parameters()), dict(params=self.field_fine.parameters())]
+        param_groups["cameras"] = list(self.ray_generator.parameters())
+        param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
     def forward(self, ray_indices: TensorType["num_rays", 3]):
