@@ -60,4 +60,4 @@ machine_config:
 # graph options
 graph:
   # NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
-  _target_: mattport.nerf.graph.nerf.NeRFGraph
+  _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph

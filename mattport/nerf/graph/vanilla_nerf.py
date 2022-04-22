@@ -11,9 +11,7 @@ from torch.nn import Parameter
 from torchtyping import TensorType
 
 from mattport.nerf.field_modules.encoding import NeRFEncoding
-from mattport.nerf.field_modules.field_heads import (DensityFieldHead,
-                                                     FieldHeadNames,
-                                                     RGBFieldHead)
+from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
@@ -60,7 +58,9 @@ class NeRFField(nn.Module):
         field_rgb_output = self.field_output_rgb(rgb_mlp_out)
         field_density_out = self.field_output_density(base_mlp_out)
 
-        field_outputs = field_rgb_output | field_density_out
+        field_outputs = {}
+        field_outputs.update(field_rgb_output)
+        field_outputs.update(field_density_out)
         return field_outputs
 
 
@@ -75,7 +75,7 @@ class NeRFGraph(Graph):
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
 
         # samplers
-        self.sampler_uniform = UniformSampler(near_plane=0.1, far_plane=4.0, num_samples=64)
+        self.sampler_uniform = UniformSampler(near_plane=0.1, far_plane=6.0, num_samples=64)
         self.sampler_pdf = PDFSampler(num_samples=64)
 
         # field
