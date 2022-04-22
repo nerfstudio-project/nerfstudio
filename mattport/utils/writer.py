@@ -5,6 +5,7 @@ Generic Writer class
 
 import os
 from abc import abstractmethod
+from typing import Dict
 
 import imageio
 import numpy as np
@@ -14,7 +15,7 @@ from torchtyping import TensorType
 
 from mattport.utils.decorators import check_main_thread
 
-to8b = lambda x: (255 * torch.clip(x, 0, 1)).to(torch.uint8)
+to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 
 
 class Writer:
@@ -22,11 +23,10 @@ class Writer:
 
     def __init__(self, local_rank: int, world_size: int, save_dir: str):
         self.save_dir = save_dir
-        self.writer = None
         self.is_main_thread = local_rank % world_size == 0
 
     @abstractmethod
-    def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:
+    def write_image(self, name: str, x: TensorType["H", "W", 3], step: int) -> None:
         """_summary_
 
         Args:
@@ -46,7 +46,7 @@ class Writer:
         raise NotImplementedError
 
     @abstractmethod
-    def write_scalar(self, name: str, x: float, y: float) -> None:
+    def write_scalar(self, name: str, scalar: float, step: float, group: str = None) -> None:
         """Required method to write a single scalar value to the logger
 
         Args:
@@ -56,15 +56,15 @@ class Writer:
         """
         raise NotImplementedError
 
-    def write_scalar_dict(self, scalar_dict: dict) -> None:
+    def write_scalar_dict(self, scalar_dict: Dict[str, float], step: int, group: str = None) -> None:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
             scalar_dict (dict): dictionary containing all scalar values
         """
         if self.is_main_thread:
-            for name, (x, y) in scalar_dict.items():
-                self.writer.write_scalar(name, x, y)
+            for name, scalar in scalar_dict.items():
+                self.write_scalar(name, scalar, step, group=group)
 
 
 class TensorboardWriter(Writer):
@@ -73,10 +73,10 @@ class TensorboardWriter(Writer):
     def __init__(self, local_rank: int, world_size: int, save_dir: str):
         super().__init__(local_rank, world_size, save_dir)
         if self.is_main_thread:
-            self.writer = SummaryWriter(log_dir=self.save_dir)
+            self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 
     @check_main_thread
-    def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:
+    def write_image(self, name: str, x: TensorType["H", "W", 3], step: int) -> None:
         """_summary_
 
         Args:
@@ -84,7 +84,7 @@ class TensorboardWriter(Writer):
             x (TensorType["H", "W", 3]): rendered image to write
         """
         x = to8b(x)
-        self.writer.add_images(name, x)
+        self.tb_writer.add_image(name, x, step, dataformats="HWC")
 
     @check_main_thread
     def write_text(self, name: str, x: str) -> None:
@@ -94,27 +94,24 @@ class TensorboardWriter(Writer):
             name (str): data identifier
             x (str): string to write
         """
-        self.writer.add_text(name, x)
+        self.tb_writer.add_text(name, x)
 
     @check_main_thread
-    def write_scalar(self, name: str, x: float, y: float) -> None:
+    def write_scalar(self, name: str, scalar: float, step: float, group: str = None) -> None:
         """Tensorboard method to write a single scalar value to the logger
 
         Args:
             name (str): data identifier
             x (float): x value to write
             y (float): y value to write
+            group (str)): a prefix to group tensorboard scalars
         """
-        self.writer.add_scalar(name, x, y)
+        prefix = f"{group}/" if group else ""
+        self.tb_writer.add_scalar(f"{prefix}{name}", scalar, step)
 
 
 class LocalWriter(Writer):
     """Local Writer Class"""
-
-    def __init__(self, local_rank: int, world_size: int, save_dir: str):
-        super().__init__(local_rank, world_size, save_dir)
-        if self.is_main_thread:
-            self.writer = SummaryWriter(log_dir=self.save_dir)
 
     @check_main_thread
     def write_image(self, name: str, x: TensorType["H", "W", 3]) -> None:

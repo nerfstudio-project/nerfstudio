@@ -37,7 +37,10 @@ Download the original NeRF dataset and put it in the following format.
 # Training a model
 
 ```
-python scripts/run_train_nerf.py
+# Run with the default config
+python scripts/run_train.py
+# Run with config changes
+python scripts/run_train.py machine_config.num_gpus=1
 ```
 
 # Setting up Jupyter

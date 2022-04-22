@@ -15,7 +15,8 @@ from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.nerf.optimizers import Optimizers
 from mattport.utils.decorators import check_main_thread
-from mattport.utils.writer import LocalWriter
+from mattport.utils.writer import LocalWriter, TensorboardWriter
+from mattport.nerf.metrics import get_psnr
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -38,7 +39,10 @@ class Trainer:
         self.start_step = 0
         # logging variables
         self.is_main_thread = local_rank % world_size == 0
-        self.local_writer = LocalWriter(local_rank, world_size, save_dir=None)
+        self.local_writer = LocalWriter(local_rank, world_size, save_dir=os.path.join(os.getcwd(), "writer"))
+        self.tensorboard_writer = TensorboardWriter(
+            local_rank, world_size, save_dir=os.path.join(os.getcwd(), "writer")
+        )
 
     def setup_dataset(self):
         """_summary_"""
@@ -74,6 +78,7 @@ class Trainer:
 
     def setup_optimizers(self):
         """_summary_"""
+        # TODO(ethan): handle different world sizes
         self.optimizers = Optimizers(self.config.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
@@ -116,23 +121,70 @@ class Trainer:
             ckpt_path,
         )
 
+    def get_aggregated_loss(self, losses):
+        loss_sum = 0.0
+        loss_dict = {}
+        for loss_name in losses.keys():
+            # TODO(ethan): add loss weightings here from a config
+            loss_sum += losses[loss_name]
+            loss_dict[loss_name] = float(losses[loss_name])
+        return loss_sum, loss_dict
+
     def train(self) -> None:
         """_summary_"""
-        num_epochs = 10
-        for _ in range(num_epochs):
-            self.train_iteration()
-
-    def train_iteration(self):
-        """_summary_"""
-        num_iters = 100
-        for step in range(self.start_step, self.start_step + num_iters):
+        num_iterations = self.config.max_num_iterations
+        for step in range(self.start_step, self.start_step + num_iterations):
             batch = next(iter(self.train_dataloader))
-            # move batch to correct device
-            ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
-            graph_outputs = self.graph(ray_indices)
-            batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
-            losses = self.graph.module.get_losses(batch, graph_outputs)
-            self.local_writer.write_text(f"{step}/{num_iters}: losses", losses)
-            if step % self.config.save_step == 0:
+            loss_dict = self.train_iteration(batch, step)
+            if step != 0 and step % self.config.steps_per_log == 0:
+                self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="train")
+                logging.info(f"{step}/{num_iterations} with losses {loss_dict}")
+                # TODO: add the learning rates to tensorboard/logging
+            if self.config.steps_per_save and step != 0 and step % self.config.steps_per_save == 0:
                 self.save_checkpoint(self.config.model_dir, step)
-                self.local_writer.write_text(f"ckpt at {step}", f"{losses}\n")
+                logging.info(f"Saved ckpt at {step}")
+            if step != 0 and step % self.config.steps_per_test == 0:
+                self.test_image(image_idx=0, step=step)
+
+    def train_iteration(self, batch: dict, step: int):
+        """Run one iteration with a batch of inputs."""
+        # move batch to correct device
+        ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
+        graph_outputs = self.graph(ray_indices)
+        batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
+        losses = self.graph.get_losses(batch, graph_outputs)  # or self.graph.module
+        loss_sum, loss_dict = self.get_aggregated_loss(losses)
+        self.optimizers.zero_grad_all()
+        loss_sum.backward()
+        self.optimizers.scheduler_step_all(step)  # NOTE(ethan): I think the scheduler needs to know what step we are on
+        self.optimizers.optimizer_step_all()
+        return loss_dict
+
+    def test_image(self, image_idx, step):
+        """Test a specific image."""
+        logging.info("Running test iteration.")
+        image = self.train_dataset[image_idx]["image"]  # ground truth
+        image_height, image_width, _ = image.shape
+        pixel_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
+        pixel_coords = torch.stack(pixel_coords, dim=-1).long()
+        all_ray_indices = torch.cat([torch.ones_like(pixel_coords[..., :1]) * image_idx, pixel_coords], dim=-1).view(
+            -1, 3
+        )
+        with torch.no_grad():
+            num_rays = all_ray_indices.shape[0]
+            chunk_size = 1024
+            rgb_coarse = []
+            rgb_fine = []
+            for i in range(0, num_rays, chunk_size):
+                ray_indices = all_ray_indices[i : i + chunk_size].to(f"cuda:{self.local_rank}")
+                graph_outputs = self.graph(ray_indices)
+                rgb_coarse.append(graph_outputs["rgb_coarse"])
+                rgb_fine.append(graph_outputs["rgb_fine"])
+            rgb_coarse = torch.cat(rgb_coarse).view(image_height, image_width, 3).detach().cpu()
+            rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
+
+        combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
+        self.tensorboard_writer.write_image("test/rgb_coarse_fine", combined_image, step)
+
+        fine_psnr = get_psnr(image, rgb_fine)
+        self.tensorboard_writer.write_scalar("fine_psnr", fine_psnr, step, group="test")

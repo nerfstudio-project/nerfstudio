@@ -13,18 +13,6 @@ import torch
 from mattport.utils.io import get_absolute_path, load_from_json
 
 
-class DotDict(dict):
-    """
-    dot.notation access to dictionary attributes
-    """
-
-    def __getattr__(self, attr):
-        return self[attr]
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-
 @dataclass
 class DatasetInputs:
     """Dataset inputs for the image dataset and the ray generator."""

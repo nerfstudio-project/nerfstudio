@@ -11,7 +11,7 @@ from torch.nn import Parameter
 from torchtyping import TensorType
 
 from mattport.nerf.field_modules.encoding import NeRFEncoding
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
+from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
@@ -58,7 +58,9 @@ class NeRFField(nn.Module):
         field_rgb_output = self.field_output_rgb(rgb_mlp_out)
         field_density_out = self.field_output_density(base_mlp_out)
 
-        field_outputs = field_rgb_output | field_density_out
+        field_outputs = {}
+        field_outputs.update(field_rgb_output)
+        field_outputs.update(field_density_out)
         return field_outputs
 
 
@@ -73,7 +75,7 @@ class NeRFGraph(Graph):
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
 
         # samplers
-        self.sampler_uniform = UniformSampler(near_plane=0.1, far_plane=4.0, num_samples=64)
+        self.sampler_uniform = UniformSampler(near_plane=0.1, far_plane=6.0, num_samples=64)
         self.sampler_pdf = PDFSampler(num_samples=64)
 
         # field
@@ -93,8 +95,8 @@ class NeRFGraph(Graph):
             Dict[str, List[Parameter]]: Mapping of different parameter groups
         """
         param_groups = {}
-        param_groups["camera"] = [dict(params=self.ray_generator.parameters())]
-        param_groups["graph"] = [dict(params=self.field_coarse.parameters()), dict(params=self.field_fine.parameters())]
+        param_groups["cameras"] = list(self.ray_generator.parameters())
+        param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
     def forward(self, ray_indices: TensorType["num_rays", 3]):
@@ -104,14 +106,20 @@ class NeRFGraph(Graph):
         # coarse network:
         uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
         coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
+
         coarse_renderer_outputs = self.renderer_rgb(
-            field_outputs=coarse_field_outputs.rgb, deltas=uniform_ray_samples.deltas
+            rgb=coarse_field_outputs[FieldHeadNames.RGB],
+            density=coarse_field_outputs[FieldHeadNames.DENSITY],
+            deltas=uniform_ray_samples.deltas,
         )  # RendererOutputs
         # fine network:
         pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
+
         fine_renderer_outputs = self.renderer_rgb(
-            field_outputs=fine_field_outputs, deltas=pdf_ray_samples.deltas
+            rgb=fine_field_outputs[FieldHeadNames.RGB],
+            density=fine_field_outputs[FieldHeadNames.DENSITY],
+            deltas=pdf_ray_samples.deltas,
         )  # RendererOutputs
         # outputs:
         outputs = {"rgb_coarse": coarse_renderer_outputs.rgb, "rgb_fine": fine_renderer_outputs.rgb}

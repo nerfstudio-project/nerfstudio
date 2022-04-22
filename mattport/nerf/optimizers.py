@@ -48,3 +48,19 @@ class Optimizers:
         """
         if self.config.param_name.scheduler:
             self.schedulers[param_name].step()
+
+    def zero_grad_all(self):
+        """zero the gradients for all optimizer parameters"""
+        for _, optimizer in self.optimizers.items():
+            optimizer.zero_grad()
+
+    def optimizer_step_all(self):
+        """Run step for all optimizers."""
+        # logging.info("optimizer_step_all")
+        for param_name, optimizer in self.optimizers.items():
+            optimizer.step()
+
+    def scheduler_step_all(self, step):
+        """Run step for all schedulers."""
+        # logging.info("optimizer_step_all")
+        pass
