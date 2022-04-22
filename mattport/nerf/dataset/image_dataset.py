@@ -80,7 +80,7 @@ def collate_batch(batch, num_rays_per_batch, keep_full_image: bool = False):
     """_summary_
 
     Args:
-        batch (_type_): _description_
+     batch (_type_): _description_
     """
     # TODO(ethan): handle sampling even when in different processes
     # we don't want the same samples for all spawned processed when
@@ -95,6 +95,8 @@ def collate_batch(batch, num_rays_per_batch, keep_full_image: bool = False):
     pixels = batch["image"][c, y, x]
     mask = batch["mask"][c, y, x]
     assert pixels.shape == (num_rays_per_batch, 3), pixels.shape
+
+    indices[:, 0] = batch["image_idx"][c]
 
     collated_batch = {
         "indices": indices,
