@@ -1,4 +1,9 @@
-hydra: 
+defaults:
+  # This makes the logging module logs colorful
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+
+hydra:
   run:
     # Configure output dir of each experiment programmatically from the arguments
     # Example "outputs/mnist/classifier/baseline/2021-03-10-141516"
@@ -21,9 +26,9 @@ model_dir: /tmp/mattport_models/
 
 # dataset options
 dataset:
-  data_directory: data/lego
+  data_directory: data/blender/lego
   dataset_type: blender
-  downscale_factor: 1.0
+  downscale_factor: 4
 
 # dataloader options
 dataloader:
@@ -40,8 +45,8 @@ param_groups:
       lr: 1e-4
     scheduler:
       type: StepLR
-      step_size: 30
-      gamma: 0.1
+      step_size: 30 #  Period of learning rate decay.
+      gamma: 0.1 # Multiplicative factor of learning rate decay. Default: 0.1.
   cameras:
     optimizer:
       type: SGD
@@ -61,3 +66,7 @@ machine_config:
 graph:
   # NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
   _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph
+  near_plane: 1.0
+  far_plane: 6.0
+  num_coarse_samples: 64
+  num_importance_samples: 64

@@ -24,18 +24,26 @@ from mattport.structures.rays import RaySamples
 class NeRFField(nn.Module):
     """NeRF module"""
 
-    def __init__(self) -> None:
+    def __init__(self, num_layers=8, layer_width=256, skip_connections=[4]) -> None:
         super().__init__()
+        self.num_layers = num_layers
+        self.layer_width = layer_width
+        self.skip_connections = skip_connections
+
         self.encoding_xyz = NeRFEncoding(in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0)
-        self.encoding_dir = NeRFEncoding(in_dim=3, num_frequencies=6, min_freq_exp=0.0, max_freq_exp=4.0)
+        self.encoding_dir = NeRFEncoding(in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0)
         self.mlp_base = MLP(
-            in_dim=self.encoding_xyz.get_out_dim(), out_dim=64, num_layers=8, layer_width=64, activation=nn.ReLU()
+            in_dim=self.encoding_xyz.get_out_dim(),
+            out_dim=self.layer_width,
+            num_layers=self.num_layers,
+            layer_width=self.layer_width,
+            skip_connections=self.skip_connections,
+            activation=nn.ReLU(),
         )
         self.mlp_rgb = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.encoding_dir.get_out_dim(),
-            out_dim=64,
-            num_layers=2,
-            layer_width=64,
+            out_dim=self.layer_width // 2,
+            num_layers=1,
             activation=nn.ReLU(),
         )
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
@@ -67,16 +75,31 @@ class NeRFField(nn.Module):
 class NeRFGraph(Graph):
     """Vanilla NeRF graph"""
 
-    def __init__(self, intrinsics=None, camera_to_world=None) -> None:
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world)
+    def __init__(
+        self,
+        intrinsics=None,
+        camera_to_world=None,
+        near_plane=1.0,
+        far_plane=6.0,
+        num_coarse_samples=64,
+        num_importance_samples=128,
+        **kwargs
+    ) -> None:
+        self.near_plane = near_plane
+        self.far_plane = far_plane
+        self.num_coarse_samples = num_coarse_samples
+        self.num_importance_samples = num_importance_samples
+        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
     def populate_modules(self):
         # ray generator
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
 
         # samplers
-        self.sampler_uniform = UniformSampler(near_plane=0.1, far_plane=6.0, num_samples=64)
-        self.sampler_pdf = PDFSampler(num_samples=64)
+        self.sampler_uniform = UniformSampler(
+            near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_coarse_samples
+        )
+        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
 
         # field
         self.field_coarse = NeRFField()
@@ -95,7 +118,7 @@ class NeRFGraph(Graph):
             Dict[str, List[Parameter]]: Mapping of different parameter groups
         """
         param_groups = {}
-        param_groups["cameras"] = list(self.ray_generator.parameters())
+        # param_groups["cameras"] = list(self.ray_generator.parameters())
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 

@@ -1,10 +1,13 @@
 """
 Multi Layer Perceptron
 """
-from typing import Optional
+from tkinter import X
+from typing import List, Optional
 
+import torch
 from torch import nn
 from torchtyping import TensorType
+
 from mattport.nerf.field_modules.base import FieldModule
 
 
@@ -16,7 +19,8 @@ class MLP(FieldModule):
         in_dim: int,
         out_dim: int,
         num_layers: int,
-        layer_width: int,
+        layer_width: int = None,
+        skip_connections: List[int] = [],
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
@@ -36,26 +40,28 @@ class MLP(FieldModule):
         self.out_dim = out_dim
         self.num_layers = num_layers
         self.layer_width = layer_width
+        self.skip_connections = skip_connections
         self.activation = activation
         self.out_activation = out_activation
         self.net = None
         self.build_nn_modules()
 
     def build_nn_modules(self) -> None:
-        """Initialize mulilayer perceptron."""
+        """Initialize multi-layer perceptron."""
         layers = []
-        for i in range(self.num_layers):
-            if i == 0:
-                layers.append(nn.Linear(self.in_dim, self.layer_width))
-            else:
-                layers.append(nn.Linear(self.layer_width, self.layer_width))
-            if self.activation is not None:
-                layers.append(self.activation)
-        layers.append(nn.Linear(self.layer_width, self.out_dim))
-        if self.out_activation is not None:
-            layers.append(self.out_activation)
-
-        self.net = nn.Sequential(*layers)
+        if self.num_layers == 1:
+            layers.append(nn.Linear(self.in_dim, self.out_dim))
+        else:
+            for i in range(self.num_layers - 1):
+                if i == 0:
+                    assert i not in self.skip_connections, "Skip connection at layer 0 doesn't make sense."
+                    layers.append(nn.Linear(self.in_dim, self.layer_width))
+                elif i in self.skip_connections:
+                    layers.append(nn.Linear(self.layer_width + self.in_dim, self.layer_width))
+                else:
+                    layers.append(nn.Linear(self.layer_width, self.layer_width))
+            layers.append(nn.Linear(self.layer_width, self.out_dim))
+        self.layers = nn.ModuleList(layers)
 
     def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType[..., "out_dim"]:
         """Process input with a multilayer perceptron.
@@ -66,5 +72,11 @@ class MLP(FieldModule):
         Returns:
             TensorType[..., "out_dim"]: Network output
         """
-
-        return self.net(in_tensor)
+        x = in_tensor
+        for i, layer in enumerate(self.layers):
+            if i in self.skip_connections:
+                x = torch.cat([in_tensor, x], -1)
+            x = layer(x)
+            if self.activation:
+                x = self.activation(x)
+        return x

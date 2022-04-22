@@ -1,4 +1,5 @@
 black
+hydra-colorlog
 hydra-core
 imageio==2.16.1
 ipywidgets>=7.6

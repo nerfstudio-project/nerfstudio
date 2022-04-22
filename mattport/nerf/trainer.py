@@ -137,7 +137,7 @@ class Trainer:
             batch = next(iter(self.train_dataloader))
             loss_dict = self.train_iteration(batch, step)
             if step != 0 and step % self.config.steps_per_log == 0:
-                self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="train")
+                self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 logging.info(f"{step}/{num_iterations} with losses {loss_dict}")
                 # TODO: add the learning rates to tensorboard/logging
             if self.config.steps_per_save and step != 0 and step % self.config.steps_per_save == 0:

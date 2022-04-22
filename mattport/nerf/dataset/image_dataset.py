@@ -6,6 +6,7 @@ from typing import List
 
 import numpy as np
 import torch
+import PIL
 from PIL import Image
 from torch.utils.data import default_collate
 
@@ -15,8 +16,9 @@ from mattport.utils.misc import DotDict
 class ImageDataset(torch.utils.data.Dataset):
     """Dataset that returns images."""
 
-    def __init__(self, image_filenames: List[str], downscale_factor: float = 1.0):
+    def __init__(self, image_filenames: List[str], downscale_factor: int = 1):
         super().__init__()
+        assert isinstance(downscale_factor, int)
         self.image_filenames = image_filenames
         self.downscale_factor = downscale_factor
 
@@ -33,7 +35,21 @@ class ImageDataset(torch.utils.data.Dataset):
             np.uint8: an image of shape (H, W, 3 or 4)
         """
         image_filename = self.image_filenames[image_idx]
-        image = np.array(Image.open(image_filename))  # shape is (h, w, 3 or 4)
+        pil_image = Image.open(image_filename)
+        if self.downscale_factor != 1.0:
+            image_width, image_height = pil_image.size
+            if image_width % self.downscale_factor != 0:
+                raise ValueError(
+                    f"Image width {image_width} is not divisible by downscale_factor {self.downscale_factor}"
+                )
+            if image_height % self.downscale_factor != 0:
+                raise ValueError(
+                    f"Image height {image_height} is not divisible by downscale_factor {self.downscale_factor}"
+                )
+            pil_image = pil_image.resize(
+                (image_width // self.downscale_factor, image_height // self.downscale_factor), PIL.Image.BILINEAR
+            )
+        image = np.array(pil_image)  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
