@@ -32,10 +32,11 @@ dataset:
 
 # dataloader options
 dataloader:
-  num_workers: 0
+  num_workers: 4
   shuffle: true
   num_images_to_sample_from: 8
   num_rays_per_batch: 1024
+  num_times_to_repeat_images: 40
 
 # optimizer options
 param_groups:

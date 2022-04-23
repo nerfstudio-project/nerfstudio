@@ -3,7 +3,7 @@ Implementation of vanilla nerf.
 """
 
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import torch
 from torch import nn
@@ -17,14 +17,14 @@ from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import RGBRenderer
-from mattport.nerf.sampler import PDFSampler, UniformSampler
+from mattport.nerf.sampler import PDFSampler, UniformSampler  # pylint: disable=unused-import
 from mattport.structures.rays import RaySamples
 
 
 class NeRFField(nn.Module):
     """NeRF module"""
 
-    def __init__(self, num_layers=8, layer_width=256, skip_connections=[4]) -> None:
+    def __init__(self, num_layers=8, layer_width=256, skip_connections: Tuple = (4)) -> None:
         super().__init__()
         self.num_layers = num_layers
         self.layer_width = layer_width
@@ -99,7 +99,11 @@ class NeRFGraph(Graph):
         self.sampler_uniform = UniformSampler(
             near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_coarse_samples
         )
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+        # TODO: this needs to be corrected
+        # self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+        self.sampler_pdf = UniformSampler(
+            near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_importance_samples
+        )
 
         # field
         self.field_coarse = NeRFField()
@@ -128,7 +132,10 @@ class NeRFGraph(Graph):
         ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
         # coarse network:
         uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
+
+        # time coarse network # xyz -> asd
         coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
+        # time end coarse network
 
         coarse_renderer_outputs = self.renderer_rgb(
             rgb=coarse_field_outputs[FieldHeadNames.RGB],
@@ -136,7 +143,8 @@ class NeRFGraph(Graph):
             deltas=uniform_ray_samples.deltas,
         )  # RendererOutputs
         # fine network:
-        pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
+        # pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
+        pdf_ray_samples = self.sampler_pdf(ray_bundle)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
 
         fine_renderer_outputs = self.renderer_rgb(
@@ -151,7 +159,7 @@ class NeRFGraph(Graph):
     def get_losses(self, batch, graph_outputs):
         # batch.pixels # (num_rays, 3)
         losses = {}
-        rgb_loss_coarse = self.rgb_loss(batch.pixels, graph_outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(batch.pixels, graph_outputs["rgb_fine"])
+        rgb_loss_coarse = self.rgb_loss(batch["pixels"], graph_outputs["rgb_coarse"])
+        rgb_loss_fine = self.rgb_loss(batch["pixels"], graph_outputs["rgb_fine"])
         losses = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
         return losses

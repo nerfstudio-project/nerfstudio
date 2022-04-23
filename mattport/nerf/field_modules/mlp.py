@@ -1,8 +1,7 @@
 """
 Multi Layer Perceptron
 """
-from tkinter import X
-from typing import List, Optional
+from typing import Tuple, Optional
 
 import torch
 from torch import nn
@@ -20,7 +19,7 @@ class MLP(FieldModule):
         out_dim: int,
         num_layers: int,
         layer_width: int = None,
-        skip_connections: List[int] = [],
+        skip_connections: Tuple[int] = (),
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
