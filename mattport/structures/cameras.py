@@ -181,10 +181,10 @@ class PinholeCamera(Camera):
         fy = intrinsics[:, cls.fy_index() : cls.fy_index() + 1]
         y = coords[:, 0:1]  # (num_rays, 1)
         x = coords[:, 1:2]  # (num_rays, 1)
-        directions = torch.cat([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)  # (num_rays, 3)
+        original_directions = torch.cat([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)  # (num_rays, 3)
         rotation = camera_to_world[:, :3, :3]  # (num_rays, 3, 3)
         directions = torch.sum(
-            directions[:, None, :] * rotation, dim=-1
+            original_directions[:, None, :] * rotation, dim=-1
         )  # (num_rays, 1, 3) * (num_rays, 3, 3) -> (num_rays, 3)
         directions = normalize(directions, dim=-1)
         origins = camera_to_world[:, :3, 3]  # (num_rays, 3)

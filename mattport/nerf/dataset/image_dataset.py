@@ -10,7 +10,38 @@ import PIL
 from PIL import Image
 from torch.utils.data import default_collate
 
-from mattport.utils.misc import DotDict
+
+def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False):
+    """_summary_
+
+    Args:
+     batch (_type_): _description_
+    """
+    # TODO(ethan): handle sampling even when in different processes
+    # we don't want the same samples for all spawned processed when
+    # using distributed training
+
+    batch = default_collate(batch_list)
+    num_images, image_height, image_width, _ = batch["image"].shape
+    indices = torch.floor(
+        torch.rand((num_rays_per_batch, 3)) * torch.tensor([num_images, image_height, image_width])
+    ).long()
+    c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
+    pixels = batch["image"][c, y, x]
+    mask = batch["mask"][c, y, x]
+    assert pixels.shape == (num_rays_per_batch, 3), pixels.shape
+
+    # Needed to correct the random indices to their actual camera idx locations.
+    indices[:, 0] = batch["image_idx"][c]
+    collated_batch = {
+        "indices": indices,
+        "pixels": pixels,
+        "mask": mask,
+    }
+    if keep_full_image:
+        collated_batch["image"] = batch["image"]
+
+    return collated_batch
 
 
 class ImageDataset(torch.utils.data.Dataset):
@@ -55,9 +86,6 @@ class ImageDataset(torch.utils.data.Dataset):
         return image
 
     def __getitem__(self, image_idx):
-        # TODO(ethan): we should add code to deal with varying resolution and/or having a maximum pixel resolution
-        # e.g., we should be able to downscale the images or set a max height, width, etc.
-
         # the image might be RGB or RGBA, so we separate it
         original_image = torch.from_numpy(self.get_image(image_idx).astype("float32") / 255.0)
         image = original_image[:, :, :3]
@@ -69,41 +97,9 @@ class ImageDataset(torch.utils.data.Dataset):
         else:
             raise ValueError(f"Image shape of {image.shape} is in correct.")
 
-        return {
+        data = {
             "image_idx": image_idx,
             "image": image,  # the pixels
             "mask": mask,
         }
-
-
-def collate_batch(batch, num_rays_per_batch, keep_full_image: bool = False):
-    """_summary_
-
-    Args:
-     batch (_type_): _description_
-    """
-    # TODO(ethan): handle sampling even when in different processes
-    # we don't want the same samples for all spawned processed when
-    # using distributed training
-
-    batch = default_collate(batch)
-    num_images, image_height, image_width, _ = batch["image"].shape
-    indices = torch.floor(
-        torch.rand((num_rays_per_batch, 3)) * torch.tensor([num_images, image_height, image_width])
-    ).long()
-    c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
-    pixels = batch["image"][c, y, x]
-    mask = batch["mask"][c, y, x]
-    assert pixels.shape == (num_rays_per_batch, 3), pixels.shape
-
-    indices[:, 0] = batch["image_idx"][c]
-
-    collated_batch = {
-        "indices": indices,
-        "pixels": pixels,
-        "mask": mask,
-    }
-    if keep_full_image:
-        collated_batch["image"] = batch["image"]
-
-    return DotDict(collated_batch)
+        return data

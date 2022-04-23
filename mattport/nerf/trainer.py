@@ -14,6 +14,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
+from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.nerf.metrics import get_psnr
 from mattport.nerf.optimizers import Optimizers
@@ -50,20 +51,25 @@ class Trainer:
     def setup_dataset(self):
         """_summary_"""
         dataset_inputs = get_dataset_inputs(**self.config.dataset)
-        self.train_dataset = ImageDataset(
+        self.train_image_dataset = ImageDataset(
             image_filenames=dataset_inputs.image_filenames, downscale_factor=dataset_inputs.downscale_factor
+        )
+        self.train_dataset = CollateIterDataset(
+            self.train_image_dataset,
+            collate_fn=lambda batch_list: collate_batch(
+                batch_list, self.config.dataloader.num_rays_per_batch, keep_full_image=False
+            ),
+            num_samples_to_collate=self.config.dataloader.num_images_to_sample_from,
+            num_times_to_repeat=self.config.dataloader.num_times_to_repeat_images,
         )
         self.train_dataloader = DataLoader(
             self.train_dataset,
-            batch_size=self.config.dataloader.num_images_to_sample_from,
-            collate_fn=lambda batch: collate_batch(
-                batch, self.config.dataloader.num_rays_per_batch, keep_full_image=True
-            ),
+            batch_size=1,
             num_workers=self.config.dataloader.num_workers,
-            shuffle=True,
+            collate_fn=lambda batch_list: collate_batch_size_one(batch_list),
             pin_memory=True,
         )
-        # TODO(ethan): implement the test data
+        # TODO(ethan): implement the test dataset
 
     def setup_graph(self):
         """_summary_"""
@@ -175,13 +181,16 @@ class Trainer:
         """_summary_"""
         train_start = time()
         num_iterations = self.config.max_num_iterations
+        iter_dataset = iter(self.train_dataloader)
         for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
-            batch = next(iter(self.train_dataloader))
+            batch = next(iter_dataset)
             self.update_time("load data (time)", data_start, time(), num_iter=step)
             iter_start = time()
             loss_dict = self.train_iteration(batch, step)
-            self.update_time("avg. rays/s (1/s)", iter_start, time(), num_iter=step, batch_size=batch.indices.shape[0])
+            self.update_time(
+                "avg. rays/s (1/s)", iter_start, time(), num_iter=step, batch_size=batch["indices"].shape[0]
+            )
             self.update_time("single iter (time)", iter_start, time(), num_iter=step)
             if step != 0 and step % self.config.steps_per_log == 0:
                 self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
@@ -192,6 +201,8 @@ class Trainer:
                 logging.info("Saved ckpt at {%d}", step)
             if step != 0 and step % self.config.steps_per_test == 0:
                 self.test_image(image_idx=0, step=step)
+                self.test_image(image_idx=10, step=step)
+                self.test_image(image_idx=20, step=step)
             self.print_times()
         self.update_time("total train", train_start, time())
 
@@ -212,7 +223,7 @@ class Trainer:
     def test_image(self, image_idx, step):
         """Test a specific image."""
         logging.info("Running test iteration.")
-        image = self.train_dataset[image_idx]["image"]  # ground truth
+        image = self.train_image_dataset[image_idx]["image"]  # ground truth
         image_height, image_width, _ = image.shape
         pixel_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
         pixel_coords = torch.stack(pixel_coords, dim=-1).long()
@@ -233,7 +244,9 @@ class Trainer:
             rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
 
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        self.tensorboard_writer.write_image("test/rgb_coarse_fine", combined_image, step)
+        self.tensorboard_writer.write_image(
+            f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="test"
+        )
 
         fine_psnr = get_psnr(image, rgb_fine)
-        self.tensorboard_writer.write_scalar("fine_psnr", fine_psnr, step, group="test")
+        self.tensorboard_writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", fine_psnr, step, group="test")
