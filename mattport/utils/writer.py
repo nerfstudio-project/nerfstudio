@@ -40,19 +40,6 @@ class Writer:
         """
         raise NotImplementedError
 
-    @check_main_thread
-    def write_text(self, name: str, x: str, step: int, group: str = None, prefix: str = None) -> None:
-        """Required method to write a string to summary
-
-        Args:
-            name (str): data identifier
-            x (str): string to write
-            step (int): the time step to log
-            group (str): the group e.g., "Loss", "Accuracy", "Time"
-            prefix (str): the prefix e.g., "train-", "test-"
-        """
-        raise NotImplementedError
-
     @abstractmethod
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
         """Required method to write a single scalar value to the logger
@@ -130,14 +117,5 @@ class LocalWriter(Writer):
         imageio.imwrite(image_path, np.uint8(x.cpu().numpy() * 255.0))
 
     @check_main_thread
-    def write_text(self, name: str, x: str, step: int, group: str = None, prefix: str = None) -> None:
-        """Logs text locally to the terminal in place
-        Args:
-            name (str): data identifier
-            x (str): string to write
-        """
-        print(f"{name}: {x}, step: {step}", end="\r")
-
-    @check_main_thread
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
-        self.write_text(name, f"scalar: {scalar:04f}", step)
+        raise NotImplementedError
