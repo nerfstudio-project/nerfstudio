@@ -1,8 +1,10 @@
 """
 Code to train model.
 """
+import datetime
 import logging
 import os
+from time import time
 
 import torch
 import torch.distributed as dist
@@ -13,10 +15,10 @@ from torch.utils.data import DataLoader
 
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
+from mattport.nerf.metrics import get_psnr
 from mattport.nerf.optimizers import Optimizers
 from mattport.utils.decorators import check_main_thread
 from mattport.utils.writer import LocalWriter, TensorboardWriter
-from mattport.nerf.metrics import get_psnr
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -43,6 +45,7 @@ class Trainer:
         self.tensorboard_writer = TensorboardWriter(
             local_rank, world_size, save_dir=os.path.join(os.getcwd(), "writer")
         )
+        self.time_dict = {}
 
     def setup_dataset(self):
         """_summary_"""
@@ -121,7 +124,44 @@ class Trainer:
             ckpt_path,
         )
 
+    def update_time(self, name, start_time, end_time, num_iter=1, batch_size=None):
+        """update the time dictionary with running averages/cumulative durations
+
+        Args:
+            name (_type_): name of function time we are logging
+            start_time (_type_): start time for the call
+            end_time (_type_): end time when the call finished executing
+            num_iter (int, optional): number of total iteration steps. Defaults to 1.
+            batch_size (_type_, optional): total number of rays in a batch;
+                if None, reports duration instead of batch per second. Defaults to None.
+        """
+        val = end_time - start_time
+        if batch_size:
+            val = batch_size / val
+
+        self.time_dict[name] = (self.time_dict.get(name, 0) * num_iter + val) / (num_iter + 1)
+        if name == "single iter (time)":
+            remain_iter = self.config.max_num_iterations - num_iter
+            self.time_dict["ETA (time)"] = remain_iter * self.time_dict[name]
+
+    def print_times(self):
+        """helper to print out the timing dictionary."""
+        mssg = ""
+        for k, v in self.time_dict.items():
+            if "(time)" in k:
+                v = str(datetime.timedelta(seconds=v))
+            mssg += f"{k}: {v} | "
+        print(mssg, end="\r")
+
     def get_aggregated_loss(self, losses):
+        """_summary_
+
+        Args:
+            losses (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
         loss_sum = 0.0
         loss_dict = {}
         for loss_name in losses.keys():
@@ -132,19 +172,27 @@ class Trainer:
 
     def train(self) -> None:
         """_summary_"""
+        train_start = time()
         num_iterations = self.config.max_num_iterations
         for step in range(self.start_step, self.start_step + num_iterations):
+            data_start = time()
             batch = next(iter(self.train_dataloader))
+            self.update_time("load data (time)", data_start, time(), num_iter=step)
+            iter_start = time()
             loss_dict = self.train_iteration(batch, step)
+            self.update_time("avg. rays/s (1/s)", iter_start, time(), num_iter=step, batch_size=batch.indices.shape[0])
+            self.update_time("single iter (time)", iter_start, time(), num_iter=step)
             if step != 0 and step % self.config.steps_per_log == 0:
                 self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
-                logging.info(f"{step}/{num_iterations} with losses {loss_dict}")
+                logging.info("{%d}/{%d} with losses {%s}", step, num_iterations, loss_dict)
                 # TODO: add the learning rates to tensorboard/logging
-            if self.config.steps_per_save and step != 0 and step % self.config.steps_per_save == 0:
+            if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
                 self.save_checkpoint(self.config.model_dir, step)
-                logging.info(f"Saved ckpt at {step}")
+                logging.info("Saved ckpt at {%d}", step)
             if step != 0 and step % self.config.steps_per_test == 0:
                 self.test_image(image_idx=0, step=step)
+            self.print_times()
+        self.update_time("total train", train_start, time())
 
     def train_iteration(self, batch: dict, step: int):
         """Run one iteration with a batch of inputs."""
