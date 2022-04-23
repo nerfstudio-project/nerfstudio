@@ -58,6 +58,7 @@ class Trainer:
             ),
             num_workers=self.config.dataloader.num_workers,
             shuffle=True,
+            pin_memory=True,
         )
         # TODO(ethan): implement the test data
 
@@ -149,9 +150,9 @@ class Trainer:
     def train_iteration(self, batch: dict, step: int):
         """Run one iteration with a batch of inputs."""
         # move batch to correct device
-        ray_indices = batch.indices.to(f"cuda:{self.local_rank}")
+        ray_indices = batch["indices"].to(f"cuda:{self.local_rank}")
         graph_outputs = self.graph(ray_indices)
-        batch.pixels = batch.pixels.to(f"cuda:{self.local_rank}")
+        batch["pixels"] = batch["pixels"].to(f"cuda:{self.local_rank}")
         losses = self.graph.get_losses(batch, graph_outputs)  # or self.graph.module
         loss_sum, loss_dict = self.get_aggregated_loss(losses)
         self.optimizers.zero_grad_all()
