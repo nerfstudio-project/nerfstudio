@@ -56,11 +56,10 @@ class Optimizers:
 
     def optimizer_step_all(self):
         """Run step for all optimizers."""
-        # logging.info("optimizer_step_all")
-        for param_name, optimizer in self.optimizers.items():
+        for _, optimizer in self.optimizers.items():
+            # note that they key is the parameter name
             optimizer.step()
 
     def scheduler_step_all(self, step):
         """Run step for all schedulers."""
-        # logging.info("optimizer_step_all")
-        pass
+        # TODO: this needs to be implemented

@@ -34,7 +34,7 @@ class Node:
 class Graph(nn.Module):
     """_summary_"""
 
-    def __init__(self, intrinsics=None, camera_to_world=None, **kwargs) -> None:
+    def __init__(self, intrinsics=None, camera_to_world=None) -> None:
         super().__init__()
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world

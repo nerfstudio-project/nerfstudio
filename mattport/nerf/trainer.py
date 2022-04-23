@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 from time import time
+from typing import Dict
 
 import torch
 import torch.distributed as dist
@@ -32,6 +33,7 @@ class Trainer:
         self.local_rank = local_rank
         self.world_size = world_size
         # dataset variables
+        self.train_image_dataset = None
         self.train_dataset = None
         self.train_dataloader = None
         self.test_dataset = None
@@ -66,7 +68,7 @@ class Trainer:
             self.train_dataset,
             batch_size=1,
             num_workers=self.config.dataloader.num_workers,
-            collate_fn=lambda batch_list: collate_batch_size_one(batch_list),
+            collate_fn=collate_batch_size_one,
             pin_memory=True,
         )
         # TODO(ethan): implement the test dataset
@@ -160,14 +162,10 @@ class Trainer:
             mssg += f"{k}: {v} | "
         print(mssg, end="\r")
 
-    def get_aggregated_loss(self, losses):
-        """_summary_
-
-        Args:
-            losses (_type_): _description_
-
-        Returns:
-            _type_: _description_
+    @classmethod
+    def get_aggregated_loss(cls, losses: Dict[str, torch.tensor]):
+        """Returns the aggregated losses and the scalar for calling .backwards() on.
+        # TODO: move this out to another file/class/etc.
         """
         loss_sum = 0.0
         loss_dict = {}

@@ -2,14 +2,15 @@
 Classes to help with caching data while training.
 """
 
-from typing import Callable
-import torch
 import random
+from typing import Callable
 
+import torch
 from torch.utils.data import default_collate
 
 
 def collate_batch_size_one(batch_list):
+    """Use the default collate function but then squeze to avoid the batch dimension being added."""
     assert len(batch_list) == 1
     collated_batch = default_collate(batch_list)
     for key in collated_batch:
@@ -41,7 +42,11 @@ class CollateIterDataset(torch.utils.data.IterableDataset):
         self.num_repeated = self.num_times_to_repeat  # starting value
         self.cached_batch_list = None
 
+    def __getitem__(self, idx):
+        return self.dataset.__getitem__(idx)
+
     def get_batch_list(self):
+        """Returns a list of batches from the dataset attribute."""
         # sampling without replacement. TODO(ethan): don't use 'random'
         indices = random.sample(range(len(self.dataset)), k=self.num_samples_to_collate)
         batch_list = [self.dataset.__getitem__(idx) for idx in indices]

@@ -1,3 +1,8 @@
+"""
+Miscellaneous helper code.
+"""
+
+
 class DotDict(dict):
     """
     dot.notation access to dictionary attributes
