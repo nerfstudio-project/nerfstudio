@@ -35,8 +35,8 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
     local_indices = indices.clone()
     indices[:, 0] = batch["image_idx"][c]
     collated_batch = {
-        "local_indices": local_indices, # local to the batch returned
-        "indices": indices, # with the abs camera indices
+        "local_indices": local_indices,  # local to the batch returned
+        "indices": indices,  # with the abs camera indices
         "pixels": pixels,
         "mask": mask,
     }
