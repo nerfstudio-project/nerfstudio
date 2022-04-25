@@ -133,7 +133,7 @@ class Trainer:
             ckpt_path,
         )
 
-    def update_time(self, name, start_time, end_time, num_iter=1, batch_size=None):
+    def _update_time(self, name, start_time, end_time, num_iter=1, batch_size=None):
         """update the time dictionary with running averages/cumulative durations
 
         Args:
@@ -153,14 +153,21 @@ class Trainer:
             remain_iter = self.config.max_num_iterations - num_iter
             self.time_dict["ETA (time)"] = remain_iter * self.time_dict[name]
 
-    def print_times(self):
+    def _print_stats(self, step):
         """helper to print out the timing dictionary."""
         mssg = ""
-        for k, v in self.time_dict.items():
-            if "(time)" in k:
-                v = str(datetime.timedelta(seconds=v))
-            mssg += f"{k}: {v} | "
-        print(mssg, end="\r")
+        if step == 0:
+            for k in self.time_dict:
+                mssg += f"{k:<20} "
+            print(mssg)
+        else:
+            for k, v in self.time_dict.items():
+                if "(time)" in k:
+                    v = str(datetime.timedelta(seconds=v))
+                else:
+                    v = f"{v:0.4f}"
+                mssg += f"{v:<20} "
+            print(mssg, end="\r")
 
     @classmethod
     def get_aggregated_loss(cls, losses: Dict[str, torch.tensor]):
@@ -183,13 +190,13 @@ class Trainer:
         for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
             batch = next(iter_dataset)
-            self.update_time("load data (time)", data_start, time(), num_iter=step)
+            self._update_time("load data (time)", data_start, time(), num_iter=step)
             iter_start = time()
             loss_dict = self.train_iteration(batch, step)
-            self.update_time(
+            self._update_time(
                 "avg. rays/s (1/s)", iter_start, time(), num_iter=step, batch_size=batch["indices"].shape[0]
             )
-            self.update_time("single iter (time)", iter_start, time(), num_iter=step)
+            self._update_time("single iter (time)", iter_start, time(), num_iter=step)
             if step != 0 and step % self.config.steps_per_log == 0:
                 self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 logging.info("{%d}/{%d} with losses {%s}", step, num_iterations, loss_dict)
@@ -201,8 +208,8 @@ class Trainer:
                 self.test_image(image_idx=0, step=step)
                 self.test_image(image_idx=10, step=step)
                 self.test_image(image_idx=20, step=step)
-            self.print_times()
-        self.update_time("total train", train_start, time())
+            self._print_stats(step)
+        self._update_time("total train", train_start, time())
 
     def train_iteration(self, batch: dict, step: int):
         """Run one iteration with a batch of inputs."""
