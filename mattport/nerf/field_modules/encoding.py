@@ -61,7 +61,9 @@ class ScalingAndOffset(Encoding):
 class NeRFEncoding(Encoding):
     """Multi-scale sinousoidal encoding proposed in the original NeRF paper"""
 
-    def __init__(self, in_dim: int, num_frequencies: int, min_freq_exp: float, max_freq_exp: float) -> None:
+    def __init__(
+        self, in_dim: int, num_frequencies: int, min_freq_exp: float, max_freq_exp: float, include_input: bool = False
+    ) -> None:
         """Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.
 
         Args:
@@ -69,15 +71,20 @@ class NeRFEncoding(Encoding):
             num_frequencies (int): Number of encoded frequencies per axis
             min_freq_exp (float): Minimum frequency exponent
             max_freq_exp (float): Maximum frequency exponent
+            include_input (float): Append the input coordinate to the encoding
         """
         super().__init__(in_dim)
 
         self.num_frequencies = num_frequencies
         self.min_freq = min_freq_exp
         self.max_freq = max_freq_exp
+        self.include_input = include_input
 
     def get_out_dim(self) -> int:
-        return self.in_dim * self.num_frequencies * 2
+        out_dim = self.in_dim * self.num_frequencies * 2
+        if self.include_input:
+            out_dim += self.in_dim
+        return out_dim
 
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """
@@ -91,6 +98,8 @@ class NeRFEncoding(Encoding):
         scaled_inputs = 2 * torch.pi * in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
         encoded_inputs = torch.cat([torch.sin(scaled_inputs), torch.cos(scaled_inputs)], axis=-1)
+        if self.include_input:
+            encoded_inputs = torch.cat([encoded_inputs, in_tensor], axis=-1)
         return encoded_inputs
 
 

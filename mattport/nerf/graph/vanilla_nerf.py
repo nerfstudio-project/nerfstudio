@@ -30,8 +30,12 @@ class NeRFField(nn.Module):
         self.layer_width = layer_width
         self.skip_connections = skip_connections
 
-        self.encoding_xyz = NeRFEncoding(in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0)
-        self.encoding_dir = NeRFEncoding(in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0)
+        self.encoding_xyz = NeRFEncoding(
+            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+        )
+        self.encoding_dir = NeRFEncoding(
+            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
+        )
         self.mlp_base = MLP(
             in_dim=self.encoding_xyz.get_out_dim(),
             out_dim=self.layer_width,
