@@ -7,7 +7,7 @@ debug:
   enable_stats: True
   stats_tracker:
     max_history: 10
-    stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME]
+    stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME] # see mattport/utils/stats_tracker.py for options
   enable_profiler: True
 
 hydra:
