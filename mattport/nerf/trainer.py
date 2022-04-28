@@ -13,6 +13,7 @@ from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
+import mattport.utils.writer
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
@@ -21,7 +22,6 @@ from mattport.nerf.optimizers import Optimizers
 from mattport.utils import profiler
 from mattport.utils.decorators import check_main_thread
 from mattport.utils.stats_tracker import Stats, StatsTracker
-from mattport.utils.writer import TensorboardWriter
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -45,9 +45,8 @@ class Trainer:
         self.start_step = 0
         # logging variables
         self.is_main_thread = local_rank % world_size == 0
-        self.tensorboard_writer = TensorboardWriter(
-            local_rank, world_size, save_dir=os.path.join(os.getcwd(), "writer")
-        )
+        writer = getattr(mattport.utils.writer, self.config.logging_configs.writer.type)
+        self.writer = writer(local_rank, world_size, save_dir=self.config.logging_configs.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
         profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
 
@@ -167,7 +166,7 @@ class Trainer:
             self.stats.update_time(Stats.ITER_TRAIN_TIME, iter_start, time(), step=step)
 
             if step != 0 and step % self.config.steps_per_log == 0:
-                self.tensorboard_writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
+                self.writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
                 self.save_checkpoint(self.config.model_dir, step)
@@ -220,10 +219,8 @@ class Trainer:
             rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
 
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        self.tensorboard_writer.write_image(
-            f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="test"
-        )
+        self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="test")
 
         fine_psnr = get_psnr(image, rgb_fine)
         self.stats.update_value(Stats.CURR_TEST_PSNR, fine_psnr, step)
-        self.tensorboard_writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", fine_psnr, step, group="test")
+        self.writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", fine_psnr, step, group="test")

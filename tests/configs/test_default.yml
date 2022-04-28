@@ -14,7 +14,7 @@ logging_configs:
   # writer logs losses and images per iteration
   writer: 
     type: TensorboardWriter
-    save_dir: './'
+    save_dir: '/tmp/'
 
 hydra:
   run:
@@ -30,7 +30,7 @@ resume_train:
   load_dir: # pretrained model directory
   load_step: # pretrained model's step number
 
-max_num_iterations: 1000000
+max_num_iterations: 10
 steps_per_save: null
 steps_per_log: 10
 steps_per_test: 100

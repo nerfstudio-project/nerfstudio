@@ -22,7 +22,7 @@ def check_stats_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.debug.enable_stats:
+        if self.config.logging_configs.enable_stats:
             ret = func(self, *args, **kwargs)
         return ret
 
@@ -34,7 +34,7 @@ def check_profiler_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.debug.enable_stats:
+        if self.config.logging_configs.enable_stats:
             ret = func(self, *args, **kwargs)
         return ret
 

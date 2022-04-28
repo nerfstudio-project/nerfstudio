@@ -30,15 +30,15 @@ class StatsTracker:
 
     def __init__(self, config: DictConfig, is_main_thread: bool):
         self.config = config
-        if self.config.debug.enable_stats:
+        if self.config.logging_configs.enable_stats:
             self.is_main_thread = is_main_thread
-            self.max_history = self.config.debug.stats_tracker.max_history
+            self.max_history = self.config.logging_configs.stats_tracker.max_history
             self.step = 0
             self.stats_dict = {}
             self.past_stats = []
             self.new_key = False
             self.stats_to_track = set()
-            for name in self.config.debug.stats_tracker.stats_to_track:
+            for name in self.config.logging_configs.stats_tracker.stats_to_track:
                 self.stats_to_track.add(Stats[name])
             logging.info("Successfully set up StatsTracker")
         else:
