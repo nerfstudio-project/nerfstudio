@@ -13,7 +13,7 @@ import torch
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-from mattport.utils.decorators import check_main_thread
+from mattport.utils.decorators import check_main_thread, decorate_all
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 
@@ -69,6 +69,7 @@ class Writer:
                 self.write_scalar(name, scalar, step, group=group, prefix=prefix)
 
 
+@decorate_all([check_main_thread])
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
@@ -77,7 +78,6 @@ class TensorboardWriter(Writer):
         if self.is_main_thread:
             self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 
-    @check_main_thread
     def write_image(
         self, name: str, x: TensorType["H", "W", 3], step: int, group: str = None, prefix: str = None
     ) -> None:
@@ -90,7 +90,6 @@ class TensorboardWriter(Writer):
         x = to8b(x)
         self.tb_writer.add_image(name, x, step, dataformats="HWC")
 
-    @check_main_thread
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
         """Tensorboard method to write a single scalar value to the logger
 
@@ -105,10 +104,10 @@ class TensorboardWriter(Writer):
         self.tb_writer.add_scalar(f"{group_s}{prefix_s}{name}", scalar, step)
 
 
+@decorate_all([check_main_thread])
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    @check_main_thread
     def write_image(
         self, name: str, x: TensorType["H", "W", 3], step: int, group: str = None, prefix: str = None
     ) -> None:
@@ -116,6 +115,5 @@ class LocalWriter(Writer):
         image_path = os.path.join(self.save_dir, f"{name}.jpg")
         imageio.imwrite(image_path, np.uint8(x.cpu().numpy() * 255.0))
 
-    @check_main_thread
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
         raise NotImplementedError

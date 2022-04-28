@@ -3,6 +3,13 @@ defaults:
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog
 
+debug:
+  enable_stats: True
+  stats_tracker:
+    max_history: 10
+    stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME]
+  enable_profiler: True
+
 hydra:
   run:
     # Configure output dir of each experiment programmatically from the arguments

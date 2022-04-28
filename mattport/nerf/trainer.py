@@ -13,13 +13,14 @@ from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
-from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
+from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.nerf.metrics import get_psnr
 from mattport.nerf.optimizers import Optimizers
+from mattport.utils import profiler
 from mattport.utils.decorators import check_main_thread
-from mattport.utils.io import Stats, StatsTracker
+from mattport.utils.stats_tracker import Stats, StatsTracker
 from mattport.utils.writer import TensorboardWriter
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -48,7 +49,9 @@ class Trainer:
             local_rank, world_size, save_dir=os.path.join(os.getcwd(), "writer")
         )
         self.stats = StatsTracker(config, self.is_main_thread)
+        profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
 
+    @profiler.time_function
     def setup_dataset(self):
         """_summary_"""
         dataset_inputs = get_dataset_inputs(**self.config.dataset)
@@ -72,6 +75,7 @@ class Trainer:
         )
         # TODO(ethan): implement the test dataset
 
+    @profiler.time_function
     def setup_graph(self):
         """_summary_"""
         dataset_inputs = get_dataset_inputs(**self.config.dataset)
@@ -174,8 +178,10 @@ class Trainer:
             self.stats.print_stats(i / num_iterations)
 
         self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)
-        self.stats.dump_stats()
+        self.stats.print_stats(-1)
+        profiler.PROFILER.print_profile()
 
+    @profiler.time_function
     def train_iteration(self, batch: dict, step: int):
         """Run one iteration with a batch of inputs."""
         # move batch to correct device
@@ -190,6 +196,7 @@ class Trainer:
         self.optimizers.optimizer_step_all()
         return loss_dict
 
+    @profiler.time_function
     def test_image(self, image_idx, step):
         """Test a specific image."""
         image = self.train_image_dataset[image_idx]["image"]  # ground truth
