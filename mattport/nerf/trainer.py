@@ -233,6 +233,9 @@ class Trainer:
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
         self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="val")
 
+        coarse_psnr = get_psnr(image, rgb_coarse)
+        self.writer.write_scalar(f"image_idx_{image_idx}-coarse_psnr", float(coarse_psnr), step, group="val")
+
         fine_psnr = get_psnr(image, rgb_fine)
         self.stats.update_value(Stats.CURR_TEST_PSNR, float(fine_psnr), step)
         self.writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", float(fine_psnr), step, group="val")

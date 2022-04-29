@@ -14,18 +14,20 @@ from mattport.structures.rays import RayBundle, RaySamples
 class UniformSampler(nn.Module):
     """Sample uniformly along a ray"""
 
-    def __init__(self, near_plane: float, far_plane: float, num_samples: int) -> None:
+    def __init__(self, near_plane: float, far_plane: float, num_samples: int, train_stratified=True) -> None:
         """
         Args:
             near_plane (float): Minimum distance along ray to sample
             far_plane (float): Maximum distance along ray to sample
             num_samples (int): Number of samples per ray
+            train_stratified (bool): Use stratified sampling during training. Defults to True
         """
         super().__init__()
 
         self.near_plane = near_plane
         self.far_plane = far_plane
         self.num_samples = num_samples
+        self.train_stratified = train_stratified
 
     def forward(
         self,
@@ -52,11 +54,17 @@ class UniformSampler(nn.Module):
 
         num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(near_plane, far_plane, num_samples + 1).to(ray_bundle.origins.device)  # (num_samples+1,)
-        bins = bins.unsqueeze(0).repeat(num_rays, 1)  # (num_rays, num_samples+1)
+        bins = torch.linspace(near_plane, far_plane, num_samples + 1).to(ray_bundle.origins.device)  # (num_samples+1)
+
+        if self.train_stratified and self.training:
+            t_rand = torch.rand((num_rays, num_samples), dtype=bins.dtype, device=bins.device)
+            ts = bins[None, :-1] + t_rand * (bins[None, 1:] - bins[None, :-1])  # (num_rays, num_samples)
+        else:
+            ts = (bins[1:] + bins[:-1]) / 2
+            ts = ts.unsqueeze(0).repeat(num_rays, 1)  # (num_rays, num_samples)
 
         ray_samples = RaySamples(
-            bins=bins,
+            ts=ts,
             ray_bundle=ray_bundle,
         )
 
@@ -66,14 +74,18 @@ class UniformSampler(nn.Module):
 class PDFSampler(nn.Module):
     """Sample based on probability distribution"""
 
-    def __init__(self, num_samples: int) -> None:
+    def __init__(self, num_samples: int, train_stratified: bool = True, include_original: bool = True) -> None:
         """
         Args:
             num_samples (int): Number of samples per ray
+            train_stratified: boolean: Randomize location within each bin during training. Defaults to True
+            include_original: Add original samples to ray. Defaults to True
         """
         super().__init__()
 
         self.num_samples = num_samples
+        self.include_original = include_original
+        self.train_stratified = train_stratified
 
     def forward(
         self,
@@ -81,7 +93,6 @@ class PDFSampler(nn.Module):
         coarse_ray_samples: RaySamples,
         field_outputs: Dict[FieldHeadNames, TensorType],
         num_samples: Optional[int] = None,
-        randomized: bool = True,
         eps: float = 1e-5,
     ) -> RaySamples:
         """Generates position samples given a distribution.
@@ -92,7 +103,6 @@ class PDFSampler(nn.Module):
             bins (TensorType[..., "num_samples"]): Ray bins
             weights: (TensorType[..., "num_samples"]): Weights for each bin
             num_samples (Optional[int]): Number of samples per ray
-            randomized: boolean: Randomize location within each bin. Defaults to True
             eps: float: Small value to prevent numerical issues. Defaults to 1e-5
 
         Returns:
@@ -113,6 +123,7 @@ class PDFSampler(nn.Module):
         )
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
         weights = alphas * transmittance  # [..., "num_samples"]
+        weights = weights[..., 1:]
 
         # Add small offset to rays with zero weight to prevent NaNs
         weights_sum = torch.sum(weights, dim=-1, keepdim=True)
@@ -124,13 +135,13 @@ class PDFSampler(nn.Module):
         cdf = torch.min(torch.ones_like(pdf), torch.cumsum(pdf, dim=-1))
         cdf = torch.cat([torch.zeros_like(cdf[..., :1]), cdf], dim=-1)
 
-        if randomized:
+        if self.train_stratified and self.training:
             u = torch.rand(size=(*cdf.shape[:-1], num_samples), device=cdf.device)
         else:
             u = torch.linspace(0.0, 1.0, steps=num_samples, device=cdf.device)
             u = torch.expand(size=(*cdf.shape[:-1], num_samples))
 
-        # u = u.contiguous()
+        u = u.contiguous()
         indicies = torch.searchsorted(cdf, u, right=True)
         below = torch.max(torch.zeros_like(indicies), indicies - 1)
         above = torch.min(cdf.shape[-1] - torch.ones_like(indicies), indicies)
@@ -138,15 +149,20 @@ class PDFSampler(nn.Module):
         indicies_g = torch.stack([below, above], -1)
         matched_shape = (indicies_g.shape[0], indicies_g.shape[1], cdf.shape[-1])
         cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
-        bins_g = torch.gather(coarse_ray_samples.bins.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
+        bins_g = torch.gather(coarse_ray_samples.ts.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
 
         denom = cdf_g[..., 1] - cdf_g[..., 0]
         denom = torch.where(denom < eps, torch.ones_like(denom), denom)
         t = (u - cdf_g[..., 0]) / denom
-        samples = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
+        ts = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
+
+        if self.include_original:
+            ts, _ = torch.sort(torch.cat([coarse_ray_samples.ts, ts], -1), -1)
+
+        ts = ts.detach()
 
         ray_samples = RaySamples(
-            bins=samples,  # TODO(matt) These are not bins!
+            ts=ts,
             ray_bundle=ray_bundle,
         )
 
