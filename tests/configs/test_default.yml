@@ -34,6 +34,9 @@ data:
     data_directory: data/blender/lego_test
     dataset_type: blender
     downscale_factor: 4
+  
+  # validation options
+  validation_image_indices: [0]
 
   # dataloader options
   dataloader:

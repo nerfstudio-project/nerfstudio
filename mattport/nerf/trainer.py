@@ -52,12 +52,11 @@ class Trainer:
         self.start_step = 0
         # logging variables
         self.is_main_thread = world_size != 0 and local_rank % world_size == 0
-        writer = getattr(mattport.utils.writer, self.config.logging_configs.writer.type)
-        self.writer = writer(self.is_main_thread, save_dir=self.config.logging_configs.writer.save_dir)
+        writer = getattr(mattport.utils.writer, self.config.logging.writer.type)
+        self.writer = writer(self.is_main_thread, save_dir=self.config.logging.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
         if not profiler.PROFILER and self.config.logging.enable_profiler:
             profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
-        self.dry_run = self.config.get("dry_run", False)
         self.device = f"cuda:{self.local_rank}" if not cpu else "cpu"
 
     @profiler.time_function
@@ -71,7 +70,7 @@ class Trainer:
         """TODO(ethan): I need to replace this.
         I'm only using this for multiprocess pickle issues for now.
         """
-        return collate_batch(batch_list, self.config.dataloader.num_rays_per_batch, keep_full_image=False)
+        return collate_batch(batch_list, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False)
 
     @profiler.time_function
     def setup_datasets(self, dataset_inputs_dict: Dict[str, DatasetInputs]):
@@ -84,8 +83,8 @@ class Trainer:
         self.train_dataset = CollateIterDataset(
             self.train_image_dataset,
             collate_fn=self.collate_fn,
-            num_samples_to_collate=self.config.dataloader.num_images_to_sample_from,
-            num_times_to_repeat=self.config.dataloader.num_times_to_repeat_images,
+            num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
+            num_times_to_repeat=self.config.data.dataloader.num_times_to_repeat_images,
         )
         self.train_dataloader = DataLoader(
             self.train_dataset,
@@ -107,7 +106,9 @@ class Trainer:
             dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
         """
         self.graph = instantiate(
-            self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
+            self.config.graph.network,
+            intrinsics=dataset_inputs.intrinsics,
+            camera_to_world=dataset_inputs.camera_to_world,
         ).to(self.device)
         self.setup_optimizers()
 
@@ -199,8 +200,8 @@ class Trainer:
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
             if step % self.config.graph.steps_per_test == 0:
-                self.test_image(image_idx=0, step=step)
-                _ = self.test_image(image_idx=10, step=step) if not self.dry_run else None
+                for image_idx in self.config.data.validation_image_indices:
+                    self.test_image(image_idx=image_idx, step=step)
             self.stats.print_stats(i / num_iterations)
 
         self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)

@@ -153,7 +153,7 @@ def launch(
         except KeyboardInterrupt:
             pass
         finally:
-            if config.logging_configs.enable_profiler:
+            if config.logging.enable_profiler:
                 profiler.PROFILER.print_profile()
     elif world_size > 1:
         # Using multiple gpus with multiple processes.
