@@ -103,11 +103,7 @@ class NeRFGraph(Graph):
         self.sampler_uniform = UniformSampler(
             near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_coarse_samples
         )
-        # TODO: this needs to be corrected
-        # self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
-        self.sampler_pdf = UniformSampler(
-            near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_importance_samples
-        )
+        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
 
         # field
         self.field_coarse = NeRFField()
@@ -147,8 +143,7 @@ class NeRFGraph(Graph):
             deltas=uniform_ray_samples.deltas,
         )  # RendererOutputs
         # fine network:
-        # pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
-        pdf_ray_samples = self.sampler_pdf(ray_bundle)  # RaySamples
+        pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
 
         fine_renderer_outputs = self.renderer_rgb(

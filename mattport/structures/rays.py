@@ -4,6 +4,7 @@ Some ray datastructures.
 import random
 from dataclasses import dataclass
 from typing import Optional
+import torch
 
 from torchtyping import TensorType
 
@@ -72,22 +73,22 @@ class RaySamples:
 
     def __init__(
         self,
-        bins: TensorType["num_rays", "num_samples+1"],
+        ts: TensorType["num_rays", "num_samples"],
         ray_bundle: RayBundle,
     ) -> None:
-        self.bins = bins
+        self.ray_bundle = ray_bundle
+        self.ts = ts
         self.positions = self.get_positions(ray_bundle)
         self.directions = ray_bundle.directions.unsqueeze(1).repeat(1, self.positions.shape[1], 1)
         self.deltas = self.get_deltas()
 
     def get_positions(self, ray_bundle: RayBundle) -> TensorType["num_rays", "num_samples", 3]:
         """Returns positions."""
-        # TODO(ethan): check with Matt about this
-        t_mid = (self.bins[:, 1:] + self.bins[:, :-1]) / 2  # (num_rays, num_samples)
-        return ray_bundle.origins[:, None] + t_mid[:, :, None] * ray_bundle.directions[:, None]
+        return ray_bundle.origins[:, None] + self.ts[:, :, None] * ray_bundle.directions[:, None]
 
     def get_deltas(self) -> TensorType[..., "num_samples"]:
         """Returns deltas."""
-        deltas = self.bins[..., 1:] - self.bins[..., :-1]
-        # TODO(ethan): check this with Matt
+        dists = self.ts[..., 1:] - self.ts[..., :-1]
+        dists = torch.cat([dists, dists[..., -1:]], -1)  # [N_rays, N_samples]
+        deltas = dists * torch.norm(self.ray_bundle.directions[..., None, :], dim=-1)
         return deltas
