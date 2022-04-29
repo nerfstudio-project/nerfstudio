@@ -1,0 +1,18 @@
+defaults:
+- default
+
+dry_run: true
+
+machine_config:
+  num_gpus: 0
+
+data:
+  dataset:
+    data_directory: data/blender/lego_test
+  validation_image_indices: [0]
+  dataloader:
+    num_images_to_sample_from: 1
+    num_rays_per_batch: 8
+
+graph:
+  max_num_iterations: 5

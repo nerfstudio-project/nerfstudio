@@ -164,7 +164,7 @@ runs/
 outputs/
 
 # Data
-data/
+./data/
 
 # Misc
 old/
