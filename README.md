@@ -41,7 +41,7 @@ python scripts/run_train.py machine_config.num_gpus=1
 ```
 
 # Logging and profiling features
-We provide many logging functionalities for timing and/or tracking losses during training. All of these loggers are configurable via `configs/logging_configs.yml`
+We provide many logging functionalities for timing and/or tracking losses during training. All of these loggers are configurable via `configs/logging.yml`
 
 1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, local directory, Weights and Biases), and how often to log in the config.
 

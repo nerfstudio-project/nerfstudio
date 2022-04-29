@@ -37,7 +37,7 @@ class Profiler:
 
     def __init__(self, config: DictConfig, is_main_thread: bool):
         self.config = config
-        if self.config.logging_configs.enable_profiler:
+        if self.config.logging.enable_profiler:
             self.is_main_thread = is_main_thread
         self.profiler_dict = {}
 

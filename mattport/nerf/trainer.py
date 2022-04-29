@@ -44,17 +44,17 @@ class Trainer:
         self.start_step = 0
         # logging variables
         self.is_main_thread = local_rank % world_size == 0
-        writer = getattr(mattport.utils.writer, self.config.logging_configs.writer.type)
-        self.writer = writer(local_rank, world_size, save_dir=self.config.logging_configs.writer.save_dir)
+        writer = getattr(mattport.utils.writer, self.config.logging.writer.type)
+        self.writer = writer(local_rank, world_size, save_dir=self.config.logging.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
-        if not profiler.PROFILER and self.config.logging_configs.enable_profiler:
+        if not profiler.PROFILER and self.config.logging.enable_profiler:
             profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
         self.dry_run = self.config.get("dry_run", False)
 
     @profiler.time_function
     def setup(self):
         """Setup the Trainer by calling other setup functions."""
-        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.dataset)
+        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.data.dataset)
         self.setup_datasets(dataset_inputs_dict)
         self.setup_graph(dataset_inputs_dict["train"])
 
@@ -68,15 +68,15 @@ class Trainer:
         self.train_dataset = CollateIterDataset(
             self.train_image_dataset,
             collate_fn=lambda batch_list: collate_batch(
-                batch_list, self.config.dataloader.num_rays_per_batch, keep_full_image=False
+                batch_list, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False
             ),
-            num_samples_to_collate=self.config.dataloader.num_images_to_sample_from,
-            num_times_to_repeat=self.config.dataloader.num_times_to_repeat_images,
+            num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
+            num_times_to_repeat=self.config.data.dataloader.num_times_to_repeat_images,
         )
         self.train_dataloader = DataLoader(
             self.train_dataset,
             batch_size=1,
-            num_workers=self.config.dataloader.num_workers,
+            num_workers=self.config.data.dataloader.num_workers,
             collate_fn=collate_batch_size_one,
             pin_memory=True,
         )
@@ -93,12 +93,14 @@ class Trainer:
             dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
         """
         self.graph = instantiate(
-            self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
+            self.config.graph.network,
+            intrinsics=dataset_inputs.intrinsics,
+            camera_to_world=dataset_inputs.camera_to_world,
         ).to(f"cuda:{self.local_rank}")
         self.setup_optimizers()
 
-        if self.config.resume_train.load_dir:
-            self.load_checkpoint(self.config.resume_train)
+        if self.config.graph.resume_train.load_dir:
+            self.load_checkpoint(self.config.graph.resume_train)
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
@@ -107,7 +109,7 @@ class Trainer:
     def setup_optimizers(self):
         """_summary_"""
         # TODO(ethan): handle different world sizes
-        self.optimizers = Optimizers(self.config.param_groups, self.graph.get_param_groups())
+        self.optimizers = Optimizers(self.config.graph.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
         """Load the checkpoint from the given path
@@ -165,7 +167,7 @@ class Trainer:
     def train(self) -> None:
         """_summary_"""
         train_start = time()
-        num_iterations = self.config.max_num_iterations
+        num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
         for i, step in enumerate(range(self.start_step, self.start_step + num_iterations)):
             data_start = time()
@@ -179,12 +181,12 @@ class Trainer:
             )
             self.stats.update_time(Stats.ITER_TRAIN_TIME, iter_start, time(), step=step)
 
-            if step != 0 and step % self.config.logging_configs.steps_per_log == 0:
+            if step != 0 and step % self.config.logging.steps_per_log == 0:
                 self.writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
-            if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
-                self.save_checkpoint(self.config.model_dir, step)
-            if step % self.config.steps_per_test == 0:
+            if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
+                self.save_checkpoint(self.config.graph.model_dir, step)
+            if step % self.config.graph.steps_per_test == 0:
                 self.test_image(image_idx=0, step=step)
                 _ = self.test_image(image_idx=10, step=step) if not self.dry_run else None
             self.stats.print_stats(i / num_iterations)
