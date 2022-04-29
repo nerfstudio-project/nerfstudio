@@ -14,9 +14,9 @@ logging_configs:
   # profiler logs run times of functions and prints at end of training
   enable_profiler: True
   # writer logs losses and images per iteration
-  writer: 
+  writer:
     type: TensorboardWriter
-    save_dir: '/tmp/'
+    save_dir: "/tmp/"
 
 hydra:
   run:
@@ -50,7 +50,8 @@ dataloader:
   num_workers: 4
   shuffle: true
   num_images_to_sample_from: 1
-  num_rays_per_batch: 1024
+  # num_rays_per_batch: 1024
+  num_rays_per_batch: 8 # NOTE(ethan): much smaller than normal!
   num_times_to_repeat_images: 40
 
 # optimizer options
@@ -73,7 +74,7 @@ param_groups:
 
 # machine options
 machine_config:
-  num_gpus: 1
+  num_gpus: 0
   num_machines: 1
   machine_rank: 0
   dist_url: auto
@@ -84,5 +85,5 @@ graph:
   _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph
   near_plane: 1.0
   far_plane: 6.0
-  num_coarse_samples: 64
-  num_importance_samples: 64
+  num_coarse_samples: 4 # NOTE(ethan): much smaller than normal!
+  num_importance_samples: 4 # NOTE(ethan): much smaller than normal!

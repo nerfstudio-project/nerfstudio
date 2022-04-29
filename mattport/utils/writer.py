@@ -31,9 +31,9 @@ def get_tensorboard_name(name: str, group: str = None, prefix: str = None):
 class Writer:
     """Writer class"""
 
-    def __init__(self, local_rank: int, world_size: int, save_dir: str):
+    def __init__(self, is_main_thread: bool, save_dir: str):
+        self.is_main_thread = is_main_thread
         self.save_dir = save_dir
-        self.is_main_thread = local_rank % world_size == 0
 
     @abstractmethod
     def write_image(
@@ -83,8 +83,8 @@ class Writer:
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, local_rank: int, world_size: int, save_dir: str):
-        super().__init__(local_rank, world_size, save_dir)
+    def __init__(self, is_main_thread: bool, save_dir: str):
+        super().__init__(is_main_thread, save_dir)
         if self.is_main_thread:
             self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 

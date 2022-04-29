@@ -12,13 +12,20 @@
             "justMyCode": true
         },
         {
-            "name": "Python: run_train",
+            "name": "Python: run_train (gpu)",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/run_train.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: run_train (cpu)",
             "type": "python",
             "request": "launch",
             "program": "scripts/run_train.py",
             "console": "integratedTerminal",
             "args": [
-                "machine_config.num_gpus=1"
+                "machine_config.num_gpus=0"
             ]
         }
     ]

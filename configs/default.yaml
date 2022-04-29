@@ -12,9 +12,9 @@ logging_configs:
   # profiler logs run times of functions and prints at end of training
   enable_profiler: True
   # writer logs losses and images per iteration
-  writer: 
+  writer:
     type: TensorboardWriter
-    save_dir: './'
+    save_dir: "./"
 
 hydra:
   run:
@@ -45,7 +45,7 @@ dataset:
 
 # dataloader options
 dataloader:
-  num_workers: 4
+  num_workers: 4 # Need to set to 0 if using multiple GPUs (until we fix a bug).
   shuffle: true
   num_images_to_sample_from: 8
   num_rays_per_batch: 1024
