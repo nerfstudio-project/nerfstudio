@@ -55,7 +55,8 @@ class Trainer:
         writer = getattr(mattport.utils.writer, self.config.logging_configs.writer.type)
         self.writer = writer(self.is_main_thread, save_dir=self.config.logging_configs.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
-        profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
+        if not profiler.PROFILER and self.config.logging_configs.enable_profiler:
+            profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
         self.dry_run = self.config.get("dry_run", False)
         self.device = f"cuda:{self.local_rank}" if not cpu else "cpu"
 
@@ -193,7 +194,7 @@ class Trainer:
             )
             self.stats.update_time(Stats.ITER_TRAIN_TIME, iter_start, time(), step=step)
 
-            if step != 0 and step % self.config.steps_per_log == 0:
+            if step != 0 and step % self.config.logging_configs.steps_per_log == 0:
                 self.writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
@@ -205,7 +206,6 @@ class Trainer:
 
         self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)
         self.stats.print_stats(-1)
-        profiler.PROFILER.print_profile()
 
     @profiler.time_function
     def train_iteration(self, batch: dict, step: int):

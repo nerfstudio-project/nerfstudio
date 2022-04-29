@@ -1,7 +1,8 @@
 # MattPort
 
 
-# Setup the environment
+# Quickstart
+## Installation: Setup the environment
 
 ```
 # Clone the repo
@@ -19,7 +20,7 @@ python setup.py develop
 pytest tests
 ```
 
-# Getting the data
+## Getting the data
 
 Download the original NeRF dataset and put it in the following format.
 
@@ -30,7 +31,7 @@ Download the original NeRF dataset and put it in the following format.
         - lego/
 ```
 
-# Training a model
+## Training a model
 
 ```
 # Run with the default config
@@ -38,6 +39,16 @@ python scripts/run_train.py
 # Run with config changes
 python scripts/run_train.py machine_config.num_gpus=1
 ```
+
+# Logging and profiling features
+We provide many logging functionalities for timing and/or tracking losses during training. All of these loggers are configurable via `configs/logging_configs.yml`
+
+1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, local directory, Weights and Biases), and how often to log in the config.
+
+2. **StatsTracker**: Computes select statistics and prints to the terminal for local debugging. Specify the kinds of statistics to be logged, how often to log, and the maximum history buffer size in the config.
+
+3. **Profiler**: Computes the average total time of execution for any function with the `@profiler.time_function` decorator. Prints out the full profile at the termination of training or the program.
+
 
 # Setting up Jupyter
 

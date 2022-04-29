@@ -6,17 +6,18 @@ defaults:
   - override hydra/hydra_logging: colorlog
 
 logging_configs:
+  steps_per_log: 10
   # stats tracker logs configurable training stats per iteration to terminal (e.g. rays/s, PSNR)
   enable_stats: True
   stats_tracker:
     max_history: 10
     stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME] # see mattport/utils/stats_tracker.py for options
-  # profiler logs run times of functions and prints at end of training
-  enable_profiler: True
   # writer logs losses and images per iteration
   writer:
     type: TensorboardWriter
     save_dir: "/tmp/"
+  # profiler logs run times of functions and prints at end of training
+  enable_profiler: True
 
 hydra:
   run:
@@ -34,7 +35,6 @@ resume_train:
 
 max_num_iterations: 10
 steps_per_save: null
-steps_per_log: 10
 steps_per_test: 100
 
 model_dir: /tmp/mattport_models/

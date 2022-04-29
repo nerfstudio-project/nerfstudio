@@ -24,7 +24,7 @@ class Stats(enum.Enum):
     ETA = "ETA (time)"
 
 
-@decorate_all([check_main_thread, check_stats_enabled])
+@decorate_all([check_stats_enabled, check_main_thread])
 class StatsTracker:
     """Stats Tracker class"""
 
