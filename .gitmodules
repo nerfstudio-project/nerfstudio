@@ -1,3 +1,0 @@
-[submodule "external/goat"]
-	path = external/goat
-	url = git@github.com:ethanweber/goat.git
