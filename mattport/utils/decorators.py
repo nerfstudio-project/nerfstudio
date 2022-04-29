@@ -59,7 +59,7 @@ def check_print_stats_step(func: Callable) -> Callable:
     def wrapper(self, *args, **kwargs):
         ret = None
         if (
-            self.step % self.config.steps_per_log == 0
+            self.step % self.config.logging_configs.steps_per_log == 0
             or (self.config.steps_per_save and self.step % self.config.steps_per_save == 0)
             or self.step % self.config.steps_per_test == 0
         ):

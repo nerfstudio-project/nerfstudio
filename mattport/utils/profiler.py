@@ -1,8 +1,8 @@
 """
 Profiler base class and functionality
 """
-import sys
 import logging
+import sys
 import time
 from typing import Callable
 
@@ -19,18 +19,19 @@ def time_function(func: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         start = time.time()
         ret = func(*args, **kwargs)
-        vals = vars(sys.modules[func.__module__])
-        class_str = ""
-        for attr in func.__qualname__.split(".")[:-1]:
-            class_str += f"{vals[attr].__qualname__}_"
-        class_str += func.__name__
-        PROFILER.update_time(class_str, start, time.time())
+        if PROFILER:
+            vals = vars(sys.modules[func.__module__])
+            class_str = ""
+            for attr in func.__qualname__.split(".")[:-1]:
+                class_str += f"{vals[attr].__qualname__}_"
+            class_str += func.__name__
+            PROFILER.update_time(class_str, start, time.time())
         return ret
 
     return wrapper
 
 
-@decorate_all([check_main_thread, check_profiler_enabled])
+@decorate_all([check_profiler_enabled, check_main_thread])
 class Profiler:
     """Profiler class"""
 

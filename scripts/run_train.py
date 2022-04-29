@@ -16,6 +16,7 @@ import torch.multiprocessing as mp
 from omegaconf import DictConfig
 
 from mattport.nerf.trainer import Trainer
+from mattport.utils import profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 
@@ -174,8 +175,17 @@ def launch(
                     process.terminate()
                 process.join()
                 logger.info("Process %s finished", str(i))
+        finally:
+            if config.logging_configs.enable_profiler:
+                profiler.PROFILER.print_profile()
     else:
-        main_func(local_rank=0, world_size=1, config=config)
+        try:
+            main_func(local_rank=0, world_size=1, config=config)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if config.logging_configs.enable_profiler:
+                profiler.PROFILER.print_profile()
 
 
 @hydra.main(config_path="../configs", config_name="default.yaml")
