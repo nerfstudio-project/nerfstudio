@@ -96,7 +96,7 @@ def _distributed_worker(
 
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
-    _set_random_seed(1234 + local_rank)
+    _set_random_seed(1234 + local_rank)  # NOTE(ethan): will this work for multiple machines? should we use global_rank?
     _synchronize(world_size, local_rank)
 
     output = main_func(local_rank, world_size, config)
@@ -105,7 +105,7 @@ def _distributed_worker(
     return output
 
 
-def _train(local_rank: int, world_size: int, config: DictConfig) -> Any:
+def _train(local_rank: int, world_size: int, config: DictConfig, cpu: bool = False) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -116,7 +116,7 @@ def _train(local_rank: int, world_size: int, config: DictConfig) -> Any:
     Returns:
         Any: TODO(): determine the return type
     """
-    trainer = Trainer(config, local_rank, world_size)
+    trainer = Trainer(config, local_rank, world_size, cpu=cpu)
     trainer.setup()
     trainer.train()
     return 0
@@ -143,7 +143,20 @@ def launch(
         timeout (datetime, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
     """
     world_size = num_machines * num_gpus_per_machine
-    if world_size > 1:
+    if world_size == 0:
+        # Using only CPU and one process.
+        main_func(local_rank=0, world_size=0, config=config, cpu=True)
+    elif world_size == 1:
+        # Using one gpu and one process.
+        try:
+            main_func(local_rank=0, world_size=1, config=config)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            if config.logging.enable_profiler:
+                profiler.PROFILER.print_profile()
+    elif world_size > 1:
+        # Using multiple gpus with multiple processes.
         if dist_url == "auto":
             assert num_machines == 1, "dist_url=auto not supported in multi-machine jobs."
             port = _find_free_port()
@@ -169,6 +182,7 @@ def launch(
         try:
             process_context.join()
         except KeyboardInterrupt:
+            logger = logging.getLogger(__name__)
             for i, process in enumerate(process_context.processes):
                 if process.is_alive():
                     logger.info("Terminating process %s", str(i))
@@ -176,15 +190,7 @@ def launch(
                 process.join()
                 logger.info("Process %s finished", str(i))
         finally:
-            if config.logging_configs.enable_profiler:
-                profiler.PROFILER.print_profile()
-    else:
-        try:
-            main_func(local_rank=0, world_size=1, config=config)
-        except KeyboardInterrupt:
-            pass
-        finally:
-            if config.logging_configs.enable_profiler:
+            if config.logging.enable_profiler:
                 profiler.PROFILER.print_profile()
 
 

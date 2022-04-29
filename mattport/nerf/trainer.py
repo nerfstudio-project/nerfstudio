@@ -29,7 +29,15 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 class Trainer:
     """Training class"""
 
-    def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1, cpu=False):
+        """_summary_
+
+        Args:
+            config (DictConfig): _description_
+            local_rank (int, optional): _description_. Defaults to 0.
+            world_size (int, optional): _description_. Defaults to 1.
+            cpu (bool, optional): Whether or not to use the CPU.
+        """
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -43,20 +51,26 @@ class Trainer:
         self.optimizers = None
         self.start_step = 0
         # logging variables
-        self.is_main_thread = local_rank % world_size == 0
-        writer = getattr(mattport.utils.writer, self.config.logging_configs.writer.type)
-        self.writer = writer(local_rank, world_size, save_dir=self.config.logging_configs.writer.save_dir)
+        self.is_main_thread = world_size != 0 and local_rank % world_size == 0
+        writer = getattr(mattport.utils.writer, self.config.logging.writer.type)
+        self.writer = writer(self.is_main_thread, save_dir=self.config.logging.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
-        if not profiler.PROFILER and self.config.logging_configs.enable_profiler:
+        if not profiler.PROFILER and self.config.logging.enable_profiler:
             profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
-        self.dry_run = self.config.get("dry_run", False)
+        self.device = f"cuda:{self.local_rank}" if not cpu else "cpu"
 
     @profiler.time_function
     def setup(self):
         """Setup the Trainer by calling other setup functions."""
-        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.dataset)
+        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.data.dataset)
         self.setup_datasets(dataset_inputs_dict)
         self.setup_graph(dataset_inputs_dict["train"])
+
+    def collate_fn(self, batch_list):
+        """TODO(ethan): I need to replace this.
+        I'm only using this for multiprocess pickle issues for now.
+        """
+        return collate_batch(batch_list, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False)
 
     @profiler.time_function
     def setup_datasets(self, dataset_inputs_dict: Dict[str, DatasetInputs]):
@@ -65,18 +79,17 @@ class Trainer:
             image_filenames=dataset_inputs_dict["train"].image_filenames,
             downscale_factor=dataset_inputs_dict["train"].downscale_factor,
         )
+
         self.train_dataset = CollateIterDataset(
             self.train_image_dataset,
-            collate_fn=lambda batch_list: collate_batch(
-                batch_list, self.config.dataloader.num_rays_per_batch, keep_full_image=False
-            ),
-            num_samples_to_collate=self.config.dataloader.num_images_to_sample_from,
-            num_times_to_repeat=self.config.dataloader.num_times_to_repeat_images,
+            collate_fn=self.collate_fn,
+            num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
+            num_times_to_repeat=self.config.data.dataloader.num_times_to_repeat_images,
         )
         self.train_dataloader = DataLoader(
             self.train_dataset,
             batch_size=1,
-            num_workers=self.config.dataloader.num_workers,
+            num_workers=self.config.data.dataloader.num_workers,
             collate_fn=collate_batch_size_one,
             pin_memory=True,
         )
@@ -93,12 +106,14 @@ class Trainer:
             dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
         """
         self.graph = instantiate(
-            self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
-        ).to(f"cuda:{self.local_rank}")
+            self.config.graph.network,
+            intrinsics=dataset_inputs.intrinsics,
+            camera_to_world=dataset_inputs.camera_to_world,
+        ).to(self.device)
         self.setup_optimizers()
 
-        if self.config.resume_train.load_dir:
-            self.load_checkpoint(self.config.resume_train)
+        if self.config.graph.resume_train.load_dir:
+            self.load_checkpoint(self.config.graph.resume_train)
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
@@ -107,7 +122,7 @@ class Trainer:
     def setup_optimizers(self):
         """_summary_"""
         # TODO(ethan): handle different world sizes
-        self.optimizers = Optimizers(self.config.param_groups, self.graph.get_param_groups())
+        self.optimizers = Optimizers(self.config.graph.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
         """Load the checkpoint from the given path
@@ -165,7 +180,7 @@ class Trainer:
     def train(self) -> None:
         """_summary_"""
         train_start = time()
-        num_iterations = self.config.max_num_iterations
+        num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
         for i, step in enumerate(range(self.start_step, self.start_step + num_iterations)):
             data_start = time()
@@ -179,14 +194,14 @@ class Trainer:
             )
             self.stats.update_time(Stats.ITER_TRAIN_TIME, iter_start, time(), step=step)
 
-            if step != 0 and step % self.config.logging_configs.steps_per_log == 0:
+            if step != 0 and step % self.config.logging.steps_per_log == 0:
                 self.writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
-            if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
-                self.save_checkpoint(self.config.model_dir, step)
-            if step % self.config.steps_per_test == 0:
-                self.test_image(image_idx=0, step=step)
-                _ = self.test_image(image_idx=10, step=step) if not self.dry_run else None
+            if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
+                self.save_checkpoint(self.config.graph.model_dir, step)
+            if step % self.config.graph.steps_per_test == 0:
+                for image_idx in self.config.data.validation_image_indices:
+                    self.test_image(image_idx=image_idx, step=step)
             self.stats.print_stats(i / num_iterations)
 
         self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)
@@ -196,10 +211,14 @@ class Trainer:
     def train_iteration(self, batch: dict, step: int):
         """Run one iteration with a batch of inputs."""
         # move batch to correct device
-        ray_indices = batch["indices"].to(f"cuda:{self.local_rank}")
+        ray_indices = batch["indices"].to(self.device)
         graph_outputs = self.graph(ray_indices)
-        batch["pixels"] = batch["pixels"].to(f"cuda:{self.local_rank}")
-        losses = self.graph.get_losses(batch, graph_outputs)  # or self.graph.module
+        batch["pixels"] = batch["pixels"].to(self.device)
+        losses = (
+            self.graph.module.get_losses(batch, graph_outputs)
+            if hasattr(self.graph, "module")
+            else self.graph.get_losses(batch, graph_outputs)
+        )
         loss_sum, loss_dict = self.get_aggregated_loss(losses)
         self.optimizers.zero_grad_all()
         loss_sum.backward()
@@ -223,7 +242,7 @@ class Trainer:
             rgb_coarse = []
             rgb_fine = []
             for i in range(0, num_rays, chunk_size):
-                ray_indices = all_ray_indices[i : i + chunk_size].to(f"cuda:{self.local_rank}")
+                ray_indices = all_ray_indices[i : i + chunk_size].to(self.device)
                 graph_outputs = self.graph(ray_indices)
                 rgb_coarse.append(graph_outputs["rgb_coarse"])
                 rgb_fine.append(graph_outputs["rgb_fine"])

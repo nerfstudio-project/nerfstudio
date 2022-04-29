@@ -22,7 +22,7 @@ def check_stats_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.logging_configs.enable_stats:
+        if self.config.logging.enable_stats:
             ret = func(self, *args, **kwargs)
         return ret
 
@@ -34,7 +34,7 @@ def check_profiler_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.logging_configs.enable_stats:
+        if self.config.logging.enable_stats:
             ret = func(self, *args, **kwargs)
         return ret
 
@@ -59,9 +59,9 @@ def check_print_stats_step(func: Callable) -> Callable:
     def wrapper(self, *args, **kwargs):
         ret = None
         if (
-            self.step % self.config.logging_configs.steps_per_log == 0
-            or (self.config.steps_per_save and self.step % self.config.steps_per_save == 0)
-            or self.step % self.config.steps_per_test == 0
+            self.step % self.config.logging.steps_per_log == 0
+            or (self.config.graph.steps_per_save and self.step % self.config.graph.steps_per_save == 0)
+            or self.step % self.config.graph.steps_per_test == 0
         ):
             ret = func(self, *args, **kwargs)
         return ret
