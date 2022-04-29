@@ -4,7 +4,7 @@ For loading the blender dataset format.
 
 import os
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List, Tuple
 
 import imageio
 import numpy as np
@@ -69,8 +69,11 @@ def load_blender_data(basedir, downscale_factor=1.0, split="train"):
     return dataset_inputs
 
 
-def get_dataset_inputs(data_directory: str, dataset_type: str, downscale_factor: float = 1.0):
+def get_dataset_inputs_dict(
+    data_directory: str, dataset_type: str, downscale_factor: float = 1.0, splits: Tuple[str] = ("train", "val")
+) -> Dict[str, DatasetInputs]:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
+    # TODO: implement the `test` split, which will have depths and normals, etc.
 
     Args:
         data_directory (str): _description_
@@ -78,11 +81,14 @@ def get_dataset_inputs(data_directory: str, dataset_type: str, downscale_factor:
         downscale_factor (float, optional): _description_. Defaults to 1.0.
 
     Returns:
-        DatasetInputs: The inputs needed for generating rays.
+        Dict[str, DatasetInputs]: The inputs needed for generating rays.
     """
+    dataset_inputs_dict = {}
     if dataset_type == "blender":
-        dataset_inputs = load_blender_data(get_absolute_path(data_directory), downscale_factor=downscale_factor)
+        for split in splits:
+            dataset_inputs = load_blender_data(get_absolute_path(data_directory), downscale_factor=downscale_factor)
+            dataset_inputs_dict[split] = dataset_inputs
     else:
         raise NotImplementedError()
 
-    return dataset_inputs
+    return dataset_inputs_dict

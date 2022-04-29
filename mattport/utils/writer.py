@@ -18,6 +18,16 @@ from mattport.utils.decorators import check_main_thread, decorate_all
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 
 
+def get_tensorboard_name(name: str, group: str = None, prefix: str = None):
+    """Returns a string for tensorboard with an optional group and prefix.
+    Where tensorboard_name has the form `group/prefix-name`.
+    """
+    group_string = f"{group}/" if group else ""
+    prefix_string = f"{prefix}" if prefix else ""
+    tensorboard_name = f"{group_string}{prefix_string}{name}"
+    return tensorboard_name
+
+
 class Writer:
     """Writer class"""
 
@@ -88,7 +98,8 @@ class TensorboardWriter(Writer):
             x (TensorType["H", "W", 3]): rendered image to write
         """
         x = to8b(x)
-        self.tb_writer.add_image(name, x, step, dataformats="HWC")
+        tensorboard_name = get_tensorboard_name(name, group=group, prefix=prefix)
+        self.tb_writer.add_image(tensorboard_name, x, step, dataformats="HWC")
 
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
         """Tensorboard method to write a single scalar value to the logger
@@ -99,9 +110,8 @@ class TensorboardWriter(Writer):
             y (float): y value to write
             group (str)): a prefix to group tensorboard scalars
         """
-        group_s = f"{group}/" if group else ""
-        prefix_s = f"{prefix}" if prefix else ""
-        self.tb_writer.add_scalar(f"{group_s}{prefix_s}{name}", scalar, step)
+        tensorboard_name = get_tensorboard_name(name, group=group, prefix=prefix)
+        self.tb_writer.add_scalar(tensorboard_name, scalar, step)
 
 
 @decorate_all([check_main_thread])

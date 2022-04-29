@@ -53,7 +53,7 @@ class MLP(FieldModule):
         else:
             for i in range(self.num_layers - 1):
                 if i == 0:
-                    assert i not in self.skip_connections, "Skip connection at layer 0 doesn't make sense."
+                    assert i not in list(self.skip_connections), "Skip connection at layer 0 doesn't make sense."
                     layers.append(nn.Linear(self.in_dim, self.layer_width))
                 elif i in self.skip_connections:
                     layers.append(nn.Linear(self.layer_width + self.in_dim, self.layer_width))
