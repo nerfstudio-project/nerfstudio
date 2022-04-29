@@ -21,7 +21,7 @@ def test_uniform_sampler():
 
     ray_samples = sampler(ray_bundle)
 
-    assert ray_samples.bins.shape[-1] == num_samples + 1
+    assert ray_samples.positions.shape[-2] == num_samples
 
     # TODO Tancik: Add more precise tests
 
