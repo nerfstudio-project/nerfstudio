@@ -5,7 +5,7 @@ defaults:
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog
 
-logging_configs:
+logging:
   steps_per_log: 10
   # stats tracker logs configurable training stats per iteration to terminal (e.g. rays/s, PSNR)
   enable_stats: True
@@ -13,9 +13,9 @@ logging_configs:
     max_history: 10
     stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME] # see mattport/utils/stats_tracker.py for options
   # writer logs losses and images per iteration
-  writer:
+  writer: 
     type: TensorboardWriter
-    save_dir: "/tmp/"
+    save_dir: './'
   # profiler logs run times of functions and prints at end of training
   enable_profiler: True
 
@@ -28,49 +28,20 @@ hydra:
 experiment_name: blender_lego
 method_name: vanilla_nerf
 
-# pretrained loading options
-resume_train:
-  load_dir: # pretrained model directory
-  load_step: # pretrained model's step number
+data:
+  # dataset options
+  dataset:
+    data_directory: data/blender/lego_test
+    dataset_type: blender
+    downscale_factor: 4
 
-max_num_iterations: 10
-steps_per_save: null
-steps_per_test: 100
-
-model_dir: /tmp/mattport_models/
-
-# dataset options
-dataset:
-  data_directory: data/blender/lego_test
-  dataset_type: blender
-  downscale_factor: 4
-
-# dataloader options
-dataloader:
-  num_workers: 4
-  shuffle: true
-  num_images_to_sample_from: 1
-  # num_rays_per_batch: 1024
-  num_rays_per_batch: 8 # NOTE(ethan): much smaller than normal!
-  num_times_to_repeat_images: 40
-
-# optimizer options
-param_groups:
-  fields:
-    optimizer:
-      type: Adam
-      lr: 1e-4
-    scheduler:
-      type: StepLR
-      step_size: 30 #  Period of learning rate decay.
-      gamma: 0.1 # Multiplicative factor of learning rate decay. Default: 0.1.
-  cameras:
-    optimizer:
-      type: SGD
-      lr: 1e-4
-    scheduler:
-      type: ExponentialLR
-      gamma: 0.1
+  # dataloader options
+  dataloader:
+    num_workers: 4
+    shuffle: true
+    num_images_to_sample_from: 1
+    num_rays_per_batch: 8
+    num_times_to_repeat_images: 40
 
 # machine options
 machine_config:
@@ -81,9 +52,37 @@ machine_config:
 
 # graph options
 graph:
-  # NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
-  _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph
-  near_plane: 1.0
-  far_plane: 6.0
-  num_coarse_samples: 4 # NOTE(ethan): much smaller than normal!
-  num_importance_samples: 4 # NOTE(ethan): much smaller than normal!
+  model_dir: /tmp/mattport_models/
+  max_num_iterations: 10
+  steps_per_save: null
+  steps_per_test: 100
+
+  # pretrained loading options
+  resume_train:
+    load_dir: # pretrained model directory
+    load_step: # pretrained model's step number
+
+  network:
+    # NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
+    _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph
+    near_plane: 1.0
+    far_plane: 6.0
+    num_coarse_samples: 4
+    num_importance_samples: 4
+  # optimizer options
+  param_groups:
+    fields:
+      optimizer:
+        type: Adam
+        lr: 1e-4
+      scheduler:
+        type: StepLR
+        step_size: 30 #  Period of learning rate decay.
+        gamma: 0.1 # Multiplicative factor of learning rate decay. Default: 0.1.
+    cameras:
+      optimizer:
+        type: SGD
+        lr: 1e-4
+      scheduler:
+        type: ExponentialLR
+        gamma: 0.1

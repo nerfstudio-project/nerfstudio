@@ -55,7 +55,7 @@ class Trainer:
         writer = getattr(mattport.utils.writer, self.config.logging_configs.writer.type)
         self.writer = writer(self.is_main_thread, save_dir=self.config.logging_configs.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
-        if not profiler.PROFILER and self.config.logging_configs.enable_profiler:
+        if not profiler.PROFILER and self.config.logging.enable_profiler:
             profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
         self.dry_run = self.config.get("dry_run", False)
         self.device = f"cuda:{self.local_rank}" if not cpu else "cpu"
@@ -63,7 +63,7 @@ class Trainer:
     @profiler.time_function
     def setup(self):
         """Setup the Trainer by calling other setup functions."""
-        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.dataset)
+        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.data.dataset)
         self.setup_datasets(dataset_inputs_dict)
         self.setup_graph(dataset_inputs_dict["train"])
 
@@ -90,8 +90,7 @@ class Trainer:
         self.train_dataloader = DataLoader(
             self.train_dataset,
             batch_size=1,
-            # num_workers=0,
-            num_workers=self.config.dataloader.num_workers,
+            num_workers=self.config.data.dataloader.num_workers,
             collate_fn=collate_batch_size_one,
             pin_memory=True,
         )
@@ -112,8 +111,8 @@ class Trainer:
         ).to(self.device)
         self.setup_optimizers()
 
-        if self.config.resume_train.load_dir:
-            self.load_checkpoint(self.config.resume_train)
+        if self.config.graph.resume_train.load_dir:
+            self.load_checkpoint(self.config.graph.resume_train)
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
@@ -122,7 +121,7 @@ class Trainer:
     def setup_optimizers(self):
         """_summary_"""
         # TODO(ethan): handle different world sizes
-        self.optimizers = Optimizers(self.config.param_groups, self.graph.get_param_groups())
+        self.optimizers = Optimizers(self.config.graph.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
         """Load the checkpoint from the given path
@@ -180,7 +179,7 @@ class Trainer:
     def train(self) -> None:
         """_summary_"""
         train_start = time()
-        num_iterations = self.config.max_num_iterations
+        num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
         for i, step in enumerate(range(self.start_step, self.start_step + num_iterations)):
             data_start = time()
@@ -194,12 +193,12 @@ class Trainer:
             )
             self.stats.update_time(Stats.ITER_TRAIN_TIME, iter_start, time(), step=step)
 
-            if step != 0 and step % self.config.logging_configs.steps_per_log == 0:
+            if step != 0 and step % self.config.logging.steps_per_log == 0:
                 self.writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
-            if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
-                self.save_checkpoint(self.config.model_dir, step)
-            if step % self.config.steps_per_test == 0:
+            if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
+                self.save_checkpoint(self.config.graph.model_dir, step)
+            if step % self.config.graph.steps_per_test == 0:
                 self.test_image(image_idx=0, step=step)
                 _ = self.test_image(image_idx=10, step=step) if not self.dry_run else None
             self.stats.print_stats(i / num_iterations)

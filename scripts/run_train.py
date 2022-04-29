@@ -190,7 +190,7 @@ def launch(
                 process.join()
                 logger.info("Process %s finished", str(i))
         finally:
-            if config.logging_configs.enable_profiler:
+            if config.logging.enable_profiler:
                 profiler.PROFILER.print_profile()
 
 
