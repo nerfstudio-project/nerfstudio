@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
-from mattport.nerf.dataset.utils import get_dataset_inputs
+from mattport.nerf.dataset.utils import get_dataset_inputs_dict
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.utils.io import get_absolute_path
 from mattport.viewer.plotly import visualize_dataset
@@ -30,21 +30,21 @@ def visualize_batch(batch):
     return image
 
 
-def test_dataloader():
+def test_dataloader(visualize=False):
     """Testing for the dataloader from input dataset parameters to rays."""
 
-    data_directory = "data/blender/lego"
+    data_directory = "data/blender/lego_test"
     dataset_type = "blender"
     downscale_factor = 1
-    num_images_to_sample_from = 8
+    num_images_to_sample_from = 1
     num_times_to_repeat_images = 40
     num_rays_per_batch = 1024
     num_workers = 0
 
     data_directory = get_absolute_path(data_directory)
-    dataset_inputs = get_dataset_inputs(
+    dataset_inputs = get_dataset_inputs_dict(
         data_directory=data_directory, dataset_type=dataset_type, downscale_factor=downscale_factor
-    )
+    )["train"]
     image_dataset = ImageDataset(
         image_filenames=dataset_inputs.image_filenames, downscale_factor=dataset_inputs.downscale_factor
     )
@@ -72,14 +72,17 @@ def test_dataloader():
 
     # visualize the batch
     image = visualize_batch(batch)
-    imageio.imwrite("temp0.png", image)
+    if visualize:
+        imageio.imwrite("temp0.png", image)
 
     # visualize the RayBundle
     small_ray_bundle = ray_bundle.sample(100)
     fig = visualize_dataset(camera_origins=dataset_inputs.camera_to_world[:, :3, 3], ray_bundle=small_ray_bundle)
-    fig.write_image("temp1.png")
-    fig.write_html("temp1.html")
+    if visualize:
+        fig.write_image("temp1.png")
+        fig.write_html("temp1.html")
+    assert True
 
 
 if __name__ == "__main__":
-    test_dataloader()
+    test_dataloader(visualize=True)

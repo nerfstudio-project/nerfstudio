@@ -1,3 +1,5 @@
+dry_run: true
+
 defaults:
   # This makes the logging module logs colorful
   - override hydra/job_logging: colorlog
@@ -39,7 +41,7 @@ model_dir: /tmp/mattport_models/
 
 # dataset options
 dataset:
-  data_directory: data/blender/lego
+  data_directory: data/blender/lego_test
   dataset_type: blender
   downscale_factor: 4
 
@@ -47,7 +49,7 @@ dataset:
 dataloader:
   num_workers: 4
   shuffle: true
-  num_images_to_sample_from: 8
+  num_images_to_sample_from: 1
   num_rays_per_batch: 1024
   num_times_to_repeat_images: 40
 

@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 import mattport.utils.writer
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
-from mattport.nerf.dataset.utils import get_dataset_inputs
+from mattport.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_dict
 from mattport.nerf.metrics import get_psnr
 from mattport.nerf.optimizers import Optimizers
 from mattport.utils import profiler
@@ -37,8 +37,7 @@ class Trainer:
         self.train_image_dataset = None
         self.train_dataset = None
         self.train_dataloader = None
-        self.test_dataset = None
-        self.test_dataloader = None
+        self.val_image_dataset = None
         # model variables
         self.graph = None
         self.optimizers = None
@@ -49,13 +48,21 @@ class Trainer:
         self.writer = writer(local_rank, world_size, save_dir=self.config.logging_configs.writer.save_dir)
         self.stats = StatsTracker(config, self.is_main_thread)
         profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
+        self.dry_run = self.config.get("dry_run", False)
 
     @profiler.time_function
-    def setup_dataset(self):
+    def setup(self):
+        """Setup the Trainer by calling other setup functions."""
+        dataset_inputs_dict = get_dataset_inputs_dict(**self.config.dataset)
+        self.setup_datasets(dataset_inputs_dict)
+        self.setup_graph(dataset_inputs_dict["train"])
+
+    @profiler.time_function
+    def setup_datasets(self, dataset_inputs_dict: Dict[str, DatasetInputs]):
         """_summary_"""
-        dataset_inputs = get_dataset_inputs(**self.config.dataset)
         self.train_image_dataset = ImageDataset(
-            image_filenames=dataset_inputs.image_filenames, downscale_factor=dataset_inputs.downscale_factor
+            image_filenames=dataset_inputs_dict["train"].image_filenames,
+            downscale_factor=dataset_inputs_dict["train"].downscale_factor,
         )
         self.train_dataset = CollateIterDataset(
             self.train_image_dataset,
@@ -72,12 +79,18 @@ class Trainer:
             collate_fn=collate_batch_size_one,
             pin_memory=True,
         )
-        # TODO(ethan): implement the test dataset
+        self.val_image_dataset = ImageDataset(
+            image_filenames=dataset_inputs_dict["val"].image_filenames,
+            downscale_factor=dataset_inputs_dict["val"].downscale_factor,
+        )
 
     @profiler.time_function
-    def setup_graph(self):
-        """_summary_"""
-        dataset_inputs = get_dataset_inputs(**self.config.dataset)
+    def setup_graph(self, dataset_inputs: DatasetInputs):
+        """Setup the graph. The dataset inputs should be set with the training data.
+
+        Args:
+            dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+        """
         self.graph = instantiate(
             self.config.graph, intrinsics=dataset_inputs.intrinsics, camera_to_world=dataset_inputs.camera_to_world
         ).to(f"cuda:{self.local_rank}")
@@ -170,10 +183,9 @@ class Trainer:
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.steps_per_save and step % self.config.steps_per_save == 0:
                 self.save_checkpoint(self.config.model_dir, step)
-            if step != 0 and step % self.config.steps_per_test == 0:
+            if step % self.config.steps_per_test == 0:
                 self.test_image(image_idx=0, step=step)
-                self.test_image(image_idx=10, step=step)
-                self.test_image(image_idx=20, step=step)
+                _ = self.test_image(image_idx=10, step=step) if not self.dry_run else None
             self.stats.print_stats(i / num_iterations)
 
         self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)
@@ -198,7 +210,7 @@ class Trainer:
     @profiler.time_function
     def test_image(self, image_idx, step):
         """Test a specific image."""
-        image = self.train_image_dataset[image_idx]["image"]  # ground truth
+        image = self.val_image_dataset[image_idx]["image"]  # ground truth
         image_height, image_width, _ = image.shape
         pixel_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
         pixel_coords = torch.stack(pixel_coords, dim=-1).long()
@@ -219,8 +231,8 @@ class Trainer:
             rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
 
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="test")
+        self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="val")
 
         fine_psnr = get_psnr(image, rgb_fine)
-        self.stats.update_value(Stats.CURR_TEST_PSNR, fine_psnr, step)
-        self.writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", fine_psnr, step, group="test")
+        self.stats.update_value(Stats.CURR_TEST_PSNR, float(fine_psnr), step)
+        self.writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", float(fine_psnr), step, group="val")

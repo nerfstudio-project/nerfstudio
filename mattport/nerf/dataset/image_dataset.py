@@ -5,8 +5,9 @@ Some dataset code.
 from typing import List
 
 import numpy as np
-import torch
+import numpy.typing as npt
 import PIL
+import torch
 from PIL import Image
 from torch.utils.data import default_collate
 
@@ -58,7 +59,7 @@ class ImageDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.image_filenames)
 
-    def get_image(self, image_idx: int) -> np.uint8:
+    def get_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
         """Returns the image.
 
         Args:
@@ -82,8 +83,9 @@ class ImageDataset(torch.utils.data.Dataset):
             pil_image = pil_image.resize(
                 (image_width // self.downscale_factor, image_height // self.downscale_factor), PIL.Image.BILINEAR
             )
-        image = np.array(pil_image)  # shape is (h, w, 3 or 4)
+        image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
+        assert image.dtype == np.uint8
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
