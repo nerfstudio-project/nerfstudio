@@ -34,18 +34,21 @@ data:
     data_directory: data/blender/lego_test
     dataset_type: blender
     downscale_factor: 4
+  
+  # validation options
+  validation_image_indices: [0]
 
   # dataloader options
   dataloader:
     num_workers: 4
     shuffle: true
     num_images_to_sample_from: 1
-    num_rays_per_batch: 1024
+    num_rays_per_batch: 8
     num_times_to_repeat_images: 40
 
 # machine options
 machine_config:
-  num_gpus: 1
+  num_gpus: 0
   num_machines: 1
   machine_rank: 0
   dist_url: auto
@@ -67,8 +70,8 @@ graph:
     _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph
     near_plane: 1.0
     far_plane: 6.0
-    num_coarse_samples: 64
-    num_importance_samples: 64
+    num_coarse_samples: 4
+    num_importance_samples: 4
   # optimizer options
   param_groups:
     fields:
