@@ -2,7 +2,6 @@
 Test samplers
 """
 import torch
-from mattport.nerf.field_modules.field_heads import FieldHeadNames
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 
 from mattport.structures.rays import RayBundle
