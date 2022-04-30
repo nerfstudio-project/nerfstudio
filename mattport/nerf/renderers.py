@@ -19,8 +19,9 @@ class RendererOutputs:
 class RGBRenderer(nn.Module):
     """Standard volumetic rendering."""
 
+    @classmethod
     def forward(
-        self,
+        cls,
         rgb: TensorType[..., "num_samples", 3],
         weights: TensorType[..., "num_samples"],
     ) -> RendererOutputs:
