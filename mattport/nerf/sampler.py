@@ -2,11 +2,10 @@
 Collection of sampling strategies
 """
 
-from typing import Dict, Optional
+from typing import Optional
 import torch
 from torch import nn
 from torchtyping import TensorType
-from mattport.nerf.field_modules.field_heads import FieldHeadNames
 
 from mattport.structures.rays import RayBundle, RaySamples
 
@@ -89,9 +88,8 @@ class PDFSampler(nn.Module):
 
     def forward(
         self,
-        ray_bundle: RayBundle,
         coarse_ray_samples: RaySamples,
-        field_outputs: Dict[FieldHeadNames, TensorType],
+        weights: TensorType[..., "num_samples"],
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
     ) -> RaySamples:
@@ -108,27 +106,15 @@ class PDFSampler(nn.Module):
         Returns:
             RaySamples: Positions and deltas for samples along a ray
         """
+        # TODO (matt) Look into torch.no_grad(), or torch.inference_mode
 
         num_samples = num_samples or self.num_samples
-
-        # Calculate weight contributions along ray
-        # Todo(matt): This computation is duplicated
-        density = field_outputs[FieldHeadNames.DENSITY]
-        delta_density = coarse_ray_samples.deltas * density[..., 0]
-        alphas = 1 - torch.exp(-delta_density)
-
-        transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
-        transmittance = torch.cat(
-            [torch.zeros((*transmittance.shape[:1], 1)).to(density.device), transmittance], axis=-1
-        )
-        transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
-        weights = alphas * transmittance  # [..., "num_samples"]
-        weights = weights[..., 1:]
+        weights = weights[..., :-1]
 
         # Add small offset to rays with zero weight to prevent NaNs
         weights_sum = torch.sum(weights, dim=-1, keepdim=True)
         padding = torch.relu(eps - weights_sum)
-        weights += padding / weights.shape[-1]
+        weights = weights + padding / weights.shape[-1]
         weights_sum += padding
 
         pdf = weights / weights_sum
@@ -158,12 +144,15 @@ class PDFSampler(nn.Module):
 
         if self.include_original:
             ts, _ = torch.sort(torch.cat([coarse_ray_samples.ts, ts], -1), -1)
+        else:
+            ts, _ = torch.sort(ts, -1)
 
+        # Stop gradients
         ts = ts.detach()
 
         ray_samples = RaySamples(
             ts=ts,
-            ray_bundle=ray_bundle,
+            ray_bundle=coarse_ray_samples.ray_bundle,
         )
 
         return ray_samples

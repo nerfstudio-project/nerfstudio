@@ -12,20 +12,15 @@ def test_rgb_renderer():
     num_samples = 10
 
     rgb = torch.ones((3, num_samples, 3))
-    densities = torch.ones((3, num_samples, 1))
-    deltas = torch.ones((3, num_samples))
+    weights = torch.ones((3, num_samples))
+    weights /= torch.sum(weights, axis=-1, keepdim=True)
 
     rgb_renderer = renderers.RGBRenderer()
 
-    assert rgb_renderer.required_field_outputs is not None
-
-    out = rgb_renderer(rgb=rgb, density=densities, deltas=deltas)
+    out = rgb_renderer(rgb=rgb, weights=weights)
     assert torch.max(out.rgb) > 0.9
 
-    out = rgb_renderer(rgb=rgb * 0, density=densities, deltas=deltas)
-    assert torch.max(out.rgb) == pytest.approx(0)
-
-    out = rgb_renderer(rgb=rgb, density=densities * 0, deltas=deltas)
+    out = rgb_renderer(rgb=rgb * 0, weights=weights)
     assert torch.max(out.rgb) == pytest.approx(0)
 
     # TODO Tancik: Add more precise tests

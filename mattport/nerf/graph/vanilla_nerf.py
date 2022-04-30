@@ -137,19 +137,21 @@ class NeRFGraph(Graph):
         coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
         # time end coarse network
 
+        coarse_weights = uniform_ray_samples.get_weights(coarse_field_outputs[FieldHeadNames.DENSITY])
+
         coarse_renderer_outputs = self.renderer_rgb(
             rgb=coarse_field_outputs[FieldHeadNames.RGB],
-            density=coarse_field_outputs[FieldHeadNames.DENSITY],
-            deltas=uniform_ray_samples.deltas,
+            weights=coarse_weights,
         )  # RendererOutputs
         # fine network:
-        pdf_ray_samples = self.sampler_pdf(ray_bundle, uniform_ray_samples, coarse_field_outputs)  # RaySamples
+        pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
+
+        fine_weights = pdf_ray_samples.get_weights(fine_field_outputs[FieldHeadNames.DENSITY])
 
         fine_renderer_outputs = self.renderer_rgb(
             rgb=fine_field_outputs[FieldHeadNames.RGB],
-            density=fine_field_outputs[FieldHeadNames.DENSITY],
-            deltas=pdf_ray_samples.deltas,
+            weights=fine_weights,
         )  # RendererOutputs
         # outputs:
         outputs = {"rgb_coarse": coarse_renderer_outputs.rgb, "rgb_fine": fine_renderer_outputs.rgb}
