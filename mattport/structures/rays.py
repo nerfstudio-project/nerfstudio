@@ -92,3 +92,26 @@ class RaySamples:
         dists = torch.cat([dists, dists[..., -1:]], -1)  # [N_rays, N_samples]
         deltas = dists * torch.norm(self.ray_bundle.directions[..., None, :], dim=-1)
         return deltas
+
+    def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples"]:
+        """Return weights based on predicted densities
+
+        Args:
+            densities (TensorType[..., "num_samples", 1]): Predicted densities for samples along ray
+
+        Returns:
+            TensorType[..., "num_samples"]: Weights for each sample
+        """
+
+        delta_density = self.deltas * densities[..., 0]
+        alphas = 1 - torch.exp(-delta_density)
+
+        transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
+        transmittance = torch.cat(
+            [torch.zeros((*transmittance.shape[:1], 1)).to(densities.device), transmittance], axis=-1
+        )
+        transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
+
+        weights = alphas * transmittance  # [..., "num_samples"]
+
+        return weights

@@ -2,7 +2,6 @@
 Test samplers
 """
 import torch
-from mattport.nerf.field_modules.field_heads import FieldHeadNames
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 
 from mattport.structures.rays import RayBundle
@@ -36,14 +35,14 @@ def test_pdf_sampler():
     directions = torch.ones_like(origins)
     ray_bundle = RayBundle(origins=origins, directions=directions)
 
-    field_outputs = {FieldHeadNames.DENSITY: torch.ones((10, num_samples, 1))}
-
     uniform_sampler = UniformSampler(near_plane=near_plane, far_plane=far_plane, num_samples=num_samples)
     coarse_ray_samples = uniform_sampler(ray_bundle)
 
+    weights = torch.ones((10, num_samples))
+
     # Just check that it doesn't crash. Need to add some actual tests.
     pdf_sampler = PDFSampler(num_samples)
-    pdf_sampler(ray_bundle, coarse_ray_samples, field_outputs, num_samples)
+    pdf_sampler(coarse_ray_samples, weights, num_samples)
 
     # TODO Tancik: Add more precise tests
 
