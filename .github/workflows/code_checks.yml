@@ -37,7 +37,8 @@ jobs:
             --disable=too-many-arguments \
             --disable=too-many-locals \
             --disable=fixme \
-            --disable=too-many-instance-attributes
+            --disable=too-many-instance-attributes \
+            --disable=duplicate-code
       - name: Test with pytest
         run: |
           pytest tests --typeguard-packages=mattport --torchtyping-patch-typeguard --disable-warnings
