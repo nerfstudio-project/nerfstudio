@@ -3,7 +3,8 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
-    "configurations": [{
+    "configurations": [
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
@@ -27,6 +28,16 @@
             "args": [
                 "machine_config.num_gpus=0"
             ]
-        }
+        },
+        {
+            "name": "Python: run_train ngp (gpu)",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/run_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--config-name=instant_ngp.yaml"
+            ]
+        },
     ]
 }
