@@ -19,4 +19,4 @@ graph:
 
 hydra:
   searchpath:
-    - pkg://configs
+    - file://configs
