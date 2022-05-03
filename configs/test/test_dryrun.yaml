@@ -16,3 +16,7 @@ data:
 
 graph:
   max_num_iterations: 5
+
+hydra:
+  searchpath:
+    - pkg://configs
