@@ -98,12 +98,15 @@ def get_dataset_inputs_dict(
     """
     dataset_inputs_dict = {}
 
+    if alpha_color is not None:
+        alpha_color = get_color(alpha_color)
+
     if dataset_type == "blender":
         for split in splits:
             dataset_inputs = load_blender_data(
                 get_absolute_path(data_directory),
                 downscale_factor=downscale_factor,
-                alpha_color=get_color(alpha_color),
+                alpha_color=alpha_color,
             )
             dataset_inputs_dict[split] = dataset_inputs
     else:
