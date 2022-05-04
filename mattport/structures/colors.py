@@ -32,7 +32,7 @@ def get_color(color: Union[str, list, ListConfig]) -> TensorType[3]:
         if color not in COLORS_DICT:
             raise ValueError(f"{color} is not a valid preset color")
         return COLORS_DICT[color]
-    if isinstance(color, list) or isinstance(color, ListConfig):
+    if isinstance(color, (list, ListConfig)):
         if len(color) != 3:
             raise ValueError(f"Color should be 3 values (RGB) instead got {color}")
         return torch.tensor(color)
