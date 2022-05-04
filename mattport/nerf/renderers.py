@@ -2,6 +2,7 @@
 Collection of renderers
 """
 from dataclasses import dataclass
+from typing import Optional
 
 import torch
 from torch import nn
@@ -19,13 +20,13 @@ class RendererOutputs:
 class RGBRenderer(nn.Module):
     """Standard volumetic rendering."""
 
-    def __init__(self, white_background: bool = False) -> None:
+    def __init__(self, background_color: Optional[TensorType[3]] = None) -> None:
         """
         Args:
-            white_background (bool, optional): Composite onto white. Defaults to True.
+            background_color (TensorType[3], optional): Background color as RGB. Defaults to black.
         """
         super().__init__()
-        self.white_background = white_background
+        self.background_color = background_color
 
     def forward(
         self,
@@ -44,8 +45,13 @@ class RGBRenderer(nn.Module):
 
         rgb = torch.sum(weights[..., None] * rgb, dim=-2)
 
-        if self.white_background:
-            rgb = rgb + (1.0 - torch.sum(weights, dim=-1))[..., None]
+        if self.background_color is not None:
+            rgb = rgb + self.background_color.to(weights.device)[None, ...] * (
+                1.0 - torch.sum(weights, dim=-1)[..., None]
+            )
+
+        assert torch.max(rgb) <= 1.0
+        assert torch.min(rgb) >= 0.0
 
         renderer_outputs = RendererOutputs(rgb=rgb)
         return renderer_outputs

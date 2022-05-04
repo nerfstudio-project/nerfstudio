@@ -3,7 +3,7 @@ dataset:
   data_directory: data/blender/lego
   dataset_type: blender
   downscale_factor: 4
-  white_background: True
+  alpha_color: white
 
 # validation options
 validation_image_indices: [0, 10] # Which images to evaluate on.
