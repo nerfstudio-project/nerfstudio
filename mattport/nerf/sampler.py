@@ -28,6 +28,7 @@ class UniformSampler(nn.Module):
         self.num_samples = num_samples
         self.train_stratified = train_stratified
 
+    @torch.no_grad()
     def forward(
         self,
         ray_bundle: RayBundle,
@@ -86,6 +87,7 @@ class PDFSampler(nn.Module):
         self.include_original = include_original
         self.train_stratified = train_stratified
 
+    @torch.no_grad()
     def forward(
         self,
         coarse_ray_samples: RaySamples,
@@ -106,8 +108,6 @@ class PDFSampler(nn.Module):
         Returns:
             RaySamples: Positions and deltas for samples along a ray
         """
-        # TODO (matt) Look into torch.no_grad(), or torch.inference_mode
-
         num_samples = num_samples or self.num_samples
         weights = weights[..., :-1]
 
