@@ -50,11 +50,19 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
 class ImageDataset(torch.utils.data.Dataset):
     """Dataset that returns images."""
 
-    def __init__(self, image_filenames: List[str], downscale_factor: int = 1):
+    def __init__(self, image_filenames: List[str], downscale_factor: int = 1, white_background: bool = False):
+        """_summary_
+
+        Args:
+            image_filenames (List[str]): List of image filenames
+            downscale_factor (int, optional): How much to downscale the image. Defaults to 1.
+            white_background (bool, optional): Sets transparent regions to white, otherwise black. Defaults to False.
+        """
         super().__init__()
         assert isinstance(downscale_factor, int)
         self.image_filenames = image_filenames
         self.downscale_factor = downscale_factor
+        self.white_background = white_background
 
     def __len__(self):
         return len(self.image_filenames)
@@ -92,7 +100,11 @@ class ImageDataset(torch.utils.data.Dataset):
     def __getitem__(self, image_idx):
         # the image might be RGB or RGBA, so we separate it
         original_image = torch.from_numpy(self.get_image(image_idx).astype("float32") / 255.0)
-        image = original_image[:, :, :3]
+
+        if self.white_background:
+            image = original_image[:, :, :3] * original_image[:, :, -1:] + (1.0 - original_image[:, :, -1:])
+        else:
+            image = original_image[:, :, :3]
         num_channels = original_image.shape[2]
         if num_channels == 4:
             mask = original_image[:, :, 3]

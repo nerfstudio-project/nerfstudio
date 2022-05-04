@@ -19,21 +19,25 @@ class DatasetInputs:
 
     image_filenames: List[str]
     downscale_factor: float = 1.0
+    white_background: bool = False
     intrinsics: torch.tensor = None
     camera_to_world: torch.tensor = None
 
 
-def load_blender_data(basedir, downscale_factor=1.0, split="train"):
+def load_blender_data(
+    basedir: str, downscale_factor: int = 1, white_background: bool = False, split: str = "train"
+) -> DatasetInputs:
     """Processes the a blender dataset directory.
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
 
     Args:
-        basedir (_type_): _description_
-        downscale_factor (bool, optional): _description_. Defaults to False.
-        testskip (int, optional): _description_. Defaults to 1.
+        data_directory (str): Location of data
+        downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
+        white_background (bool, optional): Set pixel with zero opacity to white. Defaults to False.
+        split (str, optional): Which dataset split to generate.
 
     Returns:
-        _type_: _description_
+        DatasetInputs
     """
     # pylint: disable=unused-argument
     # pylint: disable-msg=too-many-locals
@@ -62,6 +66,7 @@ def load_blender_data(basedir, downscale_factor=1.0, split="train"):
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=downscale_factor,
+        white_background=white_background,
         intrinsics=intrinsics * 1.0 / downscale_factor,  # downscaling the intrinsics here
         camera_to_world=camera_to_world,
     )
@@ -70,25 +75,33 @@ def load_blender_data(basedir, downscale_factor=1.0, split="train"):
 
 
 def get_dataset_inputs_dict(
-    data_directory: str, dataset_type: str, downscale_factor: float = 1.0, splits: Tuple[str] = ("train", "val")
+    data_directory: str,
+    dataset_type: str,
+    downscale_factor: int = 1,
+    white_background: bool = False,
+    splits: Tuple[str] = ("train", "val"),
 ) -> Dict[str, DatasetInputs]:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
     # TODO: implement the `test` split, which will have depths and normals, etc.
 
     Args:
-        data_directory (str): _description_
-        dataset_type (str): _description_
-        downscale_factor (float, optional): _description_. Defaults to 1.0.
+        data_directory (str): Location of data
+        dataset_type (str): Name of dataset type
+        downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
+        white_background (bool, optional): Set pixel with zero opacity to white. Defaults to False.
 
     Returns:
         Dict[str, DatasetInputs]: The inputs needed for generating rays.
     """
     dataset_inputs_dict = {}
+
     if dataset_type == "blender":
         for split in splits:
-            dataset_inputs = load_blender_data(get_absolute_path(data_directory), downscale_factor=downscale_factor)
+            dataset_inputs = load_blender_data(
+                get_absolute_path(data_directory), downscale_factor=downscale_factor, white_background=white_background
+            )
             dataset_inputs_dict[split] = dataset_inputs
     else:
-        raise NotImplementedError()
+        raise NotImplementedError(f"{dataset_type} is not a valid dataset type")
 
     return dataset_inputs_dict
