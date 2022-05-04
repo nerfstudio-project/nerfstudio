@@ -17,7 +17,8 @@ from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import RGBRenderer
-from mattport.nerf.sampler import PDFSampler, UniformSampler  # pylint: disable=unused-import
+from mattport.nerf.sampler import PDFSampler, UniformSampler
+from mattport.structures import colors
 from mattport.structures.rays import RaySamples
 
 
@@ -110,7 +111,7 @@ class NeRFGraph(Graph):
         self.field_fine = NeRFField()
 
         # renderers
-        self.renderer_rgb = RGBRenderer(white_background=True)
+        self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
 
         # losses
         self.rgb_loss = MSELoss()

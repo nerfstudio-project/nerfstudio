@@ -2,7 +2,7 @@
 Some dataset code.
 """
 
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -10,6 +10,7 @@ import PIL
 import torch
 from PIL import Image
 from torch.utils.data import default_collate
+from torchtyping import TensorType
 
 
 def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False):
@@ -50,19 +51,21 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
 class ImageDataset(torch.utils.data.Dataset):
     """Dataset that returns images."""
 
-    def __init__(self, image_filenames: List[str], downscale_factor: int = 1, white_background: bool = False):
+    def __init__(
+        self, image_filenames: List[str], downscale_factor: int = 1, alpha_color: Optional[TensorType[3]] = None
+    ):
         """_summary_
 
         Args:
             image_filenames (List[str]): List of image filenames
             downscale_factor (int, optional): How much to downscale the image. Defaults to 1.
-            white_background (bool, optional): Sets transparent regions to white, otherwise black. Defaults to False.
+            alpha_color (TensorType[3], optional): Sets transparent regions to specified color, otherwise black.
         """
         super().__init__()
         assert isinstance(downscale_factor, int)
         self.image_filenames = image_filenames
         self.downscale_factor = downscale_factor
-        self.white_background = white_background
+        self.alpha_color = alpha_color
 
     def __len__(self):
         return len(self.image_filenames)
@@ -101,8 +104,10 @@ class ImageDataset(torch.utils.data.Dataset):
         # the image might be RGB or RGBA, so we separate it
         original_image = torch.from_numpy(self.get_image(image_idx).astype("float32") / 255.0)
 
-        if self.white_background:
-            image = original_image[:, :, :3] * original_image[:, :, -1:] + (1.0 - original_image[:, :, -1:])
+        if self.alpha_color is not None:
+            image = original_image[:, :, :3] * original_image[:, :, -1:] + self.alpha_color * (
+                1.0 - original_image[:, :, -1:]
+            )
         else:
             image = original_image[:, :, :3]
         num_channels = original_image.shape[2]

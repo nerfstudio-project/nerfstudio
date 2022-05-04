@@ -4,11 +4,14 @@ For loading the blender dataset format.
 
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import imageio
 import numpy as np
+from omegaconf import ListConfig
 import torch
+from torchtyping import TensorType
+from mattport.structures.colors import get_color
 
 from mattport.utils.io import get_absolute_path, load_from_json
 
@@ -19,13 +22,13 @@ class DatasetInputs:
 
     image_filenames: List[str]
     downscale_factor: float = 1.0
-    white_background: bool = False
+    alpha_color: Optional[TensorType[3]] = None
     intrinsics: torch.tensor = None
     camera_to_world: torch.tensor = None
 
 
 def load_blender_data(
-    basedir: str, downscale_factor: int = 1, white_background: bool = False, split: str = "train"
+    basedir: str, downscale_factor: int = 1, alpha_color: Optional[TensorType[3]] = None, split: str = "train"
 ) -> DatasetInputs:
     """Processes the a blender dataset directory.
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
@@ -33,7 +36,7 @@ def load_blender_data(
     Args:
         data_directory (str): Location of data
         downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
-        white_background (bool, optional): Set pixel with zero opacity to white. Defaults to False.
+        alpha_color (TensorType[3], optional): Sets transparent regions to specified color, otherwise black.
         split (str, optional): Which dataset split to generate.
 
     Returns:
@@ -66,7 +69,7 @@ def load_blender_data(
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=downscale_factor,
-        white_background=white_background,
+        alpha_color=alpha_color,
         intrinsics=intrinsics * 1.0 / downscale_factor,  # downscaling the intrinsics here
         camera_to_world=camera_to_world,
     )
@@ -78,7 +81,7 @@ def get_dataset_inputs_dict(
     data_directory: str,
     dataset_type: str,
     downscale_factor: int = 1,
-    white_background: bool = False,
+    alpha_color: Optional[Union[str, list, ListConfig]] = None,
     splits: Tuple[str] = ("train", "val"),
 ) -> Dict[str, DatasetInputs]:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
@@ -88,7 +91,7 @@ def get_dataset_inputs_dict(
         data_directory (str): Location of data
         dataset_type (str): Name of dataset type
         downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
-        white_background (bool, optional): Set pixel with zero opacity to white. Defaults to False.
+        alpha_color (str, list, optional): Sets transparent regions to specified color, otherwise black.
 
     Returns:
         Dict[str, DatasetInputs]: The inputs needed for generating rays.
@@ -98,7 +101,9 @@ def get_dataset_inputs_dict(
     if dataset_type == "blender":
         for split in splits:
             dataset_inputs = load_blender_data(
-                get_absolute_path(data_directory), downscale_factor=downscale_factor, white_background=white_background
+                get_absolute_path(data_directory),
+                downscale_factor=downscale_factor,
+                alpha_color=get_color(alpha_color),
             )
             dataset_inputs_dict[split] = dataset_inputs
     else:

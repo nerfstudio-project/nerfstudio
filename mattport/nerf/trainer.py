@@ -78,7 +78,7 @@ class Trainer:
         self.train_image_dataset = ImageDataset(
             image_filenames=dataset_inputs_dict["train"].image_filenames,
             downscale_factor=dataset_inputs_dict["train"].downscale_factor,
-            white_background=dataset_inputs_dict["train"].white_background,
+            alpha_color=dataset_inputs_dict["train"].alpha_color,
         )
 
         self.train_dataset = CollateIterDataset(
@@ -97,7 +97,7 @@ class Trainer:
         self.val_image_dataset = ImageDataset(
             image_filenames=dataset_inputs_dict["val"].image_filenames,
             downscale_factor=dataset_inputs_dict["val"].downscale_factor,
-            white_background=dataset_inputs_dict["val"].white_background,
+            alpha_color=dataset_inputs_dict["val"].alpha_color,
         )
 
     @profiler.time_function
