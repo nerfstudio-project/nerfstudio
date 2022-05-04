@@ -3,7 +3,7 @@ steps_per_log: 10
 enable_stats: True
 stats_tracker:
   max_history: 10
-  stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME] # see mattport/utils/stats_tracker.py for options
+  stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR] # see mattport/utils/stats_tracker.py for options
 # writer logs losses and images per iteration
 writer: 
   type: TensorboardWriter

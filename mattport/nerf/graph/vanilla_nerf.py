@@ -110,7 +110,7 @@ class NeRFGraph(Graph):
         self.field_fine = NeRFField()
 
         # renderers
-        self.renderer_rgb = RGBRenderer()
+        self.renderer_rgb = RGBRenderer(white_background=True)
 
         # losses
         self.rgb_loss = MSELoss()

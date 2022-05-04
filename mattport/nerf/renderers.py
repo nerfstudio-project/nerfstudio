@@ -19,9 +19,16 @@ class RendererOutputs:
 class RGBRenderer(nn.Module):
     """Standard volumetic rendering."""
 
-    @classmethod
+    def __init__(self, white_background: bool = False) -> None:
+        """
+        Args:
+            white_background (bool, optional): Composite onto white. Defaults to True.
+        """
+        super().__init__()
+        self.white_background = white_background
+
     def forward(
-        cls,
+        self,
         rgb: TensorType[..., "num_samples", 3],
         weights: TensorType[..., "num_samples"],
     ) -> RendererOutputs:
@@ -36,6 +43,9 @@ class RGBRenderer(nn.Module):
         """
 
         rgb = torch.sum(weights[..., None] * rgb, dim=-2)
+
+        if self.white_background:
+            rgb = rgb + (1.0 - torch.sum(weights, dim=-1))[..., None]
 
         renderer_outputs = RendererOutputs(rgb=rgb)
         return renderer_outputs
