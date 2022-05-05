@@ -2,7 +2,7 @@
 Default test to make sure train runs
 """
 import pytest
-from hydra.experimental import compose, initialize
+from hydra import compose, initialize
 
 from scripts.run_train import main
 

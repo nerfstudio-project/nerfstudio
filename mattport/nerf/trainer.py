@@ -243,19 +243,28 @@ class Trainer:
             chunk_size = 1024
             rgb_coarse = []
             rgb_fine = []
+            accumulation_coarse = []
+            accumulation_fine = []
             for i in range(0, num_rays, chunk_size):
                 ray_indices = all_ray_indices[i : i + chunk_size].to(self.device)
                 graph_outputs = self.graph(ray_indices)
                 rgb_coarse.append(graph_outputs["rgb_coarse"])
                 rgb_fine.append(graph_outputs["rgb_fine"])
+                accumulation_coarse.append(graph_outputs["accumulation_coarse"])
+                accumulation_fine.append(graph_outputs["accumulation_fine"])
             rgb_coarse = torch.cat(rgb_coarse).view(image_height, image_width, 3).detach().cpu()
             rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
+            accumulation_coarse = torch.cat(accumulation_coarse).view(image_height, image_width, 1).detach().cpu()
+            accumulation_fine = torch.cat(accumulation_fine).view(image_height, image_width, 1).detach().cpu()
 
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="val")
+        self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="val_img")
+
+        combined_image = torch.cat([accumulation_coarse, accumulation_fine], dim=1)
+        self.writer.write_image(f"image_idx_{image_idx}", combined_image, step, group="val_accumulation")
 
         coarse_psnr = get_psnr(image, rgb_coarse)
-        self.writer.write_scalar(f"image_idx_{image_idx}-coarse_psnr", float(coarse_psnr), step, group="val")
+        self.writer.write_scalar(f"image_idx_{image_idx}", float(coarse_psnr), step, group="val")
 
         fine_psnr = get_psnr(image, rgb_fine)
         self.stats.update_value(Stats.CURR_TEST_PSNR, float(fine_psnr), step)
