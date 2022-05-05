@@ -9,6 +9,7 @@ machine_config:
 data:
   dataset:
     data_directory: data/blender/lego_test
+    downscale_factor: 8
   validation_image_indices: [0]
   dataloader:
     num_images_to_sample_from: 1

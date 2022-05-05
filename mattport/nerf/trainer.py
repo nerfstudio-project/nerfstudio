@@ -29,7 +29,7 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 class Trainer:
     """Training class"""
 
-    def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1, cpu=False):
+    def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
         """_summary_
 
         Args:
@@ -57,7 +57,7 @@ class Trainer:
         self.stats = StatsTracker(config, self.is_main_thread)
         if not profiler.PROFILER and self.config.logging.enable_profiler:
             profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
-        self.device = f"cuda:{self.local_rank}" if not cpu else "cpu"
+        self.device = "cpu" if self.world_size == 0 else f"cuda:{self.local_rank}"
 
     @profiler.time_function
     def setup(self):
@@ -112,7 +112,7 @@ class Trainer:
             intrinsics=dataset_inputs.intrinsics,
             camera_to_world=dataset_inputs.camera_to_world,
         ).to(self.device)
-        self.setup_optimizers()
+        self.setup_optimizers()  # NOTE(ethan): can this be before DDP?
 
         if self.config.graph.resume_train.load_dir:
             self.load_checkpoint(self.config.graph.resume_train)
@@ -206,7 +206,7 @@ class Trainer:
                     self.test_image(image_idx=image_idx, step=step)
             self.stats.print_stats(i / num_iterations)
 
-        self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)
+        self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)  # NOTE(ethan): why is step -1?
         self.stats.print_stats(-1)
 
     @profiler.time_function
@@ -221,7 +221,9 @@ class Trainer:
             if hasattr(self.graph, "module")
             else self.graph.get_losses(batch, graph_outputs)
         )
-        loss_sum, loss_dict = self.get_aggregated_loss(losses)
+        loss_sum, loss_dict = self.get_aggregated_loss(
+            losses
+        )  # TODO(ethan): move this into the graph itself. not in trainer
         self.optimizers.zero_grad_all()
         loss_sum.backward()
         self.optimizers.scheduler_step_all(step)  # NOTE(ethan): I think the scheduler needs to know what step we are on
@@ -237,7 +239,7 @@ class Trainer:
         pixel_coords = torch.stack(pixel_coords, dim=-1).long()
         all_ray_indices = torch.cat([torch.ones_like(pixel_coords[..., :1]) * image_idx, pixel_coords], dim=-1).view(
             -1, 3
-        )
+        )  # NOTE(ethan): this is ugly... clean up...
         with torch.no_grad():
             num_rays = all_ray_indices.shape[0]
             chunk_size = 1024

@@ -5,6 +5,7 @@ defaults:
   - logging: default_logging.yaml
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog
+  - _self_
 
 hydra:
   run:

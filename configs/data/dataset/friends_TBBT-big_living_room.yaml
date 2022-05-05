@@ -1,0 +1,3 @@
+data_directory: data/friends/TBBT-big_living_room
+dataset_type: friends
+downscale_factor: 8

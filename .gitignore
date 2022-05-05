@@ -165,8 +165,10 @@ outputs/
 
 # Data
 data/
+!configs/data
 
 # Misc
 old/
 temp*
 .nfs*
+external/

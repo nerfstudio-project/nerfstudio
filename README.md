@@ -1,7 +1,7 @@
 # MattPort
 
-
 # Quickstart
+
 ## Installation: Setup the environment
 
 ```
@@ -34,13 +34,22 @@ Download the original NeRF dataset and put it in the following format.
 ## Training a model
 
 ```
-# Run with the default config
+# Run with default config
 python scripts/run_train.py
+
 # Run with config changes
 python scripts/run_train.py machine_config.num_gpus=1
+
+# Run with different datasets
+python scripts/run_train.py data/dataset=blender_lego
+python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
+
+# Run with different datasets and config changes
+python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
 ```
 
 # Logging and profiling features
+
 We provide many logging functionalities for timing and/or tracking losses during training. All of these loggers are configurable via `configs/logging.yml`
 
 1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, local directory, Weights and Biases), and how often to log in the config.
@@ -48,7 +57,6 @@ We provide many logging functionalities for timing and/or tracking losses during
 2. **StatsTracker**: Computes select statistics and prints to the terminal for local debugging. Specify the kinds of statistics to be logged, how often to log, and the maximum history buffer size in the config.
 
 3. **Profiler**: Computes the average total time of execution for any function with the `@profiler.time_function` decorator. Prints out the full profile at the termination of training or the program.
-
 
 # Setting up Jupyter
 
@@ -59,7 +67,7 @@ bash environments/run_jupyter.sh
 
 # Tooling
 
-We use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/mattport` folder. It will also remove the set environment parameters upon leaving.
+One can use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/mattport` folder. It will also remove the environment parameters upon leaving.
 
 ```
 # Install direnv.
@@ -72,6 +80,3 @@ eval "$(direnv hook bash)"
 cd /path/to/mattport
 direnv allow .
 ```
-
-<!-- Our PyTorch version uses cuda-11.3. -->
-<!-- export PATH=/usr/local/cuda-11.3/bin:$PATH -->

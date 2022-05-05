@@ -1,9 +1,6 @@
-# dataset options
-dataset:
-  data_directory: data/blender/lego
-  dataset_type: blender
-  downscale_factor: 4
-  alpha_color: white
+defaults:
+  # dataset options
+  - dataset: blender_lego
 
 # validation options
 validation_image_indices: [0, 10] # Which images to evaluate on.

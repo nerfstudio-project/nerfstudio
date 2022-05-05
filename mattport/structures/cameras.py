@@ -217,4 +217,6 @@ def get_camera_model(num_intrinsics_params):
     """
     if num_intrinsics_params == 3:
         return SimplePinholeCamera
+    if num_intrinsics_params == 4:
+        return PinholeCamera
     raise NotImplementedError

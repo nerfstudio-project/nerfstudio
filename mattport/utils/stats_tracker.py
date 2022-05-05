@@ -30,8 +30,8 @@ class StatsTracker:
 
     def __init__(self, config: DictConfig, is_main_thread: bool):
         self.config = config
+        self.is_main_thread = is_main_thread
         if self.config.logging.enable_stats:
-            self.is_main_thread = is_main_thread
             self.max_history = self.config.logging.stats_tracker.max_history
             self.step = 0
             self.stats_dict = {}

@@ -1,6 +1,7 @@
 """
 Encoding functions
 """
+
 import numpy as np
 import torch
 from torchtyping import TensorType
