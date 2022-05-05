@@ -16,7 +16,7 @@ from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
-from mattport.nerf.renderers import RGBRenderer
+from mattport.nerf.renderers import AccumulationRenderer, RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
 from mattport.structures.rays import RaySamples
@@ -112,6 +112,7 @@ class NeRFGraph(Graph):
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
+        self.renderer_accumulation = AccumulationRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -144,6 +145,8 @@ class NeRFGraph(Graph):
             rgb=coarse_field_outputs[FieldHeadNames.RGB],
             weights=coarse_weights,
         )  # RendererOutputs
+        coarse_renderer_accumulation = self.renderer_accumulation(coarse_weights)  # RendererOutputs
+
         # fine network:
         pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)  # RaySamples
         fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
@@ -154,8 +157,15 @@ class NeRFGraph(Graph):
             rgb=fine_field_outputs[FieldHeadNames.RGB],
             weights=fine_weights,
         )  # RendererOutputs
+        fine_renderer_accumulation = self.renderer_accumulation(fine_weights)  # RendererOutputs
+
         # outputs:
-        outputs = {"rgb_coarse": coarse_renderer_outputs.rgb, "rgb_fine": fine_renderer_outputs.rgb}
+        outputs = {
+            "rgb_coarse": coarse_renderer_outputs.rgb,
+            "rgb_fine": fine_renderer_outputs.rgb,
+            "accumulation_coarse": coarse_renderer_accumulation.accumulation,
+            "accumulation_fine": fine_renderer_accumulation.accumulation,
+        }
         return outputs
 
     def get_losses(self, batch, graph_outputs):

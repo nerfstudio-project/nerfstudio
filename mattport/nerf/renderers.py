@@ -15,6 +15,7 @@ class RendererOutputs:
 
     rgb: TensorType["num_rays", 3] = None
     density: TensorType["num_rays", 1] = None
+    accumulation: TensorType["num_rays", 1] = None
 
 
 class RGBRenderer(nn.Module):
@@ -40,7 +41,7 @@ class RGBRenderer(nn.Module):
             weights (TensorType[..., "num_samples"]): Weights for each sample
 
         Returns:
-            TensorType[..., "out_dim"]: Composited RGB ray
+            RendererOutputs: Outputs with rgb values.
         """
 
         rgb = torch.sum(weights[..., None] * rgb, dim=-2)
@@ -54,4 +55,27 @@ class RGBRenderer(nn.Module):
         assert torch.min(rgb) >= 0.0
 
         renderer_outputs = RendererOutputs(rgb=rgb)
+        return renderer_outputs
+
+
+class AccumulationRenderer(nn.Module):
+    """Accumulated value along a ray."""
+
+    @classmethod
+    def forward(
+        cls,
+        weights: TensorType[..., "num_samples"],
+    ) -> RendererOutputs:
+        """Composite samples along ray and calculate accumulation.
+
+        Args:
+            weights (TensorType[..., "num_samples"]): Weights for each sample
+
+        Returns:
+            RendererOutputs: Outputs with accumulated values.
+        """
+
+        accumulation = torch.sum(weights, dim=-1)[..., None]
+
+        renderer_outputs = RendererOutputs(accumulation=accumulation)
         return renderer_outputs
