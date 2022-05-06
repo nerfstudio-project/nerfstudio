@@ -23,22 +23,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r environment/requirements.txt
-          python setup.py develop
+          pip install -e .
       - name: Run Black
         uses: psf/black@stable
         with:
-          options: "--check --verbose --line-length=120"
+          options: "--check"
       - name: Python Pylint
         run: |
-          pylint mattport tests \
-            --max-line-length=120 \
-            --generated-members=numpy.*,torch.*,cv2.*,cv.* \
-            --good-names=e,c,i,j,x,y,lr,K,fx,fy,cx,cy,H,W,ts,t,u,k,v \
-            --disable=too-many-arguments \
-            --disable=too-many-locals \
-            --disable=fixme \
-            --disable=too-many-instance-attributes \
-            --disable=duplicate-code
+          pylint mattport tests
       - name: Test with pytest
         run: |
-          pytest tests --typeguard-packages=mattport --torchtyping-patch-typeguard --disable-warnings
+          pytest
