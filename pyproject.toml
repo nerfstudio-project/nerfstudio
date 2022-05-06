@@ -1,2 +1,29 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+# black
 [tool.black]
 line-length = 120
+
+# pylint
+[tool.pylint.messages_control]
+
+max-line-length = 120
+generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
+good-names-rgxs= "^[_a-zA-Z][_a-z0-9]?$"
+
+disable = [
+  "too-many-arguments",
+  "fixme",
+  "too-many-locals",
+  "too-many-instance-attributes",
+  "duplicate-code",
+]
+
+#pytest
+[tool.pytest.ini_options]
+addopts = "--typeguard-packages=mattport --torchtyping-patch-typeguard --disable-warnings"
+testpaths = [
+    "tests",
+]

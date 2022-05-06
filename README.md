@@ -14,7 +14,7 @@ conda activate mattport
 pip install -r environment/requirements.txt
 
 # Install mattport as a library
-python setup.py develop
+pip install -e .
 
 # Running the test cases
 pytest tests
