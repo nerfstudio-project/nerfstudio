@@ -10,9 +10,6 @@
     },
     "editor.formatOnSave": true,
     "python.formatting.provider": "black",
-    "python.formatting.blackArgs": [
-        "--line-length=120"
-    ],
     "python.linting.pylintEnabled": true,
     "python.linting.flake8Enabled": false,
     "python.linting.enabled": true,
