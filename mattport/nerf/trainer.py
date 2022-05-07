@@ -260,8 +260,8 @@ class Trainer:
                 disparity_fine.append(graph_outputs["disparity_fine"])
             rgb_coarse = torch.cat(rgb_coarse).view(image_height, image_width, 3).detach().cpu()
             rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
-            accumulation_coarse = torch.cat(accumulation_coarse).view(image_height, image_width, 1).detach().cpu()
-            accumulation_fine = torch.cat(accumulation_fine).view(image_height, image_width, 1).detach().cpu()
+            accumulation_coarse = torch.cat(accumulation_coarse).view(image_height, image_width, 3).detach().cpu()
+            accumulation_fine = torch.cat(accumulation_fine).view(image_height, image_width, 3).detach().cpu()
             disparity_coarse = torch.cat(disparity_coarse).view(image_height, image_width, 1).detach().cpu()
             disparity_fine = torch.cat(disparity_fine).view(image_height, image_width, 1).detach().cpu()
 

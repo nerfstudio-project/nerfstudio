@@ -20,6 +20,7 @@ from mattport.nerf.renderers import AccumulationRenderer, DisparityRenderer, RGB
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
 from mattport.structures.rays import RaySamples
+from mattport.utils import visualization
 
 
 class NeRFField(nn.Module):
@@ -162,12 +163,16 @@ class NeRFGraph(Graph):
         fine_renderer_accumulation = self.renderer_accumulation(fine_weights)  # RendererOutputs
         fine_renderer_disparity = self.renderer_disparity(fine_weights, pdf_ray_samples.ts)
 
+        # TODO refactor this into "vis" section. Doesn't need to be run during training.
+        coarse_renderer_accumulation = visualization.apply_colormap(coarse_renderer_accumulation.accumulation)
+        fine_renderer_accumulation = visualization.apply_colormap(fine_renderer_accumulation.accumulation)
+
         # outputs:
         outputs = {
             "rgb_coarse": coarse_renderer_outputs.rgb,
             "rgb_fine": fine_renderer_outputs.rgb,
-            "accumulation_coarse": coarse_renderer_accumulation.accumulation,
-            "accumulation_fine": fine_renderer_accumulation.accumulation,
+            "accumulation_coarse": coarse_renderer_accumulation,
+            "accumulation_fine": fine_renderer_accumulation,
             "disparity_coarse": coarse_renderer_disparity.disparity,
             "disparity_fine": fine_renderer_disparity.disparity,
         }

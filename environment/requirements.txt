@@ -5,6 +5,7 @@ imageio==2.16.1
 ipywidgets>=7.6
 jupyterlab
 kaleido
+matplotlib
 mediapy
 plotly==5.7.0
 pylint==2.13.4
