@@ -4,9 +4,37 @@ Stats tracker base class and functionality
 import datetime
 import enum
 import logging
+from typing import Any, Dict
 
 from omegaconf import DictConfig
+
+from mattport.utils import comms
 from mattport.utils.decorators import check_main_thread, check_print_stats_step, check_stats_enabled, decorate_all
+
+STATS_TRACKER = []
+
+
+def update_stats(args: Dict[str, Any]):
+    """update global stats tracker based on arguments"""
+    assert comms.is_main_process(), "Writing out with process other than main"
+    if "value" in args:
+        STATS_TRACKER[0].update_value(**args)
+    elif "start_time" in args:
+        STATS_TRACKER[0].update_time(**args)
+    else:
+        raise NotImplementedError
+
+
+def print_stats(fraction_done: float):
+    """print current statistics information"""
+    assert comms.is_main_process(), "Writing out with process other than main"
+    STATS_TRACKER[0].print_stats(fraction_done)
+
+
+def setup_stats_tracker(config: DictConfig):
+    """Initialization of stats tracker"""
+    if comms.is_main_process():
+        STATS_TRACKER.append(StatsTracker(config))
 
 
 class Stats(enum.Enum):
@@ -28,9 +56,8 @@ class Stats(enum.Enum):
 class StatsTracker:
     """Stats Tracker class"""
 
-    def __init__(self, config: DictConfig, is_main_thread: bool):
+    def __init__(self, config: DictConfig):
         self.config = config
-        self.is_main_thread = is_main_thread
         if self.config.logging.enable_stats:
             self.max_history = self.config.logging.stats_tracker.max_history
             self.step = 0
@@ -57,14 +84,17 @@ class StatsTracker:
             self.new_key = not name in self.stats_dict or self.new_key
             self.stats_dict[name] = value
 
-    def update_time(self, name: enum.Enum, start_time: float, end_time: float, step: int, batch_size: int = None):
+    def update_time(
+        self, name: enum.Enum, start_time: float, end_time: float, step: int = None, batch_size: int = None
+    ):
         """update the stats dictionary with running averages/cumulative durations
 
         Args:
             name (enum.Enum): Enum name of statistic we are logging
             start_time (float): start time for the call in seconds
             end_time (float): end time when the call finished executing in seconds
-            step (int): number of total iteration steps.
+            step (int): number of total iteration steps. Defaults to None.
+                if None, reports duration without averaging
             batch_size (int, optional): total number of rays in a batch;
                 if None, reports duration instead of batch per second. Defaults to None.
         """
@@ -76,12 +106,12 @@ class StatsTracker:
                 # calculate the batch per second stat
                 val = batch_size / val
 
-            if step == -1:
-                # logging total time instead of average
-                self.stats_dict[name] = val
-            else:
+            if step:
                 # calculate updated average
                 self.stats_dict[name] = (self.stats_dict.get(name, 0) * step + val) / (step + 1)
+            else:
+                # logging total time instead of average
+                self.stats_dict[name] = val
 
             if name == Stats.ITER_TRAIN_TIME and Stats.ETA in self.stats_to_track:
                 # update ETA if logging iteration train time

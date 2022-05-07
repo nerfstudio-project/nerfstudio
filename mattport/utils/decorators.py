@@ -3,6 +3,8 @@ Decorator definitions
 """
 from typing import Callable, List
 
+from mattport.utils import comms
+
 
 def decorate_all(decorators: List[Callable]) -> Callable:
     """A decorator to decorate all member functions of a class"""
@@ -34,7 +36,7 @@ def check_profiler_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.logging.enable_stats:
+        if self.config.enable_stats:
             ret = func(self, *args, **kwargs)
         return ret
 
@@ -46,7 +48,7 @@ def check_main_thread(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.is_main_thread:
+        if comms.is_main_process():
             ret = func(self, *args, **kwargs)
         return ret
 

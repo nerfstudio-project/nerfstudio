@@ -6,7 +6,7 @@ stats_tracker:
   stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR] # see mattport/utils/stats_tracker.py for options
 # writer logs losses and images per iteration
 writer: 
-  type: TensorboardWriter
-  save_dir: './'
+  TensorboardWriter:
+    save_dir: './'
 # profiler logs run times of functions and prints at end of training
 enable_profiler: True

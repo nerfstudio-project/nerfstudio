@@ -16,7 +16,7 @@ import torch.multiprocessing as mp
 from omegaconf import DictConfig
 
 from mattport.nerf.trainer import Trainer
-from mattport.utils import profiler
+from mattport.utils import comms, profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 
@@ -40,12 +40,6 @@ def _set_random_seed(seed) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-
-
-def _synchronize(world_size, local_rank):
-    """Wait for all processes on node finish"""
-    if world_size > 1:
-        dist.barrier(device_ids=[local_rank])
 
 
 def _distributed_worker(
@@ -94,13 +88,21 @@ def _distributed_worker(
         logger.error("Process group URL: %s", dist_url)
         raise e
 
+    assert comms._LOCAL_PROCESS_GROUP is None
+    num_machines = world_size // num_gpus_per_machine
+    for i in range(num_machines):
+        ranks_on_i = list(range(i * num_gpus_per_machine, (i + 1) * num_gpus_per_machine))
+        pg = dist.new_group(ranks_on_i)
+        if i == machine_rank:
+            comms._LOCAL_PROCESS_GROUP = pg
+
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
     _set_random_seed(1234 + local_rank)  # NOTE(ethan): will this work for multiple machines? should we use global_rank?
-    _synchronize(world_size, local_rank)
+    comms.synchronize(world_size)
 
     output = main_func(local_rank, world_size, config)
-    _synchronize(world_size, local_rank)
+    comms.synchronize(world_size)
     dist.destroy_process_group()
     return output
 
@@ -153,8 +155,7 @@ def launch(
         except KeyboardInterrupt:
             pass
         finally:
-            if config.logging.enable_profiler:
-                profiler.PROFILER.print_profile()
+            profiler.flush_profiler(config.logging)
     elif world_size > 1:
         # Using multiple gpus with multiple processes.
         if dist_url == "auto":
@@ -190,8 +191,7 @@ def launch(
                 process.join()
                 logger.info("Process %s finished", str(i))
         finally:
-            if config.logging.enable_profiler:
-                profiler.PROFILER.print_profile()
+            profiler.flush_profiler(config.logging)
 
 
 @hydra.main(config_path="../configs", config_name="default.yaml")

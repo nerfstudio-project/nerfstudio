@@ -13,15 +13,13 @@ from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
-import mattport.utils.writer
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_dict
 from mattport.nerf.metrics import get_psnr
 from mattport.nerf.optimizers import Optimizers
-from mattport.utils import profiler
+from mattport.utils import profiler, stats_tracker, writer
 from mattport.utils.decorators import check_main_thread
-from mattport.utils.stats_tracker import Stats, StatsTracker
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -51,12 +49,9 @@ class Trainer:
         self.optimizers = None
         self.start_step = 0
         # logging variables
-        self.is_main_thread = world_size != 0 and local_rank % world_size == 0
-        writer = getattr(mattport.utils.writer, self.config.logging.writer.type)
-        self.writer = writer(self.is_main_thread, save_dir=self.config.logging.writer.save_dir)
-        self.stats = StatsTracker(config, self.is_main_thread)
-        if not profiler.PROFILER and self.config.logging.enable_profiler:
-            profiler.PROFILER = profiler.Profiler(config, self.is_main_thread)
+        stats_tracker.setup_stats_tracker(config)
+        writer.setup_event_writers(config.logging.writer)
+        profiler.setup_profiler(config.logging)
         self.device = "cpu" if self.world_size == 0 else f"cuda:{self.local_rank}"
 
     @profiler.time_function
@@ -187,27 +182,44 @@ class Trainer:
         for i, step in enumerate(range(self.start_step, self.start_step + num_iterations)):
             data_start = time()
             batch = next(iter_dataset)
-            self.stats.update_time(Stats.ITER_LOAD_TIME, data_start, time(), step=step)
+            stats_tracker.update_stats(
+                {"name": stats_tracker.Stats.ITER_LOAD_TIME, "start_time": data_start, "end_time": time(), "step": step}
+            )
 
             iter_start = time()
             loss_dict = self.train_iteration(batch, step)
-            self.stats.update_time(
-                Stats.RAYS_PER_SEC, iter_start, time(), step=step, batch_size=batch["indices"].shape[0]
+            stats_tracker.update_stats(
+                {
+                    "name": stats_tracker.Stats.RAYS_PER_SEC,
+                    "start_time": iter_start,
+                    "end_time": time(),
+                    "step": step,
+                    "batch_size": batch["indices"].shape[0],
+                },
             )
-            self.stats.update_time(Stats.ITER_TRAIN_TIME, iter_start, time(), step=step)
+            stats_tracker.update_stats(
+                {
+                    "name": stats_tracker.Stats.ITER_TRAIN_TIME,
+                    "start_time": iter_start,
+                    "end_time": time(),
+                    "step": step,
+                }
+            )
 
             if step != 0 and step % self.config.logging.steps_per_log == 0:
-                self.writer.write_scalar_dict(loss_dict, step, group="Loss", prefix="train-")
+                writer.write_event({"scalar_dict": loss_dict, "step": step, "group": "Loss", "prefix": "train-"})
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
             if step % self.config.graph.steps_per_test == 0:
                 for image_idx in self.config.data.validation_image_indices:
                     self.test_image(image_idx=image_idx, step=step)
-            self.stats.print_stats(i / num_iterations)
+            stats_tracker.print_stats(i / num_iterations)
 
-        self.stats.update_time(Stats.TOTAL_TRAIN_TIME, train_start, time(), step=-1)  # NOTE(ethan): why is step -1?
-        self.stats.print_stats(-1)
+        stats_tracker.update_stats(
+            {"name": stats_tracker.Stats.TOTAL_TRAIN_TIME, "start_time": train_start, "end_time": time()}
+        )
+        stats_tracker.print_stats(1.0)
 
     @profiler.time_function
     def train_iteration(self, batch: dict, step: int):
@@ -266,17 +278,29 @@ class Trainer:
             disparity_fine = torch.cat(disparity_fine).view(image_height, image_width, 1).detach().cpu()
 
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        self.writer.write_image(f"image_idx_{image_idx}-rgb_coarse_fine", combined_image, step, group="val_img")
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}-rgb_coarse_fine", "x": combined_image, "step": step, "group": "val_img"}
+        )
 
         combined_image = torch.cat([accumulation_coarse, accumulation_fine], dim=1)
-        self.writer.write_image(f"image_idx_{image_idx}", combined_image, step, group="val_accumulation")
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_accumulation"}
+        )
 
         combined_image = torch.cat([disparity_coarse, disparity_fine], dim=1)
-        self.writer.write_image(f"image_idx_{image_idx}", combined_image, step, group="val_disparity")
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_disparity"}
+        )
 
         coarse_psnr = get_psnr(image, rgb_coarse)
-        self.writer.write_scalar(f"image_idx_{image_idx}", float(coarse_psnr), step, group="val")
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}", "scalar": float(coarse_psnr), "step": step, "group": "val"}
+        )
 
         fine_psnr = get_psnr(image, rgb_fine)
-        self.stats.update_value(Stats.CURR_TEST_PSNR, float(fine_psnr), step)
-        self.writer.write_scalar(f"image_idx_{image_idx}-fine_psnr", float(fine_psnr), step, group="val")
+        stats_tracker.update_stats(
+            {"name": stats_tracker.Stats.CURR_TEST_PSNR, "value": float(fine_psnr), "step": step}
+        )
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}-fine_psnr", "scalar": float(fine_psnr), "step": step, "group": "val"}
+        )

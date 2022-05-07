@@ -4,13 +4,14 @@ Profiler base class and functionality
 import logging
 import sys
 import time
-from typing import Callable
+from typing import Callable, Dict
 
 from omegaconf import DictConfig
 
+from mattport.utils import comms
 from mattport.utils.decorators import check_main_thread, check_profiler_enabled, decorate_all
 
-PROFILER = None
+PROFILER = []
 
 
 def time_function(func: Callable) -> Callable:
@@ -25,20 +26,34 @@ def time_function(func: Callable) -> Callable:
             for attr in func.__qualname__.split(".")[:-1]:
                 class_str += f"{vals[attr].__qualname__}_"
             class_str += func.__name__
-            PROFILER.update_time(class_str, start, time.time())
+            PROFILER[0].update_time(class_str, start, time.time())
         return ret
 
     return wrapper
+
+
+def flush_profiler(config: Dict):
+    """Method that checks if profiler is enabled before flushing
+
+    Args:
+        config (Dict): config check
+    """
+    if config.enable_profiler and PROFILER:
+        PROFILER[0].print_profile()
+
+
+def setup_profiler(config: DictConfig):
+    """Initialization of profilers"""
+    if comms.is_main_process():
+        PROFILER.append(Profiler(config))
 
 
 @decorate_all([check_profiler_enabled, check_main_thread])
 class Profiler:
     """Profiler class"""
 
-    def __init__(self, config: DictConfig, is_main_thread: bool):
+    def __init__(self, config: DictConfig):
         self.config = config
-        if self.config.logging.enable_profiler:
-            self.is_main_thread = is_main_thread
         self.profiler_dict = {}
 
     def update_time(self, func_name: str, start_time: float, end_time: float):

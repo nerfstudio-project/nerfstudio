@@ -5,17 +5,44 @@ Generic Writer class
 
 import os
 from abc import abstractmethod
-from typing import Dict
+from typing import Any, Dict
 
 import imageio
 import numpy as np
 import torch
+from omegaconf import DictConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
+import mattport.utils.writer
+from mattport.utils import comms
 from mattport.utils.decorators import check_main_thread, decorate_all
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
+EVENT_WRITERS = []
+
+
+def write_event(args: Dict[str, Any]):
+    """write out values for all the event writers"""
+    assert comms.is_main_process(), "Writing out with process other than main"
+    for writer in EVENT_WRITERS:
+        if "x" in args:
+            print(args["x"].shape)
+            writer.write_image(**args)
+        elif "scalar" in args:
+            writer.write_scalar(**args)
+        elif "scalar_dict" in args:
+            writer.write_scalar_dict(**args)
+        else:
+            raise NotImplementedError
+
+
+def setup_event_writers(config: DictConfig) -> None:
+    """Initialization of all event writers specified in config"""
+    if comms.is_main_process():
+        for writer_type in config:
+            curr_writer = getattr(mattport.utils.writer, writer_type)
+            EVENT_WRITERS.append(curr_writer(config[writer_type].save_dir))
 
 
 def get_tensorboard_name(name: str, group: str = None, prefix: str = None):
@@ -31,19 +58,18 @@ def get_tensorboard_name(name: str, group: str = None, prefix: str = None):
 class Writer:
     """Writer class"""
 
-    def __init__(self, is_main_thread: bool, save_dir: str):
-        self.is_main_thread = is_main_thread
+    def __init__(self, save_dir: str):
         self.save_dir = save_dir
 
     @abstractmethod
     def write_image(
-        self, name: str, x: TensorType["H", "W", 3], step: int, group: str = None, prefix: str = None
+        self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
     ) -> None:
         """_summary_
 
         Args:
             name (str): data identifier
-            x (TensorType["H", "W", 3]): rendered image to write
+            x (TensorType["H", "W", "C"]): rendered image to write
             step (int): the time step to log
             group (str): the group e.g., "Loss", "Accuracy", "Time"
             prefix (str): the prefix e.g., "train-", "test-"
@@ -74,19 +100,17 @@ class Writer:
             group (str): the group e.g., "Loss", "Accuracy", "Time"
             prefix (str): the prefix e.g., "train-", "test-"
         """
-        if self.is_main_thread:
-            for name, scalar in scalar_dict.items():
-                self.write_scalar(name, scalar, step, group=group, prefix=prefix)
+        for name, scalar in scalar_dict.items():
+            self.write_scalar(name, scalar, step, group=group, prefix=prefix)
 
 
 @decorate_all([check_main_thread])
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, is_main_thread: bool, save_dir: str):
-        super().__init__(is_main_thread, save_dir)
-        if self.is_main_thread:
-            self.tb_writer = SummaryWriter(log_dir=self.save_dir)
+    def __init__(self, save_dir: str):
+        super().__init__(save_dir)
+        self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 
     def write_image(
         self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
@@ -119,7 +143,7 @@ class LocalWriter(Writer):
     """Local Writer Class"""
 
     def write_image(
-        self, name: str, x: TensorType["H", "W", 3], step: int, group: str = None, prefix: str = None
+        self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
     ) -> None:
         x = to8b(x)
         image_path = os.path.join(self.save_dir, f"{name}.jpg")
