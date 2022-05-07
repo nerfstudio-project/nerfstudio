@@ -89,13 +89,13 @@ class TensorboardWriter(Writer):
             self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 
     def write_image(
-        self, name: str, x: TensorType["H", "W", 3], step: int, group: str = None, prefix: str = None
+        self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
     ) -> None:
         """_summary_
 
         Args:
             name (str): data identifier
-            x (TensorType["H", "W", 3]): rendered image to write
+            x (TensorType["H", "W", "C"]): rendered image to write
         """
         x = to8b(x)
         tensorboard_name = get_tensorboard_name(name, group=group, prefix=prefix)
