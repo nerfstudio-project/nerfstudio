@@ -166,6 +166,7 @@ outputs/
 # Data
 data/
 !configs/data
+data_shared/
 
 # Misc
 old/

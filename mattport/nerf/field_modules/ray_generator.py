@@ -45,7 +45,7 @@ class RayGenerator(nn.Module):
         camera_index = 0
         camera_class = get_camera_model(self.num_intrinsics_params)
         camera = camera_class(*self.intrinsics[camera_index].tolist())
-        image_coords = camera.get_image_coords().to(ray_indices.device)
+        image_coords = camera.get_image_coords().to(ray_indices.device)  # NOTE(ethan): I can actually avoid this step
         coords = image_coords[y, x]
 
         ray_bundle = camera_class.generate_rays(intrinsics=intrinsics, camera_to_world=camera_to_world, coords=coords)

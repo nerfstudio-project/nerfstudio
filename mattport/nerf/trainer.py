@@ -16,7 +16,6 @@ from torch.utils.data import DataLoader
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_dict
-from mattport.nerf.metrics import get_psnr
 from mattport.nerf.optimizers import Optimizers
 from mattport.utils import profiler, stats_tracker, writer
 from mattport.utils.decorators import check_main_thread
@@ -44,6 +43,8 @@ class Trainer:
         self.train_dataset = None
         self.train_dataloader = None
         self.val_image_dataset = None
+        self.val_image_intrinsics = None
+        self.val_image_camera_to_world = None
         # model variables
         self.graph = None
         self.optimizers = None
@@ -94,6 +95,8 @@ class Trainer:
             downscale_factor=dataset_inputs_dict["val"].downscale_factor,
             alpha_color=dataset_inputs_dict["val"].alpha_color,
         )
+        self.val_image_intrinsics = dataset_inputs_dict["val"].intrinsics
+        self.val_image_camera_to_world = dataset_inputs_dict["val"].camera_to_world
 
     @profiler.time_function
     def setup_graph(self, dataset_inputs: DatasetInputs):
@@ -162,20 +165,20 @@ class Trainer:
         )
 
     @classmethod
-    def get_aggregated_loss(cls, losses: Dict[str, torch.tensor]):
+    def get_aggregated_loss(cls, loss_dict: Dict[str, torch.tensor]):
         """Returns the aggregated losses and the scalar for calling .backwards() on.
         # TODO: move this out to another file/class/etc.
         """
         loss_sum = 0.0
-        loss_dict = {}
-        for loss_name in losses.keys():
+        for loss_name in loss_dict.keys():
             # TODO(ethan): add loss weightings here from a config
-            loss_sum += losses[loss_name]
-            loss_dict[loss_name] = float(losses[loss_name])
-        return loss_sum, loss_dict
+            loss_sum += loss_dict[loss_name]
+        return loss_sum
 
     def train(self) -> None:
         """_summary_"""
+        # self.graph.train()
+        # assert self.graph.training, "Graph is not in train mode!"
         train_start = time()
         num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
@@ -226,18 +229,10 @@ class Trainer:
         """Run one iteration with a batch of inputs."""
         # move batch to correct device
         ray_indices = batch["indices"].to(self.device)
-        graph_outputs = self.graph(ray_indices)
-        batch["pixels"] = batch["pixels"].to(self.device)
-        losses = (
-            self.graph.module.get_losses(batch, graph_outputs)
-            if hasattr(self.graph, "module")
-            else self.graph.get_losses(batch, graph_outputs)
-        )
-        loss_sum, loss_dict = self.get_aggregated_loss(
-            losses
-        )  # TODO(ethan): move this into the graph itself. not in trainer
+        _, loss_dict = self.graph(ray_indices, batch=batch)
+        loss = loss_dict["aggregated_loss"]
         self.optimizers.zero_grad_all()
-        loss_sum.backward()
+        loss.backward()
         self.optimizers.scheduler_step_all(step)  # NOTE(ethan): I think the scheduler needs to know what step we are on
         self.optimizers.optimizer_step_all()
         return loss_dict
@@ -245,60 +240,8 @@ class Trainer:
     @profiler.time_function
     def test_image(self, image_idx, step):
         """Test a specific image."""
-        image = self.val_image_dataset[image_idx]["image"]  # ground truth
-        image_height, image_width, _ = image.shape
-        pixel_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
-        pixel_coords = torch.stack(pixel_coords, dim=-1).long()
-        all_ray_indices = torch.cat([torch.ones_like(pixel_coords[..., :1]) * image_idx, pixel_coords], dim=-1).view(
-            -1, 3
-        )  # NOTE(ethan): this is ugly... clean up...
-        with torch.no_grad():
-            num_rays = all_ray_indices.shape[0]
-            chunk_size = 1024
-            rgb_coarse = []
-            rgb_fine = []
-            accumulation_coarse = []
-            accumulation_fine = []
-            depth_coarse = []
-            depth_fine = []
-            for i in range(0, num_rays, chunk_size):
-                ray_indices = all_ray_indices[i : i + chunk_size].to(self.device)
-                graph_outputs = self.graph(ray_indices)
-                rgb_coarse.append(graph_outputs["rgb_coarse"])
-                rgb_fine.append(graph_outputs["rgb_fine"])
-                accumulation_coarse.append(graph_outputs["accumulation_coarse"])
-                accumulation_fine.append(graph_outputs["accumulation_fine"])
-                depth_coarse.append(graph_outputs["depth_coarse"])
-                depth_fine.append(graph_outputs["depth_fine"])
-            rgb_coarse = torch.cat(rgb_coarse).view(image_height, image_width, 3).detach().cpu()
-            rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
-            accumulation_coarse = torch.cat(accumulation_coarse).view(image_height, image_width, 3).detach().cpu()
-            accumulation_fine = torch.cat(accumulation_fine).view(image_height, image_width, 3).detach().cpu()
-            depth_coarse = torch.cat(depth_coarse).view(image_height, image_width, 3).detach().cpu()
-            depth_fine = torch.cat(depth_fine).view(image_height, image_width, 3).detach().cpu()
-
-        combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}-rgb_coarse_fine", "x": combined_image, "step": step, "group": "val_img"}
-        )
-
-        combined_image = torch.cat([accumulation_coarse, accumulation_fine], dim=1)
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_accumulation"}
-        )
-
-        combined_image = torch.cat([depth_coarse, depth_fine], dim=1)
-        writer.write_event({"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_depth"})
-
-        coarse_psnr = get_psnr(image, rgb_coarse)
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}", "scalar": float(coarse_psnr), "step": step, "group": "val"}
-        )
-
-        fine_psnr = get_psnr(image, rgb_fine)
-        stats_tracker.update_stats(
-            {"name": stats_tracker.Stats.CURR_TEST_PSNR, "value": float(fine_psnr), "step": step}
-        )
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}-fine_psnr", "scalar": float(fine_psnr), "step": step, "group": "val"}
-        )
+        intrinsics = self.val_image_intrinsics[image_idx]
+        camera_to_world = self.val_image_camera_to_world[image_idx]
+        outputs = self.graph.get_outputs_for_camera(intrinsics, camera_to_world)
+        image = self.val_image_dataset[image_idx]["image"].to(self.device)
+        self.graph.log_test_image_outputs(image_idx, step, image, outputs)

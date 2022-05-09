@@ -42,12 +42,15 @@ def get_dataset_inputs_dict(
             dataset_inputs = load_blender_data(
                 get_absolute_path(data_directory),
                 downscale_factor=downscale_factor,
+                split=split,
                 alpha_color=alpha_color,
             )
             dataset_inputs_dict[split] = dataset_inputs
     elif dataset_type == "friends":
         for split in splits:
-            dataset_inputs = load_friends_data(get_absolute_path(data_directory), downscale_factor=downscale_factor)
+            dataset_inputs = load_friends_data(
+                get_absolute_path(data_directory), downscale_factor=downscale_factor, split=split
+            )
             dataset_inputs_dict[split] = dataset_inputs
     else:
         raise NotImplementedError(f"{dataset_type} is not a valid dataset type")

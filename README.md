@@ -39,6 +39,7 @@ python scripts/run_train.py
 
 # Run with config changes
 python scripts/run_train.py machine_config.num_gpus=1
+python scripts/run_train.py data.dataset.downscale_factor=1
 
 # Run with different datasets
 python scripts/run_train.py data/dataset=blender_lego
@@ -82,11 +83,13 @@ direnv allow .
 ```
 
 2. To run local **github actions**, you can run:
+
 ```
-python scripts/debugging/run_actions.py 
+python scripts/debugging/run_actions.py
 ```
 
 3. To run local **profiling** to get a flame graph, make sure [pyspy](https://github.com/benfred/py-spy) is installed and you can run:
+
 ```
 pip install py-spy
 
@@ -95,4 +98,10 @@ pip install py-spy
 
 ## for live view of functions
 ./scripts/debugging/profile.sh -t top -p scripts/run_train.py data/dataset=blender_lego
+```
+
+4. For debugging with a debugger.
+
+```
+ipython --pdb scripts/run_train.py
 ```

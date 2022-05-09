@@ -1,5 +1,5 @@
 defaults:
-- default
+  - default
 
 dry_run: true
 
@@ -8,7 +8,8 @@ machine_config:
 
 data:
   dataset:
-    data_directory: data/blender/lego_test
+    dataset_type: blender
+    data_directory: tests/data/lego_test
     downscale_factor: 8
   validation_image_indices: [0]
   dataloader:

@@ -1,23 +1,5 @@
 defaults:
-  # This makes the logging module logs colorful
-  - data: default_data.yaml
-  - graph: instant_ngp_graph.yaml
-  - logging: default_logging.yaml
-  - override hydra/job_logging: colorlog
-  - override hydra/hydra_logging: colorlog
-
-hydra:
-  run:
-    # Configure output dir of each experiment programmatically from the arguments
-    # Example "outputs/mnist/classifier/baseline/2021-03-10-141516"
-    dir: outputs/${experiment_name}/${method_name}/${now:%Y-%m-%d_%H%M%S}
-
-experiment_name: blender_lego
+  - default
+  - override graph: instant_ngp_graph
+  - _self_
 method_name: instant_ngp
-
-# machine options
-machine_config:
-  num_gpus: 1
-  num_machines: 1
-  machine_rank: 0
-  dist_url: auto

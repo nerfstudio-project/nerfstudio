@@ -51,6 +51,7 @@ class RGBRenderer(nn.Module):
             rgb = rgb + self.background_color.to(weights.device)[None, ...] * (
                 1.0 - torch.sum(weights, dim=-1)[..., None]
             )
+        torch.clamp_(rgb, min=0.0, max=1.0)
 
         assert torch.max(rgb) <= 1.0
         assert torch.min(rgb) >= 0.0

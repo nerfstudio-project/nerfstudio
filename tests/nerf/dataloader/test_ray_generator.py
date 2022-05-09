@@ -33,7 +33,7 @@ def visualize_batch(batch):
 def test_dataloader(visualize=False):
     """Testing for the dataloader from input dataset parameters to rays."""
 
-    data_directory = "data/blender/lego_test"
+    data_directory = "tests/data/lego_test"
     dataset_type = "blender"
     downscale_factor = 1
     num_images_to_sample_from = 1

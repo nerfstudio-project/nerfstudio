@@ -8,19 +8,18 @@ from typing import Dict, List, Tuple
 import torch
 from torch import nn
 from torch.nn import Parameter
-from torchtyping import TensorType
 
 from mattport.nerf.field_modules.encoding import NeRFEncoding
 from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
-from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
+from mattport.nerf.metrics import get_psnr
 from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
-from mattport.structures.rays import RaySamples
-from mattport.utils import visualization
+from mattport.structures.rays import RayBundle, RaySamples
+from mattport.utils import stats_tracker, visualization, writer
 
 
 class NeRFField(nn.Module):
@@ -89,17 +88,22 @@ class NeRFGraph(Graph):
         far_plane=6.0,
         num_coarse_samples=64,
         num_importance_samples=128,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
+        self.field_coarse = None
+        self.field_fine = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
+    def populate_fields(self):
+        """Set the fields."""
+        self.field_coarse = NeRFField()
+        self.field_fine = NeRFField()
+
     def populate_modules(self):
-        # ray generator
-        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
 
         # samplers
         self.sampler_uniform = UniformSampler(
@@ -108,8 +112,7 @@ class NeRFGraph(Graph):
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
 
         # field
-        self.field_coarse = NeRFField()
-        self.field_fine = NeRFField()
+        self.populate_fields()
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -130,10 +133,7 @@ class NeRFGraph(Graph):
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
-    def forward(self, ray_indices: TensorType["num_rays", 3]):
-        """Takes in the ray indices and renders out values."""
-        # get the rays:
-        ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
+    def get_outputs(self, ray_bundle: RayBundle):
         # coarse network:
         uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
 
@@ -190,10 +190,45 @@ class NeRFGraph(Graph):
         }
         return outputs
 
-    def get_losses(self, batch, graph_outputs):
-        # batch.pixels # (num_rays, 3)
-        losses = {}
-        rgb_loss_coarse = self.rgb_loss(batch["pixels"], graph_outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(batch["pixels"], graph_outputs["rgb_fine"])
-        losses = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
-        return losses
+    def get_loss_dict(self, outputs, batch):
+        device = outputs["rgb_coarse"].device
+        pixels = batch["pixels"].to(device)
+        rgb_loss_coarse = self.rgb_loss(pixels, outputs["rgb_coarse"])
+        rgb_loss_fine = self.rgb_loss(pixels, outputs["rgb_fine"])
+        loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
+        return loss_dict
+
+    def log_test_image_outputs(self, image_idx, step, image, outputs):
+        rgb_coarse = outputs["rgb_coarse"]
+        rgb_fine = outputs["rgb_fine"]
+        accumulation_coarse = outputs["accumulation_coarse"]
+        accumulation_fine = outputs["accumulation_fine"]
+        depth_coarse = outputs["depth_coarse"]
+        depth_fine = outputs["depth_fine"]
+
+        combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}-rgb_coarse_fine", "x": combined_image, "step": step, "group": "val_img"}
+        )
+
+        combined_image = torch.cat([accumulation_coarse, accumulation_fine], dim=1)
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_accumulation"}
+        )
+
+        combined_image = torch.cat([depth_coarse, depth_fine], dim=1)
+        writer.write_event({"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_depth"})
+
+        coarse_psnr = get_psnr(image, rgb_coarse)
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}", "scalar": float(coarse_psnr), "step": step, "group": "val"}
+        )
+
+        fine_psnr = get_psnr(image, rgb_fine)
+        stats_tracker.update_stats(
+            {"name": stats_tracker.Stats.CURR_TEST_PSNR, "value": float(fine_psnr), "step": step}
+        )
+        writer.write_event(
+            {"name": f"image_idx_{image_idx}-fine_psnr", "scalar": float(fine_psnr), "step": step, "group": "val"}
+        )

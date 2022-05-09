@@ -37,6 +37,13 @@ class RayBundle:
         )
         return camera_ray_bundle
 
+    def move_to_device(self, device):
+        """Move to a device."""
+        self.origins = self.origins.to(device)
+        self.directions = self.directions.to(device)
+        if not isinstance(self.camera_indices, type(None)):
+            self.camera_indices = self.camera_indices.to(device)
+
     def __len__(self):
         num_rays = self.origins.shape[0]
         return num_rays
@@ -65,7 +72,39 @@ class CameraRayBundle:
 
     origins: TensorType["image_height", "image_width", 3]
     directions: TensorType["image_height", "image_width", 3]
+    camera_indices: Optional[TensorType["image_height", "image_width", 3]] = None
     camera_index: int = None
+
+    def __post_init__(self):
+        if not isinstance(self.camera_index, type(None)):
+            self.camera_indices = torch.ones_like(self.origins[:, :]) * self.camera_index
+
+    def get_num_rays(self):
+        """Return the number of rays in this bundle."""
+        image_height, image_width = self.origins.shape[:2]
+        num_rays = image_height * image_width
+        return num_rays
+
+    def to_ray_bundle(self) -> RayBundle:
+        """_summary_
+
+        Returns:
+            RayBundle: _description_
+        """
+        # TODO(ethan): handle camera_index
+        ray_bundle = RayBundle(origins=self.origins.view(-1, 3), directions=self.directions.view(-1, 3))
+        return ray_bundle
+
+    def get_row_major_sliced_ray_bundle(self, start_idx, end_idx):
+        """Return a RayBundle"""
+        camera_indices = (
+            self.camera_indices.view(-1)[start_idx:end_idx] if not isinstance(self.camera_index, type(None)) else None
+        )
+        return RayBundle(
+            origins=self.origins.view(-1, 3)[start_idx:end_idx],
+            directions=self.directions.view(-1, 3)[start_idx:end_idx],
+            camera_indices=camera_indices,
+        )
 
 
 class RaySamples:

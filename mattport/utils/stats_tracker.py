@@ -44,8 +44,8 @@ class Stats(enum.Enum):
         enum (_type_): _description_
     """
 
-    ITER_LOAD_TIME = "Data Load (time)"
-    ITER_TRAIN_TIME = "Train Iter (time)"
+    ITER_LOAD_TIME = "Data Load (ms)"
+    ITER_TRAIN_TIME = "Train Iter (ms)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
     RAYS_PER_SEC = "Rays Per Sec (1/s)"
     CURR_TEST_PSNR = "Test PSNR"
@@ -145,6 +145,9 @@ class StatsTracker:
             for k, v in self.stats_dict.items():
                 if "(time)" in k.value:
                     v = str(datetime.timedelta(seconds=v))
+                elif "(ms)" in k.value:
+                    ms = v * 1e3
+                    v = f"{ms:0.4f}"
                 else:
                     v = f"{v:0.4f}"
                 curr_mssg += f"{v:<20} "

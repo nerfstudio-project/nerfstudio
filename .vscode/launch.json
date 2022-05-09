@@ -17,6 +17,9 @@
             "type": "python",
             "request": "launch",
             "program": "scripts/run_train.py",
+            // "env": {
+            //     "CUDA_VISIBLE_DEVICES": "8"
+            // },
             "console": "integratedTerminal"
         },
         {

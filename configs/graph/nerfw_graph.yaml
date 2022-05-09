@@ -1,0 +1,6 @@
+defaults:
+  - default_graph.yaml
+  - _self_
+
+network:
+  _target_: mattport.nerf.graph.nerfw.NerfWGraph

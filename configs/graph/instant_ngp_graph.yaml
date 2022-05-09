@@ -1,21 +1,9 @@
-# saving model specifications
-model_dir: /tmp/mattport_models/ 
-steps_per_save: null
-steps_per_test: 100
-max_num_iterations: 1000000
+defaults:
+  - default_graph.yaml
+  - _self_
 
-# pretrained loading options
-resume_train:
-  load_dir: # pretrained model directory
-  load_step: # pretrained model's step number
-
-# NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
 network:
   _target_: mattport.nerf.graph.instant_ngp.NGPGraph
-  near_plane: 1.0
-  far_plane: 6.0
-  num_coarse_samples: 64
-  num_importance_samples: 64
 
 # optimizer options for network
 param_groups:
@@ -23,7 +11,3 @@ param_groups:
     optimizer:
       type: Adam
       lr: 1e-2
-    scheduler:
-      type: StepLR
-      step_size: 30 #  Period of learning rate decay.
-      gamma: 0.1 # Multiplicative factor of learning rate decay. Default: 0.1.

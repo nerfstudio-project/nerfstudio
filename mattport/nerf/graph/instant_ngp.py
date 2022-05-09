@@ -2,22 +2,13 @@
 Implementation of Instant NGP.
 """
 
-
-from typing import Dict, List
-
 import torch
 from torch import nn
-from torch.nn import Parameter
-from torchtyping import TensorType
 
 from mattport.nerf.field_modules.encoding import HashEncoding, NeRFEncoding
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead
+from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
-from mattport.nerf.field_modules.ray_generator import RayGenerator
-from mattport.nerf.graph.base import Graph
-from mattport.nerf.loss import MSELoss
-from mattport.nerf.renderers import RGBRenderer
-from mattport.nerf.sampler import PDFSampler, UniformSampler  # pylint: disable=unused-import
+from mattport.nerf.graph.vanilla_nerf import NeRFGraph
 from mattport.structures.rays import RaySamples
 
 
@@ -72,90 +63,13 @@ class NGPField(nn.Module):
         return field_outputs
 
 
-class NGPGraph(Graph):
-    """Vanilla NeRF graph"""
+class NGPGraph(NeRFGraph):
+    """NeRF-W graph"""
 
-    def __init__(
-        self,
-        intrinsics=None,
-        camera_to_world=None,
-        near_plane=1.0,
-        far_plane=6.0,
-        num_coarse_samples=64,
-        num_importance_samples=128,
-        **kwargs
-    ) -> None:
-        self.near_plane = near_plane
-        self.far_plane = far_plane
-        self.num_coarse_samples = num_coarse_samples
-        self.num_importance_samples = num_importance_samples
+    def __init__(self, intrinsics=None, camera_to_world=None, **kwargs) -> None:
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
-    def populate_modules(self):
-        # ray generator
-        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
-
-        # samplers
-        self.sampler_uniform = UniformSampler(
-            near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_coarse_samples
-        )
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
-
-        # field
+    def populate_fields(self):
+        """Set the fields."""
         self.field_coarse = NGPField()
         self.field_fine = NGPField()
-
-        # renderers
-        self.renderer_rgb = RGBRenderer()
-
-        # losses
-        self.rgb_loss = MSELoss()
-
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        """Obtain the parameter groups for the optimizers
-
-        Returns:
-            Dict[str, List[Parameter]]: Mapping of different parameter groups
-        """
-        param_groups = {}
-        param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
-        return param_groups
-
-    def forward(self, ray_indices: TensorType["num_rays", 3]):
-        """Takes in the ray indices and renders out values."""
-        # get the rays:
-        ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
-        # coarse network:
-        uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
-
-        # time coarse network # xyz -> asd
-        coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
-        # time end coarse network
-
-        coarse_weights = uniform_ray_samples.get_weights(coarse_field_outputs[FieldHeadNames.DENSITY])
-
-        coarse_renderer_outputs = self.renderer_rgb(
-            rgb=coarse_field_outputs[FieldHeadNames.RGB],
-            weights=coarse_weights,
-        )  # RendererOutputs
-        # fine network:
-        pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)  # RaySamples
-        fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
-
-        fine_weights = pdf_ray_samples.get_weights(fine_field_outputs[FieldHeadNames.DENSITY])
-
-        fine_renderer_outputs = self.renderer_rgb(
-            rgb=fine_field_outputs[FieldHeadNames.RGB],
-            weights=fine_weights,
-        )  # RendererOutputs
-        # outputs:
-        outputs = {"rgb_coarse": coarse_renderer_outputs.rgb, "rgb_fine": fine_renderer_outputs.rgb}
-        return outputs
-
-    def get_losses(self, batch, graph_outputs):
-        # batch.pixels # (num_rays, 3)
-        losses = {}
-        rgb_loss_coarse = self.rgb_loss(batch["pixels"], graph_outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(batch["pixels"], graph_outputs["rgb_fine"])
-        losses = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
-        return losses

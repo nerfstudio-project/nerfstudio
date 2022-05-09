@@ -17,6 +17,10 @@ network:
   num_coarse_samples: 64
   num_importance_samples: 128
 
+  loss_coefficients: # loss coefficients
+    rgb_loss_coarse: 1.0
+    rgb_loss_fine: 1.0
+
 # optimizer options for network
 param_groups:
   fields:
