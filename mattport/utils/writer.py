@@ -27,7 +27,6 @@ def write_event(args: Dict[str, Any]):
     assert comms.is_main_process(), "Writing out with process other than main"
     for writer in EVENT_WRITERS:
         if "x" in args:
-            print(args["x"].shape)
             writer.write_image(**args)
         elif "scalar" in args:
             writer.write_scalar(**args)

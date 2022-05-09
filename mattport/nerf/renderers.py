@@ -16,7 +16,7 @@ class RendererOutputs:
     rgb: TensorType["num_rays", 3] = None
     density: TensorType["num_rays", 1] = None
     accumulation: TensorType["num_rays", 1] = None
-    disparity: TensorType["num_rays", 1] = None
+    depth: TensorType["num_rays", 1] = None
 
 
 class RGBRenderer(nn.Module):
@@ -82,7 +82,7 @@ class AccumulationRenderer(nn.Module):
         return renderer_outputs
 
 
-class DisparityRenderer(nn.Module):
+class DepthRenderer(nn.Module):
     """Calcualte depth along ray."""
 
     def __init__(self, method: str = "expected") -> None:
@@ -103,14 +103,15 @@ class DisparityRenderer(nn.Module):
             ts (TensorType[..., "num_samples"]): Sample locations along rays
 
         Returns:
-            RendererOutputs: Outputs with disparity values.
+            RendererOutputs: Outputs with depth values.
         """
 
         if self.method == "expected":
-            depth = torch.sum(weights * ts, dim=-1)
             eps = 1e-10
-            disparity = 1.0 / torch.max(eps * torch.ones_like(depth), depth / torch.sum(weights, -1))
+            depth = torch.sum(weights * ts, dim=-1) / (torch.sum(weights, -1) + eps)
 
-            return RendererOutputs(disparity=disparity)
+            depth = torch.clip(depth, ts[..., 0], ts[..., -1])
+
+            return RendererOutputs(depth=depth[..., None])
 
         raise NotImplementedError(f"Method {self.method} not implemented")
