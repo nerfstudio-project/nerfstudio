@@ -259,8 +259,8 @@ class Trainer:
             rgb_fine = []
             accumulation_coarse = []
             accumulation_fine = []
-            disparity_coarse = []
-            disparity_fine = []
+            depth_coarse = []
+            depth_fine = []
             for i in range(0, num_rays, chunk_size):
                 ray_indices = all_ray_indices[i : i + chunk_size].to(self.device)
                 graph_outputs = self.graph(ray_indices)
@@ -268,14 +268,14 @@ class Trainer:
                 rgb_fine.append(graph_outputs["rgb_fine"])
                 accumulation_coarse.append(graph_outputs["accumulation_coarse"])
                 accumulation_fine.append(graph_outputs["accumulation_fine"])
-                disparity_coarse.append(graph_outputs["disparity_coarse"])
-                disparity_fine.append(graph_outputs["disparity_fine"])
+                depth_coarse.append(graph_outputs["depth_coarse"])
+                depth_fine.append(graph_outputs["depth_fine"])
             rgb_coarse = torch.cat(rgb_coarse).view(image_height, image_width, 3).detach().cpu()
             rgb_fine = torch.cat(rgb_fine).view(image_height, image_width, 3).detach().cpu()
             accumulation_coarse = torch.cat(accumulation_coarse).view(image_height, image_width, 3).detach().cpu()
             accumulation_fine = torch.cat(accumulation_fine).view(image_height, image_width, 3).detach().cpu()
-            disparity_coarse = torch.cat(disparity_coarse).view(image_height, image_width, 1).detach().cpu()
-            disparity_fine = torch.cat(disparity_fine).view(image_height, image_width, 1).detach().cpu()
+            depth_coarse = torch.cat(depth_coarse).view(image_height, image_width, 3).detach().cpu()
+            depth_fine = torch.cat(depth_fine).view(image_height, image_width, 3).detach().cpu()
 
         combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
         writer.write_event(
@@ -287,10 +287,8 @@ class Trainer:
             {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_accumulation"}
         )
 
-        combined_image = torch.cat([disparity_coarse, disparity_fine], dim=1)
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_disparity"}
-        )
+        combined_image = torch.cat([depth_coarse, depth_fine], dim=1)
+        writer.write_event({"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_depth"})
 
         coarse_psnr = get_psnr(image, rgb_coarse)
         writer.write_event(

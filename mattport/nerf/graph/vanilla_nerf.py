@@ -16,7 +16,7 @@ from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
-from mattport.nerf.renderers import AccumulationRenderer, DisparityRenderer, RGBRenderer
+from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
 from mattport.structures.rays import RaySamples
@@ -114,7 +114,7 @@ class NeRFGraph(Graph):
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
         self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_disparity = DisparityRenderer()
+        self.renderer_depth = DepthRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -148,7 +148,7 @@ class NeRFGraph(Graph):
             weights=coarse_weights,
         )  # RendererOutputs
         coarse_renderer_accumulation = self.renderer_accumulation(coarse_weights)  # RendererOutputs
-        coarse_renderer_disparity = self.renderer_disparity(coarse_weights, uniform_ray_samples.ts)
+        coarse_renderer_depth = self.renderer_depth(coarse_weights, uniform_ray_samples.ts)
 
         # fine network:
         pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)  # RaySamples
@@ -161,9 +161,21 @@ class NeRFGraph(Graph):
             weights=fine_weights,
         )  # RendererOutputs
         fine_renderer_accumulation = self.renderer_accumulation(fine_weights)  # RendererOutputs
-        fine_renderer_disparity = self.renderer_disparity(fine_weights, pdf_ray_samples.ts)
+        fine_renderer_depth = self.renderer_depth(fine_weights, pdf_ray_samples.ts)
 
         # TODO refactor this into "vis" section. Doesn't need to be run during training.
+        coarse_renderer_depth = visualization.apply_depth_colormap(
+            coarse_renderer_depth.depth,
+            accumulation=coarse_renderer_accumulation.accumulation,
+            near_plane=self.near_plane,
+            far_plane=self.far_plane,
+        )
+        fine_renderer_depth = visualization.apply_depth_colormap(
+            fine_renderer_depth.depth,
+            accumulation=fine_renderer_accumulation.accumulation,
+            near_plane=self.near_plane,
+            far_plane=self.far_plane,
+        )
         coarse_renderer_accumulation = visualization.apply_colormap(coarse_renderer_accumulation.accumulation)
         fine_renderer_accumulation = visualization.apply_colormap(fine_renderer_accumulation.accumulation)
 
@@ -173,8 +185,8 @@ class NeRFGraph(Graph):
             "rgb_fine": fine_renderer_outputs.rgb,
             "accumulation_coarse": coarse_renderer_accumulation,
             "accumulation_fine": fine_renderer_accumulation,
-            "disparity_coarse": coarse_renderer_disparity.disparity,
-            "disparity_fine": fine_renderer_disparity.disparity,
+            "depth_coarse": coarse_renderer_depth,
+            "depth_fine": fine_renderer_depth,
         }
         return outputs
 
