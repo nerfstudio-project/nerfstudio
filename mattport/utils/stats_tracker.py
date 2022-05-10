@@ -125,14 +125,8 @@ class StatsTracker:
                 remain_iter = self.config.graph.max_num_iterations - step
                 self.stats_dict[Stats.ETA] = remain_iter * self.stats_dict[name]["avg"]
 
-    @check_print_stats_step
-    def print_stats(self, fraction_done: float):
-        """helper to print out the stats dictionary.
-
-        Args:
-            fraction_done (float): fraction of steps executed in training iterations
-        """
-        # print a new header line if there is a new key added
+    def handle_header(self):
+        """helper to handle the printing of the header labels"""
         if self.step == 0 or self.new_key:
             mssg = f"{'Step (% Done)':<20}"
             for k in self.stats_dict:
@@ -145,7 +139,8 @@ class StatsTracker:
                 for mssg in self.past_stats:
                     print(mssg)
 
-        # generate a new stats reporting message
+    def handle_stats(self, fraction_done):
+        """helper to print out the stats in a readable format"""
         if self.step > 0:
             curr_mssg = f"{self.step} ({fraction_done*100:.02f}%)"
             curr_mssg = f"{curr_mssg:<20}"
@@ -169,6 +164,19 @@ class StatsTracker:
                     print(mssg)
             print(curr_mssg)
             self.past_stats.append(curr_mssg)
+
+    @check_print_stats_step
+    def print_stats(self, fraction_done: float):
+        """helper to print out the stats dictionary.
+
+        Args:
+            fraction_done (float): fraction of steps executed in training iterations
+        """
+        # print a new header line if there is a new key added
+        self.handle_header()
+
+        # generate a new stats reporting message
+        self.handle_stats(fraction_done)
 
     def dump_stats(self):
         """Dump stats locally to a json file"""
