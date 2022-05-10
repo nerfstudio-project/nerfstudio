@@ -48,7 +48,8 @@ class NeRFField(nn.Module):
         self.mlp_rgb = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.encoding_dir.get_out_dim(),
             out_dim=self.layer_width // 2,
-            num_layers=1,
+            num_layers=2,
+            layer_width=self.layer_width // 2,
             activation=nn.ReLU(),
         )
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
@@ -84,7 +85,7 @@ class NeRFGraph(Graph):
         self,
         intrinsics=None,
         camera_to_world=None,
-        near_plane=1.0,
+        near_plane=2.0,
         far_plane=6.0,
         num_coarse_samples=64,
         num_importance_samples=128,

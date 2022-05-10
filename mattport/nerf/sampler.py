@@ -125,7 +125,7 @@ class PDFSampler(nn.Module):
             u = torch.rand(size=(*cdf.shape[:-1], num_samples), device=cdf.device)
         else:
             u = torch.linspace(0.0, 1.0, steps=num_samples, device=cdf.device)
-            u = torch.expand(size=(*cdf.shape[:-1], num_samples))
+            u = u.expand(size=(*cdf.shape[:-1], num_samples))
 
         u = u.contiguous()
         indicies = torch.searchsorted(cdf, u, right=True)

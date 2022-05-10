@@ -240,8 +240,10 @@ class Trainer:
     @profiler.time_function
     def test_image(self, image_idx, step):
         """Test a specific image."""
+        self.graph.eval()
         intrinsics = self.val_image_intrinsics[image_idx]
         camera_to_world = self.val_image_camera_to_world[image_idx]
         outputs = self.graph.get_outputs_for_camera(intrinsics, camera_to_world)
         image = self.val_image_dataset[image_idx]["image"].to(self.device)
         self.graph.log_test_image_outputs(image_idx, step, image, outputs)
+        self.graph.train()
