@@ -106,9 +106,16 @@ class StatsTracker:
                 # calculate the batch per second stat
                 val = batch_size / val
 
-            if step:
-                # calculate updated average
-                self.stats_dict[name] = (self.stats_dict.get(name, 0) * step + val) / (step + 1)
+            if step is not None:
+                # calculate updated average over the buffered max history
+                curr_history = self.stats_dict.get(name, {"buffer": [], "avg": 0})
+                curr_buffer = curr_history["buffer"]
+                curr_avg = curr_history["avg"]
+                if len(curr_buffer) >= self.max_history:
+                    curr_buffer.pop(0)
+                curr_buffer.append(val)
+                curr_avg = sum(curr_buffer) / len(curr_buffer)
+                self.stats_dict[name] = {"buffer": curr_buffer, "avg": curr_avg}
             else:
                 # logging total time instead of average
                 self.stats_dict[name] = val
@@ -116,7 +123,7 @@ class StatsTracker:
             if name == Stats.ITER_TRAIN_TIME and Stats.ETA in self.stats_to_track:
                 # update ETA if logging iteration train time
                 remain_iter = self.config.graph.max_num_iterations - step
-                self.stats_dict[Stats.ETA] = remain_iter * self.stats_dict[name]
+                self.stats_dict[Stats.ETA] = remain_iter * self.stats_dict[name]["avg"]
 
     @check_print_stats_step
     def print_stats(self, fraction_done: float):
@@ -143,6 +150,9 @@ class StatsTracker:
             curr_mssg = f"{self.step} ({fraction_done*100:.02f}%)"
             curr_mssg = f"{curr_mssg:<20}"
             for k, v in self.stats_dict.items():
+                if isinstance(v, dict):
+                    v = v["avg"]
+
                 if "(time)" in k.value:
                     v = str(datetime.timedelta(seconds=v))
                 elif "(ms)" in k.value:
