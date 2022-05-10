@@ -18,7 +18,7 @@ def get_dataset_inputs_dict(
     dataset_type: str,
     downscale_factor: int = 1,
     alpha_color: Optional[Union[str, list, ListConfig]] = None,
-    splits: Tuple[str] = ("train", "val", "test"),
+    splits: Tuple[str] = ("train", "val"),
 ) -> Dict[str, DatasetInputs]:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
     # TODO: implement the `test` split, which will have depths and normals, etc.
