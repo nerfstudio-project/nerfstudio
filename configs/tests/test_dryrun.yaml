@@ -19,6 +19,11 @@ data:
 graph:
   max_num_iterations: 5
 
+logging:
+  writer: 
+    TensorboardWriter:
+      save_dir: '/tmp/'
+
 hydra:
   searchpath:
     - file://configs

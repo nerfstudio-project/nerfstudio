@@ -106,9 +106,16 @@ class StatsTracker:
                 # calculate the batch per second stat
                 val = batch_size / val
 
-            if step:
-                # calculate updated average
-                self.stats_dict[name] = (self.stats_dict.get(name, 0) * step + val) / (step + 1)
+            if step is not None:
+                # calculate updated average over the buffered max history
+                curr_history = self.stats_dict.get(name, {"buffer": [], "avg": 0})
+                curr_buffer = curr_history["buffer"]
+                curr_avg = curr_history["avg"]
+                if len(curr_buffer) >= self.max_history:
+                    curr_buffer.pop(0)
+                curr_buffer.append(val)
+                curr_avg = sum(curr_buffer) / len(curr_buffer)
+                self.stats_dict[name] = {"buffer": curr_buffer, "avg": curr_avg}
             else:
                 # logging total time instead of average
                 self.stats_dict[name] = val
@@ -116,16 +123,10 @@ class StatsTracker:
             if name == Stats.ITER_TRAIN_TIME and Stats.ETA in self.stats_to_track:
                 # update ETA if logging iteration train time
                 remain_iter = self.config.graph.max_num_iterations - step
-                self.stats_dict[Stats.ETA] = remain_iter * self.stats_dict[name]
+                self.stats_dict[Stats.ETA] = remain_iter * self.stats_dict[name]["avg"]
 
-    @check_print_stats_step
-    def print_stats(self, fraction_done: float):
-        """helper to print out the stats dictionary.
-
-        Args:
-            fraction_done (float): fraction of steps executed in training iterations
-        """
-        # print a new header line if there is a new key added
+    def handle_header(self):
+        """helper to handle the printing of the header labels"""
         if self.step == 0 or self.new_key:
             mssg = f"{'Step (% Done)':<20}"
             for k in self.stats_dict:
@@ -138,11 +139,15 @@ class StatsTracker:
                 for mssg in self.past_stats:
                     print(mssg)
 
-        # generate a new stats reporting message
+    def handle_stats(self, fraction_done):
+        """helper to print out the stats in a readable format"""
         if self.step > 0:
             curr_mssg = f"{self.step} ({fraction_done*100:.02f}%)"
             curr_mssg = f"{curr_mssg:<20}"
             for k, v in self.stats_dict.items():
+                if isinstance(v, dict):
+                    v = v["avg"]
+
                 if "(time)" in k.value:
                     v = str(datetime.timedelta(seconds=v))
                 elif "(ms)" in k.value:
@@ -159,6 +164,19 @@ class StatsTracker:
                     print(mssg)
             print(curr_mssg)
             self.past_stats.append(curr_mssg)
+
+    @check_print_stats_step
+    def print_stats(self, fraction_done: float):
+        """helper to print out the stats dictionary.
+
+        Args:
+            fraction_done (float): fraction of steps executed in training iterations
+        """
+        # print a new header line if there is a new key added
+        self.handle_header()
+
+        # generate a new stats reporting message
+        self.handle_stats(fraction_done)
 
     def dump_stats(self):
         """Dump stats locally to a json file"""
