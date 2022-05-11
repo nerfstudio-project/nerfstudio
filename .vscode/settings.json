@@ -26,5 +26,4 @@
         ".vscode/*.py",
         "external/**/*.py",
     ],
-    "python.analysis.typeCheckingMode": "basic",
 }
