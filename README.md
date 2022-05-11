@@ -105,3 +105,9 @@ pip install py-spy
 ```
 ipython --pdb scripts/run_train.py
 ```
+
+5. **Benchmarking** For launching training jobs automatically on blender dataset
+
+```
+./scripts/benchmarking/launch_train_blender.sh <gpu0> <gpu1> ... <gpu7>
+```
