@@ -10,9 +10,9 @@ mediapy
 plotly==5.7.0
 pylint==2.13.4
 pytest
-pytorch-msssim>=0.2.1
 tensorboard==2.8.0
 torch==1.11.0
+torchmetrics[image]==0.8.2
 torchtyping
 torchvision==0.12.0
 tqdm
