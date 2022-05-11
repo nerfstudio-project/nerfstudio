@@ -7,6 +7,8 @@ for dataset in ${DATASETS[@]}; do
     python scripts/run_train.py \
            data.dataset.data_directory=data/blender/${dataset} \
            experiment_name=blender_${dataset} \
+           graph.model_dir=mattport_models/ \
+           graph.steps_per_save=5000 \
            logging.enable_stats=False \
            logging.enable_profiler=False &
     echo "Launched ${dataset} on gpu ${!GPU_IDX}"
