@@ -4,7 +4,7 @@ Profiler base class and functionality
 import logging
 import sys
 import time
-from typing import Callable, Dict
+from typing import Callable
 
 from omegaconf import DictConfig
 
@@ -32,12 +32,8 @@ def time_function(func: Callable) -> Callable:
     return wrapper
 
 
-def flush_profiler(config: Dict):
-    """Method that checks if profiler is enabled before flushing
-
-    Args:
-        config (Dict): config check
-    """
+def flush_profiler(config: DictConfig):
+    """Method that checks if profiler is enabled before flushing"""
     if config.enable_profiler and PROFILER:
         PROFILER[0].print_profile()
 
