@@ -56,10 +56,10 @@ class Trainer:
         self.device = "cpu" if self.world_size == 0 else f"cuda:{self.local_rank}"
 
     @profiler.time_function
-    def setup(self):
+    def setup(self, test_mode = False):
         """Setup the Trainer by calling other setup functions."""
         dataset_inputs_dict = get_dataset_inputs_dict(**self.config.data.dataset)
-        self.setup_datasets(dataset_inputs_dict)
+        self.setup_datasets(dataset_inputs_dict, test_mode=test_mode)
         self.setup_graph(dataset_inputs_dict["train"])
 
     def collate_fn(self, batch_list):
@@ -68,35 +68,43 @@ class Trainer:
         """
         return collate_batch(batch_list, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False)
 
-    @profiler.time_function
-    def setup_datasets(self, dataset_inputs_dict: Dict[str, DatasetInputs]):
-        """_summary_"""
-        self.train_image_dataset = ImageDataset(
-            image_filenames=dataset_inputs_dict["train"].image_filenames,
-            downscale_factor=dataset_inputs_dict["train"].downscale_factor,
-            alpha_color=dataset_inputs_dict["train"].alpha_color,
-        )
-
-        self.train_dataset = CollateIterDataset(
-            self.train_image_dataset,
-            collate_fn=self.collate_fn,
-            num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
-            num_times_to_repeat=self.config.data.dataloader.num_times_to_repeat_images,
-        )
-        self.train_dataloader = DataLoader(
-            self.train_dataset,
-            batch_size=1,
-            num_workers=self.config.data.dataloader.num_workers,
-            collate_fn=collate_batch_size_one,
-            pin_memory=True,
-        )
+    def load_test_dataset(self, dataset_inputs_dict, mode):
+        """Helper method to load test or val dataset based on test/train mode"""
         self.val_image_dataset = ImageDataset(
-            image_filenames=dataset_inputs_dict["val"].image_filenames,
-            downscale_factor=dataset_inputs_dict["val"].downscale_factor,
-            alpha_color=dataset_inputs_dict["val"].alpha_color,
-        )
-        self.val_image_intrinsics = dataset_inputs_dict["val"].intrinsics
-        self.val_image_camera_to_world = dataset_inputs_dict["val"].camera_to_world
+                image_filenames=dataset_inputs_dict[mode].image_filenames,
+                downscale_factor=dataset_inputs_dict[mode].downscale_factor,
+                alpha_color=dataset_inputs_dict[mode].alpha_color,
+            )
+        self.val_image_intrinsics = dataset_inputs_dict[mode].intrinsics
+        self.val_image_camera_to_world = dataset_inputs_dict[mode].camera_to_world
+
+    @profiler.time_function
+    def setup_datasets(self, dataset_inputs_dict: Dict[str, DatasetInputs], test_mode: bool):
+        """_summary_"""
+        if test_mode:
+            # TODO(change "val" to "test")
+            self.load_test_dataset(dataset_inputs_dict, "val")
+        else:
+            self.train_image_dataset = ImageDataset(
+                image_filenames=dataset_inputs_dict["train"].image_filenames,
+                downscale_factor=dataset_inputs_dict["train"].downscale_factor,
+                alpha_color=dataset_inputs_dict["train"].alpha_color,
+            )
+
+            self.train_dataset = CollateIterDataset(
+                self.train_image_dataset,
+                collate_fn=self.collate_fn,
+                num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
+                num_times_to_repeat=self.config.data.dataloader.num_times_to_repeat_images,
+            )
+            self.train_dataloader = DataLoader(
+                self.train_dataset,
+                batch_size=1,
+                num_workers=self.config.data.dataloader.num_workers,
+                collate_fn=collate_batch_size_one,
+                pin_memory=True,
+            )
+            self.load_test_dataset(dataset_inputs_dict, "val")
 
     @profiler.time_function
     def setup_graph(self, dataset_inputs: DatasetInputs):
@@ -216,7 +224,7 @@ class Trainer:
                 self.save_checkpoint(self.config.graph.model_dir, step)
             if step % self.config.graph.steps_per_test == 0:
                 for image_idx in self.config.data.validation_image_indices:
-                    self.test_image(image_idx=image_idx, step=step)
+                    _ = self.test_image(image_idx=image_idx, step=step)
             stats_tracker.print_stats(i / num_iterations)
 
         stats_tracker.update_stats(
@@ -245,5 +253,6 @@ class Trainer:
         camera_to_world = self.val_image_camera_to_world[image_idx]
         outputs = self.graph.get_outputs_for_camera(intrinsics, camera_to_world)
         image = self.val_image_dataset[image_idx]["image"].to(self.device)
-        self.graph.log_test_image_outputs(image_idx, step, image, outputs)
+        psnr = self.graph.log_test_image_outputs(image_idx, step, image, outputs)
         self.graph.train()
+        return psnr

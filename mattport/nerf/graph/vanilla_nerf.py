@@ -246,3 +246,4 @@ class NeRFGraph(Graph):
         writer.write_event(
             {"name": f"val_idx_{image_idx}", "scalar": float(fine_lpips), "step": step, "group": "lpips"}
         )
+        return fine_psnr.item()
