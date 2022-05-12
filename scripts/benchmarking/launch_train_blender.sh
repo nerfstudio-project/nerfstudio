@@ -6,6 +6,7 @@ for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${!GPU_IDX}
     python scripts/run_train.py \
            data.dataset.data_directory=data/blender/${dataset} \
+           data.dataset.downscale_factor=1 \
            experiment_name=blender_${dataset} \
            graph.model_dir=mattport_models/ \
            graph.steps_per_save=25000 \

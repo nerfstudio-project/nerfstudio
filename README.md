@@ -111,3 +111,9 @@ ipython --pdb scripts/run_train.py
 ```
 ./scripts/benchmarking/launch_train_blender.sh <gpu0> <gpu1> ... <gpu7>
 ```
+
+For testing specific methods, see scripts/benchmarking/run_benchmark.py.
+Modify the `BENCH` variable to specify which jobs ("ckpt_dir") and methods ("method") you want benchmarked. Then run
+```
+python scripts/benchmarking/run_benchmark.py
+```
