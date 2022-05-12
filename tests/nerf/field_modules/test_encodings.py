@@ -63,3 +63,33 @@ def test_rff_encoder():
     in_tensor = torch.ones((2, 3, in_dim))
     encoded = encoder.encode(in_tensor)
     assert encoded.shape[-1] == out_dim
+
+
+def test_tensor_vm_encoder():
+    """Test TensorVM encoder"""
+
+    num_components = 24
+    resolution = 32
+
+    in_dim = 3
+    out_dim = 3 * num_components
+
+    encoder = encoding.TensorVMEncoding(num_components=num_components, resolution=resolution)
+    assert encoder.get_out_dim() == num_components * 3
+
+    in_tensor = torch.ones((3, in_dim))
+    encoded = encoder.encode(in_tensor)
+    assert encoded.shape == (3, out_dim)
+
+    in_tensor = torch.ones((6, 3, in_dim))
+    encoded = encoder.encode(in_tensor)
+    assert encoded.shape == (6, 3, out_dim)
+
+    encoder.upsample_grid(resolution=64)
+
+
+if __name__ == "__main__":
+    test_scaling_and_offset()
+    test_nerf_encoder()
+    test_rff_encoder()
+    test_tensor_vm_encoder()
