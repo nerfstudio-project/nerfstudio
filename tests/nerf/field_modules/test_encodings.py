@@ -75,7 +75,30 @@ def test_tensor_vm_encoder():
     out_dim = 3 * num_components
 
     encoder = encoding.TensorVMEncoding(num_components=num_components, resolution=resolution)
-    assert encoder.get_out_dim() == num_components * 3
+    assert encoder.get_out_dim() == out_dim
+
+    in_tensor = torch.ones((3, in_dim))
+    encoded = encoder.encode(in_tensor)
+    assert encoded.shape == (3, out_dim)
+
+    in_tensor = torch.ones((6, 3, in_dim))
+    encoded = encoder.encode(in_tensor)
+    assert encoded.shape == (6, 3, out_dim)
+
+    encoder.upsample_grid(resolution=64)
+
+
+def test_tensor_cp_encoder():
+    """Test TensorCP encoder"""
+
+    num_components = 24
+    resolution = 32
+
+    in_dim = 3
+    out_dim = num_components
+
+    encoder = encoding.TensorCPEncoding(num_components=num_components, resolution=resolution)
+    assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((3, in_dim))
     encoded = encoder.encode(in_tensor)
@@ -93,3 +116,4 @@ if __name__ == "__main__":
     test_nerf_encoder()
     test_rff_encoder()
     test_tensor_vm_encoder()
+    test_tensor_cp_encoder()

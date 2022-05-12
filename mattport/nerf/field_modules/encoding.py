@@ -241,6 +241,57 @@ class HashEncoding(Encoding):
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
 
 
+class TensorCPEncoding(Encoding):
+    """Learned CANDECOMP/PARFAC (CP) decomposition encoding used in TensoRF"""
+
+    def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
+        """
+        Args:
+            resolution (int, optional): Resolution of grid. Defaults to 256.
+            num_components (int, optional): Number of components per dimension. Defaults to 24.
+            init_scale (float, optional): Initialization scale. Defaults to 0.1.
+        """
+        super().__init__(in_dim=3)
+
+        self.resolution = resolution
+        self.num_components = num_components
+
+        # TODO Learning rates should be different for these
+        self.line_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, 1)))
+
+    def get_out_dim(self) -> int:
+        return self.num_components
+
+    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+        in_tensor = in_tensor / 4.0 + 0.5
+        line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
+        line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
+
+        # Stop gradients from going to sampler
+        line_coord = line_coord.view(3, -1, 1, 2).detach()
+
+        line_features = F.grid_sample(self.line_coef, line_coord, align_corners=True)  # [3, Components, -1, 1]
+
+        features = torch.prod(line_features, dim=0)
+        features = torch.moveaxis(features.view(self.num_components, *in_tensor.shape[:-1]), 0, -1)
+
+        return features  # [..., Components]
+
+    @torch.no_grad()
+    def upsample_grid(self, resolution: int) -> None:
+        """Upsamples underyling feature grid
+
+        Args:
+            resolution (int): Target resolution.
+        """
+
+        self.line_coef.data = F.interpolate(
+            self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True
+        )
+
+        self.resolution = resolution
+
+
 class TensorVMEncoding(Encoding):
     """Learned vector-matrix encoding proposed by TensoRF"""
 
@@ -264,7 +315,7 @@ class TensorVMEncoding(Encoding):
         return self.num_components * 3
 
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-
+        in_tensor = in_tensor / 4.0 + 0.5
         plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]])  # [3,...,2]
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
         line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
