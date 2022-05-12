@@ -4,7 +4,10 @@ Encoding functions
 
 import numpy as np
 import torch
+import torch.nn.functional as F
+from torch import nn
 from torchtyping import TensorType
+
 from mattport.nerf.field_modules.base import FieldModule
 
 
@@ -174,7 +177,7 @@ class HashEncoding(Encoding):
         self.hash_offset = levels * hash_table_size
         self.hash_table = torch.rand(size=(hash_table_size * num_levels, features_per_level)) * 2 - 1
         self.hash_table *= hash_init_scale
-        self.hash_table = torch.nn.Parameter(self.hash_table)
+        self.hash_table = nn.Parameter(self.hash_table)
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
@@ -236,3 +239,61 @@ class HashEncoding(Encoding):
         )  # [..., num_levels, features_per_level]
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
+
+
+class TensorVMEncoding(Encoding):
+    """Learned vector-matrix encoding proposed by TensoRF"""
+
+    def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
+        """
+        Args:
+            resolution (int, optional): Resolution of grid. Defaults to 256.
+            num_components (int, optional): Number of components per dimension. Defaults to 24.
+            init_scale (float, optional): Initialization scale. Defaults to 0.1.
+        """
+        super().__init__(in_dim=3)
+
+        self.resolution = resolution
+        self.num_components = num_components
+
+        # TODO Learning rates should be different for these
+        self.plane_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, resolution)))
+        self.line_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, 1)))
+
+    def get_out_dim(self) -> int:
+        return self.num_components * 3
+
+    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+
+        plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]])  # [3,...,2]
+        line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
+        line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
+
+        # Stop gradients from going to sampler
+        plane_coord = plane_coord.view(3, -1, 1, 2).detach()
+        line_coord = line_coord.view(3, -1, 1, 2).detach()
+
+        plane_features = F.grid_sample(self.plane_coef, plane_coord, align_corners=True)  # [3, Components, -1, 1]
+        line_features = F.grid_sample(self.line_coef, line_coord, align_corners=True)  # [3, Components, -1, 1]
+
+        features = plane_features * line_features  # [3, Components, -1, 1]
+        features = torch.moveaxis(features.view(3 * self.num_components, *in_tensor.shape[:-1]), 0, -1)
+
+        return features  # [..., 3 * Components]
+
+    @torch.no_grad()
+    def upsample_grid(self, resolution: int) -> None:
+        """Upsamples underyling feature grid
+
+        Args:
+            resolution (int): Target resolution.
+        """
+
+        self.plane_coef.data = F.interpolate(
+            self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
+        )
+        self.line_coef.data = F.interpolate(
+            self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True
+        )
+
+        self.resolution = resolution
