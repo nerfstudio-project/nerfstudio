@@ -56,7 +56,7 @@ class Trainer:
         self.device = "cpu" if self.world_size == 0 else f"cuda:{self.local_rank}"
 
     @profiler.time_function
-    def setup(self, test_mode = False):
+    def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""
         dataset_inputs_dict = get_dataset_inputs_dict(**self.config.data.dataset)
         self.setup_datasets(dataset_inputs_dict, test_mode=test_mode)
@@ -71,10 +71,10 @@ class Trainer:
     def load_test_dataset(self, dataset_inputs_dict, mode):
         """Helper method to load test or val dataset based on test/train mode"""
         self.val_image_dataset = ImageDataset(
-                image_filenames=dataset_inputs_dict[mode].image_filenames,
-                downscale_factor=dataset_inputs_dict[mode].downscale_factor,
-                alpha_color=dataset_inputs_dict[mode].alpha_color,
-            )
+            image_filenames=dataset_inputs_dict[mode].image_filenames,
+            downscale_factor=dataset_inputs_dict[mode].downscale_factor,
+            alpha_color=dataset_inputs_dict[mode].alpha_color,
+        )
         self.val_image_intrinsics = dataset_inputs_dict[mode].intrinsics
         self.val_image_camera_to_world = dataset_inputs_dict[mode].camera_to_world
 
