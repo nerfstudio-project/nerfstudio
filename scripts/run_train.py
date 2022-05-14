@@ -6,6 +6,7 @@ import logging
 import random
 import socket
 from datetime import timedelta
+import traceback
 from typing import Any, Callable
 
 import hydra
@@ -153,7 +154,7 @@ def launch(
         try:
             main_func(local_rank=0, world_size=1, config=config)
         except KeyboardInterrupt:
-            pass
+            print(traceback.format_exc())
         finally:
             profiler.flush_profiler(config.logging)
     elif world_size > 1:

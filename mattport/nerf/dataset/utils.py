@@ -19,6 +19,7 @@ def get_dataset_inputs_dict(
     downscale_factor: int = 1,
     alpha_color: Optional[Union[str, list, ListConfig]] = None,
     splits: Tuple[str] = ("train", "val"),
+    load_dataset_inputs_from_cache: bool = False,
 ) -> Dict[str, DatasetInputs]:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
     # TODO: implement the `test` split, which will have depths and normals, etc.
@@ -28,11 +29,15 @@ def get_dataset_inputs_dict(
         dataset_type (str): Name of dataset type
         downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
         alpha_color (str, list, optional): Sets transparent regions to specified color, otherwise black.
-
+        load_from_cache (bool)
     Returns:
         Dict[str, DatasetInputs]: The inputs needed for generating rays.
     """
     dataset_inputs_dict = {}
+
+    if load_dataset_inputs_from_cache:
+        print("Loading from cache.")
+        return None
 
     if alpha_color is not None:
         alpha_color = get_color(alpha_color)
@@ -47,12 +52,23 @@ def get_dataset_inputs_dict(
             )
             dataset_inputs_dict[split] = dataset_inputs
     elif dataset_type == "friends":
+        # TODO(ethan): change this hack, and do proper splits for the friends dataset
+        # currently we assume that there is only the training set of images
+        dataset_inputs = load_friends_data(
+            get_absolute_path(data_directory),
+            downscale_factor=downscale_factor,
+            split="train",
+            include_point_cloud=False,
+        )
         for split in splits:
-            dataset_inputs = load_friends_data(
-                get_absolute_path(data_directory), downscale_factor=downscale_factor, split=split
-            )
             dataset_inputs_dict[split] = dataset_inputs
     else:
         raise NotImplementedError(f"{dataset_type} is not a valid dataset type")
+
+    for split in splits:
+        # save the dataset inputs to cache
+        # TODO:
+        # dataset_inputs_dict[splits].save_to_folder_name()
+        pass
 
     return dataset_inputs_dict

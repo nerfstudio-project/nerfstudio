@@ -15,6 +15,11 @@ class FieldHeadNames(Enum):
 
     RGB = "rgb"
     DENSITY = "density"
+    UNCERTAINTY = "uncertainty"
+    TRANSIENT_RGB = "transient_rgb"
+    TRANSIENT_DENSITY = "transient_density"
+    SEMANTICS_STUFF = "semantics_stuff"
+    SEMANTICS_THING = "semantics_thing"
 
 
 class FieldHead(FieldModule):
@@ -66,12 +71,53 @@ class FieldHead(FieldModule):
 class DensityFieldHead(FieldHead):
     """Density output"""
 
-    def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Softplus()) -> None:
-        super().__init__(in_dim, out_dim=1, field_head_name=FieldHeadNames.DENSITY, activation=activation)
+    def __init__(
+        self, in_dim: int, field_head_name=FieldHeadNames.DENSITY, activation: Optional[nn.Module] = nn.Softplus()
+    ) -> None:
+        super().__init__(in_dim, out_dim=1, field_head_name=field_head_name, activation=activation)
 
 
 class RGBFieldHead(FieldHead):
     """RGB output"""
 
-    def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
-        super().__init__(in_dim, out_dim=3, field_head_name=FieldHeadNames.RGB, activation=activation)
+    def __init__(
+        self, in_dim: int, field_head_name=FieldHeadNames.RGB, activation: Optional[nn.Module] = nn.Sigmoid()
+    ) -> None:
+        super().__init__(in_dim, out_dim=3, field_head_name=field_head_name, activation=activation)
+
+
+class UncertaintyFieldHead(FieldHead):
+    """Uncertainty output"""
+
+    def __init__(
+        self, in_dim: int, field_head_name=FieldHeadNames.UNCERTAINTY, activation: Optional[nn.Module] = nn.Softplus()
+    ) -> None:
+        super().__init__(in_dim, out_dim=1, field_head_name=field_head_name, activation=activation)
+
+
+class TransientRGBHead(RGBFieldHead):
+    """Transient RGB output"""
+
+    def __init__(
+        self, in_dim: int, field_head_name=FieldHeadNames.TRANSIENT_RGB, activation: Optional[nn.Module] = nn.Sigmoid()
+    ) -> None:
+        super().__init__(in_dim, field_head_name, activation)
+
+
+class TransientDensityHead(DensityFieldHead):
+    """Transient density output"""
+
+    def __init__(
+        self,
+        in_dim: int,
+        field_head_name=FieldHeadNames.TRANSIENT_DENSITY,
+        activation: Optional[nn.Module] = nn.Softplus(),
+    ) -> None:
+        super().__init__(in_dim, field_head_name, activation)
+
+
+class SemanticStuffHead(FieldHead):
+    """Semantic stuff output"""
+
+    def __init__(self, in_dim: int, num_classes: int, field_head_name=FieldHeadNames.SEMANTICS_STUFF) -> None:
+        super().__init__(in_dim, out_dim=num_classes, field_head_name=field_head_name, activation=None)

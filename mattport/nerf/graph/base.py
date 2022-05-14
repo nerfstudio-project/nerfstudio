@@ -111,13 +111,15 @@ class Graph(nn.Module):
         return aggregated_loss
 
     @torch.no_grad()
-    def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024):
+    def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024, training_camera_index=0):
         """Takes in camera parameters and computes the output of the graph."""
         assert len(intrinsics.shape) == 1
         num_intrinsics_params = len(intrinsics)
         camera_class = get_camera_model(num_intrinsics_params)
         camera = camera_class(*intrinsics.tolist(), camera_to_world=camera_to_world)
         camera_ray_bundle = camera.generate_camera_rays()
+        # TODO(ethan): decide how to properly handle the image indices for validation images
+        camera_ray_bundle.set_camera_indices(camera_index=training_camera_index)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
 
         device = self.get_device()
