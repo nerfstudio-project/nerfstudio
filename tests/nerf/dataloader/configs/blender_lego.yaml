@@ -1,7 +1,7 @@
 # dataset options
 dataset:
   data_directory: data/lego
-  dataset_type: blender
+  dataset_format: blender
   downscale_factor: 1.0
 
 # dataloader options
@@ -15,7 +15,7 @@ dataloader:
 network:
   ray_generator:
     class_name: RayGenerator
-    inputs: ['cxy'] # camera, x, and y indices
+    inputs: ["cxy"] # camera, x, and y indices
     meta_data:
       in_dim: 0
       learning_rate: 0.0

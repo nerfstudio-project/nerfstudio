@@ -9,7 +9,9 @@ from mattport.nerf.field_modules.base import FieldModule
 
 
 class Embedding(FieldModule):
-    """Index into embeddings."""
+    """Index into embeddings.
+    # TODO: add different types of initializations
+    """
 
     def __init__(self, in_dim: int, out_dim: int) -> None:
         """

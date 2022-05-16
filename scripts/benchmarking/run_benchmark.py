@@ -56,7 +56,7 @@ def main():
         trainer = Trainer(config, local_rank=0, world_size=1)
         trainer.setup(test_mode=True)
         avg_psnr = 0
-        for step, image_idx in enumerate(config.data.validation_image_indices):
+        for step, image_idx in enumerate(config.data.val_image_indices):
             with torch.no_grad():
                 psnr = trainer.test_image(image_idx=image_idx, step=step)
             avg_psnr = (step * avg_psnr + psnr) / (step + 1)

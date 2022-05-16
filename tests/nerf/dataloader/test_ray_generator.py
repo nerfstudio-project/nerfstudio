@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
-from mattport.nerf.dataset.utils import get_dataset_inputs_dict
+from mattport.nerf.dataset.utils import get_dataset_inputs
 from mattport.nerf.field_modules.ray_generator import RayGenerator
 from mattport.utils.io import get_absolute_path
 from mattport.viewer.plotly import visualize_dataset
@@ -34,7 +34,7 @@ def test_dataloader(visualize=False):
     """Testing for the dataloader from input dataset parameters to rays."""
 
     data_directory = "tests/data/lego_test"
-    dataset_type = "blender"
+    dataset_format = "blender"
     downscale_factor = 1
     num_images_to_sample_from = 1
     num_times_to_repeat_images = 40
@@ -42,9 +42,9 @@ def test_dataloader(visualize=False):
     num_workers = 0
 
     data_directory = get_absolute_path(data_directory)
-    dataset_inputs = get_dataset_inputs_dict(
-        data_directory=data_directory, dataset_type=dataset_type, downscale_factor=downscale_factor
-    )["train"]
+    dataset_inputs = get_dataset_inputs(
+        data_directory=data_directory, dataset_format=dataset_format, downscale_factor=downscale_factor, split="train"
+    )
     image_dataset = ImageDataset(
         image_filenames=dataset_inputs.image_filenames, downscale_factor=dataset_inputs.downscale_factor
     )

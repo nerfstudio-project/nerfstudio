@@ -8,6 +8,8 @@ import torch
 
 from torchtyping import TensorType
 
+from mattport.utils.misc import is_not_none
+
 
 @dataclass
 class RayBundle:
@@ -20,6 +22,9 @@ class RayBundle:
     origins: TensorType["num_rays", 3]
     directions: TensorType["num_rays", 3]
     camera_indices: Optional[TensorType["num_rays"]] = None
+    nears: Optional[TensorType["num_rays"]] = None
+    fars: Optional[TensorType["num_rays"]] = None
+    valid_mask: Optional[TensorType["num_rays"]] = None
 
     def to_camera_ray_bundle(self, image_height, image_width) -> "CameraRayBundle":
         """Returns a CameraRayBundle from this object."""
@@ -58,6 +63,17 @@ class RayBundle:
             origins=self.origins[indices],
             directions=self.directions[indices],
             camera_indices=self.camera_indices[indices],
+        )
+
+    def get_masked_ray_bundle(self, valid_mask):
+        """Return a masked instance of the ray bundle."""
+        return RayBundle(
+            origins=self.origins[valid_mask],
+            directions=self.directions[valid_mask],
+            camera_indices=self.camera_indices[valid_mask] if is_not_none(self.camera_indices) else None,
+            nears=self.nears[valid_mask] if is_not_none(self.nears) else None,
+            fars=self.fars[valid_mask] if is_not_none(self.fars) else None,
+            valid_mask=self.valid_mask[valid_mask] if is_not_none(self.valid_mask) else None,
         )
 
 

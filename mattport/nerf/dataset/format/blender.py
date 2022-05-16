@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from torchtyping import TensorType
 
-from mattport.nerf.dataset.structs import DatasetInputs
+from mattport.nerf.dataset.structs import DatasetInputs, SceneBounds
 from mattport.utils.io import load_from_json
 
 
@@ -53,12 +53,15 @@ def load_blender_data(
     intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
     intrinsics *= torch.tensor([cx, cy, focal_length])
 
+    scene_bounds = SceneBounds(aabb=torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32))
+
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=downscale_factor,
         alpha_color=alpha_color,
         intrinsics=intrinsics * 1.0 / downscale_factor,  # downscaling the intrinsics here
         camera_to_world=camera_to_world,
+        scene_bounds=scene_bounds,
     )
 
     return dataset_inputs

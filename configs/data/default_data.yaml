@@ -3,7 +3,8 @@ defaults:
   - dataset: blender_lego
 
 # validation options
-validation_image_indices: [0, 10] # Which images to evaluate on.
+val_image_indices: [0, 10, 20] # Which images to evaluate on.
+val_downscale_factor: 8
 
 # dataloader options
 dataloader:

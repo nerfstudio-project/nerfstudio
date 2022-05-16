@@ -13,7 +13,7 @@ from mattport.structures.rays import RayBundle, RaySamples
 class UniformSampler(nn.Module):
     """Sample uniformly along a ray"""
 
-    def __init__(self, near_plane: float, far_plane: float, num_samples: int, train_stratified=True) -> None:
+    def __init__(self, num_samples: int, train_stratified=True) -> None:
         """
         Args:
             near_plane (float): Minimum distance along ray to sample
@@ -23,8 +23,6 @@ class UniformSampler(nn.Module):
         """
         super().__init__()
 
-        self.near_plane = near_plane
-        self.far_plane = far_plane
         self.num_samples = num_samples
         self.train_stratified = train_stratified
 
@@ -32,36 +30,33 @@ class UniformSampler(nn.Module):
     def forward(
         self,
         ray_bundle: RayBundle,
-        near_plane: Optional[float] = None,
-        far_plane: Optional[float] = None,
         num_samples: Optional[int] = None,
     ) -> RaySamples:
         """Generates position samples uniformly.
 
         Args:
             ray_bundle (RayBundle): Rays to generate samples for
-            TensorType[..., "output_dim"]: A encoded input tensor
-            near_plane (Optional[float]): Minimum distance along ray to sample
-            far_plane (Optional[float]): Maximum distance along ray to sample
             num_samples (Optional[int]): Number of samples per ray
 
         Returns:
             RaySamples: Positions and deltas for samples along a ray
         """
-        near_plane = near_plane or self.near_plane
-        far_plane = far_plane or self.far_plane
-        num_samples = num_samples or self.num_samples
+        assert ray_bundle.nears is not None
+        assert ray_bundle.fars is not None
 
+        num_samples = num_samples or self.num_samples
         num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(near_plane, far_plane, num_samples + 1).to(ray_bundle.origins.device)  # (num_samples+1)
+        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)  # shape (num_samples+1,)
+        bins = ray_bundle.nears[:, None] + bins[None, :] * (
+            ray_bundle.fars[:, None] - ray_bundle.nears[:, None]
+        )  # shape (num_rays, num_samples+1)
 
         if self.train_stratified and self.training:
             t_rand = torch.rand((num_rays, num_samples), dtype=bins.dtype, device=bins.device)
-            ts = bins[None, :-1] + t_rand * (bins[None, 1:] - bins[None, :-1])  # (num_rays, num_samples)
+            ts = bins[:, :-1] + t_rand * (bins[:, 1:] - bins[:, :-1])  # shape (num_rays, num_samples)
         else:
-            ts = (bins[1:] + bins[:-1]) / 2
-            ts = ts.unsqueeze(0).repeat(num_rays, 1)  # (num_rays, num_samples)
+            ts = (bins[:, 1:] + bins[:, :-1]) / 2
 
         ray_samples = RaySamples(
             ts=ts,

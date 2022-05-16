@@ -165,11 +165,13 @@ outputs/
 
 # Data
 data/
+data_*/
 !configs/data
-data_shared/
 
 # Misc
 old/
 temp*
 .nfs*
 external/
+__MACOSX/
+outputs*/

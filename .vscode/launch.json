@@ -17,9 +17,6 @@
             "type": "python",
             "request": "launch",
             "program": "scripts/run_train.py",
-            "env": {
-                "CUDA_VISIBLE_DEVICES": "8"
-            },
             "console": "integratedTerminal"
         },
         {
@@ -47,9 +44,6 @@
             "type": "python",
             "request": "launch",
             "program": "scripts/run_train.py",
-            "env": {
-                "CUDA_VISIBLE_DEVICES": "8"
-            },
             "console": "integratedTerminal",
             "args": [
                 "--config-name=nerfw.yaml"
@@ -60,9 +54,6 @@
             "type": "python",
             "request": "launch",
             "program": "scripts/run_train.py",
-            "env": {
-                "CUDA_VISIBLE_DEVICES": "4"
-            },
             "console": "integratedTerminal",
             "args": [
                 "--config-name=semantic_nerf.yaml"

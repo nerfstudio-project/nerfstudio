@@ -15,8 +15,8 @@ if __name__ == "__main__":
             if step["name"] == "Run Black":
                 curr_command = f"black mattport/ {step['with']['options']};"
             else:
-                compressed = step["run"].replace("\n", "").replace("\\", "")
-                curr_command = f"{compressed};"
+                compressed = step["run"].replace("\n", ";").replace("\\", "")
+                curr_command = f"{compressed}"
 
             print("*" * 100)
             print(f"Running {curr_command}")

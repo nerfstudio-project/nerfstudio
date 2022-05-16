@@ -51,6 +51,15 @@ def get_git_root(path, dirs=(".git",), default=None):
     return default
 
 
+def get_project_root():
+    """Return the project root directory from an environment variable.
+    # TODO: handle this better and report user error
+    """
+    project_root = os.getenv("PROJECT_ROOT")
+    assert project_root is not None, "Please set PROJECT_ROOT to the root directory of this repo."
+    return project_root
+
+
 def get_absolute_path(path, proj_root_func=get_git_root):
     """
     Returns the full, absolute path.

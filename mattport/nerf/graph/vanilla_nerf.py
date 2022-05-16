@@ -20,6 +20,7 @@ from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRend
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
 from mattport.structures.rays import RayBundle, RaySamples
+from mattport.nerf.field_modules.scene_bounds_collider import NearFarCollider
 from mattport.utils import stats_tracker, visualization, writer
 
 
@@ -116,12 +117,13 @@ class NeRFGraph(Graph):
         self.field_coarse = NeRFField()
         self.field_fine = NeRFField()
 
+    def populate_collider(self):
+        self.scene_bounds_collider = NearFarCollider(self.near_plane, self.far_plane)
+
     def populate_modules(self):
 
         # samplers
-        self.sampler_uniform = UniformSampler(
-            near_plane=self.near_plane, far_plane=self.far_plane, num_samples=self.num_coarse_samples
-        )
+        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
 
         # field
@@ -147,11 +149,13 @@ class NeRFGraph(Graph):
             Dict[str, List[Parameter]]: Mapping of different parameter groups
         """
         param_groups = {}
-        # param_groups["cameras"] = list(self.ray_generator.parameters())
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+
+        # TODO: set the new rays...
+
         # coarse network:
         uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
 

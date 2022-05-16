@@ -1,15 +1,14 @@
 # saving model specifications
-model_dir: /tmp/mattport_models/ 
+model_dir: /tmp/mattport_models/
 steps_per_save: null
 steps_per_test: 100
-max_num_iterations: 100000
+max_num_iterations: 1000000
 
 # pretrained loading options
 resume_train:
   load_dir: # pretrained model directory
   load_step: # pretrained model's step number
 
-# NOTE(ethan): currently setting to nothing b/c we're still designing the config format...
 network:
   _target_: mattport.nerf.graph.vanilla_nerf.NeRFGraph
   near_plane: 2.0
@@ -25,16 +24,17 @@ network:
 param_groups:
   fields:
     optimizer:
-      type: Adam
-      lr: 5e-4
+      _target_: torch.optim.Adam
+      lr: 0.0005
     scheduler:
-      type: StepLR
-      step_size: 30 #  Period of learning rate decay.
-      gamma: 0.1 # Multiplicative factor of learning rate decay. Default: 0.1.
+      _target_: mattport.nerf.optimizers.ExponentialDecaySchedule
+      lr_final: 0.000005
+      max_steps: 1000000
+
   cameras:
     optimizer:
-      type: SGD
+      _target_: torch.optim.SGD
       lr: 1e-4
     scheduler:
-      type: ExponentialLR
+      _target_: torch.optim.lr_scheduler.ExponentialLR
       gamma: 0.1

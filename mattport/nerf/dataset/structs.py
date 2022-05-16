@@ -28,6 +28,17 @@ class Semantics:
 
 
 @dataclass
+class SceneBounds:
+    """Data to represent the scene bounds.
+
+    aabb: axis-aligned bounding box
+        aabb[0] is the minimum (x,y,z) point. aabb[1] is the maximum (x,y,z) point.
+    """
+
+    aabb: TensorType[2, 3] = None
+
+
+@dataclass
 class DatasetInputs:
     """Dataset inputs for the image dataset and the ray generator.
 
@@ -40,9 +51,9 @@ class DatasetInputs:
     downscale_factor: int = 1
     intrinsics: torch.tensor = None
     camera_to_world: torch.tensor = None
-    bounding_box: torch.tensor = None
     mask_filenames: List[str] = None
     depth_filenames: List[str] = None
+    scene_bounds: SceneBounds = SceneBounds()
     semantics: Semantics = Semantics()
     point_cloud: PointCloud = PointCloud()
     alpha_color: Optional[TensorType[3]] = None

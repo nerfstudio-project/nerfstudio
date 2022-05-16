@@ -12,9 +12,12 @@ from torch import nn
 from torch.nn import Parameter
 from torchtyping import TensorType
 
+from mattport.nerf.dataset.structs import SceneBounds
 from mattport.nerf.field_modules.ray_generator import RayGenerator
+from mattport.nerf.field_modules.scene_bounds_collider import AABBBoxCollider
 from mattport.structures.cameras import get_camera_model
 from mattport.structures.rays import RayBundle
+from mattport.utils.misc import get_masked_dict
 
 
 @dataclass
@@ -41,13 +44,24 @@ class Node:
 class Graph(nn.Module):
     """_summary_"""
 
-    def __init__(self, intrinsics=None, camera_to_world=None, loss_coefficients: DictConfig = None, **kwargs) -> None:
+    def __init__(
+        self,
+        intrinsics=None,
+        camera_to_world=None,
+        loss_coefficients: DictConfig = None,
+        scene_bounds: SceneBounds = None,
+        **kwargs,
+    ) -> None:
         super().__init__()
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
+        self.scene_bounds = scene_bounds
         self.loss_coefficients = loss_coefficients
+        # assert self.scene_bounds is not None
         self.kwargs = kwargs
+        self.scene_bounds_collider = None
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
+        self.populate_collider()
         self.populate_modules()  # populate the modules
 
         # to keep track of which device the nn.Module is on
@@ -56,6 +70,10 @@ class Graph(nn.Module):
     def get_device(self):
         """Returns the device that the torch parameters are on."""
         return self.device_indicator_param.device
+
+    def populate_collider(self):
+        """Set the scene bounds collider to use."""
+        self.scene_bounds_collider = AABBBoxCollider(self.scene_bounds)
 
     @abstractmethod
     def populate_modules(self):
@@ -89,13 +107,22 @@ class Graph(nn.Module):
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Forward function that needs to be overridden."""
-        # get the rays:
-        ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
-        outputs = self.get_outputs(ray_bundle)
-        if not isinstance(batch, type(None)):
-            loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
-            return outputs, loss_dict
-        return outputs
+        # get the rays
+        original_ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
+        intersected_ray_bundle = self.scene_bounds_collider(original_ray_bundle)
+
+        if isinstance(batch, type(None)):
+            # during inference, keep all rays
+            outputs = self.get_outputs(intersected_ray_bundle)
+            return outputs
+
+        # during training, keep only the rays that intersect the scene. discard the rest
+        valid_mask = intersected_ray_bundle.valid_mask
+        masked_intersected_ray_bundle = intersected_ray_bundle.get_masked_ray_bundle(valid_mask)
+        masked_batch = get_masked_dict(batch, valid_mask)
+        outputs = self.get_outputs(masked_intersected_ray_bundle)
+        loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
+        return outputs, loss_dict
 
     @abstractmethod
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
@@ -130,9 +157,10 @@ class Graph(nn.Module):
         for i in range(0, num_rays, chunk_size):
             start_idx = i
             end_idx = i + chunk_size
-            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            ray_bundle.move_to_device(device)
-            outputs = self.get_outputs(ray_bundle)
+            original_ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            original_ray_bundle.move_to_device(device)
+            intersected_ray_bundle = self.scene_bounds_collider(original_ray_bundle)
+            outputs = self.get_outputs(intersected_ray_bundle)
             for output_name, output in outputs.items():
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
