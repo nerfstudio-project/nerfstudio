@@ -9,6 +9,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from mattport.nerf.field_modules.base import FieldModule
+from mattport.utils.math import components_from_spherical_harmonics
 
 
 class Encoding(FieldModule):
@@ -348,3 +349,26 @@ class TensorVMEncoding(Encoding):
         )
 
         self.resolution = resolution
+
+
+class SHEncoding(Encoding):
+    """Spherical harmonic encoding"""
+
+    def __init__(self, levels: int = 4) -> None:
+        """
+        Args:
+            levels (int, optional): Number of spherical hamonic levels to encode. Defaults to 4.
+        """
+        super().__init__(in_dim=3)
+
+        if levels <= 0 or levels > 4:
+            raise ValueError(f"Spherical harmonic encoding only suports 1 to 4 levels, requested {levels}")
+
+        self.levels = levels
+
+    def get_out_dim(self) -> int:
+        return self.levels**2
+
+    @torch.no_grad()
+    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+        return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)
