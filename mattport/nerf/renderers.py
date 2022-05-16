@@ -2,11 +2,14 @@
 Collection of renderers
 """
 from dataclasses import dataclass
+import math
 from typing import Optional
 
 import torch
 from torch import nn
 from torchtyping import TensorType
+
+from mattport.utils.math import components_from_spherical_harmonics
 
 
 @dataclass
@@ -46,6 +49,64 @@ class RGBRenderer(nn.Module):
         """
 
         rgb = torch.sum(weights[..., None] * rgb, dim=-2)
+
+        if self.background_color is not None:
+            rgb = rgb + self.background_color.to(weights.device)[None, ...] * (
+                1.0 - torch.sum(weights, dim=-1)[..., None]
+            )
+        torch.clamp_(rgb, min=0.0, max=1.0)
+
+        assert torch.max(rgb) <= 1.0
+        assert torch.min(rgb) >= 0.0
+
+        renderer_outputs = RendererOutputs(rgb=rgb)
+        return renderer_outputs
+
+
+class SHRenderer(nn.Module):
+    """Render RGB value from spherical harmonics."""
+
+    def __init__(
+        self, activation: Optional[nn.Module] = nn.Sigmoid(), background_color: Optional[TensorType[3]] = None
+    ) -> None:
+        """
+        Args:
+            background_color (TensorType[3], optional): Background color as RGB. Defaults to black.
+            activation (Optional[nn.Module], optional): Output activation. Defaults to Sigmoid().
+        """
+        super().__init__()
+        self.background_color = background_color
+        self.activation = activation
+
+    def forward(
+        self,
+        sh: TensorType[..., "num_samples", "coeffs"],
+        directions: TensorType[..., "num_samples", 3],
+        weights: TensorType[..., "num_samples"],
+    ) -> RendererOutputs:
+        """Composite samples along ray and render color image
+
+        Args:
+            sh (TensorType[..., "num_samples", "coeffs"]): Spherical hamonics coefficients for each sample
+            directions: (TensorType[..., "num_samples", 3]): Sample direction
+            weights (TensorType[..., "num_samples"]): Weights for each sample
+
+        Returns:
+            RendererOutputs: Outputs with rgb values.
+        """
+
+        sh = sh.view(*sh.shape[:-1], 3, sh.shape[-1] // 3)
+
+        levels = int(math.sqrt(sh.shape[-1]))
+        components = components_from_spherical_harmonics(levels=levels, directions=directions)
+
+        rgb = sh * components[..., None, :]  # [..., num_samples, 3, sh_components]
+        rgb = torch.sum(sh, dim=-1)  # [..., num_samples, 3]
+
+        rgb = torch.sum(weights[..., None] * rgb, dim=-2) + 0.5
+
+        if self.activation is not None:
+            self.activation(rgb)
 
         if self.background_color is not None:
             rgb = rgb + self.background_color.to(weights.device)[None, ...] * (

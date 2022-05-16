@@ -75,3 +75,19 @@ class RGBFieldHead(FieldHead):
 
     def __init__(self, in_dim: int, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
         super().__init__(in_dim, out_dim=3, field_head_name=FieldHeadNames.RGB, activation=activation)
+
+
+class SHFieldHead(FieldHead):
+    """Spherical harmonics output"""
+
+    def __init__(self, in_dim: int, levels: int = 3, channels: int = 3, activation: Optional[nn.Module] = None) -> None:
+        """_summary_
+
+        Args:
+            in_dim (int): Input dimension
+            levels (int, optional): Number of spherical harmonics layers. Defaults to 3.
+            channels (int, optional): Number of channels. Defaults to 3 (ie RGB).
+            activation (Optional[nn.Module], optional): Output activation. Defaults to None.
+        """
+        out_dim = channels * levels**2
+        super().__init__(in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.RGB, activation=activation)

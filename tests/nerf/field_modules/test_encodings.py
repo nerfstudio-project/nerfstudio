@@ -1,6 +1,7 @@
 """
 Encoding Tests
 """
+from multiprocessing.sharedctypes import Value
 import pytest
 import torch
 from mattport.nerf.field_modules import encoding
@@ -111,9 +112,28 @@ def test_tensor_cp_encoder():
     encoder.upsample_grid(resolution=64)
 
 
+def test_tensor_sh_encoder():
+    """Test Spherical Harmonic encoder"""
+
+    levels = 4
+    out_dim = levels**2
+
+    with pytest.raises(ValueError):
+        encoder = encoding.SHEncoding(levels=5)
+
+    encoder = encoding.SHEncoding(levels=levels)
+    assert encoder.get_out_dim() == out_dim
+
+    in_tensor = torch.zeros((10, 3))
+    in_tensor[..., 1] = 1
+    encoded = encoder.encode(in_tensor)
+    assert encoded.shape == (10, out_dim)
+
+
 if __name__ == "__main__":
     test_scaling_and_offset()
     test_nerf_encoder()
     test_rff_encoder()
     test_tensor_vm_encoder()
     test_tensor_cp_encoder()
+    test_tensor_sh_encoder()
