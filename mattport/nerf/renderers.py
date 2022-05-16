@@ -20,6 +20,8 @@ class RendererOutputs:
     density: TensorType["num_rays", 1] = None
     accumulation: TensorType["num_rays", 1] = None
     depth: TensorType["num_rays", 1] = None
+    uncertainty: TensorType["num_rays", 1] = None
+    semantics: TensorType["num_rays", "num_classes"] = None
 
 
 class RGBRenderer(nn.Module):
@@ -177,3 +179,37 @@ class DepthRenderer(nn.Module):
             return RendererOutputs(depth=depth[..., None])
 
         raise NotImplementedError(f"Method {self.method} not implemented")
+
+
+class UncertaintyRenderer(nn.Module):
+    """Calculate uncertainty along the ray."""
+
+    @classmethod
+    def forward(
+        cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples"]
+    ) -> RendererOutputs:
+        """_summary_
+
+        Args:
+            betas (TensorType[..., &quot;num_samples&quot;, 1]): _description_
+            weights (TensorType[..., &quot;num_samples&quot;]): _description_
+
+        Returns:
+            RendererOutputs: _description_
+        """
+        uncertainty = torch.sum(weights[..., None] * betas, dim=-2)
+        renderer_outputs = RendererOutputs(uncertainty=uncertainty)
+        return renderer_outputs
+
+
+class SemanticRenderer(nn.Module):
+    """Calculate semantics along the ray."""
+
+    @classmethod
+    def forward(
+        cls, semantics: TensorType[..., "num_samples", "num_classes"], weights: TensorType[..., "num_samples"]
+    ) -> RendererOutputs:
+        """_summary_"""
+        sem = torch.sum(weights[..., None] * semantics, dim=-2)
+        renderer_outputs = RendererOutputs(semantics=sem)
+        return renderer_outputs

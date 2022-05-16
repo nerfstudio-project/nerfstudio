@@ -3,9 +3,8 @@ defaults:
   - _self_
 
 network:
-  _target_: mattport.nerf.graph.nerfw.NerfWGraph
+  _target_: mattport.nerf.graph.semantic_nerf.SemanticNerfGraph
   loss_coefficients: # loss coefficients
     rgb_loss_coarse: 1.0
     rgb_loss_fine: 1.0
-    uncertainty_loss: 1.0
-    density_loss: 0.01
+    semantic_loss_fine: 0.05

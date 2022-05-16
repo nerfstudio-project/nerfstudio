@@ -88,9 +88,9 @@ class Trainer:
             self.train_image_dataset = ImageDataset(
                 image_filenames=dataset_inputs_dict["train"].image_filenames,
                 downscale_factor=dataset_inputs_dict["train"].downscale_factor,
+                semantics=dataset_inputs_dict["train"].semantics,
                 alpha_color=dataset_inputs_dict["train"].alpha_color,
             )
-
             self.train_dataset = CollateIterDataset(
                 self.train_image_dataset,
                 collate_fn=self.collate_fn,
@@ -117,6 +117,7 @@ class Trainer:
             self.config.graph.network,
             intrinsics=dataset_inputs.intrinsics,
             camera_to_world=dataset_inputs.camera_to_world,
+            stuff_classes=dataset_inputs.semantics.stuff_classes,
         ).to(self.device)
         self.setup_optimizers()  # NOTE(ethan): can this be before DDP?
 
@@ -129,7 +130,6 @@ class Trainer:
 
     def setup_optimizers(self):
         """_summary_"""
-        # TODO(ethan): handle different world sizes
         self.optimizers = Optimizers(self.config.graph.param_groups, self.graph.get_param_groups())
 
     def load_checkpoint(self, load_config: DictConfig) -> int:
@@ -222,7 +222,7 @@ class Trainer:
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
-            if step % self.config.graph.steps_per_test == 0:
+            if step % self.config.graph.steps_per_test == 0:  # NOTE(ethan): we should still run this in dry-run mode!
                 for image_idx in self.config.data.validation_image_indices:
                     _ = self.test_image(image_idx=image_idx, step=step)
             stats_tracker.print_stats(i / num_iterations)
@@ -251,7 +251,11 @@ class Trainer:
         self.graph.eval()
         intrinsics = self.val_image_intrinsics[image_idx]
         camera_to_world = self.val_image_camera_to_world[image_idx]
-        outputs = self.graph.get_outputs_for_camera(intrinsics, camera_to_world)
+        chunk_size = 1024
+        training_camera_index = image_idx  # TODO(ethan): change this because training and test should not be the same
+        outputs = self.graph.get_outputs_for_camera(
+            intrinsics, camera_to_world, chunk_size=chunk_size, training_camera_index=training_camera_index
+        )
         image = self.val_image_dataset[image_idx]["image"].to(self.device)
         psnr = self.graph.log_test_image_outputs(image_idx, step, image, outputs)
         self.graph.train()

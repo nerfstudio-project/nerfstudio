@@ -8,10 +8,13 @@ import numpy as np
 import torch
 
 from mattport.nerf.dataset.colmap_utils import read_cameras_binary, read_images_binary, read_pointsTD_binary
-from mattport.nerf.dataset.structs import DatasetInputs, PointCloud
+from mattport.nerf.dataset.structs import DatasetInputs, PointCloud, Semantics
+from mattport.utils import profiler
+from mattport.utils.io import load_from_json
 
 
-def load_friends_data(basedir, downscale_factor=1, split="train", include_point_cloud=False):
+@profiler.time_function
+def load_friends_data(basedir, downscale_factor=1, split="train", include_semantics=True, include_point_cloud=False):
     """_summary_
 
     Args:
@@ -40,7 +43,6 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_point_
     intrinsics = []
     for image_path in image_paths:
         cam = cameras_data[image_path_to_image_id[image_path]]
-        print(cam.params)
         assert len(cam.params) == 3
         focal_length = cam.params[0]  # f (fx and fy)
         cx = cam.params[1]  # cx
@@ -63,7 +65,27 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_point_
     camera_to_world[..., 1:3] *= -1
 
     # --- masks to mask out things (e.g., people) ---
-    # TODO:
+
+    # --- semantics ---
+    semantics = Semantics()
+    if include_semantics:
+        thing_filenames = [
+            image_filename.replace("/images/", "/segmentations/thing/").replace(".jpg", ".png")
+            for image_filename in image_filenames
+        ]
+        stuff_filenames = [
+            image_filename.replace("/images/", "/segmentations/stuff/").replace(".jpg", ".png")
+            for image_filename in image_filenames
+        ]
+        panoptic_classes = load_from_json(os.path.join(basedir, "panoptic_classes.json"))
+        stuff_classes = panoptic_classes["stuff"]
+        thing_classes = panoptic_classes["thing"]
+        semantics = Semantics(
+            stuff_classes=stuff_classes,
+            stuff_filenames=stuff_filenames,
+            thing_classes=thing_classes,
+            thing_filenames=thing_filenames,
+        )
 
     # --- possibly transform ---
     # TODO:
@@ -73,18 +95,20 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_point_
 
     # Possibly include the sparse point cloud from COLMAP in the dataset inputs.
     # NOTE(ethan): this will be common across the different splits.
-    point_cloud = None
+    point_cloud = PointCloud()
     if include_point_cloud:
         points_3d = read_pointsTD_binary(os.path.join(basedir, "colmap", "points3D.bin"))
         xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()]))
         rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()]))
-        point_cloud = PointCloud(xyz=xyz, rgb=rgb)
+        point_cloud.xyz = xyz
+        point_cloud.rgb = rgb
 
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=downscale_factor,
         intrinsics=intrinsics / downscale_factor,
         camera_to_world=camera_to_world,
+        semantics=semantics,
         point_cloud=point_cloud,
     )
     return dataset_inputs

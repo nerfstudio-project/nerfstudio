@@ -32,12 +32,22 @@ class NeRFField(nn.Module):
         self.layer_width = layer_width
         self.skip_connections = skip_connections
 
+        self.build_encodings()
+        self.build_mlp_base()
+        self.build_mlp_rgb()
+        self.build_heads()
+
+    def build_encodings(self):
+        """Build the encodings."""
         self.encoding_xyz = NeRFEncoding(
             in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
         )
         self.encoding_dir = NeRFEncoding(
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
         )
+
+    def build_mlp_base(self):
+        """Build the MLP base."""
         self.mlp_base = MLP(
             in_dim=self.encoding_xyz.get_out_dim(),
             out_dim=self.layer_width,
@@ -46,6 +56,9 @@ class NeRFField(nn.Module):
             skip_connections=self.skip_connections,
             activation=nn.ReLU(),
         )
+
+    def build_mlp_rgb(self):
+        """Build the MLP for RGB."""
         self.mlp_rgb = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.encoding_dir.get_out_dim(),
             out_dim=self.layer_width // 2,
@@ -53,16 +66,14 @@ class NeRFField(nn.Module):
             layer_width=self.layer_width // 2,
             activation=nn.ReLU(),
         )
+
+    def build_heads(self):
+        """Build the heads."""
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
 
     def forward(self, ray_samples: RaySamples):
-        """Evaluates the field at points along the ray
-        Args:
-            xyz: ()
-        # TODO(ethan): change the input to be something more abstracted
-        e.g., a FieldInput structure
-        """
+        """Evaluates the field at points along the ray."""
         positions = ray_samples.positions
         directions = ray_samples.directions
         encoded_xyz = self.encoding_xyz(positions)
@@ -144,9 +155,7 @@ class NeRFGraph(Graph):
         # coarse network:
         uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
 
-        # time coarse network # xyz -> asd
         coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
-        # time end coarse network
 
         coarse_weights = uniform_ray_samples.get_weights(coarse_field_outputs[FieldHeadNames.DENSITY])
 

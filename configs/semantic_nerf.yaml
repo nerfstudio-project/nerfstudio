@@ -1,0 +1,14 @@
+defaults:
+  - default
+  - override data/dataset: friends_TBBT-big_living_room
+  - override graph: semantic_nerf_graph
+  - _self_
+
+experiment_name: friends_TBBT-big_living_room
+method_name: semantic_nerf
+
+network:
+  near_plane: 0.1
+  far_plane: 10.0
+  num_coarse_samples: 64
+  num_importance_samples: 64

@@ -12,6 +12,8 @@ from PIL import Image
 from torch.utils.data import default_collate
 from torchtyping import TensorType
 
+from mattport.nerf.dataset.structs import Semantics
+
 
 def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False):
     """_summary_
@@ -31,6 +33,8 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
     c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
     pixels = batch["image"][c, y, x]
     mask = batch["mask"][c, y, x]
+    if "stuff_image" in batch:
+        stuff_image = batch["stuff_image"][c, y, x]
     assert pixels.shape == (num_rays_per_batch, 3), pixels.shape
 
     # Needed to correct the random indices to their actual camera idx locations.
@@ -42,6 +46,10 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
         "pixels": pixels,
         "mask": mask,
     }
+
+    if "stuff_image" in batch:
+        collated_batch["stuff_image"] = stuff_image
+
     if keep_full_image:
         collated_batch["image"] = batch["image"]
 
@@ -52,7 +60,12 @@ class ImageDataset(torch.utils.data.Dataset):
     """Dataset that returns images."""
 
     def __init__(
-        self, image_filenames: List[str], downscale_factor: int = 1, alpha_color: Optional[TensorType[3]] = None
+        self,
+        image_filenames: List[str],
+        downscale_factor: int = 1,
+        alpha_color: Optional[TensorType[3]] = None,
+        semantics: Semantics = Semantics(),
+        **kwargs,
     ):
         """_summary_
 
@@ -66,6 +79,8 @@ class ImageDataset(torch.utils.data.Dataset):
         self.image_filenames = image_filenames
         self.downscale_factor = downscale_factor
         self.alpha_color = alpha_color
+        self.semantics = semantics
+        self.kwargs = kwargs
 
     def __len__(self):
         return len(self.image_filenames)
@@ -123,4 +138,24 @@ class ImageDataset(torch.utils.data.Dataset):
             "image": image,  # the pixels
             "mask": mask,
         }
+
+        if self.semantics.stuff_filenames:
+            stuff_image_filename = self.semantics.stuff_filenames[image_idx]
+            pil_image = Image.open(stuff_image_filename)
+            if self.downscale_factor != 1.0:
+                image_width, image_height = pil_image.size
+                if image_width % self.downscale_factor != 0:
+                    raise ValueError(
+                        f"Image width {image_width} is not divisible by downscale_factor {self.downscale_factor}"
+                    )
+                if image_height % self.downscale_factor != 0:
+                    raise ValueError(
+                        f"Image height {image_height} is not divisible by downscale_factor {self.downscale_factor}"
+                    )
+                # NOTE(ethan): the use of NEAREST is important for semantic classes
+                pil_image = pil_image.resize(
+                    (image_width // self.downscale_factor, image_height // self.downscale_factor), PIL.Image.NEAREST
+                )
+            stuff_image = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+            data["stuff_image"] = stuff_image
         return data
