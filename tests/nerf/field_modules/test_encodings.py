@@ -1,7 +1,6 @@
 """
 Encoding Tests
 """
-from multiprocessing.sharedctypes import Value
 import pytest
 import torch
 from mattport.nerf.field_modules import encoding
