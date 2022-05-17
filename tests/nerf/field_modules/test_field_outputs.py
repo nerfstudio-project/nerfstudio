@@ -4,7 +4,13 @@ Field output tests
 import torch
 from torch import nn
 
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
+from mattport.nerf.field_modules.field_heads import (
+    DensityFieldHead,
+    FieldHead,
+    FieldHeadNames,
+    RGBFieldHead,
+    SHFieldHead,
+)
 
 
 def test_field_output():
@@ -40,7 +46,20 @@ def test_rgb_output():
     rgb_head(x)
 
 
+def test_sh_output():
+    """Test sh output"""
+    in_dim = 6
+    levels = 4
+    channels = 3
+    rgb_head = SHFieldHead(in_dim, levels=levels, channels=channels)
+    assert rgb_head.get_out_dim() == channels * levels**2
+
+    x = torch.ones((9, in_dim))
+    rgb_head(x)
+
+
 if __name__ == "__main__":
     test_field_output()
     test_density_output()
     test_rgb_output()
+    test_sh_output()

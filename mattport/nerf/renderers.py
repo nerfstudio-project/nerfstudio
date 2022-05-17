@@ -35,6 +35,29 @@ class RGBRenderer(nn.Module):
         super().__init__()
         self.background_color = background_color
 
+    @classmethod
+    def combine_rgb(
+        cls,
+        rgb: TensorType[..., "num_samples", 3],
+        weights: TensorType[..., "num_samples"],
+        background_color: Optional[TensorType[3]] = None,
+    ) -> TensorType[..., 3]:
+        """Composite samples along ray and render color image
+
+        Args:
+            rgb (TensorType[..., "num_samples", -1]): RGB for each sample
+            weights (TensorType[..., "num_samples"]): Weights for each sample
+
+        Returns:
+            TensorType[..., 3]: Outputs rgb values.
+        """
+        rgb = torch.sum(weights[..., None] * rgb, dim=-2)
+
+        if background_color is not None:
+            rgb = rgb + background_color.to(weights.device)[None, ...] * (1.0 - torch.sum(weights, dim=-1)[..., None])
+
+        return rgb
+
     def forward(
         self,
         rgb: TensorType[..., "num_samples", 3],
@@ -50,17 +73,9 @@ class RGBRenderer(nn.Module):
             RendererOutputs: Outputs with rgb values.
         """
 
-        rgb = torch.sum(weights[..., None] * rgb, dim=-2)
-
-        if self.background_color is not None:
-            rgb = rgb + self.background_color.to(weights.device)[None, ...] * (
-                1.0 - torch.sum(weights, dim=-1)[..., None]
-            )
-        torch.clamp_(rgb, min=0.0, max=1.0)
-
-        assert torch.max(rgb) <= 1.0
-        assert torch.min(rgb) >= 0.0
-
+        rgb = self.combine_rgb(rgb, weights)
+        if not self.training:
+            torch.clamp_(rgb, min=0.0, max=1.0)
         renderer_outputs = RendererOutputs(rgb=rgb)
         return renderer_outputs
 
@@ -69,7 +84,7 @@ class SHRenderer(nn.Module):
     """Render RGB value from spherical harmonics."""
 
     def __init__(
-        self, activation: Optional[nn.Module] = nn.Sigmoid(), background_color: Optional[TensorType[3]] = None
+        self, background_color: Optional[TensorType[3]] = None, activation: Optional[nn.Module] = nn.Sigmoid()
     ) -> None:
         """
         Args:
@@ -103,21 +118,12 @@ class SHRenderer(nn.Module):
         components = components_from_spherical_harmonics(levels=levels, directions=directions)
 
         rgb = sh * components[..., None, :]  # [..., num_samples, 3, sh_components]
-        rgb = torch.sum(sh, dim=-1)  # [..., num_samples, 3]
-
-        rgb = torch.sum(weights[..., None] * rgb, dim=-2) + 0.5
+        rgb = torch.sum(sh, dim=-1) + 0.5  # [..., num_samples, 3]
 
         if self.activation is not None:
             self.activation(rgb)
 
-        if self.background_color is not None:
-            rgb = rgb + self.background_color.to(weights.device)[None, ...] * (
-                1.0 - torch.sum(weights, dim=-1)[..., None]
-            )
-        torch.clamp_(rgb, min=0.0, max=1.0)
-
-        assert torch.max(rgb) <= 1.0
-        assert torch.min(rgb) >= 0.0
+        rgb = RGBRenderer.combine_rgb(rgb, weights, background_color=self.background_color)
 
         renderer_outputs = RendererOutputs(rgb=rgb)
         return renderer_outputs
