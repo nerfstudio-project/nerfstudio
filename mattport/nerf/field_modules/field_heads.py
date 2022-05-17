@@ -14,6 +14,7 @@ class FieldHeadNames(Enum):
     """Possible field outputs"""
 
     RGB = "rgb"
+    SH = "sh"
     DENSITY = "density"
     UNCERTAINTY = "uncertainty"
     TRANSIENT_RGB = "transient_rgb"
@@ -38,14 +39,8 @@ class FieldHead(FieldModule):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
-        # if field_head_name not in FieldHeadNames:
-        #     raise ValueError("Incorrect field output name. Should be one of FieldHeadNames.")
         self.field_head_name = field_head_name
         self.activation = activation
-        self.net = None
-        self.build_nn_modules()
-
-    def build_nn_modules(self) -> None:
         layers = [nn.Linear(self.in_dim, self.out_dim)]
         if self.activation:
             layers.append(self.activation)
@@ -60,10 +55,6 @@ class FieldHead(FieldModule):
         Returns:
             TensorType[..., "out_dim"]: Render head output
         """
-        if not self.field_head_name:
-            raise ValueError("field_quantity_name should be set in the child class. E.g., as 'rgb' or 'density'.")
-        if not self.net:
-            raise SystemError("Render head network not initialized. build_nn_modules() should be called.")
         out_tensor = self.net(in_tensor)
         return {self.field_head_name: out_tensor}
 
@@ -95,7 +86,7 @@ class SHFieldHead(FieldHead):
             activation (Optional[nn.Module], optional): Output activation. Defaults to None.
         """
         out_dim = channels * levels**2
-        super().__init__(in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.RGB, activation=activation)
+        super().__init__(in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.SH, activation=activation)
 
 
 class UncertaintyFieldHead(FieldHead):
@@ -123,4 +114,9 @@ class SemanticStuffHead(FieldHead):
     """Semantic stuff output"""
 
     def __init__(self, in_dim: int, num_classes: int) -> None:
+        """
+        Args:
+            in_dim (int): Input dimension
+            num_classes (int): Number of semantic classes
+        """
         super().__init__(in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS_STUFF, activation=None)

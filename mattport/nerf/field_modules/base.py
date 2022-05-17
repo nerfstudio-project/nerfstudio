@@ -44,15 +44,11 @@ class FieldModule(nn.Module):
 
     @abstractmethod
     def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """_summary_
-
+        """
         Args:
-            x (TensorType[..., "input_dim"]): Input tensor to be encoded
-
-        Raises:
-            NotImplementedError: _description_
+            in_tensor (TensorType[..., "input_dim"]): Input tensor to process
 
         Returns:
-            TensorType[..., "output_dim"]: A encoded input tensor
+            TensorType[..., "output_dim"]: Processed tensor
         """
         raise NotImplementedError
