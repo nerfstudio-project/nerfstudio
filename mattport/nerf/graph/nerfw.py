@@ -212,6 +212,4 @@ class NerfWGraph(NeRFGraph):
         row2 = torch.cat([depth_fine, depth_fine_static, depth_coarse], dim=-2)
         combined_image = torch.cat([row0, row1, row2], dim=-3)
 
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}-nerfw", "x": combined_image, "step": step, "group": "val_img"}
-        )
+        writer.write_image(name="image_idx_{image_idx}-nerfw", image=combined_image, step=step, group="img")

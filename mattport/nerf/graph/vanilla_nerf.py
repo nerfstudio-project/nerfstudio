@@ -206,19 +206,8 @@ class NeRFGraph(Graph):
     def log_test_image_outputs(self, image_idx, step, image, outputs):
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
-
-        combined_image = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}-rgb_coarse_fine", "x": combined_image, "step": step, "group": "val_img"}
-        )
-
-        accumulation_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])
-        accumulation_fine = visualization.apply_colormap(outputs["accumulation_fine"])
-        combined_image = torch.cat([accumulation_coarse, accumulation_fine], dim=1)
-        writer.write_event(
-            {"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_accumulation"}
-        )
-
+        acc_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])
+        acc_fine = visualization.apply_colormap(outputs["accumulation_fine"])
         depth_coarse = visualization.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
@@ -231,8 +220,14 @@ class NeRFGraph(Graph):
             near_plane=self.near_plane,
             far_plane=self.far_plane,
         )
-        combined_image = torch.cat([depth_coarse, depth_fine], dim=1)
-        writer.write_event({"name": f"image_idx_{image_idx}", "x": combined_image, "step": step, "group": "val_depth"})
+
+        combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
+        combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
+        combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
+
+        writer.write_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
+        writer.write_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
+        writer.write_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
@@ -240,23 +235,17 @@ class NeRFGraph(Graph):
         rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
 
         coarse_psnr = self.psnr(image, rgb_coarse)
-        writer.write_event(
-            {"name": f"val_{image_idx}-coarse", "scalar": float(coarse_psnr), "step": step, "group": "psnr"}
-        )
-
         fine_psnr = self.psnr(image, rgb_fine)
+        fine_ssim = self.ssim(image, rgb_fine)
+        fine_lpips = self.lpips(image, rgb_fine)
+
+        writer.write_scalar(name=f"val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step, group="psnr")
+        writer.write_scalar(name=f"val_{image_idx}-fine", scalar=float(fine_psnr), step=step, group="psnr")
+        writer.write_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
+        writer.write_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
+
         stats_tracker.update_stats(
             {"name": stats_tracker.Stats.CURR_TEST_PSNR, "value": float(fine_psnr), "step": step}
         )
-        writer.write_event(
-            {"name": f"val_idx_{image_idx}-fine", "scalar": float(fine_psnr), "step": step, "group": "psnr"}
-        )
 
-        fine_ssim = self.ssim(image, rgb_fine)
-        writer.write_event({"name": f"val_idx_{image_idx}", "scalar": float(fine_ssim), "step": step, "group": "ssim"})
-
-        fine_lpips = self.lpips(image, rgb_fine)
-        writer.write_event(
-            {"name": f"val_idx_{image_idx}", "scalar": float(fine_lpips), "step": step, "group": "lpips"}
-        )
         return fine_psnr.item()
