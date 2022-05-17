@@ -227,7 +227,7 @@ class Trainer:
             )
 
             if step != 0 and step % self.config.logging.steps_per_log == 0:
-                writer.write_event({"scalar_dict": loss_dict, "step": step, "group": "Loss", "prefix": "train-"})
+                writer.write_scalar_dict(scalar_dict=loss_dict, step=step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
