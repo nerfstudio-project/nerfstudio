@@ -3,7 +3,7 @@ Camera Models
 """
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Type
 
 import torch
 from torch.nn.functional import normalize
@@ -28,45 +28,50 @@ class Camera:
 
     @abstractmethod
     def get_num_intrinsics_params(self) -> int:
-        """_summary_
-
+        """
         Returns:
-            int: _description_
+            int: number of optimizable intrinsic parameters
         """
         return
 
     @abstractmethod
     def get_intrinsics(self) -> torch.Tensor:
-        """_summary_
-
+        """
         Returns:
-            torch.Tensor: _description_
+            torch.Tensor: Intrinsics matrix
         """
         return
 
     def get_camera_to_world(self) -> TensorType[3, 4]:
-        """_summary_
-
+        """
         Returns:
-            TensorType[3, 4]: _description_
+            int: Camera to world transformation
         """
         return self.camera_to_world
 
     @abstractmethod
-    def get_image_height(self):
-        """_summary_"""
+    def get_image_height(self) -> int:
+        """
+        Returns:
+            int: Image height
+        """
         return
 
     @abstractmethod
-    def get_image_width(self):
-        """_summary_"""
+    def get_image_width(self) -> int:
+        """
+        Returns:
+            int: Image width
+        """
         return
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["image_height", "image_width", 2]:
-        """_summary_
+        """
+        Args:
+            pixel_offset (float): Offset for each pixel. Defaults to center of pixel (0.5)
 
         Returns:
-            _type_: _description_
+            TensorType["image_height", "image_width", 2]: Grid of image coordinates.
         """
         image_height = self.get_image_height()
         image_width = self.get_image_width()
@@ -82,15 +87,14 @@ class Camera:
         camera_to_world: TensorType["num_rays", 3, 4],
         coords: TensorType["image_height", "image_width", 2],
     ) -> RayBundle:
-        """_summary_
-
+        """
         Args:
-            intrinsics (TensorType[&quot;num_rays&quot;, &quot;num_intrinsics_params&quot;]): _description_
-            camera_to_world (TensorType[&quot;num_rays&quot;, 3, 4]): _description_
-            coords (TensorType[&quot;image_height&quot;, &quot;image_width&quot;, 2]): _description_
+            intrinsics (TensorType["num_rays", "num_intrinsics_params"]): Camera intrinsics
+            camera_to_world (TensorType["num_rays", 3, 4]): Camera to world transformation matrix
+            coords (TensorType["image_height", "image_width", 2]): Image grid coordinates
 
         Returns:
-            RayBundle: _description_
+            RayBundle: A bundle of rays for each grid coordinate.
         """
         return
 
@@ -123,20 +127,19 @@ class PinholeCamera(Camera):
         self.fx = fx
         self.fy = fy
 
-    def get_num_intrinsics_params(self):
+    def get_num_intrinsics_params(self) -> int:
         return 4
 
-    def get_image_width(self):
+    def get_image_width(self) -> int:
         return int(self.cx * 2.0)
 
-    def get_image_height(self):
+    def get_image_height(self) -> int:
         return int(self.cy * 2.0)
 
-    def get_intrinsics_matrix(self):
-        """_summary_
-
+    def get_intrinsics_matrix(self) -> TensorType[3, 3]:
+        """
         Returns:
-            _type_: _description_
+            TensorType[3, 3]: Pinhole camera intrinsics matrix
         """
         K = torch.tensor(
             [[self.fx, 0.0, self.cx], [0.0, self.fy, self.cy], [0, 0, 1.0]],
@@ -206,15 +209,61 @@ class SimplePinholeCamera(PinholeCamera):
         return 2
 
 
-def get_camera_model(num_intrinsics_params):
+class EquirectangularCamera(Camera):
+    """Equirectangular (360 degree) camera model."""
+
+    def __init__(self, height: int, width: int, camera_to_world: Optional[TensorType[3, 4]] = torch.eye(4)[:3]):
+        super().__init__(camera_to_world)
+        self.height = height
+        self.width = width
+
+    def get_num_intrinsics_params(self):
+        return 2
+
+    def get_image_width(self):
+        return self.width
+
+    def get_image_height(self):
+        return self.height
+
+    def get_intrinsics(self) -> torch.Tensor:
+        return torch.tensor([self.height, self.width])
+
+    @classmethod
+    def generate_rays(
+        cls,
+        intrinsics: TensorType["num_rays", 2],
+        camera_to_world: TensorType["num_rays", 3, 4],
+        coords: TensorType["num_rays", 2],
+    ) -> RayBundle:
+
+        phi = coords[:, 0:1]  # (num_rays, 1)
+        theta = coords[:, 1:2]  # (num_rays, 1)
+
+        height = intrinsics[:, 0:1]
+        width = intrinsics[:, 1:2]
+
+        phi = phi / height * torch.pi
+        theta = -theta / width * 2 * torch.pi
+
+        directions = torch.stack(
+            [torch.cos(theta) * torch.sin(phi), torch.sin(theta) * torch.sin(phi), torch.cos(phi)], dim=-1
+        )
+        origins = camera_to_world[:, :3, 3]  # (num_rays, 3)
+        return RayBundle(origins=origins, directions=directions)
+
+
+def get_camera_model(num_intrinsics_params: int) -> Type[Camera]:
     """Returns the camera model given the specified number of intrinsics parameters.
 
     Args:
-        num_intrinsics_params (_type_): _description_
+        num_intrinsics_params (int): Number of intrinsic parametes.
 
     Returns:
-        _type_: _description_
+        Camera: Camera model
     """
+    if num_intrinsics_params == 2:
+        return EquirectangularCamera
     if num_intrinsics_params == 3:
         return SimplePinholeCamera
     if num_intrinsics_params == 4:
