@@ -1,4 +1,4 @@
-black==22.3.0
+black[jupyter]==22.3.0
 hydra-colorlog
 hydra-core
 imageio==2.16.1
