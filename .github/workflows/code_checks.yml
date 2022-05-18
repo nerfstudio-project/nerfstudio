@@ -25,9 +25,7 @@ jobs:
           pip install -r environment/requirements.txt
           pip install -e .
       - name: Run Black
-        uses: psf/black@stable
-        with:
-          options: "--check"
+        run: black mattport/ notebooks/ --check
       - name: Python Pylint
         run: |
           pylint mattport tests

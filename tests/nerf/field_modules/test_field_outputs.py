@@ -4,16 +4,20 @@ Field output tests
 import torch
 from torch import nn
 
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
+from mattport.nerf.field_modules.field_heads import (
+    DensityFieldHead,
+    FieldHead,
+    RGBFieldHead,
+    SHFieldHead,
+)
 
 
 def test_field_output():
     """Test render output"""
     in_dim = 6
     out_dim = 4
-    field_head_name = FieldHeadNames.DENSITY
     activation = nn.ReLU()
-    render_head = FieldHead(in_dim=in_dim, out_dim=out_dim, field_head_name=field_head_name, activation=activation)
+    render_head = FieldHead(in_dim=in_dim, out_dim=out_dim, activation=activation)
     assert render_head.get_out_dim() == out_dim
 
     x = torch.ones((9, in_dim))
@@ -40,7 +44,20 @@ def test_rgb_output():
     rgb_head(x)
 
 
+def test_sh_output():
+    """Test sh output"""
+    in_dim = 6
+    levels = 4
+    channels = 3
+    rgb_head = SHFieldHead(in_dim, levels=levels, channels=channels)
+    assert rgb_head.get_out_dim() == channels * levels**2
+
+    x = torch.ones((9, in_dim))
+    rgb_head(x)
+
+
 if __name__ == "__main__":
     test_field_output()
     test_density_output()
     test_rgb_output()
+    test_sh_output()

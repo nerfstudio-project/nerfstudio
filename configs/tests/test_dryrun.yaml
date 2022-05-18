@@ -8,10 +8,10 @@ machine_config:
 
 data:
   dataset:
-    dataset_type: blender
+    dataset_format: blender
     data_directory: tests/data/lego_test
     downscale_factor: 8
-  validation_image_indices: [0]
+  val_image_indices: [0]
   dataloader:
     num_images_to_sample_from: 1
     num_rays_per_batch: 8
@@ -20,9 +20,9 @@ graph:
   max_num_iterations: 5
 
 logging:
-  writer: 
+  writer:
     TensorboardWriter:
-      save_dir: '/tmp/'
+      save_dir: "/tmp/"
 
 hydra:
   searchpath:

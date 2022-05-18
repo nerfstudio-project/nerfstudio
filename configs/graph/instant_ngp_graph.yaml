@@ -9,5 +9,4 @@ network:
 param_groups:
   fields:
     optimizer:
-      type: Adam
       lr: 1e-2

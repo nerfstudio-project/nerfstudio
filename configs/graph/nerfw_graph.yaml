@@ -4,3 +4,8 @@ defaults:
 
 network:
   _target_: mattport.nerf.graph.nerfw.NerfWGraph
+  loss_coefficients: # loss coefficients
+    rgb_loss_coarse: 1.0
+    rgb_loss_fine: 1.0
+    uncertainty_loss: 1.0
+    density_loss: 0.01

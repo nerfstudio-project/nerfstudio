@@ -157,13 +157,13 @@ class StatsTracker:
                     v = f"{v:0.4f}"
                 curr_mssg += f"{v:<20} "
             # update the history buffer
-            if len(self.past_stats) >= self.max_history:
-                self.past_stats.pop(0)
-                cursorup(len(self.past_stats) + 1)
-                for mssg in self.past_stats:
-                    print(mssg)
+            # if len(self.past_stats) >= self.max_history:
+            #     self.past_stats.pop(0)
+            # cursorup(len(self.past_stats) + 1)
+            # for mssg in self.past_stats:
+            #     print(mssg)
             print(curr_mssg)
-            self.past_stats.append(curr_mssg)
+            # self.past_stats.append(curr_mssg)
 
     @check_print_stats_step
     def print_stats(self, fraction_done: float):
@@ -173,7 +173,7 @@ class StatsTracker:
             fraction_done (float): fraction of steps executed in training iterations
         """
         # print a new header line if there is a new key added
-        self.handle_header()
+        # self.handle_header()
 
         # generate a new stats reporting message
         self.handle_stats(fraction_done)

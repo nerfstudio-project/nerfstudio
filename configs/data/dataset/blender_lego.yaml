@@ -1,4 +1,4 @@
 data_directory: data/blender/lego
-dataset_type: blender
-downscale_factor: 4
+dataset_format: blender
+downscale_factor: 1
 alpha_color: white

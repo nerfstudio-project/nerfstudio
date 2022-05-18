@@ -9,6 +9,7 @@
         "**/temp*": true,
     },
     "editor.formatOnSave": true,
+    "python.envFile": "${workspaceFolder}/.env",
     "python.formatting.provider": "black",
     "python.formatting.blackArgs": [
         "--line-length=120"
@@ -25,5 +26,5 @@
         "**/site-packages/**/*.py",
         ".vscode/*.py",
         "external/**/*.py",
-    ],
+    ]
 }

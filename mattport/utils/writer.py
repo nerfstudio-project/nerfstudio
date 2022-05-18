@@ -5,7 +5,7 @@ Generic Writer class
 
 import os
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Dict
 
 import imageio
 import numpy as np
@@ -22,18 +22,46 @@ to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 EVENT_WRITERS = []
 
 
-def write_event(args: Dict[str, Any]):
-    """write out values for all the event writers"""
+def write_image(name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None) -> None:
+    """Write image to all writers
+    Args:
+        name (str): data identifier
+        image (TensorType["H", "W", "C"]): rendered image to write
+        step (int): the time step to log
+        group (str): the group e.g., "Loss", "Accuracy", "Time"
+        prefix (str): the prefix e.g., "train-", "test-"
+    """
     assert comms.is_main_process(), "Writing out with process other than main"
     for writer in EVENT_WRITERS:
-        if "x" in args:
-            writer.write_image(**args)
-        elif "scalar" in args:
-            writer.write_scalar(**args)
-        elif "scalar_dict" in args:
-            writer.write_scalar_dict(**args)
-        else:
-            raise NotImplementedError
+        writer.write_image(name, image, step, group, prefix)
+
+
+def write_scalar(name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
+    """Write scalar to all writers
+
+    Args:
+        name (str): data identifier
+        step (int): the time step to log
+        group (str): the group e.g., "Loss", "Accuracy", "Time"
+        prefix (str): the prefix e.g., "train-", "test-"
+    """
+    assert comms.is_main_process(), "Writing out with process other than main"
+    for writer in EVENT_WRITERS:
+        writer.write_scalar(name, scalar, step, group, prefix)
+
+
+def write_scalar_dict(scalar_dict: Dict[str, float], step: int, group: str = None, prefix: str = None) -> None:
+    """Write dictionary of scalars to all writers
+
+    Args:
+        scalar_dict (dict): dictionary containing all scalar values with key names and quantities
+        step (int): the time step to log
+        group (str): the group e.g., "Loss", "Accuracy", "Time"
+        prefix (str): the prefix e.g., "train-", "test-"
+    """
+    assert comms.is_main_process(), "Writing out with process other than main"
+    for writer in EVENT_WRITERS:
+        writer.write_scalar_dict(scalar_dict, step, group, prefix)
 
 
 def setup_event_writers(config: DictConfig) -> None:
@@ -62,13 +90,13 @@ class Writer:
 
     @abstractmethod
     def write_image(
-        self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
+        self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
     ) -> None:
         """_summary_
 
         Args:
             name (str): data identifier
-            x (TensorType["H", "W", "C"]): rendered image to write
+            image (TensorType["H", "W", "C"]): rendered image to write
             step (int): the time step to log
             group (str): the group e.g., "Loss", "Accuracy", "Time"
             prefix (str): the prefix e.g., "train-", "test-"
@@ -112,17 +140,17 @@ class TensorboardWriter(Writer):
         self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 
     def write_image(
-        self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
+        self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
     ) -> None:
         """_summary_
 
         Args:
             name (str): data identifier
-            x (TensorType["H", "W", "C"]): rendered image to write
+            image (TensorType["H", "W", "C"]): rendered image to write
         """
-        x = to8b(x)
+        image = to8b(image)
         tensorboard_name = get_tensorboard_name(name, group=group, prefix=prefix)
-        self.tb_writer.add_image(tensorboard_name, x, step, dataformats="HWC")
+        self.tb_writer.add_image(tensorboard_name, image, step, dataformats="HWC")
 
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
         """Tensorboard method to write a single scalar value to the logger
@@ -142,11 +170,11 @@ class LocalWriter(Writer):
     """Local Writer Class"""
 
     def write_image(
-        self, name: str, x: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
+        self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
     ) -> None:
-        x = to8b(x)
+        image = to8b(image)
         image_path = os.path.join(self.save_dir, f"{name}.jpg")
-        imageio.imwrite(image_path, np.uint8(x.cpu().numpy() * 255.0))
+        imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
         raise NotImplementedError

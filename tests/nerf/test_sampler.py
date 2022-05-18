@@ -5,6 +5,7 @@ import torch
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 
 from mattport.structures.rays import RayBundle
+from mattport.nerf.colliders import NearFarCollider
 
 
 def test_uniform_sampler():
@@ -12,11 +13,13 @@ def test_uniform_sampler():
     near_plane = 2
     far_plane = 4
     num_samples = 15
-    sampler = UniformSampler(near_plane=near_plane, far_plane=far_plane, num_samples=num_samples)
+    sampler = UniformSampler(num_samples=num_samples)
 
     origins = torch.zeros((10, 3))
     directions = torch.ones_like(origins)
     ray_bundle = RayBundle(origins=origins, directions=directions)
+    collider = NearFarCollider(near_plane, far_plane)
+    ray_bundle = collider(ray_bundle)
 
     ray_samples = sampler(ray_bundle)
 
@@ -34,8 +37,10 @@ def test_pdf_sampler():
     origins = torch.zeros((10, 3))
     directions = torch.ones_like(origins)
     ray_bundle = RayBundle(origins=origins, directions=directions)
+    collider = NearFarCollider(near_plane, far_plane)
+    ray_bundle = collider(ray_bundle)
 
-    uniform_sampler = UniformSampler(near_plane=near_plane, far_plane=far_plane, num_samples=num_samples)
+    uniform_sampler = UniformSampler(num_samples=num_samples)
     coarse_ray_samples = uniform_sampler(ray_bundle)
 
     weights = torch.ones((10, num_samples))

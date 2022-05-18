@@ -2,7 +2,6 @@
 Profiler base class and functionality
 """
 import logging
-import sys
 import time
 from typing import Callable
 
@@ -21,11 +20,7 @@ def time_function(func: Callable) -> Callable:
         start = time.time()
         ret = func(*args, **kwargs)
         if PROFILER:
-            vals = vars(sys.modules[func.__module__])
-            class_str = ""
-            for attr in func.__qualname__.split(".")[:-1]:
-                class_str += f"{vals[attr].__qualname__}_"
-            class_str += func.__name__
+            class_str = func.__qualname__
             PROFILER[0].update_time(class_str, start, time.time())
         return ret
 

@@ -6,6 +6,7 @@ import logging
 import random
 import socket
 from datetime import timedelta
+import traceback
 from typing import Any, Callable
 
 import hydra
@@ -17,6 +18,7 @@ from omegaconf import DictConfig
 
 from mattport.nerf.trainer import Trainer
 from mattport.utils import comms, profiler
+from time import time
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 
@@ -98,7 +100,7 @@ def _distributed_worker(
 
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
-    _set_random_seed(1234 + local_rank)  # NOTE(ethan): will this work for multiple machines? should we use global_rank?
+    _set_random_seed(1234 + global_rank)
     comms.synchronize(world_size)
 
     output = main_func(local_rank, world_size, config)
@@ -147,13 +149,15 @@ def launch(
     world_size = num_machines * num_gpus_per_machine
     if world_size == 0:
         # Using only CPU and one process.
+        _set_random_seed(0)
         main_func(local_rank=0, world_size=0, config=config)
     elif world_size == 1:
         # Using one gpu and one process.
+        _set_random_seed(0)
         try:
             main_func(local_rank=0, world_size=1, config=config)
         except KeyboardInterrupt:
-            pass
+            print(traceback.format_exc())
         finally:
             profiler.flush_profiler(config.logging)
     elif world_size > 1:

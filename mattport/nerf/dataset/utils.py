@@ -2,57 +2,62 @@
 For loading the blender dataset format.
 """
 
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Union
 
 from omegaconf import ListConfig
 
-from mattport.nerf.dataset.blender import load_blender_data
-from mattport.nerf.dataset.friends import load_friends_data
+from mattport.nerf.dataset.format.blender import load_blender_data
+from mattport.nerf.dataset.format.friends import load_friends_data
 from mattport.nerf.dataset.structs import DatasetInputs
 from mattport.structures.colors import get_color
 from mattport.utils.io import get_absolute_path
 
 
-def get_dataset_inputs_dict(
+def get_dataset_inputs(
     data_directory: str,
-    dataset_type: str,
+    dataset_format: str,
+    split: str,
     downscale_factor: int = 1,
     alpha_color: Optional[Union[str, list, ListConfig]] = None,
-    splits: Tuple[str] = ("train", "val"),
-) -> Dict[str, DatasetInputs]:
+    load_dataset_inputs_from_cache: bool = False,
+) -> DatasetInputs:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
     # TODO: implement the `test` split, which will have depths and normals, etc.
 
     Args:
         data_directory (str): Location of data
-        dataset_type (str): Name of dataset type
+        dataset_format (str): Name of dataset type
         downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
         alpha_color (str, list, optional): Sets transparent regions to specified color, otherwise black.
-
+        load_from_cache (bool)
     Returns:
-        Dict[str, DatasetInputs]: The inputs needed for generating rays.
+        DatasetInputs: The inputs needed for generating rays.
     """
-    dataset_inputs_dict = {}
+
+    if load_dataset_inputs_from_cache:
+        print("Loading from cache.")
+        return None
 
     if alpha_color is not None:
         alpha_color = get_color(alpha_color)
 
-    if dataset_type == "blender":
-        for split in splits:
-            dataset_inputs = load_blender_data(
-                get_absolute_path(data_directory),
-                downscale_factor=downscale_factor,
-                split=split,
-                alpha_color=alpha_color,
-            )
-            dataset_inputs_dict[split] = dataset_inputs
-    elif dataset_type == "friends":
-        for split in splits:
-            dataset_inputs = load_friends_data(
-                get_absolute_path(data_directory), downscale_factor=downscale_factor, split=split
-            )
-            dataset_inputs_dict[split] = dataset_inputs
+    if dataset_format == "blender":
+        dataset_inputs = load_blender_data(
+            get_absolute_path(data_directory),
+            downscale_factor=downscale_factor,
+            split=split,
+            alpha_color=alpha_color,
+        )
+    elif dataset_format == "friends":
+        # TODO(ethan): change this hack, and do proper splits for the friends dataset
+        # currently we assume that there is only the training set of images
+        dataset_inputs = load_friends_data(
+            get_absolute_path(data_directory),
+            downscale_factor=downscale_factor,
+            split="train",
+            include_point_cloud=False,
+        )
     else:
-        raise NotImplementedError(f"{dataset_type} is not a valid dataset type")
+        raise NotImplementedError(f"{dataset_format} is not a valid dataset type")
 
-    return dataset_inputs_dict
+    return dataset_inputs
