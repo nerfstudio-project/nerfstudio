@@ -15,6 +15,7 @@ from mattport.nerf.field_modules.encoding import NeRFEncoding
 from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.fields.base import Field
+from mattport.nerf.fields.density_field import DensityField
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
@@ -41,6 +42,9 @@ class NeRFField(Field):
         self.build_mlp_base()
         self.build_mlp_rgb()
         self.build_heads()
+
+        sequence = nn.Sequential(self.encoding_xyz, self.mlp_base)
+        self.density_field = DensityField(sequence)
 
     def build_encodings(self):
         """Build the encodings."""
@@ -89,9 +93,8 @@ class NeRFField(Field):
         )
         if not valid_mask.any():  # empty mask
             return density, base_mlp_out
-        encoded_xyz = self.encoding_xyz(positions[valid_mask])
-        base_mlp_out[valid_mask] = self.mlp_base(encoded_xyz)
-        density[valid_mask] = self.field_output_density(base_mlp_out[valid_mask])
+
+        density[valid_mask], base_mlp_out[valid_mask] = self.density_field(positions[valid_mask])
         return density, base_mlp_out
 
     def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
@@ -138,7 +141,6 @@ class NeRFGraph(Graph):
         self.field_fine = NeRFField()
 
     def populate_misc_modules(self):
-
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
@@ -162,7 +164,6 @@ class NeRFGraph(Graph):
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
-
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
@@ -189,12 +190,6 @@ class NeRFGraph(Graph):
         accumulation_fine = self.renderer_accumulation(weights_fine)
         depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.ts)
 
-        # --- occupancy grid ---
-        # TODO(ethan): move this elsewhere. currently here for debugging purposes
-        density_occ = self.occupancy_grid.get_densities(ray_samples_pdf.positions)
-        weights_occ = ray_samples_pdf.get_weights(density_occ)
-        depth_occ = self.renderer_depth(weights_occ, ray_samples_pdf.ts)
-
         outputs = {
             "rgb_coarse": rgb_coarse,
             "rgb_fine": rgb_fine,
@@ -202,7 +197,6 @@ class NeRFGraph(Graph):
             "accumulation_fine": accumulation_fine,
             "depth_coarse": depth_coarse,
             "depth_fine": depth_fine,
-            "depth_occ": depth_occ,
         }
         return outputs
 
@@ -240,9 +234,6 @@ class NeRFGraph(Graph):
         writer.write_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
         writer.write_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
         writer.write_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
-
-        depth_occ = visualization.apply_depth_colormap(outputs["depth_occ"])
-        writer.write_image(name=f"image_idx_{image_idx}", image=depth_occ, step=step, group="depth_occupancy_grid")
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

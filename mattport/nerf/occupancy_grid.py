@@ -13,7 +13,9 @@ from mattport.utils.misc import is_not_none
 class OccupancyGrid(nn.Module):
     """Module to keep track of the density and occupancy."""
 
-    def __init__(self, num_cascades=1, resolution=128, aabb=None) -> None:
+    def __init__(
+        self, num_cascades=1, resolution=128, aabb=None, density_fn=None, update_every_num_iters: int = 16
+    ) -> None:
         super().__init__()
         assert is_not_none(aabb), "The axis-aligned bounding box aabb is not defined!"
         self.num_cascades = num_cascades  # the number of levels (i.e, cascades)
@@ -25,6 +27,10 @@ class OccupancyGrid(nn.Module):
         # not a module parameter, but it still should be saved and part of `state_dict`
         self.register_buffer("occupancy_grid", occupancy_grid)
         self.mean_density = 0.0
+
+        self.density_fn = density_fn
+        self.update_every_num_iters = update_every_num_iters
+        self.iteration_count = 0
 
     def reset(self):
         """Zero out the occupancy grid."""
@@ -96,8 +102,18 @@ class OccupancyGrid(nn.Module):
         )
         self.mean_density = torch.mean(self.occupancy_grid[valid_mask]).item()
 
-    def get_densities(self, xyzs: TensorType[..., 3]):
-        """Trilinear interpolation to get the density values."""
+    @torch.no_grad()
+    def get_densities(self, xyzs: TensorType[..., 3], update_iter_count: bool = False) -> TensorType[..., 1]:
+        """Trilinear interpolation to get the density values.
+
+        Args:
+            xyzs (TensorType[..., 3]): 3D querry coordinate
+            update_iter_count (bool, optional): Update current iteration. Used for knowing when to update grid.
+                Defaults to False.
+
+        Returns:
+            TensorType[..., 1]: Density values
+        """
         occupancy_grid = self.occupancy_grid[None, ...]  # shape (1, num_cascades, X_res, Y_res, Z_res)
         xyzs_shape = xyzs.shape
         xyzs_reshaped = xyzs.view(1, -1, 1, 1, 3)
@@ -112,6 +128,14 @@ class OccupancyGrid(nn.Module):
             padding_mode="zeros",
         )
         densities = densities.view(*xyzs_shape[:-1], 1)
+
+        # TODO we should be tracking the iteration another way
+        if self.training and update_iter_count:
+            self.iteration_count += 1
+            if self.iteration_count % self.update_every_num_iters == 0:
+                if self.density_fn is not None:
+                    self.update_occupancy_grid(self.density_fn)
+
         return densities
 
     def forward(self, x):

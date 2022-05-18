@@ -1,7 +1,6 @@
 """
 The Graph module contains all trainable parameters.
 """
-import logging
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Dict, List, Union
@@ -13,7 +12,6 @@ from torch.nn import Parameter
 from torchtyping import TensorType
 
 from mattport.nerf.dataset.structs import SceneBounds
-from mattport.nerf.occupancy_grid import OccupancyGrid
 from mattport.nerf.ray_generator import RayGenerator
 from mattport.nerf.colliders import AABBBoxCollider
 from mattport.structures.cameras import get_camera_model
@@ -65,7 +63,6 @@ class Graph(AbstractGraph):
         self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
         self.kwargs = kwargs
         self.collider = None
-        self.occupancy_grid = OccupancyGrid(aabb=self.scene_bounds.aabb)
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
         self.populate_collider()
         self.populate_fields()
@@ -97,10 +94,6 @@ class Graph(AbstractGraph):
         batch: Union[str, Dict[str, torch.tensor]] = None,
         step: int = None,
     ):
-        # update the occupancy grid
-        if step and step % self.steps_per_occupancy_grid_update == 0:
-            logging.info("Updating occupancy grid.")
-            self.occupancy_grid.update_occupancy_grid(density_fn=self.field_fine.density_fn)
 
         # get the rays
         original_ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle

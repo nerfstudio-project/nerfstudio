@@ -6,8 +6,73 @@ from typing import Optional
 import torch
 from torch import nn
 from torchtyping import TensorType
+from mattport.nerf.occupancy_grid import OccupancyGrid
 
 from mattport.structures.rays import RayBundle, RaySamples
+
+
+class OccupancyGridSampler(nn.Module):
+    """Sample based on occupancy grid"""
+
+    def __init__(
+        self,
+        occupancy_grid: OccupancyGrid,
+        num_samples: int = 256,
+        weight_threshold: float = 1e-4,
+        train_stratified=True,
+    ) -> None:
+        """
+        Args:
+        """
+        super().__init__()
+        self.num_samples = num_samples
+        self.train_stratified = train_stratified
+        self.weight_threshold = weight_threshold
+        self.occupancy_grid = occupancy_grid
+
+    @torch.no_grad()
+    def forward(
+        self,
+        ray_bundle: RayBundle,
+        num_samples: Optional[int] = None,
+    ) -> RaySamples:
+        """Generates position samples uniformly.
+
+        Args:
+            ray_bundle (RayBundle): Rays to generate samples for
+            num_samples (Optional[int]): Number of samples per ray
+
+        Returns:
+            RaySamples: Positions and deltas for samples along a ray
+        """
+        assert ray_bundle.nears is not None
+        assert ray_bundle.fars is not None
+
+        num_samples = num_samples or self.num_samples
+        num_rays = ray_bundle.origins.shape[0]
+
+        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)  # shape (num_samples+1,)
+        bins = ray_bundle.nears[:, None] + bins[None, :] * (
+            ray_bundle.fars[:, None] - ray_bundle.nears[:, None]
+        )  # shape (num_rays, num_samples+1)
+
+        if self.train_stratified and self.training:
+            t_rand = torch.rand((num_rays, num_samples), dtype=bins.dtype, device=bins.device)
+            ts = bins[:, :-1] + t_rand * (bins[:, 1:] - bins[:, :-1])  # shape (num_rays, num_samples)
+        else:
+            ts = (bins[:, 1:] + bins[:, :-1]) / 2
+
+        ray_samples = RaySamples(
+            ts=ts,
+            ray_bundle=ray_bundle,
+        )
+
+        densities = self.occupancy_grid.get_densities(ray_samples.positions, update_iter_count=True)
+        weights = ray_samples.get_weights(densities)
+
+        valid_mask = weights >= self.weight_threshold
+
+        return ray_samples, weights, valid_mask
 
 
 class UniformSampler(nn.Module):
