@@ -4,6 +4,8 @@ Input/output utils.
 import json
 import os
 
+import logging
+
 
 def load_from_json(filename: str):
     """_summary_
@@ -51,16 +53,23 @@ def get_git_root(path, dirs=(".git",), default=None):
     return default
 
 
-def get_project_root():
+def get_project_root(path):
     """Return the project root directory from an environment variable.
     # TODO: handle this better and report user error
     """
     project_root = os.getenv("PROJECT_ROOT")
-    assert project_root is not None, "Please set PROJECT_ROOT to the root directory of this repo."
+    if project_root is None:
+        logging.info(
+            (
+                "Please set PROJECT_ROOT to the root directory of this repo. "
+                "Going to try calling get_git_root(path) instead."
+            )
+        )
+        project_root = get_git_root(path)
     return project_root
 
 
-def get_absolute_path(path, proj_root_func=get_git_root):
+def get_absolute_path(path, proj_root_func=get_project_root):
     """
     Returns the full, absolute path.
     Relative paths are assumed to start at the repo directory.

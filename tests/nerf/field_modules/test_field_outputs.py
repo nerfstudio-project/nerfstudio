@@ -7,7 +7,6 @@ from torch import nn
 from mattport.nerf.field_modules.field_heads import (
     DensityFieldHead,
     FieldHead,
-    FieldHeadNames,
     RGBFieldHead,
     SHFieldHead,
 )
@@ -17,9 +16,8 @@ def test_field_output():
     """Test render output"""
     in_dim = 6
     out_dim = 4
-    field_head_name = FieldHeadNames.DENSITY
     activation = nn.ReLU()
-    render_head = FieldHead(in_dim=in_dim, out_dim=out_dim, field_head_name=field_head_name, activation=activation)
+    render_head = FieldHead(in_dim=in_dim, out_dim=out_dim, activation=activation)
     assert render_head.get_out_dim() == out_dim
 
     x = torch.ones((9, in_dim))

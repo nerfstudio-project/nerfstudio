@@ -11,17 +11,17 @@ def test_rgb_renderer():
     """Test RGB volumetric rendering"""
     num_samples = 10
 
-    rgb = torch.ones((3, num_samples, 3))
+    rgb_samples = torch.ones((3, num_samples, 3))
     weights = torch.ones((3, num_samples))
     weights /= torch.sum(weights, axis=-1, keepdim=True)
 
     rgb_renderer = renderers.RGBRenderer()
 
-    out = rgb_renderer(rgb=rgb, weights=weights)
-    assert torch.max(out.rgb) > 0.9
+    rgb = rgb_renderer(rgb=rgb_samples, weights=weights)
+    assert torch.max(rgb) > 0.9
 
-    out = rgb_renderer(rgb=rgb * 0, weights=weights)
-    assert torch.max(out.rgb) == pytest.approx(0)
+    rgb = rgb_renderer(rgb=rgb_samples * 0, weights=weights)
+    assert torch.max(rgb) == pytest.approx(0)
 
 
 def test_sh_renderer():
@@ -38,8 +38,8 @@ def test_sh_renderer():
 
     sh_renderer = renderers.SHRenderer()
 
-    out = sh_renderer(sh=sh, directions=directions, weights=weights)
-    assert torch.max(out.rgb) > 0.9
+    rgb = sh_renderer(sh=sh, directions=directions, weights=weights)
+    assert torch.max(rgb) > 0.9
 
 
 def test_acc_renderer():
@@ -51,8 +51,8 @@ def test_acc_renderer():
 
     acc_renderer = renderers.AccumulationRenderer()
 
-    out = acc_renderer(weights=weights)
-    assert torch.max(out.accumulation) > 0.9
+    accumulation = acc_renderer(weights=weights)
+    assert torch.max(accumulation) > 0.9
 
 
 def test_depth_renderer():
@@ -67,8 +67,8 @@ def test_depth_renderer():
 
     depth_renderer = renderers.DepthRenderer()
 
-    out = depth_renderer(weights=weights, ts=ts)
-    assert torch.min(out.depth) > 0
+    depth = depth_renderer(weights=weights, ts=ts)
+    assert torch.min(depth) > 0
 
 
 if __name__ == "__main__":

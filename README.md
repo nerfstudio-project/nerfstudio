@@ -16,6 +16,9 @@ pip install -r environment/requirements.txt
 # Install mattport as a library
 pip install -e .
 
+# Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
+python setup.py develop
+
 # Running the test cases
 pytest tests
 ```
@@ -114,6 +117,7 @@ ipython --pdb scripts/run_train.py
 
 For testing specific methods, see scripts/benchmarking/run_benchmark.py.
 Modify the `BENCH` variable to specify which jobs ("ckpt_dir") and methods ("method") you want benchmarked. Then run
+
 ```
 python scripts/benchmarking/run_benchmark.py
 ```

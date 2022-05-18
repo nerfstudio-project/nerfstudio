@@ -12,6 +12,15 @@ from mattport.utils.misc import is_not_none
 
 
 @dataclass
+class PointSamples:
+    """Samples in space."""
+
+    positions: TensorType[..., 3] = None
+    directions: TensorType[..., 3] = None
+    camera_indices: TensorType[..., 1] = None
+
+
+@dataclass
 class RayBundle:
     """_summary_
 
@@ -136,6 +145,11 @@ class RaySamples:
         self.positions = self.get_positions(ray_bundle)
         self.directions = ray_bundle.directions.unsqueeze(1).repeat(1, self.positions.shape[1], 1)
         self.deltas = self.get_deltas()
+
+    def to_point_samples(self):
+        """Convert to PointSamples instance and return."""
+        # TODO: make this more interpretable
+        return PointSamples(positions=self.positions, directions=self.directions)
 
     def get_camera_indices(self):
         """Returns camera indices."""

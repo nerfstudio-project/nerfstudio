@@ -246,7 +246,7 @@ class Trainer:
         """Run one iteration with a batch of inputs."""
         # move batch to correct device
         ray_indices = batch["indices"].to(self.device)
-        _, loss_dict = self.graph(ray_indices, batch=batch)
+        _, loss_dict = self.graph(ray_indices, batch=batch, step=step)
         loss = loss_dict["aggregated_loss"]
         self.optimizers.zero_grad_all()
         loss.backward()

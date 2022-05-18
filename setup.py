@@ -2,7 +2,7 @@ import os
 from setuptools import setup
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-USE_CUDA = False
+USE_CUDA = True
 
 ext_modules = []
 cmdclass = {}

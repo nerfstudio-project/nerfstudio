@@ -1,7 +1,6 @@
 """
 Collection of renderers
 """
-from dataclasses import dataclass
 import math
 from typing import Optional
 
@@ -10,18 +9,6 @@ from torch import nn
 from torchtyping import TensorType
 
 from mattport.utils.math import components_from_spherical_harmonics
-
-
-@dataclass
-class RendererOutputs:
-    """_summary_"""
-
-    rgb: TensorType["num_rays", 3] = None
-    density: TensorType["num_rays", 1] = None
-    accumulation: TensorType["num_rays", 1] = None
-    depth: TensorType["num_rays", 1] = None
-    uncertainty: TensorType["num_rays", 1] = None
-    semantics: TensorType["num_rays", "num_classes"] = None
 
 
 class RGBRenderer(nn.Module):
@@ -62,7 +49,7 @@ class RGBRenderer(nn.Module):
         self,
         rgb: TensorType[..., "num_samples", 3],
         weights: TensorType[..., "num_samples"],
-    ) -> RendererOutputs:
+    ) -> TensorType[..., 3]:
         """Composite samples along ray and render color image
 
         Args:
@@ -70,14 +57,13 @@ class RGBRenderer(nn.Module):
             weights (TensorType[..., "num_samples"]): Weights for each sample
 
         Returns:
-            RendererOutputs: Outputs with rgb values.
+            TensorType[..., 3]: Outputs of rgb values.
         """
 
         rgb = self.combine_rgb(rgb, weights)
         if not self.training:
             torch.clamp_(rgb, min=0.0, max=1.0)
-        renderer_outputs = RendererOutputs(rgb=rgb)
-        return renderer_outputs
+        return rgb
 
 
 class SHRenderer(nn.Module):
@@ -100,7 +86,7 @@ class SHRenderer(nn.Module):
         sh: TensorType[..., "num_samples", "coeffs"],
         directions: TensorType[..., "num_samples", 3],
         weights: TensorType[..., "num_samples"],
-    ) -> RendererOutputs:
+    ) -> TensorType[..., 3]:
         """Composite samples along ray and render color image
 
         Args:
@@ -109,7 +95,7 @@ class SHRenderer(nn.Module):
             weights (TensorType[..., "num_samples"]): Weights for each sample
 
         Returns:
-            RendererOutputs: Outputs with rgb values.
+            TensorType[..., 3]: Outputs of rgb values.
         """
 
         sh = sh.view(*sh.shape[:-1], 3, sh.shape[-1] // 3)
@@ -125,8 +111,7 @@ class SHRenderer(nn.Module):
 
         rgb = RGBRenderer.combine_rgb(rgb, weights, background_color=self.background_color)
 
-        renderer_outputs = RendererOutputs(rgb=rgb)
-        return renderer_outputs
+        return rgb
 
 
 class AccumulationRenderer(nn.Module):
@@ -136,20 +121,18 @@ class AccumulationRenderer(nn.Module):
     def forward(
         cls,
         weights: TensorType[..., "num_samples"],
-    ) -> RendererOutputs:
+    ) -> TensorType:
         """Composite samples along ray and calculate accumulation.
 
         Args:
             weights (TensorType[..., "num_samples"]): Weights for each sample
 
         Returns:
-            RendererOutputs: Outputs with accumulated values.
+            TensorType: Outputs of accumulated values.
         """
 
         accumulation = torch.sum(weights, dim=-1)[..., None]
-
-        renderer_outputs = RendererOutputs(accumulation=accumulation)
-        return renderer_outputs
+        return accumulation
 
 
 class DepthRenderer(nn.Module):
@@ -165,7 +148,9 @@ class DepthRenderer(nn.Module):
             raise ValueError(f"{method} is an invalid depth calculation method")
         self.method = method
 
-    def forward(self, weights: TensorType[..., "num_samples"], ts: TensorType[..., "num_samples"]) -> RendererOutputs:
+    def forward(
+        self, weights: TensorType[..., "num_samples"], ts: TensorType[..., "num_samples"]
+    ) -> TensorType[..., 1]:
         """Composite samples along ray and calculate disparities.
 
         Args:
@@ -173,7 +158,7 @@ class DepthRenderer(nn.Module):
             ts (TensorType[..., "num_samples"]): Sample locations along rays
 
         Returns:
-            RendererOutputs: Outputs with depth values.
+            TensorType[..., 1]: Outputs of depth values.
         """
 
         if self.method == "expected":
@@ -182,7 +167,7 @@ class DepthRenderer(nn.Module):
 
             depth = torch.clip(depth, ts[..., 0], ts[..., -1])
 
-            return RendererOutputs(depth=depth[..., None])
+            return depth[..., None]
 
         raise NotImplementedError(f"Method {self.method} not implemented")
 
@@ -191,9 +176,7 @@ class UncertaintyRenderer(nn.Module):
     """Calculate uncertainty along the ray."""
 
     @classmethod
-    def forward(
-        cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples"]
-    ) -> RendererOutputs:
+    def forward(cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples"]) -> TensorType:
         """_summary_
 
         Args:
@@ -201,11 +184,10 @@ class UncertaintyRenderer(nn.Module):
             weights (TensorType[..., &quot;num_samples&quot;]): _description_
 
         Returns:
-            RendererOutputs: _description_
+            TensorType: _description_
         """
         uncertainty = torch.sum(weights[..., None] * betas, dim=-2)
-        renderer_outputs = RendererOutputs(uncertainty=uncertainty)
-        return renderer_outputs
+        return uncertainty
 
 
 class SemanticRenderer(nn.Module):
@@ -214,8 +196,7 @@ class SemanticRenderer(nn.Module):
     @classmethod
     def forward(
         cls, semantics: TensorType[..., "num_samples", "num_classes"], weights: TensorType[..., "num_samples"]
-    ) -> RendererOutputs:
+    ) -> TensorType[..., "num_classes"]:
         """_summary_"""
         sem = torch.sum(weights[..., None] * semantics, dim=-2)
-        renderer_outputs = RendererOutputs(semantics=sem)
-        return renderer_outputs
+        return sem

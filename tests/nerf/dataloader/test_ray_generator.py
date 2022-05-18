@@ -10,7 +10,7 @@ from tqdm import tqdm
 from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import get_dataset_inputs
-from mattport.nerf.field_modules.ray_generator import RayGenerator
+from mattport.nerf.ray_generator import RayGenerator
 from mattport.utils.io import get_absolute_path
 from mattport.viewer.plotly import visualize_dataset
 

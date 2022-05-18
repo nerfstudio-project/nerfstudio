@@ -12,20 +12,24 @@ from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from mattport.nerf.field_modules.encoding import NeRFEncoding
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead
+from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
+from mattport.nerf.fields.base import Field
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
-from mattport.structures.rays import RayBundle, RaySamples
-from mattport.nerf.field_modules.scene_bounds_collider import NearFarCollider
+from mattport.structures.rays import PointSamples, RayBundle
+from mattport.nerf.colliders import NearFarCollider
 from mattport.utils import stats_tracker, visualization, writer
+from mattport.utils.misc import is_not_none
 
 
-class NeRFField(nn.Module):
+class NeRFField(Field):
     """NeRF module"""
+
+    OUTPUT_RGB = "rgb"
 
     def __init__(self, num_layers=8, layer_width=256, skip_connections: Tuple = (4,)) -> None:
         super().__init__()
@@ -73,22 +77,35 @@ class NeRFField(nn.Module):
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
 
-    def forward(self, ray_samples: RaySamples):
-        """Evaluates the field at points along the ray."""
-        positions = ray_samples.positions
-        directions = ray_samples.directions
-        encoded_xyz = self.encoding_xyz(positions)
-        encoded_dir = self.encoding_dir(directions)
-        base_mlp_out = self.mlp_base(encoded_xyz)
-        rgb_mlp_out = self.mlp_rgb(torch.cat([encoded_dir, base_mlp_out], dim=-1))
+    def get_density(self, point_samples: PointSamples, valid_mask=None):
+        """Computes and returns the densities."""
+        positions = point_samples.positions
+        if not is_not_none(valid_mask):
+            valid_mask = torch.ones_like(positions[..., 0]).bool()
+        # placeholders for values to return
+        density = torch.zeros(*valid_mask.shape, 1, dtype=torch.float32, device=positions.device)
+        base_mlp_out = torch.zeros(
+            *valid_mask.shape, self.mlp_base.out_dim, dtype=torch.float32, device=positions.device
+        )
+        if not valid_mask.any():  # empty mask
+            return density, base_mlp_out
+        encoded_xyz = self.encoding_xyz(positions[valid_mask])
+        base_mlp_out[valid_mask] = self.mlp_base(encoded_xyz)
+        density[valid_mask] = self.field_output_density(base_mlp_out[valid_mask])
+        return density, base_mlp_out
 
-        field_rgb_output = self.field_output_rgb(rgb_mlp_out)
-        field_density_out = self.field_output_density(base_mlp_out)
-
-        field_outputs = {}
-        field_outputs.update(field_rgb_output)
-        field_outputs.update(field_density_out)
-        return field_outputs
+    def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
+        directions = point_samples.directions
+        if not is_not_none(valid_mask):
+            valid_mask = torch.ones_like(directions[..., 0]).bool()
+        # placeholders for values to return
+        rgb = torch.zeros(*valid_mask.shape, 3, dtype=torch.float32, device=directions.device)
+        if not valid_mask.any():  # empty mask
+            return {"rgb": rgb}
+        encoded_dir = self.encoding_dir(directions[valid_mask])
+        rgb_mlp_out = self.mlp_rgb(torch.cat([encoded_dir, density_embedding[valid_mask]], dim=-1))
+        rgb[valid_mask] = self.field_output_rgb(rgb_mlp_out)
+        return {"rgb": rgb}
 
 
 class NeRFGraph(Graph):
@@ -112,22 +129,19 @@ class NeRFGraph(Graph):
         self.field_fine = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
+    def populate_collider(self):
+        self.collider = NearFarCollider(self.near_plane, self.far_plane)
+
     def populate_fields(self):
         """Set the fields."""
         self.field_coarse = NeRFField()
         self.field_fine = NeRFField()
 
-    def populate_collider(self):
-        self.scene_bounds_collider = NearFarCollider(self.near_plane, self.far_plane)
-
-    def populate_modules(self):
+    def populate_misc_modules(self):
 
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
-
-        # field
-        self.populate_fields()
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -143,54 +157,52 @@ class NeRFGraph(Graph):
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        """Obtain the parameter groups for the optimizers
-
-        Returns:
-            Dict[str, List[Parameter]]: Mapping of different parameter groups
-        """
         param_groups = {}
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
 
-        # TODO: set the new rays...
+        # uniform sampling
+        ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
-        # coarse network:
-        uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
+        # coarse field:
+        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform.to_point_samples())
+        weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse["density"])
+        rgb_coarse = self.renderer_rgb(
+            rgb=field_outputs_coarse["rgb"],
+            weights=weights_coarse,
+        )
+        accumulation_coarse = self.renderer_accumulation(weights_coarse)
+        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform.ts)
 
-        coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
+        # pdf sampling
+        ray_samples_pdf = self.sampler_pdf(ray_samples_uniform, weights_coarse)
 
-        coarse_weights = uniform_ray_samples.get_weights(coarse_field_outputs[FieldHeadNames.DENSITY])
+        # fine field:
+        field_outputs_fine = self.field_fine.forward(ray_samples_pdf.to_point_samples())
+        weights_fine = ray_samples_pdf.get_weights(field_outputs_fine["density"])
+        rgb_fine = self.renderer_rgb(
+            rgb=field_outputs_fine["rgb"],
+            weights=weights_fine,
+        )
+        accumulation_fine = self.renderer_accumulation(weights_fine)
+        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.ts)
 
-        coarse_renderer_outputs = self.renderer_rgb(
-            rgb=coarse_field_outputs[FieldHeadNames.RGB],
-            weights=coarse_weights,
-        )  # RendererOutputs
-        coarse_renderer_accumulation = self.renderer_accumulation(coarse_weights)  # RendererOutputs
-        coarse_renderer_depth = self.renderer_depth(coarse_weights, uniform_ray_samples.ts)
+        # --- occupancy grid ---
+        # TODO(ethan): move this elsewhere. currently here for debugging purposes
+        density_occ = self.occupancy_grid.get_densities(ray_samples_pdf.positions)
+        weights_occ = ray_samples_pdf.get_weights(density_occ)
+        depth_occ = self.renderer_depth(weights_occ, ray_samples_pdf.ts)
 
-        # fine network:
-        pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)  # RaySamples
-        fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
-
-        fine_weights = pdf_ray_samples.get_weights(fine_field_outputs[FieldHeadNames.DENSITY])
-
-        fine_renderer_outputs = self.renderer_rgb(
-            rgb=fine_field_outputs[FieldHeadNames.RGB],
-            weights=fine_weights,
-        )  # RendererOutputs
-        fine_renderer_accumulation = self.renderer_accumulation(fine_weights)  # RendererOutputs
-        fine_renderer_depth = self.renderer_depth(fine_weights, pdf_ray_samples.ts)
-
-        # outputs:
         outputs = {
-            "rgb_coarse": coarse_renderer_outputs.rgb,
-            "rgb_fine": fine_renderer_outputs.rgb,
-            "accumulation_coarse": coarse_renderer_accumulation.accumulation,
-            "accumulation_fine": fine_renderer_accumulation.accumulation,
-            "depth_coarse": coarse_renderer_depth.depth,
-            "depth_fine": fine_renderer_depth.depth,
+            "rgb_coarse": rgb_coarse,
+            "rgb_fine": rgb_fine,
+            "accumulation_coarse": accumulation_coarse,
+            "accumulation_fine": accumulation_fine,
+            "depth_coarse": depth_coarse,
+            "depth_fine": depth_fine,
+            "depth_occ": depth_occ,
         }
         return outputs
 
@@ -228,6 +240,9 @@ class NeRFGraph(Graph):
         writer.write_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
         writer.write_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
         writer.write_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
+
+        depth_occ = visualization.apply_depth_colormap(outputs["depth_occ"])
+        writer.write_image(name=f"image_idx_{image_idx}", image=depth_occ, step=step, group="depth_occupancy_grid")
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

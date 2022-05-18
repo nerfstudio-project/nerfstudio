@@ -1,10 +1,10 @@
 """
 The Graph module contains all trainable parameters.
 """
+import logging
 from abc import abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 import torch
 from omegaconf import DictConfig
@@ -13,57 +13,20 @@ from torch.nn import Parameter
 from torchtyping import TensorType
 
 from mattport.nerf.dataset.structs import SceneBounds
-from mattport.nerf.field_modules.ray_generator import RayGenerator
-from mattport.nerf.field_modules.scene_bounds_collider import AABBBoxCollider
+from mattport.nerf.occupancy_grid import OccupancyGrid
+from mattport.nerf.ray_generator import RayGenerator
+from mattport.nerf.colliders import AABBBoxCollider
 from mattport.structures.cameras import get_camera_model
 from mattport.structures.rays import RayBundle
 from mattport.utils.misc import get_masked_dict
+from mattport.utils.misc import is_not_none
 
 
-@dataclass
-class GraphInputs:
-    """Datastucture to encode the inputs to the graph."""
+class AbstractGraph(nn.Module):
+    """Highest level graph class. Somewhat useful to lift code up and out of the way."""
 
-    points: float
-
-
-@dataclass
-class Node:
-    """Node datastructure for graph composition."""
-
-    name: str
-    children: Dict[str, "Node"]
-    parents: Dict[str, "Node"]
-    visited_order: Optional[bool] = False
-    visited_in_dim: Optional[bool] = False
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class Graph(nn.Module):
-    """_summary_"""
-
-    def __init__(
-        self,
-        intrinsics=None,
-        camera_to_world=None,
-        loss_coefficients: DictConfig = None,
-        scene_bounds: SceneBounds = None,
-        **kwargs,
-    ) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.intrinsics = intrinsics
-        self.camera_to_world = camera_to_world
-        self.scene_bounds = scene_bounds
-        self.loss_coefficients = loss_coefficients
-        # assert self.scene_bounds is not None
-        self.kwargs = kwargs
-        self.scene_bounds_collider = None
-        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
-        self.populate_collider()
-        self.populate_modules()  # populate the modules
-
         # to keep track of which device the nn.Module is on
         self.device_indicator_param = nn.Parameter(torch.empty(0))
 
@@ -71,45 +34,77 @@ class Graph(nn.Module):
         """Returns the device that the torch parameters are on."""
         return self.device_indicator_param.device
 
+    @abstractmethod
+    def forward(
+        self,
+        ray_indices: TensorType["num_rays", 3],
+        batch: Union[str, Dict[str, torch.tensor]] = None,
+        step: int = None,
+    ):
+        """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
+
+
+class Graph(AbstractGraph):
+    """_summary_"""
+
+    def __init__(
+        self,
+        intrinsics=None,
+        camera_to_world=None,
+        loss_coefficients: DictConfig = None,
+        steps_per_occupancy_grid_update=16,
+        scene_bounds: SceneBounds = None,
+        **kwargs,
+    ) -> None:
+        super().__init__()
+        assert is_not_none(scene_bounds), "scene_bounds is needed to use the occupancy grid"
+        self.intrinsics = intrinsics
+        self.camera_to_world = camera_to_world
+        self.scene_bounds = scene_bounds
+        self.loss_coefficients = loss_coefficients
+        self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
+        self.kwargs = kwargs
+        self.collider = None
+        self.occupancy_grid = OccupancyGrid(aabb=self.scene_bounds.aabb)
+        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
+        self.populate_collider()
+        self.populate_fields()
+        self.populate_misc_modules()  # populate the modules
+
     def populate_collider(self):
         """Set the scene bounds collider to use."""
-        self.scene_bounds_collider = AABBBoxCollider(self.scene_bounds)
+        self.collider = AABBBoxCollider(self.scene_bounds)
 
     @abstractmethod
-    def populate_modules(self):
-        """Initializes the modules that are part of the network."""
+    def populate_misc_modules(self):
+        """Initializes any additional modules that are part of the network."""
 
     @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        """Returns the parameter groups of the network in a dictionary format"""
+        """Obtain the parameter groups for the optimizers
 
-    def get_in_dim(self, curr_node: Node) -> None:
-        """Dynamically calculates and sets the input dimensions of the modules based on dependency graph
-
-        Args:
-            curr_node (Node): pointer to current node in process
+        Returns:
+            Dict[str, List[Parameter]]: Mapping of different parameter groups
         """
-        curr_node.visited_in_dim = True
-        if len(curr_node.parents) > 0:
-            in_dim = 0
-            for parent_name in curr_node.parents.keys():
-                in_dim += self[parent_name].get_out_dim()
-            self[curr_node.name].set_in_dim(in_dim)
-            self.modules[curr_node.name].meta_data.in_dim = in_dim
-
-        for child_node in curr_node.children.values():
-            if not child_node.visited_in_dim:
-                self.get_in_dim(child_node)
 
     @abstractmethod
     def get_outputs(self, ray_bundle: RayBundle):
         """Takes in a Ray Bundle and returns a dictionary of outputs."""
 
-    def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
-        """Forward function that needs to be overridden."""
+    def forward(
+        self,
+        ray_indices: TensorType["num_rays", 3],
+        batch: Union[str, Dict[str, torch.tensor]] = None,
+        step: int = None,
+    ):
+        # update the occupancy grid
+        if step and step % self.steps_per_occupancy_grid_update == 0:
+            logging.info("Updating occupancy grid.")
+            self.occupancy_grid.update_occupancy_grid(density_fn=self.field_fine.density_fn)
+
         # get the rays
         original_ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
-        intersected_ray_bundle = self.scene_bounds_collider(original_ray_bundle)
+        intersected_ray_bundle = self.collider(original_ray_bundle)
 
         if isinstance(batch, type(None)):
             # during inference, keep all rays
@@ -159,7 +154,7 @@ class Graph(nn.Module):
             end_idx = i + chunk_size
             original_ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
             original_ray_bundle.move_to_device(device)
-            intersected_ray_bundle = self.scene_bounds_collider(original_ray_bundle)
+            intersected_ray_bundle = self.collider(original_ray_bundle)
             outputs = self.get_outputs(intersected_ray_bundle)
             for output_name, output in outputs.items():
                 outputs_lists[output_name].append(output)

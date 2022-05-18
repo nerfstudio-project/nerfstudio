@@ -53,7 +53,8 @@ def load_blender_data(
     intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
     intrinsics *= torch.tensor([cx, cy, focal_length])
 
-    scene_bounds = SceneBounds(aabb=torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32))
+    # in x,y,z order
+    scene_bounds = SceneBounds(aabb=torch.tensor([[-2, -2, -2], [2, 2, 2]], dtype=torch.float32))
 
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
