@@ -4,8 +4,8 @@ Some ray datastructures.
 import random
 from dataclasses import dataclass
 from typing import Optional
-import torch
 
+import torch
 from torchtyping import TensorType
 
 from mattport.utils.misc import is_not_none
@@ -18,6 +18,7 @@ class PointSamples:
     positions: TensorType[..., 3] = None
     directions: TensorType[..., 3] = None
     camera_indices: TensorType[..., 1] = None
+    valid_mask: TensorType[..., 1] = None
 
 
 @dataclass
@@ -145,11 +146,12 @@ class RaySamples:
         self.positions = self.get_positions(ray_bundle)
         self.directions = ray_bundle.directions.unsqueeze(1).repeat(1, self.positions.shape[1], 1)
         self.deltas = self.get_deltas()
+        self.valid_mask = torch.ones_like(self.ts, dtype=torch.bool)
 
-    def to_point_samples(self):
+    def to_point_samples(self) -> PointSamples:
         """Convert to PointSamples instance and return."""
         # TODO: make this more interpretable
-        return PointSamples(positions=self.positions, directions=self.directions)
+        return PointSamples(positions=self.positions, directions=self.directions, valid_mask=self.valid_mask)
 
     def get_camera_indices(self):
         """Returns camera indices."""
@@ -191,3 +193,7 @@ class RaySamples:
         weights = alphas * transmittance  # [..., "num_samples"]
 
         return weights
+
+    def set_valid_mask(self, valid_mask: TensorType[..., "num_samples"]) -> None:
+        """Sets valid mask"""
+        self.valid_mask = valid_mask

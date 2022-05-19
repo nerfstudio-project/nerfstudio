@@ -3,98 +3,43 @@ Collection of sampling strategies
 """
 
 from typing import Optional
+
 import torch
 from torch import nn
 from torchtyping import TensorType
+
 from mattport.nerf.occupancy_grid import OccupancyGrid
-
 from mattport.structures.rays import RayBundle, RaySamples
-
-
-class OccupancyGridSampler(nn.Module):
-    """Sample based on occupancy grid"""
-
-    def __init__(
-        self,
-        occupancy_grid: OccupancyGrid,
-        num_samples: int = 256,
-        weight_threshold: float = 1e-4,
-        train_stratified=True,
-    ) -> None:
-        """
-        Args:
-        """
-        super().__init__()
-        self.num_samples = num_samples
-        self.train_stratified = train_stratified
-        self.weight_threshold = weight_threshold
-        self.occupancy_grid = occupancy_grid
-
-    @torch.no_grad()
-    def forward(
-        self,
-        ray_bundle: RayBundle,
-        num_samples: Optional[int] = None,
-    ) -> RaySamples:
-        """Generates position samples uniformly.
-
-        Args:
-            ray_bundle (RayBundle): Rays to generate samples for
-            num_samples (Optional[int]): Number of samples per ray
-
-        Returns:
-            RaySamples: Positions and deltas for samples along a ray
-        """
-        assert ray_bundle.nears is not None
-        assert ray_bundle.fars is not None
-
-        num_samples = num_samples or self.num_samples
-        num_rays = ray_bundle.origins.shape[0]
-
-        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)  # shape (num_samples+1,)
-        bins = ray_bundle.nears[:, None] + bins[None, :] * (
-            ray_bundle.fars[:, None] - ray_bundle.nears[:, None]
-        )  # shape (num_rays, num_samples+1)
-
-        if self.train_stratified and self.training:
-            t_rand = torch.rand((num_rays, num_samples), dtype=bins.dtype, device=bins.device)
-            ts = bins[:, :-1] + t_rand * (bins[:, 1:] - bins[:, :-1])  # shape (num_rays, num_samples)
-        else:
-            ts = (bins[:, 1:] + bins[:, :-1]) / 2
-
-        ray_samples = RaySamples(
-            ts=ts,
-            ray_bundle=ray_bundle,
-        )
-
-        densities = self.occupancy_grid.get_densities(ray_samples.positions, update_iter_count=True)
-        weights = ray_samples.get_weights(densities)
-
-        valid_mask = weights >= self.weight_threshold
-
-        return ray_samples, weights, valid_mask
 
 
 class UniformSampler(nn.Module):
     """Sample uniformly along a ray"""
 
-    def __init__(self, num_samples: int, train_stratified=True) -> None:
+    def __init__(
+        self,
+        num_samples: int,
+        train_stratified=True,
+        occupancy_field: Optional[OccupancyGrid] = None,
+        weight_threshold: float = 1e-4,
+    ) -> None:
         """
         Args:
-            near_plane (float): Minimum distance along ray to sample
-            far_plane (float): Maximum distance along ray to sample
             num_samples (int): Number of samples per ray
             train_stratified (bool): Use stratified sampling during training. Defults to True
+            occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
+                samples below weight_threshold as set as invalid.
+            weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
         """
         super().__init__()
-
         self.num_samples = num_samples
         self.train_stratified = train_stratified
+        self.occupancy_field = occupancy_field
+        self.weight_threshold = weight_threshold
 
     @torch.no_grad()
     def forward(
         self,
-        ray_bundle: RayBundle,
+        ray_bundle: RayBundle = None,
         num_samples: Optional[int] = None,
     ) -> RaySamples:
         """Generates position samples uniformly.
@@ -127,6 +72,13 @@ class UniformSampler(nn.Module):
             ts=ts,
             ray_bundle=ray_bundle,
         )
+
+        if self.occupancy_field is not None:
+            densities = self.occupancy_field.get_densities(ray_samples.positions, update_iter_count=True)
+            weights = ray_samples.get_weights(densities)
+
+            valid_mask = weights >= self.weight_threshold
+            ray_samples.set_valid_mask(valid_mask)
 
         return ray_samples
 
@@ -134,23 +86,35 @@ class UniformSampler(nn.Module):
 class PDFSampler(nn.Module):
     """Sample based on probability distribution"""
 
-    def __init__(self, num_samples: int, train_stratified: bool = True, include_original: bool = True) -> None:
+    def __init__(
+        self,
+        num_samples: int,
+        train_stratified: bool = True,
+        include_original: bool = True,
+        occupancy_field: OccupancyGrid = None,
+        weight_threshold: float = 1e-4,
+    ) -> None:
         """
         Args:
             num_samples (int): Number of samples per ray
             train_stratified: boolean: Randomize location within each bin during training. Defaults to True
             include_original: Add original samples to ray. Defaults to True
+            occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
+                samples below weight_threshold as set as invalid.
+            weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
         """
         super().__init__()
 
         self.num_samples = num_samples
         self.include_original = include_original
         self.train_stratified = train_stratified
+        self.occupancy_field = occupancy_field
+        self.weight_threshold = weight_threshold
 
     @torch.no_grad()
     def forward(
         self,
-        coarse_ray_samples: RaySamples,
+        ray_samples: RaySamples,
         weights: TensorType[..., "num_samples"],
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
@@ -195,7 +159,7 @@ class PDFSampler(nn.Module):
         indicies_g = torch.stack([below, above], -1)
         matched_shape = (indicies_g.shape[0], indicies_g.shape[1], cdf.shape[-1])
         cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
-        bins_g = torch.gather(coarse_ray_samples.ts.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
+        bins_g = torch.gather(ray_samples.ts.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
 
         denom = cdf_g[..., 1] - cdf_g[..., 0]
         denom = torch.where(denom < eps, torch.ones_like(denom), denom)
@@ -203,7 +167,7 @@ class PDFSampler(nn.Module):
         ts = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
 
         if self.include_original:
-            ts, _ = torch.sort(torch.cat([coarse_ray_samples.ts, ts], -1), -1)
+            ts, _ = torch.sort(torch.cat([ray_samples.ts, ts], -1), -1)
         else:
             ts, _ = torch.sort(ts, -1)
 
@@ -212,7 +176,14 @@ class PDFSampler(nn.Module):
 
         ray_samples = RaySamples(
             ts=ts,
-            ray_bundle=coarse_ray_samples.ray_bundle,
+            ray_bundle=ray_samples.ray_bundle,
         )
+
+        if self.occupancy_field is not None:
+            densities = self.occupancy_field.get_densities(ray_samples.positions, update_iter_count=True)
+            weights = ray_samples.get_weights(densities)
+
+            valid_mask = weights >= self.weight_threshold
+            ray_samples.set_valid_mask(valid_mask)
 
         return ray_samples

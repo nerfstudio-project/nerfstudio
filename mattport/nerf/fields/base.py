@@ -25,23 +25,23 @@ class Field(nn.Module):
         return density
 
     @abstractmethod
-    def get_density(self, point_samples: PointSamples, valid_mask=None):
+    def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
 
     @abstractmethod
     def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
         """Computes and returns the colors."""
 
-    def forward(self, point_samples: PointSamples, valid_mask_density=None):
+    def forward(self, point_samples: PointSamples):
         """Evaluates the field at points along the ray."""
-        density, density_embedding = self.get_density(point_samples, valid_mask=valid_mask_density)
+        density, density_embedding = self.get_density(point_samples)
         field_outputs = self.get_outputs(point_samples, density_embedding=density_embedding)
         field_outputs["density"] = density
         return field_outputs
 
-    def forward_with_weight_pruning(self, ray_samples: RaySamples, valid_mask_density=None):
+    def forward_with_weight_pruning(self, ray_samples: RaySamples):
         """Forward but with pruning based on weights, from the densities."""
-        density, density_embedding = self.get_density(ray_samples, valid_mask=valid_mask_density)
+        density, density_embedding = self.get_density(ray_samples)
         weights = ray_samples.get_weights(density)
         valid_mask_outputs = weights >= self.weights_threshold
         field_outputs = self.get_outputs(
