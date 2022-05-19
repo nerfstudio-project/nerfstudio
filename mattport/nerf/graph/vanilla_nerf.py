@@ -81,9 +81,10 @@ class NeRFField(Field):
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
 
-    def get_density(self, point_samples: PointSamples, valid_mask=None):
+    def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
         positions = point_samples.positions
+        valid_mask = point_samples.valid_mask
         if not is_not_none(valid_mask):
             valid_mask = torch.ones_like(positions[..., 0]).bool()
         # placeholders for values to return
