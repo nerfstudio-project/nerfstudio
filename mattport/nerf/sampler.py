@@ -2,6 +2,7 @@
 Collection of sampling strategies
 """
 
+from abc import abstractmethod
 from typing import Optional
 
 import torch
@@ -12,7 +13,34 @@ from mattport.nerf.occupancy_grid import OccupancyGrid
 from mattport.structures.rays import RayBundle, RaySamples
 
 
-class UniformSampler(nn.Module):
+class Sampler(nn.Module):
+    """Generate Samples"""
+
+    def __init__(
+        self, num_samples: int, occupancy_field: Optional[OccupancyGrid] = None, weight_threshold: float = 1e-4
+    ) -> None:
+        super().__init__()
+        self.num_samples = num_samples
+        self.occupancy_field = occupancy_field
+        self.weight_threshold = weight_threshold
+
+    @abstractmethod
+    def generate_ray_samples(self) -> RaySamples:
+        """Generate Ray Samples"""
+
+    def forward(self, *args, **kwargs) -> RaySamples:
+        """Generate ray samples with optional occupancy filtering"""
+        ray_samples = self.generate_ray_samples(*args, **kwargs)
+        if self.occupancy_field is not None:
+            densities = self.occupancy_field.get_densities(ray_samples.positions, update_iter_count=True)
+            weights = ray_samples.get_weights(densities)
+
+            valid_mask = weights >= self.weight_threshold
+            ray_samples.set_valid_mask(valid_mask)
+        return ray_samples
+
+
+class UniformSampler(Sampler):
     """Sample uniformly along a ray"""
 
     def __init__(
@@ -30,14 +58,11 @@ class UniformSampler(nn.Module):
                 samples below weight_threshold as set as invalid.
             weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
         """
-        super().__init__()
-        self.num_samples = num_samples
+        super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
         self.train_stratified = train_stratified
-        self.occupancy_field = occupancy_field
-        self.weight_threshold = weight_threshold
 
     @torch.no_grad()
-    def forward(
+    def generate_ray_samples(
         self,
         ray_bundle: RayBundle = None,
         num_samples: Optional[int] = None,
@@ -51,6 +76,7 @@ class UniformSampler(nn.Module):
         Returns:
             RaySamples: Positions and deltas for samples along a ray
         """
+        assert ray_bundle is not None
         assert ray_bundle.nears is not None
         assert ray_bundle.fars is not None
 
@@ -73,17 +99,10 @@ class UniformSampler(nn.Module):
             ray_bundle=ray_bundle,
         )
 
-        if self.occupancy_field is not None:
-            densities = self.occupancy_field.get_densities(ray_samples.positions, update_iter_count=True)
-            weights = ray_samples.get_weights(densities)
-
-            valid_mask = weights >= self.weight_threshold
-            ray_samples.set_valid_mask(valid_mask)
-
         return ray_samples
 
 
-class PDFSampler(nn.Module):
+class PDFSampler(Sampler):
     """Sample based on probability distribution"""
 
     def __init__(
@@ -103,19 +122,15 @@ class PDFSampler(nn.Module):
                 samples below weight_threshold as set as invalid.
             weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
         """
-        super().__init__()
-
-        self.num_samples = num_samples
-        self.include_original = include_original
+        super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
         self.train_stratified = train_stratified
-        self.occupancy_field = occupancy_field
-        self.weight_threshold = weight_threshold
+        self.include_original = include_original
 
     @torch.no_grad()
-    def forward(
+    def generate_ray_samples(
         self,
-        ray_samples: RaySamples,
-        weights: TensorType[..., "num_samples"],
+        ray_samples: RaySamples = None,
+        weights: TensorType[..., "num_samples"] = None,
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
     ) -> RaySamples:
@@ -178,12 +193,5 @@ class PDFSampler(nn.Module):
             ts=ts,
             ray_bundle=ray_samples.ray_bundle,
         )
-
-        if self.occupancy_field is not None:
-            densities = self.occupancy_field.get_densities(ray_samples.positions, update_iter_count=True)
-            weights = ray_samples.get_weights(densities)
-
-            valid_mask = weights >= self.weight_threshold
-            ray_samples.set_valid_mask(valid_mask)
 
         return ray_samples
