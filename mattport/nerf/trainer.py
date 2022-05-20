@@ -199,7 +199,6 @@ class Trainer:
         num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
         for step in range(self.start_step, self.start_step + num_iterations):
-            self.step = step
             data_start = time()
             batch = next(iter_dataset)
             writer.put_time(
@@ -233,17 +232,18 @@ class Trainer:
             if step % self.config.graph.steps_per_test == 0:  # NOTE(ethan): we should still run this in dry-run mode!
                 for image_idx in self.config.data.val_image_indices:
                     _ = self.test_image(image_idx=image_idx, step=step)
-            self._write_out_storage()
+            self._write_out_storage(step)
 
         writer.put_time(name="Train Total (time)", start_time=train_start, end_time=time(), step=num_iterations)
-        self._write_out_storage()
+        self._write_out_storage(num_iterations)
 
-    def _write_out_storage(self):
+    def _write_out_storage(self, step):
         """Perform writes only during appropriate time steps"""
         if (
-            self.step % self.config.logging.steps_per_log == 0
-            or (self.config.graph.steps_per_save and self.step % self.config.graph.steps_per_save == 0)
-            or self.step % self.config.graph.steps_per_test == 0
+            step % self.config.logging.steps_per_log == 0
+            or (self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0)
+            or step % self.config.graph.steps_per_test == 0
+            or step == self.config.graph.max_num_iterations
         ):
             writer.write_out_storage()
 

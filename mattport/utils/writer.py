@@ -7,12 +7,12 @@ import datetime
 import enum
 import os
 from abc import abstractmethod
-from typing import Any, Dict, List
+from typing import Dict
 
 import imageio
 import numpy as np
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
@@ -39,6 +39,7 @@ class EventType(enum.Enum):
 
 @check_main_thread
 def put_image(name, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None):
+    """Setter function to place images into the queue to be written out"""
     EVENT_STORAGE.append(
         {"name": name, "write_type": EventType.IMAGE, "event": image, "step": step, "group": group, "prefix": prefix}
     )
@@ -46,6 +47,7 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int, group: str = No
 
 @check_main_thread
 def put_scalar(name: str, scalar: float, step: int, group: str = None, prefix: str = None):
+    """Setter function to place scalars into the queue to be written out"""
     GLOBAL_BUFFER["new_key"] = not name in GLOBAL_BUFFER["events"] or GLOBAL_BUFFER["new_key"]
     GLOBAL_BUFFER["events"][name] = scalar
     EVENT_STORAGE.append(
@@ -55,6 +57,7 @@ def put_scalar(name: str, scalar: float, step: int, group: str = None, prefix: s
 
 @check_main_thread
 def put_dict(name: str, scalar_dict: float, step: int, group: str = None, prefix: str = None):
+    """Setter function to place a dictionary of scalars into the queue to be written out"""
     EVENT_STORAGE.append(
         {
             "name": name,
@@ -79,6 +82,13 @@ def put_time(
     avg_over_batch: int = None,
     update_eta: bool = False,
 ):
+    """Setter function to place a time element into the queue to be written out
+
+    Processes the time info according to the options:
+    avg_over_iters (bool): if True, calculate and record a running average of the times
+    avg_over_batch (int): if set, the size of the batch for which we take the average over (batch/second)
+    update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
+    """
     GLOBAL_BUFFER["step"] = step
     GLOBAL_BUFFER["new_key"] = not name in GLOBAL_BUFFER["events"] or GLOBAL_BUFFER["new_key"]
     val = end_time - start_time
@@ -109,15 +119,16 @@ def put_time(
 
 @check_main_thread
 def write_out_storage():
+    """Function that writes all the events in storage to all the writer locations"""
     for writer in EVENT_WRITERS:
         for event in EVENT_STORAGE:
             write_func = getattr(writer, event["write_type"].value)
-            if event == EventType.DICT:
+            if event["write_type"] == EventType.DICT:
                 write_func(event["event"], event["step"], event["group"], event["prefix"])
                 if isinstance(writer, LocalWriter):
                     continue
             else:
-                write_func(event["event"], event["name"], event["step"], event["group"], event["prefix"])
+                write_func(event["name"], event["event"], event["step"], event["group"], event["prefix"])
                 if isinstance(writer, LocalWriter):
                     break
     EVENT_STORAGE.clear()
@@ -131,13 +142,15 @@ def setup_event_writers(config: DictConfig) -> None:
         writer_class = getattr(mattport.utils.writer, writer_type)
         curr_config = logging_configs[writer_type]
         if writer_type == "LocalWriter":
-            GLOBAL_BUFFER["max_history"] = curr_config.max_history
-            GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
             curr_writer = writer_class(curr_config.save_dir, curr_config.stats_to_track, config)
         else:
             curr_writer = writer_class(curr_config.save_dir)
         EVENT_WRITERS.append(curr_writer)
+
+    ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = config.graph.max_num_iterations
+    GLOBAL_BUFFER["max_history"] = config.logging.max_history
+    GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
     GLOBAL_BUFFER["new_key"] = True
     GLOBAL_BUFFER["events"] = {}
 
@@ -265,7 +278,7 @@ def _consolidate_events():
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, save_dir: str, stats_to_track: List[str], config: DictConfig):
+    def __init__(self, save_dir: str, stats_to_track: ListConfig, config: DictConfig):
         super().__init__(save_dir)
         self.stats_to_track = stats_to_track
         self.past_stats = []

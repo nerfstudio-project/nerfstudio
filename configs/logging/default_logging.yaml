@@ -1,11 +1,11 @@
 steps_per_log: 10
+max_history: 20
 # writer logs losses and images per iteration
 writer: 
-  # TensorboardWriter:
-  #   save_dir: './'
+  TensorboardWriter:
+    save_dir: './'
   LocalWriter:
     save_dir: './'
-    max_history: 20
     stats_to_track: ["Data Load (time)", "Train Iter (time)", "Rays Per Sec (time)", "Test PSNR"]
 
 # profiler logs run times of functions and prints at end of training
