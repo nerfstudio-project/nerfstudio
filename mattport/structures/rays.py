@@ -4,8 +4,8 @@ Some ray datastructures.
 import random
 from dataclasses import dataclass
 from typing import Optional
-import torch
 
+import torch
 from torchtyping import TensorType
 
 from mattport.utils.misc import is_not_none
@@ -18,6 +18,51 @@ class PointSamples:
     positions: TensorType[..., 3] = None
     directions: TensorType[..., 3] = None
     camera_indices: TensorType[..., 1] = None
+    valid_mask: TensorType[..., 1] = None
+
+
+@dataclass
+class RaySamples:
+    """Samples along a ray"""
+
+    positions: TensorType[..., 3] = None
+    directions: TensorType[..., 3] = None
+    camera_indices: TensorType[..., 1] = None
+    valid_mask: TensorType[..., 1] = None
+    ts: TensorType[..., 1] = None
+    deltas: TensorType[..., 1] = None
+
+    def to_point_samples(self) -> PointSamples:
+        """Convert to PointSamples instance and return."""
+        # TODO: make this more interpretable
+        return PointSamples(positions=self.positions, directions=self.directions, valid_mask=self.valid_mask)
+
+    def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples"]:
+        """Return weights based on predicted densities
+
+        Args:
+            densities (TensorType[..., "num_samples", 1]): Predicted densities for samples along ray
+
+        Returns:
+            TensorType[..., "num_samples"]: Weights for each sample
+        """
+
+        delta_density = self.deltas * densities[..., 0]
+        alphas = 1 - torch.exp(-delta_density)
+
+        transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
+        transmittance = torch.cat(
+            [torch.zeros((*transmittance.shape[:1], 1)).to(densities.device), transmittance], axis=-1
+        )
+        transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
+
+        weights = alphas * transmittance  # [..., "num_samples"]
+
+        return weights
+
+    def set_valid_mask(self, valid_mask: TensorType[..., "num_samples"]) -> None:
+        """Sets valid mask"""
+        self.valid_mask = valid_mask
 
 
 @dataclass
@@ -85,6 +130,38 @@ class RayBundle:
             valid_mask=self.valid_mask[valid_mask] if is_not_none(self.valid_mask) else None,
         )
 
+    def get_ray_samples(self, ts: TensorType["num_rays", "num_samples"]) -> RaySamples:
+        """
+        Args:
+            ts (TensorType["num_rays", "num_samples"]): _description_
+
+        Returns:
+            RaySamples: _description_
+        """
+        positions = self.origins[:, None] + ts[:, :, None] * self.directions[:, None]
+        directions = self.directions.unsqueeze(1).repeat(1, positions.shape[1], 1)
+        valid_mask = torch.ones_like(ts, dtype=torch.bool)
+
+        dists = ts[..., 1:] - ts[..., :-1]
+        dists = torch.cat([dists, dists[..., -1:]], -1)  # [N_rays, N_samples]
+        deltas = dists * torch.norm(self.directions[..., None, :], dim=-1)
+
+        if self.camera_indices is not None:
+            camera_indices = self.camera_indices.unsqueeze(1).repeat(1, positions.shape[1])
+        else:
+            camera_indices = None
+
+        ray_samples = RaySamples(
+            positions=positions,
+            directions=directions,
+            camera_indices=camera_indices,
+            valid_mask=valid_mask,
+            ts=ts,
+            deltas=deltas,
+        )
+
+        return ray_samples
+
 
 @dataclass
 class CameraRayBundle:
@@ -130,64 +207,3 @@ class CameraRayBundle:
             directions=self.directions.view(-1, 3)[start_idx:end_idx],
             camera_indices=camera_indices,
         )
-
-
-class RaySamples:
-    """_summary_"""
-
-    def __init__(
-        self,
-        ts: TensorType["num_rays", "num_samples"],
-        ray_bundle: RayBundle,
-    ) -> None:
-        self.ray_bundle = ray_bundle
-        self.ts = ts
-        self.positions = self.get_positions(ray_bundle)
-        self.directions = ray_bundle.directions.unsqueeze(1).repeat(1, self.positions.shape[1], 1)
-        self.deltas = self.get_deltas()
-
-    def to_point_samples(self):
-        """Convert to PointSamples instance and return."""
-        # TODO: make this more interpretable
-        return PointSamples(positions=self.positions, directions=self.directions)
-
-    def get_camera_indices(self):
-        """Returns camera indices."""
-        assert not isinstance(self.ray_bundle.camera_indices, type(None)), "Camera indices cannot be None here."
-        camera_indices = self.ray_bundle.camera_indices.unsqueeze(1).repeat(1, self.positions.shape[1])
-        return camera_indices
-
-    def get_positions(self, ray_bundle: RayBundle) -> TensorType["num_rays", "num_samples", 3]:
-        """Returns positions."""
-        return ray_bundle.origins[:, None] + self.ts[:, :, None] * ray_bundle.directions[:, None]
-
-    def get_deltas(self) -> TensorType[..., "num_samples"]:
-        """Returns deltas."""
-        dists = self.ts[..., 1:] - self.ts[..., :-1]
-        dist_inf = 1e10 * torch.ones_like(dists[..., -1:])
-        dists = torch.cat([dists, dist_inf], -1)  # [N_rays, N_samples]
-        deltas = dists * torch.norm(self.ray_bundle.directions[..., None, :], dim=-1)
-        return deltas
-
-    def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples"]:
-        """Return weights based on predicted densities
-
-        Args:
-            densities (TensorType[..., "num_samples", 1]): Predicted densities for samples along ray
-
-        Returns:
-            TensorType[..., "num_samples"]: Weights for each sample
-        """
-
-        delta_density = self.deltas * densities[..., 0]
-        alphas = 1 - torch.exp(-delta_density)
-
-        transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
-        transmittance = torch.cat(
-            [torch.zeros((*transmittance.shape[:1], 1)).to(densities.device), transmittance], axis=-1
-        )
-        transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
-
-        weights = alphas * transmittance  # [..., "num_samples"]
-
-        return weights
