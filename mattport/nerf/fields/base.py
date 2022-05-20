@@ -7,6 +7,7 @@ from typing import Tuple
 
 from torch import nn
 from torchtyping import TensorType
+from mattport.nerf.field_modules.field_heads import FieldHeadNames
 
 from mattport.structures.rays import PointSamples
 
@@ -39,5 +40,5 @@ class Field(nn.Module):
         """Evaluates the field at points along the ray."""
         density, density_embedding = self.get_density(point_samples)
         field_outputs = self.get_outputs(point_samples, density_embedding=density_embedding)
-        field_outputs["density"] = density
+        field_outputs[FieldHeadNames.DENSITY] = density
         return field_outputs
