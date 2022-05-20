@@ -16,9 +16,9 @@ class MLP(FieldModule):
     def __init__(
         self,
         in_dim: int,
-        out_dim: int,
         num_layers: int,
-        layer_width: int = None,
+        layer_width: int,
+        out_dim: Optional[int] = None,
         skip_connections: Tuple[int] = (),
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
@@ -27,16 +27,16 @@ class MLP(FieldModule):
 
         Args:
             in_dim (int): Input layer dimension
-            out_dim (int): Ouput layer dimension
             num_layers (int): Number of network layers
             layer_width (int): Width of each MLP layer
+            out_dim (int, optional): Ouput layer dimension. Defaults to layer_width
             activation (Optional[nn.Module], optional): intermediate layer activation function. Defaults to nn.ReLU.
             out_activation (Optional[nn.Module], optional): output activation function. Defaults to None.
         """
         super().__init__()
         self.in_dim = in_dim
         assert self.in_dim > 0
-        self.out_dim = out_dim
+        self.out_dim = out_dim if out_dim is not None else layer_width
         self.num_layers = num_layers
         self.layer_width = layer_width
         self.skip_connections = skip_connections

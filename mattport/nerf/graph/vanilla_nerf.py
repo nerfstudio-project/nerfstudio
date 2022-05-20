@@ -3,111 +3,23 @@ Implementation of vanilla nerf.
 """
 
 
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import torch
-from torch import nn
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-
 from mattport.nerf.field_modules.encoding import NeRFEncoding
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
-from mattport.nerf.field_modules.mlp import MLP
-from mattport.nerf.fields.base import Field
+
+from mattport.nerf.fields.nerf_field import NeRFField
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
-from mattport.structures.rays import PointSamples, RayBundle
+from mattport.structures.rays import RayBundle
 from mattport.nerf.colliders import NearFarCollider
 from mattport.utils import visualization, writer
-from mattport.utils.misc import is_not_none
-
-
-class NeRFField(Field):
-    """NeRF module"""
-
-    OUTPUT_RGB = "rgb"
-
-    def __init__(self, num_layers=8, layer_width=256, skip_connections: Tuple = (4,)) -> None:
-        super().__init__()
-        self.num_layers = num_layers
-        self.layer_width = layer_width
-        self.skip_connections = skip_connections
-
-        self.build_encodings()
-        self.build_mlp_base()
-        self.build_mlp_rgb()
-        self.build_heads()
-
-    def build_encodings(self):
-        """Build the encodings."""
-        self.encoding_xyz = NeRFEncoding(
-            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
-        )
-        self.encoding_dir = NeRFEncoding(
-            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
-        )
-
-    def build_mlp_base(self):
-        """Build the MLP base."""
-        self.mlp_base = MLP(
-            in_dim=self.encoding_xyz.get_out_dim(),
-            out_dim=self.layer_width,
-            num_layers=self.num_layers,
-            layer_width=self.layer_width,
-            skip_connections=self.skip_connections,
-            activation=nn.ReLU(),
-        )
-
-    def build_mlp_rgb(self):
-        """Build the MLP for RGB."""
-        self.mlp_rgb = MLP(
-            in_dim=self.mlp_base.get_out_dim() + self.encoding_dir.get_out_dim(),
-            out_dim=self.layer_width // 2,
-            num_layers=2,
-            layer_width=self.layer_width // 2,
-            activation=nn.ReLU(),
-        )
-
-    def build_heads(self):
-        """Build the heads."""
-        self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_rgb.get_out_dim())
-        self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
-
-    def get_density(self, point_samples: PointSamples):
-        """Computes and returns the densities."""
-        positions = point_samples.positions
-        valid_mask = point_samples.valid_mask
-        if not is_not_none(valid_mask):
-            valid_mask = torch.ones_like(positions[..., 0]).bool()
-        # placeholders for values to return
-        density = torch.zeros(*valid_mask.shape, 1, dtype=torch.float32, device=positions.device)
-        base_mlp_out = torch.zeros(
-            *valid_mask.shape, self.mlp_base.out_dim, dtype=torch.float32, device=positions.device
-        )
-        if not valid_mask.any():  # empty mask
-            return density, base_mlp_out
-
-        encoded_xyz = self.encoding_xyz(positions[valid_mask])
-        base_mlp_out[valid_mask] = self.mlp_base(encoded_xyz)
-        density[valid_mask] = self.field_output_density(base_mlp_out[valid_mask])
-        return density, base_mlp_out
-
-    def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
-        directions = point_samples.directions
-        if not is_not_none(valid_mask):
-            valid_mask = torch.ones_like(directions[..., 0]).bool()
-        # placeholders for values to return
-        rgb = torch.zeros(*valid_mask.shape, 3, dtype=torch.float32, device=directions.device)
-        if not valid_mask.any():  # empty mask
-            return {"rgb": rgb}
-        encoded_dir = self.encoding_dir(directions[valid_mask])
-        rgb_mlp_out = self.mlp_rgb(torch.cat([encoded_dir, density_embedding[valid_mask]], dim=-1))
-        rgb[valid_mask] = self.field_output_rgb(rgb_mlp_out)
-        return {"rgb": rgb}
 
 
 class NeRFGraph(Graph):
@@ -136,8 +48,16 @@ class NeRFGraph(Graph):
 
     def populate_fields(self):
         """Set the fields."""
-        self.field_coarse = NeRFField()
-        self.field_fine = NeRFField()
+
+        position_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+        )
+        direction_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
+        )
+
+        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+        self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
 
     def populate_misc_modules(self):
         # samplers
