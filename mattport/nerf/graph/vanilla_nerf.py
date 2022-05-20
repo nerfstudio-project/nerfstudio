@@ -179,7 +179,7 @@ class NeRFGraph(Graph):
         depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform.ts)
 
         # pdf sampling
-        ray_samples_pdf = self.sampler_pdf(ray_samples_uniform, weights_coarse)
+        ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
 
         # fine field:
         field_outputs_fine = self.field_fine.forward(ray_samples_pdf.to_point_samples())
