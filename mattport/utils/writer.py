@@ -31,9 +31,9 @@ class EventName(enum.Enum):
 
     ITER_LOAD_TIME = "Data Load (time)"
     ITER_TRAIN_TIME = "Train Iter (time)"
-    RAYS_PER_SEC = "Rays Per Sec (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
     ETA = "ETA (time)"
+    RAYS_PER_SEC = "Rays Per Sec"
     CURR_TEST_PSNR = "Test PSNR"
 
 
