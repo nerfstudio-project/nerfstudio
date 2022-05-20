@@ -2,6 +2,7 @@
 Encoding functions
 """
 
+from abc import abstractmethod
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -25,6 +26,7 @@ class Encoding(FieldModule):
             raise ValueError("Input dimension should be greater than zero")
         self.in_dim = in_dim
 
+    @abstractmethod
     def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Encodes an input tensor.
 
@@ -39,6 +41,16 @@ class Encoding(FieldModule):
     def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Call forward"""
         return self.encode(in_tensor)
+
+
+class Identity(Encoding):
+    """Identity encoding (Does not modify input)"""
+
+    def get_out_dim(self) -> int:
+        return self.in_dim
+
+    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+        return in_tensor
 
 
 class ScalingAndOffset(Encoding):
