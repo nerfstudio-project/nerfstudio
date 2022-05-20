@@ -25,12 +25,20 @@ EVENT_STORAGE = []
 GLOBAL_BUFFER = {}
 
 
-class EventType(enum.Enum):
-    """Possible Event types that can be logged
+class EventName(enum.Enum):
+    """Names of possible events that can be logged via Local Writer for convenience.
+    see config/logging/default_logging.yaml"""
 
-    Args:
-        enum (_type_): _description_
-    """
+    ITER_LOAD_TIME = "Data Load (time)"
+    ITER_TRAIN_TIME = "Train Iter (time)"
+    RAYS_PER_SEC = "Rays Per Sec (time)"
+    TOTAL_TRAIN_TIME = "Train Total (time)"
+    ETA = "ETA (time)"
+    CURR_TEST_PSNR = "Test PSNR"
+
+
+class EventType(enum.Enum):
+    """Possible Event types and their associated write function"""
 
     IMAGE = "write_image"
     SCALAR = "write_scalar"
@@ -40,6 +48,9 @@ class EventType(enum.Enum):
 @check_main_thread
 def put_image(name, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None):
     """Setter function to place images into the queue to be written out"""
+    if isinstance(name, EventName):
+        name = name.value
+
     EVENT_STORAGE.append(
         {"name": name, "write_type": EventType.IMAGE, "event": image, "step": step, "group": group, "prefix": prefix}
     )
@@ -48,6 +59,9 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int, group: str = No
 @check_main_thread
 def put_scalar(name: str, scalar: float, step: int, group: str = None, prefix: str = None):
     """Setter function to place scalars into the queue to be written out"""
+    if isinstance(name, EventName):
+        name = name.value
+
     GLOBAL_BUFFER["new_key"] = not name in GLOBAL_BUFFER["events"] or GLOBAL_BUFFER["new_key"]
     GLOBAL_BUFFER["events"][name] = scalar
     EVENT_STORAGE.append(
@@ -89,6 +103,9 @@ def put_time(
     avg_over_batch (int): if set, the size of the batch for which we take the average over (batch/second)
     update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
     """
+    if isinstance(name, EventName):
+        name = name.value
+
     GLOBAL_BUFFER["step"] = step
     GLOBAL_BUFFER["new_key"] = not name in GLOBAL_BUFFER["events"] or GLOBAL_BUFFER["new_key"]
     val = end_time - start_time
@@ -99,7 +116,7 @@ def put_time(
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
         curr_buffer = curr_event["buffer"]
         curr_avg = curr_event["avg"]
-        if len(curr_buffer) >= GLOBAL_BUFFER["max_history"]:
+        if len(curr_buffer) >= GLOBAL_BUFFER["max_buffer_size"]:
             curr_buffer.pop(0)
         curr_buffer.append(val)
         curr_avg = sum(curr_buffer) / len(curr_buffer)
@@ -114,7 +131,7 @@ def put_time(
         remain_iter = GLOBAL_BUFFER["max_iter"] - step
         remain_time = remain_iter * GLOBAL_BUFFER["events"][name]["avg"]
         GLOBAL_BUFFER["events"]["ETA"] = remain_time
-        put_scalar("ETA", remain_time, step, group, prefix)
+        put_scalar(EventName.ETA, remain_time, step, group, prefix)
 
 
 @check_main_thread
@@ -140,16 +157,16 @@ def setup_event_writers(config: DictConfig) -> None:
     logging_configs = config.logging.writer
     for writer_type in logging_configs:
         writer_class = getattr(mattport.utils.writer, writer_type)
-        curr_config = logging_configs[writer_type]
+        writer_config = logging_configs[writer_type]
         if writer_type == "LocalWriter":
-            curr_writer = writer_class(curr_config.save_dir, curr_config.stats_to_track, config)
+            curr_writer = writer_class(writer_config.save_dir, writer_config.stats_to_track, writer_config.max_log_size)
         else:
-            curr_writer = writer_class(curr_config.save_dir)
+            curr_writer = writer_class(writer_config.save_dir)
         EVENT_WRITERS.append(curr_writer)
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = config.graph.max_num_iterations
-    GLOBAL_BUFFER["max_history"] = config.logging.max_history
+    GLOBAL_BUFFER["max_buffer_size"] = config.logging.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
     GLOBAL_BUFFER["new_key"] = True
     GLOBAL_BUFFER["events"] = {}
@@ -278,12 +295,17 @@ def _consolidate_events():
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, save_dir: str, stats_to_track: ListConfig, config: DictConfig):
+    def __init__(self, save_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
+        """
+        Args:
+            stats_to_track (ListConfig): the names of stats that should be logged.
+            max_log size (int): max number of lines that will be logged to teminal.
+        """
         super().__init__(save_dir)
-        self.stats_to_track = stats_to_track
+        self.stats_to_track = [EventName[name].value for name in stats_to_track]
+        self.max_log_size = max_log_size
         self.past_stats = []
         self.max_mssg_len = 0
-        self.config = config
 
     def write_image(
         self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
@@ -301,18 +323,22 @@ class LocalWriter(Writer):
 
     def handle_header(self, latest_map):
         """helper to handle the printing of the header labels"""
-        if len(self.past_stats) == 0 or GLOBAL_BUFFER["new_key"]:
+        if (not self.max_log_size and self.max_mssg_len == 0) or (
+            self.max_log_size and (len(self.past_stats) == 0 or GLOBAL_BUFFER["new_key"])
+        ):
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
                 if name in self.stats_to_track:
                     mssg += f"{name:<20} "
-            if len(self.past_stats) > 1:
-                _cursorup(len(self.past_stats) - 1)
+            if self.max_log_size:
+                if len(self.past_stats) > 1:
+                    _cursorup(len(self.past_stats) - 1)
             print(mssg)
             print("-" * len(mssg))
-            if len(self.past_stats) > 0:
-                for mssg in self.past_stats:
-                    print(mssg)
+            if self.max_log_size:
+                if len(self.past_stats) > 0:
+                    for mssg in self.past_stats:
+                        print(mssg)
             self.max_mssg_len = len(mssg)
 
     def handle_stats(self, latest_map, padding=" "):
@@ -330,12 +356,15 @@ class LocalWriter(Writer):
                 curr_mssg += f"{v:<20} "
 
         # update the history buffer
-        if len(self.past_stats) > GLOBAL_BUFFER["max_history"]:
-            self.past_stats.pop(0)
-            _cursorup(len(self.past_stats))
-        elif len(self.past_stats) > 1:
-            _cursorup(len(self.past_stats) - 1)
+        if self.max_log_size:
+            if len(self.past_stats) > self.max_log_size:
+                self.past_stats.pop(0)
+                _cursorup(len(self.past_stats))
+            elif len(self.past_stats) > 1:
+                _cursorup(len(self.past_stats) - 1)
 
-        for mssg in self.past_stats:
-            print(f"{mssg:{padding}<{self.max_mssg_len}}")
-        self.past_stats.append(curr_mssg)
+            for mssg in self.past_stats:
+                print(f"{mssg:{padding}<{self.max_mssg_len}}")
+            self.past_stats.append(curr_mssg)
+        else:
+            print(curr_mssg)

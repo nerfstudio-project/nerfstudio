@@ -202,13 +202,17 @@ class Trainer:
             data_start = time()
             batch = next(iter_dataset)
             writer.put_time(
-                name="Data Load (time)", start_time=data_start, end_time=time(), step=step, avg_over_iters=True
+                name=writer.EventName.ITER_LOAD_TIME,
+                start_time=data_start,
+                end_time=time(),
+                step=step,
+                avg_over_iters=True,
             )
 
             iter_start = time()
             loss_dict = self.train_iteration(batch, step)
             writer.put_time(
-                name="Rays Per Sec (time)",
+                name=writer.EventName.RAYS_PER_SEC,
                 start_time=iter_start,
                 end_time=time(),
                 step=step,
@@ -216,7 +220,7 @@ class Trainer:
                 avg_over_batch=batch["indices"].shape[0],
             )
             writer.put_time(
-                name="Train Iter (time)",
+                name=writer.EventName.ITER_TRAIN_TIME,
                 start_time=iter_start,
                 end_time=time(),
                 step=step,
@@ -234,7 +238,9 @@ class Trainer:
                     _ = self.test_image(image_idx=image_idx, step=step)
             self._write_out_storage(step)
 
-        writer.put_time(name="Train Total (time)", start_time=train_start, end_time=time(), step=num_iterations)
+        writer.put_time(
+            name=writer.EventName.TOTAL_TRAIN_TIME, start_time=train_start, end_time=time(), step=num_iterations
+        )
         self._write_out_storage(num_iterations)
 
     def _write_out_storage(self, step):

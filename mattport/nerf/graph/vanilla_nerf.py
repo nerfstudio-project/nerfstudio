@@ -169,6 +169,6 @@ class NeRFGraph(Graph):
         writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
         writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
 
-        writer.put_scalar(name="Test PSNR", scalar=float(fine_psnr), step=step)
+        writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
 
         return fine_psnr.item()

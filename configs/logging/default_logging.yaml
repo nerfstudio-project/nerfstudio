@@ -1,12 +1,13 @@
 steps_per_log: 10
-max_history: 20
+max_buffer_size: 20
 # writer logs losses and images per iteration
 writer: 
   TensorboardWriter:
     save_dir: './'
   LocalWriter:
     save_dir: './'
-    stats_to_track: ["Data Load (time)", "Train Iter (time)", "Rays Per Sec (time)", "Test PSNR"]
+    stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
+    max_log_size: 20 # if 0, logs everything with no erasing
 
 # profiler logs run times of functions and prints at end of training
 enable_profiler: True
