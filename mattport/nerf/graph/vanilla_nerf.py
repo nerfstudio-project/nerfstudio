@@ -15,7 +15,6 @@ from mattport.nerf.field_modules.encoding import NeRFEncoding
 from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.fields.base import Field
-from mattport.nerf.fields.density_field import DensityField
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
@@ -42,9 +41,6 @@ class NeRFField(Field):
         self.build_mlp_base()
         self.build_mlp_rgb()
         self.build_heads()
-
-        sequence = nn.Sequential(self.encoding_xyz, self.mlp_base)
-        self.density_field = DensityField(sequence)
 
     def build_encodings(self):
         """Build the encodings."""
@@ -95,7 +91,9 @@ class NeRFField(Field):
         if not valid_mask.any():  # empty mask
             return density, base_mlp_out
 
-        density[valid_mask], base_mlp_out[valid_mask] = self.density_field(positions[valid_mask])
+        encoded_xyz = self.encoding_xyz(positions[valid_mask])
+        base_mlp_out[valid_mask] = self.mlp_base(encoded_xyz)
+        density[valid_mask] = self.field_output_density(base_mlp_out[valid_mask])
         return density, base_mlp_out
 
     def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
