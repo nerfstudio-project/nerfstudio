@@ -56,9 +56,7 @@ python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.netw
 
 We provide many logging functionalities for timing and/or tracking losses during training. All of these loggers are configurable via `configs/logging.yml`
 
-1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, local directory, Weights and Biases), and how often to log in the config.
-
-2. **StatsTracker**: Computes select statistics and prints to the terminal for local debugging. Specify the kinds of statistics to be logged, how often to log, and the maximum history buffer size in the config.
+1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, Local Writer, Weights and Biases), and how often to log in the config.
 
 3. **Profiler**: Computes the average total time of execution for any function with the `@profiler.time_function` decorator. Prints out the full profile at the termination of training or the program.
 
