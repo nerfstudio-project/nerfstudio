@@ -62,8 +62,6 @@ def put_scalar(name: str, scalar: float, step: int, group: str = None, prefix: s
     if isinstance(name, EventName):
         name = name.value
 
-    GLOBAL_BUFFER["new_key"] = not name in GLOBAL_BUFFER["events"] or GLOBAL_BUFFER["new_key"]
-    GLOBAL_BUFFER["events"][name] = scalar
     EVENT_STORAGE.append(
         {"name": name, "write_type": EventType.SCALAR, "event": scalar, "step": step, "group": group, "prefix": prefix}
     )
@@ -107,7 +105,6 @@ def put_time(
         name = name.value
 
     GLOBAL_BUFFER["step"] = step
-    GLOBAL_BUFFER["new_key"] = not name in GLOBAL_BUFFER["events"] or GLOBAL_BUFFER["new_key"]
     val = end_time - start_time
     if avg_over_batch:
         val = avg_over_batch / val
@@ -123,14 +120,12 @@ def put_time(
         put_scalar(name, curr_avg, step, group, prefix)
         GLOBAL_BUFFER["events"][name] = {"buffer": curr_buffer, "avg": curr_avg}
     else:
-        GLOBAL_BUFFER["events"][name] = val
         put_scalar(name, val, step, group, prefix)
 
     if update_eta:
         ## NOTE: eta should be called with avg train iteration time
         remain_iter = GLOBAL_BUFFER["max_iter"] - step
         remain_time = remain_iter * GLOBAL_BUFFER["events"][name]["avg"]
-        GLOBAL_BUFFER["events"]["ETA"] = remain_time
         put_scalar(EventName.ETA, remain_time, step, group, prefix)
 
 
@@ -168,7 +163,6 @@ def setup_event_writers(config: DictConfig) -> None:
     GLOBAL_BUFFER["max_iter"] = config.graph.max_num_iterations
     GLOBAL_BUFFER["max_buffer_size"] = config.logging.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
-    GLOBAL_BUFFER["new_key"] = True
     GLOBAL_BUFFER["events"] = {}
 
 
@@ -283,14 +277,6 @@ def _format_time(v):
     return v
 
 
-def _consolidate_events():
-    latest_map = {}
-    for event in EVENT_STORAGE:
-        name = event["name"]
-        latest_map[name] = event["event"]
-    return latest_map
-
-
 @decorate_all([check_main_thread])
 class LocalWriter(Writer):
     """Local Writer Class"""
@@ -304,8 +290,8 @@ class LocalWriter(Writer):
         super().__init__(save_dir)
         self.stats_to_track = [EventName[name].value for name in stats_to_track]
         self.max_log_size = max_log_size
-        self.past_stats = []
-        self.max_mssg_len = 0
+        self.keys = set()
+        self.past_mssgs = ["", ""]
 
     def write_image(
         self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
@@ -316,32 +302,35 @@ class LocalWriter(Writer):
             imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
     def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
-        latest_map = _consolidate_events()
-        self.handle_header(latest_map)
-        self.handle_stats(latest_map)
-        GLOBAL_BUFFER["new_key"] = False
+        if step > 0:
+            latest_map, new_key = self._consolidate_events()
+            self._update_header(latest_map, new_key)
+            self._print_stats(latest_map)
 
-    def handle_header(self, latest_map):
+    def _consolidate_events(self):
+        latest_map = {}
+        new_key = False
+        for event in EVENT_STORAGE:
+            name = event["name"]
+            if name not in self.keys:
+                self.keys.add(name)
+                new_key = True
+            latest_map[name] = event["event"]
+        return latest_map, new_key
+
+    def _update_header(self, latest_map, new_key):
         """helper to handle the printing of the header labels"""
-        if (not self.max_log_size and self.max_mssg_len == 0) or (
-            self.max_log_size and (len(self.past_stats) == 0 or GLOBAL_BUFFER["new_key"])
+        if (not self.max_log_size and len(self.past_mssgs) == 0) or (
+            self.max_log_size and (len(self.past_mssgs) == 0 or new_key)
         ):
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
                 if name in self.stats_to_track:
                     mssg += f"{name:<20} "
-            if self.max_log_size:
-                if len(self.past_stats) > 1:
-                    _cursorup(len(self.past_stats) - 1)
-            print(mssg)
-            print("-" * len(mssg))
-            if self.max_log_size:
-                if len(self.past_stats) > 0:
-                    for mssg in self.past_stats:
-                        print(mssg)
-            self.max_mssg_len = len(mssg)
+            self.past_mssgs[0] = mssg
+            self.past_mssgs[1] = "-" * len(mssg)
 
-    def handle_stats(self, latest_map, padding=" "):
+    def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format"""
         step = GLOBAL_BUFFER["step"]
         fraction_done = step / GLOBAL_BUFFER["max_iter"]
@@ -357,14 +346,14 @@ class LocalWriter(Writer):
 
         # update the history buffer
         if self.max_log_size:
-            if len(self.past_stats) > self.max_log_size:
-                self.past_stats.pop(0)
-                _cursorup(len(self.past_stats))
-            elif len(self.past_stats) > 1:
-                _cursorup(len(self.past_stats) - 1)
+            cursor_idx = len(self.past_mssgs)
+            if len(self.past_mssgs[2:]) >= self.max_log_size:
+                self.past_mssgs.pop(2)
+            self.past_mssgs.append(curr_mssg)
+            _cursorup(cursor_idx)
 
-            for mssg in self.past_stats:
-                print(f"{mssg:{padding}<{self.max_mssg_len}}")
-            self.past_stats.append(curr_mssg)
+            for mssg in self.past_mssgs:
+                pad_len = len(self.past_mssgs[0])
+                print(f"{mssg:{padding}<{pad_len}}")
         else:
             print(curr_mssg)
