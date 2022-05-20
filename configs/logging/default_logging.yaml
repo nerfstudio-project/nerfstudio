@@ -1,12 +1,13 @@
 steps_per_log: 10
-# stats tracker logs configurable training stats per iteration to terminal (e.g. rays/s, PSNR)
-enable_stats: True
-stats_tracker:
-  max_history: 10
-  stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR] # see mattport/utils/stats_tracker.py for options
+max_buffer_size: 20
 # writer logs losses and images per iteration
 writer: 
   TensorboardWriter:
     save_dir: './'
+  LocalWriter:
+    save_dir: './'
+    stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
+    max_log_size: 20 # if 0, logs everything with no erasing
+
 # profiler logs run times of functions and prints at end of training
 enable_profiler: True

@@ -15,7 +15,6 @@ from mattport.nerf.field_modules.encoding import NeRFEncoding
 from mattport.nerf.field_modules.field_heads import DensityFieldHead, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.fields.base import Field
-from mattport.nerf.fields.density_field import DensityField
 from mattport.nerf.graph.base import Graph
 from mattport.nerf.loss import MSELoss
 from mattport.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
@@ -23,7 +22,7 @@ from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
 from mattport.structures.rays import PointSamples, RayBundle
 from mattport.nerf.colliders import NearFarCollider
-from mattport.utils import stats_tracker, visualization, writer
+from mattport.utils import visualization, writer
 from mattport.utils.misc import is_not_none
 
 
@@ -42,9 +41,6 @@ class NeRFField(Field):
         self.build_mlp_base()
         self.build_mlp_rgb()
         self.build_heads()
-
-        sequence = nn.Sequential(self.encoding_xyz, self.mlp_base)
-        self.density_field = DensityField(sequence)
 
     def build_encodings(self):
         """Build the encodings."""
@@ -95,7 +91,9 @@ class NeRFField(Field):
         if not valid_mask.any():  # empty mask
             return density, base_mlp_out
 
-        density[valid_mask], base_mlp_out[valid_mask] = self.density_field(positions[valid_mask])
+        encoded_xyz = self.encoding_xyz(positions[valid_mask])
+        base_mlp_out[valid_mask] = self.mlp_base(encoded_xyz)
+        density[valid_mask] = self.field_output_density(base_mlp_out[valid_mask])
         return density, base_mlp_out
 
     def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
@@ -232,9 +230,9 @@ class NeRFGraph(Graph):
         combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
         combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
 
-        writer.write_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
-        writer.write_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
-        writer.write_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
+        writer.put_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
+        writer.put_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
+        writer.put_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
@@ -246,13 +244,11 @@ class NeRFGraph(Graph):
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
-        writer.write_scalar(name=f"val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step, group="psnr")
-        writer.write_scalar(name=f"val_{image_idx}-fine", scalar=float(fine_psnr), step=step, group="psnr")
-        writer.write_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
-        writer.write_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
+        writer.put_scalar(name=f"val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step, group="psnr")
+        writer.put_scalar(name=f"val_{image_idx}-fine", scalar=float(fine_psnr), step=step, group="psnr")
+        writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
+        writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
 
-        stats_tracker.update_stats(
-            {"name": stats_tracker.Stats.CURR_TEST_PSNR, "value": float(fine_psnr), "step": step}
-        )
+        writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
 
         return fine_psnr.item()

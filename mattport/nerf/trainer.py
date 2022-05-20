@@ -18,7 +18,7 @@ from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size
 from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import DatasetInputs, get_dataset_inputs
 from mattport.nerf.optimizers import Optimizers
-from mattport.utils import profiler, stats_tracker, writer
+from mattport.utils import profiler, writer
 from mattport.utils.decorators import check_main_thread
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -51,8 +51,7 @@ class Trainer:
         self.optimizers = None
         self.start_step = 0
         # logging variables
-        stats_tracker.setup_stats_tracker(config)
-        writer.setup_event_writers(config.logging.writer)
+        writer.setup_event_writers(config)
         profiler.setup_profiler(config.logging)
         self.device = "cpu" if self.world_size == 0 else f"cuda:{self.local_rank}"
 
@@ -199,47 +198,60 @@ class Trainer:
         train_start = time()
         num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
-        for i, step in enumerate(range(self.start_step, self.start_step + num_iterations)):
+        for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
             batch = next(iter_dataset)
-            stats_tracker.update_stats(
-                {"name": stats_tracker.Stats.ITER_LOAD_TIME, "start_time": data_start, "end_time": time(), "step": step}
+            writer.put_time(
+                name=writer.EventName.ITER_LOAD_TIME,
+                start_time=data_start,
+                end_time=time(),
+                step=step,
+                avg_over_iters=True,
             )
 
             iter_start = time()
             loss_dict = self.train_iteration(batch, step)
-            stats_tracker.update_stats(
-                {
-                    "name": stats_tracker.Stats.RAYS_PER_SEC,
-                    "start_time": iter_start,
-                    "end_time": time(),
-                    "step": step,
-                    "batch_size": batch["indices"].shape[0],
-                },
+            writer.put_time(
+                name=writer.EventName.RAYS_PER_SEC,
+                start_time=iter_start,
+                end_time=time(),
+                step=step,
+                avg_over_iters=True,
+                avg_over_batch=batch["indices"].shape[0],
             )
-            stats_tracker.update_stats(
-                {
-                    "name": stats_tracker.Stats.ITER_TRAIN_TIME,
-                    "start_time": iter_start,
-                    "end_time": time(),
-                    "step": step,
-                }
+            writer.put_time(
+                name=writer.EventName.ITER_TRAIN_TIME,
+                start_time=iter_start,
+                end_time=time(),
+                step=step,
+                avg_over_iters=True,
+                update_eta=True,
             )
 
             if step != 0 and step % self.config.logging.steps_per_log == 0:
-                writer.write_scalar_dict(scalar_dict=loss_dict, step=step, group="Loss", prefix="train-")
+                writer.put_dict(name="loss_dict", scalar_dict=loss_dict, step=step, group="Loss", prefix="train-")
                 # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
             if step % self.config.graph.steps_per_test == 0:  # NOTE(ethan): we should still run this in dry-run mode!
                 for image_idx in self.config.data.val_image_indices:
                     _ = self.test_image(image_idx=image_idx, step=step)
-            stats_tracker.print_stats(i / num_iterations)
+            self._write_out_storage(step)
 
-        stats_tracker.update_stats(
-            {"name": stats_tracker.Stats.TOTAL_TRAIN_TIME, "start_time": train_start, "end_time": time()}
+        writer.put_time(
+            name=writer.EventName.TOTAL_TRAIN_TIME, start_time=train_start, end_time=time(), step=num_iterations
         )
-        stats_tracker.print_stats(1.0)
+        self._write_out_storage(num_iterations)
+
+    def _write_out_storage(self, step):
+        """Perform writes only during appropriate time steps"""
+        if (
+            step % self.config.logging.steps_per_log == 0
+            or (self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0)
+            or step % self.config.graph.steps_per_test == 0
+            or step == self.config.graph.max_num_iterations
+        ):
+            writer.write_out_storage()
 
     @profiler.time_function
     def train_iteration(self, batch: dict, step: int):

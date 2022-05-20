@@ -15,22 +15,22 @@ from mattport.utils.misc import is_not_none
 class PointSamples:
     """Samples in space."""
 
-    positions: TensorType[..., 3] = None
-    directions: TensorType[..., 3] = None
-    camera_indices: TensorType[..., 1] = None
-    valid_mask: TensorType[..., 1] = None
+    positions: TensorType[..., 3] = None  # XYZ locations
+    directions: TensorType[..., 3] = None  # Unit direction vector
+    camera_indices: TensorType[..., 1] = None  # Camera index
+    valid_mask: TensorType[..., 1] = None  # Rays that are valid
 
 
 @dataclass
 class RaySamples:
     """Samples along a ray"""
 
-    positions: TensorType[..., 3] = None
-    directions: TensorType[..., 3] = None
-    camera_indices: TensorType[..., 1] = None
-    valid_mask: TensorType[..., 1] = None
-    ts: TensorType[..., 1] = None
-    deltas: TensorType[..., 1] = None
+    positions: TensorType[..., 3] = None  # XYZ locations
+    directions: TensorType[..., 3] = None  # Unit direction vector
+    camera_indices: TensorType[..., 1] = None  # Camera index
+    valid_mask: TensorType[..., 1] = None  # Rays that are valid
+    ts: TensorType[..., 1] = None  # "time steps", distances along ray
+    deltas: TensorType[..., 1] = None  # "width" of each sample
 
     def to_point_samples(self) -> PointSamples:
         """Convert to PointSamples instance and return."""
@@ -67,14 +67,10 @@ class RaySamples:
 
 @dataclass
 class RayBundle:
-    """_summary_
+    """A bundle of ray parameters."""
 
-    Returns:
-        _type_: _description_
-    """
-
-    origins: TensorType["num_rays", 3]
-    directions: TensorType["num_rays", 3]
+    origins: TensorType["num_rays", 3]  # Ray origins
+    directions: TensorType["num_rays", 3]  #
     camera_indices: Optional[TensorType["num_rays"]] = None
     nears: Optional[TensorType["num_rays"]] = None
     fars: Optional[TensorType["num_rays"]] = None
