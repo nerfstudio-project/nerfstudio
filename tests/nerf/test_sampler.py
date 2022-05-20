@@ -47,7 +47,7 @@ def test_pdf_sampler():
 
     # Just check that it doesn't crash. Need to add some actual tests.
     pdf_sampler = PDFSampler(num_samples)
-    pdf_sampler(coarse_ray_samples, weights, num_samples)
+    pdf_sampler(ray_bundle, coarse_ray_samples, weights, num_samples)
 
     # TODO Tancik: Add more precise tests
 

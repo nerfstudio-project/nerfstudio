@@ -94,10 +94,7 @@ class UniformSampler(Sampler):
         else:
             ts = (bins[:, 1:] + bins[:, :-1]) / 2
 
-        ray_samples = RaySamples(
-            ts=ts,
-            ray_bundle=ray_bundle,
-        )
+        ray_samples = ray_bundle.get_ray_samples(ts)
 
         return ray_samples
 
@@ -129,6 +126,7 @@ class PDFSampler(Sampler):
     @torch.no_grad()
     def generate_ray_samples(
         self,
+        ray_bundle: RayBundle = None,
         ray_samples: RaySamples = None,
         weights: TensorType[..., "num_samples"] = None,
         num_samples: Optional[int] = None,
@@ -189,9 +187,6 @@ class PDFSampler(Sampler):
         # Stop gradients
         ts = ts.detach()
 
-        ray_samples = RaySamples(
-            ts=ts,
-            ray_bundle=ray_samples.ray_bundle,
-        )
+        ray_samples = ray_bundle.get_ray_samples(ts)
 
         return ray_samples
