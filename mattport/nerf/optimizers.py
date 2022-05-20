@@ -83,4 +83,4 @@ class Optimizers:
             scheduler.step()
             # TODO(ethan): clean this up. why is there indexing into a list?
             lr = scheduler.get_last_lr()[0]
-            writer.write_scalar(name=f"{param_group_name}", scalar=lr, step=step, group="learning_rate")
+            writer.put_scalar(name=f"{param_group_name}", scalar=lr, step=step, group="learning_rate")

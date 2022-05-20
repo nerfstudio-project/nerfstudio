@@ -23,7 +23,7 @@ from mattport.nerf.sampler import PDFSampler, UniformSampler
 from mattport.structures import colors
 from mattport.structures.rays import PointSamples, RayBundle
 from mattport.nerf.colliders import NearFarCollider
-from mattport.utils import stats_tracker, visualization, writer
+from mattport.utils import visualization, writer
 from mattport.utils.misc import is_not_none
 
 
@@ -232,9 +232,9 @@ class NeRFGraph(Graph):
         combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
         combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
 
-        writer.write_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
-        writer.write_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
-        writer.write_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
+        writer.put_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
+        writer.put_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
+        writer.put_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
@@ -246,13 +246,11 @@ class NeRFGraph(Graph):
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
-        writer.write_scalar(name=f"val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step, group="psnr")
-        writer.write_scalar(name=f"val_{image_idx}-fine", scalar=float(fine_psnr), step=step, group="psnr")
-        writer.write_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
-        writer.write_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
+        writer.put_scalar(name=f"val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step, group="psnr")
+        writer.put_scalar(name=f"val_{image_idx}-fine", scalar=float(fine_psnr), step=step, group="psnr")
+        writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
+        writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
 
-        stats_tracker.update_stats(
-            {"name": stats_tracker.Stats.CURR_TEST_PSNR, "value": float(fine_psnr), "step": step}
-        )
+        writer.put_scalar(name="Test PSNR", scalar=float(fine_psnr), step=step)
 
         return fine_psnr.item()
