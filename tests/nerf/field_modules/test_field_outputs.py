@@ -3,10 +3,12 @@ Field output tests
 """
 import torch
 from torch import nn
+import pytest
 
 from mattport.nerf.field_modules.field_heads import (
     DensityFieldHead,
     FieldHead,
+    FieldHeadNames,
     RGBFieldHead,
     SHFieldHead,
 )
@@ -17,10 +19,17 @@ def test_field_output():
     in_dim = 6
     out_dim = 4
     activation = nn.ReLU()
-    render_head = FieldHead(in_dim=in_dim, out_dim=out_dim, activation=activation)
+    render_head = FieldHead(in_dim=in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.RGB, activation=activation)
     assert render_head.get_out_dim() == out_dim
 
     x = torch.ones((9, in_dim))
+    render_head(x)
+
+    # Test in_dim not provided at construction
+    render_head = FieldHead(out_dim=out_dim, field_head_name=FieldHeadNames.RGB, activation=activation)
+    with pytest.raises(SystemError):
+        render_head(x)
+    render_head.set_in_dim(in_dim)
     render_head(x)
 
 
