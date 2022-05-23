@@ -1,8 +1,0 @@
-defaults:
-  - test_basic_graph
-  - _self_
-  
-network:
-  mlp_0:
-    inputs: ['encoder_0', 'encoder_0']
-    
