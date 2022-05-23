@@ -6,7 +6,7 @@ import logging
 import os
 from pydoc import locate
 from time import time
-from typing import Dict
+from typing import Callable, Dict, List
 
 import torch
 import torch.distributed as dist
@@ -19,6 +19,7 @@ from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
 from mattport.nerf.dataset.utils import DatasetInputs, get_dataset_inputs
 from mattport.nerf.optimizers import Optimizers
 from mattport.utils import profiler, writer
+from mattport.utils.callbacks import update_occupancy
 from mattport.utils.decorators import check_main_thread
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -210,7 +211,7 @@ class Trainer:
             )
 
             iter_start = time()
-            loss_dict = self.train_iteration(batch, step)
+            loss_dict = self.train_iteration(batch, step, _callback=[update_occupancy])
             writer.put_time(
                 name=writer.EventName.RAYS_PER_SEC,
                 start_time=iter_start,
@@ -254,7 +255,7 @@ class Trainer:
             writer.write_out_storage()
 
     @profiler.time_function
-    def train_iteration(self, batch: dict, step: int):
+    def train_iteration(self, batch: dict, step: int, _callback: List[Callable] = None):
         """Run one iteration with a batch of inputs."""
         # move batch to correct device
         ray_indices = batch["indices"].to(self.device)
@@ -264,6 +265,9 @@ class Trainer:
         loss.backward()
         self.optimizers.optimizer_step_all()
         self.optimizers.scheduler_step_all(step)
+        if _callback:
+            for _func in _callback:
+                _func(self.graph)
         return loss_dict
 
     @profiler.time_function

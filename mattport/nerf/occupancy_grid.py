@@ -103,13 +103,11 @@ class OccupancyGrid(nn.Module):
         self.mean_density = torch.mean(self.occupancy_grid[valid_mask]).item()
 
     @torch.no_grad()
-    def get_densities(self, xyzs: TensorType[..., 3], update_iter_count: bool = False) -> TensorType[..., 1]:
+    def get_densities(self, xyzs: TensorType[..., 3]) -> TensorType[..., 1]:
         """Trilinear interpolation to get the density values.
 
         Args:
             xyzs (TensorType[..., 3]): 3D querry coordinate
-            update_iter_count (bool, optional): Update current iteration. Used for knowing when to update grid.
-                Defaults to False.
 
         Returns:
             TensorType[..., 1]: Density values
@@ -128,14 +126,6 @@ class OccupancyGrid(nn.Module):
             padding_mode="zeros",
         )
         densities = densities.view(*xyzs_shape[:-1], 1)
-
-        # TODO we should be tracking the iteration another way
-        if self.training and update_iter_count:
-            self.iteration_count += 1
-            if self.iteration_count % self.update_every_num_iters == 0:
-                if self.density_fn is not None:
-                    self.update_occupancy_grid(self.density_fn)
-
         return densities
 
     def forward(self, x):

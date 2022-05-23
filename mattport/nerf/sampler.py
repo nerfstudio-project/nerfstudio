@@ -32,7 +32,7 @@ class Sampler(nn.Module):
         """Generate ray samples with optional occupancy filtering"""
         ray_samples = self.generate_ray_samples(*args, **kwargs)
         if self.occupancy_field is not None:
-            densities = self.occupancy_field.get_densities(ray_samples.positions, update_iter_count=True)
+            densities = self.occupancy_field.get_densities(ray_samples.positions)
             weights = ray_samples.get_weights(densities)
 
             valid_mask = weights >= self.weight_threshold

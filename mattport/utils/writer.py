@@ -320,15 +320,18 @@ class LocalWriter(Writer):
 
     def _update_header(self, latest_map, new_key):
         """helper to handle the printing of the header labels"""
-        if (not self.max_log_size and len(self.past_mssgs) == 0) or (
-            self.max_log_size and (len(self.past_mssgs) == 0 or new_key)
-        ):
+        full_log_cond = not self.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
+        capped_log_cond = self.max_log_size and (len(self.past_mssgs) <= 2 or new_key)
+        if full_log_cond or capped_log_cond:
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
                 if name in self.stats_to_track:
                     mssg += f"{name:<20} "
             self.past_mssgs[0] = mssg
             self.past_mssgs[1] = "-" * len(mssg)
+            if full_log_cond:
+                print(mssg)
+                print("-" * len(mssg))
 
     def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format"""
