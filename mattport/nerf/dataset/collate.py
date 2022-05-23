@@ -31,15 +31,15 @@ class CollateIterDataset(torch.utils.data.IterableDataset):
         dataset: torch.utils.data.Dataset,
         collate_fn: Callable,
         num_samples_to_collate: int,
-        num_times_to_repeat: int = 0,
+        num_times_to_repeat_images: int = 0,
     ):
         super().__init__()
         self.dataset = dataset
         self.collate_fn = collate_fn
         self.num_samples_to_collate = num_samples_to_collate
-        self.num_times_to_repeat = num_times_to_repeat
+        self.num_times_to_repeat_images = num_times_to_repeat_images
 
-        self.num_repeated = self.num_times_to_repeat  # starting value
+        self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.cached_batch_list = None
 
     def __getitem__(self, idx):
@@ -54,12 +54,12 @@ class CollateIterDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         while True:
-            if self.num_repeated >= self.num_times_to_repeat:
+            if self.num_repeated >= self.num_times_to_repeat_images:
                 # trigger a reset
                 self.num_repeated = 0
                 batch_list = self.get_batch_list()
                 # possibly save a cached item
-                self.cached_batch_list = batch_list if self.num_times_to_repeat != 0 else None
+                self.cached_batch_list = batch_list if self.num_times_to_repeat_images != 0 else None
             else:
                 batch_list = self.cached_batch_list
                 self.num_repeated += 1

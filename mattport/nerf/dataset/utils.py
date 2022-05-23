@@ -8,6 +8,7 @@ from omegaconf import ListConfig
 
 from mattport.nerf.dataset.format.blender import load_blender_data
 from mattport.nerf.dataset.format.friends import load_friends_data
+from mattport.nerf.dataset.format.instant_ngp import load_instant_ngp_data
 from mattport.nerf.dataset.structs import DatasetInputs
 from mattport.structures.colors import get_color
 from mattport.utils.io import get_absolute_path
@@ -56,6 +57,12 @@ def get_dataset_inputs(
             downscale_factor=downscale_factor,
             split="train",
             include_point_cloud=False,
+        )
+    elif dataset_format == "instant_ngp":
+        dataset_inputs = load_instant_ngp_data(
+            get_absolute_path(data_directory),
+            downscale_factor=downscale_factor,
+            split="train",
         )
     else:
         raise NotImplementedError(f"{dataset_format} is not a valid dataset type")

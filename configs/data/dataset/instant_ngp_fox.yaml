@@ -1,0 +1,3 @@
+data_directory: data/instant_ngp/fox
+dataset_format: instant_ngp
+downscale_factor: 1

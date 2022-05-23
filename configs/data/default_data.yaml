@@ -3,8 +3,9 @@ defaults:
   - dataset: blender_lego
 
 # validation options
-val_image_indices: [0, 10, 20] # Which images to evaluate on.
+val_image_indices: [0, 10, 20] # which images to evaluate on
 val_downscale_factor: 8
+val_num_rays_per_chunk: 4096
 
 # dataloader options
 dataloader:
@@ -12,4 +13,4 @@ dataloader:
   shuffle: true
   num_images_to_sample_from: 8
   num_rays_per_batch: 1024
-  num_times_to_repeat_images: 40
+  num_times_to_repeat_images: 100

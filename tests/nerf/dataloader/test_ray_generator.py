@@ -52,7 +52,7 @@ def test_dataloader(visualize=False):
         image_dataset,
         collate_fn=lambda batch_list: collate_batch(batch_list, num_rays_per_batch, keep_full_image=True),
         num_samples_to_collate=num_images_to_sample_from,
-        num_times_to_repeat=num_times_to_repeat_images,
+        num_times_to_repeat_images=num_times_to_repeat_images,
     )
     dataloader = DataLoader(
         iter_dataset,

@@ -99,7 +99,7 @@ class Trainer:
             self.train_image_dataset,
             collate_fn=self.collate_fn,
             num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
-            num_times_to_repeat=self.config.data.dataloader.num_times_to_repeat_images,
+            num_times_to_repeat_images=self.config.data.dataloader.num_times_to_repeat_images,
         )
         self.train_dataloader = DataLoader(
             self.train_dataset,
@@ -276,7 +276,7 @@ class Trainer:
         self.graph.eval()
         intrinsics = self.val_image_intrinsics[image_idx]
         camera_to_world = self.val_image_camera_to_world[image_idx]
-        chunk_size = 1024
+        chunk_size = self.config.data.val_num_rays_per_chunk
         training_camera_index = image_idx  # TODO(ethan): change this because training and test should not be the same
         outputs = self.graph.get_outputs_for_camera(
             intrinsics, camera_to_world, chunk_size=chunk_size, training_camera_index=training_camera_index

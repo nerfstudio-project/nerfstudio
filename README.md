@@ -58,7 +58,7 @@ We provide many logging functionalities for timing and/or tracking losses during
 
 1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, Local Writer, Weights and Biases), and how often to log in the config.
 
-3. **Profiler**: Computes the average total time of execution for any function with the `@profiler.time_function` decorator. Prints out the full profile at the termination of training or the program.
+2. **Profiler**: Computes the average total time of execution for any function with the `@profiler.time_function` decorator. Prints out the full profile at the termination of training or the program.
 
 # Setting up Jupyter
 
@@ -118,4 +118,30 @@ Modify the `BENCH` variable to specify which jobs ("ckpt_dir") and methods ("met
 
 ```
 python scripts/benchmarking/run_benchmark.py
+```
+
+# Running other repos with our data
+
+```
+# nerf-pytorch
+cd external
+python run_nerf.py --config configs/chair.txt --datadir /path/to/mattport/data/blender/chair
+
+# jaxnerf
+cd external
+conda activate jaxnerf
+python -m jaxnerf.train --data_dir=/path/to/mattport/data/blender/chair --train_dir=/path/to/mattport/outputs/blender_chair_jaxnerf --config=/path/to/mattport/external/jaxnerf/configs/demo --render_every 100
+```
+
+# Speeding up the code
+
+Documentation for running the code with CUDA.
+
+```
+This is how to install tiny-cuda-nn.
+# https://github.com/NVlabs/tiny-cuda-nn
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+
+To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
+python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
 ```

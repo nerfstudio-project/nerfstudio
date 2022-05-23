@@ -4,6 +4,9 @@ defaults:
 
 network:
   _target_: mattport.nerf.graph.instant_ngp.NGPGraph
+  field_implementation: torch # torch, tcnn, ...
+  loss_coefficients: # loss coefficients
+    rgb_loss: 1.0
 
 # optimizer options for network
 param_groups:

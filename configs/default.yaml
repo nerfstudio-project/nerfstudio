@@ -7,6 +7,8 @@ defaults:
   - override hydra/hydra_logging: colorlog
   - _self_
 
+seed: 0
+
 hydra:
   run:
     # Configure output dir of each experiment programmatically from the arguments
