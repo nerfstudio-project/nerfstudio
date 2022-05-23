@@ -9,7 +9,7 @@ import torch
 from torch.nn.functional import normalize
 from torchtyping import TensorType
 
-from mattport.structures.rays import CameraRayBundle, RayBundle
+from mattport.structures.rays import RayBundle
 
 
 @dataclass
@@ -98,21 +98,19 @@ class Camera:
         """
         return
 
-    def generate_camera_rays(self) -> CameraRayBundle:
+    def generate_camera_rays(self) -> RayBundle:
         """Generate rays for the camera.
 
         Returns:
             Rays: Camera rays of shape [height, width]
         """
-        image_height = self.get_image_height()
-        image_width = self.get_image_width()
-        num_rays = image_height * image_width
-        intrinsics = self.get_intrinsics().unsqueeze(0).repeat(num_rays, 1)  # (num_rays, num_intrinsics_params)
-        camera_to_world = self.camera_to_world.unsqueeze(0).repeat(num_rays, 1, 1)  # (num_rays, 3, 4)
-        coords = self.get_image_coords().view(num_rays, 2)  # (num_rays, 2)
+        height = self.get_image_height()
+        width = self.get_image_width()
+        intrinsics = self.get_intrinsics().unsqueeze(0).repeat(height, height, 1)  # (num_rays, num_intrinsics_params)
+        camera_to_world = self.camera_to_world.unsqueeze(0).repeat(height, width, 1, 1)  # (num_rays, 3, 4)
+        coords = self.get_image_coords()
         ray_bundle = self.generate_rays(intrinsics, camera_to_world, coords)
-        camera_ray_bundle = ray_bundle.to_camera_ray_bundle(image_height, image_width)
-        return camera_ray_bundle
+        return ray_bundle
 
 
 class PinholeCamera(Camera):
@@ -173,24 +171,24 @@ class PinholeCamera(Camera):
     @classmethod
     def generate_rays(
         cls,
-        intrinsics: TensorType["num_rays", "num_intrinsics_params"],
-        camera_to_world: TensorType["num_rays", 3, 4],
-        coords: TensorType["num_rays", 2],
+        intrinsics: TensorType[..., "num_intrinsics_params"],
+        camera_to_world: TensorType[..., 3, 4],
+        coords: TensorType[..., 2],
     ) -> RayBundle:
 
-        cx = intrinsics[:, 0:1]
-        cy = intrinsics[:, 1:2]
-        fx = intrinsics[:, cls.fx_index() : cls.fx_index() + 1]
-        fy = intrinsics[:, cls.fy_index() : cls.fy_index() + 1]
-        y = coords[:, 0:1]  # (num_rays, 1)
-        x = coords[:, 1:2]  # (num_rays, 1)
-        original_directions = torch.cat([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)  # (num_rays, 3)
-        rotation = camera_to_world[:, :3, :3]  # (num_rays, 3, 3)
+        cx = intrinsics[..., 0:1]
+        cy = intrinsics[..., 1:2]
+        fx = intrinsics[..., cls.fx_index() : cls.fx_index() + 1]
+        fy = intrinsics[..., cls.fy_index() : cls.fy_index() + 1]
+        y = coords[..., 0:1]  # (..., 1)
+        x = coords[..., 1:2]  # (..., 1)
+        original_directions = torch.cat([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)  # (..., 3)
+        rotation = camera_to_world[..., :3, :3]  # (..., 3, 3)
         directions = torch.sum(
-            original_directions[:, None, :] * rotation, dim=-1
-        )  # (num_rays, 1, 3) * (num_rays, 3, 3) -> (num_rays, 3)
+            original_directions[..., None, :] * rotation, dim=-1
+        )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
         directions = normalize(directions, dim=-1)
-        origins = camera_to_world[:, :3, 3]  # (num_rays, 3)
+        origins = camera_to_world[..., :3, 3]  # (..., 3)
         return RayBundle(origins=origins, directions=directions)
 
 

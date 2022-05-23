@@ -138,7 +138,7 @@ class Graph(AbstractGraph):
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
 
         device = self.get_device()
-        num_rays = camera_ray_bundle.get_num_rays()
+        num_rays = len(camera_ray_bundle)
 
         outputs = {}
         outputs_lists = defaultdict(list)

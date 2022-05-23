@@ -13,24 +13,40 @@ from mattport.utils.misc import is_not_none
 
 @dataclass
 class PointSamples:
-    """Samples in space."""
+    """Samples in space.
 
-    positions: TensorType[..., 3] = None  # XYZ locations
-    directions: TensorType[..., 3] = None  # Unit direction vector
-    camera_indices: TensorType[..., 1] = None  # Camera index
-    valid_mask: TensorType[..., 1] = None  # Rays that are valid
+    Args:
+        positions (TensorType[..., 3]): XYZ locations
+        directions (TensorType[..., 3]): Unit direction vector
+        camera_indices (TensorType[..., 1]): Camera index
+        valid_mask (TensorType[...]): Rays that are valid
+    """
+
+    positions: TensorType[..., 3]
+    directions: TensorType[..., 3] = None
+    camera_indices: TensorType[..., 1] = None
+    valid_mask: TensorType[...] = None
 
 
 @dataclass
 class RaySamples:
-    """Samples along a ray"""
+    """Samples along a ray
 
-    positions: TensorType[..., 3] = None  # XYZ locations
-    directions: TensorType[..., 3] = None  # Unit direction vector
-    camera_indices: TensorType[..., 1] = None  # Camera index
-    valid_mask: TensorType[..., 1] = None  # Rays that are valid
-    ts: TensorType[..., 1] = None  # "time steps", distances along ray
-    deltas: TensorType[..., 1] = None  # "width" of each sample
+    Args:
+        positions (TensorType[..., 3]): XYZ locations
+        directions (TensorType[..., 3]): Unit direction vector
+        camera_indices (TensorType[..., 1]): Camera index
+        valid_mask (TensorType[...]): Rays that are valid
+        ts (TensorType[..., 1]): "time steps", distances along ray
+        deltas )TensorType[..., 1]): "width" of each sample
+    """
+
+    positions: TensorType[..., 3]
+    directions: TensorType[..., 3] = None
+    camera_indices: TensorType[..., 1] = None
+    valid_mask: TensorType[...] = None
+    ts: TensorType[..., 1] = None
+    deltas: TensorType[..., 1] = None
 
     def to_point_samples(self) -> PointSamples:
         """Convert to PointSamples instance and return."""
@@ -67,45 +83,55 @@ class RaySamples:
 
 @dataclass
 class RayBundle:
-    """A bundle of ray parameters."""
+    """A bundle of ray parameters.
 
-    origins: TensorType["num_rays", 3]  # Ray origins
-    directions: TensorType["num_rays", 3]  #
-    camera_indices: Optional[TensorType["num_rays"]] = None
+    Args:
+        origins (TensorType[..., 3]): Ray origins (XYZ)
+        directions (TensorType[..., 3]): Unit ray direction vector
+        camera_indices (TensorType[..., 1]): Camera indices
+        nears (TensorType[..., 1]): Distance along ray to start sampling
+        fars (TensorType[..., 1]): Rays Distance along ray to stop sampling
+        valid_mask (TensorType[...]): Rays that are valid
+    """
+
+    origins: TensorType["num_rays", 3]
+    directions: TensorType["num_rays", 3]
+    camera_indices: Optional[TensorType["num_rays", 1]] = None
     nears: Optional[TensorType["num_rays"]] = None
     fars: Optional[TensorType["num_rays"]] = None
     valid_mask: Optional[TensorType["num_rays"]] = None
 
-    def to_camera_ray_bundle(self, image_height, image_width) -> "CameraRayBundle":
-        """Returns a CameraRayBundle from this object."""
-        camera_ray_bundle = CameraRayBundle(
-            origins=self.origins.view(image_height, image_width, 3),
-            directions=self.directions.view(image_height, image_width, 3),
-            camera_indices=self.camera_indices.view(image_height, image_width)
-            if not isinstance(self.camera_indices, type(None))
-            else None,
-        )
-        return camera_ray_bundle
+    def move_to_device(self, device: torch.device) -> None:
+        """Move bundle data to a device.
 
-    def move_to_device(self, device):
-        """Move to a device."""
+        Args:
+            device (torch.device): Device to move tensors to.
+        """
         self.origins = self.origins.to(device)
         self.directions = self.directions.to(device)
         if not isinstance(self.camera_indices, type(None)):
             self.camera_indices = self.camera_indices.to(device)
 
+    def set_camera_indices(self, camera_index: int) -> None:
+        """Sets all of the the camera indices to a specific camera index.
+
+        Args:
+            camera_index (int): Camera index.
+        """
+        self.camera_indices = torch.ones_like(self.origins[..., 0]).long() * camera_index
+
     def __len__(self):
-        num_rays = self.origins.shape[0]
+        num_rays = torch.numel(self.origins) // self.origins.shape[-1]
         return num_rays
 
-    def sample(self, num_rays: int):
+    def sample(self, num_rays: int) -> "RayBundle":
         """Returns a RayBundle as a subset of rays.
 
         Args:
-            num_rays (int):
+            num_rays (int): Number of rays in output RayBundle
 
         Returns:
-            RayBundle: _description_
+            RayBundle: RayBundle with subset of rays.
         """
         assert num_rays <= len(self)
         indices = random.sample(range(len(self)), k=num_rays)
@@ -115,8 +141,15 @@ class RayBundle:
             camera_indices=self.camera_indices[indices],
         )
 
-    def get_masked_ray_bundle(self, valid_mask):
-        """Return a masked instance of the ray bundle."""
+    def get_masked_ray_bundle(self, valid_mask: TensorType) -> "RayBundle":
+        """Return a masked instance of the ray bundle.
+
+        Args:
+            valid_mask (TensorType): Mask of rays to keep.
+
+        Returns:
+            RayBundle: RayBundle of masked rays.
+        """
         return RayBundle(
             origins=self.origins[valid_mask],
             directions=self.directions[valid_mask],
@@ -126,13 +159,35 @@ class RayBundle:
             valid_mask=self.valid_mask[valid_mask] if is_not_none(self.valid_mask) else None,
         )
 
-    def get_ray_samples(self, ts: TensorType["num_rays", "num_samples"]) -> RaySamples:
-        """
+    def get_row_major_sliced_ray_bundle(self, start_idx: int, end_idx: int) -> "RayBundle":
+        """Flattens RayBundle and extracts chunk given start and end indicies.
+
         Args:
-            ts (TensorType["num_rays", "num_samples"]): _description_
+            start_idx (int): Start index of RayBundle chunk.
+            end_idx (int): End index of RayBundle chunk.
 
         Returns:
-            RaySamples: _description_
+            RayBundle: Flattened RayBundle with end_idx-start_idx rays.
+
+        """
+        camera_indices = (
+            self.camera_indices.view(-1)[start_idx:end_idx] if not isinstance(self.camera_indices, type(None)) else None
+        )
+        return RayBundle(
+            origins=self.origins.view(-1, 3)[start_idx:end_idx],
+            directions=self.directions.view(-1, 3)[start_idx:end_idx],
+            camera_indices=camera_indices,
+        )
+
+    def get_ray_samples(self, ts: TensorType[..., "num_samples"]) -> RaySamples:
+        """Produces samples for each ray by projection points along the ray direction.
+
+
+        Args:
+            ts (TensorType[..., "num_samples"]): Distance from origin of sample points.
+
+        Returns:
+            RaySamples: Samples projected along ray.
         """
         positions = self.origins[:, None] + ts[:, :, None] * self.directions[:, None]
         directions = self.directions.unsqueeze(1).repeat(1, positions.shape[1], 1)
@@ -157,49 +212,3 @@ class RayBundle:
         )
 
         return ray_samples
-
-
-@dataclass
-class CameraRayBundle:
-    """_summary_"""
-
-    origins: TensorType["image_height", "image_width", 3]
-    directions: TensorType["image_height", "image_width", 3]
-    camera_indices: Optional[TensorType["image_height", "image_width", 3]] = None
-    camera_index: int = None
-
-    def __post_init__(self):
-        if not isinstance(self.camera_index, type(None)):
-            self.set_camera_indices(self.camera_index)
-
-    def set_camera_indices(self, camera_index: int):
-        """Sets the camera indices for a specific camera index."""
-        self.camera_index = camera_index
-        self.camera_indices = torch.ones_like(self.origins[..., 0]).long() * camera_index
-
-    def get_num_rays(self):
-        """Return the number of rays in this bundle."""
-        image_height, image_width = self.origins.shape[:2]
-        num_rays = image_height * image_width
-        return num_rays
-
-    def to_ray_bundle(self) -> RayBundle:
-        """_summary_
-
-        Returns:
-            RayBundle: _description_
-        """
-        # TODO(ethan): handle camera_index
-        ray_bundle = RayBundle(origins=self.origins.view(-1, 3), directions=self.directions.view(-1, 3))
-        return ray_bundle
-
-    def get_row_major_sliced_ray_bundle(self, start_idx, end_idx):
-        """Return a RayBundle"""
-        camera_indices = (
-            self.camera_indices.view(-1)[start_idx:end_idx] if not isinstance(self.camera_indices, type(None)) else None
-        )
-        return RayBundle(
-            origins=self.origins.view(-1, 3)[start_idx:end_idx],
-            directions=self.directions.view(-1, 3)[start_idx:end_idx],
-            camera_indices=camera_indices,
-        )
