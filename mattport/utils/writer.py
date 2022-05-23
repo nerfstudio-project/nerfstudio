@@ -3,7 +3,6 @@ Generic Writer class
 """
 
 
-import datetime
 import enum
 import os
 from abc import abstractmethod
@@ -268,13 +267,24 @@ def _cursorup(x: int):
     print(f"\r\033[{x}A", end="\x1b[1K\r")
 
 
-def _format_time(v):
-    if v < 1.0:
-        ms = v * 1e3
-        v = f"{ms:0.4f} ms"
-    else:
-        v = str(datetime.timedelta(seconds=v))
-    return v
+def _format_time(seconds):
+    """utility tool to format time in human readable form given seconds"""
+    ms = seconds % 1
+    ms = ms * 1e3
+    seconds = int(seconds)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    if days > 0:
+        return f"{days} d, {hours} h, {minutes} m, {seconds} s"
+    if hours > 0:
+        return f"{hours} h, {minutes} m, {seconds} s"
+    if minutes > 0:
+        return f"{minutes} m, {seconds} s"
+    if seconds > 0:
+        return f"{seconds} s, {ms:0.3f} ms"
+
+    return f"{ms:0.3f} ms"
 
 
 @decorate_all([check_main_thread])
