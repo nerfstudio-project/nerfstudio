@@ -24,7 +24,7 @@ network:
 param_groups:
   fields:
     optimizer:
-      _target_: torch.optim.Adam
+      _target_: torch.optim.RAdam
       lr: 0.0005
     scheduler:
       _target_: mattport.nerf.optimizers.ExponentialDecaySchedule
