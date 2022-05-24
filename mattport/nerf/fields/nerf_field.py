@@ -1,7 +1,7 @@
 """ Classic NeRF field"""
 
 
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
@@ -70,7 +70,7 @@ class NeRFField(Field):
 
     def get_outputs(
         self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
-    ) -> dict[FieldHeadNames, TensorType]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         """Computes and returns the outputs."""
         outputs = {}
         for field_head in self.field_heads:

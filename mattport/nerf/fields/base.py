@@ -3,7 +3,7 @@ Base class for the graphs.
 """
 
 from abc import abstractmethod
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from torch import nn
 import torch
@@ -37,7 +37,7 @@ class Field(nn.Module):
     @abstractmethod
     def get_outputs(
         self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
-    ) -> dict[FieldHeadNames, TensorType]:
+    ) -> Dict[FieldHeadNames, TensorType]:
         """Computes and returns the colors.
 
         Args:
