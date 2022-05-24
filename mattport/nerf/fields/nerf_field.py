@@ -1,17 +1,17 @@
 """ Classic NeRF field"""
 
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import nn
+from torchtyping import TensorType
 
 from mattport.nerf.field_modules.encoding import Encoding, Identity
-from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHead, RGBFieldHead
+from mattport.nerf.field_modules.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
 from mattport.nerf.field_modules.mlp import MLP
 from mattport.nerf.fields.base import Field
 from mattport.structures.rays import PointSamples
-from mattport.utils.misc import is_not_none
 
 
 class NeRFField(Field):
@@ -63,35 +63,18 @@ class NeRFField(Field):
 
     def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
-        positions = point_samples.positions
-        valid_mask = point_samples.valid_mask
-        if not is_not_none(valid_mask):
-            valid_mask = torch.ones_like(positions[..., 0]).bool()
-        # placeholders for values to return
-        density = torch.zeros(*valid_mask.shape, 1, dtype=torch.float32, device=positions.device)
-        base_mlp_out = torch.zeros(
-            *valid_mask.shape, self.mlp_base.out_dim, dtype=torch.float32, device=positions.device
-        )
-        if not valid_mask.any():  # empty mask
-            return density, base_mlp_out
-
-        encoded_xyz = self.position_encoding(positions[valid_mask])
-        base_mlp_out[valid_mask] = self.mlp_base(encoded_xyz)
-        density[valid_mask] = self.field_output_density(base_mlp_out[valid_mask])
+        encoded_xyz = self.position_encoding(point_samples.positions)
+        base_mlp_out = self.mlp_base(encoded_xyz)
+        density = self.field_output_density(base_mlp_out)
         return density, base_mlp_out
 
-    def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
-        directions = point_samples.directions
-        if not is_not_none(valid_mask):
-            valid_mask = torch.ones_like(directions[..., 0]).bool()
+    def get_outputs(
+        self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
+    ) -> dict[FieldHeadNames, TensorType]:
+        """Computes and returns the outputs."""
         outputs = {}
         for field_head in self.field_heads:
-            # placeholders for values to return
-            out = torch.zeros(*valid_mask.shape, field_head.out_dim, dtype=torch.float32, device=directions.device)
-            if not valid_mask.any():  # empty mask
-                return {field_head.field_head_name: out}
-            encoded_dir = self.direction_encoding(directions[valid_mask])
-            mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding[valid_mask]], dim=-1))
-            out[valid_mask] = field_head(mlp_out)
-            outputs[field_head.field_head_name] = out
+            encoded_dir = self.direction_encoding(point_samples.directions)
+            mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
+            outputs[field_head.field_head_name] = field_head(mlp_out)
         return outputs

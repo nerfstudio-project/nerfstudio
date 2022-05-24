@@ -102,7 +102,7 @@ class TCNNInstantNGPField(Field):
         density = F.softplus(density_before_activation)
         return density, base_mlp_out
 
-    def get_outputs(self, point_samples: PointSamples, density_embedding=None, valid_mask=None):
+    def get_outputs(self, point_samples: PointSamples, density_embedding=None):
         # TODO: add valid_mask masking!
         assert is_not_none(density_embedding)
         directions = point_samples.directions

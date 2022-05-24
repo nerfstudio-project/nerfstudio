@@ -27,6 +27,29 @@ class PointSamples:
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[...] = None
 
+    def apply_masks(self) -> "PointSamples":
+        """Use valid_mask to mask samples.
+
+        Returns:
+            PointSamples: New set of masked samples.
+        """
+        if is_not_none(self.valid_mask):
+            positions = self.positions[self.valid_mask]
+            directions = self.directions[self.valid_mask] if is_not_none(self.directions) else self.directions
+            camera_indices = (
+                self.camera_indices[self.valid_mask] if is_not_none(self.camera_indices) else self.camera_indices
+            )
+            return PointSamples(
+                positions=positions,
+                directions=directions,
+                camera_indices=camera_indices,
+            )
+        return PointSamples(
+            positions=self.positions,
+            directions=self.directions,
+            camera_indices=self.camera_indices,
+        )
+
 
 @dataclass
 class RaySamples:

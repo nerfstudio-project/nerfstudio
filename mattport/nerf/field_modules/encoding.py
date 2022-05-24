@@ -215,7 +215,7 @@ class HashEncoding(Encoding):
         assert in_tensor.shape[-1] == 3
 
         in_tensor = in_tensor[..., None, :]  # [..., 1, 3]
-        scaled = in_tensor * self.scalings.view(1, 1, -1, 1).to(in_tensor.device)  # [..., L, 3]
+        scaled = in_tensor * self.scalings.view(-1, 1).to(in_tensor.device)  # [..., L, 3]
         scaled_c = torch.ceil(scaled).type(torch.int32)
         scaled_f = torch.floor(scaled).type(torch.int32)
 

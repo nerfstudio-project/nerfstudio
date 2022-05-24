@@ -21,7 +21,7 @@ class OccupancyGrid(nn.Module):
         self.num_cascades = num_cascades  # the number of levels (i.e, cascades)
         self.resolution = resolution
         self.register_buffer("aabb", aabb)  # axis-aligned bounding box
-        occupancy_grid = torch.zeros(
+        occupancy_grid = torch.ones(
             [self.num_cascades] + [self.resolution] * 3
         )  # (num_cascades, x_resolution, y_resolution, z_resolution)
         # not a module parameter, but it still should be saved and part of `state_dict`
