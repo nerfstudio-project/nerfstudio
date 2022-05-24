@@ -17,16 +17,8 @@ from mattport.nerf.trainer import Trainer
 BENCH = {
     "method": "vanilla_nerf",
     "hydra_base_dir": "outputs/",
-    "ckpt_dir": {
-        "mic": "2022-05-12_173109",
-        "ficus": "2022-05-12_173109",
-        "chair": "2022-05-12_173109",
-        "hotdog": "2022-05-12_173109",
-        "materials": "2022-05-12_173109",
-        "drums": "2022-05-12_173109",
-        "ship": "2022-05-12_173109",
-        "lego": "2022-05-12_173109",
-    },
+    "benchmark_date": "05-24-2022",
+    "object_list": ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"],
 }
 
 
@@ -48,8 +40,11 @@ def main():
     benchmarks = {}
     hydra_base_dir = BENCH["hydra_base_dir"]
     method = BENCH["method"]
-    for dataset, ckpt_dir in tqdm(BENCH["ckpt_dir"].items()):
-        hydra_dir = f"{hydra_base_dir}/blender_{dataset}/{method}/{ckpt_dir}/"
+    benchmark_date = BENCH["benchmark_date"]
+    for dataset in tqdm(BENCH["object_list"]):
+        hydra_dir = f"{hydra_base_dir}/blender_{dataset}_{benchmark_date}/{method}/"
+        basename = os.listdir(hydra_dir)[0]
+        hydra_dir = f"{hydra_dir}/{basename}"
         initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
         config = compose("config.yaml")
         ckpt = load_best_ckpt(hydra_dir, config)
