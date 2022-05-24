@@ -60,7 +60,7 @@ class RGBRenderer(nn.Module):
             TensorType[..., 3]: Outputs of rgb values.
         """
 
-        rgb = self.combine_rgb(rgb, weights)
+        rgb = self.combine_rgb(rgb, weights, background_color=self.background_color)
         if not self.training:
             torch.clamp_(rgb, min=0.0, max=1.0)
         return rgb
