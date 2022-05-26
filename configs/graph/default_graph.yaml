@@ -30,11 +30,3 @@ param_groups:
       _target_: mattport.nerf.optimizers.ExponentialDecaySchedule
       lr_final: 0.000005
       max_steps: 1000000
-
-  cameras:
-    optimizer:
-      _target_: torch.optim.SGD
-      lr: 1e-4
-    scheduler:
-      _target_: torch.optim.lr_scheduler.ExponentialLR
-      gamma: 0.1

@@ -21,6 +21,7 @@ from mattport.nerf.optimizers import Optimizers
 from mattport.utils import profiler, writer
 from mattport.utils.callbacks import update_occupancy
 from mattport.utils.decorators import check_main_thread
+from mattport.utils.misc import get_dict_to_torch
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -194,14 +195,13 @@ class Trainer:
 
     def train(self) -> None:
         """_summary_"""
-        # self.graph.train()
-        # assert self.graph.training, "Graph is not in train mode!"
         train_start = time()
         num_iterations = self.config.graph.max_num_iterations
         iter_dataset = iter(self.train_dataloader)
         for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
             batch = next(iter_dataset)
+            batch = get_dict_to_torch(batch, device=self.device)
             writer.put_time(
                 name=writer.EventName.ITER_LOAD_TIME,
                 start_time=data_start,
@@ -257,9 +257,8 @@ class Trainer:
     @profiler.time_function
     def train_iteration(self, batch: dict, step: int, _callback: List[Callable] = None):
         """Run one iteration with a batch of inputs."""
-        # move batch to correct device
-        ray_indices = batch["indices"].to(self.device)
-        _, loss_dict = self.graph(ray_indices, batch=batch, step=step)
+        ray_indices = batch["indices"]
+        _, loss_dict = self.graph.forward(ray_indices, batch=batch, step=step)
         loss = loss_dict["aggregated_loss"]
         self.optimizers.zero_grad_all()
         loss.backward()
@@ -281,7 +280,9 @@ class Trainer:
         outputs = self.graph.get_outputs_for_camera(
             intrinsics, camera_to_world, chunk_size=chunk_size, training_camera_index=training_camera_index
         )
-        image = self.val_image_dataset[image_idx]["image"].to(self.device)
-        psnr = self.graph.log_test_image_outputs(image_idx, step, image, outputs)
+        val_image_data = self.val_image_dataset[image_idx]
+        image = val_image_data["image"].to(self.device)
+        mask = val_image_data["mask"].to(self.device)
+        psnr = self.graph.log_test_image_outputs(image_idx, step, image, mask, outputs)
         self.graph.train()
         return psnr

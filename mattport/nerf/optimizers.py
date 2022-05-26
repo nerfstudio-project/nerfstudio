@@ -14,16 +14,26 @@ from mattport.utils import writer
 
 
 class ExponentialDecaySchedule(LambdaLR):
-    """Exponential learning rate decay function."""
+    """Exponential learning rate decay function.
+    See https://github.com/google-research/google-research/blob/
+    fd2cea8cdd86b3ed2c640cbe5561707639e682f3/jaxnerf/nerf/utils.py#L360
+    for details.
+    """
 
-    def __init__(self, optimizer, lr_init, lr_final, max_steps) -> None:
+    def __init__(self, optimizer, lr_init, lr_final, max_steps, lr_delay_steps=0, lr_delay_mult=1.0) -> None:
         def func(step):
+            if lr_delay_steps > 0:
+                delay_rate = lr_delay_mult + (1 - lr_delay_mult) * np.sin(
+                    0.5 * np.pi * np.clip(step / lr_delay_steps, 0, 1)
+                )
+            else:
+                delay_rate = 1.0
             t = np.clip(step / max_steps, 0, 1)
             log_lerp = np.exp(np.log(lr_init) * (1 - t) + np.log(lr_final) * t)
             multiplier = (
                 log_lerp / lr_init
             )  # divided by lr_init because the multiplier is with the initial learning rate
-            return multiplier
+            return delay_rate * multiplier
 
         super().__init__(optimizer, lr_lambda=func)
 

@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 from mattport.nerf.field_modules.encoding import Encoding, HashEncoding, SHEncoding
+from mattport.nerf.field_modules.field_heads import FieldHeadNames
 from mattport.nerf.fields.base import Field
 from mattport.nerf.fields.nerf_field import NeRFField
 from mattport.structures.rays import PointSamples
@@ -112,7 +113,7 @@ class TCNNInstantNGPField(Field):
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
         h = self.mlp_head(h).view(*point_samples.directions.shape[:-1], -1).to(dtype)
         rgb = torch.sigmoid(h)
-        return {"rgb": rgb}
+        return {FieldHeadNames.RGB: rgb}
 
 
 class TorchInstantNGPField(NeRFField):

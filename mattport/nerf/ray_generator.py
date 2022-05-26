@@ -30,6 +30,12 @@ class RayGenerator(nn.Module):
         self.camera_to_world = nn.Parameter(camera_to_world, requires_grad=False)
         # TODO(ethan): add learnable parameters that are deltas on the intrinsics and camera_to_world parameters
 
+        # NOTE(ethan): we currently assume all images have the same height and width
+        camera_index = 0
+        self.camera_class = get_camera_model(self.num_intrinsics_params)
+        camera = self.camera_class(*self.intrinsics[camera_index].tolist())
+        self.image_coords = nn.Parameter(camera.get_image_coords(), requires_grad=False)
+
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         """Index into the cameras to generate the rays.
 
@@ -41,13 +47,10 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         intrinsics = self.intrinsics[c]
         camera_to_world = self.camera_to_world[c]
-        # NOTE(ethan): we currently assume all images have the same height and width
-        camera_index = 0
-        camera_class = get_camera_model(self.num_intrinsics_params)
-        camera = camera_class(*self.intrinsics[camera_index].tolist())
-        image_coords = camera.get_image_coords().to(ray_indices.device)  # NOTE(ethan): I can actually avoid this step
-        coords = image_coords[y, x]
+        coords = self.image_coords[y, x]
 
-        ray_bundle = camera_class.generate_rays(intrinsics=intrinsics, camera_to_world=camera_to_world, coords=coords)
+        ray_bundle = self.camera_class.generate_rays(
+            intrinsics=intrinsics, camera_to_world=camera_to_world, coords=coords
+        )
         ray_bundle.camera_indices = c
         return ray_bundle

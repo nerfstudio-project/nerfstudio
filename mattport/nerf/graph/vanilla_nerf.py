@@ -129,7 +129,7 @@ class NeRFGraph(Graph):
         loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, outputs):
+    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])
@@ -150,10 +150,12 @@ class NeRFGraph(Graph):
         combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
         combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
         combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
+        mask = visualization.apply_depth_colormap(mask[..., None])
 
         writer.put_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
         writer.put_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
         writer.put_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
+        writer.put_image(name=f"image_idx_{image_idx}", image=mask, step=step, group="mask")
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

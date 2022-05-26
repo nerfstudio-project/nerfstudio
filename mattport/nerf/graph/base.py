@@ -107,7 +107,7 @@ class Graph(AbstractGraph):
         # during training, keep only the rays that intersect the scene. discard the rest
         valid_mask = intersected_ray_bundle.valid_mask
         masked_intersected_ray_bundle = intersected_ray_bundle.get_masked_ray_bundle(valid_mask)
-        masked_batch = get_masked_dict(batch, valid_mask)
+        masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
         return outputs, loss_dict
@@ -128,6 +128,9 @@ class Graph(AbstractGraph):
     @torch.no_grad()
     def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024, training_camera_index=0):
         """Takes in camera parameters and computes the output of the graph."""
+        # NOTE(ethan): this function has a spike in CPU usage
+
+        device = self.get_device()
         assert len(intrinsics.shape) == 1
         num_intrinsics_params = len(intrinsics)
         camera_class = get_camera_model(num_intrinsics_params)
@@ -135,9 +138,9 @@ class Graph(AbstractGraph):
         camera_ray_bundle = camera.generate_camera_rays()
         # TODO(ethan): decide how to properly handle the image indices for validation images
         camera_ray_bundle.set_camera_indices(camera_index=training_camera_index)
+        camera_ray_bundle.move_to_device(device)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
 
-        device = self.get_device()
         num_rays = len(camera_ray_bundle)
 
         outputs = {}
@@ -146,7 +149,6 @@ class Graph(AbstractGraph):
             start_idx = i
             end_idx = i + chunk_size
             original_ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            original_ray_bundle.move_to_device(device)
             intersected_ray_bundle = self.collider(original_ray_bundle)
             outputs = self.get_outputs(intersected_ray_bundle)
             for output_name, output in outputs.items():
@@ -156,5 +158,5 @@ class Graph(AbstractGraph):
         return outputs
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, image, outputs):
+    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
         """Writes the test image outputs."""

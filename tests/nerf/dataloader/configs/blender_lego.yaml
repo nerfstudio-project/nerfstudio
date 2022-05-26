@@ -6,7 +6,7 @@ dataset:
 
 # dataloader options
 dataloader:
-  num_workers: 0
+  num_workers: 1
   shuffle: true
   num_images_to_sample_from: 8
   num_rays_per_batch: 1024
