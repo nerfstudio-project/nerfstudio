@@ -8,9 +8,31 @@ import numpy as np
 import torch
 
 from mattport.nerf.dataset.colmap_utils import read_cameras_binary, read_images_binary, read_pointsTD_binary
-from mattport.nerf.dataset.structs import DatasetInputs, PointCloud, Semantics
+from mattport.nerf.dataset.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
 from mattport.utils import profiler
 from mattport.utils.io import load_from_json
+
+
+def get_aabb_and_transform(basedir):
+    """Returns the aabb and pointcloud transform from the threejs.json file."""
+    filename = os.path.join(basedir, "threejs.json")
+    assert os.path.exists(filename)
+    data = load_from_json(filename)
+
+    # point cloud transformation
+    transposed_point_cloud_transform = np.array(data["object"]["children"][0]["matrix"]).reshape(4, 4).T
+    assert transposed_point_cloud_transform[3, 3] == 1.0
+
+    # bbox transformation
+    bbox_transform = np.array(data["object"]["children"][1]["matrix"]).reshape(4, 4).T
+    w, h, d = data["geometries"][1]["width"], data["geometries"][1]["height"], data["geometries"][1]["depth"]
+    temp = np.array([w, h, d]) / 2.0
+    bbox = np.array([-temp, temp])
+    bbox = np.concatenate([bbox, np.ones_like(bbox[:, 0:1])], axis=1)
+    bbox = (bbox_transform @ bbox.T).T[:, 0:3]
+
+    aabb = bbox  # rename to aabb because it's an axis-aligned bounding box
+    return torch.from_numpy(aabb).float(), torch.from_numpy(transposed_point_cloud_transform).float()
 
 
 @profiler.time_function
@@ -38,6 +60,10 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
     # TODO: handle the splits differently
     image_filenames = [os.path.join(basedir, "images", image_path) for image_path in image_paths]
 
+    # -- set the bounding box ---
+    aabb, transposed_point_cloud_transform = get_aabb_and_transform(basedir)
+    scene_bounds = SceneBounds(aabb=aabb)
+
     # --- intrinsics ---
     cameras_data = read_cameras_binary(os.path.join(basedir, "colmap", "cameras.bin"))
     intrinsics = []
@@ -61,8 +87,9 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         camera_to_world.append(c2w)
     camera_to_world = torch.tensor(np.array(camera_to_world)).float()
     camera_to_world = torch.inverse(camera_to_world)
-    camera_to_world = camera_to_world[:, :3]
     camera_to_world[..., 1:3] *= -1
+    camera_to_world = transposed_point_cloud_transform @ camera_to_world
+    camera_to_world = camera_to_world[:, :3]
 
     # --- masks to mask out things (e.g., people) ---
 
@@ -87,19 +114,15 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
             thing_filenames=thing_filenames,
         )
 
-    # --- possibly transform ---
-    # TODO:
-
-    # -- set the bounding box ---
-    # TODO:
-
     # Possibly include the sparse point cloud from COLMAP in the dataset inputs.
     # NOTE(ethan): this will be common across the different splits.
     point_cloud = PointCloud()
     if include_point_cloud:
         points_3d = read_pointsTD_binary(os.path.join(basedir, "colmap", "points3D.bin"))
-        xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()]))
-        rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()]))
+        xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()])).float()
+        rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()])).float()
+        xyz_h = torch.cat([xyz, torch.ones_like(xyz[..., :1])], -1)
+        xyz = (xyz_h @ transposed_point_cloud_transform.T)[..., :3]
         point_cloud.xyz = xyz
         point_cloud.rgb = rgb
 
@@ -110,5 +133,6 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         camera_to_world=camera_to_world,
         semantics=semantics,
         point_cloud=point_cloud,
+        scene_bounds=scene_bounds,
     )
     return dataset_inputs

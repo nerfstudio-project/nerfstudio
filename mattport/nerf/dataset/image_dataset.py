@@ -27,6 +27,13 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
 
     batch = default_collate(batch_list)
     num_images, image_height, image_width, _ = batch["image"].shape
+
+    # # checking where mask is not zero
+    # # TODO(ethan): add this to the code with a config
+    # nonzero_indices = torch.nonzero(batch["mask"], as_tuple=False)
+    # chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
+    # indices = nonzero_indices[chosen_indices]
+
     indices = torch.floor(
         torch.rand((num_rays_per_batch, 3)) * torch.tensor([num_images, image_height, image_width])
     ).long()

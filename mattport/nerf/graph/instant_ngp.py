@@ -118,7 +118,7 @@ class NGPGraph(Graph):
         loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, outputs):
+    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
         depth = visualization.apply_depth_colormap(

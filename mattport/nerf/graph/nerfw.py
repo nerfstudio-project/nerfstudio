@@ -22,28 +22,27 @@ from mattport.structures.rays import RayBundle, RaySamples
 from mattport.utils import visualization, writer
 
 
-class NerfWField(NeRFField):
+class NerfWField(Field):
     """The NeRF-W field which has appearance and transient conditioning."""
 
     def __init__(
         self,
-        num_layers=8,
-        layer_width=256,
-        skip_connections: Tuple = (4,),
-        num_images: int = 0,
-        appearance_embedding_dim: int = 48,
-        transient_embedding_dim: int = 16,
+        position_encoding: Encoding = Identity(in_dim=3),
+        direction_encoding: Encoding = Identity(in_dim=3),
+        base_mlp_num_layers: int = 8,
+        base_mlp_layer_width: int = 256,
+        head_mlp_num_layers: int = 2,
+        head_mlp_layer_width: int = 128,
+        skip_connections: Tuple[int] = (4,),
+        field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
     ) -> None:
-        assert num_images > 0
+        super().__init__()
         self.num_images = num_images
-        self.appearance_embedding_dim = appearance_embedding_dim
-        self.transient_embedding_dim = transient_embedding_dim
-        super().__init__(num_layers, layer_width, skip_connections)
+        self.appearance_embedding_dim = 48
+        self.transient_embedding_dim = 16
 
-    def build_mlp_base(self):
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
         self.embedding_transient = Embedding(self.num_images, self.transient_embedding_dim)
-        super().build_mlp_base()
         self.mlp_transient = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.embedding_transient.get_out_dim(),
             out_dim=self.layer_width // 2,
@@ -52,8 +51,7 @@ class NerfWField(NeRFField):
             activation=nn.ReLU(),
         )
 
-    def build_mlp_rgb(self):
-        self.mlp_rgb = MLP(
+        self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim()
             + self.encoding_dir.get_out_dim()
             + self.embedding_appearance.get_out_dim(),
@@ -193,7 +191,7 @@ class NerfWGraph(NeRFGraph):
         loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, outputs):
+    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         rgb_fine_static = outputs["rgb_fine_static"]

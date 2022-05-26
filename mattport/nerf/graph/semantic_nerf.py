@@ -149,8 +149,8 @@ class SemanticNerfGraph(NeRFGraph):
         loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, outputs):
-        super().log_test_image_outputs(image_idx, step, image, outputs)
+    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
+        super().log_test_image_outputs(image_idx, step, image, mask, outputs)
         semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantic_logits"], dim=-1), dim=-1) / len(
             self.stuff_classes
         )
