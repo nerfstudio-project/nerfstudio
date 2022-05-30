@@ -1,14 +1,21 @@
 defaults:
-  - default
+  - vanilla_nerf
   - override data/dataset: friends_TBBT-big_living_room
-  - override graph: nerfw_graph
   - _self_
 
 experiment_name: friends_TBBT-big_living_room
 method_name: nerfw
 
-network:
-  near_plane: 0.1
-  far_plane: 10.0
-  num_coarse_samples: 64
-  num_importance_samples: 64
+graph:
+  network:
+    _target_: radiance.nerf.graph.nerfw.NerfWGraph
+    near_plane: 0.1
+    far_plane: 10.0
+    num_coarse_samples: 64
+    num_importance_samples: 64
+
+    loss_coefficients: # loss coefficients
+      rgb_loss_coarse: 1.0
+      rgb_loss_fine: 1.0
+      uncertainty_loss: 1.0
+      density_loss: 0.01

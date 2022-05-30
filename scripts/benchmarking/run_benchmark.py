@@ -17,7 +17,7 @@ from radiance.nerf.trainer import Trainer
 BENCH = {
     "method": "vanilla_nerf",
     "hydra_base_dir": "outputs/",
-    "benchmark_date": "05-24-2022",
+    "benchmark_date": "05-26-2022",
     "object_list": ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"],
 }
 

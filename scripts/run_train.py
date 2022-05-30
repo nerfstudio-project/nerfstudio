@@ -198,7 +198,7 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-@hydra.main(config_path="../configs", config_name="default.yaml")
+@hydra.main(config_path="../configs", config_name="vanilla_nerf.yaml")
 def main(config: DictConfig):
     """Main function."""
     launch(
