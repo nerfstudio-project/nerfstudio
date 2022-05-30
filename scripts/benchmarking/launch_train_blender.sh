@@ -1,5 +1,8 @@
 #!/bin/bash
 
+METHOD=$1
+shift
+
 # Deal with gpu's. If passed in, use those.
 GPU_IDX=("$@")
 if [ -z "$GPU_IDX" ]; then
@@ -35,6 +38,7 @@ for dataset in ${DATASETS[@]}; do
         ((idx=idx+1))
     fi
     python scripts/run_train.py \
+           --config-name ${METHOD} \
            '~logging.writer.LocalWriter' \
            data.dataset.data_directory=data/blender/${dataset} \
            data.dataset.downscale_factor=1 \
@@ -43,5 +47,5 @@ for dataset in ${DATASETS[@]}; do
            graph.steps_per_save=25000 \
            graph.max_num_iterations=2000000 \
            logging.enable_profiler=False &
-    echo "Launched ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
+    echo "Launched ${METHOD} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
 done
