@@ -4,7 +4,7 @@ Test renderers
 import pytest
 import torch
 
-from mattport.nerf import renderers
+from radiance.nerf import renderers
 
 
 def test_rgb_renderer():

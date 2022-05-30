@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 network:
-  _target_: mattport.nerf.graph.semantic_nerf.SemanticNerfGraph
+  _target_: radiance.nerf.graph.semantic_nerf.SemanticNerfGraph
   loss_coefficients: # loss coefficients
     rgb_loss_coarse: 1.0
     rgb_loss_fine: 1.0

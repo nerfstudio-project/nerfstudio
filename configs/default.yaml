@@ -7,7 +7,7 @@ defaults:
   - override hydra/hydra_logging: colorlog
   - _self_
 
-seed: 0
+seed: 42
 
 hydra:
   run:

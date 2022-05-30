@@ -3,7 +3,7 @@ Encoding Tests
 """
 import pytest
 import torch
-from mattport.nerf.field_modules import encoding
+from radiance.nerf.field_modules import encoding
 
 
 def test_scaling_and_offset():
