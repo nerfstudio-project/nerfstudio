@@ -13,12 +13,12 @@ if USE_CUDA:
 
         ext_modules = [
             CUDAExtension(
-                name="mattport_cuda",
+                name="radiance_cuda",
                 sources=[
-                    "mattport/cuda/mattport_cuda.cpp",
-                    "mattport/cuda/mattport_cuda_kernel.cu",
+                    "radiance/cuda/radiance_cuda.cpp",
+                    "radiance/cuda/radiance_cuda_kernel.cu",
                 ],
-                include_dirs=[os.path.join("mattport", "cuda", "include")],
+                include_dirs=[os.path.join("radiance", "cuda", "include")],
                 extra_compile_args={
                     "cxx": [],
                     "nvcc": [],

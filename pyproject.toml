@@ -11,7 +11,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore = ["mattport/cuda", "tests/cuda", "nerfw.py", "semantic_nerf.py"]
+ignore = ["radiance/cuda", "tests/cuda", "nerfw.py", "semantic_nerf.py"]
 
 disable = [
   "too-many-arguments",
@@ -23,7 +23,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "--typeguard-packages=mattport --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
+addopts = "--typeguard-packages=radiance --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
 testpaths = [
     "tests",
 ]
