@@ -5,7 +5,7 @@ import torch
 from torch import nn
 import pytest
 
-from radiance.nerf.field_modules.field_heads import (
+from pyrad.nerf.field_modules.field_heads import (
     DensityFieldHead,
     FieldHead,
     FieldHeadNames,

@@ -1,4 +1,6 @@
-# Radiance :bulb:
+# pyrad :bulb:
+
+An all-in-one repo for NeRFs
 
 # Quickstart
 
@@ -6,14 +8,14 @@
 
 ```
 # Clone the repo
-git clone --recurse-submodules git@github.com:ethanweber/radiance.git
+git clone --recurse-submodules git@github.com:ethanweber/pyrad.git
 
 # Create the python environment
-conda create --name radiance python=3.8.13
-conda activate radiance
+conda create --name pyrad python=3.8.13
+conda activate pyrad
 pip install -r environment/requirements.txt
 
-# Install radiance as a library
+# Install pyrad as a library
 pip install -e .
 
 # Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
@@ -73,12 +75,12 @@ To implement any pre-existing NeRF that we have not yet implemented under `nerf/
 ```
 # nerf-pytorch
 cd external
-python run_nerf.py --config configs/chair.txt --datadir /path/to/radiance/data/blender/chair
+python run_nerf.py --config configs/chair.txt --datadir /path/to/pyrad/data/blender/chair
 
 # jaxnerf
 cd external
 conda activate jaxnerf
-python -m jaxnerf.train --data_dir=/path/to/radiance/data/blender/chair --train_dir=/path/to/radiance/outputs/blender_chair_jaxnerf --config=/path/to/radiance/external/jaxnerf/configs/demo --render_every 100
+python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir=/path/to/pyrad/outputs/blender_chair_jaxnerf --config=/path/to/pyrad/external/jaxnerf/configs/demo --render_every 100
 ```
 
 ### 5. Speeding up the code

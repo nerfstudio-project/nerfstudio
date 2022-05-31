@@ -1,6 +1,6 @@
 # Tooling
 
-1. One can use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/radiance` folder. It will also remove the environment parameters upon leaving.
+1. One can use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/pyrad` folder. It will also remove the environment parameters upon leaving.
 
 ```
 # Install direnv.
@@ -10,7 +10,7 @@ sudo apt install direnv
 eval "$(direnv hook bash)"
 
 # Populate your .envrc with commands you want to run. Then, run the following to allow updates.
-cd /path/to/radiance
+cd /path/to/pyrad
 direnv allow .
 ```
 

@@ -4,8 +4,8 @@ Test the camera classes.
 
 import torch
 
-from radiance.structures.cameras import PinholeCamera
-from radiance.structures.rays import RayBundle
+from pyrad.structures.cameras import PinholeCamera
+from pyrad.structures.rays import RayBundle
 
 
 def test_pinhole_camera():

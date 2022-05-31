@@ -3,7 +3,7 @@ hydra-colorlog
 hydra-core
 imageio==2.16.1
 ipywidgets>=7.6
-jupyterlab
+jupyterlab==3.3.4
 kaleido
 matplotlib
 mediapy
@@ -11,6 +11,9 @@ plotly==5.7.0
 protobuf==3.20.0
 pylint==2.13.4
 pytest
+readthedocs-sphinx-search==0.1.2
+sphinx==5.0.0
+sphinx-rtd-theme==1.0.0
 tensorboard==2.8.0
 torch==1.11.0
 torchmetrics[image]==0.8.2

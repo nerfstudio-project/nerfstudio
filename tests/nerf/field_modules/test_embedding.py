@@ -1,7 +1,7 @@
 """
 Embedding tests
 """
-from radiance.nerf.field_modules.embedding import Embedding
+from pyrad.nerf.field_modules.embedding import Embedding
 
 
 def test_indexing():
