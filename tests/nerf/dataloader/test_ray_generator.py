@@ -7,12 +7,12 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from mattport.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
-from mattport.nerf.dataset.image_dataset import ImageDataset, collate_batch
-from mattport.nerf.dataset.utils import get_dataset_inputs
-from mattport.nerf.ray_generator import RayGenerator
-from mattport.utils.io import get_absolute_path
-from mattport.viewer.plotly import visualize_dataset
+from radiance.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
+from radiance.nerf.dataset.image_dataset import ImageDataset, collate_batch
+from radiance.nerf.dataset.utils import get_dataset_inputs
+from radiance.nerf.ray_generator import RayGenerator
+from radiance.utils.io import get_absolute_path
+from radiance.viewer.plotly import visualize_dataset
 
 
 def visualize_batch(batch):

@@ -3,6 +3,7 @@ run_train_nerf.py
 """
 import datetime
 import logging
+import os
 import random
 import socket
 from datetime import timedelta
@@ -15,9 +16,10 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from omegaconf import DictConfig
+import yaml
 
-from mattport.nerf.trainer import Trainer
-from mattport.utils import comms, profiler
+from radiance.nerf.trainer import Trainer
+from radiance.utils import comms, profiler
 from time import time
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
@@ -198,9 +200,17 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-@hydra.main(config_path="../configs", config_name="default.yaml")
+@hydra.main(config_path="../configs", config_name="vanilla_nerf.yaml")
 def main(config: DictConfig):
     """Main function."""
+    unrolled_path = os.path.join(os.getcwd(), ".hydra/config.yaml")
+    if os.path.exists(unrolled_path):
+        with open(unrolled_path, "r", encoding="utf8") as f:
+            unrolled_config = yaml.safe_load(f)
+        logger = logging.getLogger(__name__)
+        logger.info("Printing current config setup")
+        print(yaml.dump(unrolled_config, sort_keys=False, default_flow_style=False))
+
     launch(
         _train,
         config.machine_config.num_gpus,

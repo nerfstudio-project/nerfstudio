@@ -1,5 +1,5 @@
 defaults:
-  - default
+  - vanilla_nerf
 
 dry_run: true
 

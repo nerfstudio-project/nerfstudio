@@ -1,7 +1,7 @@
 defaults:
-  - default
-  - override graph: instant_ngp_graph
+  - instant_ngp
   - _self_
+  
 method_name: instant_ngp
 data:
   dataloader:
