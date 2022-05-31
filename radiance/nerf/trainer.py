@@ -4,6 +4,7 @@ Code to train model.
 import copy
 import logging
 import os
+from pyclbr import Class
 from pydoc import locate
 from time import time
 from typing import Callable, Dict, List
@@ -21,7 +22,7 @@ from radiance.nerf.optimizers import Optimizers
 from radiance.utils import profiler, writer
 from radiance.utils.callbacks import update_occupancy
 from radiance.utils.decorators import check_main_thread
-from radiance.utils.misc import get_dict_to_torch
+from radiance.utils.misc import get_dict_to_torch, instantiate_from_dict_config
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -79,9 +80,11 @@ class Trainer:
     @profiler.time_function
     def setup_dataset_eval(self, dataset_inputs: DatasetInputs):
         """Helper method to load test or val dataset based on test/train mode"""
-        self.val_image_dataset = ImageDataset(
+        self.val_image_dataset = instantiate_from_dict_config(
+            self.config.data.image_dataset,
             image_filenames=dataset_inputs.image_filenames,
             downscale_factor=dataset_inputs.downscale_factor,
+            semantics=dataset_inputs.semantics,
             alpha_color=dataset_inputs.alpha_color,
         )
         self.val_image_intrinsics = dataset_inputs.intrinsics
@@ -90,11 +93,12 @@ class Trainer:
     @profiler.time_function
     def setup_dataset_train(self, dataset_inputs: DatasetInputs):
         """_summary_"""
-        self.train_image_dataset = ImageDataset(
+        self.train_image_dataset = instantiate_from_dict_config(
+            self.config.data.image_dataset,
             image_filenames=dataset_inputs.image_filenames,
             downscale_factor=dataset_inputs.downscale_factor,
             semantics=dataset_inputs.semantics,
-            alpha_color=dataset_inputs.alpha_color,
+            alpha_color=dataset_inputs.alpha_color
         )
         self.train_dataset = CollateIterDataset(
             self.train_image_dataset,
@@ -117,15 +121,13 @@ class Trainer:
         Args:
             dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
         """
-        # hydra instantiate fails because of scene_bounds, so we are doing the following instead
-        kwargs = {k: v for k, v in self.config.graph.network.items() if k != "_target_"}
-        graph_class = locate(self.config.graph.network._target_)  # pylint: disable=protected-access
-        self.graph = graph_class(
-            **kwargs,
+        self.graph = instantiate_from_dict_config(
+            self.config.graph.network,
             intrinsics=dataset_inputs.intrinsics,
             camera_to_world=dataset_inputs.camera_to_world,
             scene_bounds=dataset_inputs.scene_bounds,
             stuff_classes=dataset_inputs.semantics.stuff_classes,
+            stuff_colors=dataset_inputs.semantics.stuff_colors
         )
         self.graph.to(self.device)
 
@@ -280,9 +282,8 @@ class Trainer:
         outputs = self.graph.get_outputs_for_camera(
             intrinsics, camera_to_world, chunk_size=chunk_size, training_camera_index=training_camera_index
         )
-        val_image_data = self.val_image_dataset[image_idx]
-        image = val_image_data["image"].to(self.device)
-        mask = val_image_data["mask"].to(self.device)
-        psnr = self.graph.log_test_image_outputs(image_idx, step, image, mask, outputs)
+        batch = self.val_image_dataset[image_idx]
+        batch = get_dict_to_torch(batch, device=self.device)
+        psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
         self.graph.train()
         return psnr

@@ -9,11 +9,10 @@ method_name: nerfw
 graph:
   network:
     _target_: radiance.nerf.graph.nerfw.NerfWGraph
-    near_plane: 0.1
-    far_plane: 10.0
+    collider_config:
+      _target_: radiance.nerf.colliders.AABBBoxCollider
     num_coarse_samples: 64
     num_importance_samples: 64
-
     loss_coefficients: # loss coefficients
       rgb_loss_coarse: 1.0
       rgb_loss_fine: 1.0

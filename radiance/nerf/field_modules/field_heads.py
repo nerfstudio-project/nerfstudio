@@ -19,8 +19,7 @@ class FieldHeadNames(Enum):
     UNCERTAINTY = "uncertainty"
     TRANSIENT_RGB = "transient_rgb"
     TRANSIENT_DENSITY = "transient_density"
-    SEMANTICS_STUFF = "semantics_stuff"
-    SEMANTICS_THING = "semantics_thing"
+    SEMANTICS = "semantics"
 
 
 class FieldHead(FieldModule):
@@ -113,14 +112,14 @@ class UncertaintyFieldHead(FieldHead):
         super().__init__(in_dim=in_dim, out_dim=1, field_head_name=FieldHeadNames.UNCERTAINTY, activation=activation)
 
 
-class TransientRGBHead(FieldHead):
+class TransientRGBFieldHead(FieldHead):
     """Transient RGB output"""
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
         super().__init__(in_dim=in_dim, out_dim=3, field_head_name=FieldHeadNames.TRANSIENT_RGB, activation=activation)
 
 
-class TransientDensityHead(FieldHead):
+class TransientDensityFieldHead(FieldHead):
     """Transient density output"""
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
@@ -129,7 +128,7 @@ class TransientDensityHead(FieldHead):
         )
 
 
-class SemanticStuffHead(FieldHead):
+class SemanticFieldHead(FieldHead):
     """Semantic stuff output"""
 
     def __init__(self, num_classes: int, in_dim: Optional[int] = None) -> None:
@@ -138,6 +137,4 @@ class SemanticStuffHead(FieldHead):
             num_classes (int): Number of semantic classes
             in_dim (int): Input dimension
         """
-        super().__init__(
-            in_dim=in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS_STUFF, activation=None
-        )
+        super().__init__(in_dim=in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS, activation=None)

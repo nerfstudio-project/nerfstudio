@@ -139,7 +139,7 @@ class RayBundle:
         """
         self.origins = self.origins.to(device)
         self.directions = self.directions.to(device)
-        if not isinstance(self.camera_indices, type(None)):
+        if is_not_none(self.camera_indices):
             self.camera_indices = self.camera_indices.to(device)
 
     def set_camera_indices(self, camera_index: int) -> None:
@@ -227,7 +227,7 @@ class RayBundle:
         dists = torch.cat([dists, dists[..., -1:]], -1)  # [N_rays, N_samples]
         deltas = dists * torch.norm(self.directions[..., None, :], dim=-1)
 
-        if self.camera_indices is not None:
+        if is_not_none(self.camera_indices):
             camera_indices = self.camera_indices.unsqueeze(1).repeat(1, positions.shape[1])
         else:
             camera_indices = None

@@ -22,8 +22,10 @@ class Semantics:
     """_summary_"""
 
     stuff_classes: List[str] = None
+    stuff_colors: List[List[int]] = None
     stuff_filenames: List[str] = None
     thing_classes: List[str] = None
+    thing_colors: List[List[int]] = None
     thing_filenames: List[str] = None
 
 

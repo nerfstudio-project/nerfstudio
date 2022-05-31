@@ -19,11 +19,12 @@ graph:
 
   network:
     _target_: radiance.nerf.graph.vanilla_nerf.NeRFGraph
-    near_plane: 2.0
-    far_plane: 6.0
+    collider_config:
+      _target_: radiance.nerf.colliders.NearFarCollider
+      near_plane: 2.0
+      far_plane: 6.0
     num_coarse_samples: 64
     num_importance_samples: 128
-
     loss_coefficients: # loss coefficients
       rgb_loss_coarse: 1.0
       rgb_loss_fine: 1.0

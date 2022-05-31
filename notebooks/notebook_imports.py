@@ -1,5 +1,4 @@
 # image stuff
-import cv2
 import imageio
 import mediapy as media
 

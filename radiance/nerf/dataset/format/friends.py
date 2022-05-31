@@ -3,14 +3,20 @@ Code to handle loading friends datasets.
 """
 
 import os
-import numpy as np
+import PIL
+from typing import Optional, List
 
+import numpy as np
 import torch
 
 from radiance.nerf.dataset.colmap_utils import read_cameras_binary, read_images_binary, read_pointsTD_binary
+from radiance.nerf.dataset.image_dataset import ImageDataset
 from radiance.nerf.dataset.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
 from radiance.utils import profiler
 from radiance.utils.io import load_from_json
+from PIL import Image
+
+from torchtyping import TensorType
 
 
 def get_aabb_and_transform(basedir):
@@ -91,8 +97,6 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
     camera_to_world = transposed_point_cloud_transform @ camera_to_world
     camera_to_world = camera_to_world[:, :3]
 
-    # --- masks to mask out things (e.g., people) ---
-
     # --- semantics ---
     semantics = Semantics()
     if include_semantics:
@@ -106,11 +110,15 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         ]
         panoptic_classes = load_from_json(os.path.join(basedir, "panoptic_classes.json"))
         stuff_classes = panoptic_classes["stuff"]
+        stuff_colors = torch.tensor(panoptic_classes["stuff_colors"], dtype=torch.float32) / 255.0
         thing_classes = panoptic_classes["thing"]
+        thing_colors = torch.tensor(panoptic_classes["thing_colors"], dtype=torch.float32) / 255.0
         semantics = Semantics(
             stuff_classes=stuff_classes,
+            stuff_colors=stuff_colors,
             stuff_filenames=stuff_filenames,
             thing_classes=thing_classes,
+            thing_colors=thing_colors,
             thing_filenames=thing_filenames,
         )
 

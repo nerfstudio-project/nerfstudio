@@ -2,6 +2,7 @@
 Some dataset code.
 """
 
+from abc import abstractmethod
 from typing import List, Optional
 
 import numpy as np
@@ -13,6 +14,9 @@ from torch.utils.data import default_collate
 from torchtyping import TensorType
 
 from radiance.nerf.dataset.structs import Semantics
+import random
+
+from radiance.utils.misc import is_not_none
 
 
 def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False):
@@ -30,7 +34,7 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
 
     # # checking where mask is not zero
     # # TODO(ethan): add this to the code with a config
-    # nonzero_indices = torch.nonzero(batch["mask"], as_tuple=False)
+    # nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
     # chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
     # indices = nonzero_indices[chosen_indices]
 
@@ -39,9 +43,10 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
     ).long()
     c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
     pixels = batch["image"][c, y, x]
-    mask = batch["mask"][c, y, x]
-    if "stuff_image" in batch:
-        stuff_image = batch["stuff_image"][c, y, x]
+    if "mask" in batch:
+        mask = batch["mask"][c, y, x]
+    if "semantics" in batch:
+        semantics = batch["semantics"][c, y, x]
     assert pixels.shape == (num_rays_per_batch, 3), pixels.shape
 
     # Needed to correct the random indices to their actual camera idx locations.
@@ -51,11 +56,11 @@ def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False)
         "local_indices": local_indices,  # local to the batch returned
         "indices": indices,  # with the abs camera indices
         "pixels": pixels,
-        "mask": mask,
     }
-
-    if "stuff_image" in batch:
-        collated_batch["stuff_image"] = stuff_image
+    if "mask" in batch:
+        collated_batch["mask"] = mask
+    if "semantics" in batch:
+        collated_batch["semantics"] = semantics
 
     if keep_full_image:
         collated_batch["image"] = batch["image"]
@@ -86,13 +91,12 @@ class ImageDataset(torch.utils.data.Dataset):
         self.image_filenames = image_filenames
         self.downscale_factor = downscale_factor
         self.alpha_color = alpha_color
-        self.semantics = semantics
         self.kwargs = kwargs
 
     def __len__(self):
         return len(self.image_filenames)
 
-    def get_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
+    def get_numpy_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
         """Returns the image.
 
         Args:
@@ -122,47 +126,80 @@ class ImageDataset(torch.utils.data.Dataset):
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
-    def __getitem__(self, image_idx):
-        # the image might be RGB or RGBA, so we separate it
-        original_image = torch.from_numpy(self.get_image(image_idx).astype("float32") / 255.0)
-
+    def get_image(self, image_idx: int):
+        image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
         if self.alpha_color is not None:
-            image = original_image[:, :, :3] * original_image[:, :, -1:] + self.alpha_color * (
-                1.0 - original_image[:, :, -1:]
-            )
+            assert image.shape[-1] == 4
+            image = image[:, :, :3] * image[:, :, -1:] + self.alpha_color * (1.0 - image[:, :, -1:])
         else:
-            image = original_image[:, :, :3]
-        num_channels = original_image.shape[2]
-        if num_channels == 4:
-            mask = original_image[:, :, 3]
-        elif num_channels == 3:
-            mask = np.ones_like(original_image[:, :, 0])
-        else:
-            raise ValueError(f"Image shape of {image.shape} is in correct.")
+            image = image[:, :, :3]
+        return image
 
-        data = {
-            "image_idx": image_idx,
-            "image": image,  # the pixels
-            "mask": mask,
-        }
+    @abstractmethod
+    def get_mask(self, image_idx: int) -> TensorType["image_height", "image_width", 1]:
+        return None
 
-        if self.semantics.stuff_filenames:
-            stuff_image_filename = self.semantics.stuff_filenames[image_idx]
-            pil_image = Image.open(stuff_image_filename)
-            if self.downscale_factor != 1.0:
-                image_width, image_height = pil_image.size
-                if image_width % self.downscale_factor != 0:
-                    raise ValueError(
-                        f"Image width {image_width} is not divisible by downscale_factor {self.downscale_factor}"
-                    )
-                if image_height % self.downscale_factor != 0:
-                    raise ValueError(
-                        f"Image height {image_height} is not divisible by downscale_factor {self.downscale_factor}"
-                    )
-                # NOTE(ethan): the use of NEAREST is important for semantic classes
-                pil_image = pil_image.resize(
-                    (image_width // self.downscale_factor, image_height // self.downscale_factor), PIL.Image.NEAREST
-                )
-            stuff_image = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-            data["stuff_image"] = stuff_image
+    @abstractmethod
+    def get_semantics(self, image_idx: int) -> TensorType["image_height", "image_width", "num_classes"]:
+        return None
+
+    def get_data(self, image_idx):
+        image = self.get_image(image_idx)
+        mask = self.get_mask(image_idx)
+        semantics = self.get_semantics(image_idx)
+        data = {"image_idx": image_idx}
+        assert is_not_none(image)
+        data["image"] = image
+        if is_not_none(mask):
+            assert mask.shape[:2] == image.shape[:2]
+            data["mask"] = mask
+        if is_not_none(semantics):
+            assert semantics.shape[:2] == image.shape[:2]
+            data["semantics"] = semantics
         return data
+
+    def __getitem__(self, image_idx):
+        data = self.get_data(image_idx)
+        return data
+
+
+class PanopticImageDataset(ImageDataset):
+    """Panoptic image dataset that masks out people."""
+
+    def __init__(
+        self,
+        semantics: Semantics,
+        image_filenames: List[str],
+        downscale_factor: int = 1,
+        alpha_color: Optional[TensorType[3]] = None,
+        **kwargs,
+    ):
+        self.semantics = semantics
+        self.person_index = self.semantics.thing_classes.index("person")
+        super().__init__(image_filenames, downscale_factor, alpha_color, semantics, **kwargs)
+
+    def get_mask(self, image_idx):
+        """Mask out the people."""
+        thing_image_filename = self.semantics.thing_filenames[image_idx]
+        pil_image = Image.open(thing_image_filename)
+        if self.downscale_factor != 1.0:
+            image_width, image_height = pil_image.size
+            # the use of NEAREST is important for semantic classes
+            pil_image = pil_image.resize(
+                (image_width // self.downscale_factor, image_height // self.downscale_factor), Image.NEAREST
+            )
+        thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+        mask = (thing_semantics != self.person_index).to(torch.float32)  # 1 where valid
+        return mask
+
+    def get_semantics(self, image_idx):
+        stuff_image_filename = self.semantics.stuff_filenames[image_idx]
+        pil_image = Image.open(stuff_image_filename)
+        if self.downscale_factor != 1.0:
+            image_width, image_height = pil_image.size
+            # the use of NEAREST is important for semantic classes
+            pil_image = pil_image.resize(
+                (image_width // self.downscale_factor, image_height // self.downscale_factor), Image.NEAREST
+            )
+        stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+        return stuff_semantics

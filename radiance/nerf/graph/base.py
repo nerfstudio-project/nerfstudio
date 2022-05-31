@@ -16,7 +16,7 @@ from radiance.nerf.ray_generator import RayGenerator
 from radiance.nerf.colliders import AABBBoxCollider
 from radiance.structures.cameras import get_camera_model
 from radiance.structures.rays import RayBundle
-from radiance.utils.misc import get_masked_dict
+from radiance.utils.misc import get_masked_dict, instantiate_from_dict_config
 from radiance.utils.misc import is_not_none
 
 
@@ -52,6 +52,7 @@ class Graph(AbstractGraph):
         loss_coefficients: DictConfig = None,
         steps_per_occupancy_grid_update=16,
         scene_bounds: SceneBounds = None,
+        collider_config: DictConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -59,6 +60,7 @@ class Graph(AbstractGraph):
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
+        self.collider_config = collider_config
         self.loss_coefficients = loss_coefficients
         self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
         self.kwargs = kwargs
@@ -70,7 +72,7 @@ class Graph(AbstractGraph):
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
-        self.collider = AABBBoxCollider(self.scene_bounds)
+        self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_misc_modules(self):
@@ -110,6 +112,7 @@ class Graph(AbstractGraph):
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
+        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return outputs, loss_dict
 
     @abstractmethod
@@ -158,5 +161,5 @@ class Graph(AbstractGraph):
         return outputs
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
+    def log_test_image_outputs(self, image_idx, step, batch, outputs):
         """Writes the test image outputs."""
