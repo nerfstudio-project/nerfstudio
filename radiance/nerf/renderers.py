@@ -17,7 +17,7 @@ class RGBRenderer(nn.Module):
     def __init__(self, background_color: Optional[TensorType[3]] = None) -> None:
         """
         Args:
-            background_color (TensorType[3], optional): Background color as RGB. Defaults to black.
+            background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
         """
         super().__init__()
         self.background_color = background_color
@@ -34,14 +34,17 @@ class RGBRenderer(nn.Module):
         Args:
             rgb (TensorType[..., "num_samples", -1]): RGB for each sample
             weights (TensorType[..., "num_samples"]): Weights for each sample
+            background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
 
         Returns:
             TensorType[..., 3]: Outputs rgb values.
         """
         rgb = torch.sum(weights[..., None] * rgb, dim=-2)
 
-        if background_color is not None:
-            rgb = rgb + background_color.to(weights.device)[None, ...] * (1.0 - torch.sum(weights, dim=-1)[..., None])
+        if background_color is None:
+            background_color = torch.rand_like(rgb).to(rgb.device)
+
+        rgb = rgb + background_color.to(weights.device) * (1.0 - torch.sum(weights, dim=-1)[..., None])
 
         return rgb
 
@@ -74,7 +77,7 @@ class SHRenderer(nn.Module):
     ) -> None:
         """
         Args:
-            background_color (TensorType[3], optional): Background color as RGB. Defaults to black.
+            background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
             activation (Optional[nn.Module], optional): Output activation. Defaults to Sigmoid().
         """
         super().__init__()

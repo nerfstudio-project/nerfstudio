@@ -24,7 +24,7 @@ from radiance.utils import visualization, writer
 
 class NGPGraph(Graph):
 
-    """NeRF-W graph"""
+    """Instant NGP graph"""
 
     def __init__(self, field_implementation="torch", intrinsics=None, camera_to_world=None, **kwargs) -> None:
         assert field_implementation in field_implementation_to_class
