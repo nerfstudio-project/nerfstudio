@@ -18,8 +18,8 @@ import torch.multiprocessing as mp
 from omegaconf import DictConfig
 import yaml
 
-from radiance.nerf.trainer import Trainer
-from radiance.utils import comms, profiler
+from pyrad.nerf.trainer import Trainer
+from pyrad.utils import comms, profiler
 from time import time
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)

@@ -8,7 +8,7 @@ method_name: semantic_nerf
 
 graph:
   network:
-    _target_: radiance.nerf.graph.semantic_nerf.SemanticNerfGraph
+    _target_: pyrad.nerf.graph.semantic_nerf.SemanticNerfGraph
     near_plane: 0.1
     far_plane: 10.0
     num_coarse_samples: 64

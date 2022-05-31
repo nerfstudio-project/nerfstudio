@@ -25,10 +25,10 @@ jobs:
           pip install -r environment/requirements.txt
           pip install -e .
       - name: Run Black
-        run: black radiance/ notebooks/ --check
+        run: black pyrad/ notebooks/ --check
       - name: Python Pylint
         run: |
-          pylint radiance tests
+          pylint pyrad tests
       - name: Test with pytest
         run: |
           pytest

@@ -8,7 +8,7 @@ method_name: nerfw
 
 graph:
   network:
-    _target_: radiance.nerf.graph.nerfw.NerfWGraph
+    _target_: pyrad.nerf.graph.nerfw.NerfWGraph
     near_plane: 0.1
     far_plane: 10.0
     num_coarse_samples: 64
