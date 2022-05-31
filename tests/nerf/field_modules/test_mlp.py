@@ -4,7 +4,7 @@ MLP Test
 import torch
 from torch import nn
 
-from radiance.nerf.field_modules import MLP
+from pyrad.nerf.field_modules import MLP
 
 
 def test_mlp():

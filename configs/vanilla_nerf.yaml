@@ -7,7 +7,7 @@ method_name: vanilla_nerf
 
 graph:
   # saving model specifications
-  model_dir: /tmp/radiance_models/
+  model_dir: /tmp/pyrad_models/
   steps_per_save: null
   steps_per_test: 100
   max_num_iterations: 1000000
@@ -18,7 +18,7 @@ graph:
     load_step: # pretrained model's step number
 
   network:
-    _target_: radiance.nerf.graph.vanilla_nerf.NeRFGraph
+    _target_: pyrad.nerf.graph.vanilla_nerf.NeRFGraph
     near_plane: 2.0
     far_plane: 6.0
     num_coarse_samples: 64
@@ -35,6 +35,6 @@ graph:
         _target_: torch.optim.RAdam
         lr: 0.0005
       scheduler:
-        _target_: radiance.nerf.optimizers.ExponentialDecaySchedule
+        _target_: pyrad.nerf.optimizers.ExponentialDecaySchedule
         lr_final: 0.000005
         max_steps: 1000000

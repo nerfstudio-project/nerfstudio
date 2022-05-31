@@ -13,12 +13,12 @@ if USE_CUDA:
 
         ext_modules = [
             CUDAExtension(
-                name="radiance_cuda",
+                name="pyrad_cuda",
                 sources=[
-                    "radiance/cuda/radiance_cuda.cpp",
-                    "radiance/cuda/radiance_cuda_kernel.cu",
+                    "pyrad/cuda/pyrad_cuda.cpp",
+                    "pyrad/cuda/pyrad_cuda_kernel.cu",
                 ],
-                include_dirs=[os.path.join("radiance", "cuda", "include")],
+                include_dirs=[os.path.join("pyrad", "cuda", "include")],
                 extra_compile_args={
                     "cxx": [],
                     "nvcc": [],

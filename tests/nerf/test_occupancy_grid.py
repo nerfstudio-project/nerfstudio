@@ -3,7 +3,7 @@ Code to test the occupancy grid.
 """
 
 import torch
-from radiance.nerf.occupancy_grid import OccupancyGrid
+from pyrad.nerf.occupancy_grid import OccupancyGrid
 
 
 def test_occupancy_grid():

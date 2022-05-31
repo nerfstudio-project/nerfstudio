@@ -1,4 +1,4 @@
-# Radiance
+# pyrad
 
 # Quickstart
 
@@ -6,14 +6,14 @@
 
 ```
 # Clone the repo
-git clone --recurse-submodules git@github.com:ethanweber/radiance.git
+git clone --recurse-submodules git@github.com:ethanweber/pyrad.git
 
 # Create the python environment
-conda create --name radiance python=3.8.13
-conda activate radiance
+conda create --name pyrad python=3.8.13
+conda activate pyrad
 pip install -r environment/requirements.txt
 
-# Install radiance as a library
+# Install pyrad as a library
 pip install -e .
 
 # Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
@@ -69,7 +69,7 @@ bash environments/run_jupyter.sh
 
 # Tooling
 
-1. One can use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/radiance` folder. It will also remove the environment parameters upon leaving.
+1. One can use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/pyrad` folder. It will also remove the environment parameters upon leaving.
 
 ```
 # Install direnv.
@@ -79,7 +79,7 @@ sudo apt install direnv
 eval "$(direnv hook bash)"
 
 # Populate your .envrc with commands you want to run. Then, run the following to allow updates.
-cd /path/to/radiance
+cd /path/to/pyrad
 direnv allow .
 ```
 
@@ -125,12 +125,12 @@ python scripts/benchmarking/run_benchmark.py
 ```
 # nerf-pytorch
 cd external
-python run_nerf.py --config configs/chair.txt --datadir /path/to/radiance/data/blender/chair
+python run_nerf.py --config configs/chair.txt --datadir /path/to/pyrad/data/blender/chair
 
 # jaxnerf
 cd external
 conda activate jaxnerf
-python -m jaxnerf.train --data_dir=/path/to/radiance/data/blender/chair --train_dir=/path/to/radiance/outputs/blender_chair_jaxnerf --config=/path/to/radiance/external/jaxnerf/configs/demo --render_every 100
+python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir=/path/to/pyrad/outputs/blender_chair_jaxnerf --config=/path/to/pyrad/external/jaxnerf/configs/demo --render_every 100
 ```
 
 # Speeding up the code
