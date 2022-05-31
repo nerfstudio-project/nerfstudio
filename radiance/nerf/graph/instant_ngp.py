@@ -130,12 +130,12 @@ class NGPGraph(Graph):
         combined_acc = torch.cat([acc], dim=1)
         combined_depth = torch.cat([depth], dim=1)
 
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
+        writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
+        writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
+        writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
 
         depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth_occupancy_grid")
+        writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=combined_depth, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
@@ -145,8 +145,8 @@ class NGPGraph(Graph):
         ssim = self.ssim(image, rgb)
         lpips = self.lpips(image, rgb)
 
-        writer.put_scalar(name=f"val_{image_idx}-fine", scalar=float(psnr), step=step, group="psnr")
-        writer.put_scalar(name=f"val_{image_idx}", scalar=float(ssim), step=step, group="ssim")
-        writer.put_scalar(name=f"val_{image_idx}", scalar=float(lpips), step=step, group="lpips")
+        writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(psnr), step=step)
+        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(ssim), step=step)
+        writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(lpips), step=step)
 
         return psnr.item()

@@ -45,40 +45,27 @@ class EventType(enum.Enum):
 
 
 @check_main_thread
-def put_image(name, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None):
+def put_image(name, image: TensorType["H", "W", "C"], step: int):
     """Setter function to place images into the queue to be written out"""
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append(
-        {"name": name, "write_type": EventType.IMAGE, "event": image, "step": step, "group": group, "prefix": prefix}
-    )
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image, "step": step})
 
 
 @check_main_thread
-def put_scalar(name: str, scalar: float, step: int, group: str = None, prefix: str = None):
+def put_scalar(name: str, scalar: float, step: int):
     """Setter function to place scalars into the queue to be written out"""
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append(
-        {"name": name, "write_type": EventType.SCALAR, "event": scalar, "step": step, "group": group, "prefix": prefix}
-    )
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.SCALAR, "event": scalar, "step": step})
 
 
 @check_main_thread
-def put_dict(name: str, scalar_dict: float, step: int, group: str = None, prefix: str = None):
+def put_dict(name: str, scalar_dict: float, step: int):
     """Setter function to place a dictionary of scalars into the queue to be written out"""
-    EVENT_STORAGE.append(
-        {
-            "name": name,
-            "write_type": EventType.DICT,
-            "event": scalar_dict,
-            "step": step,
-            "group": group,
-            "prefix": prefix,
-        }
-    )
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.DICT, "event": scalar_dict, "step": step})
 
 
 @check_main_thread
@@ -87,8 +74,6 @@ def put_time(
     start_time: float,
     end_time: float,
     step: int,
-    group: str = None,
-    prefix: str = None,
     avg_over_iters: bool = False,
     avg_over_batch: int = None,
     update_eta: bool = False,
@@ -116,16 +101,16 @@ def put_time(
             curr_buffer.pop(0)
         curr_buffer.append(val)
         curr_avg = sum(curr_buffer) / len(curr_buffer)
-        put_scalar(name, curr_avg, step, group, prefix)
+        put_scalar(name, curr_avg, step)
         GLOBAL_BUFFER["events"][name] = {"buffer": curr_buffer, "avg": curr_avg}
     else:
-        put_scalar(name, val, step, group, prefix)
+        put_scalar(name, val, step)
 
     if update_eta:
         ## NOTE: eta should be called with avg train iteration time
         remain_iter = GLOBAL_BUFFER["max_iter"] - step
         remain_time = remain_iter * GLOBAL_BUFFER["events"][name]["avg"]
-        put_scalar(EventName.ETA, remain_time, step, group, prefix)
+        put_scalar(EventName.ETA, remain_time, step)
 
 
 @check_main_thread
@@ -135,11 +120,11 @@ def write_out_storage():
         for event in EVENT_STORAGE:
             write_func = getattr(writer, event["write_type"].value)
             if event["write_type"] == EventType.DICT:
-                write_func(event["event"], event["step"], event["group"], event["prefix"])
+                write_func(event["event"], event["step"])
                 if isinstance(writer, LocalWriter):
                     continue
             else:
-                write_func(event["name"], event["event"], event["step"], event["group"], event["prefix"])
+                write_func(event["name"], event["event"], event["step"])
                 if isinstance(writer, LocalWriter):
                     break
     EVENT_STORAGE.clear()
@@ -165,16 +150,6 @@ def setup_event_writers(config: DictConfig) -> None:
     GLOBAL_BUFFER["events"] = {}
 
 
-def get_tensorboard_name(name: str, group: str = None, prefix: str = None):
-    """Returns a string for tensorboard with an optional group and prefix.
-    Where tensorboard_name has the form `group/prefix-name`.
-    """
-    group_string = f"{group}/" if group else ""
-    prefix_string = f"{prefix}" if prefix else ""
-    tensorboard_name = f"{group_string}{prefix_string}{name}"
-    return tensorboard_name
-
-
 class Writer:
     """Writer class"""
 
@@ -182,46 +157,36 @@ class Writer:
         self.save_dir = save_dir
 
     @abstractmethod
-    def write_image(
-        self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
-    ) -> None:
+    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
 
         Args:
             name (str): data identifier
             image (TensorType["H", "W", "C"]): rendered image to write
             step (int): the time step to log
-            group (str): the group e.g., "Loss", "Accuracy", "Time"
-            prefix (str): the prefix e.g., "train-", "test-"
         """
         raise NotImplementedError
 
     @abstractmethod
-    def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
+    def write_scalar(self, name: str, scalar: float, step: int) -> None:
         """Required method to write a single scalar value to the logger
 
         Args:
             name (str): data identifier
             step (int): the time step to log
-            group (str): the group e.g., "Loss", "Accuracy", "Time"
-            prefix (str): the prefix e.g., "train-", "test-"
         """
         raise NotImplementedError
 
     @check_main_thread
-    def write_scalar_dict(
-        self, scalar_dict: Dict[str, float], step: int, group: str = None, prefix: str = None
-    ) -> None:
+    def write_scalar_dict(self, scalar_dict: Dict[str, float], step: int) -> None:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
             scalar_dict (dict): dictionary containing all scalar values with key names and quantities
             step (int): the time step to log
-            group (str): the group e.g., "Loss", "Accuracy", "Time"
-            prefix (str): the prefix e.g., "train-", "test-"
         """
         for name, scalar in scalar_dict.items():
-            self.write_scalar(name, scalar, step, group=group, prefix=prefix)
+            self.write_scalar(name, scalar, step)
 
 
 @decorate_all([check_main_thread])
@@ -232,9 +197,7 @@ class TensorboardWriter(Writer):
         super().__init__(save_dir)
         self.tb_writer = SummaryWriter(log_dir=self.save_dir)
 
-    def write_image(
-        self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
-    ) -> None:
+    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
 
         Args:
@@ -242,20 +205,17 @@ class TensorboardWriter(Writer):
             image (TensorType["H", "W", "C"]): rendered image to write
         """
         image = to8b(image)
-        tensorboard_name = get_tensorboard_name(name, group=group, prefix=prefix)
-        self.tb_writer.add_image(tensorboard_name, image, step, dataformats="HWC")
+        self.tb_writer.add_image(name, image, step, dataformats="HWC")
 
-    def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
+    def write_scalar(self, name: str, scalar: float, step: int) -> None:
         """Tensorboard method to write a single scalar value to the logger
 
         Args:
             name (str): data identifier
             x (float): x value to write
             y (float): y value to write
-            group (str)): a prefix to group tensorboard scalars
         """
-        tensorboard_name = get_tensorboard_name(name, group=group, prefix=prefix)
-        self.tb_writer.add_scalar(tensorboard_name, scalar, step)
+        self.tb_writer.add_scalar(name, scalar, step)
 
 
 def _cursorup(x: int):
@@ -303,15 +263,13 @@ class LocalWriter(Writer):
         self.keys = set()
         self.past_mssgs = ["", ""]
 
-    def write_image(
-        self, name: str, image: TensorType["H", "W", "C"], step: int, group: str = None, prefix: str = None
-    ) -> None:
+    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         if name in self.stats_to_track:
             image = to8b(image)
             image_path = os.path.join(self.save_dir, f"{name}.jpg")
             imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
-    def write_scalar(self, name: str, scalar: float, step: int, group: str = None, prefix: str = None) -> None:
+    def write_scalar(self, name: str, scalar: float, step: int) -> None:
         if step > 0:
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)

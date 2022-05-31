@@ -152,10 +152,10 @@ class NeRFGraph(Graph):
         combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
         mask = visualization.apply_depth_colormap(mask[..., None])
 
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_rgb, step=step, group="img")
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_acc, step=step, group="accumulation")
-        writer.put_image(name=f"image_idx_{image_idx}", image=combined_depth, step=step, group="depth")
-        writer.put_image(name=f"image_idx_{image_idx}", image=mask, step=step, group="mask")
+        writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
+        writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
+        writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
+        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
@@ -167,10 +167,10 @@ class NeRFGraph(Graph):
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
-        writer.put_scalar(name=f"val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step, group="psnr")
-        writer.put_scalar(name=f"val_{image_idx}-fine", scalar=float(fine_psnr), step=step, group="psnr")
-        writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_ssim), step=step, group="ssim")
-        writer.put_scalar(name=f"val_{image_idx}", scalar=float(fine_lpips), step=step, group="lpips")
+        writer.put_scalar(name=f"psnr/val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step)
+        writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
+        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)
+        writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
 
