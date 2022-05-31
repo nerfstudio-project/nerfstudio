@@ -1,4 +1,6 @@
-# pyrad
+# pyrad :bulb:
+
+An all-in-one repo for NeRFs
 
 # Quickstart
 
@@ -52,75 +54,23 @@ python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
 python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
 ```
 
-# Logging and profiling features
+# Getting around the codebase
 
-We provide many logging functionalities for timing and/or tracking losses during training. All of these loggers are configurable via `configs/logging.yml`
+The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `nerf/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. If you are planning on just using our codebase to build a new NeRF method or use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to touch them.
 
-1. **Writer**: Logs losses and generated images during training to a specified output stream. Specify the type of writer (Tensorboard, Local Writer, Weights and Biases), and how often to log in the config.
+The NeRF graph definitions can be found in `nerf/graph/`. Each implementation of NeRF is definined in its own file. For instance, `nerf/graph/instant_ngp.py` contains populates the `NGPGraph()` class with all of the appropriate fields, colliders, and misc. modules.
+* Fields (`nerf/fields/`): composed of field modules (`nerf/field_modules/`) and represents the radiance field of the NeRF.
+* Misc. Modules (`nerf/misc_modules`- TODO(maybe move to misc_modules? better organization)): any remaining module in the NeRF (e.g. renderers, samplers, losses, and metrics).
 
-2. **Profiler**: Computes the average total time of execution for any function with the `@profiler.time_function` decorator. Prints out the full profile at the termination of training or the program.
+To implement any pre-existing NeRF that we have not yet implemented under `nerf/graph/`, create a new graph structure by using provided modules or any new module you define. Then create an associated config making sure `__target__` points to your NeRF class (see [here](./configs/README.md) for more info on how to create the config). Then run training as described above.
 
-# Setting up Jupyter
 
-```
-python -m jupyter lab build
-bash environments/run_jupyter.sh
-```
+# Feature Documentation
+### 1. [Hydra config structure](./configs/README.md)
+### 2. [Logging, debugging utilities](./radiance/utils/README.md)
+### 3. [Benchmarking, other tooling](./scripts/README.md)
 
-# Tooling
-
-1. One can use [autoenv](https://github.com/hyperupcall/autoenv) to make setting up the environment and environment variables easier. This will run the `.envrc` file upon entering the `/path/to/pyrad` folder. It will also remove the environment parameters upon leaving.
-
-```
-# Install direnv.
-sudo apt install direnv
-
-# Add the following line to the bottom of your ~/.bashrc file.
-eval "$(direnv hook bash)"
-
-# Populate your .envrc with commands you want to run. Then, run the following to allow updates.
-cd /path/to/pyrad
-direnv allow .
-```
-
-2. To run local **github actions**, you can run:
-
-```
-python scripts/debugging/run_actions.py
-```
-
-3. To run local **profiling** to get a flame graph, make sure [pyspy](https://github.com/benfred/py-spy) is installed and you can run:
-
-```
-pip install py-spy
-
-## for flame graph
-./scripts/debugging/profile.sh -t flame -o flame.svg -p scripts/run_train.py data/dataset=blender_lego
-
-## for live view of functions
-./scripts/debugging/profile.sh -t top -p scripts/run_train.py data/dataset=blender_lego
-```
-
-4. For debugging with a debugger.
-
-```
-ipython --pdb scripts/run_train.py
-```
-
-5. **Benchmarking** For launching training jobs automatically on blender dataset
-
-```
-./scripts/benchmarking/launch_train_blender.sh <gpu0> <gpu1> ... <gpu7>
-```
-
-For testing specific methods, see scripts/benchmarking/run_benchmark.py.
-Modify the `BENCH` variable to specify which jobs ("ckpt_dir") and methods ("method") you want benchmarked. Then run
-
-```
-python scripts/benchmarking/run_benchmark.py
-```
-
-# Running other repos with our data
+### 4. Running other repos with our data
 
 ```
 # nerf-pytorch
@@ -133,15 +83,23 @@ conda activate jaxnerf
 python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir=/path/to/pyrad/outputs/blender_chair_jaxnerf --config=/path/to/pyrad/external/jaxnerf/configs/demo --render_every 100
 ```
 
-# Speeding up the code
-
+### 5. Speeding up the code
 Documentation for running the code with CUDA.
+Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
 
 ```
-This is how to install tiny-cuda-nn.
-# https://github.com/NVlabs/tiny-cuda-nn
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
 
 To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
+```
 python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
+```
+
+
+### 6. Setting up Jupyter
+
+```
+python -m jupyter lab build
+bash environments/run_jupyter.sh
 ```
