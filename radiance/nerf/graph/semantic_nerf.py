@@ -155,4 +155,4 @@ class SemanticNerfGraph(NeRFGraph):
             self.stuff_classes
         )
         semantic_labels_image = visualization.apply_colormap(semantic_labels[..., None])
-        writer.put_image(name="image_idx_{image_idx}", image=semantic_labels_image, step=step, group="semantics")
+        writer.put_image(name="semantics/image_idx_{image_idx}", image=semantic_labels_image, step=step)
