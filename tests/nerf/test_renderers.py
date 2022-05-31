@@ -21,7 +21,7 @@ def test_rgb_renderer():
     assert torch.max(rgb) > 0.9
 
     rgb = rgb_renderer(rgb=rgb_samples * 0, weights=weights)
-    assert torch.max(rgb) == pytest.approx(0)
+    assert torch.max(rgb) == pytest.approx(0, abs=1e-6)
 
 
 def test_sh_renderer():
