@@ -1,4 +1,6 @@
-# pyrad :bulb:
+# pyRad :metal:
+
+[![Documentation Status](https://readthedocs.com/projects/plenoptix-pyrad/badge/?version=latest)](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/?badge=latest)
 
 An all-in-one repo for NeRFs
 
