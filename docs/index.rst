@@ -7,9 +7,11 @@ Welcome to pyrad's documentation!
 ====================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
    :caption: Contents:
-
+   
+   pyrad
+   field_modules
 
 
 Indices and tables
