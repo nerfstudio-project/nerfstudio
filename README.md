@@ -55,7 +55,7 @@ python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
 # Run with different datasets and config changes
 python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
 
-# Speed up the dataloading pipeline.
+# [Experimental] Speed up the dataloading pipeline by caching DatasetInputs.
 python scripts/run_data_preprocessor.py
 # Then, specify using the cache.
 python scripts/run_train.py ++data.dataset.use_cache=true
