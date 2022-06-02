@@ -3,7 +3,7 @@ Some dataset code.
 """
 
 from abc import abstractmethod
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -19,28 +19,25 @@ import random
 from radiance.utils.misc import is_not_none
 
 
-def collate_batch(batch_list, num_rays_per_batch, keep_full_image: bool = False):
-    """_summary_
-
-    Args:
-     batch (_type_): _description_
-    """
+def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool = False):
+    """Operates on a batch of images and samples pixels to use for generating rays.
+    Returns a collated batch which is input to the Graph."""
     # TODO(ethan): handle sampling even when in different processes
     # we don't want the same samples for all spawned processed when
     # using distributed training
 
-    batch = default_collate(batch_list)
     num_images, image_height, image_width, _ = batch["image"].shape
 
-    # # checking where mask is not zero
-    # # TODO(ethan): add this to the code with a config
-    # nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
-    # chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
-    # indices = nonzero_indices[chosen_indices]
+    # only sample within the mask, if the mask in in the batch
+    if "mask" in batch:
+        nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
+        chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
+        indices = nonzero_indices[chosen_indices]
+    else: 
+        indices = torch.floor(
+            torch.rand((num_rays_per_batch, 3)) * torch.tensor([num_images, image_height, image_width])
+        ).long()
 
-    indices = torch.floor(
-        torch.rand((num_rays_per_batch, 3)) * torch.tensor([num_images, image_height, image_width])
-    ).long()
     c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
     pixels = batch["image"][c, y, x]
     if "mask" in batch:
@@ -137,13 +134,16 @@ class ImageDataset(torch.utils.data.Dataset):
 
     @abstractmethod
     def get_mask(self, image_idx: int) -> TensorType["image_height", "image_width", 1]:
+        """Returns a mask, which indicates which pixels are valid to use with nerf."""
         return None
 
     @abstractmethod
     def get_semantics(self, image_idx: int) -> TensorType["image_height", "image_width", "num_classes"]:
+        """Returns an image with semantic class values."""
         return None
 
-    def get_data(self, image_idx):
+    def get_data(self, image_idx) -> Dict:
+        """Returns the ImageDataset data as a dictionary."""
         image = self.get_image(image_idx)
         mask = self.get_mask(image_idx)
         semantics = self.get_semantics(image_idx)
@@ -179,7 +179,7 @@ class PanopticImageDataset(ImageDataset):
         super().__init__(image_filenames, downscale_factor, alpha_color, semantics, **kwargs)
 
     def get_mask(self, image_idx):
-        """Mask out the people."""
+        """Mask out the people. Valid only where there aren't people."""
         thing_image_filename = self.semantics.thing_filenames[image_idx]
         pil_image = Image.open(thing_image_filename)
         if self.downscale_factor != 1.0:

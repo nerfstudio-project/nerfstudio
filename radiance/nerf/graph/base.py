@@ -112,21 +112,22 @@ class Graph(AbstractGraph):
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
-        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
-        return outputs, loss_dict
+        aggregated_loss_dict = self.get_aggregated_loss_dict(loss_dict)
+        return outputs, aggregated_loss_dict
 
     @abstractmethod
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Computes and returns the losses."""
 
-    def get_aggregated_loss_from_loss_dict(self, loss_dict):
+    def get_aggregated_loss_dict(self, loss_dict):
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
-        aggregated_loss = 0.0
+        aggregated_loss_dict = {}
         for loss_name, loss_value in loss_dict.items():
             assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
             loss_coefficient = self.loss_coefficients[loss_name]
-            aggregated_loss += loss_coefficient * loss_value
-        return aggregated_loss
+            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
+        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
+        return aggregated_loss_dict
 
     @torch.no_grad()
     def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024, training_camera_index=0):

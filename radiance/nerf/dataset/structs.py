@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import torch
+from dataclasses_json import dataclass_json
 from torchtyping import TensorType
 
 
@@ -13,8 +14,8 @@ from torchtyping import TensorType
 class PointCloud:
     """_summary_"""
 
-    xyz = None
-    rgb = None
+    xyz: TensorType["num_points", 3] = None
+    rgb: TensorType["num_points", 3] = None
 
 
 @dataclass
@@ -39,7 +40,20 @@ class SceneBounds:
 
     aabb: TensorType[2, 3] = None
 
+    def get_diagonal_length(self):
+        diff = self.aabb[1] - self.aabb[0]
+        length = torch.sqrt((diff**2).sum() + 1e-20)
+        return length
 
+    def get_center(self):
+        diff = self.aabb[1] - self.aabb[0]
+        return self.aabb[0] + diff / 2.0
+
+    def get_centered_and_scaled_scene_bounds(self, scale_factor=1.0):
+        return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
+
+
+@dataclass_json
 @dataclass
 class DatasetInputs:
     """Dataset inputs for the image dataset and the ray generator.

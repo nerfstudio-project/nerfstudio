@@ -16,8 +16,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
 from radiance.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
-from radiance.nerf.dataset.image_dataset import ImageDataset, collate_batch
-from radiance.nerf.dataset.utils import DatasetInputs, get_dataset_inputs
+from radiance.nerf.dataset.image_dataset import ImageDataset, collate_image_dataset_batch
+from radiance.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_from_dataset_config
 from radiance.nerf.optimizers import Optimizers
 from radiance.utils import profiler, writer
 from radiance.utils.callbacks import update_occupancy
@@ -60,22 +60,24 @@ class Trainer:
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""
-        dataset_inputs_train = get_dataset_inputs(**self.config.data.dataset, split="train")
+        dataset_inputs_train = get_dataset_inputs_from_dataset_config(**self.config.data.dataset, split="train")
         if test_mode:
-            dataset_inputs_eval = get_dataset_inputs(**self.config.data.dataset, split="test")
+            dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**self.config.data.dataset, split="test")
         else:
             config_data_dataset_val = copy.deepcopy(self.config.data.dataset)
             config_data_dataset_val.downscale_factor = self.config.data.val_downscale_factor
-            dataset_inputs_eval = get_dataset_inputs(**config_data_dataset_val, split="val")
+            dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**config_data_dataset_val, split="val")
         self.setup_dataset_train(dataset_inputs_train)
         self.setup_dataset_eval(dataset_inputs_eval)
         self.setup_graph(dataset_inputs_train)
 
-    def collate_fn(self, batch_list):
+    def pixel_sampler(self, image_batch):
         """TODO(ethan): I need to replace this.
         I'm only using this for multiprocess pickle issues for now.
         """
-        return collate_batch(batch_list, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False)
+        return collate_image_dataset_batch(
+            image_batch, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False
+        )
 
     @profiler.time_function
     def setup_dataset_eval(self, dataset_inputs: DatasetInputs):
@@ -98,20 +100,22 @@ class Trainer:
             image_filenames=dataset_inputs.image_filenames,
             downscale_factor=dataset_inputs.downscale_factor,
             semantics=dataset_inputs.semantics,
-            alpha_color=dataset_inputs.alpha_color
-        )
+            alpha_color=dataset_inputs.alpha_color,
+        )  # ImageDataset
         self.train_dataset = CollateIterDataset(
             self.train_image_dataset,
-            collate_fn=self.collate_fn,
-            num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
+            num_samples_to_collate=len(self.train_image_dataset)
+            if self.config.data.dataloader.num_images_to_sample_from == 0
+            else self.config.data.dataloader.num_images_to_sample_from,
             num_times_to_repeat_images=self.config.data.dataloader.num_times_to_repeat_images,
+            device=self.device if self.config.data.dataloader.move_to_graph_device else "cpu",
         )
         self.train_dataloader = DataLoader(
             self.train_dataset,
             batch_size=1,
             num_workers=self.config.data.dataloader.num_workers,
             collate_fn=collate_batch_size_one,
-            pin_memory=True,
+            pin_memory=False,  # TODO(ethan): try both True and False
         )
 
     @profiler.time_function
@@ -127,7 +131,7 @@ class Trainer:
             camera_to_world=dataset_inputs.camera_to_world,
             scene_bounds=dataset_inputs.scene_bounds,
             stuff_classes=dataset_inputs.semantics.stuff_classes,
-            stuff_colors=dataset_inputs.semantics.stuff_colors
+            stuff_colors=dataset_inputs.semantics.stuff_colors,
         )
         self.graph.to(self.device)
 
@@ -202,8 +206,11 @@ class Trainer:
         iter_dataset = iter(self.train_dataloader)
         for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
-            batch = next(iter_dataset)
-            batch = get_dict_to_torch(batch, device=self.device)
+            image_batch = next(iter_dataset)
+            image_batch = get_dict_to_torch(image_batch, device=self.device)
+            batch = self.pixel_sampler(
+                image_batch
+            )  # TODO(ethan): replace this with an actual PixelSampler class. note that 'batch' is a pixel_batch
             writer.put_time(
                 name=writer.EventName.ITER_LOAD_TIME,
                 start_time=data_start,
@@ -211,7 +218,6 @@ class Trainer:
                 step=step,
                 avg_over_iters=True,
             )
-
             iter_start = time()
             loss_dict = self.train_iteration(batch, step, _callback=[update_occupancy])
             writer.put_time(
@@ -233,10 +239,9 @@ class Trainer:
 
             if step != 0 and step % self.config.logging.steps_per_log == 0:
                 writer.put_dict(name="loss_dict", scalar_dict=loss_dict, step=step, group="Loss", prefix="train-")
-                # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
-            if step % self.config.graph.steps_per_test == 0:  # NOTE(ethan): we should still run this in dry-run mode!
+            if step % self.config.graph.steps_per_test == 0:
                 for image_idx in self.config.data.val_image_indices:
                     _ = self.test_image(image_idx=image_idx, step=step)
             self._write_out_storage(step)

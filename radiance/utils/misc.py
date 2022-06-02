@@ -2,10 +2,14 @@
 Miscellaneous helper code.
 """
 
-import torch
-
-from omegaconf import DictConfig
+import json
 from pydoc import locate
+
+import torch
+from omegaconf import DictConfig
+
+import hashlib
+from typing import Any, Dict
 
 
 class DotDict(dict):
@@ -64,3 +68,12 @@ def instantiate_from_dict_config(dict_config: DictConfig, **kwargs):
     all_kwargs.update(kwargs)
     instantiated_class = uninstantiated_class(**all_kwargs)
     return instantiated_class
+
+
+def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
+    """MD5 hash of a dictionary. Based on
+    https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html"""
+    dhash = hashlib.md5()
+    encoded = json.dumps(dictionary, sort_keys=True).encode()
+    dhash.update(encoded)
+    return dhash.hexdigest()

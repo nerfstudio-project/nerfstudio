@@ -89,7 +89,7 @@ class NerfWGraph(Graph):
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
 
         # renderers
-        self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
+        self.renderer_rgb = RGBRenderer(background_color=colors.BLACK)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
         self.renderer_uncertainty = UncertaintyRenderer()
@@ -152,8 +152,8 @@ class NerfWGraph(Graph):
         density_transient = field_outputs_fine[FieldHeadNames.TRANSIENT_DENSITY]
 
         # depth
-        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.ts).depth
-        depth_fine_static = self.renderer_depth(weights_fine_static, ray_samples_pdf.ts).depth
+        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.ts)
+        depth_fine_static = self.renderer_depth(weights_fine_static, ray_samples_pdf.ts)
 
         # uncertainty
         uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
@@ -210,4 +210,7 @@ class NerfWGraph(Graph):
         row2 = torch.cat([depth_fine, depth_fine_static, depth_coarse], dim=-2)
         combined_image = torch.cat([row0, row1, row2], dim=-3)
 
-        writer.put_image(name="image_idx_{image_idx}-nerfw", image=combined_image, step=step, group="img")
+        writer.put_image(name=f"image_idx_{image_idx}-nerfw", image=combined_image, step=step, group="img")
+
+        mask = batch["mask"].repeat(1, 1, 3)
+        writer.put_image(name=f"image_idx_{image_idx}", image=mask, step=step, group="mask")

@@ -2,16 +2,39 @@
 For loading the blender dataset format.
 """
 
+import logging
 from typing import Optional, Union
+from importlib_metadata import pass_none
 
 from omegaconf import ListConfig
+from pyparsing import str_type
 
 from radiance.nerf.dataset.format.blender import load_blender_data
 from radiance.nerf.dataset.format.friends import load_friends_data
 from radiance.nerf.dataset.format.instant_ngp import load_instant_ngp_data
 from radiance.nerf.dataset.structs import DatasetInputs
 from radiance.structures.colors import get_color
-from radiance.utils.io import get_absolute_path
+from radiance.utils.io import get_absolute_path, load_from_pkl, make_dir, write_to_pkl
+from radiance.utils.misc import get_hash_str_from_dict
+
+
+def get_cache_filename_from_kwargs(kwargs: dict, split: str):
+    dataset_config_hash = get_hash_str_from_dict(kwargs)
+    dataset_config_hash_filename = make_dir(
+        get_absolute_path(f"cache/dataset_inputs/{dataset_config_hash}-{split}.pkl")
+    )
+    return dataset_config_hash_filename
+
+
+def save_dataset_inputs_kwargs_to_cache(kwargs: dict, split: str):
+    dataset_inputs = get_dataset_inputs(**kwargs, split=split)
+    dataset_config_hash_filename = get_cache_filename_from_kwargs(kwargs, split)
+    write_to_pkl(dataset_config_hash_filename, dataset_inputs)
+
+
+def get_dataset_inputs_from_cache(kwargs: dict, split: str):
+    dataset_config_hash_filename = get_cache_filename_from_kwargs(kwargs, split)
+    return load_from_pkl(dataset_config_hash_filename)
 
 
 def get_dataset_inputs(
@@ -20,7 +43,6 @@ def get_dataset_inputs(
     split: str,
     downscale_factor: int = 1,
     alpha_color: Optional[Union[str, list, ListConfig]] = None,
-    load_dataset_inputs_from_cache: bool = False,
 ) -> DatasetInputs:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
     # TODO: implement the `test` split, which will have depths and normals, etc.
@@ -34,10 +56,6 @@ def get_dataset_inputs(
     Returns:
         DatasetInputs: The inputs needed for generating rays.
     """
-
-    if load_dataset_inputs_from_cache:
-        print("Loading from cache.")
-        return None
 
     if alpha_color is not None:
         alpha_color = get_color(alpha_color)
@@ -68,3 +86,13 @@ def get_dataset_inputs(
         raise NotImplementedError(f"{dataset_format} is not a valid dataset type")
 
     return dataset_inputs
+
+
+def get_dataset_inputs_from_dataset_config(*, split: str, use_cache: bool = False, **kwargs):
+    """This may optionally use the cache to return the dataset inputs."""
+    if use_cache:
+        logging.info("Loading from cache! Be careful with using this when making changes!")
+        print(kwargs)
+        return get_dataset_inputs_from_cache(kwargs, split)
+    else:
+        return get_dataset_inputs(**kwargs, split=split)

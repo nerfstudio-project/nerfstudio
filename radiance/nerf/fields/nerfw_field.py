@@ -93,8 +93,8 @@ class VanillaNerfWField(Field):
         outputs = {}
         encoded_dir = self.direction_encoding(point_samples.directions)
         embedded_appearance = self.embedding_appearance(point_samples.camera_indices)
-        rgb_mlp_out = self.mlp_rgb(torch.cat([density_embedding, encoded_dir, embedded_appearance], dim=-1))
-        outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(rgb_mlp_out)  # static rgb
+        mlp_head_out = self.mlp_head(torch.cat([density_embedding, encoded_dir, embedded_appearance], dim=-1))
+        outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_head_out)  # static rgb
         embedded_transient = self.embedding_transient(point_samples.camera_indices)
         transient_mlp_out = self.mlp_transient(torch.cat([density_embedding, embedded_transient], dim=-1))
         outputs[self.field_head_transient_uncertainty.field_head_name] = self.field_head_transient_uncertainty(

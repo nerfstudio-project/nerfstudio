@@ -6,6 +6,11 @@ defaults:
 experiment_name: friends_TBBT-big_living_room
 method_name: nerfw
 
+data:
+  image_dataset:
+    # "image", "mask", "semantics"
+    _target_: radiance.nerf.dataset.image_dataset.PanopticImageDataset
+
 graph:
   network:
     _target_: radiance.nerf.graph.nerfw.NerfWGraph
