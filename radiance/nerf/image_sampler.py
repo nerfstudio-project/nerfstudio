@@ -3,7 +3,6 @@ Code for sampling images.
 """
 
 import random
-from typing import Callable
 
 import torch
 from torch.utils.data import default_collate
@@ -14,8 +13,11 @@ from radiance.utils.misc import get_dict_to_torch
 class ImageSampler(torch.utils.data.IterableDataset):
     """Samples 'image_batch's."""
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __getitem__(self, idx):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        raise NotImplementedError()
 
 
 class CacheImageSampler(ImageSampler):
@@ -71,4 +73,3 @@ class CacheImageSampler(ImageSampler):
                 collated_batch = self.cached_collated_batch
                 self.num_repeated += 1
             yield collated_batch
-

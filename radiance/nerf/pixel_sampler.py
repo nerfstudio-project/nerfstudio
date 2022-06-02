@@ -2,33 +2,21 @@
 Code for sampling pixels.
 """
 
-from abc import abstractmethod
-from typing import Dict, List, Optional
-
-import numpy as np
-import numpy.typing as npt
-import PIL
-import torch
-from PIL import Image
-from torch.utils.data import default_collate
-from torchtyping import TensorType
-
-from radiance.nerf.dataset.structs import Semantics
 import random
 
-from radiance.utils.misc import is_not_none
+import torch
 
 
 def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool = False):
-    """Operates on a batch of images and samples pixels to use for generating rays.
-    Returns a collated batch which is input to the Graph."""
-    # TODO(ethan): handle sampling even when in different processes
-    # we don't want the same samples for all spawned processed when
-    # using distributed training
+    """
+    Operates on a batch of images and samples pixels to use for generating rays.
+    Returns a collated batch which is input to the Graph.
+    It will sample only within the valid 'mask' if it's specified.
+    """
 
     num_images, image_height, image_width, _ = batch["image"].shape
 
-    # only sample within the mask, if the mask in in the batch
+    # only sample within the mask, if the mask is in the batch
     if "mask" in batch:
         nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
         chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
@@ -65,8 +53,8 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
     return collated_batch
 
 
-class PixelSampler:
-    """Samples 'pixel_batch's"""
+class PixelSampler:  # pylint: disable=too-few-public-methods
+    """Samples 'pixel_batch's from 'image_batch's."""
 
     def __init__(self, num_rays_per_batch, keep_full_image=False) -> None:
         self.num_rays_per_batch = num_rays_per_batch

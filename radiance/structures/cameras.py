@@ -108,7 +108,9 @@ class Camera:
             device = self.camera_to_world.device
         height = self.get_image_height()
         width = self.get_image_width()
-        intrinsics = self.get_intrinsics().unsqueeze(0).repeat(height, width, 1).to(device)  # (num_rays, num_intrinsics_params)
+        intrinsics = (
+            self.get_intrinsics().unsqueeze(0).repeat(height, width, 1).to(device)
+        )  # (num_rays, num_intrinsics_params)
         camera_to_world = self.camera_to_world.unsqueeze(0).repeat(height, width, 1, 1).to(device)  # (num_rays, 3, 4)
         coords = self.get_image_coords().to(device)
         ray_bundle = self.generate_rays(intrinsics, camera_to_world, coords)

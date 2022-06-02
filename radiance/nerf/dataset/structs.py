@@ -41,15 +41,19 @@ class SceneBounds:
     aabb: TensorType[2, 3] = None
 
     def get_diagonal_length(self):
+        """Returns the longest diagonal length."""
         diff = self.aabb[1] - self.aabb[0]
         length = torch.sqrt((diff**2).sum() + 1e-20)
         return length
 
     def get_center(self):
+        """Reterns the center of the box."""
         diff = self.aabb[1] - self.aabb[0]
         return self.aabb[0] + diff / 2.0
 
     def get_centered_and_scaled_scene_bounds(self, scale_factor=1.0):
+        """Returns a new box that has been shifted and rescaled to be centered
+        about the origin."""
         return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
 
 

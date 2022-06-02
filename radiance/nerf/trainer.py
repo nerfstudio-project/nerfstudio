@@ -4,8 +4,6 @@ Code to train model.
 import copy
 import logging
 import os
-from pyclbr import Class
-from pydoc import locate
 from time import time
 from typing import Callable, Dict, List
 
@@ -13,9 +11,7 @@ import torch
 import torch.distributed as dist
 from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader
 
-from radiance.nerf.dataset.image_dataset import ImageDataset
 from radiance.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_from_dataset_config
 from radiance.nerf.image_sampler import CacheImageSampler
 from radiance.nerf.optimizers import Optimizers
@@ -45,8 +41,8 @@ class Trainer:
         self.world_size = world_size
         # dataset variables
         self.train_image_dataset = None
-        self.train_dataset = None
-        self.train_dataloader = None
+        self.train_image_sampler = None
+        self.train_pixel_sampler = None
         self.val_image_dataset = None
         self.val_image_intrinsics = None
         self.val_image_camera_to_world = None
@@ -105,7 +101,7 @@ class Trainer:
         )  # ImageSampler
         self.train_pixel_sampler = PixelSampler(
             num_rays_per_batch=self.config.data.pixel_sampler.num_rays_per_batch, keep_full_image=False
-        )
+        )  # PixelSampler
 
     @profiler.time_function
     def setup_graph(self, dataset_inputs: DatasetInputs):

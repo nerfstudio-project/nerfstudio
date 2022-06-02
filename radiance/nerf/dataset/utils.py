@@ -1,13 +1,11 @@
 """
-For loading the blender dataset format.
+Code for loading the dataset inputs and for caching the data for fast loading.
 """
 
 import logging
 from typing import Optional, Union
-from importlib_metadata import pass_none
 
 from omegaconf import ListConfig
-from pyparsing import str_type
 
 from radiance.nerf.dataset.format.blender import load_blender_data
 from radiance.nerf.dataset.format.friends import load_friends_data
@@ -19,6 +17,7 @@ from radiance.utils.misc import get_hash_str_from_dict
 
 
 def get_cache_filename_from_kwargs(kwargs: dict, split: str):
+    """Creates a cache filename from the dataset inputs arguments."""
     dataset_config_hash = get_hash_str_from_dict(kwargs)
     dataset_config_hash_filename = make_dir(
         get_absolute_path(f"cache/dataset_inputs/{dataset_config_hash}-{split}.pkl")
@@ -27,12 +26,14 @@ def get_cache_filename_from_kwargs(kwargs: dict, split: str):
 
 
 def save_dataset_inputs_kwargs_to_cache(kwargs: dict, split: str):
+    """Saves the dataset inputs to cache."""
     dataset_inputs = get_dataset_inputs(**kwargs, split=split)
     dataset_config_hash_filename = get_cache_filename_from_kwargs(kwargs, split)
     write_to_pkl(dataset_config_hash_filename, dataset_inputs)
 
 
 def get_dataset_inputs_from_cache(kwargs: dict, split: str):
+    """Loads the dataset inputs from cache."""
     dataset_config_hash_filename = get_cache_filename_from_kwargs(kwargs, split)
     return load_from_pkl(dataset_config_hash_filename)
 
@@ -45,7 +46,6 @@ def get_dataset_inputs(
     alpha_color: Optional[Union[str, list, ListConfig]] = None,
 ) -> DatasetInputs:
     """Returns the dataset inputs, which will be used with an ImageDataset and RayGenerator.
-    # TODO: implement the `test` split, which will have depths and normals, etc.
 
     Args:
         data_directory (str): Location of data
@@ -94,5 +94,4 @@ def get_dataset_inputs_from_dataset_config(*, split: str, use_cache: bool = Fals
         logging.info("Loading from cache! Be careful with using this when making changes!")
         print(kwargs)
         return get_dataset_inputs_from_cache(kwargs, split)
-    else:
-        return get_dataset_inputs(**kwargs, split=split)
+    return get_dataset_inputs(**kwargs, split=split)

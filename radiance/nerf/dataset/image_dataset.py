@@ -3,18 +3,16 @@ Some dataset code.
 """
 
 from abc import abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 import PIL
 import torch
 from PIL import Image
-from torch.utils.data import default_collate
 from torchtyping import TensorType
 
 from radiance.nerf.dataset.structs import Semantics
-import random
 
 from radiance.utils.misc import is_not_none
 
@@ -27,7 +25,6 @@ class ImageDataset(torch.utils.data.Dataset):
         image_filenames: List[str],
         downscale_factor: int = 1,
         alpha_color: Optional[TensorType[3]] = None,
-        semantics: Semantics = Semantics(),
         **kwargs,
     ):
         """_summary_
@@ -78,6 +75,7 @@ class ImageDataset(torch.utils.data.Dataset):
         return image
 
     def get_image(self, image_idx: int):
+        """Returns a 3 channel image."""
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
         if self.alpha_color is not None:
             assert image.shape[-1] == 4
@@ -87,12 +85,12 @@ class ImageDataset(torch.utils.data.Dataset):
         return image
 
     @abstractmethod
-    def get_mask(self, image_idx: int) -> TensorType["image_height", "image_width", 1]:
+    def get_mask(self, image_idx: int) -> Union[TensorType["image_height", "image_width", 1], None]:
         """Returns a mask, which indicates which pixels are valid to use with nerf."""
         return None
 
     @abstractmethod
-    def get_semantics(self, image_idx: int) -> TensorType["image_height", "image_width", "num_classes"]:
+    def get_semantics(self, image_idx: int) -> Union[TensorType["image_height", "image_width", "num_classes"], None]:
         """Returns an image with semantic class values."""
         return None
 
@@ -130,7 +128,7 @@ class PanopticImageDataset(ImageDataset):
     ):
         self.semantics = semantics
         self.person_index = self.semantics.thing_classes.index("person")
-        super().__init__(image_filenames, downscale_factor, alpha_color, semantics, **kwargs)
+        super().__init__(image_filenames, downscale_factor, alpha_color, **kwargs)
 
     def get_mask(self, image_idx):
         """Mask out the people. Valid only where there aren't people."""

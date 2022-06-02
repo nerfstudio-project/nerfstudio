@@ -1,4 +1,4 @@
-""" Classic NeRF field"""
+"""Classic NeRF field"""
 
 
 from typing import Dict, Optional, Tuple

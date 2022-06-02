@@ -2,14 +2,13 @@
 Miscellaneous helper code.
 """
 
+import hashlib
 import json
 from pydoc import locate
+from typing import Any, Dict
 
 import torch
 from omegaconf import DictConfig
-
-import hashlib
-from typing import Any, Dict
 
 
 class DotDict(dict):

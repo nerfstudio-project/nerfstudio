@@ -13,11 +13,9 @@ from torchtyping import TensorType
 
 from radiance.nerf.dataset.structs import SceneBounds
 from radiance.nerf.ray_generator import RayGenerator
-from radiance.nerf.colliders import AABBBoxCollider
 from radiance.structures.cameras import get_camera_model
 from radiance.structures.rays import RayBundle
-from radiance.utils.misc import get_masked_dict, instantiate_from_dict_config
-from radiance.utils.misc import is_not_none
+from radiance.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
 
 
 class AbstractGraph(nn.Module):

@@ -13,3 +13,6 @@ def test_run_train():
     initialize(config_path="../configs/tests/")
     conf = compose("test_dryrun.yaml")
     main(conf)
+
+if __name__ == "__main__":
+    test_run_train()

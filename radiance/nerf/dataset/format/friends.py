@@ -3,20 +3,14 @@ Code to handle loading friends datasets.
 """
 
 import os
-import PIL
-from typing import Optional, List
 
 import numpy as np
 import torch
 
 from radiance.nerf.dataset.colmap_utils import read_cameras_binary, read_images_binary, read_pointsTD_binary
-from radiance.nerf.dataset.image_dataset import ImageDataset
 from radiance.nerf.dataset.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
 from radiance.utils import profiler
 from radiance.utils.io import load_from_json
-from PIL import Image
-
-from torchtyping import TensorType
 
 
 def get_aabb_and_transform(basedir):
@@ -52,6 +46,7 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         include_point_cloud (bool): whether or not to include the point cloud
     """
     # pylint: disable=unused-argument
+    # pylint: disable=too-many-statements
 
     # --- image filenames ----
     images_data = read_images_binary(os.path.join(basedir, "colmap", "images.bin"))

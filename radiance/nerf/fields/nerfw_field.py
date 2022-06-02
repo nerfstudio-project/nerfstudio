@@ -1,14 +1,15 @@
+"""Fields for nerf-w"""
+
 from typing import Dict, Optional, Tuple
 
 import torch
-from torch import Graph, nn
+from torch import nn
 from torchtyping import TensorType
 
 from radiance.nerf.field_modules.embedding import Embedding
 from radiance.nerf.field_modules.encoding import Encoding, Identity
 from radiance.nerf.field_modules.field_heads import (
     DensityFieldHead,
-    FieldHead,
     FieldHeadNames,
     RGBFieldHead,
     TransientDensityFieldHead,
@@ -17,9 +18,7 @@ from radiance.nerf.field_modules.field_heads import (
 )
 from radiance.nerf.field_modules.mlp import MLP
 from radiance.nerf.fields.base import Field
-from radiance.nerf.renderers import UncertaintyRenderer
-from radiance.structures.rays import PointSamples, RayBundle, RaySamples
-from radiance.utils import visualization, writer
+from radiance.structures.rays import PointSamples
 
 
 class VanillaNerfWField(Field):
@@ -107,12 +106,3 @@ class VanillaNerfWField(Field):
             transient_mlp_out
         )  # transient density
         return outputs
-
-
-class FastNerfWField(Field):
-    """Our fast implementatin of NeRF-W"""
-
-    def __init__(self) -> None:
-        super().__init__()
-
-        
