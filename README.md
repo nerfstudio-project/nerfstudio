@@ -1,11 +1,12 @@
 # pyrad :bulb:
 
-An all-in-one repo for NeRFs
+The all-in-one repo for NeRFs
 
 # Quickstart
 
-## Installation: Setup the environment
+#### 1. Installation: Setup the environment
 
+This repository is tested with cuda 11.3
 ```
 # Clone the repo
 git clone --recurse-submodules git@github.com:ethanweber/pyrad.git
@@ -25,18 +26,19 @@ python setup.py develop
 pytest tests
 ```
 
-## Getting the data
+#### 2. Getting the data
 
-Download the original NeRF dataset and put it in the following format.
+Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format:
 
 ```
-- data/
-    - blender/
-        - fern/
-        - lego/
+├── data/
+|   ├── blender/
+|   |   ├── fern/
+|   |   ├── lego/
+...
 ```
 
-## Training a model
+#### 3. Training a model
 
 ```
 # Run with default config
@@ -54,23 +56,23 @@ python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
 python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
 ```
 
-# Getting around the codebase
+# Walk-through tour
+In this quick tour, we will walk you through the core of training and building any NeRFs with pyrad.
 
-The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `nerf/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. If you are planning on just using our codebase to build a new NeRF method or use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to touch them.
+#### Launching a training job
+The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `nerf/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. It will then run the usual train/val routine for a config-specified number of iterations. If you are planning on using our codebase to build a new NeRF method or to use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to think of them again.
 
-The NeRF graph definitions can be found in `nerf/graph/`. Each implementation of NeRF is definined in its own file. For instance, `nerf/graph/instant_ngp.py` contains populates the `NGPGraph()` class with all of the appropriate fields, colliders, and misc. modules.
-* Fields (`nerf/fields/`): composed of field modules (`nerf/field_modules/`) and represents the radiance field of the NeRF.
-* Misc. Modules (`nerf/misc_modules`- TODO(maybe move to misc_modules? better organization)): any remaining module in the NeRF (e.g. renderers, samplers, losses, and metrics).
+#### Graphs, Fields, and Modules
+The actual NeRF graph definitions can be found in `nerf/graph/`. For instance, to implement the vanilla NeRF, we create a new [PICKOFF HERE]
 
-To implement any pre-existing NeRF that we have not yet implemented under `nerf/graph/`, create a new graph structure by using provided modules or any new module you define. Then create an associated config making sure `__target__` points to your NeRF class (see [here](./configs/README.md) for more info on how to create the config). Then run training as described above.
+#### 
 
+# Feature List
+#### :metal: [Hydra config structure](./configs/README.md)
+#### :metal: [Logging, debugging utilities](./radiance/utils/README.md)
+#### :metal: [Benchmarking, other tooling](./scripts/README.md)
 
-# Feature Documentation
-### 1. [Hydra config structure](./configs/README.md)
-### 2. [Logging, debugging utilities](./radiance/utils/README.md)
-### 3. [Benchmarking, other tooling](./scripts/README.md)
-
-### 4. Running other repos with our data
+#### :metal: Running other repos with our data
 
 ```
 # nerf-pytorch
@@ -83,7 +85,7 @@ conda activate jaxnerf
 python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir=/path/to/pyrad/outputs/blender_chair_jaxnerf --config=/path/to/pyrad/external/jaxnerf/configs/demo --render_every 100
 ```
 
-### 5. Speeding up the code
+#### :metal: Speeding up the code
 Documentation for running the code with CUDA.
 Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
 
@@ -97,9 +99,16 @@ python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=ins
 ```
 
 
-### 6. Setting up Jupyter
+#### :metal: Setting up Jupyter
 
 ```
 python -m jupyter lab build
 bash environments/run_jupyter.sh
 ```
+
+# Benchmarked Model Architectures
+| Method        | PSNR          |
+| ------------- | ------------- |
+| [NeRF](https://arxiv.org/abs/2003.08934) | |
+| [instant NGP](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) | |
+| [Mip NeRF](https://arxiv.org/abs/2103.13415) | |
