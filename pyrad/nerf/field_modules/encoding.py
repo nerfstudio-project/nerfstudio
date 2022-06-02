@@ -139,6 +139,7 @@ class RFFEncoding(Encoding):
             raise ValueError("RFF encoding scale should be greater than zero")
         self.scale = scale
         self.b_matrix = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
+        self.register_buffer(name="rff_scalings", tensor=self.b_matrix)
 
     def get_out_dim(self) -> int:
         return self.num_frequencies * 2
