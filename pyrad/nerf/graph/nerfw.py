@@ -1,42 +1,21 @@
 """
 NeRF-W (NeRF in the wild) implementation.
-TODO:
 """
 
-from typing import Dict, Optional, Tuple
-
 import torch
-from pyrad.nerf.fields.nerfw_field import VanillaNerfWField
-from pyrad.nerf.graph.base import Graph
-from torchtyping import TensorType
-
-from pyrad.nerf.field_modules.embedding import Embedding
-from pyrad.nerf.field_modules.encoding import Encoding, Identity, NeRFEncoding
-from pyrad.nerf.field_modules.field_heads import FieldHeadNames
-from pyrad.nerf.field_modules.mlp import MLP
-from pyrad.nerf.fields.base import Field
-from pyrad.nerf.fields.nerf_field import NeRFField
-from pyrad.nerf.renderers import UncertaintyRenderer
-from pyrad.structures.rays import PointSamples, RayBundle, RaySamples
-from pyrad.utils import visualization, writer
-
-from typing import Dict, List
-
-import torch
-from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
 from pyrad.nerf.field_modules.encoding import NeRFEncoding
 from pyrad.nerf.field_modules.field_heads import FieldHeadNames
-
 from pyrad.nerf.fields.nerf_field import NeRFField
+from pyrad.nerf.fields.nerfw_field import VanillaNerfWField
 from pyrad.nerf.graph.base import Graph
 from pyrad.nerf.loss import MSELoss
-from pyrad.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
+from pyrad.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer, UncertaintyRenderer
 from pyrad.structures import colors
 from pyrad.structures.rays import RayBundle
-from pyrad.nerf.colliders import NearFarCollider
 from pyrad.utils import visualization, writer
 
 

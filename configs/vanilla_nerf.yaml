@@ -18,9 +18,9 @@ graph:
     load_step: # pretrained model's step number
 
   network:
-    _target_: radiance.nerf.graph.vanilla_nerf.NeRFGraph
+    _target_: pyrad.nerf.graph.vanilla_nerf.NeRFGraph
     collider_config:
-      _target_: radiance.nerf.colliders.NearFarCollider
+      _target_: pyrad.nerf.colliders.NearFarCollider
       near_plane: 2.0
       far_plane: 6.0
     num_coarse_samples: 64

@@ -8,7 +8,7 @@ val_downscale_factor: 4
 val_num_rays_per_chunk: 4096
 
 image_dataset:
-  _target_: radiance.nerf.dataset.image_dataset.ImageDataset
+  _target_: pyrad.nerf.dataset.image_dataset.ImageDataset
 
 image_sampler:
   num_images_to_sample_from: 8 # 0

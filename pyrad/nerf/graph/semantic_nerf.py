@@ -2,7 +2,6 @@
 Semantic NeRF implementation.
 """
 
-from tkinter import NONE
 from typing import Dict, Optional, Tuple
 
 import torch
@@ -17,7 +16,7 @@ from pyrad.nerf.fields.nerf_field import NeRFField
 from pyrad.nerf.graph.vanilla_nerf import NeRFGraph
 from pyrad.nerf.renderers import SemanticRenderer
 from pyrad.structures.rays import PointSamples, RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.utils import writer
 
 
 class SemanticNerfField(Field):

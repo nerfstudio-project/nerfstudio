@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import torch
-from dataclasses_json import dataclass_json
 from torchtyping import TensorType
 
 
@@ -57,7 +56,6 @@ class SceneBounds:
         return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
 
 
-@dataclass_json
 @dataclass
 class DatasetInputs:
     """Dataset inputs for the image dataset and the ray generator.

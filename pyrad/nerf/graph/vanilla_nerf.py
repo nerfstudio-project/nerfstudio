@@ -16,8 +16,7 @@ from pyrad.nerf.fields.nerf_field import NeRFField
 from pyrad.nerf.graph.base import Graph
 from pyrad.nerf.loss import MSELoss
 from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
-from pyrad.nerf.renderers import (AccumulationRenderer, DepthRenderer,
-                                  RGBRenderer)
+from pyrad.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.structures import colors
 from pyrad.structures.rays import RayBundle
 from pyrad.utils import visualization, writer

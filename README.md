@@ -66,15 +66,18 @@ python scripts/run_train.py ++data.dataset.use_cache=true
 The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `nerf/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. If you are planning on just using our codebase to build a new NeRF method or use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to touch them.
 
 The NeRF graph definitions can be found in `nerf/graph/`. Each implementation of NeRF is definined in its own file. For instance, `nerf/graph/instant_ngp.py` contains populates the `NGPGraph()` class with all of the appropriate fields, colliders, and misc. modules.
-* Fields (`nerf/fields/`): composed of field modules (`nerf/field_modules/`) and represents the radiance field of the NeRF.
-* Misc. Modules (`nerf/misc_modules`- TODO(maybe move to misc_modules? better organization)): any remaining module in the NeRF (e.g. renderers, samplers, losses, and metrics).
+
+- Fields (`nerf/fields/`): composed of field modules (`nerf/field_modules/`) and represents the radiance field of the NeRF.
+- Misc. Modules (`nerf/misc_modules`- TODO(maybe move to misc_modules? better organization)): any remaining module in the NeRF (e.g. renderers, samplers, losses, and metrics).
 
 To implement any pre-existing NeRF that we have not yet implemented under `nerf/graph/`, create a new graph structure by using provided modules or any new module you define. Then create an associated config making sure `__target__` points to your NeRF class (see [here](./configs/README.md) for more info on how to create the config). Then run training as described above.
 
-
 # Feature Documentation
+
 ### 1. [Hydra config structure](./configs/README.md)
-### 2. [Logging, debugging utilities](./radiance/utils/README.md)
+
+### 2. [Logging, debugging utilities](./pyrad/utils/README.md)
+
 ### 3. [Benchmarking, other tooling](./scripts/README.md)
 
 ### 4. Running other repos with our data
@@ -91,6 +94,7 @@ python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir
 ```
 
 ### 5. Speeding up the code
+
 Documentation for running the code with CUDA.
 Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
 
@@ -99,6 +103,7 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 ```
 
 To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
+
 ```
 python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
 ```
