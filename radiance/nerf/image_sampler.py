@@ -1,5 +1,5 @@
 """
-Classes to help with caching data while training.
+Code for sampling images.
 """
 
 import random
@@ -11,17 +11,14 @@ from torch.utils.data import default_collate
 from radiance.utils.misc import get_dict_to_torch
 
 
-def collate_batch_size_one(batch_list):
-    """Use the default collate function but then squeze to avoid the batch dimension being added."""
-    assert len(batch_list) == 1
-    collated_batch = default_collate(batch_list)
-    for key in collated_batch:
-        assert collated_batch[key].shape[0] == 1
-        collated_batch[key] = collated_batch[key].squeeze(0)
-    return collated_batch
+class ImageSampler(torch.utils.data.IterableDataset):
+    """Samples 'image_batch's."""
+
+    def __init__(self) -> None:
+        super().__init__()
 
 
-class CollateIterDataset(torch.utils.data.IterableDataset):
+class CacheImageSampler(ImageSampler):
     """Collated image dataset that implements caching of images.
     Creates batches of the ImageDataset return type.
     """
@@ -74,3 +71,4 @@ class CollateIterDataset(torch.utils.data.IterableDataset):
                 collated_batch = self.cached_collated_batch
                 self.num_repeated += 1
             yield collated_batch
+

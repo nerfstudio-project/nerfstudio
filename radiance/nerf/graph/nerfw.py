@@ -33,7 +33,7 @@ from radiance.nerf.fields.nerf_field import NeRFField
 from radiance.nerf.graph.base import Graph
 from radiance.nerf.loss import MSELoss
 from radiance.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from radiance.nerf.sampler import PDFSampler, UniformSampler
+from radiance.nerf.ray_sampler import PDFSampler, UniformSampler
 from radiance.structures import colors
 from radiance.structures.rays import RayBundle
 from radiance.nerf.colliders import NearFarCollider

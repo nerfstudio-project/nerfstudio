@@ -9,7 +9,7 @@ graph:
   # saving model specifications
   model_dir: /tmp/radiance_models/
   steps_per_save: null
-  steps_per_test: 1000
+  steps_per_test: 100
   max_num_iterations: 1000000
 
   # pretrained loading options

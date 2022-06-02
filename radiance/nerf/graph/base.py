@@ -132,21 +132,16 @@ class Graph(AbstractGraph):
     @torch.no_grad()
     def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024, training_camera_index=0):
         """Takes in camera parameters and computes the output of the graph."""
-        # NOTE(ethan): this function has a spike in CPU usage
-
-        device = self.get_device()
         assert len(intrinsics.shape) == 1
         num_intrinsics_params = len(intrinsics)
         camera_class = get_camera_model(num_intrinsics_params)
         camera = camera_class(*intrinsics.tolist(), camera_to_world=camera_to_world)
-        camera_ray_bundle = camera.generate_camera_rays()
+        camera_ray_bundle = camera.generate_camera_rays(device=self.get_device())
         # TODO(ethan): decide how to properly handle the image indices for validation images
         camera_ray_bundle.set_camera_indices(camera_index=training_camera_index)
-        camera_ray_bundle.move_to_device(device)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
 
         num_rays = len(camera_ray_bundle)
-
         outputs = {}
         outputs_lists = defaultdict(list)
         for i in range(0, num_rays, chunk_size):

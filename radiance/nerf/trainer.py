@@ -15,10 +15,11 @@ from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 
-from radiance.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
-from radiance.nerf.dataset.image_dataset import ImageDataset, collate_image_dataset_batch
+from radiance.nerf.dataset.image_dataset import ImageDataset
 from radiance.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_from_dataset_config
+from radiance.nerf.image_sampler import CacheImageSampler
 from radiance.nerf.optimizers import Optimizers
+from radiance.nerf.pixel_sampler import PixelSampler
 from radiance.utils import profiler, writer
 from radiance.utils.callbacks import update_occupancy
 from radiance.utils.decorators import check_main_thread
@@ -71,14 +72,6 @@ class Trainer:
         self.setup_dataset_eval(dataset_inputs_eval)
         self.setup_graph(dataset_inputs_train)
 
-    def pixel_sampler(self, image_batch):
-        """TODO(ethan): I need to replace this.
-        I'm only using this for multiprocess pickle issues for now.
-        """
-        return collate_image_dataset_batch(
-            image_batch, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False
-        )
-
     @profiler.time_function
     def setup_dataset_eval(self, dataset_inputs: DatasetInputs):
         """Helper method to load test or val dataset based on test/train mode"""
@@ -102,20 +95,16 @@ class Trainer:
             semantics=dataset_inputs.semantics,
             alpha_color=dataset_inputs.alpha_color,
         )  # ImageDataset
-        self.train_dataset = CollateIterDataset(
+        self.train_image_sampler = CacheImageSampler(
             self.train_image_dataset,
             num_samples_to_collate=len(self.train_image_dataset)
-            if self.config.data.dataloader.num_images_to_sample_from == 0
-            else self.config.data.dataloader.num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.data.dataloader.num_times_to_repeat_images,
-            device=self.device if self.config.data.dataloader.move_to_graph_device else "cpu",
-        )
-        self.train_dataloader = DataLoader(
-            self.train_dataset,
-            batch_size=1,
-            num_workers=self.config.data.dataloader.num_workers,
-            collate_fn=collate_batch_size_one,
-            pin_memory=False,  # TODO(ethan): try both True and False
+            if self.config.data.image_sampler.num_images_to_sample_from == 0
+            else self.config.data.image_sampler.num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.data.image_sampler.num_times_to_repeat_images,
+            device=self.device if self.config.data.image_sampler.move_to_graph_device else "cpu",
+        )  # ImageSampler
+        self.train_pixel_sampler = PixelSampler(
+            num_rays_per_batch=self.config.data.pixel_sampler.num_rays_per_batch, keep_full_image=False
         )
 
     @profiler.time_function
@@ -203,14 +192,12 @@ class Trainer:
         """_summary_"""
         train_start = time()
         num_iterations = self.config.graph.max_num_iterations
-        iter_dataset = iter(self.train_dataloader)
+        iter_train_image_sampler = iter(self.train_image_sampler)
         for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
-            image_batch = next(iter_dataset)
+            image_batch = next(iter_train_image_sampler)
             image_batch = get_dict_to_torch(image_batch, device=self.device)
-            batch = self.pixel_sampler(
-                image_batch
-            )  # TODO(ethan): replace this with an actual PixelSampler class. note that 'batch' is a pixel_batch
+            batch = self.train_pixel_sampler.sample(image_batch)
             writer.put_time(
                 name=writer.EventName.ITER_LOAD_TIME,
                 start_time=data_start,
@@ -280,8 +267,8 @@ class Trainer:
     def test_image(self, image_idx, step):
         """Test a specific image."""
         self.graph.eval()
-        intrinsics = self.val_image_intrinsics[image_idx]
-        camera_to_world = self.val_image_camera_to_world[image_idx]
+        intrinsics = self.val_image_intrinsics[image_idx].to(self.device)
+        camera_to_world = self.val_image_camera_to_world[image_idx].to(self.device)
         chunk_size = self.config.data.val_num_rays_per_chunk
         training_camera_index = image_idx  # TODO(ethan): change this because training and test should not be the same
         outputs = self.graph.get_outputs_for_camera(

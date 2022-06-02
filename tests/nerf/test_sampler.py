@@ -2,7 +2,7 @@
 Test samplers
 """
 import torch
-from radiance.nerf.sampler import PDFSampler, UniformSampler
+from radiance.nerf.ray_sampler import PDFSampler, UniformSampler
 
 from radiance.structures.rays import RayBundle
 from radiance.nerf.colliders import NearFarCollider
