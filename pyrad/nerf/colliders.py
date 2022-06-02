@@ -11,6 +11,10 @@ from pyrad.structures.rays import RayBundle
 class SceneBoundsCollider(nn.Module):
     """Module for setting near and far values for rays."""
 
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = kwargs
+        super().__init__()
+
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
         """To be implemented."""
         raise NotImplementedError
@@ -19,8 +23,8 @@ class SceneBoundsCollider(nn.Module):
 class AABBBoxCollider(SceneBoundsCollider):
     """Module for colliding rays with the scene bounds to compute near and far values."""
 
-    def __init__(self, scene_bounds: SceneBounds) -> None:
-        super().__init__()
+    def __init__(self, scene_bounds: SceneBounds, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.scene_bounds = scene_bounds
 
     @classmethod
@@ -77,10 +81,10 @@ class AABBBoxCollider(SceneBoundsCollider):
 class NearFarCollider(SceneBoundsCollider):
     """Sets the nears and fars with fixed values."""
 
-    def __init__(self, near_plane, far_plane) -> None:
+    def __init__(self, near_plane, far_plane, **kwargs) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
-        super().__init__()
+        super().__init__(**kwargs)
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
         ones = torch.ones_like(ray_bundle.origins[:, 0])

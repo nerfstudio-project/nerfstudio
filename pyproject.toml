@@ -11,7 +11,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore = ["pyrad/cuda", "tests/cuda", "nerfw.py", "semantic_nerf.py"]
+ignore = ["pyrad/cuda", "tests/cuda"]
 
 disable = [
   "too-many-arguments",

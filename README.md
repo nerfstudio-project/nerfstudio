@@ -54,6 +54,11 @@ python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
 
 # Run with different datasets and config changes
 python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
+
+# Speed up the dataloading pipeline.
+python scripts/run_data_preprocessor.py
+# Then, specify using the cache.
+python scripts/run_train.py ++data.dataset.use_cache=true
 ```
 
 # Getting around the codebase
@@ -66,10 +71,10 @@ The NeRF graph definitions can be found in `nerf/graph/`. Each implementation of
 
 To implement any pre-existing NeRF that we have not yet implemented under `nerf/graph/`, create a new graph structure by using provided modules or any new module you define. Then create an associated config making sure `__target__` points to your NeRF class (see [here](./configs/README.md) for more info on how to create the config). Then run training as described above.
 
-
 # Feature Documentation
+
 ### 1. [Hydra config structure](./configs/README.md)
-### 2. [Logging, debugging utilities](./radiance/utils/README.md)
+### 2. [Logging, debugging utilities](./pyrad/utils/README.md)
 ### 3. [Benchmarking, other tooling](./scripts/README.md)
 
 ### 4. Running other repos with our data
@@ -94,10 +99,10 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 ```
 
 To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
+
 ```
 python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
 ```
-
 
 ### 6. Setting up Jupyter
 

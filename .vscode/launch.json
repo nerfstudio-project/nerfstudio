@@ -46,7 +46,7 @@
             "program": "scripts/run_train.py",
             "console": "integratedTerminal",
             "args": [
-                "--config-name=nerfw.yaml"
+                "--config-name=nerfw.yaml", "++data.dataset.use_cache=true"
             ]
         },
         {

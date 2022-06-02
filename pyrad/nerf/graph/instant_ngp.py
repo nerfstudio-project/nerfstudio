@@ -16,7 +16,7 @@ from pyrad.nerf.graph.base import Graph
 from pyrad.nerf.loss import MSELoss
 from pyrad.nerf.occupancy_grid import OccupancyGrid
 from pyrad.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from pyrad.nerf.sampler import PDFSampler, UniformSampler
+from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
 from pyrad.structures import colors
 from pyrad.structures.rays import RayBundle
 from pyrad.utils import visualization, writer
@@ -115,10 +115,10 @@ class NGPGraph(Graph):
         pixels = batch["pixels"].to(device)
         rgb_loss = self.rgb_loss(pixels, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
-        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
+    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+        image = batch["image"]
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
         depth = visualization.apply_depth_colormap(
