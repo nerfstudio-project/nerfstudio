@@ -7,7 +7,7 @@ import random
 import torch
 from torch.utils.data import default_collate
 
-from radiance.utils.misc import get_dict_to_torch
+from pyrad.utils.misc import get_dict_to_torch
 
 
 class ImageSampler(torch.utils.data.IterableDataset):

@@ -2,10 +2,10 @@
 Test samplers
 """
 import torch
-from radiance.nerf.ray_sampler import PDFSampler, UniformSampler
+from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
 
-from radiance.structures.rays import RayBundle
-from radiance.nerf.colliders import NearFarCollider
+from pyrad.structures.rays import RayBundle
+from pyrad.nerf.colliders import NearFarCollider
 
 
 def test_uniform_sampler():

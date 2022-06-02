@@ -6,9 +6,9 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from radiance.nerf.field_modules.embedding import Embedding
-from radiance.nerf.field_modules.encoding import Encoding, Identity
-from radiance.nerf.field_modules.field_heads import (
+from pyrad.nerf.field_modules.embedding import Embedding
+from pyrad.nerf.field_modules.encoding import Encoding, Identity
+from pyrad.nerf.field_modules.field_heads import (
     DensityFieldHead,
     FieldHeadNames,
     RGBFieldHead,
@@ -16,9 +16,9 @@ from radiance.nerf.field_modules.field_heads import (
     TransientRGBFieldHead,
     UncertaintyFieldHead,
 )
-from radiance.nerf.field_modules.mlp import MLP
-from radiance.nerf.fields.base import Field
-from radiance.structures.rays import PointSamples
+from pyrad.nerf.field_modules.mlp import MLP
+from pyrad.nerf.fields.base import Field
+from pyrad.structures.rays import PointSamples
 
 
 class VanillaNerfWField(Field):

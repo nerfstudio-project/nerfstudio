@@ -4,7 +4,7 @@ hydra-colorlog
 hydra-core
 imageio
 ipywidgets>=7.6
-jupyterlab
+jupyterlab==3.3.4
 kaleido
 matplotlib
 mediapy

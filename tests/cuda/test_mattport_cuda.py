@@ -2,9 +2,9 @@
 Test the CUDA bindings.
 """
 import torch
-from radiance.cuda.sampler import Sampler
+from pyrad.cuda.sampler import Sampler
 import time
-import radiance_cuda
+import pyrad_cuda
 import os
 
 
@@ -78,7 +78,7 @@ def test_benchmark():
     print("PYTORCH_SAMPLE_TIME:", PYTORCH_SAMPLE_TIME)
 
     start = time.time()
-    time_steps_cu, samples_cu, time_steps_mask_cu = radiance_cuda.sample_uniformly_along_ray_bundle(
+    time_steps_cu, samples_cu, time_steps_mask_cu = pyrad_cuda.sample_uniformly_along_ray_bundle(
         origins, directions, nears, fars, offsets, max_num_samples
     )
     CUDA_SAMPLE_TIME = time.time() - start

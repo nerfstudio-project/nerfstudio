@@ -43,7 +43,7 @@ for dataset in ${DATASETS[@]}; do
            data.dataset.data_directory=data/blender/${dataset} \
            data.dataset.downscale_factor=1 \
            experiment_name=blender_${dataset}_${tag} \
-           graph.model_dir=radiance_models/ \
+           graph.model_dir=pyrad_models/ \
            graph.steps_per_save=25000 \
            graph.max_num_iterations=2000000 \
            logging.enable_profiler=False &
