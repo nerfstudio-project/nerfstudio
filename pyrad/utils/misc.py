@@ -2,7 +2,13 @@
 Miscellaneous helper code.
 """
 
+import hashlib
+import json
+from pydoc import locate
+from typing import Any, Dict
+
 import torch
+from omegaconf import DictConfig
 
 
 class DotDict(dict):
@@ -51,3 +57,22 @@ def get_masked_dict(d, mask):
     for key, value in d.items():
         masked_dict[key] = value[mask]
     return masked_dict
+
+
+def instantiate_from_dict_config(dict_config: DictConfig, **kwargs):
+    """Our version of hydra's instantiate function."""
+    dict_config_kwargs = {k: v for k, v in dict_config.items() if k != "_target_"}
+    uninstantiated_class = locate(dict_config._target_)  # pylint: disable=protected-access
+    all_kwargs = dict_config_kwargs
+    all_kwargs.update(kwargs)
+    instantiated_class = uninstantiated_class(**all_kwargs)
+    return instantiated_class
+
+
+def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
+    """MD5 hash of a dictionary. Based on
+    https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html"""
+    dhash = hashlib.md5()
+    encoded = json.dumps(dictionary, sort_keys=True).encode()
+    dhash.update(encoded)
+    return dhash.hexdigest()

@@ -6,14 +6,18 @@ defaults:
 experiment_name: friends_TBBT-big_living_room
 method_name: semantic_nerf
 
+data:
+  image_dataset:
+    # "image", "mask", "semantics"
+    _target_: pyrad.nerf.dataset.image_dataset.PanopticImageDataset
+
 graph:
   network:
     _target_: pyrad.nerf.graph.semantic_nerf.SemanticNerfGraph
-    near_plane: 0.1
-    far_plane: 10.0
+    collider_config:
+      _target_: pyrad.nerf.colliders.AABBBoxCollider
     num_coarse_samples: 64
     num_importance_samples: 64
-
     loss_coefficients: # loss coefficients
       rgb_loss_coarse: 1.0
       rgb_loss_fine: 1.0

@@ -1,4 +1,6 @@
-# pyrad :bulb:
+# pyRad :metal:
+
+[![Documentation Status](https://readthedocs.com/projects/plenoptix-pyrad/badge/?version=latest)](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/?badge=latest)
 
 The all-in-one repo for NeRFs
 
@@ -54,6 +56,11 @@ python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
 
 # Run with different datasets and config changes
 python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
+
+# [Experimental] Speed up the dataloading pipeline by caching DatasetInputs.
+python scripts/run_data_preprocessor.py
+# Then, specify using the cache.
+python scripts/run_train.py ++data.dataset.use_cache=true
 ```
 
 # Walk-through tour
@@ -94,6 +101,7 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 ```
 
 To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
+
 ```
 python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
 ```
@@ -107,8 +115,8 @@ bash environments/run_jupyter.sh
 ```
 
 # Benchmarked Model Architectures
-| Method        | PSNR          |
-| ------------- | ------------- |
-| [NeRF](https://arxiv.org/abs/2003.08934) | |
-| [instant NGP](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) | |
-| [Mip NeRF](https://arxiv.org/abs/2103.13415) | |
+| Method                                                                            | PSNR |
+| --------------------------------------------------------------------------------- | ---- |
+| [NeRF](https://arxiv.org/abs/2003.08934)                                          |      |
+| [instant NGP](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) |      |
+| [Mip NeRF](https://arxiv.org/abs/2103.13415)                                      |      |

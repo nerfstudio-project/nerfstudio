@@ -1,163 +1,142 @@
 """
 NeRF-W (NeRF in the wild) implementation.
-TODO:
 """
 
-from typing import Tuple
-
 import torch
-from torch import nn
+from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from pyrad.nerf.field_modules.embedding import Embedding
-from pyrad.nerf.field_modules.field_heads import (
-    FieldHeadNames,
-    TransientDensityHead,
-    TransientRGBHead,
-    UncertaintyFieldHead,
-)
-from pyrad.nerf.field_modules.mlp import MLP
-from pyrad.nerf.graph.vanilla_nerf import NeRFField, NeRFGraph
-from pyrad.nerf.renderers import UncertaintyRenderer
-from pyrad.structures.rays import RayBundle, RaySamples
+from pyrad.nerf.field_modules.encoding import NeRFEncoding
+from pyrad.nerf.field_modules.field_heads import FieldHeadNames
+from pyrad.nerf.fields.nerf_field import NeRFField
+from pyrad.nerf.fields.nerfw_field import VanillaNerfWField
+from pyrad.nerf.graph.base import Graph
+from pyrad.nerf.loss import MSELoss
+from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
+from pyrad.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer, UncertaintyRenderer
+from pyrad.structures import colors
+from pyrad.structures.rays import RayBundle
 from pyrad.utils import visualization, writer
 
 
-class NerfWField(Field):
-    """The NeRF-W field which has appearance and transient conditioning."""
+class NerfWGraph(Graph):
+    """NeRF-W graph"""
 
     def __init__(
         self,
-        position_encoding: Encoding = Identity(in_dim=3),
-        direction_encoding: Encoding = Identity(in_dim=3),
-        base_mlp_num_layers: int = 8,
-        base_mlp_layer_width: int = 256,
-        head_mlp_num_layers: int = 2,
-        head_mlp_layer_width: int = 128,
-        skip_connections: Tuple[int] = (4,),
-        field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
+        intrinsics=None,
+        camera_to_world=None,
+        near_plane=2.0,
+        far_plane=6.0,
+        num_coarse_samples=64,
+        num_importance_samples=128,
+        **kwargs,
     ) -> None:
-        super().__init__()
-        self.num_images = num_images
-        self.appearance_embedding_dim = 48
-        self.transient_embedding_dim = 16
-
-        self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
-        self.embedding_transient = Embedding(self.num_images, self.transient_embedding_dim)
-        self.mlp_transient = MLP(
-            in_dim=self.mlp_base.get_out_dim() + self.embedding_transient.get_out_dim(),
-            out_dim=self.layer_width // 2,
-            num_layers=4,
-            layer_width=self.layer_width,
-            activation=nn.ReLU(),
-        )
-
-        self.mlp_head = MLP(
-            in_dim=self.mlp_base.get_out_dim()
-            + self.encoding_dir.get_out_dim()
-            + self.embedding_appearance.get_out_dim(),
-            out_dim=self.layer_width // 2,
-            num_layers=1,
-            activation=nn.ReLU(),
-        )
-
-    def build_heads(self):
-        super().build_heads()
-        self.field_output_transient_uncertainty = UncertaintyFieldHead(in_dim=self.mlp_transient.get_out_dim())
-        self.field_output_transient_rgb = TransientRGBHead(in_dim=self.mlp_transient.get_out_dim())
-        self.field_output_transient_density = TransientDensityHead(in_dim=self.mlp_transient.get_out_dim())
-
-    def forward(self, ray_samples: RaySamples):
-        positions = ray_samples.positions
-        directions = ray_samples.directions
-        camera_indices = ray_samples.get_camera_indices()
-        encoded_xyz = self.encoding_xyz(positions)
-        encoded_dir = self.encoding_dir(directions)
-        embedded_appearance = self.embedding_appearance(camera_indices)
-        embedded_transient = self.embedding_transient(camera_indices)
-
-        base_mlp_out = self.mlp_base(encoded_xyz)
-        rgb_mlp_out = self.mlp_rgb(torch.cat([base_mlp_out, encoded_dir, embedded_appearance], dim=-1))
-        transient_mlp_out = self.mlp_transient(torch.cat([base_mlp_out, embedded_transient], dim=-1))
-
-        field_rgb_output = self.field_output_rgb(rgb_mlp_out)
-        field_density_out = self.field_output_density(base_mlp_out)
-        field_transient_uncertainty_out = self.field_output_transient_uncertainty(transient_mlp_out)
-        field_transient_rgb_out = self.field_output_transient_rgb(transient_mlp_out)
-        field_transient_density_out = self.field_output_transient_density(transient_mlp_out)
-
-        field_outputs = {}
-        field_outputs.update(field_rgb_output)
-        field_outputs.update(field_density_out)
-        field_outputs.update(field_transient_uncertainty_out)
-        field_outputs.update(field_transient_rgb_out)
-        field_outputs.update(field_transient_density_out)
-        return field_outputs
-
-
-class NerfWGraph(NeRFGraph):
-    """NeRF-W graph"""
-
-    def __init__(self, intrinsics=None, camera_to_world=None, **kwargs) -> None:
+        self.near_plane = near_plane
+        self.far_plane = far_plane
+        self.num_coarse_samples = num_coarse_samples
+        self.num_importance_samples = num_importance_samples
+        self.field_coarse = None
+        self.field_fine = None
         self.num_images = len(intrinsics)
         self.appearance_embedding_dim = 48
         self.transient_embedding_dim = 16
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
-        self.renderer_uncertainty = UncertaintyRenderer()
 
     def populate_fields(self):
         """Set the fields."""
-        self.field_coarse = NeRFField()
-        self.field_fine = NerfWField(
+
+        position_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+        )
+        direction_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
+        )
+
+        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+        self.field_fine = VanillaNerfWField(
             num_images=self.num_images,
+            position_encoding=position_encoding,
+            direction_encoding=direction_encoding,
             appearance_embedding_dim=self.appearance_embedding_dim,
             transient_embedding_dim=self.transient_embedding_dim,
         )
 
+    def populate_misc_modules(self):
+        # samplers
+        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+
+        # renderers
+        self.renderer_rgb = RGBRenderer(background_color=colors.BLACK)
+        self.renderer_accumulation = AccumulationRenderer()
+        self.renderer_depth = DepthRenderer()
+        self.renderer_uncertainty = UncertaintyRenderer()
+
+        # losses
+        self.rgb_loss = MSELoss()
+
+        # metrics
+        self.psnr = PeakSignalNoiseRatio(data_range=1.0)
+        self.ssim = StructuralSimilarityIndexMeasure()
+        self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+    def get_param_groups(self):
+        param_groups = {}
+        param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
+        return param_groups
+
     def get_outputs(self, ray_bundle: RayBundle):
-        # coarse network
-        uniform_ray_samples = self.sampler_uniform(ray_bundle)
-        coarse_field_outputs = self.field_coarse(uniform_ray_samples)
-        coarse_weights = uniform_ray_samples.get_weights(coarse_field_outputs[FieldHeadNames.DENSITY])
+        # uniform sampling
+        ray_samples_uniform = self.sampler_uniform(ray_bundle)
+
+        # coarse field
+        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform.to_point_samples())
+        weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
         rgb_coarse = self.renderer_rgb(
-            rgb=coarse_field_outputs[FieldHeadNames.RGB],
-            weights=coarse_weights,
-        ).rgb
-        depth_coarse = self.renderer_depth(coarse_weights, uniform_ray_samples.ts).depth
-
-        # fine network
-        pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)
-        fine_field_outputs = self.field_fine(pdf_ray_samples)
-        fine_weights = pdf_ray_samples.get_weights(
-            fine_field_outputs[FieldHeadNames.DENSITY] + fine_field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
+            rgb=field_outputs_coarse[FieldHeadNames.RGB],
+            weights=weights_coarse,
         )
-        fine_weights_static = pdf_ray_samples.get_weights(fine_field_outputs[FieldHeadNames.DENSITY])
-        fine_weights_transient = pdf_ray_samples.get_weights(fine_field_outputs[FieldHeadNames.TRANSIENT_DENSITY])
+        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform.ts)
 
+        # pdf sampling
+        ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
+
+        # fine field
+        field_outputs_fine = self.field_fine.forward(ray_samples_pdf.to_point_samples())
+
+        # fine weights
+        weights_fine = ray_samples_pdf.get_weights(
+            field_outputs_fine[FieldHeadNames.DENSITY] + field_outputs_fine[FieldHeadNames.TRANSIENT_DENSITY]
+        )
+        weights_fine_static = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
+        weights_fine_transient = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.TRANSIENT_DENSITY])
+
+        # rgb
         rgb_fine_static_component = self.renderer_rgb(
-            rgb=fine_field_outputs[FieldHeadNames.RGB],
-            weights=fine_weights,
-        ).rgb
+            rgb=field_outputs_fine[FieldHeadNames.RGB],
+            weights=weights_fine,
+        )
         rgb_fine_transient_component = self.renderer_rgb(
-            rgb=fine_field_outputs[FieldHeadNames.TRANSIENT_RGB],
-            weights=fine_weights,
-        ).rgb
+            rgb=field_outputs_fine[FieldHeadNames.TRANSIENT_RGB],
+            weights=weights_fine,
+        )
         rgb_fine = rgb_fine_static_component + rgb_fine_transient_component
-
         rgb_fine_static = self.renderer_rgb(
-            rgb=fine_field_outputs[FieldHeadNames.RGB],
-            weights=fine_weights_static,
-        ).rgb
+            rgb=field_outputs_fine[FieldHeadNames.RGB],
+            weights=weights_fine_static,
+        )
 
-        # fine_renderer_accumulation_static = self.renderer_accumulation(fine_weights_static)
-        depth_fine = self.renderer_depth(fine_weights, pdf_ray_samples.ts).depth
-        depth_fine_static = self.renderer_depth(fine_weights_static, pdf_ray_samples.ts).depth
-        uncertainty = self.renderer_uncertainty(
-            fine_field_outputs[FieldHeadNames.UNCERTAINTY], fine_weights_transient
-        ).uncertainty
+        # density
+        density_transient = field_outputs_fine[FieldHeadNames.TRANSIENT_DENSITY]
 
-        density_transient = fine_field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
+        # depth
+        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.ts)
+        depth_fine_static = self.renderer_depth(weights_fine_static, ray_samples_pdf.ts)
 
-        # outputs:
+        # uncertainty
+        uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
+
         outputs = {
             "rgb_coarse": rgb_coarse,  # (num_rays, 3)
             "rgb_fine": rgb_fine,
@@ -188,10 +167,10 @@ class NerfWGraph(NeRFGraph):
             "uncertainty_loss": uncertainty_loss,
             "density_loss": density_loss,
         }
-        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
+    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+        image = batch["image"]
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         rgb_fine_static = outputs["rgb_fine_static"]
@@ -210,4 +189,7 @@ class NerfWGraph(NeRFGraph):
         row2 = torch.cat([depth_fine, depth_fine_static, depth_coarse], dim=-2)
         combined_image = torch.cat([row0, row1, row2], dim=-3)
 
-        writer.put_image(name="img/image_idx_{image_idx}-nerfw", image=combined_image, step=step)
+        writer.put_image(name=f"img/image_idx_{image_idx}-nerfw", image=combined_image, step=step)
+
+        mask = batch["mask"].repeat(1, 1, 3)
+        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
