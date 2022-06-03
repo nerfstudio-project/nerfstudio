@@ -2,7 +2,7 @@
 Test samplers
 """
 import torch
-from pyrad.nerf.sampler import PDFSampler, UniformSampler
+from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
 
 from pyrad.structures.rays import RayBundle
 from pyrad.nerf.colliders import NearFarCollider

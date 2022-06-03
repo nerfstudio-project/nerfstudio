@@ -11,6 +11,20 @@ Dataset
 
    dataset
 
+Image Samplers
+-------------------------------
+
+.. automodule:: pyrad.nerf.image_sampler
+   :members:
+   :show-inheritance:
+
+Pixel Samplers
+-------------------------------
+
+.. automodule:: pyrad.nerf.pixel_sampler
+   :members:
+   :show-inheritance:
+
 Field Modules
 -------------------------------
 
@@ -42,9 +56,9 @@ Renderers
    :members:
    :show-inheritance:
 
-Samplers
+Ray Samplers
 -------------------------------
 
-.. automodule:: pyrad.nerf.sampler
+.. automodule:: pyrad.nerf.ray_sampler
    :members:
    :show-inheritance:

@@ -7,7 +7,7 @@ writer:
   LocalWriter:
     save_dir: './'
     stats_to_track: [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
-    max_log_size: 20 # if 0, logs everything with no erasing
+    max_log_size: 10 # if 0, logs everything with no erasing
 
 # profiler logs run times of functions and prints at end of training
 enable_profiler: True

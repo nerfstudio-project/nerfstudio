@@ -3,8 +3,8 @@ Code to handle loading friends datasets.
 """
 
 import os
-import numpy as np
 
+import numpy as np
 import torch
 
 from pyrad.nerf.dataset.colmap_utils import read_cameras_binary, read_images_binary, read_pointsTD_binary
@@ -46,6 +46,7 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         include_point_cloud (bool): whether or not to include the point cloud
     """
     # pylint: disable=unused-argument
+    # pylint: disable=too-many-statements
 
     # --- image filenames ----
     images_data = read_images_binary(os.path.join(basedir, "colmap", "images.bin"))
@@ -62,7 +63,11 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
 
     # -- set the bounding box ---
     aabb, transposed_point_cloud_transform = get_aabb_and_transform(basedir)
-    scene_bounds = SceneBounds(aabb=aabb)
+    scene_bounds_original = SceneBounds(aabb=aabb)
+    # for shifting and rescale accoding to scene bounds
+    box_center = scene_bounds_original.get_center()
+    box_scale_factor = 5.0 / scene_bounds_original.get_diagonal_length()  # the target diagonal length
+    scene_bounds = scene_bounds_original.get_centered_and_scaled_scene_bounds(box_scale_factor)
 
     # --- intrinsics ---
     cameras_data = read_cameras_binary(os.path.join(basedir, "colmap", "cameras.bin"))
@@ -90,8 +95,7 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
     camera_to_world[..., 1:3] *= -1
     camera_to_world = transposed_point_cloud_transform @ camera_to_world
     camera_to_world = camera_to_world[:, :3]
-
-    # --- masks to mask out things (e.g., people) ---
+    camera_to_world[..., 3] = (camera_to_world[..., 3] - box_center) * box_scale_factor  # center and rescale
 
     # --- semantics ---
     semantics = Semantics()
@@ -106,11 +110,15 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         ]
         panoptic_classes = load_from_json(os.path.join(basedir, "panoptic_classes.json"))
         stuff_classes = panoptic_classes["stuff"]
+        stuff_colors = torch.tensor(panoptic_classes["stuff_colors"], dtype=torch.float32) / 255.0
         thing_classes = panoptic_classes["thing"]
+        thing_colors = torch.tensor(panoptic_classes["thing_colors"], dtype=torch.float32) / 255.0
         semantics = Semantics(
             stuff_classes=stuff_classes,
+            stuff_colors=stuff_colors,
             stuff_filenames=stuff_filenames,
             thing_classes=thing_classes,
+            thing_colors=thing_colors,
             thing_filenames=thing_filenames,
         )
 
@@ -123,6 +131,7 @@ def load_friends_data(basedir, downscale_factor=1, split="train", include_semant
         rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()])).float()
         xyz_h = torch.cat([xyz, torch.ones_like(xyz[..., :1])], -1)
         xyz = (xyz_h @ transposed_point_cloud_transform.T)[..., :3]
+        xyz = (xyz - box_center) * box_scale_factor  # center and rescale
         point_cloud.xyz = xyz
         point_cloud.rgb = rgb
 

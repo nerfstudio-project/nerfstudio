@@ -1,13 +1,14 @@
 """
 run_train_nerf.py
 """
+
 import datetime
 import logging
 import os
 import random
 import socket
-from datetime import timedelta
 import traceback
+from datetime import timedelta
 from typing import Any, Callable
 
 import hydra
@@ -20,7 +21,6 @@ import yaml
 
 from pyrad.nerf.trainer import Trainer
 from pyrad.utils import comms, profiler
-from time import time
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 

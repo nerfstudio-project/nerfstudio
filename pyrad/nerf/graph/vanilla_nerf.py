@@ -9,17 +9,16 @@ import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
 from pyrad.nerf.field_modules.encoding import NeRFEncoding
 from pyrad.nerf.field_modules.field_heads import FieldHeadNames
-
 from pyrad.nerf.fields.nerf_field import NeRFField
 from pyrad.nerf.graph.base import Graph
 from pyrad.nerf.loss import MSELoss
+from pyrad.nerf.ray_sampler import PDFSampler, UniformSampler
 from pyrad.nerf.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from pyrad.nerf.sampler import PDFSampler, UniformSampler
 from pyrad.structures import colors
 from pyrad.structures.rays import RayBundle
-from pyrad.nerf.colliders import NearFarCollider
 from pyrad.utils import visualization, writer
 
 
@@ -43,9 +42,6 @@ class NeRFGraph(Graph):
         self.field_coarse = None
         self.field_fine = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
-
-    def populate_collider(self):
-        self.collider = NearFarCollider(self.near_plane, self.far_plane)
 
     def populate_fields(self):
         """Set the fields."""
@@ -126,10 +122,10 @@ class NeRFGraph(Graph):
         rgb_loss_coarse = self.rgb_loss(pixels, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(pixels, outputs["rgb_fine"])
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
-        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
+    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+        image = batch["image"]
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])
@@ -150,12 +146,10 @@ class NeRFGraph(Graph):
         combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
         combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
         combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
-        mask = visualization.apply_depth_colormap(mask[..., None])
 
         writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
-        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

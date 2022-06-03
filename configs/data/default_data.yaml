@@ -4,13 +4,16 @@ defaults:
 
 # validation options
 val_image_indices: [0, 10, 20] # which images to evaluate on
-val_downscale_factor: 8
+val_downscale_factor: 4
 val_num_rays_per_chunk: 4096
 
-# dataloader options
-dataloader:
-  num_workers: 1
-  shuffle: true
-  num_images_to_sample_from: 8
+image_dataset:
+  _target_: pyrad.nerf.dataset.image_dataset.ImageDataset
+
+image_sampler:
+  num_images_to_sample_from: 8 # 0
+  num_times_to_repeat_images: 100 # -1
+  move_to_graph_device: true # false
+
+pixel_sampler:
   num_rays_per_batch: 1024
-  num_times_to_repeat_images: 100

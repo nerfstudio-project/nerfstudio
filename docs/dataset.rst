@@ -2,13 +2,6 @@
 
 ============
 
-Collate
-----------------
-
-.. automodule:: pyrad.nerf.dataset.collate
-   :members:
-   :show-inheritance:
-
 Colmap Utils
 ----------------
 
