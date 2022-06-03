@@ -16,8 +16,12 @@ Neural Volumetric Rendering
    :caption: Contents:
    
    pyrad
-   quickstart
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Quickstart:
+   
+   quickstart
 
 Indices and tables
 ==================

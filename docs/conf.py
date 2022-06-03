@@ -52,3 +52,6 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "furo"
+
+# Add packages that aren't in docs/requirements.txt here. This enables faster compilation of the docs.
+autodoc_mock_imports = ["torch", "torchtyping", "tensorboard"]
