@@ -1,5 +1,6 @@
 .. _dataset:
 
+Dataset
 ============
 
 Colmap Utils

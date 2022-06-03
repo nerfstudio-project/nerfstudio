@@ -1,5 +1,6 @@
 .. _graphs:
 
+Graphs
 ============
 
 Base
