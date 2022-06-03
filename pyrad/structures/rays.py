@@ -12,6 +12,33 @@ from pyrad.utils.misc import is_not_none
 
 
 @dataclass
+class Frustums:
+
+    origins: TensorType[..., 3]
+    directions: TensorType[..., 3]
+    frustum_starts: TensorType[..., 1]
+    frustum_ends: TensorType[..., 1]
+    radius: TensorType[..., 1]
+
+    def apply_masks(self, mask: TensorType) -> "Frustums":
+        """Use valid_mask to mask samples.
+
+        Args:
+            mask (TensorType): Frustums to keep
+
+        Returns:
+            Frustum: New set of masked frustums.
+        """
+        return Frustums(
+            origins=self.origins[mask],
+            directions=self.directions[mask],
+            frustum_starts=self.frustum_starts[mask],
+            frustum_ends=self.frustum_ends[mask],
+            radius=self.radius[mask],
+        )
+
+
+@dataclass
 class PointSamples:
     """Samples in space.
 
@@ -22,8 +49,7 @@ class PointSamples:
         valid_mask (TensorType[...]): Rays that are valid
     """
 
-    positions: TensorType[..., 3]
-    directions: TensorType[..., 3] = None
+    frustums: Frustums
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[...] = None
 
@@ -34,19 +60,16 @@ class PointSamples:
             PointSamples: New set of masked samples.
         """
         if is_not_none(self.valid_mask):
-            positions = self.positions[self.valid_mask]
-            directions = self.directions[self.valid_mask] if is_not_none(self.directions) else self.directions
+            frustums = self.frustums.apply_masks(self.valid_mask)
             camera_indices = (
                 self.camera_indices[self.valid_mask] if is_not_none(self.camera_indices) else self.camera_indices
             )
             return PointSamples(
-                positions=positions,
-                directions=directions,
+                frustums=frustums,
                 camera_indices=camera_indices,
             )
         return PointSamples(
-            positions=self.positions,
-            directions=self.directions,
+            frustums=self.frustums,
             camera_indices=self.camera_indices,
         )
 
@@ -64,8 +87,7 @@ class RaySamples:
         deltas )TensorType[..., 1]): "width" of each sample
     """
 
-    positions: TensorType[..., 3]
-    directions: TensorType[..., 3] = None
+    frustums: TensorType[..., 3]
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[...] = None
     ts: TensorType[..., 1] = None
@@ -75,8 +97,7 @@ class RaySamples:
         """Convert to PointSamples instance and return."""
         # TODO: make this more interpretable
         return PointSamples(
-            positions=self.positions,
-            directions=self.directions,
+            frustums=self.frustums,
             camera_indices=self.camera_indices,
             valid_mask=self.valid_mask,
         )
@@ -131,6 +152,7 @@ class RayBundle:
 
     origins: TensorType["num_rays", 3]
     directions: TensorType["num_rays", 3]
+    radius: TensorType["num_rays", 1]
     camera_indices: Optional[TensorType["num_rays", 1]] = None
     nears: Optional[TensorType["num_rays"]] = None
     fars: Optional[TensorType["num_rays"]] = None
@@ -173,6 +195,7 @@ class RayBundle:
         return RayBundle(
             origins=self.origins[indices],
             directions=self.directions[indices],
+            radius=self.radius[indices],
             camera_indices=self.camera_indices[indices],
         )
 
@@ -188,6 +211,7 @@ class RayBundle:
         return RayBundle(
             origins=self.origins[valid_mask],
             directions=self.directions[valid_mask],
+            radius=self.radius[valid_mask],
             camera_indices=self.camera_indices[valid_mask] if is_not_none(self.camera_indices) else None,
             nears=self.nears[valid_mask] if is_not_none(self.nears) else None,
             fars=self.fars[valid_mask] if is_not_none(self.fars) else None,
@@ -211,6 +235,7 @@ class RayBundle:
         return RayBundle(
             origins=self.origins.view(-1, 3)[start_idx:end_idx],
             directions=self.directions.view(-1, 3)[start_idx:end_idx],
+            radius=self.radius.view(-1, 1)[start_idx:end_idx],
             camera_indices=camera_indices,
         )
 
@@ -225,7 +250,7 @@ class RayBundle:
             RaySamples: Samples projected along ray.
         """
         positions = self.origins[:, None] + ts[:, :, None] * self.directions[:, None]
-        directions = self.directions.unsqueeze(1).repeat(1, positions.shape[1], 1)
+
         valid_mask = torch.ones_like(ts, dtype=torch.bool)
 
         dists = ts[..., 1:] - ts[..., :-1]
@@ -237,9 +262,16 @@ class RayBundle:
         else:
             camera_indices = None
 
+        frustums = Frustums(
+            origins=self.origins,
+            directions=self.directions.unsqueeze(1).repeat(1, positions.shape[1], 1),
+            frustum_starts=ts[:, :-1, None],
+            frustum_ends=ts[:, :-1, None],
+            radius=self.radius,
+        )
+
         ray_samples = RaySamples(
-            positions=positions,
-            directions=directions,
+            frustums=frustums,
             camera_indices=camera_indices,
             valid_mask=valid_mask,
             ts=ts,
