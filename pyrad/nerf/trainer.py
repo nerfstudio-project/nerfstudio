@@ -4,7 +4,6 @@ Code to train model.
 import copy
 import logging
 import os
-from pydoc import locate
 from time import time
 from typing import Callable, Dict, List
 
@@ -12,16 +11,15 @@ import torch
 import torch.distributed as dist
 from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader
 
-from pyrad.nerf.dataset.collate import CollateIterDataset, collate_batch_size_one
-from pyrad.nerf.dataset.image_dataset import ImageDataset, collate_batch
-from pyrad.nerf.dataset.utils import DatasetInputs, get_dataset_inputs
+from pyrad.nerf.dataset.utils import DatasetInputs, get_dataset_inputs_from_dataset_config
+from pyrad.nerf.image_sampler import CacheImageSampler
 from pyrad.nerf.optimizers import Optimizers
+from pyrad.nerf.pixel_sampler import PixelSampler
 from pyrad.utils import profiler, writer
 from pyrad.utils.callbacks import update_occupancy
 from pyrad.utils.decorators import check_main_thread
-from pyrad.utils.misc import get_dict_to_torch
+from pyrad.utils.misc import get_dict_to_torch, instantiate_from_dict_config
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -43,8 +41,8 @@ class Trainer:
         self.world_size = world_size
         # dataset variables
         self.train_image_dataset = None
-        self.train_dataset = None
-        self.train_dataloader = None
+        self.train_image_sampler = None
+        self.train_pixel_sampler = None
         self.val_image_dataset = None
         self.val_image_intrinsics = None
         self.val_image_camera_to_world = None
@@ -59,29 +57,25 @@ class Trainer:
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""
-        dataset_inputs_train = get_dataset_inputs(**self.config.data.dataset, split="train")
+        dataset_inputs_train = get_dataset_inputs_from_dataset_config(**self.config.data.dataset, split="train")
         if test_mode:
-            dataset_inputs_eval = get_dataset_inputs(**self.config.data.dataset, split="test")
+            dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**self.config.data.dataset, split="test")
         else:
             config_data_dataset_val = copy.deepcopy(self.config.data.dataset)
             config_data_dataset_val.downscale_factor = self.config.data.val_downscale_factor
-            dataset_inputs_eval = get_dataset_inputs(**config_data_dataset_val, split="val")
+            dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**config_data_dataset_val, split="val")
         self.setup_dataset_train(dataset_inputs_train)
         self.setup_dataset_eval(dataset_inputs_eval)
         self.setup_graph(dataset_inputs_train)
 
-    def collate_fn(self, batch_list):
-        """TODO(ethan): I need to replace this.
-        I'm only using this for multiprocess pickle issues for now.
-        """
-        return collate_batch(batch_list, self.config.data.dataloader.num_rays_per_batch, keep_full_image=False)
-
     @profiler.time_function
     def setup_dataset_eval(self, dataset_inputs: DatasetInputs):
         """Helper method to load test or val dataset based on test/train mode"""
-        self.val_image_dataset = ImageDataset(
+        self.val_image_dataset = instantiate_from_dict_config(
+            self.config.data.image_dataset,
             image_filenames=dataset_inputs.image_filenames,
             downscale_factor=dataset_inputs.downscale_factor,
+            semantics=dataset_inputs.semantics,
             alpha_color=dataset_inputs.alpha_color,
         )
         self.val_image_intrinsics = dataset_inputs.intrinsics
@@ -90,25 +84,24 @@ class Trainer:
     @profiler.time_function
     def setup_dataset_train(self, dataset_inputs: DatasetInputs):
         """_summary_"""
-        self.train_image_dataset = ImageDataset(
+        self.train_image_dataset = instantiate_from_dict_config(
+            self.config.data.image_dataset,
             image_filenames=dataset_inputs.image_filenames,
             downscale_factor=dataset_inputs.downscale_factor,
             semantics=dataset_inputs.semantics,
             alpha_color=dataset_inputs.alpha_color,
-        )
-        self.train_dataset = CollateIterDataset(
+        )  # ImageDataset
+        self.train_image_sampler = CacheImageSampler(
             self.train_image_dataset,
-            collate_fn=self.collate_fn,
-            num_samples_to_collate=self.config.data.dataloader.num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.data.dataloader.num_times_to_repeat_images,
-        )
-        self.train_dataloader = DataLoader(
-            self.train_dataset,
-            batch_size=1,
-            num_workers=self.config.data.dataloader.num_workers,
-            collate_fn=collate_batch_size_one,
-            pin_memory=True,
-        )
+            num_samples_to_collate=len(self.train_image_dataset)
+            if self.config.data.image_sampler.num_images_to_sample_from == 0
+            else self.config.data.image_sampler.num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.data.image_sampler.num_times_to_repeat_images,
+            device=self.device if self.config.data.image_sampler.move_to_graph_device else "cpu",
+        )  # ImageSampler
+        self.train_pixel_sampler = PixelSampler(
+            num_rays_per_batch=self.config.data.pixel_sampler.num_rays_per_batch, keep_full_image=False
+        )  # PixelSampler
 
     @profiler.time_function
     def setup_graph(self, dataset_inputs: DatasetInputs):
@@ -117,15 +110,13 @@ class Trainer:
         Args:
             dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
         """
-        # hydra instantiate fails because of scene_bounds, so we are doing the following instead
-        kwargs = {k: v for k, v in self.config.graph.network.items() if k != "_target_"}
-        graph_class = locate(self.config.graph.network._target_)  # pylint: disable=protected-access
-        self.graph = graph_class(
-            **kwargs,
+        self.graph = instantiate_from_dict_config(
+            self.config.graph.network,
             intrinsics=dataset_inputs.intrinsics,
             camera_to_world=dataset_inputs.camera_to_world,
             scene_bounds=dataset_inputs.scene_bounds,
             stuff_classes=dataset_inputs.semantics.stuff_classes,
+            stuff_colors=dataset_inputs.semantics.stuff_colors,
         )
         self.graph.to(self.device)
 
@@ -197,11 +188,12 @@ class Trainer:
         """_summary_"""
         train_start = time()
         num_iterations = self.config.graph.max_num_iterations
-        iter_dataset = iter(self.train_dataloader)
+        iter_train_image_sampler = iter(self.train_image_sampler)
         for step in range(self.start_step, self.start_step + num_iterations):
             data_start = time()
-            batch = next(iter_dataset)
-            batch = get_dict_to_torch(batch, device=self.device)
+            image_batch = next(iter_train_image_sampler)
+            image_batch = get_dict_to_torch(image_batch, device=self.device)
+            batch = self.train_pixel_sampler.sample(image_batch)
             writer.put_time(
                 name=writer.EventName.ITER_LOAD_TIME,
                 start_time=data_start,
@@ -209,7 +201,6 @@ class Trainer:
                 step=step,
                 avg_over_iters=True,
             )
-
             iter_start = time()
             loss_dict = self.train_iteration(batch, step, _callback=[update_occupancy])
             writer.put_time(
@@ -231,10 +222,9 @@ class Trainer:
 
             if step != 0 and step % self.config.logging.steps_per_log == 0:
                 writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
-                # TODO: add the learning rates to tensorboard/logging
             if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
                 self.save_checkpoint(self.config.graph.model_dir, step)
-            if step % self.config.graph.steps_per_test == 0:  # NOTE(ethan): we should still run this in dry-run mode!
+            if step % self.config.graph.steps_per_test == 0:
                 for image_idx in self.config.data.val_image_indices:
                     _ = self.test_image(image_idx=image_idx, step=step)
             self._write_out_storage(step)
@@ -273,16 +263,15 @@ class Trainer:
     def test_image(self, image_idx, step):
         """Test a specific image."""
         self.graph.eval()
-        intrinsics = self.val_image_intrinsics[image_idx]
-        camera_to_world = self.val_image_camera_to_world[image_idx]
+        intrinsics = self.val_image_intrinsics[image_idx].to(self.device)
+        camera_to_world = self.val_image_camera_to_world[image_idx].to(self.device)
         chunk_size = self.config.data.val_num_rays_per_chunk
         training_camera_index = image_idx  # TODO(ethan): change this because training and test should not be the same
         outputs = self.graph.get_outputs_for_camera(
             intrinsics, camera_to_world, chunk_size=chunk_size, training_camera_index=training_camera_index
         )
-        val_image_data = self.val_image_dataset[image_idx]
-        image = val_image_data["image"].to(self.device)
-        mask = val_image_data["mask"].to(self.device)
-        psnr = self.graph.log_test_image_outputs(image_idx, step, image, mask, outputs)
+        batch = self.val_image_dataset[image_idx]
+        batch = get_dict_to_torch(batch, device=self.device)
+        psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
         self.graph.train()
         return psnr

@@ -2,35 +2,42 @@
 Input/output utils.
 """
 import json
-import os
-
 import logging
+import os
+import pickle
 
 
 def load_from_json(filename: str):
-    """_summary_
-
-    Args:
-        filename (str): _description_
-
-    Returns:
-        _type_: _description_
-    """
+    """Load a dictionary from a JSON filename."""
     assert filename.endswith(".json")
     with open(filename, "r", encoding="UTF-8") as file:
         return json.load(file)
 
 
 def write_to_json(filename: str, content: dict):
-    """_summary_
+    """Write data to a JSON file.
 
     Args:
-        filename (str): _description_
-        content (dict): _description_
+        filename (str): The filename to write to.
+        content (dict): The dictionary data to write.
     """
     assert filename.endswith(".json")
     with open(filename, "w", encoding="UTF-8") as file:
         json.dump(content, file)
+
+
+def load_from_pkl(filename: str):
+    """Load from a pickle file."""
+    assert filename.endswith(".pkl")
+    with open(filename, "rb") as f:
+        return pickle.load(f)
+
+
+def write_to_pkl(filename: str, content):
+    "Write to a pickle file."
+    assert filename.endswith(".pkl")
+    with open(filename, "wb") as f:
+        pickle.dump(content, f)
 
 
 def get_git_root(path, dirs=(".git",), default=None):

@@ -2,157 +2,172 @@
 Semantic NeRF implementation.
 """
 
-from typing import Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
+from torchtyping import TensorType
 
-from pyrad.nerf.field_modules.field_heads import FieldHeadNames, SemanticStuffHead
+from pyrad.nerf.field_modules.encoding import Encoding, Identity, NeRFEncoding
+from pyrad.nerf.field_modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead, SemanticFieldHead
 from pyrad.nerf.field_modules.mlp import MLP
-from pyrad.nerf.graph.vanilla_nerf import NeRFField, NeRFGraph
+from pyrad.nerf.fields.base import Field
+from pyrad.nerf.fields.nerf_field import NeRFField
+from pyrad.nerf.graph.vanilla_nerf import NeRFGraph
 from pyrad.nerf.renderers import SemanticRenderer
-from pyrad.structures.rays import RayBundle, RaySamples
-from pyrad.utils import visualization, writer
+from pyrad.structures.rays import PointSamples, RayBundle
+from pyrad.utils import writer
 
 
-class SemanticNerfField(NeRFField):
+class SemanticNerfField(Field):
     """Semantic-NeRF field"""
 
     def __init__(
-        self, num_layers=8, layer_width=256, skip_connections: Tuple = (4,), num_stuff_classes: int = None
+        self,
+        num_semantic_classes: int,
+        position_encoding: Encoding = Identity(in_dim=3),
+        direction_encoding: Encoding = Identity(in_dim=3),
+        base_mlp_num_layers: int = 8,
+        base_mlp_layer_width: int = 256,
+        head_mlp_num_layers: int = 2,
+        head_mlp_layer_width: int = 128,
+        skip_connections: Tuple[int] = (4,),
     ) -> None:
-        assert num_stuff_classes is not None
-        self.num_stuff_classes = num_stuff_classes
-        super().__init__(num_layers=num_layers, layer_width=layer_width, skip_connections=skip_connections)
-        self.semantic_mlp = MLP(
-            in_dim=self.mlp_base.get_out_dim(),
-            out_dim=self.layer_width // 2,
+        super().__init__()
+        self.num_semantic_classes = num_semantic_classes
+        self.position_encoding = position_encoding
+        self.direction_encoding = direction_encoding
+        self.mlp_base = MLP(
+            in_dim=self.position_encoding.get_out_dim(),
+            num_layers=base_mlp_num_layers,
+            layer_width=base_mlp_layer_width,
+            skip_connections=skip_connections,
+        )
+        self.mlp_head = MLP(
+            in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim(),
+            num_layers=head_mlp_num_layers,
+            layer_width=head_mlp_layer_width,
+        )
+        self.mlp_semantic = MLP(
+            in_dim=self.mlp_head.get_out_dim(),
+            layer_width=self.mlp_head.layer_width // 2,
             num_layers=1,
             activation=nn.ReLU(),
         )
-        self.field_output_semantic = SemanticStuffHead(
-            in_dim=self.semantic_mlp.get_out_dim(), num_classes=num_stuff_classes
+        self.field_head_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
+        self.field_head_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim())
+        self.field_head_semantic = SemanticFieldHead(
+            in_dim=self.mlp_semantic.get_out_dim(), num_classes=self.num_semantic_classes
         )
-        self.semantic_sequential = torch.nn.Sequential(self.semantic_mlp, self.field_output_semantic)
 
-    def forward(self, ray_samples: RaySamples):
-        """Evaluates the field at points along the ray."""
-        positions = ray_samples.positions
-        directions = ray_samples.directions
-        encoded_xyz = self.encoding_xyz(positions)
-        encoded_dir = self.encoding_dir(directions)
+    def get_density(self, point_samples: PointSamples):
+        encoded_xyz = self.position_encoding(point_samples.positions)
         base_mlp_out = self.mlp_base(encoded_xyz)
-        rgb_mlp_out = self.mlp_rgb(torch.cat([encoded_dir, base_mlp_out], dim=-1))
+        density = self.field_head_density(base_mlp_out)
+        return density, base_mlp_out
 
-        field_rgb_output = self.field_output_rgb(rgb_mlp_out)
-        field_density_out = self.field_output_density(base_mlp_out)
-        field_semantic_output = self.semantic_sequential(base_mlp_out)
-
-        field_outputs = {}
-        field_outputs.update(field_rgb_output)
-        field_outputs.update(field_density_out)
-        field_outputs.update(field_semantic_output)
-        return field_outputs
+    def get_outputs(
+        self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
+    ) -> Dict[FieldHeadNames, TensorType]:
+        encoded_dir = self.direction_encoding(point_samples.directions)
+        mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
+        outputs = {}
+        # rgb
+        outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_out)
+        # semantic
+        mlp_out_sem = self.mlp_semantic(mlp_out)
+        outputs[self.field_head_semantic.field_head_name] = self.field_head_semantic(mlp_out_sem)
+        return outputs
 
 
 class SemanticNerfGraph(NeRFGraph):
     """Semantic-NeRF graph"""
 
-    def __init__(self, intrinsics=None, camera_to_world=None, stuff_classes: int = None, **kwargs) -> None:
+    def __init__(self, intrinsics=None, camera_to_world=None, stuff_classes=None, stuff_colors=None, **kwargs) -> None:
         assert stuff_classes is not None
         self.stuff_classes = stuff_classes
+        self.stuff_colors = stuff_colors
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
-        self.renderer_semantic = SemanticRenderer()
-        self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="mean")
 
     def populate_fields(self):
         """Set the fields."""
-        self.field_coarse = NeRFField()
-        self.field_fine = SemanticNerfField(num_stuff_classes=len(self.stuff_classes))
+        position_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+        )
+        direction_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
+        )
+        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+
+        num_semantic_classes = len(self.stuff_classes)
+        self.field_fine = SemanticNerfField(
+            num_semantic_classes, position_encoding=position_encoding, direction_encoding=direction_encoding
+        )
+
+    def populate_misc_modules(self):
+        super().populate_misc_modules()
+        self.renderer_semantic = SemanticRenderer()
+        self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="mean")
 
     def get_outputs(self, ray_bundle: RayBundle):
-        # coarse network:
-        uniform_ray_samples = self.sampler_uniform(ray_bundle)  # RaySamples
+        # uniform sampling
+        ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
-        coarse_field_outputs = self.field_coarse(uniform_ray_samples)  # FieldOutputs
-
-        coarse_weights = uniform_ray_samples.get_weights(coarse_field_outputs[FieldHeadNames.DENSITY])
-
-        coarse_renderer_outputs = self.renderer_rgb(
-            rgb=coarse_field_outputs[FieldHeadNames.RGB],
-            weights=coarse_weights,
-        )  # RendererOutputs
-        coarse_renderer_accumulation = self.renderer_accumulation(coarse_weights)  # RendererOutputs
-        coarse_renderer_depth = self.renderer_depth(coarse_weights, uniform_ray_samples.ts)
-
-        # fine network:
-        pdf_ray_samples = self.sampler_pdf(uniform_ray_samples, coarse_weights)  # RaySamples
-        fine_field_outputs = self.field_fine(pdf_ray_samples)  # FieldOutputs
-
-        fine_weights = pdf_ray_samples.get_weights(fine_field_outputs[FieldHeadNames.DENSITY])
-
-        fine_renderer_outputs = self.renderer_rgb(
-            rgb=fine_field_outputs[FieldHeadNames.RGB],
-            weights=fine_weights,
-        )  # RendererOutputs
-        fine_renderer_accumulation = self.renderer_accumulation(fine_weights)  # RendererOutputs
-        fine_renderer_depth = self.renderer_depth(fine_weights, pdf_ray_samples.ts)
-
-        # TODO refactor this into "vis" section. Doesn't need to be run during training.
-        coarse_renderer_depth = visualization.apply_depth_colormap(
-            coarse_renderer_depth.depth,
-            accumulation=coarse_renderer_accumulation.accumulation,
-            near_plane=self.near_plane,
-            far_plane=self.far_plane,
+        # coarse field
+        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform.to_point_samples())
+        weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
+        rgb_coarse = self.renderer_rgb(
+            rgb=field_outputs_coarse[FieldHeadNames.RGB],
+            weights=weights_coarse,
         )
-        fine_renderer_depth = visualization.apply_depth_colormap(
-            fine_renderer_depth.depth,
-            accumulation=fine_renderer_accumulation.accumulation,
-            near_plane=self.near_plane,
-            far_plane=self.far_plane,
+        accumulation_coarse = self.renderer_accumulation(weights_coarse)
+        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform.ts)
+
+        # pdf sampling
+        ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
+
+        # fine field
+        field_outputs_fine = self.field_fine.forward(ray_samples_pdf.to_point_samples())
+        weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
+        rgb_fine = self.renderer_rgb(
+            rgb=field_outputs_fine[FieldHeadNames.RGB],
+            weights=weights_fine,
         )
-        coarse_renderer_accumulation = visualization.apply_colormap(coarse_renderer_accumulation.accumulation)
-        fine_renderer_accumulation = visualization.apply_colormap(fine_renderer_accumulation.accumulation)
+        accumulation_fine = self.renderer_accumulation(weights_fine)
+        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.ts)
+        semantic_fine = self.renderer_semantic(field_outputs_fine[FieldHeadNames.SEMANTICS], weights=weights_fine)
 
-        semantic_logits = self.renderer_semantic(
-            fine_field_outputs[FieldHeadNames.SEMANTICS_STUFF], weights=fine_weights
-        ).semantics
-
-        # outputs:
         outputs = {
-            "rgb_coarse": coarse_renderer_outputs.rgb,
-            "rgb_fine": fine_renderer_outputs.rgb,
-            "accumulation_coarse": coarse_renderer_accumulation,
-            "accumulation_fine": fine_renderer_accumulation,
-            "depth_coarse": coarse_renderer_depth,
-            "depth_fine": fine_renderer_depth,
-            "semantic_logits": semantic_logits,
+            "rgb_coarse": rgb_coarse,
+            "rgb_fine": rgb_fine,
+            "accumulation_coarse": accumulation_coarse,
+            "accumulation_fine": accumulation_fine,
+            "depth_coarse": depth_coarse,
+            "depth_fine": depth_fine,
+            "semantic_fine": semantic_fine,
         }
         return outputs
 
     def get_loss_dict(self, outputs, batch):
-        # TODO(ethan): batch has "stuff_image". use it
-        device = outputs["rgb_coarse"].device
-        pixels = batch["pixels"].to(device)
+        pixels = batch["pixels"]
         rgb_loss_coarse = self.rgb_loss(pixels, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(pixels, outputs["rgb_fine"])
-
-        semantic_logits = outputs["semantic_logits"]
-        semantic_classes = batch["stuff_image"][..., 0].to(device).long()
+        semantic_logits = outputs["semantic_fine"]
+        semantic_classes = batch["semantics"][..., 0].long()
         semantic_loss_fine = self.cross_entropy_loss(semantic_logits, semantic_classes)
         loss_dict = {
             "rgb_loss_coarse": rgb_loss_coarse,
             "rgb_loss_fine": rgb_loss_fine,
             "semantic_loss_fine": semantic_loss_fine,
         }
-
-        loss_dict["aggregated_loss"] = self.get_aggregated_loss_from_loss_dict(loss_dict)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
-        super().log_test_image_outputs(image_idx, step, image, mask, outputs)
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantic_logits"], dim=-1), dim=-1) / len(
-            self.stuff_classes
-        )
-        semantic_labels_image = visualization.apply_colormap(semantic_labels[..., None])
-        writer.put_image(name="semantics/image_idx_{image_idx}", image=semantic_labels_image, step=step)
+    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+        super().log_test_image_outputs(image_idx, step, batch, outputs)
+        semantic_logits = outputs["semantic_fine"]
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(semantic_logits, dim=-1), dim=-1)
+        semantic_labels_image = self.stuff_colors[semantic_labels]
+        writer.put_image(name=f"semantics/image_idx_{image_idx}", image=semantic_labels_image, step=step)
+
+        mask = batch["mask"].repeat(1, 1, 3)
+        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)

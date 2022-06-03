@@ -9,7 +9,7 @@ graph:
   # saving model specifications
   model_dir: /tmp/pyrad_models/
   steps_per_save: null
-  steps_per_test: 100
+  steps_per_test: 1000
   max_num_iterations: 1000000
 
   # pretrained loading options
@@ -19,11 +19,12 @@ graph:
 
   network:
     _target_: pyrad.nerf.graph.vanilla_nerf.NeRFGraph
-    near_plane: 2.0
-    far_plane: 6.0
+    collider_config:
+      _target_: pyrad.nerf.colliders.NearFarCollider
+      near_plane: 2.0
+      far_plane: 6.0
     num_coarse_samples: 64
     num_importance_samples: 128
-
     loss_coefficients: # loss coefficients
       rgb_loss_coarse: 1.0
       rgb_loss_fine: 1.0

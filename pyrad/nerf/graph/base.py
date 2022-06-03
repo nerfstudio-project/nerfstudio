@@ -13,11 +13,9 @@ from torchtyping import TensorType
 
 from pyrad.nerf.dataset.structs import SceneBounds
 from pyrad.nerf.ray_generator import RayGenerator
-from pyrad.nerf.colliders import AABBBoxCollider
 from pyrad.structures.cameras import get_camera_model
 from pyrad.structures.rays import RayBundle
-from pyrad.utils.misc import get_masked_dict
-from pyrad.utils.misc import is_not_none
+from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
 
 
 class AbstractGraph(nn.Module):
@@ -52,6 +50,7 @@ class Graph(AbstractGraph):
         loss_coefficients: DictConfig = None,
         steps_per_occupancy_grid_update=16,
         scene_bounds: SceneBounds = None,
+        collider_config: DictConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -59,6 +58,7 @@ class Graph(AbstractGraph):
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
+        self.collider_config = collider_config
         self.loss_coefficients = loss_coefficients
         self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
         self.kwargs = kwargs
@@ -70,7 +70,7 @@ class Graph(AbstractGraph):
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
-        self.collider = AABBBoxCollider(self.scene_bounds)
+        self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_misc_modules(self):
@@ -110,39 +110,36 @@ class Graph(AbstractGraph):
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
-        return outputs, loss_dict
+        aggregated_loss_dict = self.get_aggregated_loss_dict(loss_dict)
+        return outputs, aggregated_loss_dict
 
     @abstractmethod
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Computes and returns the losses."""
 
-    def get_aggregated_loss_from_loss_dict(self, loss_dict):
+    def get_aggregated_loss_dict(self, loss_dict):
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
-        aggregated_loss = 0.0
+        aggregated_loss_dict = {}
         for loss_name, loss_value in loss_dict.items():
             assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
             loss_coefficient = self.loss_coefficients[loss_name]
-            aggregated_loss += loss_coefficient * loss_value
-        return aggregated_loss
+            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
+        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
+        return aggregated_loss_dict
 
     @torch.no_grad()
     def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024, training_camera_index=0):
         """Takes in camera parameters and computes the output of the graph."""
-        # NOTE(ethan): this function has a spike in CPU usage
-
-        device = self.get_device()
         assert len(intrinsics.shape) == 1
         num_intrinsics_params = len(intrinsics)
         camera_class = get_camera_model(num_intrinsics_params)
         camera = camera_class(*intrinsics.tolist(), camera_to_world=camera_to_world)
-        camera_ray_bundle = camera.generate_camera_rays()
+        camera_ray_bundle = camera.generate_camera_rays(device=self.get_device())
         # TODO(ethan): decide how to properly handle the image indices for validation images
         camera_ray_bundle.set_camera_indices(camera_index=training_camera_index)
-        camera_ray_bundle.move_to_device(device)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
 
         num_rays = len(camera_ray_bundle)
-
         outputs = {}
         outputs_lists = defaultdict(list)
         for i in range(0, num_rays, chunk_size):
@@ -158,5 +155,5 @@ class Graph(AbstractGraph):
         return outputs
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, image, mask, outputs):
+    def log_test_image_outputs(self, image_idx, step, batch, outputs):
         """Writes the test image outputs."""

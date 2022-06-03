@@ -12,9 +12,10 @@ data:
     data_directory: tests/data/lego_test
     downscale_factor: 8
   val_image_indices: [0]
-  dataloader:
+  image_sampler:
     num_images_to_sample_from: 1
-    num_rays_per_batch: 8
+  pixel_sampler:
+    num_rays_per_batch: 4
 
 graph:
   max_num_iterations: 5
