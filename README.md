@@ -113,15 +113,25 @@ class NeRFGraph(Graph):
         """
         Writes the test image outputs.
         """
+<<<<<<< HEAD
 
 ```
+=======
+```
+
+Note that the graph is composed of fields and modules. Fields (`nerf/fields/`) represents the actual radiance field of the NeRF and is composed of field modules (`nerf/field_modules/`). Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). The misc. modules can be any module outside of the field that are needed by the NeRF (e.g. losses, samplers, renderers). To get started on a new NeRF implementation, you simply have to define all relevant modules and populate them in the graph. 
+
+#### Dataset population TODO(ethan)
+
+#### Config 
+>>>>>>> e8118f0
 
 #### 
 
 # Feature List
-#### :metal: [Hydra config structure](./configs/README.md)
-#### :metal: [Logging, debugging utilities](./radiance/utils/README.md)
-#### :metal: [Benchmarking, other tooling](./scripts/README.md)
+#### :metal: [Hydra config structure](#)
+#### :metal: [Logging, debugging utilities](#)
+#### :metal: [Benchmarking, other tooling](#)
 
 #### :metal: Running other repos with our data
 
