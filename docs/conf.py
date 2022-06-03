@@ -18,9 +18,9 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "pyrad"
-copyright = "2022, pyrad Team"
-author = "pyrad Team"
+project = "pyRad"
+copyright = "2022, pyRad Team"
+author = "pyRad Team"
 
 # The full version, including alpha/beta/rc tags
 release = "0.0.0"
@@ -52,3 +52,4 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "furo"
+html_title = "pyRad"
