@@ -11,7 +11,16 @@ from pyrad.nerf.field_modules.base import FieldModule
 
 
 class MLP(FieldModule):
-    """Multilayer perceptron"""
+    """Multilayer perceptron
+
+    Args:
+        in_dim (int): Input layer dimension
+        num_layers (int): Number of network layers
+        layer_width (int): Width of each MLP layer
+        out_dim (int, optional): Ouput layer dimension. Defaults to layer_width
+        activation (Optional[nn.Module], optional): intermediate layer activation function. Defaults to nn.ReLU.
+        out_activation (Optional[nn.Module], optional): output activation function. Defaults to None.
+    """
 
     def __init__(
         self,
@@ -23,16 +32,7 @@ class MLP(FieldModule):
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
-        """Initialize parameters of mulilayer perceptron.
 
-        Args:
-            in_dim (int): Input layer dimension
-            num_layers (int): Number of network layers
-            layer_width (int): Width of each MLP layer
-            out_dim (int, optional): Ouput layer dimension. Defaults to layer_width
-            activation (Optional[nn.Module], optional): intermediate layer activation function. Defaults to nn.ReLU.
-            out_activation (Optional[nn.Module], optional): output activation function. Defaults to None.
-        """
         super().__init__()
         self.in_dim = in_dim
         assert self.in_dim > 0
@@ -69,7 +69,7 @@ class MLP(FieldModule):
             in_tensor (TensorType[..., "in_dim]): Network input
 
         Returns:
-            TensorType[..., "out_dim"]: Network output
+            TensorType[..., "out_dim"]: MLP network output
         """
         x = in_tensor
         for i, layer in enumerate(self.layers):

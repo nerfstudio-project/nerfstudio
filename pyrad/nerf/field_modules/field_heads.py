@@ -23,7 +23,14 @@ class FieldHeadNames(Enum):
 
 
 class FieldHead(FieldModule):
-    """Base field output"""
+    """Base field output
+
+    Args:
+        out_dim (int): output dimension for renderer
+        field_head_name (FieldHeadNames): Field type
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(
         self,
@@ -32,13 +39,7 @@ class FieldHead(FieldModule):
         in_dim: Optional[int] = None,
         activation: Optional[nn.Module] = None,
     ) -> None:
-        """
-        Args:
-            out_dim (int): output dimension for renderer
-            field_head_name (FieldHeadNames): Field type
-            in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-            activation (Optional[nn.Module]): output head activation
-        """
+
         super().__init__()
         self.out_dim = out_dim
         self.activation = activation
@@ -75,52 +76,78 @@ class FieldHead(FieldModule):
 
 
 class DensityFieldHead(FieldHead):
-    """Density output"""
+    """Density output
+
+    Args:
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
         super().__init__(in_dim=in_dim, out_dim=1, field_head_name=FieldHeadNames.DENSITY, activation=activation)
 
 
 class RGBFieldHead(FieldHead):
-    """RGB output"""
+    """RGB output
+
+    Args:
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
         super().__init__(in_dim=in_dim, out_dim=3, field_head_name=FieldHeadNames.RGB, activation=activation)
 
 
 class SHFieldHead(FieldHead):
-    """Spherical harmonics output"""
+    """Spherical harmonics output
+
+    Args:
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        levels (int, optional): Number of spherical harmonics layers. Defaults to 3.
+        channels (int, optional): Number of channels. Defaults to 3 (ie RGB).
+        activation (Optional[nn.Module], optional): Output activation. Defaults to None.
+    """
 
     def __init__(
         self, in_dim: Optional[int] = None, levels: int = 3, channels: int = 3, activation: Optional[nn.Module] = None
     ) -> None:
-        """
-        Args:
-            in_dim (int): Input dimension
-            levels (int, optional): Number of spherical harmonics layers. Defaults to 3.
-            channels (int, optional): Number of channels. Defaults to 3 (ie RGB).
-            activation (Optional[nn.Module], optional): Output activation. Defaults to None.
-        """
+
         out_dim = channels * levels**2
         super().__init__(in_dim=in_dim, out_dim=out_dim, field_head_name=FieldHeadNames.SH, activation=activation)
 
 
 class UncertaintyFieldHead(FieldHead):
-    """Uncertainty output"""
+    """Uncertainty output
+
+    Args:
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
         super().__init__(in_dim=in_dim, out_dim=1, field_head_name=FieldHeadNames.UNCERTAINTY, activation=activation)
 
 
 class TransientRGBFieldHead(FieldHead):
-    """Transient RGB output"""
+    """Transient RGB output
+
+    Args:
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
         super().__init__(in_dim=in_dim, out_dim=3, field_head_name=FieldHeadNames.TRANSIENT_RGB, activation=activation)
 
 
 class TransientDensityFieldHead(FieldHead):
-    """Transient density output"""
+    """Transient density output
+
+    Args:
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
         super().__init__(
@@ -129,12 +156,13 @@ class TransientDensityFieldHead(FieldHead):
 
 
 class SemanticFieldHead(FieldHead):
-    """Semantic stuff output"""
+    """Semantic stuff output
+
+    Args:
+        num_classes (int): Number of semantic classes
+        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
+        activation (Optional[nn.Module]): output head activation
+    """
 
     def __init__(self, num_classes: int, in_dim: Optional[int] = None) -> None:
-        """
-        Args:
-            num_classes (int): Number of semantic classes
-            in_dim (int): Input dimension
-        """
         super().__init__(in_dim=in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS, activation=None)
