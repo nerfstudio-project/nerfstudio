@@ -10,7 +10,7 @@ import torch
 from torchtyping import TensorType
 from pyrad.nerf.field_modules.field_heads import FieldHeadNames
 
-from pyrad.structures.rays import PointSamples
+from pyrad.structures.rays import Frustums, PointSamples
 from pyrad.utils.misc import is_not_none
 
 
@@ -19,7 +19,16 @@ class Field(nn.Module):
 
     def density_fn(self, positions):
         """Returns only the density. Used primarily with the occupancy grid."""
-        point_samples = PointSamples(positions=positions)
+        # Need to figure out a better way to descibe positions with a ray.
+        point_samples = PointSamples(
+            frustums=Frustums(
+                origins=positions,
+                directions=torch.ones_like(positions),
+                frustum_starts=torch.zeros((*positions.shape[:-1], 1)),
+                frustum_ends=torch.zeros((*positions.shape[:-1], 1)),
+                pixel_area=torch.ones((*positions.shape[:-1], 1)),
+            )
+        )
         density, _ = self.get_density(point_samples)
         return density
 
@@ -55,9 +64,7 @@ class Field(nn.Module):
         if is_not_none(valid_mask):
             # Hacky handling of empty masks. Tests on a single ray but doesn't use results
             if not valid_mask.any():
-                point_samples = PointSamples(
-                    positions=point_samples.positions[0, :], directions=point_samples.directions[0, :]
-                )
+                point_samples = PointSamples(frustums=Frustums.get_mock_frustum())
             else:
                 point_samples = point_samples.apply_masks()
             density_masked, density_embedding_masked = self.get_density(point_samples)

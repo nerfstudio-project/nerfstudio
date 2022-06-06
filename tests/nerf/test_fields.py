@@ -5,7 +5,7 @@ import torch
 
 from pyrad.nerf.field_modules.field_heads import FieldHeadNames
 from pyrad.nerf.fields.instant_ngp_field import TCNNInstantNGPField
-from pyrad.structures.rays import PointSamples
+from pyrad.structures.rays import Frustums, PointSamples
 
 
 def test_tcnn_instant_ngp_field():
@@ -28,7 +28,14 @@ def test_tcnn_instant_ngp_field():
     num_samples = 256
     positions = torch.rand((num_rays, num_samples, 3), dtype=torch.float32, device=device)
     directions = torch.rand_like(positions)
-    point_samples = PointSamples(positions=positions, directions=directions)
+    frustums = Frustums(
+        origins=positions,
+        directions=directions,
+        frustum_starts=torch.zeros((*directions.shape[:-1], 1)),
+        frustum_ends=torch.zeros((*directions.shape[:-1], 1)),
+        pixel_area=torch.ones((*directions.shape[:-1], 1)),
+    )
+    point_samples = PointSamples(frustums=frustums)
     field_outputs = field.forward(point_samples)
 
     positions_dtype = positions.dtype

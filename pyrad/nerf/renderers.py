@@ -152,13 +152,13 @@ class DepthRenderer(nn.Module):
         self.method = method
 
     def forward(
-        self, weights: TensorType[..., "num_samples"], ts: TensorType[..., "num_samples"]
+        self, weights: TensorType[..., "num_samples"], bins: TensorType[..., "num_samples+1"]
     ) -> TensorType[..., 1]:
         """Composite samples along ray and calculate disparities.
 
         Args:
             weights (TensorType[..., "num_samples"]): Weights for each sample
-            ts (TensorType[..., "num_samples"]): Sample locations along rays
+            bins (TensorType[..., "num_samples+1"]): Bins along ray
 
         Returns:
             TensorType[..., 1]: Outputs of depth values.
@@ -166,9 +166,10 @@ class DepthRenderer(nn.Module):
 
         if self.method == "expected":
             eps = 1e-10
-            depth = torch.sum(weights * ts, dim=-1) / (torch.sum(weights, -1) + eps)
+            steps = (bins[..., :-1] + bins[..., 1:]) / 2
+            depth = torch.sum(weights * steps, dim=-1) / (torch.sum(weights, -1) + eps)
 
-            depth = torch.clip(depth, ts[..., 0], ts[..., -1])
+            depth = torch.clip(depth, steps[..., 0], steps[..., -1])
 
             return depth[..., None]
 
