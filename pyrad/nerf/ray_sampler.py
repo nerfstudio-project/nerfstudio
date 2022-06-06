@@ -136,8 +136,7 @@ class PDFSampler(Sampler):
 
         Args:
             ray_bundle (RayBundle): Rays to generate samples for
-            TensorType[..., "output_dim"]: A encoded input tensor
-            bins (TensorType[..., "num_samples"]): Ray bins
+            ray_samples (RaySamples): Existing ray samples
             weights: (TensorType[..., "num_samples"]): Weights for each bin
             num_samples (Optional[int]): Number of samples per ray
             eps: float: Small value to prevent numerical issues. Defaults to 1e-5
