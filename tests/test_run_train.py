@@ -14,5 +14,6 @@ def test_run_train():
     conf = compose("test_dryrun.yaml")
     main(conf)
 
+
 if __name__ == "__main__":
     test_run_train()

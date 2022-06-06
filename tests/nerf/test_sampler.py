@@ -17,13 +17,14 @@ def test_uniform_sampler():
 
     origins = torch.zeros((10, 3))
     directions = torch.ones_like(origins)
-    ray_bundle = RayBundle(origins=origins, directions=directions)
+    radius = torch.ones((10, 1))
+    ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
     collider = NearFarCollider(near_plane, far_plane)
     ray_bundle = collider(ray_bundle)
 
     ray_samples = sampler(ray_bundle)
 
-    assert ray_samples.positions.shape[-2] == num_samples
+    assert ray_samples.frustums.get_positions().shape[-2] == num_samples
 
     # TODO Tancik: Add more precise tests
 
@@ -36,7 +37,8 @@ def test_pdf_sampler():
 
     origins = torch.zeros((10, 3))
     directions = torch.ones_like(origins)
-    ray_bundle = RayBundle(origins=origins, directions=directions)
+    radius = torch.ones((10, 1))
+    ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
     collider = NearFarCollider(near_plane, far_plane)
     ray_bundle = collider(ray_bundle)
 

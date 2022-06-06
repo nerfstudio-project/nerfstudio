@@ -63,7 +63,7 @@ class NeRFField(Field):
 
     def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
-        encoded_xyz = self.position_encoding(point_samples.positions)
+        encoded_xyz = self.position_encoding(point_samples.frustums.get_positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_output_density(base_mlp_out)
         return density, base_mlp_out
@@ -74,7 +74,7 @@ class NeRFField(Field):
         """Computes and returns the outputs."""
         outputs = {}
         for field_head in self.field_heads:
-            encoded_dir = self.direction_encoding(point_samples.directions)
+            encoded_dir = self.direction_encoding(point_samples.frustums.directions)
             mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
             outputs[field_head.field_head_name] = field_head(mlp_out)
         return outputs
