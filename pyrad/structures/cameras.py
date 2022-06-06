@@ -83,15 +83,15 @@ class Camera:
     @abstractmethod
     def generate_rays(
         cls,
-        intrinsics: TensorType["num_rays", "num_intrinsics_params"],
-        camera_to_world: TensorType["num_rays", 3, 4],
-        coords: TensorType["image_height", "image_width", 2],
+        intrinsics: TensorType[..., "num_intrinsics_params"],
+        camera_to_world: TensorType[..., 3, 4],
+        coords: TensorType[..., 2],
     ) -> RayBundle:
         """
         Args:
-            intrinsics (TensorType["num_rays", "num_intrinsics_params"]): Camera intrinsics
-            camera_to_world (TensorType["num_rays", 3, 4]): Camera to world transformation matrix
-            coords (TensorType["image_height", "image_width", 2]): Image grid coordinates
+            intrinsics (TensorType[..., "num_intrinsics_params"]): Camera intrinsics
+            camera_to_world (TensorType[..., 3, 4]): Camera to world transformation matrix
+            coords (TensorType[..., 2]): Image grid coordinates
 
         Returns:
             RayBundle: A bundle of rays for each grid coordinate.
@@ -193,7 +193,17 @@ class PinholeCamera(Camera):
         )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
         directions = normalize(directions, dim=-1)
         origins = camera_to_world[..., :3, 3]  # (..., 3)
-        return RayBundle(origins=origins, directions=directions)
+
+        ## Calculate pixel area directly
+        dirx_min = normalize(torch.cat([(x - cx - 0.5) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1), dim=-1)
+        dirx_max = normalize(torch.cat([(x - cx + 0.5) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1), dim=-1)
+        diry_min = normalize(torch.cat([(x - cx) / fx, -(y - cy - 0.5) / fy, -torch.ones_like(x)], -1), dim=-1)
+        diry_max = normalize(torch.cat([(x - cx) / fx, -(y - cy + 0.5) / fy, -torch.ones_like(x)], -1), dim=-1)
+        dx = torch.sqrt(torch.sum((dirx_max - dirx_min) ** 2, dim=-1))
+        dy = torch.sqrt(torch.sum((diry_max - diry_min) ** 2, dim=-1))
+        pixel_area = dx * dy
+
+        return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
 
 class SimplePinholeCamera(PinholeCamera):
@@ -234,25 +244,52 @@ class EquirectangularCamera(Camera):
     @classmethod
     def generate_rays(
         cls,
-        intrinsics: TensorType["num_rays", 2],
-        camera_to_world: TensorType["num_rays", 3, 4],
-        coords: TensorType["num_rays", 2],
+        intrinsics: TensorType[..., 2],
+        camera_to_world: TensorType[..., 3, 4],
+        coords: TensorType[..., 2],
     ) -> RayBundle:
 
-        phi = coords[:, 0:1]  # (num_rays, 1)
-        theta = coords[:, 1:2]  # (num_rays, 1)
+        y = coords[..., 0:1]  # (num_rays, 1)
+        x = coords[..., 1:2]  # (num_rays, 1)
 
-        height = intrinsics[:, 0:1]
-        width = intrinsics[:, 1:2]
+        height = intrinsics[..., 0:1]
+        width = intrinsics[..., 1:2]
 
-        phi = phi / height * torch.pi
-        theta = -theta / width * 2 * torch.pi
+        phi = y / height * torch.pi
+        theta = -x / width * 2 * torch.pi
 
-        directions = torch.stack(
-            [torch.cos(theta) * torch.sin(phi), torch.sin(theta) * torch.sin(phi), torch.cos(phi)], dim=-1
+        d_phi_min = (y + 0.5) / height * torch.pi
+        d_phi_max = (y - 0.5) / height * torch.pi
+        d_theta_min = -(x - 0.5) / width * 2 * torch.pi
+        d_theta_max = -(x + 0.5) / width * 2 * torch.pi
+
+        s_phi = torch.sin(phi)
+        c_phi = torch.cos(phi)
+        s_theta = torch.sin(theta)
+        c_theta = torch.cos(theta)
+
+        directions = torch.cat([c_theta * s_phi, s_theta * s_phi, c_phi], dim=-1)
+        origins = camera_to_world[..., :3, 3]  # (num_rays, 3)
+
+        ## Calculate area directly
+        dirx_min = normalize(
+            torch.cat([torch.cos(d_theta_min) * s_phi, torch.sin(d_theta_min) * s_phi, c_phi], -1), dim=-1
         )
-        origins = camera_to_world[:, :3, 3]  # (num_rays, 3)
-        return RayBundle(origins=origins, directions=directions)
+        dirx_max = normalize(
+            torch.cat([torch.cos(d_theta_max) * s_phi, torch.sin(d_theta_max) * s_phi, c_phi], -1), dim=-1
+        )
+        diry_min = normalize(
+            torch.cat([c_theta * torch.sin(d_phi_min), s_theta * torch.sin(d_phi_min), torch.cos(d_phi_min)], -1),
+            dim=-1,
+        )
+        diry_max = normalize(
+            torch.cat([c_theta * torch.sin(d_phi_max), s_theta * torch.sin(d_phi_max), torch.cos(d_phi_max)], -1),
+            dim=-1,
+        )
+        dx = torch.sqrt(torch.sum((dirx_max - dirx_min) ** 2, dim=-1))
+        dy = torch.sqrt(torch.sum((diry_max - diry_min) ** 2, dim=-1))
+        pixel_area = dx * dy
+        return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area)
 
 
 def get_camera_model(num_intrinsics_params: int) -> Type[Camera]:
