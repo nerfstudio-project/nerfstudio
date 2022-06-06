@@ -200,11 +200,17 @@ class HashEncoding(Encoding):
         """Hash tensor using method described in Instant-NGP
 
         Args:
-            in_tensor (TensorType[..., &quot;num_levels&quot;, 3]): Tensor to be hashed
+            in_tensor (TensorType[..., "num_levels", 3]): Tensor to be hashed
 
         Returns:
-            TensorType[..., &quot;num_levels&quot;]: Hashed tensor
+            TensorType[..., "num_levels"]: Hashed tensor
         """
+
+        # min_val = torch.min(in_tensor)
+        # max_val = torch.max(in_tensor)
+        # assert min_val >= 0.0
+        # assert max_val <= 1.0
+
         in_tensor = in_tensor * torch.tensor([1, 2654435761, 805459861]).to(in_tensor.device)
         x = torch.bitwise_xor(in_tensor[..., 0], in_tensor[..., 1])
         x = torch.bitwise_xor(x, in_tensor[..., 2])

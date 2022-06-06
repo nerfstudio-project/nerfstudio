@@ -9,6 +9,8 @@ data.val_num_rays_per_chunk: 16384
 graph:
   network:
     _target_: pyrad.nerf.graph.instant_ngp.NGPGraph
+    collider_config:
+      _target_: pyrad.nerf.colliders.AABBBoxCollider
     field_implementation: torch # torch, tcnn, ...
     loss_coefficients: # loss coefficients
       rgb_loss: 1.0

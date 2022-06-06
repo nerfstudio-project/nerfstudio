@@ -149,9 +149,9 @@ class SemanticNerfGraph(NeRFGraph):
         return outputs
 
     def get_loss_dict(self, outputs, batch):
-        pixels = batch["pixels"]
-        rgb_loss_coarse = self.rgb_loss(pixels, outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(pixels, outputs["rgb_fine"])
+        image = batch["image"]
+        rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
+        rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
         semantic_logits = outputs["semantic_fine"]
         semantic_classes = batch["semantics"][..., 0].long()
         semantic_loss_fine = self.cross_entropy_loss(semantic_logits, semantic_classes)

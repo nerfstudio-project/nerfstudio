@@ -32,9 +32,6 @@ class NGPGraph(Graph):
         self.field = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
-    def populate_collider(self):
-        self.collider = AABBBoxCollider(self.scene_bounds)
-
     def populate_fields(self):
         """Set the fields."""
         # torch or tiny-cuda-nn version
@@ -112,8 +109,8 @@ class NGPGraph(Graph):
 
     def get_loss_dict(self, outputs, batch):
         device = self.get_device()
-        pixels = batch["pixels"].to(device)
-        rgb_loss = self.rgb_loss(pixels, outputs["rgb"])
+        image = batch["image"].to(device)
+        rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 

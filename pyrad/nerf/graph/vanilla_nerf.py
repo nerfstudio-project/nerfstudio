@@ -117,10 +117,9 @@ class NeRFGraph(Graph):
         return outputs
 
     def get_loss_dict(self, outputs, batch):
-        device = outputs["rgb_coarse"].device
-        pixels = batch["pixels"].to(device)
-        rgb_loss_coarse = self.rgb_loss(pixels, outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(pixels, outputs["rgb_fine"])
+        image = batch["image"]
+        rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
+        rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
         return loss_dict
 

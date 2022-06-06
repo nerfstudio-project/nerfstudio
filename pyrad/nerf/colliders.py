@@ -4,7 +4,7 @@ Ray generator.
 import torch
 from torch import nn
 from torchtyping import TensorType
-from pyrad.nerf.dataset.structs import SceneBounds
+from pyrad.nerf.data.structs import SceneBounds
 from pyrad.structures.rays import RayBundle
 
 

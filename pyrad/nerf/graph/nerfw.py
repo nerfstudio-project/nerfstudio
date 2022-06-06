@@ -151,13 +151,13 @@ class NerfWGraph(Graph):
 
     def get_loss_dict(self, outputs, batch):
         device = outputs["rgb_coarse"].device
-        pixels = batch["pixels"].to(device)
+        image = batch["image"].to(device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         density_transient = outputs["density_transient"]
         betas = outputs["uncertainty"]
-        rgb_loss_coarse = 0.5 * ((pixels - rgb_coarse) ** 2).sum(-1).mean()
-        rgb_loss_fine = 0.5 * (((pixels - rgb_fine) ** 2).sum(-1) / (betas[..., 0] ** 2)).mean()
+        rgb_loss_coarse = 0.5 * ((image - rgb_coarse) ** 2).sum(-1).mean()
+        rgb_loss_fine = 0.5 * (((image - rgb_fine) ** 2).sum(-1) / (betas[..., 0] ** 2)).mean()
         uncertainty_loss = 0.5 * (3 + torch.log(betas)).mean()
         density_loss = density_transient.mean()
 

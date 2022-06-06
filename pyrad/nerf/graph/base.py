@@ -11,7 +11,7 @@ from torch import nn
 from torch.nn import Parameter
 from torchtyping import TensorType
 
-from pyrad.nerf.dataset.structs import SceneBounds
+from pyrad.nerf.data.structs import SceneBounds
 from pyrad.nerf.ray_generator import RayGenerator
 from pyrad.structures.cameras import get_camera_model
 from pyrad.structures.rays import RayBundle
@@ -88,16 +88,8 @@ class Graph(AbstractGraph):
     def get_outputs(self, ray_bundle: RayBundle):
         """Takes in a Ray Bundle and returns a dictionary of outputs."""
 
-    def forward(
-        self,
-        ray_indices: TensorType["num_rays", 3],
-        batch: Union[str, Dict[str, torch.tensor]] = None,
-        step: int = None,
-    ):
-
-        # get the rays
-        original_ray_bundle = self.ray_generator.forward(ray_indices)  # RayBundle
-        intersected_ray_bundle = self.collider(original_ray_bundle)
+    def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
+        intersected_ray_bundle = self.collider(ray_bundle)
 
         if isinstance(batch, type(None)):
             # during inference, keep all rays
@@ -112,6 +104,10 @@ class Graph(AbstractGraph):
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
         aggregated_loss_dict = self.get_aggregated_loss_dict(loss_dict)
         return outputs, aggregated_loss_dict
+
+    def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
+        ray_bundle = self.ray_generator.forward(ray_indices)
+        return self.forward_after_ray_generator(ray_bundle, batch=batch)
 
     @abstractmethod
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
@@ -128,7 +124,7 @@ class Graph(AbstractGraph):
         return aggregated_loss_dict
 
     @torch.no_grad()
-    def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size=1024, training_camera_index=0):
+    def get_outputs_for_camera(self, intrinsics, camera_to_world, chunk_size, training_camera_index=None):
         """Takes in camera parameters and computes the output of the graph."""
         assert len(intrinsics.shape) == 1
         num_intrinsics_params = len(intrinsics)
@@ -145,9 +141,8 @@ class Graph(AbstractGraph):
         for i in range(0, num_rays, chunk_size):
             start_idx = i
             end_idx = i + chunk_size
-            original_ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            intersected_ray_bundle = self.collider(original_ray_bundle)
-            outputs = self.get_outputs(intersected_ray_bundle)
+            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+            outputs = self.forward_after_ray_generator(ray_bundle)
             for output_name, output in outputs.items():
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():

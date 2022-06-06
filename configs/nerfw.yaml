@@ -9,7 +9,7 @@ method_name: nerfw
 data:
   image_dataset:
     # "image", "mask", "semantics"
-    _target_: pyrad.nerf.dataset.image_dataset.PanopticImageDataset
+    _target_: pyrad.nerf.data.image_dataset.PanopticImageDataset
 
 graph:
   network:

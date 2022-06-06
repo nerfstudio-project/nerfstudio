@@ -6,8 +6,6 @@ defaults:
   - override hydra/hydra_logging: colorlog
   - _self_
 
-seed: 42
-
 hydra:
   run:
     # Configure output dir of each experiment programmatically from the arguments
@@ -16,6 +14,7 @@ hydra:
 
 # machine options
 machine_config:
+  seed: 42
   num_gpus: 1
   num_machines: 1
   machine_rank: 0
