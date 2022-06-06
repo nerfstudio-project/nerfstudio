@@ -2,3 +2,4 @@ furo==2022.4.7
 readthedocs-sphinx-search==0.1.2
 sphinx==4.5.0
 sphinxemoji==0.2.0
+myst-parser==0.17.2
