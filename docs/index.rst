@@ -10,6 +10,7 @@ Neural Volumetric Rendering
 
    quickstart/installation
    quickstart/quick_tour.md
+   quickstart/contributing.md
 
 .. toctree::
    :caption: Reference:
