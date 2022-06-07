@@ -12,18 +12,72 @@ from pyrad.utils.misc import is_not_none
 
 
 @dataclass
+class Frustums:
+    """Describes region of space as a frustum.
+
+    Args:
+        origins (TensorType[..., 3]): xyz coordinate for ray origin.
+        directions (TensorType[..., 3]): Direction of ray.
+        frustum_starts (TensorType[..., 1]): Where the frustum starts along a ray.
+        frustum_ends (TensorType[..., 3]): Where the frustim ends along a ray.
+        pixel_area (TensorType[..., 1]): Projected area of pixel a distance 1 away from origin.
+    """
+
+    origins: TensorType[..., 3]
+    directions: TensorType[..., 3]
+    frustum_starts: TensorType[..., 1]
+    frustum_ends: TensorType[..., 1]
+    pixel_area: TensorType[..., 1]
+
+    def get_positions(self) -> TensorType[..., 3]:
+        """Returns "center" position of frustum. Not weighted by mass."""
+        return self.origins + self.directions * (self.frustum_starts + self.frustum_ends) / 2
+
+    @classmethod
+    def get_mock_frustum(cls) -> "Frustums":
+        """Helper function to generate a placeholder frustum.
+
+        Returns:
+            Frustums: A size 1 frustum with meaningless values.
+        """
+        return Frustums(
+            origins=torch.ones((1, 3)),
+            directions=torch.ones((1, 3)),
+            frustum_starts=torch.ones((1, 1)),
+            frustum_ends=torch.ones((1, 1)) + 1,
+            pixel_area=torch.ones((1, 1)),
+        )
+
+    def apply_masks(self, mask: TensorType) -> "Frustums":
+        """Use valid_mask to mask samples.
+
+        Args:
+            mask (TensorType): Frustums to keep
+
+        Returns:
+            Frustum: New set of masked frustums.
+        """
+        return Frustums(
+            origins=self.origins[mask],
+            directions=self.directions[mask],
+            frustum_starts=self.frustum_starts[mask],
+            frustum_ends=self.frustum_ends[mask],
+            pixel_area=self.pixel_area[mask],
+        )
+
+
+@dataclass
 class PointSamples:
     """Samples in space.
 
     Args:
-        positions (TensorType[..., 3]): XYZ locations
-        directions (TensorType[..., 3]): Unit direction vector
-        camera_indices (TensorType[..., 1]): Camera index
-        valid_mask (TensorType[...]): Rays that are valid
+        frustims (Frustums): Frustums along ray.
+        directions (TensorType[..., 3]): Unit direction vector.
+        camera_indices (TensorType[..., 1]): Camera index.
+        valid_mask (TensorType[...]): Rays that are valid.
     """
 
-    positions: TensorType[..., 3]
-    directions: TensorType[..., 3] = None
+    frustums: Frustums
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[...] = None
 
@@ -34,19 +88,16 @@ class PointSamples:
             PointSamples: New set of masked samples.
         """
         if is_not_none(self.valid_mask):
-            positions = self.positions[self.valid_mask]
-            directions = self.directions[self.valid_mask] if is_not_none(self.directions) else self.directions
+            frustums = self.frustums.apply_masks(self.valid_mask)
             camera_indices = (
                 self.camera_indices[self.valid_mask] if is_not_none(self.camera_indices) else self.camera_indices
             )
             return PointSamples(
-                positions=positions,
-                directions=directions,
+                frustums=frustums,
                 camera_indices=camera_indices,
             )
         return PointSamples(
-            positions=self.positions,
-            directions=self.directions,
+            frustums=self.frustums,
             camera_indices=self.camera_indices,
         )
 
@@ -56,27 +107,24 @@ class RaySamples:
     """Samples along a ray
 
     Args:
-        positions (TensorType[..., 3]): XYZ locations
-        directions (TensorType[..., 3]): Unit direction vector
-        camera_indices (TensorType[..., 1]): Camera index
-        valid_mask (TensorType[...]): Rays that are valid
-        ts (TensorType[..., 1]): "time steps", distances along ray
-        deltas )TensorType[..., 1]): "width" of each sample
+        frustums (Frustums): Frustums along ray.
+        camera_indices (TensorType[..., 1]): Camera index.
+        valid_mask (TensorType[...]): Rays that are valid.
+        bins (TensorType[..., 1]): frustum bins along ray.
+        deltas )TensorType[..., 1]): "width" of each sample.
     """
 
-    positions: TensorType[..., 3]
-    directions: TensorType[..., 3] = None
+    frustums: TensorType[..., 3]
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[...] = None
-    ts: TensorType[..., 1] = None
+    bins: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
 
     def to_point_samples(self) -> PointSamples:
         """Convert to PointSamples instance and return."""
         # TODO: make this more interpretable
         return PointSamples(
-            positions=self.positions,
-            directions=self.directions,
+            frustums=self.frustums,
             camera_indices=self.camera_indices,
             valid_mask=self.valid_mask,
         )
@@ -123,6 +171,7 @@ class RayBundle:
     Args:
         origins (TensorType[..., 3]): Ray origins (XYZ)
         directions (TensorType[..., 3]): Unit ray direction vector
+        pixel_area (TensorType[..., 1]): Projected area of pixel a distance 1 away from origin.
         camera_indices (TensorType[..., 1]): Camera indices
         nears (TensorType[..., 1]): Distance along ray to start sampling
         fars (TensorType[..., 1]): Rays Distance along ray to stop sampling
@@ -131,6 +180,7 @@ class RayBundle:
 
     origins: TensorType["num_rays", 3]
     directions: TensorType["num_rays", 3]
+    pixel_area: TensorType["num_rays", 1]
     camera_indices: Optional[TensorType["num_rays", 1]] = None
     nears: Optional[TensorType["num_rays"]] = None
     fars: Optional[TensorType["num_rays"]] = None
@@ -173,6 +223,7 @@ class RayBundle:
         return RayBundle(
             origins=self.origins[indices],
             directions=self.directions[indices],
+            pixel_area=self.pixel_area[indices],
             camera_indices=self.camera_indices[indices],
         )
 
@@ -188,6 +239,7 @@ class RayBundle:
         return RayBundle(
             origins=self.origins[valid_mask],
             directions=self.directions[valid_mask],
+            pixel_area=self.pixel_area[valid_mask],
             camera_indices=self.camera_indices[valid_mask] if is_not_none(self.camera_indices) else None,
             nears=self.nears[valid_mask] if is_not_none(self.nears) else None,
             fars=self.fars[valid_mask] if is_not_none(self.fars) else None,
@@ -211,38 +263,45 @@ class RayBundle:
         return RayBundle(
             origins=self.origins.view(-1, 3)[start_idx:end_idx],
             directions=self.directions.view(-1, 3)[start_idx:end_idx],
+            pixel_area=self.pixel_area.view(-1, 1)[start_idx:end_idx],
             camera_indices=camera_indices,
         )
 
-    def get_ray_samples(self, ts: TensorType[..., "num_samples"]) -> RaySamples:
+    def get_ray_samples(self, bins: TensorType["num_rays", "num_samples+1"]) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction.
 
 
         Args:
-            ts (TensorType[..., "num_samples"]): Distance from origin of sample points.
+            bins (TensorType["num_rays", "num_samples+1"]): Distance from origin of sample points.
 
         Returns:
             RaySamples: Samples projected along ray.
         """
-        positions = self.origins[:, None] + ts[:, :, None] * self.directions[:, None]
-        directions = self.directions.unsqueeze(1).repeat(1, positions.shape[1], 1)
-        valid_mask = torch.ones_like(ts, dtype=torch.bool)
+        num_samples = bins.shape[-1] - 1
 
-        dists = ts[..., 1:] - ts[..., :-1]
-        dists = torch.cat([dists, dists[..., -1:]], -1)  # [N_rays, N_samples]
-        deltas = dists * torch.norm(self.directions[..., None, :], dim=-1)
+        valid_mask = torch.ones((bins.shape[0], num_samples), dtype=torch.bool, device=bins.device)
+
+        dists = bins[:, 1:] - bins[:, :-1]  # [N_rays, N_samples]
+        deltas = dists * torch.norm(self.directions[:, None, :], dim=-1)
 
         if is_not_none(self.camera_indices):
-            camera_indices = self.camera_indices.unsqueeze(1).repeat(1, positions.shape[1])
+            camera_indices = self.camera_indices.unsqueeze(1).repeat(1, num_samples)
         else:
             camera_indices = None
 
+        frustums = Frustums(
+            origins=self.origins.unsqueeze(1).repeat(1, num_samples, 1),
+            directions=self.directions.unsqueeze(1).repeat(1, num_samples, 1),
+            frustum_starts=bins[:, :-1, None],
+            frustum_ends=bins[:, 1:, None],
+            pixel_area=self.pixel_area.unsqueeze(1).repeat(1, num_samples, 1),
+        )
+
         ray_samples = RaySamples(
-            positions=positions,
-            directions=directions,
+            frustums=frustums,
             camera_indices=camera_indices,
             valid_mask=valid_mask,
-            ts=ts,
+            bins=bins,
             deltas=deltas,
         )
 

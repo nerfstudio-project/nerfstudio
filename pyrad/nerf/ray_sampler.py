@@ -32,7 +32,7 @@ class Sampler(nn.Module):
         """Generate ray samples with optional occupancy filtering"""
         ray_samples = self.generate_ray_samples(*args, **kwargs)
         if self.occupancy_field is not None:
-            densities = self.occupancy_field.get_densities(ray_samples.positions)
+            densities = self.occupancy_field.get_densities(ray_samples.frustums.get_positions())
             weights = ray_samples.get_weights(densities)
 
             valid_mask = weights >= self.weight_threshold
@@ -83,18 +83,19 @@ class UniformSampler(Sampler):
         num_samples = num_samples or self.num_samples
         num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)  # shape (num_samples+1,)
+        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)  # shape (num_samples+1)
         bins = ray_bundle.nears[:, None] + bins[None, :] * (
             ray_bundle.fars[:, None] - ray_bundle.nears[:, None]
         )  # shape (num_rays, num_samples+1)
 
         if self.train_stratified and self.training:
-            t_rand = torch.rand((num_rays, num_samples), dtype=bins.dtype, device=bins.device)
-            ts = bins[:, :-1] + t_rand * (bins[:, 1:] - bins[:, :-1])  # shape (num_rays, num_samples)
-        else:
-            ts = (bins[:, 1:] + bins[:, :-1]) / 2
+            t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
+            bin_centers = (bins[..., 1:] + bins[..., :-1]) / 2.0
+            bin_upper = torch.cat([bin_centers, bins[..., -1:]], -1)
+            bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
+            bins = bin_lower + (bin_upper - bin_lower) * t_rand
 
-        ray_samples = ray_bundle.get_ray_samples(ts)
+        ray_samples = ray_bundle.get_ray_samples(bins)
 
         return ray_samples
 
@@ -171,21 +172,23 @@ class PDFSampler(Sampler):
         indicies_g = torch.stack([below, above], -1)
         matched_shape = (indicies_g.shape[0], indicies_g.shape[1], cdf.shape[-1])
         cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
-        bins_g = torch.gather(ray_samples.ts.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
+        # TODO tancik (Fix bin samples)
+        steps = (ray_samples.bins[:, :-1] + ray_samples.bins[:, 1:]) / 2
+        bins_g = torch.gather(steps.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
 
         denom = cdf_g[..., 1] - cdf_g[..., 0]
         denom = torch.where(denom < eps, torch.ones_like(denom), denom)
         t = (u - cdf_g[..., 0]) / denom
-        ts = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
+        bins = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
 
         if self.include_original:
-            ts, _ = torch.sort(torch.cat([ray_samples.ts, ts], -1), -1)
+            bins, _ = torch.sort(torch.cat([ray_samples.bins, bins], -1), -1)
         else:
-            ts, _ = torch.sort(ts, -1)
+            bins, _ = torch.sort(bins, -1)
 
         # Stop gradients
-        ts = ts.detach()
+        bins = bins.detach()
 
-        ray_samples = ray_bundle.get_ray_samples(ts)
+        ray_samples = ray_bundle.get_ray_samples(bins)
 
         return ray_samples
