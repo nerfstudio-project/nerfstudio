@@ -21,3 +21,6 @@ if __name__ == "__main__":
         else:
             print("*" * 100)
             print(f"Skipping {step}")
+
+    # Add checks for building documentation
+    subprocess.call("cd docs/; make html; cd ../", shell=True)
