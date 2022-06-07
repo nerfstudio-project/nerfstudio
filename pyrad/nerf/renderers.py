@@ -7,7 +7,7 @@ Example:
 
     field_outputs = field(ray_sampler.to_point_samples())
     weights = ray_sampler.get_weights(field_outputs[FieldHeadNames.DENSITY])
-    
+
     rgb_renderer = RGBRenderer()
     rgb = rgb_renderer(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
 
