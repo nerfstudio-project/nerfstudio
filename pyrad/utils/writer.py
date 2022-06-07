@@ -11,6 +11,7 @@ from typing import Dict
 import imageio
 import numpy as np
 import torch
+import wandb
 from omegaconf import DictConfig, ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
@@ -190,6 +191,34 @@ class Writer:
 
 
 @decorate_all([check_main_thread])
+class WandbWriter(Writer):
+    """WandDB Writer Class"""
+
+    def __init__(self, save_dir: str):
+        super().__init__(save_dir)
+        wandb.init(dir=save_dir)
+
+    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+        """_summary_
+
+        Args:
+            name (str): data identifier
+            image (TensorType["H", "W", "C"]): rendered image to write
+        """
+        image = torch.permute(image, (2, 0, 1))
+        wandb.log({name: wandb.Image(image)}, step=step)
+
+    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+        """Wandb method to write a single scalar value to the logger
+
+        Args:
+            name (str): data identifier
+            scalar (float): scalar value to write
+        """
+        wandb.log({name: scalar}, step=step)
+
+
+@decorate_all([check_main_thread])
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
@@ -212,8 +241,7 @@ class TensorboardWriter(Writer):
 
         Args:
             name (str): data identifier
-            x (float): x value to write
-            y (float): y value to write
+            scalar (float): scalar value to write
         """
         self.tb_writer.add_scalar(name, scalar, step)
 
