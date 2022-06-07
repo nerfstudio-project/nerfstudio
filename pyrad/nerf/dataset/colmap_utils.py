@@ -72,11 +72,13 @@ CAMERA_MODEL_NAMES = dict([(camera_model.model_name, camera_model) for camera_mo
 
 def read_next_bytes(fid, num_bytes, format_char_sequence, endian_character="<"):
     """Read and unpack the next bytes from a binary file.
-    :param fid:
-    :param num_bytes: Sum of combination of {2, 4, 8}, e.g. 2, 6, 16, 30, etc.
-    :param format_char_sequence: List of {c, e, f, d, h, H, i, I, l, L, q, Q}.
-    :param endian_character: Any of {@, =, <, >, !}
-    :return: Tuple of read and unpacked values.
+
+    Args:
+        fid:
+        num_bytes: Sum of combination of {2, 4, 8}, e.g. 2, 6, 16, 30, etc.
+        format_char_sequence: List of {c, e, f, d, h, H, i, I, l, L, q, Q}.
+        endian_character: Any of {@, =, <, >, !}
+        Tuple of read and unpacked values.
     """
     data = fid.read(num_bytes)
     return struct.unpack(endian_character + format_char_sequence, data)
@@ -84,12 +86,14 @@ def read_next_bytes(fid, num_bytes, format_char_sequence, endian_character="<"):
 
 def write_next_bytes(fid, data, format_char_sequence, endian_character="<"):
     """pack and write to a binary file.
-    :param fid:
-    :param data: data to send, if multiple elements are sent at the same time,
-    they should be encapsuled either in a list or a tuple
-    :param format_char_sequence: List of {c, e, f, d, h, H, i, I, l, L, q, Q}.
-    should be the same length as the data list or tuple
-    :param endian_character: Any of {@, =, <, >, !}
+
+    Args:
+        fid:
+        data: data to send, if multiple elements are sent at the same time,
+            they should be encapsuled either in a list or a tuple
+        format_char_sequence: List of {c, e, f, d, h, H, i, I, l, L, q, Q}.
+            should be the same length as the data list or tuple
+        endian_character: Any of {@, =, <, >, !}
     """
     if isinstance(data, (list, tuple)):
         bytes = struct.pack(endian_character + format_char_sequence, *data)
