@@ -7,7 +7,7 @@
         <img alt="Documentation Status" src="https://readthedocs.com/projects/plenoptix-pyrad/badge/?version=latest">
     </a>
     <!-- TODO: add license and have it point to that -->
-    <a href="https://opensource.org/licenses/Apache-2.0">
+    <a href="https://github.com/plenoptix/pyrad/blob/master/LICENSE">
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
     </a> 
     <!-- TODO: add version number badge -->
