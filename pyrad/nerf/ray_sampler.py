@@ -3,7 +3,7 @@ Collection of sampling strategies
 """
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 from torch import nn
@@ -110,6 +110,7 @@ class PDFSampler(Sampler):
         include_original: bool = True,
         occupancy_field: OccupancyGrid = None,
         weight_threshold: float = 1e-4,
+        histogram_padding: float = 0.01,
     ) -> None:
         """
         Args:
@@ -119,10 +120,12 @@ class PDFSampler(Sampler):
             occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
                 samples below weight_threshold as set as invalid.
             weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
+            histogram_padding (float): Amount to weights prior to computing PDF. Defaults to 0.01.
         """
         super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
         self.train_stratified = train_stratified
         self.include_original = include_original
+        self.histogram_padding = histogram_padding
 
     @torch.no_grad()
     def generate_ray_samples(
@@ -146,7 +149,9 @@ class PDFSampler(Sampler):
             RaySamples: Positions and deltas for samples along a ray
         """
         num_samples = num_samples or self.num_samples
-        weights = weights[..., :-1]
+        num_bins = num_samples + 1
+
+        weights = weights + self.histogram_padding
 
         # Add small offset to rays with zero weight to prevent NaNs
         weights_sum = torch.sum(weights, dim=-1, keepdim=True)
@@ -159,32 +164,52 @@ class PDFSampler(Sampler):
         cdf = torch.cat([torch.zeros_like(cdf[..., :1]), cdf], dim=-1)
 
         if self.train_stratified and self.training:
-            u = torch.rand(size=(*cdf.shape[:-1], num_samples), device=cdf.device)
+            # Stratified samples between 0 and 1
+            u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
+            u = u.expand(size=(*cdf.shape[:-1], num_bins))
+            u = u + torch.rand(size=(*cdf.shape[:-1], num_bins), device=cdf.device) / num_bins
         else:
-            u = torch.linspace(0.0, 1.0, steps=num_samples, device=cdf.device)
-            u = u.expand(size=(*cdf.shape[:-1], num_samples))
+            # Uniform samples between 0 and 1
+            u = torch.linspace(0.0, 1.0, steps=num_bins, device=cdf.device)
+            u = u.expand(size=(*cdf.shape[:-1], num_bins))
 
-        u = u.contiguous()
-        indicies = torch.searchsorted(cdf, u, right=True)
-        below = torch.max(torch.zeros_like(indicies), indicies - 1)
-        above = torch.min(cdf.shape[-1] - torch.ones_like(indicies), indicies)
+        mask = u[..., None, :] >= cdf[..., :, None]  # [num_samples, num_orig_bins, num_bins]
 
-        indicies_g = torch.stack([below, above], -1)
-        matched_shape = (indicies_g.shape[0], indicies_g.shape[1], cdf.shape[-1])
-        cdf_g = torch.gather(cdf.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
-        # TODO tancik (Fix bin samples)
-        steps = (ray_samples.bins[:, :-1] + ray_samples.bins[:, 1:]) / 2
-        bins_g = torch.gather(steps.unsqueeze(1).expand(matched_shape), dim=2, index=indicies_g)
+        # Uses same interval trick as mip-NeRF
+        def find_interval(
+            mask: TensorType[..., "num_orig_bins", "num_bins"], x: TensorType[..., "num_orig_bins"]
+        ) -> Tuple[TensorType[..., "num_bins"], TensorType[..., "num_bins"]]:
+            """Find intervals based on cdf mask.
 
-        denom = cdf_g[..., 1] - cdf_g[..., 0]
-        denom = torch.where(denom < eps, torch.ones_like(denom), denom)
-        t = (u - cdf_g[..., 0]) / denom
-        bins = bins_g[..., 0] + t * (bins_g[..., 1] - bins_g[..., 0])
+                 Mask                x              x_start         x_end
+               T T T T F      [x0 x1 x2 x3 x4]   [x0 x2 x3 x3]   [x1 x3 x4 x4]
+               T T T T F
+               T T T F F
+               T F F F F
+
+               Where the number of rows correspond to the target number of bins. The number of columns
+               correspond to the input number of bins
+
+            Args:
+                mask (TensorType[..., "num_orig_bins", "num_bins"]): PDF represented as a boolean mask.
+                x (TensorType[..., "num_original_bins"]): Probe to calculate intervals for.
+
+            Returns:
+                Tuple[TensorType[..., "num_bins"], TensorType[..., "num_bins"]]: (x_start, x_end)
+            """
+
+            x_start = torch.max(torch.where(mask, x[..., None], x[..., :1, None]), -2)[0]
+            x_end = torch.min(torch.where(~mask, x[..., None], x[..., -1:, None]), -2)[0]
+            return x_start, x_end
+
+        bins_g0, bins_g1 = find_interval(mask, ray_samples.bins)
+        cdf_g0, cdf_g1 = find_interval(mask, cdf)
+
+        t = torch.clip(torch.nan_to_num((u - cdf_g0) / (cdf_g1 - cdf_g0), 0), 0, 1)
+        bins = bins_g0 + t * (bins_g1 - bins_g0)
 
         if self.include_original:
             bins, _ = torch.sort(torch.cat([ray_samples.bins, bins], -1), -1)
-        else:
-            bins, _ = torch.sort(bins, -1)
 
         # Stop gradients
         bins = bins.detach()
