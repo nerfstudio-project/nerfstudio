@@ -1,0 +1,97 @@
+defaults:
+  - override hydra/job_logging: colorlog
+  - override hydra/hydra_logging: colorlog
+  - _self_
+
+machine_config:
+  seed: 42
+  num_gpus: 1
+  num_machines: 1
+  machine_rank: 0
+  dist_url: auto
+
+logging:
+  steps_per_log: 10
+  max_buffer_size: 20
+  # writer logs losses and images per iteration
+  writer:
+    TensorboardWriter:
+      save_dir: "./"
+    LocalWriter:
+      save_dir: "./"
+      stats_to_track:
+        [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
+      max_log_size: 10 # if 0, logs everything with no erasing
+  # profiler logs run times of functions and prints at end of training
+  enable_profiler: True
+
+experiment_name: blender_lego
+method_name: vanilla_nerf
+
+# hydra settings
+hydra:
+  run:
+    dir: outputs/${experiment_name}/${method_name}/${now:%Y-%m-%d_%H%M%S}
+
+data:
+  # Train dataloading.
+  dataset_inputs_train:
+    data_directory: data/blender/lego
+    dataset_format: blender
+    downscale_factor: 1
+    alpha_color: white
+  image_dataset_train:
+    _target_: pyrad.data.image_dataset.ImageDataset
+  dataloader_train:
+    _target_: pyrad.data.dataloader.TrainDataloader
+    image_sampler:
+      _target_: pyrad.data.image_sampler.CacheImageSampler
+      num_images_to_sample_from: 8
+      num_times_to_repeat_images: 100
+    pixel_sampler:
+      _target_: pyrad.data.pixel_sampler.PixelSampler
+      num_rays_per_batch: 1024
+  # Eval dataloading.
+  dataset_inputs_eval:
+    data_directory: data/blender/lego
+    dataset_format: blender
+    downscale_factor: 1 # NOTE: this might be the only value that changes
+    alpha_color: white
+  image_dataset_eval:
+    _target_: pyrad.data.image_dataset.ImageDataset
+  dataloader_eval:
+    _target_: pyrad.data.dataloader.FixedIndicesEvalDataloader
+    image_indices: [0] # which images to evaluate on
+    num_rays_per_chunk: 4096
+  # dataloader_eval:
+  #   _target_: pyrad.data.dataloader.RandIndicesEvalDataloader
+  #   num_rays_per_chunk: 4096
+
+graph:
+  model_dir: /tmp/pyrad_models/
+  steps_per_save: 100
+  steps_per_test: 1000
+  max_num_iterations: 1000000
+  resume_train:
+    load_dir: # pretrained model directory
+    load_step: # pretrained model's step number
+  network:
+    _target_: pyrad.graphs.vanilla_nerf.NeRFGraph
+    collider_config:
+      _target_: pyrad.graphs.modules.scene_colliders.NearFarCollider
+      near_plane: 2.0
+      far_plane: 6.0
+    num_coarse_samples: 64
+    num_importance_samples: 128
+    loss_coefficients:
+      rgb_loss_coarse: 1.0
+      rgb_loss_fine: 1.0
+  param_groups:
+    fields:
+      optimizer:
+        _target_: torch.optim.RAdam
+        lr: 0.0005
+      scheduler:
+        _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
+        lr_final: 0.000005
+        max_steps: 1000000

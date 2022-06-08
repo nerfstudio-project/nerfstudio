@@ -19,7 +19,7 @@ import torch.multiprocessing as mp
 from omegaconf import DictConfig
 import yaml
 
-from pyrad.nerf.trainer import Trainer
+from pyrad.engine.trainer import Trainer
 from pyrad.utils import comms, profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
@@ -102,7 +102,7 @@ def _distributed_worker(
 
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
-    _set_random_seed(config.seed + global_rank)
+    _set_random_seed(config.machine_config.seed + global_rank)
     comms.synchronize(world_size)
 
     output = main_func(local_rank, world_size, config)
@@ -151,11 +151,11 @@ def launch(
     world_size = num_machines * num_gpus_per_machine
     if world_size == 0:
         # Using only CPU and one process.
-        _set_random_seed(config.seed)
+        _set_random_seed(config.machine_config.seed)
         main_func(local_rank=0, world_size=0, config=config)
     elif world_size == 1:
         # Using one gpu and one process.
-        _set_random_seed(config.seed)
+        _set_random_seed(config.machine_config.seed)
         try:
             main_func(local_rank=0, world_size=1, config=config)
         except KeyboardInterrupt:

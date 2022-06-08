@@ -2,8 +2,8 @@
 Callback functions for training iterations
 """
 
-from pyrad.nerf.graph.base import Graph
-from pyrad.nerf.occupancy_grid import OccupancyGrid
+from pyrad.graphs.base import Graph
+from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
 
 
 def update_occupancy(graph: Graph):

@@ -1,24 +1,29 @@
 defaults:
-  - vanilla_nerf
-
-dry_run: true
+  - graph_default
 
 machine_config:
   num_gpus: 0
 
 data:
-  dataset:
-    dataset_format: blender
+  dataset_inputs_train:
     data_directory: tests/data/lego_test
-    downscale_factor: 8
-  val_image_indices: [0]
-  image_sampler:
-    num_images_to_sample_from: 1
-  pixel_sampler:
-    num_rays_per_batch: 4
+    dataset_format: blender
+    downscale_factor: 16
+  dataloader_train:
+    image_sampler:
+      num_images_to_sample_from: 1
+    pixel_sampler:
+      num_rays_per_batch: 4
+  dataset_inputs_eval:
+    data_directory: tests/data/lego_test
+    dataset_format: blender
+    downscale_factor: 16
 
 graph:
-  max_num_iterations: 5
+  max_num_iterations: 2
+  network:
+    num_coarse_samples: 4
+    num_importance_samples: 4
 
 logging:
   writer:
