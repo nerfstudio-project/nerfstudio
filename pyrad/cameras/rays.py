@@ -7,6 +7,7 @@ from typing import Optional
 
 import torch
 from torchtyping import TensorType
+from pyrad.utils.math import Gaussians, conical_frustum_to_gaussian
 
 from pyrad.utils.misc import is_not_none
 
@@ -30,8 +31,28 @@ class Frustums:
     pixel_area: TensorType[..., 1]
 
     def get_positions(self) -> TensorType[..., 3]:
-        """Returns "center" position of frustum. Not weighted by mass."""
+        """Calulates "center" position of frustum. Not weighted by mass.
+
+        Returns:
+            TensorType[..., 3]: xyz positions.
+        """
         return self.origins + self.directions * (self.frustum_starts + self.frustum_ends) / 2
+
+    def get_gaussian_blob(self) -> Gaussians:
+        """Calculates of guassian approximation of conical frustum.
+
+        Resturns:
+            Gaussians: Conical frustums approximated by gaussian distribution.
+        """
+        # Cone radius is set such that the square pixel_area matches the cone area.
+        cone_radius = torch.sqrt(self.pixel_area) / 1.7724538509055159  # r = sqrt(pixel_area / pi)
+        return conical_frustum_to_gaussian(
+            origins=self.origins,
+            directions=self.directions,
+            starts=self.frustum_starts,
+            ends=self.frustum_ends,
+            radius=cone_radius,
+        )
 
     @classmethod
     def get_mock_frustum(cls) -> "Frustums":
@@ -40,13 +61,12 @@ class Frustums:
         Returns:
             Frustums: A size 1 frustum with meaningless values.
         """
-        device = cls.origins.device
         return Frustums(
-            origins=torch.ones((1, 3), device=device),
-            directions=torch.ones((1, 3), device=device),
-            frustum_starts=torch.ones((1, 1), device=device),
-            frustum_ends=torch.ones((1, 1), device=device) + 1,
-            pixel_area=torch.ones((1, 1), device=device),
+            origins=torch.ones((1, 3)),
+            directions=torch.ones((1, 3)),
+            frustum_starts=torch.ones((1, 1)),
+            frustum_ends=torch.ones((1, 1)),
+            pixel_area=torch.ones((1, 1)),
         )
 
     def apply_masks(self, mask: TensorType) -> "Frustums":
