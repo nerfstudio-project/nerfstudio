@@ -5,17 +5,18 @@ Generic Writer class
 
 import enum
 import os
+import sys
 from abc import abstractmethod
 from typing import Dict
 
 import imageio
 import numpy as np
 import torch
+import wandb
 from omegaconf import DictConfig, ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-import pyrad.utils.writer
 from pyrad.utils.decorators import check_main_thread, decorate_all
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
@@ -135,7 +136,7 @@ def setup_event_writers(config: DictConfig) -> None:
     """Initialization of all event writers specified in config"""
     logging_configs = config.logging.writer
     for writer_type in logging_configs:
-        writer_class = getattr(pyrad.utils.writer, writer_type)
+        writer_class = getattr(sys.modules[__name__], writer_type)
         writer_config = logging_configs[writer_type]
         if writer_type == "LocalWriter":
             curr_writer = writer_class(writer_config.save_dir, writer_config.stats_to_track, writer_config.max_log_size)
@@ -190,6 +191,34 @@ class Writer:
 
 
 @decorate_all([check_main_thread])
+class WandbWriter(Writer):
+    """WandDB Writer Class"""
+
+    def __init__(self, save_dir: str):
+        super().__init__(save_dir)
+        wandb.init(dir=save_dir)
+
+    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+        """_summary_
+
+        Args:
+            name (str): data identifier
+            image (TensorType["H", "W", "C"]): rendered image to write
+        """
+        image = torch.permute(image, (2, 0, 1))
+        wandb.log({name: wandb.Image(image)}, step=step)
+
+    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+        """Wandb method to write a single scalar value to the logger
+
+        Args:
+            name (str): data identifier
+            scalar (float): scalar value to write
+        """
+        wandb.log({name: scalar}, step=step)
+
+
+@decorate_all([check_main_thread])
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
@@ -212,8 +241,7 @@ class TensorboardWriter(Writer):
 
         Args:
             name (str): data identifier
-            x (float): x value to write
-            y (float): y value to write
+            scalar (float): scalar value to write
         """
         self.tb_writer.add_scalar(name, scalar, step)
 

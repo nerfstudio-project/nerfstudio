@@ -8,7 +8,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
     """
     Args:
         levels (int): Number of spherical harmonic levels to compute.
-        coeffs (TensorType[..., &quot;coeffs&quot;]): Spherical hamonic coefficients
+        directions (TensorType[..., 3]): Spherical hamonic coefficients
 
     Returns:
         TensorType[..., "components"]: Value for each component.

@@ -7,7 +7,7 @@
         <img alt="Documentation Status" src="https://readthedocs.com/projects/plenoptix-pyrad/badge/?version=latest">
     </a>
     <!-- TODO: add license and have it point to that -->
-    <a href="https://opensource.org/licenses/Apache-2.0">
+    <a href="https://github.com/plenoptix/pyrad/blob/master/LICENSE">
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
     </a> 
     <!-- TODO: add version number badge -->
@@ -23,6 +23,7 @@
 #### 1. Installation: Setup the environment
 
 This repository is tested with cuda 11.3
+
 ```
 # Clone the repo
 git clone --recurse-submodules git@github.com:ethanweber/pyrad.git
@@ -95,10 +96,12 @@ TODO(ethan)
 #### 6. In-depth guide
 For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
 
-
 # Feature List
+
 #### :metal: [Hydra config structure](#)
+
 #### :metal: [Logging, debugging utilities](#)
+
 #### :metal: [Benchmarking, other tooling](#)
 
 #### :metal: Running other repos with our data
@@ -115,6 +118,7 @@ python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir
 ```
 
 #### :metal: Speeding up the code
+
 Documentation for running the code with CUDA.
 Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
 
@@ -128,7 +132,6 @@ To run instant-ngp with tcnn, you can do the following. This is with the fox dat
 python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
 ```
 
-
 #### :metal: Setting up Jupyter
 
 ```
@@ -137,6 +140,7 @@ bash environments/run_jupyter.sh
 ```
 
 # Benchmarked Model Architectures
+
 | Method                                                                            | PSNR                     |
 | --------------------------------------------------------------------------------- | ------------------------ |
 | [NeRF](https://arxiv.org/abs/2003.08934)                                          | :hourglass_flowing_sand: |
