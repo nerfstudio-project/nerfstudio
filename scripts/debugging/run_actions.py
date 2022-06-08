@@ -24,3 +24,6 @@ if __name__ == "__main__":
 
     # Add checks for building documentation
     subprocess.call("cd docs/; make html; cd ../", shell=True)
+
+    # Add licensing to all pyrad files
+    subprocess.call("./scripts/licensing/license_headers.sh", shell=True)
