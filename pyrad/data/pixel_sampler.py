@@ -48,7 +48,7 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
         collated_batch["semantics"] = semantics
 
     if keep_full_image:
-        collated_batch["image"] = batch["image"]
+        collated_batch["full_image"] = batch["image"]
 
     return collated_batch
 

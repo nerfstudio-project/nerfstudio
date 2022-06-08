@@ -15,7 +15,11 @@ from pyrad.utils.io import load_from_json
 
 
 def load_blender_data(
-    basedir: str, downscale_factor: int = 1, alpha_color: Optional[TensorType[3]] = None, split: str = "train"
+    basedir: str,
+    downscale_factor: int = 1,
+    alpha_color: Optional[TensorType[3]] = None,
+    split: str = "train",
+    scale_factor: float = 0.33,
 ) -> DatasetInputs:
     """Processes the a blender dataset directory.
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
@@ -25,6 +29,7 @@ def load_blender_data(
         downscale_factor (int, optional): How much to downscale images. Defaults to 1.0.
         alpha_color (TensorType[3], optional): Sets transparent regions to specified color, otherwise black.
         split (str, optional): Which dataset split to generate.
+        scale_factor (float): How much to scale the camera origins by.
 
     Returns:
         DatasetInputs
@@ -54,7 +59,8 @@ def load_blender_data(
     intrinsics *= torch.tensor([cx, cy, focal_length])
 
     # in x,y,z order
-    scene_bounds = SceneBounds(aabb=torch.tensor([[-2, -2, -2], [2, 2, 2]], dtype=torch.float32))
+    camera_to_world[..., 3] *= scale_factor
+    scene_bounds = SceneBounds(aabb=torch.tensor([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]], dtype=torch.float32))
 
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,

@@ -3,7 +3,7 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Tuple
+from typing import Dict, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -29,6 +29,10 @@ def get_normalized_positions(positions, aabb):
     positions = (positions - aabb[0]) / aabb_lengths
     return positions
 
+def get_normalized_directions(directions):
+    """SH encoding must be in the range [0, 1]"""
+    return (directions + 1.0) / 2.0
+
 
 class TCNNInstantNGPField(Field):
     """NeRF Field"""
@@ -38,7 +42,6 @@ class TCNNInstantNGPField(Field):
     ) -> None:
         super().__init__()
 
-        # TODO: make this a parameter that is put to the correct device
         self.aabb = Parameter(aabb, requires_grad=False)
 
         self.geo_feat_dim = geo_feat_dim
@@ -92,8 +95,6 @@ class TCNNInstantNGPField(Field):
 
     def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
-        # TODO: add valid_mask masking!
-        # remap positions to range 0 to 1 based on the aabb
         positions = get_normalized_positions(point_samples.positions, self.aabb)
         positions_flat = positions.view(-1, 3)
         dtype = positions_flat.dtype
@@ -105,8 +106,8 @@ class TCNNInstantNGPField(Field):
 
     def get_outputs(self, point_samples: PointSamples, density_embedding=None):
         # TODO: add valid_mask masking!
-        assert is_not_none(density_embedding)
-        directions = point_samples.directions
+        directions = get_normalized_directions(point_samples.directions)
+        # directions = point_samples.directions
         directions_flat = directions.view(-1, 3)
         dtype = directions_flat.dtype
         d = self.direction_encoding(directions_flat)
