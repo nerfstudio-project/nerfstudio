@@ -7,7 +7,7 @@ Script to process different dataset types into our format.
 from hydra import compose, initialize
 import json
 
-from pyrad.nerf.dataset.utils import get_dataset_inputs
+from pyrad.data.utils import get_dataset_inputs
 from pyrad.utils.io import get_absolute_path, make_dir, write_to_pkl
 from pyrad.utils.misc import get_hash_str_from_dict
 

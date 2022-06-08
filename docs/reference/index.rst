@@ -9,11 +9,11 @@ TODO: Explanation of each component
     :hidden:
 
     dataset
-    samplers
-    field_modules/index
-    renderers
     fields
+    fields/modules/index
     graphs
+    graphs/modules/index
+    renderers/index
 
 Hydra config structure
 ========================
