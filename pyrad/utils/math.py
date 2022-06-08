@@ -116,7 +116,7 @@ def compute_3d_gaussian(
     """
 
     dir_outer_product = directions[..., :, None] * directions[..., None, :]
-    eye = torch.eye(directions.shape[-1])
+    eye = torch.eye(directions.shape[-1], device=directions.device)
     dir_mag_sq = torch.clamp(torch.sum(directions**2, axis=-1, keepdim=True), min=1e-10)
     null_outer_product = eye - directions[..., :, None] * (directions / dir_mag_sq)[..., None, :]
     dir_cov_diag = dir_variance[..., None] * dir_outer_product[..., :, :]
@@ -177,3 +177,17 @@ def conical_frustum_to_gaussian(
     dir_variance = (hw**2) / 3 - (4 / 15) * ((hw**4 * (12 * mu**2 - hw**2)) / (3 * mu**2 + hw**2) ** 2)
     radius_variance = radius**2 * ((mu**2) / 4 + (5 / 12) * hw**2 - 4 / 15 * (hw**4) / (3 * mu**2 + hw**2))
     return compute_3d_gaussian(directions, means, dir_variance, radius_variance)
+
+
+def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
+    """Computes the expected value of sin(y) where y ~ N(x_means, x_vars)
+
+    Args:
+        x_means (torch.Tensor): Mean values.
+        x_vars (torch.Tensor): Variance of values.
+
+    Returns:
+        torch.Tensor: The expected value of sin.
+    """
+
+    return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
