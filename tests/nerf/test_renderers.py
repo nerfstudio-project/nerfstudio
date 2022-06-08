@@ -62,12 +62,12 @@ def test_depth_renderer():
     weights = torch.ones((3, num_samples))
     weights /= torch.sum(weights, axis=-1, keepdim=True)
 
-    ts = torch.linspace(0, 100, num_samples)
-    ts = torch.stack([ts, ts, ts], dim=0)
+    bins = torch.linspace(0, 100, num_samples + 1)
+    bins = torch.stack([bins, bins, bins], dim=0)
 
     depth_renderer = renderers.DepthRenderer()
 
-    depth = depth_renderer(weights=weights, ts=ts)
+    depth = depth_renderer(weights=weights, bins=bins)
     assert torch.min(depth) > 0
 
 

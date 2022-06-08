@@ -18,3 +18,4 @@ torchmetrics[image]==0.8.2
 torchtyping
 torchvision==0.12.0
 tqdm
+wandb

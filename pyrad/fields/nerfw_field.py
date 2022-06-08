@@ -81,7 +81,7 @@ class VanillaNerfWField(Field):
 
     def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
-        encoded_xyz = self.position_encoding(point_samples.positions)
+        encoded_xyz = self.position_encoding(point_samples.frustums.positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_head_density(base_mlp_out)
         return density, base_mlp_out
