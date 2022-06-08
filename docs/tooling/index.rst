@@ -1,12 +1,12 @@
-.. _reference:
+.. _tooling:
 
-TODO: Explanation of each component
 
-Hydra config structure
-========================
+.. toctree::
 
-Logging and debugging utilities
-===================================
-
-Benchmarking
-===================================
+    hydra.md
+    logging.md
+    profiling.md
+    benchmarking.md
+    other_codebase.md
+    speedup.md
+    jupyter.md

@@ -97,50 +97,29 @@ TODO(ethan)
 
 
 #### 6. In-depth guide
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](#).
 
-# Feature List
 
-#### :metal: [Hydra config structure](#)
+# Supported Features
 
-#### :metal: [Logging, debugging utilities](#)
+We provide the following support strucutures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-#### :metal: [Benchmarking, other tooling](#)
+If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!
 
-#### :metal: Running other repos with our data
+#### :metal: Support for [Hydra](https://hydra.cc/) config structure
 
-```
-# nerf-pytorch
-cd external
-python run_nerf.py --config configs/chair.txt --datadir /path/to/pyrad/data/blender/chair
+#### :metal: Support for multiple logging interfaces
 
-# jaxnerf
-cd external
-conda activate jaxnerf
-python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir=/path/to/pyrad/outputs/blender_chair_jaxnerf --config=/path/to/pyrad/external/jaxnerf/configs/demo --render_every 100
-```
+#### :metal: Built-in support for profiling code
 
-#### :metal: Speeding up the code
+#### :metal: Benchmarking scripts
 
-Documentation for running the code with CUDA.
-Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
+#### :metal: Easily run other repos with our data
 
-```
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-```
+#### :metal: Speed up your code with Tiny Cuda
 
-To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
+#### :metal: Support for Jupyter
 
-```
-python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
-```
-
-#### :metal: Setting up Jupyter
-
-```
-python -m jupyter lab build
-bash environments/run_jupyter.sh
-```
 
 # Benchmarked Model Architectures
 

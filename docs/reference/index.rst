@@ -15,11 +15,3 @@ TODO: Explanation of each component
     graphs/modules/index
     renderers/index
 
-Running other repos with our data
-===================================
-
-Speeding up the code
-===================================
-
-Setting up Jupyter
-========================
