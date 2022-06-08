@@ -3,7 +3,6 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-from operator import is_not
 from typing import Dict, List, Union
 
 import torch
@@ -12,10 +11,10 @@ from torch import nn
 from torch.nn import Parameter
 from torchtyping import TensorType
 
+from pyrad.cameras.cameras import Camera
+from pyrad.cameras.rays import RayBundle
 from pyrad.data.structs import SceneBounds
 from pyrad.graphs.modules.ray_generator import RayGenerator
-from pyrad.cameras.cameras import Camera, get_camera_model
-from pyrad.cameras.rays import RayBundle
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
 
 
@@ -32,12 +31,7 @@ class AbstractGraph(nn.Module):
         return self.device_indicator_param.device
 
     @abstractmethod
-    def forward(
-        self,
-        ray_indices: TensorType["num_rays", 3],
-        batch: Union[str, Dict[str, torch.tensor]] = None,
-        step: int = None,
-    ):
+    def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
 
 
@@ -90,6 +84,7 @@ class Graph(AbstractGraph):
         """Takes in a Ray Bundle and returns a dictionary of outputs."""
 
     def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
+        """Run forward starting with a ray bundle."""
         intersected_ray_bundle = self.collider(ray_bundle)
 
         if isinstance(batch, type(None)):
@@ -107,6 +102,7 @@ class Graph(AbstractGraph):
         return outputs, aggregated_loss_dict
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
+        """Run the forward starting with ray indices."""
         ray_bundle = self.ray_generator.forward(ray_indices)
         return self.forward_after_ray_generator(ray_bundle, batch=batch)
 

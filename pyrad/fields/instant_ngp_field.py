@@ -3,7 +3,7 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Dict, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn.functional as F
@@ -14,7 +14,6 @@ from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.base import Field
 from pyrad.fields.nerf_field import NeRFField
 from pyrad.cameras.rays import PointSamples
-from pyrad.utils.misc import is_not_none
 
 try:
     import tinycudann as tcnn
@@ -28,6 +27,7 @@ def get_normalized_positions(positions, aabb):
     aabb_lengths = aabb[1] - aabb[0]
     positions = (positions - aabb[0]) / aabb_lengths
     return positions
+
 
 def get_normalized_directions(directions):
     """SH encoding must be in the range [0, 1]"""
@@ -95,11 +95,11 @@ class TCNNInstantNGPField(Field):
 
     def get_density(self, point_samples: PointSamples):
         """Computes and returns the densities."""
-        positions = get_normalized_positions(point_samples.positions, self.aabb)
+        positions = get_normalized_positions(point_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         dtype = positions_flat.dtype
         x = self.position_encoding(positions_flat)
-        h = self.mlp_base(x).view(*point_samples.positions.shape[:-1], -1).to(dtype)
+        h = self.mlp_base(x).view(*point_samples.frustums.get_positions().shape[:-1], -1).to(dtype)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         density = F.softplus(density_before_activation)
         return density, base_mlp_out
@@ -146,7 +146,9 @@ class TorchInstantNGPField(NeRFField):
 
     def get_density(self, point_samples: PointSamples):
         normalized_point_samples = point_samples
-        normalized_point_samples.positions = get_normalized_positions(normalized_point_samples.positions, self.aabb)
+        normalized_point_samples.positions = get_normalized_positions(
+            normalized_point_samples.frustums.get_positions(), self.aabb
+        )
         return super().get_density(normalized_point_samples)
 
 

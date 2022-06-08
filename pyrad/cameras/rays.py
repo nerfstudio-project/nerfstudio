@@ -40,12 +40,13 @@ class Frustums:
         Returns:
             Frustums: A size 1 frustum with meaningless values.
         """
+        device = cls.origins.device
         return Frustums(
-            origins=torch.ones((1, 3)),
-            directions=torch.ones((1, 3)),
-            frustum_starts=torch.ones((1, 1)),
-            frustum_ends=torch.ones((1, 1)) + 1,
-            pixel_area=torch.ones((1, 1)),
+            origins=torch.ones((1, 3), device=device),
+            directions=torch.ones((1, 3), device=device),
+            frustum_starts=torch.ones((1, 1), device=device),
+            frustum_ends=torch.ones((1, 1), device=device) + 1,
+            pixel_area=torch.ones((1, 1), device=device),
         )
 
     def apply_masks(self, mask: TensorType) -> "Frustums":
@@ -278,9 +279,10 @@ class RayBundle:
         Returns:
             RaySamples: Samples projected along ray.
         """
+        device = self.origins.device
         num_samples = bins.shape[-1] - 1
 
-        valid_mask = torch.ones((bins.shape[0], num_samples), dtype=torch.bool, device=bins.device)
+        valid_mask = torch.ones((bins.shape[0], num_samples), dtype=torch.bool, device=device)
 
         dists = bins[:, 1:] - bins[:, :-1]  # [N_rays, N_samples]
         deltas = dists * torch.norm(self.directions[:, None, :], dim=-1)
@@ -293,9 +295,9 @@ class RayBundle:
         frustums = Frustums(
             origins=self.origins.unsqueeze(1).repeat(1, num_samples, 1),
             directions=self.directions.unsqueeze(1).repeat(1, num_samples, 1),
-            frustum_starts=bins[:, :-1, None],
-            frustum_ends=bins[:, 1:, None],
-            pixel_area=self.pixel_area.unsqueeze(1).repeat(1, num_samples, 1),
+            frustum_starts=bins[:, :-1, None].to(device),
+            frustum_ends=bins[:, 1:, None].to(device),
+            pixel_area=self.pixel_area.unsqueeze(1).repeat(1, num_samples, 1).to(device),
         )
 
         ray_samples = RaySamples(

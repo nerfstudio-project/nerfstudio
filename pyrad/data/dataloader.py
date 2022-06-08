@@ -2,20 +2,22 @@
 Data loader.
 """
 
+import random
 from typing import Dict, List, Tuple
 
 from torchtyping import TensorType
+
+from pyrad.cameras.cameras import get_camera
+from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.image_sampler import ImageSampler
 from pyrad.data.pixel_sampler import PixelSampler
-from pyrad.cameras.cameras import get_camera
-from pyrad.cameras.rays import RayBundle
-
-import random
 from pyrad.utils.misc import get_dict_to_torch
 
 
 class TrainDataloader:
+    """Training dataloader base class."""
+
     def __init__(self, image_sampler: ImageSampler, pixel_sampler: PixelSampler):
         self.image_sampler = image_sampler
         self.pixel_sampler = pixel_sampler
@@ -35,6 +37,8 @@ class TrainDataloader:
 
 
 class EvalDataloader:
+    """Evaluation dataloader base class"""
+
     def __init__(
         self, image_dataset: ImageDataset, intrinsics, camera_to_world, num_rays_per_chunk: int, device="cpu", **kwargs
     ):
@@ -46,6 +50,7 @@ class EvalDataloader:
         self.device = device
 
     def get_data_from_image_idx(self, image_idx) -> Tuple[RayBundle, Dict]:
+        """Returns the data for a specific image index."""
         intrinsics = self.intrinsics[image_idx].to(self.device)
         camera_to_world = self.camera_to_world[image_idx].to(self.device)
         camera = get_camera(intrinsics, camera_to_world, camera_index=image_idx)
@@ -57,6 +62,8 @@ class EvalDataloader:
 
 
 class FixedIndicesEvalDataloader(EvalDataloader):
+    """Dataloader that returns a fixed set of indices."""
+
     def __init__(
         self,
         image_dataset: ImageDataset,
@@ -88,6 +95,8 @@ class FixedIndicesEvalDataloader(EvalDataloader):
 
 
 class RandIndicesEvalDataloader(EvalDataloader):
+    """Dataloader that returns random images."""
+
     def __init__(
         self, image_dataset: ImageDataset, intrinsics, camera_to_world, num_rays_per_chunk: int, device="cpu", **kwargs
     ):

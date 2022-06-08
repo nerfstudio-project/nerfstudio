@@ -62,7 +62,7 @@ class SemanticNerfField(Field):
         )
 
     def get_density(self, point_samples: PointSamples):
-        encoded_xyz = self.position_encoding(point_samples.positions)
+        encoded_xyz = self.position_encoding(point_samples.frustums.get_positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_head_density(base_mlp_out)
         return density, base_mlp_out

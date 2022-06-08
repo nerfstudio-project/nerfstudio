@@ -1,21 +1,20 @@
 """
 Code to train model.
 """
-import copy
 import logging
 import os
 from time import time
 from typing import Callable, Dict, List
-from pyrad.data.dataloader import EvalDataloader, TrainDataloader
 
 import torch
 import torch.distributed as dist
 from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from pyrad.cameras.rays import RayBundle
+from pyrad.data.dataloader import EvalDataloader, TrainDataloader
 from pyrad.data.utils import DatasetInputs, get_dataset_inputs_from_dataset_config
 from pyrad.optimizers.optimizers import Optimizers
-from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler, writer
 from pyrad.utils.callbacks import update_occupancy
 from pyrad.utils.decorators import check_main_thread
