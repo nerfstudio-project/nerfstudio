@@ -31,9 +31,9 @@ def test_tcnn_instant_ngp_field():
     frustums = Frustums(
         origins=positions,
         directions=directions,
-        frustum_starts=torch.zeros((*directions.shape[:-1], 1)),
-        frustum_ends=torch.zeros((*directions.shape[:-1], 1)),
-        pixel_area=torch.ones((*directions.shape[:-1], 1)),
+        frustum_starts=torch.zeros((*directions.shape[:-1], 1), device=device),
+        frustum_ends=torch.zeros((*directions.shape[:-1], 1), device=device),
+        pixel_area=torch.ones((*directions.shape[:-1], 1), device=device),
     )
     point_samples = PointSamples(frustums=frustums)
     field_outputs = field.forward(point_samples)

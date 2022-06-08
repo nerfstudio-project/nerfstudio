@@ -5,6 +5,7 @@ Generic Writer class
 
 import enum
 import os
+import sys
 from abc import abstractmethod
 from typing import Dict
 
@@ -16,7 +17,6 @@ from omegaconf import DictConfig, ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-import pyrad.utils.writer
 from pyrad.utils.decorators import check_main_thread, decorate_all
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
@@ -136,7 +136,7 @@ def setup_event_writers(config: DictConfig) -> None:
     """Initialization of all event writers specified in config"""
     logging_configs = config.logging.writer
     for writer_type in logging_configs:
-        writer_class = getattr(pyrad.utils.writer, writer_type)
+        writer_class = getattr(sys.modules[__name__], writer_type)
         writer_config = logging_configs[writer_type]
         if writer_type == "LocalWriter":
             curr_writer = writer_class(writer_config.save_dir, writer_config.stats_to_track, writer_config.max_log_size)

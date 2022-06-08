@@ -106,13 +106,13 @@ class TCNNInstantNGPField(Field):
 
     def get_outputs(self, point_samples: PointSamples, density_embedding=None):
         # TODO: add valid_mask masking!
-        directions = get_normalized_directions(point_samples.directions)
-        # directions = point_samples.directions
+        # tcnn requires directions in the range [0,1]
+        directions = get_normalized_directions(point_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         dtype = directions_flat.dtype
         d = self.direction_encoding(directions_flat)
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        h = self.mlp_head(h).view(*point_samples.directions.shape[:-1], -1).to(dtype)
+        h = self.mlp_head(h).view(*point_samples.frustums.directions.shape[:-1], -1).to(dtype)
         rgb = torch.sigmoid(h)
         return {FieldHeadNames.RGB: rgb}
 

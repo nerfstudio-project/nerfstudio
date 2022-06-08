@@ -248,5 +248,6 @@ class Trainer:
         return psnr
 
     def eval_with_dataloader(self, dataloader: EvalDataloader, step: int = None):
+        """Run evaluation with a given dataloader."""
         for camera_ray_bundle, batch in dataloader:
             self.test_image(camera_ray_bundle, batch, step=step)

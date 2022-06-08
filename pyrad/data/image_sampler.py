@@ -44,7 +44,9 @@ class CacheImageSampler(ImageSampler):
     ):
         super().__init__()
         self.dataset = dataset
-        self.num_images_to_sample_from = len(self.dataset) if num_images_to_sample_from == 0 else num_images_to_sample_from
+        self.num_images_to_sample_from = (
+            len(self.dataset) if num_images_to_sample_from == 0 else num_images_to_sample_from
+        )
         self.num_times_to_repeat_images = num_times_to_repeat_images
         self.device = device
 

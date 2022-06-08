@@ -140,6 +140,7 @@ class Graph(AbstractGraph):
         return outputs
 
     def get_outputs_for_camera(self, camera: Camera):
+        """Get the graph outputs for a Camera."""
         camera_ray_bundle = camera.get_camera_ray_bundle(device=self.get_device())
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 

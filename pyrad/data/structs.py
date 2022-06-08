@@ -2,7 +2,6 @@
 Dataset input structures.
 """
 
-import dataclasses
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -92,6 +91,4 @@ class DatasetInputs:
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
-        # dictionary = {}
         return vars(self)
-        # return dataclasses.asdict(self)

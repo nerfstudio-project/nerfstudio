@@ -23,7 +23,8 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
         indices = nonzero_indices[chosen_indices]
     else:
         indices = torch.floor(
-            torch.rand((num_rays_per_batch, 3), device=device) * torch.tensor([num_images, image_height, image_width], device=device)
+            torch.rand((num_rays_per_batch, 3), device=device)
+            * torch.tensor([num_images, image_height, image_width], device=device)
         ).long()
 
     c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]

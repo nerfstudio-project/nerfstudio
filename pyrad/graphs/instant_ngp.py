@@ -9,7 +9,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from pyrad.graphs.modules.scene_colliders import AABBBoxCollider
 from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
 from pyrad.graphs.base import Graph

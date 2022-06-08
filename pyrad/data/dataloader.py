@@ -3,7 +3,8 @@ Data loader.
 """
 
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
+from omegaconf import ListConfig
 
 from torchtyping import TensorType
 
@@ -28,7 +29,7 @@ class TrainDataloader:
         self.count = 0
         return self
 
-    def __next__(self) -> Tuple[TensorType["num_rays"], Dict]:
+    def __next__(self) -> Tuple[TensorType["num_rays", 3], Dict]:
         self.count += 1
         image_batch = next(self.iter_image_sampler)
         batch = self.pixel_sampler.sample(image_batch)
@@ -36,7 +37,7 @@ class TrainDataloader:
         return ray_indices, batch
 
 
-class EvalDataloader:
+class EvalDataloader:  # pylint: disable=too-few-public-methods
     """Evaluation dataloader base class"""
 
     def __init__(
@@ -48,6 +49,7 @@ class EvalDataloader:
         self.camera_to_world = camera_to_world
         self.num_rays_per_chunk = num_rays_per_chunk
         self.device = device
+        self.kwargs = kwargs
 
     def get_data_from_image_idx(self, image_idx) -> Tuple[RayBundle, Dict]:
         """Returns the data for a specific image index."""
@@ -70,7 +72,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         intrinsics,
         camera_to_world,
         num_rays_per_chunk: int,
-        image_indices: List[int],
+        image_indices: Union[List[int], ListConfig],
         device="cpu",
         **kwargs
     ):
@@ -90,8 +92,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
             ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
             self.count += 1
             return ray_bundle, batch
-        else:
-            raise StopIteration
+        raise StopIteration
 
 
 class RandIndicesEvalDataloader(EvalDataloader):
@@ -114,5 +115,4 @@ class RandIndicesEvalDataloader(EvalDataloader):
             ray_bundle, batch = self.get_data_from_image_idx(image_idx)
             self.count += 1
             return ray_bundle, batch
-        else:
-            raise StopIteration
+        raise StopIteration
