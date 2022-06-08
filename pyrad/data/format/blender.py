@@ -19,7 +19,7 @@ def load_blender_data(
     downscale_factor: int = 1,
     alpha_color: Optional[TensorType[3]] = None,
     split: str = "train",
-    scale_factor: float = 0.33,
+    scale_factor: float = 1.0,
 ) -> DatasetInputs:
     """Processes the a blender dataset directory.
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
@@ -60,7 +60,7 @@ def load_blender_data(
 
     # in x,y,z order
     camera_to_world[..., 3] *= scale_factor
-    scene_bounds = SceneBounds(aabb=torch.tensor([[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]], dtype=torch.float32))
+    scene_bounds = SceneBounds(aabb=torch.tensor([[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]], dtype=torch.float32))
 
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,

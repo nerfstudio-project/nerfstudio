@@ -200,7 +200,7 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-@hydra.main(config_path="../configs", config_name="vanilla_nerf.yaml")
+@hydra.main(config_path="../configs", config_name="graph_default.yaml")
 def main(config: DictConfig):
     """Main function."""
     unrolled_path = os.path.join(os.getcwd(), ".hydra/config.yaml")
