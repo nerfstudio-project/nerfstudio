@@ -1,10 +1,7 @@
 defaults:
   - vanilla_nerf
 
-dry_run: true
-
-machine_config:
-  num_gpus: 0
+machine_config.num_gpus: 0
 
 data:
   dataset:
@@ -17,8 +14,7 @@ data:
   pixel_sampler:
     num_rays_per_batch: 4
 
-graph:
-  max_num_iterations: 5
+graph.max_num_iterations: 2
 
 logging:
   writer:

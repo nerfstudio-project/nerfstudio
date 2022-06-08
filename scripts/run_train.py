@@ -19,7 +19,7 @@ import torch.multiprocessing as mp
 from omegaconf import DictConfig
 import yaml
 
-from pyrad.nerf.trainer import Trainer
+from pyrad.engine.trainer import Trainer
 from pyrad.utils import comms, profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)

@@ -6,7 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 import torch
 
-from pyrad.structures.rays import RayBundle
+from pyrad.cameras.rays import RayBundle
 
 
 def color_str(color):

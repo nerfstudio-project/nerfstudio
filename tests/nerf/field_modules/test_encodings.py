@@ -3,7 +3,7 @@ Encoding Tests
 """
 import pytest
 import torch
-from pyrad.nerf.field_modules import encoding
+from pyrad.fields.modules import encoding
 
 
 def test_scaling_and_offset():

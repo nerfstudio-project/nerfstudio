@@ -1,0 +1,33 @@
+defaults:
+  - graph_default
+  - _self_
+
+experiment_name: friends_TBBT-big_living_room
+method_name: nerfw
+
+# the data
+data:
+  image_dataset_train:
+    _target_: pyrad.data.image_dataset.PanopticImageDataset
+  image_dataset_eval:
+    _target_: pyrad.data.image_dataset.PanopticImageDataset
+  dataset_inputs_train:
+    data_directory: data/friends/TBBT-big_living_room
+    dataset_format: friends
+    downscale_factor: 1
+  dataset_inputs_eval:
+    data_directory: data/friends/TBBT-big_living_room
+    dataset_format: friends
+    downscale_factor: 1
+
+graph:
+  network:
+    _target_: pyrad.graphs.semantic_nerf.SemanticNerfGraph
+    collider_config:
+      _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+    num_coarse_samples: 64
+    num_importance_samples: 64
+    loss_coefficients:
+      rgb_loss_coarse: 1.0
+      rgb_loss_fine: 1.0
+      semantic_loss_fine: 0.05

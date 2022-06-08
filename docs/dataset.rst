@@ -5,27 +5,27 @@
 Colmap Utils
 ----------------
 
-.. automodule:: pyrad.nerf.data.colmap_utils
+.. automodule:: pyrad.data.colmap_utils
    :members:
    :show-inheritance:
 
 Image Dataset
 ----------------
 
-.. automodule:: pyrad.nerf.data.image_dataset
+.. automodule:: pyrad.data.image_dataset
    :members:
    :show-inheritance:
 
 Structures
 ----------------
 
-.. automodule:: pyrad.nerf.data.structs
+.. automodule:: pyrad.data.structs
    :members:
    :show-inheritance:
 
 Utils
 ----------------
 
-.. automodule:: pyrad.nerf.data.utils
+.. automodule:: pyrad.data.utils
    :members:
    :show-inheritance:

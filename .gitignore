@@ -164,8 +164,9 @@ runs/
 outputs/
 
 # Data
-data/
+data
 data_*/
+!pyrad/data
 !configs/data
 
 # Misc

@@ -3,9 +3,9 @@ Test the fields
 """
 import torch
 
-from pyrad.nerf.field_modules.field_heads import FieldHeadNames
-from pyrad.nerf.fields.instant_ngp_field import TCNNInstantNGPField
-from pyrad.structures.rays import PointSamples
+from pyrad.fields.modules.field_heads import FieldHeadNames
+from pyrad.fields.instant_ngp_field import TCNNInstantNGPField
+from pyrad.cameras.rays import PointSamples
 
 
 def test_tcnn_instant_ngp_field():

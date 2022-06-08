@@ -1,7 +1,7 @@
 """
 Embedding tests
 """
-from pyrad.nerf.field_modules.embedding import Embedding
+from pyrad.fields.modules.embedding import Embedding
 
 
 def test_indexing():
