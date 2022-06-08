@@ -1,5 +1,6 @@
 """ Math Helper Functions """
 
+from dataclasses import dataclass
 import torch
 from torchtyping import TensorType
 
@@ -67,3 +68,98 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
         components[..., 24] = 0.4425326924449826 * (xx * (xx - 3 * yy) - yy * (3 * xx - yy))
 
     return components
+
+
+@dataclass
+class Gaussians:
+    """Stores Gaussians
+
+    Args:
+        mean (TensorType[..., "dim"]): Mean of multivariate Gaussian
+        cov (TensorType[..., "dim", "dim"]): Covariance of multivariate Gaussian.
+    """
+
+    mean: TensorType[..., "dim"]
+    cov: TensorType[..., "dim", "dim"]
+
+
+def compute_3d_gaussian(
+    directions: TensorType[..., 3],
+    means: TensorType[..., 3],
+    dir_variance: TensorType[..., 1],
+    radius_variance: TensorType[..., 1],
+) -> Gaussians:
+    """Compute guassian along ray.
+
+    Args:
+        directions (TensorType[..., 3]): Axis of Gaussian.
+        means (TensorType[..., 3]): Mean of Gaussian.
+        dir_variance (TensorType[..., 3]): Variance along direction axis.
+        radius_variance (TensorType[..., 3]): Variance tangent to direction axis.
+
+    Returns:
+        Gaussians: Oriented 3D gaussian.
+    """
+
+    dir_outer_product = directions[..., :, None] * directions[..., None, :]
+    eye = torch.eye(directions.shape[-1])
+    dir_mag_sq = torch.clamp(torch.sum(directions**2, axis=-1, keepdim=True), min=1e-10)
+    null_outer_product = eye - directions[..., :, None] * (directions / dir_mag_sq)[..., None, :]
+    dir_cov_diag = dir_variance[..., None] * dir_outer_product[..., :, :]
+    radius_cov_diag = radius_variance[..., None] * null_outer_product[..., :, :]
+    cov = dir_cov_diag + radius_cov_diag
+    return Gaussians(mean=means, cov=cov)
+
+
+def cylinder_to_gaussian(
+    origins: TensorType[..., 3],
+    directions: TensorType[..., 3],
+    starts: TensorType[..., 1],
+    ends: TensorType[..., 1],
+    radius: TensorType[..., 1],
+) -> Gaussians:
+    """Approximates cylinders with a Gaussian distributions.
+
+    Args:
+        origins (TensorType[..., 3]): Origins of cylinders.
+        directions (TensorType[..., 3]): Direction (axis) of cylinders.
+        starts (TensorType[..., 1]): Start of cylinders.
+        ends (TensorType[..., 1]): End of cylinders.
+        radius (TensorType[..., 1]): Radii of cylinders.
+
+    Returns:
+        Gaussians: Approximation of cylinders
+    """
+    means = origins + directions * ((starts + ends) / 2.0)
+    dir_variance = (ends - starts) ** 2 / 12
+    radius_variance = radius**2 / 4.0
+    return compute_3d_gaussian(directions, means, dir_variance, radius_variance)
+
+
+def conical_frustum_to_gaussian(
+    origins: TensorType[..., 3],
+    directions: TensorType[..., 3],
+    starts: TensorType[..., 1],
+    ends: TensorType[..., 1],
+    radius: TensorType[..., 1],
+) -> Gaussians:
+    """Approximates conical frustums with a Gaussian distributions.
+
+    Uses stable parameterization described in mip-NeRF publication.
+
+    Args:
+        origins (TensorType[..., 3]): Origins of cones.
+        directions (TensorType[..., 3]): Direction (axis) of frustums.
+        starts (TensorType[..., 1]): Start of conical frustums.
+        ends (TensorType[..., 1]): End of conical frustums.
+        radius (TensorType[..., 1]): Radii of cone a distance of 1 from the origin.
+
+    Returns:
+        Gaussians: Approximation of conical frustums
+    """
+    mu = (starts + ends) / 2.0
+    hw = (ends - starts) / 2.0
+    means = origins + directions * (mu + (2.0 * mu * hw**2.0) / (3.0 * mu**2.0 + hw**2.0))
+    dir_variance = (hw**2) / 3 - (4 / 15) * ((hw**4 * (12 * mu**2 - hw**2)) / (3 * mu**2 + hw**2) ** 2)
+    radius_variance = radius**2 * ((mu**2) / 4 + (5 / 12) * hw**2 - 4 / 15 * (hw**4) / (3 * mu**2 + hw**2))
+    return compute_3d_gaussian(directions, means, dir_variance, radius_variance)
