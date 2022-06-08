@@ -20,6 +20,9 @@
 
 # Quickstart
 
+The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene. 
+For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please see our [docs](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
+
 #### 1. Installation: Setup the environment
 
 This repository is tested with cuda 11.3
