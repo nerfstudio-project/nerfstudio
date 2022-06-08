@@ -46,7 +46,8 @@
             "program": "scripts/run_train.py",
             "console": "integratedTerminal",
             "args": [
-                "--config-name=nerfw.yaml", "++data.dataset.use_cache=true"
+                "--config-name=graph_nerfw.yaml",
+                "++data.dataset.use_cache=true"
             ]
         },
         {
@@ -56,7 +57,8 @@
             "program": "scripts/run_train.py",
             "console": "integratedTerminal",
             "args": [
-                "--config-name=semantic_nerf.yaml"
+                "--config-name=graph_semantic_nerf.yaml",
+                "++data.dataset.use_cache=true"
             ]
         },
     ]

@@ -1,0 +1,26 @@
+defaults:
+  - graph_default
+  - _self_
+
+method_name: instant_ngp
+data:
+  pixel_sampler:
+    num_rays_per_batch: 4096 # for training
+  dataloader_eval:
+    num_rays_per_chunk: 16384 # for evaluation
+
+graph:
+  network:
+    _target_: pyrad.graphs.instant_ngp.NGPGraph
+    collider_config:
+      _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+    field_implementation: tcnn # torch, tcnn, ...
+    loss_coefficients: # loss coefficients
+      rgb_loss: 1.0
+
+  # optimizer options for network
+  param_groups:
+    fields:
+      optimizer:
+        lr: 1e-2
+      scheduler: null

@@ -7,23 +7,23 @@
         <img alt="Documentation Status" src="https://readthedocs.com/projects/plenoptix-pyrad/badge/?version=latest">
     </a>
     <!-- TODO: add license and have it point to that -->
-    <a href="https://opensource.org/licenses/Apache-2.0">
+    <a href="https://github.com/plenoptix/pyrad/blob/master/LICENSE">
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
     </a> 
     <!-- TODO: add version number badge -->
 </p>
 
-
-* [Quickstart](#quickstart)
-* [Walk-through tour](#walk-through-tour)
-* [Feature List](#feature-list)
-* [Benchmarked Model Architectures](#benchmarked-model-architectures)
+- [Quickstart](#quickstart)
+- [Walk-through tour](#walk-through-tour)
+- [Feature List](#feature-list)
+- [Benchmarked Model Architectures](#benchmarked-model-architectures)
 
 # Quickstart
 
 #### 1. Installation: Setup the environment
 
 This repository is tested with cuda 11.3
+
 ```
 # Clone the repo
 git clone --recurse-submodules git@github.com:ethanweber/pyrad.git
@@ -79,14 +79,16 @@ python scripts/run_train.py ++data.dataset.use_cache=true
 ```
 
 # Walk-through tour
+
 In this quick tour, we will walk you through the core of training and building any NeRFs with pyrad.
 
 #### Launching a training job
+
 The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `nerf/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. It will then run the usual train/val routine for a config-specified number of iterations. If you are planning on using our codebase to build a new NeRF method or to use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to think of them again.
 
 #### Graphs, Fields, and Modules
-If you are looking to implemnet a new NeRF method or extend an existing one, you only need to edit files in `nerf/graph/`, `nerf/fields/`, `nerf/field_modules/`, `nerf/misc_modules/`. (TODO: restructuring)
 
+If you are looking to implemnet a new NeRF method or extend an existing one, you only need to edit files in `nerf/graph/`, `nerf/fields/`, `nerf/field_modules/`, `nerf/misc_modules/`. (TODO: restructuring)
 
 The actual NeRF graph definitions can be found in `nerf/graph/`. For instance, to implement the vanilla NeRF, we create a new class that inherits the abstract Graph class. To fully implement the any new graph class, you will need to implement the following abstract methods defined in the skeleton code below. See also `nerf/graph/vanilla_nerf.py` for the full implementation.
 
@@ -116,7 +118,7 @@ class NeRFGraph(Graph):
         """
         Takes in a Ray Bundle and returns a dictionary of outputs.
         """
-       
+
     def get_loss_dict(self, outputs, batch):
         """
         Computes and returns the losses.
@@ -128,16 +130,17 @@ class NeRFGraph(Graph):
         """
 ```
 
-Note that the graph is composed of fields and modules. 
+Note that the graph is composed of fields and modules.
 
-**Fields** (`nerf/fields/`) represents the actual radiance field of the NeRF and is composed of field modules (`nerf/field_modules/`). Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). The **misc. modules** can be any module outside of the field that are needed by the NeRF (e.g. losses, samplers, renderers). 
+**Fields** (`nerf/fields/`) represents the actual radiance field of the NeRF and is composed of field modules (`nerf/field_modules/`). Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). The **misc. modules** can be any module outside of the field that are needed by the NeRF (e.g. losses, samplers, renderers).
 
-To get started on a new NeRF implementation, you simply have to define all relevant modules and populate them in the graph. 
+To get started on a new NeRF implementation, you simply have to define all relevant modules and populate them in the graph.
 
 #### Dataset population TODO(ethan)
 
-#### Config 
-Now that you have the graph and dataset all set up, you're ready to create the config that you pass into our run train routine. Our config system is powered by [Hydra](https://hydra.cc/). All Hydra and machine related arguments are stored in `configs/default_setup.yaml`, as well as the defaults list. 
+#### Config
+
+Now that you have the graph and dataset all set up, you're ready to create the config that you pass into our run train routine. Our config system is powered by [Hydra](https://hydra.cc/). All Hydra and machine related arguments are stored in `configs/default_setup.yaml`, as well as the defaults list.
 To set up the graph config, create a new yaml under `configs/`.
 
 ```
@@ -152,7 +155,7 @@ method_name: vanilla_nerf
 
 graph:
     network:
-        _target_: pyrad.nerf.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
+        _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
 
     # <insert any additional graph related overrides here>
 
@@ -166,10 +169,12 @@ Once you have the config properly set up, you can begin training! Note, you can 
 python scripts/run_train.py --config-name vanilla_nerf
 ```
 
-
 # Feature List
+
 #### :metal: [Hydra config structure](#)
+
 #### :metal: [Logging, debugging utilities](#)
+
 #### :metal: [Benchmarking, other tooling](#)
 
 #### :metal: Running other repos with our data
@@ -186,6 +191,7 @@ python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir
 ```
 
 #### :metal: Speeding up the code
+
 Documentation for running the code with CUDA.
 Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
 
@@ -199,7 +205,6 @@ To run instant-ngp with tcnn, you can do the following. This is with the fox dat
 python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
 ```
 
-
 #### :metal: Setting up Jupyter
 
 ```
@@ -208,6 +213,7 @@ bash environments/run_jupyter.sh
 ```
 
 # Benchmarked Model Architectures
+
 | Method                                                                            | PSNR                     |
 | --------------------------------------------------------------------------------- | ------------------------ |
 | [NeRF](https://arxiv.org/abs/2003.08934)                                          | :hourglass_flowing_sand: |
