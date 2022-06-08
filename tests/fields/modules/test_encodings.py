@@ -16,7 +16,7 @@ def test_scaling_and_offset():
     encoder = encoding.ScalingAndOffset(in_dim=in_dim, scaling=scaling, offset=offset)
 
     assert encoder.get_out_dim() == in_dim
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape[-1] == in_dim
     assert in_tensor * 6.5 == pytest.approx(encoded)
 
@@ -39,12 +39,12 @@ def test_nerf_encoder():
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((2, 3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape[-1] == out_dim
     assert torch.max(encoded) == 1
 
     in_tensor = torch.zeros((2, 3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape[-1] == out_dim
     assert torch.min(encoded) == 0
 
@@ -61,7 +61,7 @@ def test_rff_encoder():
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((2, 3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape[-1] == out_dim
 
 
@@ -78,11 +78,11 @@ def test_tensor_vm_encoder():
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape == (3, out_dim)
 
     in_tensor = torch.ones((6, 3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape == (6, 3, out_dim)
 
     encoder.upsample_grid(resolution=64)
@@ -101,11 +101,11 @@ def test_tensor_cp_encoder():
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape == (3, out_dim)
 
     in_tensor = torch.ones((6, 3, in_dim))
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape == (6, 3, out_dim)
 
     encoder.upsample_grid(resolution=64)
@@ -125,7 +125,7 @@ def test_tensor_sh_encoder():
 
     in_tensor = torch.zeros((10, 3))
     in_tensor[..., 1] = 1
-    encoded = encoder.encode(in_tensor)
+    encoded = encoder(in_tensor)
     assert encoded.shape == (10, out_dim)
 
 

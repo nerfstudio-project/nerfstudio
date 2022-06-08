@@ -24,11 +24,11 @@ from torchtyping import TensorType
 class FieldModule(nn.Module):
     """Field modules that can be combined to store and compute the fields."""
 
-    def __init__(self) -> None:
+    def __init__(self, in_dim=None, out_dim=None) -> None:
         """Default initialization of module"""
         super().__init__()
-        self.in_dim = 0
-        self.out_dim = 0
+        self.in_dim = in_dim
+        self.out_dim = out_dim
 
     def build_nn_modules(self) -> None:
         """Function instantiates any torch.nn members within the module.
@@ -50,10 +50,8 @@ class FieldModule(nn.Module):
         Returns:
             int: output dimension
         """
-        if not hasattr(self, "out_dim"):
+        if self.out_dim is None:
             raise ValueError("Output dimension has not been set")
-        if self.out_dim <= 0:
-            raise ValueError("Output dimension should be greater than zero")
         return self.out_dim
 
     @abstractmethod
