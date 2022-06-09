@@ -11,22 +11,22 @@ If you are looking to implemnet a new NeRF method or extend an existing one, you
 All NeRF graph definitions can be found in `graphs/`. The graph encapsulates all the modules in the NeRF method- from the MLP's to the samplers to the losses and optimizers. All graphs are composed of modules and fields.
 
 ### Modules
-We can decompose all graphs into respective modules. For instance, we have `optimizers/` which contains modules related to the loss, `renderers/` which contains all rendering modules, `graph/modules/`, which includes samplers and ray generators. Additionally, we have `fields/modules`, which will be discussed below.
+We can decompose all graphs into respective modules. For instance, we have {ref}`optimizers` which contains modules related to the loss, {ref}`renderers` which contains all rendering modules, {`graph/modules/`}, which includes samplers and ray generators. Additionally, we have {ref}`field_modules`, which will be discussed below.
 In general, modules can be thought of as individual component parts of the graph that can be swapped in/out. We provide most of the standard modules, but if you are creating a new NeRF graph, you may have to define new modules.
 
 
 ### Fields
 
-Fields (`fields/`) represents the "space", aka. the radiance field of the NeRF. Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). 
+{ref}`fields` represents the "space", aka. the radiance field of the NeRF. Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). 
 
 All fields are composed of modules continained within the `fields/` directory (e.g. `fields/modules/` or `fields/occupancy_fields/`). We can think of field modules as modules that actually define or interact with the field. 
 
 To build a NeRF field, we therefore follow these steps:
 1. define any relevant field modules
-2. create a new class that extends the `Field` class and use these field modules to compose the full field
+2. create a new class that extends the {ref}`fields` base class and use these field modules to compose the full field
 3. implement the abstract functions `get_density()` and `get_outputs()`.
    
-```
+```python
 class NeRFField(Field):
     """NeRF Field"""
 
@@ -67,7 +67,7 @@ Now that we've gone over what modules and fields are, we are ready to create the
 To implement the vanilla NeRF, we create a new class that inherits the abstract Graph class. Similar to composing a new field, we can pull from all pre-defined fields and modules and use them to compose a new Graph. 
 We will then need to define the following abstract methods as seen in the skeleton code below. See also `graphs/vanilla_nerf.py` for the full implementation.
 
-```
+```python
 class NeRFGraph(Graph):
     """Vanilla NeRF graph"""
 
@@ -111,7 +111,7 @@ class NeRFGraph(Graph):
 Now that you have the graph and dataset all set up, you'll need to create the config that you pass into our run train routine. Our config system is powered by [Hydra](https://hydra.cc/). All Hydra and machine related arguments are stored in `configs/default_setup.yaml`, as well as the defaults list.
 To set up the graph config, create a new yaml under `configs/`.
 
-```
+```yaml
 # configs/vanilla_nerf.yaml
 
 defaults:
@@ -135,7 +135,7 @@ data:
 
 Once you have the config properly set up, you can begin training! To begin the training process, just pass in the name of your new config to the training script:
 
-```
+```bash
 python scripts/run_train.py --config-name vanilla_nerf
 ```
 
