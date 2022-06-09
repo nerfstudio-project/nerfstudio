@@ -141,4 +141,4 @@ python scripts/run_train.py --config-name vanilla_nerf
 
 And now you have a brand-new NeRF in training! For testing and visualizing, simply refer to steps 4-5 in the [quickstart guide](https://github.com/plenoptix/pyrad#quickstart).
 
-To help you get started, we also provide additional training tools such as profiling, logging, and debugging. Please refer to our [features guide](./tooling/index.rst).
+To help you get started, we also provide additional training tools such as profiling, logging, and debugging. Please refer to our [features guide](../tooling/index.rst).
