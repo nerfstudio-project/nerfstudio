@@ -8,7 +8,7 @@ TODO: Explanation of each component
 .. toctree::
     :hidden:
 
-    dataset
+    data
     fields
     fields/modules/index
     graphs
