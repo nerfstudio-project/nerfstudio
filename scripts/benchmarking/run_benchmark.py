@@ -51,15 +51,15 @@ def main():
         trainer = Trainer(config, local_rank=0, world_size=1)
         trainer.setup(test_mode=True)
         avg_psnr = 0
-        for step, image_idx in enumerate(config.data.val_image_indices):
+        for step, (camera_ray_bundle, batch) in enumerate(trainer.dataloader_eval):
             with torch.no_grad():
-                psnr = trainer.test_image(image_idx=image_idx, step=step)
+                psnr = trainer.test_image(camera_ray_bundle, batch, step=step)
             avg_psnr = (step * avg_psnr + psnr) / (step + 1)
         benchmarks[dataset] = (avg_psnr, ckpt)
         GlobalHydra.instance().clear()
 
     benchmark_info = {"bench": BENCH, "results": benchmarks}
-    timestamp = date.today().strftime("%b-%d-%Y")
+    timestamp = BENCH["benchmark_date"]
     json_file = os.path.join(BENCH["hydra_base_dir"], f"{timestamp}.json")
     with open(json_file, "w", encoding="utf8") as f:
         json.dump(benchmark_info, f, indent=2)
