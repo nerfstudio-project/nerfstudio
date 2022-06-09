@@ -13,14 +13,13 @@
     <!-- TODO: add version number badge -->
 </p>
 
-
-* [Quickstart](#quickstart)
-* [Supported Features](#supported-features)
-* [Benchmarked Model Architectures](#benchmarked-model-architectures)
+- [Quickstart](#quickstart)
+- [Supported Features](#supported-features)
+- [Benchmarked Model Architectures](#benchmarked-model-architectures)
 
 # Quickstart
 
-The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene. 
+The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene.
 For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please see our [docs](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
 
 #### 1. Installation: Setup the environment
@@ -29,7 +28,7 @@ This repository is tested with cuda 11.3
 
 ```
 # Clone the repo
-git clone --recurse-submodules git@github.com:ethanweber/pyrad.git
+git clone --recurse-submodules git@github.com:plenoptix/pyrad.git
 
 # Create the python environment
 conda create --name pyrad python=3.8.13
@@ -61,12 +60,14 @@ Download the original [NeRF dataset](https://drive.google.com/drive/folders/128y
 #### 3. Training a model
 
 To run with all the defaults, e.g. vanilla nerf method with the blender lego image:
+
 ```
 # Run with default config
 python scripts/run_train.py
 ```
 
 With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments:
+
 ```
 # Run with config changes
 python scripts/run_train.py machine_config.num_gpus=1
@@ -86,6 +87,7 @@ python scripts/run_train.py ++data.dataset.use_cache=true
 ```
 
 #### 4. Visualizing training runs
+
 If you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
 ```
@@ -93,12 +95,12 @@ tensorboard --logdir outputs/blender_lego/vanilla_nerf/
 ```
 
 #### 5. Rendering a trajectories during inference
+
 TODO(ethan)
 
-
 #### 6. In-depth guide
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](#).
 
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](#).
 
 # Supported Features
 
@@ -119,7 +121,6 @@ If you are looking for a feature that is not currently supported, please do not 
 #### :metal: Speed up your code with Tiny Cuda
 
 #### :metal: Support for Jupyter
-
 
 # Benchmarked Model Architectures
 
