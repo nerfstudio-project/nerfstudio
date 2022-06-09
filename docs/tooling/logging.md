@@ -3,7 +3,7 @@
 We provide integration with multiple logging interfaces to log images and statistics during training. 
 All of these loggers are configurable via the config:
 
-```
+```yaml
 # e.g. configs/graphs_default.yaml
 
 logging:
