@@ -6,7 +6,7 @@ Please download [this file](https://github.com/NVlabs/instant-ngp/blob/07d8e2ca7
 
 For example, maybe we have a video named `bear.mp4`. We can use the commands described in the Instant-NGP repo to create our dataset. We first create a a data folder. Then, we navigate to this folder. Finally, we run the colmap2nerf.py script with a specified `video_fps` and `aabb_scale`. The recommended number of frames is around 50-150 and the `aabb_scale` is the extent of the scene. The origin is the center of the aabb and `aabb_scale` is the length of each side of the box.
 
-```
+```bash
 # Navigate to the repo.
 cd /path/to/pyrad
 
