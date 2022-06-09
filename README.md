@@ -13,12 +13,15 @@
     <!-- TODO: add version number badge -->
 </p>
 
-- [Quickstart](#quickstart)
-- [Walk-through tour](#walk-through-tour)
-- [Feature List](#feature-list)
-- [Benchmarked Model Architectures](#benchmarked-model-architectures)
+
+* [Quickstart](#quickstart)
+* [Supported Features](#supported-features)
+* [Benchmarked Model Architectures](#benchmarked-model-architectures)
 
 # Quickstart
+
+The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene. 
+For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please see our [docs](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
 
 #### 1. Installation: Setup the environment
 
@@ -57,10 +60,14 @@ Download the original [NeRF dataset](https://drive.google.com/drive/folders/128y
 
 #### 3. Training a model
 
+To run with all the defaults, e.g. vanilla nerf method with the blender lego image:
 ```
 # Run with default config
 python scripts/run_train.py
+```
 
+With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments:
+```
 # Run with config changes
 python scripts/run_train.py machine_config.num_gpus=1
 python scripts/run_train.py data.dataset.downscale_factor=1
@@ -78,139 +85,41 @@ python scripts/run_data_preprocessor.py
 python scripts/run_train.py ++data.dataset.use_cache=true
 ```
 
-# Walk-through tour
-
-In this quick tour, we will walk you through the core of training and building any NeRFs with pyrad.
-
-#### Launching a training job
-
-The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `nerf/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. It will then run the usual train/val routine for a config-specified number of iterations. If you are planning on using our codebase to build a new NeRF method or to use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to think of them again.
-
-#### Graphs, Fields, and Modules
-
-If you are looking to implemnet a new NeRF method or extend an existing one, you only need to edit files in `nerf/graph/`, `nerf/fields/`, `nerf/field_modules/`, `nerf/misc_modules/`. (TODO: restructuring)
-
-The actual NeRF graph definitions can be found in `nerf/graph/`. For instance, to implement the vanilla NeRF, we create a new class that inherits the abstract Graph class. To fully implement the any new graph class, you will need to implement the following abstract methods defined in the skeleton code below. See also `nerf/graph/vanilla_nerf.py` for the full implementation.
+#### 4. Visualizing training runs
+If you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
 ```
-class NeRFGraph(Graph):
-    """Vanilla NeRF graph"""
-
-    def __init__(self, intrinsics=None, camera_to_world=None, **kwargs) -> None:
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
-
-    def populate_fields(self):
-        """
-        Set all field related modules here
-        """
-
-    def populate_misc_modules(self):
-        """
-        Set all remaining modules here including: samplers, renderers, losses, and metrics
-        """
-
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        """
-        Create a dictionary of parameters that are grouped according to different optimizers
-        """
-
-    def get_outputs(self, ray_bundle: RayBundle):
-        """
-        Takes in a Ray Bundle and returns a dictionary of outputs.
-        """
-
-    def get_loss_dict(self, outputs, batch):
-        """
-        Computes and returns the losses.
-        """
-
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        """
-        Writes the test image outputs.
-        """
+tensorboard --logdir outputs/blender_lego/vanilla_nerf/
 ```
 
-Note that the graph is composed of fields and modules.
+#### 5. Rendering a trajectories during inference
+TODO(ethan)
 
-**Fields** (`nerf/fields/`) represents the actual radiance field of the NeRF and is composed of field modules (`nerf/field_modules/`). Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). The **misc. modules** can be any module outside of the field that are needed by the NeRF (e.g. losses, samplers, renderers).
 
-To get started on a new NeRF implementation, you simply have to define all relevant modules and populate them in the graph.
+#### 6. In-depth guide
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](#).
 
-#### Dataset population TODO(ethan)
 
-#### Config
+# Supported Features
 
-Now that you have the graph and dataset all set up, you're ready to create the config that you pass into our run train routine. Our config system is powered by [Hydra](https://hydra.cc/). All Hydra and machine related arguments are stored in `configs/default_setup.yaml`, as well as the defaults list.
-To set up the graph config, create a new yaml under `configs/`.
+We provide the following support strucutures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-```
-# configs/vanilla_nerf.yaml
+If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!
 
-defaults:
-  - default_setup # inherit the basic yaml heirarchy
-  - _self_
+#### :metal: Support for [Hydra](https://hydra.cc/) config structure
 
-experiment_name: blender_lego
-method_name: vanilla_nerf
+#### :metal: Support for multiple logging interfaces
 
-graph:
-    network:
-        _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
+#### :metal: Built-in support for profiling code
 
-    # <insert any additional graph related overrides here>
+#### :metal: Benchmarking scripts
 
-data:
-    # <insert any additional dataset related overrides here>
-```
+#### :metal: Easily run other repos with our data
 
-Once you have the config properly set up, you can begin training! Note, you can also pass in the config changes via command-line as shown above in the quick-start if you don't want to make a new config for a given job.
+#### :metal: Speed up your code with Tiny Cuda
 
-```
-python scripts/run_train.py --config-name vanilla_nerf
-```
+#### :metal: Support for Jupyter
 
-# Feature List
-
-#### :metal: [Hydra config structure](#)
-
-#### :metal: [Logging, debugging utilities](#)
-
-#### :metal: [Benchmarking, other tooling](#)
-
-#### :metal: Running other repos with our data
-
-```
-# nerf-pytorch
-cd external
-python run_nerf.py --config configs/chair.txt --datadir /path/to/pyrad/data/blender/chair
-
-# jaxnerf
-cd external
-conda activate jaxnerf
-python -m jaxnerf.train --data_dir=/path/to/pyrad/data/blender/chair --train_dir=/path/to/pyrad/outputs/blender_chair_jaxnerf --config=/path/to/pyrad/external/jaxnerf/configs/demo --render_every 100
-```
-
-#### :metal: Speeding up the code
-
-Documentation for running the code with CUDA.
-Please see https://github.com/NVlabs/tiny-cuda-nn for how to install tiny-cuda-nn.
-
-```
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-```
-
-To run instant-ngp with tcnn, you can do the following. This is with the fox dataset.
-
-```
-python scripts/run_train.py --config-name=instant_ngp_tcnn.yaml data/dataset=instant_ngp_fox
-```
-
-#### :metal: Setting up Jupyter
-
-```
-python -m jupyter lab build
-bash environments/run_jupyter.sh
-```
 
 # Benchmarked Model Architectures
 
