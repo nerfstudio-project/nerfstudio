@@ -15,7 +15,7 @@
 
 
 * [Quickstart](#quickstart)
-* [Feature List](#feature-list)
+* [Supported Features](#supported-features)
 * [Benchmarked Model Architectures](#benchmarked-model-architectures)
 
 # Quickstart
