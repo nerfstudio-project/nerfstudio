@@ -17,6 +17,7 @@ Encoding functions
 """
 
 from abc import abstractmethod
+from typing import Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -24,7 +25,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from pyrad.fields.modules.base import FieldModule
-from pyrad.utils.math import components_from_spherical_harmonics
+from pyrad.utils.math import components_from_spherical_harmonics, expected_sin
 
 
 class Encoding(FieldModule):
@@ -35,26 +36,13 @@ class Encoding(FieldModule):
         Args:
             in_dim (int): Input dimension of tensor
         """
-        super().__init__()
         if in_dim <= 0:
             raise ValueError("Input dimension should be greater than zero")
-        self.in_dim = in_dim
+        super().__init__(in_dim=in_dim)
 
     @abstractmethod
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """Encodes an input tensor.
-
-        Args:
-            x (TensorType[..., "input_dim"]): Input tensor to be encoded
-
-        Returns:
-            TensorType[..., "output_dim"]: A encoded input tensor
-        """
-        raise NotImplementedError
-
     def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """Call forward"""
-        return self.encode(in_tensor)
+        raise NotImplementedError
 
 
 class Identity(Encoding):
@@ -63,7 +51,7 @@ class Identity(Encoding):
     def get_out_dim(self) -> int:
         return self.in_dim
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         return in_tensor
 
 
@@ -86,12 +74,12 @@ class ScalingAndOffset(Encoding):
     def get_out_dim(self) -> int:
         return self.in_dim
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         return self.scaling * in_tensor + self.offset
 
 
 class NeRFEncoding(Encoding):
-    """Multi-scale sinousoidal encoding proposed in the original NeRF paper"""
+    """Multi-scale sinousoidal encodings. Support ``integrated positional encodings`` if covariances are provided."""
 
     def __init__(
         self, in_dim: int, num_frequencies: int, min_freq_exp: float, max_freq_exp: float, include_input: bool = False
@@ -118,18 +106,32 @@ class NeRFEncoding(Encoding):
             out_dim += self.in_dim
         return out_dim
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """
+    def forward(
+        self, in_tensor: TensorType[..., "input_dim"], covs: Optional[TensorType[..., "input_dim", "input_dim"]] = None
+    ) -> TensorType[..., "output_dim"]:
+        """Calculates NeRF encoding. If covariances are provided the encodings will be integrated as proposed
+            in mip-NeRF.
+
         Args:
             in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
-
+            covs (TensorType[..., "input_dim", "input_dim"], optional): Covariances of input points. Defaults to None.
         Returns:
             TensorType[..., "output_dim"]: Output values will be between -1 and 1
         """
+        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
-        scaled_inputs = 2 * torch.pi * in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
+        scaled_inputs = in_tensor[..., None] * freqs  # [..., "input_dim", "num_scales"]
         scaled_inputs = scaled_inputs.view(*scaled_inputs.shape[:-2], -1)  # [..., "input_dim" * "num_scales"]
-        encoded_inputs = torch.cat([torch.sin(scaled_inputs), torch.cos(scaled_inputs)], axis=-1)
+
+        if covs is None:
+            encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
+        else:
+            input_var = torch.diagonal(covs, dim1=-2, dim2=-1)[..., None, :] * freqs[:, None] ** 2
+            input_var = input_var.reshape((*input_var.shape[:-2], -1))
+            encoded_inputs = expected_sin(
+                torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
+            )
+
         if self.include_input:
             encoded_inputs = torch.cat([encoded_inputs, in_tensor], axis=-1)
         return encoded_inputs
@@ -158,7 +160,7 @@ class RFFEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_frequencies * 2
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """
         Args:
             in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
@@ -232,7 +234,7 @@ class HashEncoding(Encoding):
         x += self.hash_offset.to(x.device)
         return x
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         assert in_tensor.shape[-1] == 3
 
         in_tensor = in_tensor[..., None, :]  # [..., 1, 3]
@@ -296,8 +298,7 @@ class TensorCPEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        in_tensor = in_tensor / 4.0 + 0.5
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
         line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
 
@@ -348,7 +349,7 @@ class TensorVMEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components * 3
 
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         in_tensor = in_tensor / 4.0 + 0.5
         plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]])  # [3,...,2]
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
@@ -403,5 +404,5 @@ class SHEncoding(Encoding):
         return self.levels**2
 
     @torch.no_grad()
-    def encode(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)
