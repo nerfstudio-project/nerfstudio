@@ -1,19 +1,26 @@
 .. _dataset:
 
-Dataset
+Data
 ============
-
-Colmap Utils
-----------------
-
-.. automodule:: pyrad.data.colmap_utils
-   :members:
-   :show-inheritance:
 
 Image Dataset
 ----------------
 
 .. automodule:: pyrad.data.image_dataset
+   :members:
+   :show-inheritance:
+
+Image Sampler
+----------------
+
+.. automodule:: pyrad.data.image_sampler
+   :members:
+   :show-inheritance:
+
+Pixel Sampler
+----------------
+
+.. automodule:: pyrad.data.pixel_sampler
    :members:
    :show-inheritance:
 

@@ -2,12 +2,12 @@
 
 We make it easy to benchmark your new NeRF against the standard Blender dataset.
 
-#### Launching training on Blender
+#### Launching training on Blender dataset
 
 To start, you will need to train your NeRF on each of the blender objects.
 To launch training jobs automatically on each of these items, you can call:
 
-```
+```bash
 ./scripts/benchmarking/launch_train_blender.sh <config-name> <list_of_gpus>
 ```
 
@@ -17,7 +17,7 @@ Simply replace the arguments in brackets with the correct arguments.
 
 A full example would be:
 
-```
+```bash
 ./scripts/benchmarking/launch_train_blender.sh graph_vanilla_nerf 0 1 2 3
 ```
 
@@ -29,7 +29,7 @@ Once you have launched training, and training converges, you can test your metho
 
 Modify the `BENCH` variable to specify which jobs you want benchmarked. 
 
-```
+```python
 BENCH = {
     "method": "graph_vanilla_nerf",     # change this to whatever you want
     "hydra_base_dir": "outputs/",       # change this to wherever hydra's default output directory is
@@ -40,7 +40,7 @@ BENCH = {
 
 Then you can simply run
 
-```
+```bash
 python scripts/benchmarking/run_benchmark.py
 
 ```

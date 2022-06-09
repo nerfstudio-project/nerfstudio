@@ -40,6 +40,7 @@ extensions = [
     "sphinxemoji.sphinxemoji",
     "myst_parser",
     "sphinx.ext.napoleon",
+    "sphinx_copybutton",
 ]
 
 # List of patterns, relative to source directory, that match files and
@@ -57,6 +58,12 @@ suppress_warnings = ["myst.header"]
 html_theme = "furo"
 html_title = "pyRad"
 
+autosectionlabel_prefix_document = True
+
+# -- Code block theme --------------------------------------------------------
+
+pygments_style = "manni"
+pygments_dark_style = "stata-dark"
 
 # -- Napoleon settings -------------------------------------------------------
 
