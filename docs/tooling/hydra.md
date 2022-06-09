@@ -1,0 +1,1 @@
+# Hydra config structure

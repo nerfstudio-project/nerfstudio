@@ -15,20 +15,3 @@ TODO: Explanation of each component
     graphs/modules/index
     renderers/index
 
-Hydra config structure
-========================
-
-Logging, debugging utilities
-===================================
-
-Benchmarking, other tooling
-===================================
-
-Running other repos with our data
-===================================
-
-Speeding up the code
-===================================
-
-Setting up Jupyter
-========================
