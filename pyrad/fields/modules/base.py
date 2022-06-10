@@ -22,10 +22,14 @@ from torchtyping import TensorType
 
 
 class FieldModule(nn.Module):
-    """Field modules that can be combined to store and compute the fields."""
+    """Field modules that can be combined to store and compute the fields.
 
-    def __init__(self, in_dim=None, out_dim=None) -> None:
-        """Default initialization of module"""
+    Args:
+        in_dim (int, optional): Input dimension to module.
+        out_dim (int, optional): Ouput dimension to module.
+    """
+
+    def __init__(self, in_dim: int = None, out_dim: int = None) -> None:
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim

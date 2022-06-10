@@ -72,7 +72,11 @@ class Field(nn.Module):
         """
 
     def forward(self, point_samples: PointSamples):
-        """Evaluates the field at points along the ray."""
+        """Evaluates the field at points along the ray.
+
+        Args:
+            point_samples (PointSamples): Samples to evaluate field on.
+        """
         valid_mask = point_samples.valid_mask
 
         if is_not_none(valid_mask):
