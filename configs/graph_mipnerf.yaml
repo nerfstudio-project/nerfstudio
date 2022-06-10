@@ -1,0 +1,11 @@
+defaults:
+  - graph_default
+  - _self_
+
+method_name: mipnerf
+
+graph:
+  network:
+    _target_: pyrad.graphs.mipnerf.MipNerfGraph
+    num_coarse_samples: 64
+    num_importance_samples: 128
