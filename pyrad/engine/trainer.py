@@ -33,7 +33,7 @@ from pyrad.utils import profiler, writer
 from pyrad.utils.callbacks import update_occupancy
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.misc import instantiate_from_dict_config
-from pyrad.utils.writer import EventName, Timer
+from pyrad.utils.writer import EventName, TimeWriter
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -180,18 +180,16 @@ class Trainer:
 
     def train(self) -> None:
         """_summary_"""
-        with Timer() as total_timer:
+        with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.graph.max_num_iterations
             iter_dataloader_train = iter(self.dataloader_train)
             for step in range(self.start_step, self.start_step + num_iterations):
-                with Timer() as data_timer:
+                with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
                     ray_indices, batch = next(iter_dataloader_train)
-                writer.put_time(name=EventName.ITER_LOAD_TIME, val=data_timer.val, step=step)
 
-                with Timer() as iter_timer:
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
                     loss_dict = self.train_iteration(ray_indices, batch, step, _callback=[update_occupancy])
-                writer.put_time(name=EventName.RAYS_PER_SEC, val=ray_indices.shape[0] / iter_timer.val, step=step)
-                writer.put_time(name=EventName.ITER_TRAIN_TIME, val=iter_timer.val, step=step, update_eta=True)
+                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=ray_indices.shape[0] / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
@@ -201,7 +199,6 @@ class Trainer:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
 
-        writer.put_time(name=EventName.TOTAL_TRAIN_TIME, val=total_timer.val, step=num_iterations, avg_over_iters=False)
         self._write_out_storage(num_iterations)
 
     def _write_out_storage(self, step: int) -> None:

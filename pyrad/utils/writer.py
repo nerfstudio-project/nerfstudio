@@ -85,7 +85,7 @@ def put_dict(name: str, scalar_dict: float, step: int):
 
 
 @check_main_thread
-def put_time(name: str, val: float, step: int, avg_over_iters: bool = True, update_eta: bool = False):
+def put_time(name: str, duration: float, step: int, avg_over_iters: bool = True, update_eta: bool = False):
     """Setter function to place a time element into the queue to be written out
 
     Processes the time info according to the options:
@@ -95,7 +95,8 @@ def put_time(name: str, val: float, step: int, avg_over_iters: bool = True, upda
     if isinstance(name, EventName):
         name = name.value
 
-    GLOBAL_BUFFER["step"] = step
+    if step is not None:
+        GLOBAL_BUFFER["step"] = step
 
     if avg_over_iters:
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
@@ -103,12 +104,12 @@ def put_time(name: str, val: float, step: int, avg_over_iters: bool = True, upda
         curr_avg = curr_event["avg"]
         if len(curr_buffer) >= GLOBAL_BUFFER["max_buffer_size"]:
             curr_buffer.pop(0)
-        curr_buffer.append(val)
+        curr_buffer.append(duration)
         curr_avg = sum(curr_buffer) / len(curr_buffer)
         put_scalar(name, curr_avg, step)
         GLOBAL_BUFFER["events"][name] = {"buffer": curr_buffer, "avg": curr_avg}
     else:
-        put_scalar(name, val, step)
+        put_scalar(name, duration, step)
 
     if update_eta:
         ## NOTE: eta should be called with avg train iteration time
@@ -154,21 +155,6 @@ def setup_event_writers(config: DictConfig) -> None:
     GLOBAL_BUFFER["events"] = {}
 
 
-class Timer:
-    """Timer class that calculates duration around wrapped functions"""
-
-    def __init__(self):
-        self.start = None
-        self.val = None
-
-    def __enter__(self):
-        self.start = time()
-        return self
-
-    def __exit__(self, *args):
-        self.val = time() - self.start
-
-
 class Writer:
     """Writer class"""
 
@@ -206,6 +192,32 @@ class Writer:
         """
         for name, scalar in scalar_dict.items():
             self.write_scalar(name, scalar, step)
+
+
+class TimeWriter:
+    """Timer context manager that calculates duration around wrapped functions"""
+
+    def __init__(self, writer: Writer, name: str, step: int = None):
+        self.writer = writer
+        self.name = name
+        self.step = step
+
+        self.start = None
+        self.duration = None
+
+    def __enter__(self):
+        self.start = time()
+        return self
+
+    def __exit__(self, *args):
+        self.duration = time() - self.start
+        self.writer.put_time(
+            name=self.name,
+            duration=self.duration,
+            step=self.step,
+            avg_over_iters=(self.step is not None),
+            update_eta=self.name == EventName.ITER_TRAIN_TIME,
+        )
 
 
 @decorate_all([check_main_thread])
