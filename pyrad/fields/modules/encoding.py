@@ -126,7 +126,7 @@ class NeRFEncoding(Encoding):
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
         else:
-            input_var = torch.diagonal(covs, dim1=-2, dim2=-1)[..., None, :] * freqs[:, None] ** 2
+            input_var = torch.diagonal(covs, dim1=-2, dim2=-1)[..., :, None] * freqs[None, :] ** 2
             input_var = input_var.reshape((*input_var.shape[:-2], -1))
             encoded_inputs = expected_sin(
                 torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
@@ -138,15 +138,16 @@ class NeRFEncoding(Encoding):
 
 
 class RFFEncoding(Encoding):
-    """Random Fourier Feature encoding"""
+    """Random Fourier Feature encoding. Supports integrated encodings."""
 
-    def __init__(self, in_dim: int, num_frequencies: int, scale: float) -> None:
+    def __init__(self, in_dim: int, num_frequencies: int, scale: float, include_input: bool = False) -> None:
         """
 
         Args:
             in_dim (int): Input dimension of tensor
             num_frequencies (int): Number of encoding frequencies
             scale (float): Std of Gaussian to sample frequencies. Must be greater than zero
+            include_input (float): Append the input coordinate to the encoding
         """
         super().__init__(in_dim)
 
@@ -156,20 +157,38 @@ class RFFEncoding(Encoding):
         self.scale = scale
         b_matrix = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
         self.register_buffer(name="b_matrix", tensor=b_matrix)
+        self.include_input = include_input
 
     def get_out_dim(self) -> int:
         return self.num_frequencies * 2
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """
+    def forward(
+        self, in_tensor: TensorType[..., "input_dim"], covs: Optional[TensorType[..., "input_dim", "input_dim"]] = None
+    ) -> TensorType[..., "output_dim"]:
+        """Calculates RFF encoding. If covariances are provided the encodings will be integrated as proposed
+            in mip-NeRF.
+
         Args:
             in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
+            covs (TensorType[..., "input_dim", "input_dim"], optional): Covariances of input points. Defaults to None.
 
         Returns:
             TensorType[..., "output_dim"]: Output values will be between -1 and 1
         """
+        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         scaled_inputs = in_tensor @ self.b_matrix  # [..., "num_frequencies"]
-        encoded_inputs = torch.cat([torch.sin(scaled_inputs), torch.cos(scaled_inputs)], axis=-1)
+
+        if covs is None:
+            encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
+        else:
+            input_var = torch.sum(((covs @ self.b_matrix)) * self.b_matrix, -2)
+            encoded_inputs = expected_sin(
+                torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
+            )
+
+        if self.include_input:
+            encoded_inputs = torch.cat([encoded_inputs, in_tensor], axis=-1)
+
         return encoded_inputs
 
 
