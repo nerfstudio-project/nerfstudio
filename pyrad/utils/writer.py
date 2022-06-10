@@ -21,6 +21,7 @@ import enum
 import os
 import sys
 from abc import abstractmethod
+from time import time
 from typing import Dict
 
 import imageio
@@ -84,29 +85,17 @@ def put_dict(name: str, scalar_dict: float, step: int):
 
 
 @check_main_thread
-def put_time(
-    name: str,
-    start_time: float,
-    end_time: float,
-    step: int,
-    avg_over_iters: bool = False,
-    avg_over_batch: int = None,
-    update_eta: bool = False,
-):
+def put_time(name: str, val: float, step: int, avg_over_iters: bool = True, update_eta: bool = False):
     """Setter function to place a time element into the queue to be written out
 
     Processes the time info according to the options:
     avg_over_iters (bool): if True, calculate and record a running average of the times
-    avg_over_batch (int): if set, the size of the batch for which we take the average over (batch/second)
     update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
     """
     if isinstance(name, EventName):
         name = name.value
 
     GLOBAL_BUFFER["step"] = step
-    val = end_time - start_time
-    if avg_over_batch:
-        val = avg_over_batch / val
 
     if avg_over_iters:
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
@@ -163,6 +152,21 @@ def setup_event_writers(config: DictConfig) -> None:
     GLOBAL_BUFFER["max_buffer_size"] = config.logging.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
     GLOBAL_BUFFER["events"] = {}
+
+
+class Timer:
+    """Timer class that calculates duration around wrapped functions"""
+
+    def __init__(self):
+        self.start = None
+        self.val = None
+
+    def __enter__(self):
+        self.start = time()
+        return self
+
+    def __exit__(self, *args):
+        self.val = time() - self.start
 
 
 class Writer:
