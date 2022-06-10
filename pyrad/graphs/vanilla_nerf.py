@@ -37,16 +37,25 @@ from pyrad.utils import visualization, writer
 
 
 class NeRFGraph(Graph):
-    """Vanilla NeRF graph"""
+    """Vanilla NeRF graph
+
+    Args:
+        intrinsics (torch.Tensor): Camera intrinsics.
+        camera_to_world (torch.Tensor): Camera to world transformation.
+        near_plane (float, optional): Where to start sampling points. Defaults to a distance of 2,
+        far_plane (float, optional): Where to stop sampling points. Defaults to a distance of 6,
+        num_coarse_samples (int, optional): Number of samples in coarse field evaluation. Defaults to 64,
+        num_importance_samples(int, optional): Number of samples in fine field evaluation. Defaults to 64,
+    """
 
     def __init__(
         self,
-        intrinsics=None,
-        camera_to_world=None,
-        near_plane=2.0,
-        far_plane=6.0,
-        num_coarse_samples=64,
-        num_importance_samples=128,
+        intrinsics: torch.Tensor = None,
+        camera_to_world: torch.Tensor = None,
+        near_plane: float = 2.0,
+        far_plane: float = 6.0,
+        num_coarse_samples: int = 64,
+        num_importance_samples: int = 128,
         **kwargs,
     ) -> None:
         self.near_plane = near_plane

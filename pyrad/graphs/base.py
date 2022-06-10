@@ -50,14 +50,24 @@ class AbstractGraph(nn.Module):
 
 
 class Graph(AbstractGraph):
-    """_summary_"""
+    """Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
+    subclassed for custom NeRF model.
+
+    Args:
+        intrinsics (torch.Tensor): Camera intrinsics.
+        camera_to_world (torch.Tensor): Camera to world transformation.
+        loss_coefficients (DictConfig): Loss specific weights.
+        steps_per_occupancy_grid_update (int): How often to update occupancy grid.
+        scene_bounds (SceneBounds): Bounds of target scene.
+        collider_config (DictConfig): Configuration of scene collider.
+    """
 
     def __init__(
         self,
-        intrinsics=None,
-        camera_to_world=None,
+        intrinsics: torch.Tensor = None,
+        camera_to_world: torch.Tensor = None,
         loss_coefficients: DictConfig = None,
-        steps_per_occupancy_grid_update=16,
+        steps_per_occupancy_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
         collider_config: DictConfig = None,
         **kwargs,
@@ -94,8 +104,15 @@ class Graph(AbstractGraph):
         """
 
     @abstractmethod
-    def get_outputs(self, ray_bundle: RayBundle):
-        """Takes in a Ray Bundle and returns a dictionary of outputs."""
+    def get_outputs(self, ray_bundle: RayBundle) -> dict:
+        """Takes in a Ray Bundle and returns a dictionary of outputs.
+
+        Args:
+            ray_bundle (RayBundle): Input bundle of rays.
+
+        Returns:
+            dict: Outputs of graph. (ie. rendered colors)
+        """
 
     def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run forward starting with a ray bundle."""

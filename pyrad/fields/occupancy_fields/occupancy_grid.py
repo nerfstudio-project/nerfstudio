@@ -28,7 +28,7 @@ class OccupancyGrid(nn.Module):
     """Module to keep track of the density and occupancy."""
 
     def __init__(
-        self, num_cascades=1, resolution=128, aabb=None, density_fn=None, update_every_num_iters: int = 16
+        self, num_cascades: int = 1, resolution: int = 128, aabb=None, density_fn=None, update_every_num_iters: int = 16
     ) -> None:
         super().__init__()
         assert is_not_none(aabb), "The axis-aligned bounding box aabb is not defined!"

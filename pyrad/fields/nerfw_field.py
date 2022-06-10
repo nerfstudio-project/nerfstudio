@@ -36,7 +36,20 @@ from pyrad.cameras.rays import PointSamples
 
 
 class VanillaNerfWField(Field):
-    """The NeRF-W field which has appearance and transient conditioning."""
+    """The NeRF-W field which has appearance and transient conditioning.
+
+    Args:
+        num_images (int): How many images exist in the dataset.
+        position_encoding (Encoding, optional): Position encoder. Defaults to Identity(in_dim=3).
+        direction_encoding (Encoding, optional): Direction encoder. Defaults to Identity(in_dim=3).
+        base_mlp_num_layers (int, optional): Number of layers for base MLP. Defaults to 8.
+        base_mlp_layer_width (int, optional): Width of base MLP layers. Defaults to 256.
+        head_mlp_num_layers (int, optional): Number of layer for ourput head MLP. Defaults to 2.
+        head_mlp_layer_width (int, optional): Width of output head MLP layers. Defaults to 128.
+        appearance_embedding_dim: (int, optional): Dimension of appearance embedding. Defaults to 48.
+        transient_embedding_dim: (int, optional): Dimension of transient embedding. Defaults to 16.
+        skip_connections (Tuple, optional): Where to add skip connection in base MLP. Defaults to (4,).
+    """
 
     def __init__(
         self,
