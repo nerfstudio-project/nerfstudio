@@ -135,7 +135,7 @@ class SemanticNerfGraph(NeRFGraph):
             weights=weights_coarse,
         )
         accumulation_coarse = self.renderer_accumulation(weights_coarse)
-        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform.bins)
+        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform)
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
@@ -148,7 +148,7 @@ class SemanticNerfGraph(NeRFGraph):
             weights=weights_fine,
         )
         accumulation_fine = self.renderer_accumulation(weights_fine)
-        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.bins)
+        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf)
         semantic_fine = self.renderer_semantic(field_outputs_fine[FieldHeadNames.SEMANTICS], weights=weights_fine)
 
         outputs = {

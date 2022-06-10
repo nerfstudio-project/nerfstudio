@@ -3,6 +3,7 @@ Test renderers
 """
 import pytest
 import torch
+from pyrad.cameras.rays import Frustums, RaySamples
 
 from pyrad.renderers import renderers
 
@@ -62,12 +63,18 @@ def test_depth_renderer():
     weights = torch.ones((3, num_samples))
     weights /= torch.sum(weights, axis=-1, keepdim=True)
 
-    bins = torch.linspace(0, 100, num_samples + 1)
-    bins = torch.stack([bins, bins, bins], dim=0)
+    ray_samples = RaySamples(
+        frustums=Frustums.get_mock_frustum(),
+        camera_indices=torch.ones((num_samples)),
+        valid_mask=torch.ones((num_samples)),
+        bin_starts=torch.linspace(0, 100, num_samples),
+        bin_ends=torch.linspace(1, 101, num_samples),
+        deltas=torch.ones((num_samples)),
+    )
 
     depth_renderer = renderers.DepthRenderer()
 
-    depth = depth_renderer(weights=weights, bins=bins)
+    depth = depth_renderer(weights=weights, ray_samples=ray_samples)
     assert torch.min(depth) > 0
 
 

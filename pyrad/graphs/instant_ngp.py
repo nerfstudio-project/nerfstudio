@@ -89,8 +89,11 @@ class NGPGraph(Graph):
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_uniform)
         field_outputs_pdf = self.field.forward(ray_samples_pdf.to_point_samples())
 
-        ts, indices = torch.sort(torch.cat([ray_samples_uniform.bins, ray_samples_pdf.bins], -1), -1)
-        ray_samples = ray_bundle.get_ray_samples(ts)
+        # Hacky treatment of bins as points to allow us to merge uniform and pdf.
+        ts_uniform = (ray_samples_uniform.bin_starts + ray_samples_uniform.bin_ends) / 2.0
+        ts_pdf = (ray_samples_pdf.bin_starts + ray_samples_pdf.bin_ends) / 2.0
+        ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -1), -1)
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=ts, bin_ends=ts)
         field_outputs = {}
         for fo_name, _ in field_outputs_pdf.items():
             fo_uniform = field_outputs_uniform[fo_name]
@@ -106,11 +109,11 @@ class NGPGraph(Graph):
             weights=weights,
         )
         accumulation = self.renderer_accumulation(weights)
-        depth = self.renderer_depth(weights, ray_samples.bins)
+        depth = self.renderer_depth(weights, ray_samples)
 
-        densities_occupancy_grid = self.occupancy_grid.get_densities(ray_samples.positions)
+        densities_occupancy_grid = self.occupancy_grid.get_densities(ray_samples.frustums.get_positions())
         weights_occupancy_grid = ray_samples.get_weights(densities_occupancy_grid)
-        depth_occupancy_grid = self.renderer_depth(weights_occupancy_grid, ray_samples.bins)
+        depth_occupancy_grid = self.renderer_depth(weights_occupancy_grid, ray_samples)
 
         outputs = {
             "rgb": rgb,
