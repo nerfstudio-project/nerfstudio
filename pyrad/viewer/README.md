@@ -1,10 +1,6 @@
 # Viewer
 
-The backend viewer code (python, websockets, ...).
+The ReactJS code is in the `app` folder.
 
-# References
+The server communication code is in the `comms` folder.
 
-```
-https://github.com/lp-research/openvslam/tree/main/viewer
-https://github.com/rdeits/meshcat
-```

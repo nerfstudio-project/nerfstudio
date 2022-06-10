@@ -1,0 +1,8 @@
+ipython>=5
+u-msgpack-python>=2.4.1
+numpy>=1.14.0
+tornado>=4.0.0
+pyzmq>=17.0.0
+pyngrok>=4.1.6
+pillow>=7.0.0
+socketio
