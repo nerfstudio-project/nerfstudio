@@ -36,7 +36,7 @@
             "program": "scripts/run_train.py",
             "console": "integratedTerminal",
             "args": [
-                "--config-name=instant_ngp.yaml"
+                "--config-name=graph_instant_ngp.yaml"
             ]
         },
         {

@@ -48,6 +48,10 @@ def test_nerf_encoder():
     assert encoded.shape[-1] == out_dim
     assert torch.min(encoded) == 0
 
+    # Test integrated posenc
+    covs = torch.ones((2, 3, in_dim, in_dim))
+    encoded = encoder(in_tensor, covs=covs)
+
 
 def test_rff_encoder():
     """Test RFF encoder"""
@@ -63,6 +67,10 @@ def test_rff_encoder():
     in_tensor = torch.ones((2, 3, in_dim))
     encoded = encoder(in_tensor)
     assert encoded.shape[-1] == out_dim
+
+    # Test integrated encoding
+    covs = torch.ones((2, 3, in_dim, in_dim))
+    encoded = encoder(in_tensor, covs=covs)
 
 
 def test_tensor_vm_encoder():
