@@ -85,20 +85,18 @@ def put_dict(name: str, scalar_dict: float, step: int):
 
 
 @check_main_thread
-def put_time(name: str, duration: float, step: int, avg_over_iters: bool = True, update_eta: bool = False):
+def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True, update_eta: bool = False):
     """Setter function to place a time element into the queue to be written out
 
     Processes the time info according to the options:
-    avg_over_iters (bool): if True, calculate and record a running average of the times
+    avg_over_steps (bool): if True, calculate and record a running average of the times
     update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
     """
     if isinstance(name, EventName):
         name = name.value
 
-    if step is not None:
+    if avg_over_steps:
         GLOBAL_BUFFER["step"] = step
-
-    if avg_over_iters:
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
         curr_buffer = curr_event["buffer"]
         curr_avg = curr_event["avg"]
@@ -197,7 +195,7 @@ class Writer:
 class TimeWriter:
     """Timer context manager that calculates duration around wrapped functions"""
 
-    def __init__(self, writer: Writer, name: str, step: int = None):
+    def __init__(self, writer, name, step=None):
         self.writer = writer
         self.name = name
         self.step = step
@@ -211,11 +209,12 @@ class TimeWriter:
 
     def __exit__(self, *args):
         self.duration = time() - self.start
+        update_step = self.step is not None
         self.writer.put_time(
             name=self.name,
             duration=self.duration,
-            step=self.step,
-            avg_over_iters=(self.step is not None),
+            step=self.step if update_step else GLOBAL_BUFFER["max_iter"],
+            avg_over_steps=update_step,
             update_eta=self.name == EventName.ITER_TRAIN_TIME,
         )
 
