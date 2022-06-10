@@ -29,7 +29,18 @@ from pyrad.cameras.rays import PointSamples
 
 
 class NeRFField(Field):
-    """NeRF Field"""
+    """NeRF Field
+
+    Args:
+        position_encoding (Encoding, optional): Position encoder. Defaults to Identity(in_dim=3).
+        direction_encoding (Encoding, optional): Direction encoder. Defaults to Identity(in_dim=3).
+        base_mlp_num_layers (int, optional): Number of layers for base MLP. Defaults to 8.
+        base_mlp_layer_width (int, optional): Width of base MLP layers. Defaults to 256.
+        head_mlp_num_layers (int, optional): Number of layer for ourput head MLP. Defaults to 2.
+        head_mlp_layer_width (int, optional): Width of output head MLP layers. Defaults to 128.
+        skip_connections (Tuple, optional): Where to add skip connection in base MLP. Defaults to (4,).
+        use_integrated_encoding (bool, optional): Used integrated samples as encoding input, Defaults to False.
+    """
 
     def __init__(
         self,
@@ -43,18 +54,6 @@ class NeRFField(Field):
         field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
         use_integrated_encoding: bool = False,
     ) -> None:
-        """Create boilerplate NeRF field.
-
-        Args:
-            position_encoding (Encoding, optional): Position encoder. Defaults to Identity(in_dim=3).
-            direction_encoding (Encoding, optional): Direction encoder. Defaults to Identity(in_dim=3).
-            base_mlp_num_layers (int, optional): Number of layers for base MLP. Defaults to 8.
-            base_mlp_layer_width (int, optional): Width of base MLP layers. Defaults to 256.
-            head_mlp_num_layers (int, optional): Number of layer for ourput head MLP. Defaults to 2.
-            head_mlp_layer_width (int, optional): Width of output head MLP layers. Defaults to 128.
-            skip_connections (Tuple, optional): Where to add skip connection in base MLP. Defaults to (4,).
-            use_integrated_encoding (bool, optional): Used integrated samples as encoding input, Defaults to False.
-        """
         super().__init__()
         self.position_encoding = position_encoding
         self.direction_encoding = direction_encoding
@@ -79,7 +78,6 @@ class NeRFField(Field):
             field_head.set_in_dim(self.mlp_head.get_out_dim())
 
     def get_density(self, point_samples: PointSamples):
-        """Computes and returns the densities."""
         if self.use_integrated_encoding:
             gaussian_samples = point_samples.frustums.get_gaussian_blob()
             encoded_xyz = self.position_encoding(gaussian_samples.mean, covs=gaussian_samples.cov)
@@ -92,7 +90,6 @@ class NeRFField(Field):
     def get_outputs(
         self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-        """Computes and returns the outputs."""
         outputs = {}
         for field_head in self.field_heads:
             encoded_dir = self.direction_encoding(point_samples.frustums.directions)

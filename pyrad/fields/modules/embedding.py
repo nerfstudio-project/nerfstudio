@@ -25,14 +25,13 @@ from pyrad.fields.modules.base import FieldModule
 class Embedding(FieldModule):
     """Index into embeddings.
     # TODO: add different types of initializations
+
+    Args:
+        in_dim (int): Number of embeddings
+        out_dim (int): Dimension of the embedding vectors
     """
 
     def __init__(self, in_dim: int, out_dim: int) -> None:
-        """
-        Args:
-            in_dim (int): Number of embeddings
-            out_dim (int): Dimension of the embedding vectors
-        """
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
