@@ -17,7 +17,6 @@ Code to train model.
 """
 import logging
 import os
-from time import time
 from typing import Callable, Dict, List
 
 import torch
@@ -34,6 +33,7 @@ from pyrad.utils import profiler, writer
 from pyrad.utils.callbacks import update_occupancy
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.misc import instantiate_from_dict_config
+from pyrad.utils.writer import EventName, TimeWriter
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -179,50 +179,26 @@ class Trainer:
         return loss_sum
 
     def train(self) -> None:
-        """Main training loop."""
-        train_start = time()
-        num_iterations = self.config.graph.max_num_iterations
-        iter_dataloader_train = iter(self.dataloader_train)
-        for step in range(self.start_step, self.start_step + num_iterations):
-            data_start = time()
-            ray_indices, batch = next(iter_dataloader_train)
-            writer.put_time(
-                name=writer.EventName.ITER_LOAD_TIME,
-                start_time=data_start,
-                end_time=time(),
-                step=step,
-                avg_over_iters=True,
-            )
-            iter_start = time()
-            loss_dict = self.train_iteration(ray_indices, batch, step, _callback=[update_occupancy])
-            writer.put_time(
-                name=writer.EventName.RAYS_PER_SEC,
-                start_time=iter_start,
-                end_time=time(),
-                step=step,
-                avg_over_iters=True,
-                avg_over_batch=ray_indices.shape[0],
-            )
-            writer.put_time(
-                name=writer.EventName.ITER_TRAIN_TIME,
-                start_time=iter_start,
-                end_time=time(),
-                step=step,
-                avg_over_iters=True,
-                update_eta=True,
-            )
+        """_summary_"""
+        with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
+            num_iterations = self.config.graph.max_num_iterations
+            iter_dataloader_train = iter(self.dataloader_train)
+            for step in range(self.start_step, self.start_step + num_iterations):
+                with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
+                    ray_indices, batch = next(iter_dataloader_train)
 
-            if step != 0 and step % self.config.logging.steps_per_log == 0:
-                writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
-            if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
-                self.save_checkpoint(self.config.graph.model_dir, step)
-            if step % self.config.graph.steps_per_test == 0:
-                self.eval_with_dataloader(self.dataloader_eval, step=step)
-            self._write_out_storage(step)
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
+                    loss_dict = self.train_iteration(ray_indices, batch, step, _callback=[update_occupancy])
+                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=ray_indices.shape[0] / t.duration, step=step)
 
-        writer.put_time(
-            name=writer.EventName.TOTAL_TRAIN_TIME, start_time=train_start, end_time=time(), step=num_iterations
-        )
+                if step != 0 and step % self.config.logging.steps_per_log == 0:
+                    writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
+                if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
+                    self.save_checkpoint(self.config.graph.model_dir, step)
+                if step % self.config.graph.steps_per_test == 0:
+                    self.eval_with_dataloader(self.dataloader_eval, step=step)
+                self._write_out_storage(step)
+
         self._write_out_storage(num_iterations)
 
     def _write_out_storage(self, step: int) -> None:
