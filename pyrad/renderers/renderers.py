@@ -32,18 +32,19 @@ from typing import Optional
 import torch
 from torch import nn
 from torchtyping import TensorType
+from pyrad.cameras.rays import RaySamples
 
 from pyrad.utils.math import components_from_spherical_harmonics
 
 
 class RGBRenderer(nn.Module):
-    """Standard volumetic rendering."""
+    """Standard volumetic rendering.
+
+    Args:
+        background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
+    """
 
     def __init__(self, background_color: Optional[TensorType[3]] = None) -> None:
-        """
-        Args:
-            background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
-        """
         super().__init__()
         self.background_color = background_color
 
@@ -95,16 +96,16 @@ class RGBRenderer(nn.Module):
 
 
 class SHRenderer(nn.Module):
-    """Render RGB value from spherical harmonics."""
+    """Render RGB value from spherical harmonics.
+
+    Args:
+        background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
+        activation (Optional[nn.Module], optional): Output activation. Defaults to Sigmoid().
+    """
 
     def __init__(
         self, background_color: Optional[TensorType[3]] = None, activation: Optional[nn.Module] = nn.Sigmoid()
     ) -> None:
-        """
-        Args:
-            background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
-            activation (Optional[nn.Module], optional): Output activation. Defaults to Sigmoid().
-        """
         super().__init__()
         self.background_color = background_color
         self.activation = activation
@@ -164,26 +165,24 @@ class AccumulationRenderer(nn.Module):
 
 
 class DepthRenderer(nn.Module):
-    """Calcualte depth along ray."""
+    """Calculate depth along ray.
+
+    Args:
+        method (str, optional): Depth calculation method. Defaults to 'expected'.
+    """
 
     def __init__(self, method: str = "expected") -> None:
-        """
-        Args:
-            method (str, optional): Depth calculation method. Defaults to 'expected'.
-        """
         super().__init__()
         if method not in {"expected"}:
             raise ValueError(f"{method} is an invalid depth calculation method")
         self.method = method
 
-    def forward(
-        self, weights: TensorType[..., "num_samples"], bins: TensorType[..., "num_samples+1"]
-    ) -> TensorType[..., 1]:
+    def forward(self, weights: TensorType[..., "num_samples"], ray_samples: RaySamples) -> TensorType[..., 1]:
         """Composite samples along ray and calculate disparities.
 
         Args:
-            weights (TensorType[..., "num_samples"]): Weights for each sample
-            bins (TensorType[..., "num_samples+1"]): Bins along ray
+            weights (TensorType[..., "num_samples"]): Weights for each sample.
+            ray_samples (RaySamples): Set of ray samples.
 
         Returns:
             TensorType[..., 1]: Outputs of depth values.
@@ -191,7 +190,7 @@ class DepthRenderer(nn.Module):
 
         if self.method == "expected":
             eps = 1e-10
-            steps = (bins[..., :-1] + bins[..., 1:]) / 2
+            steps = (ray_samples.bin_starts + ray_samples.bin_ends) / 2
             depth = torch.sum(weights * steps, dim=-1) / (torch.sum(weights, -1) + eps)
 
             depth = torch.clip(depth, steps[..., 0], steps[..., -1])

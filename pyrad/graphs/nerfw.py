@@ -111,7 +111,7 @@ class NerfWGraph(Graph):
             rgb=field_outputs_coarse[FieldHeadNames.RGB],
             weights=weights_coarse,
         )
-        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform.bins)
+        depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform)
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
@@ -145,8 +145,8 @@ class NerfWGraph(Graph):
         density_transient = field_outputs_fine[FieldHeadNames.TRANSIENT_DENSITY]
 
         # depth
-        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf.bins)
-        depth_fine_static = self.renderer_depth(weights_fine_static, ray_samples_pdf.bins)
+        depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf)
+        depth_fine_static = self.renderer_depth(weights_fine_static, ray_samples_pdf)
 
         # uncertainty
         uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
