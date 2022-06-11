@@ -35,6 +35,15 @@ def load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     return os.path.join(model_dir, latest_ckpt)
 
 
+def load_hydra_config(hydra_dir: str):
+    """helper function to load the specified hydra config from the specified directory"""
+    basename = os.listdir(hydra_dir)[0]
+    hydra_dir = f"{hydra_dir}/{basename}"
+    initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
+    config = compose("config.yaml")
+    return config
+
+
 def main():
     """Main function."""
     benchmarks = {}
@@ -42,22 +51,25 @@ def main():
     method = BENCH["method"]
     benchmark_date = BENCH["benchmark_date"]
     for dataset in tqdm(BENCH["object_list"]):
+        # set up trainer, config, and checkpoint loading
         hydra_dir = f"{hydra_base_dir}/blender_{dataset}_{benchmark_date}/{method}/"
-        basename = os.listdir(hydra_dir)[0]
-        hydra_dir = f"{hydra_dir}/{basename}"
-        initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
-        config = compose("config.yaml")
+        config = load_hydra_config(hydra_dir)
         ckpt = load_best_ckpt(hydra_dir, config)
         trainer = Trainer(config, local_rank=0, world_size=1)
         trainer.setup(test_mode=True)
+        
+        # iterate through eval dataset and calculate avg. psnr
         avg_psnr = 0
         for step, (camera_ray_bundle, batch) in enumerate(trainer.dataloader_eval):
             with torch.no_grad():
                 psnr = trainer.test_image(camera_ray_bundle, batch, step=step)
             avg_psnr = (step * avg_psnr + psnr) / (step + 1)
         benchmarks[dataset] = (avg_psnr, ckpt)
+        
+        # reset hydra config
         GlobalHydra.instance().clear()
 
+    # output benchmark statistics to a json file
     benchmark_info = {"bench": BENCH, "results": benchmarks}
     timestamp = BENCH["benchmark_date"]
     json_file = os.path.join(BENCH["hydra_base_dir"], f"{timestamp}.json")

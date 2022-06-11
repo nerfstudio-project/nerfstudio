@@ -15,21 +15,96 @@
 """
 The Graph module contains all trainable parameters.
 """
+import logging
+import os
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
+import torch.distributed as dist
 from omegaconf import DictConfig
 from torch import nn
 from torch.nn import Parameter
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
 from pyrad.cameras.cameras import Camera
 from pyrad.cameras.rays import RayBundle
-from pyrad.data.structs import SceneBounds
+from pyrad.data.structs import DatasetInputs, SceneBounds
 from pyrad.graphs.modules.ray_generator import RayGenerator
+from pyrad.optimizers.optimizers import Optimizers
+from pyrad.utils import profiler
+from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
+
+
+def load_checkpoint(load_config: DictConfig, graph: "Graph", optimizers: Optimizers) -> int:
+    """Load the checkpoint from the given path
+
+    Args:
+        load_config (DictConfig): Configuration for loading a model.
+
+    Returns:
+        int: step iteration associated with the loaded checkpoint
+    """
+    load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
+    assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+    loaded_state = torch.load(load_path, map_location="cpu")
+    graph.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
+    for k, v in loaded_state["optimizers"].items():
+        optimizers.optimizers[k].load_state_dict(v)
+    start_step = loaded_state["step"] + 1
+    logging.info("done loading checkpoint from %s", load_path)
+    return start_step
+
+
+@check_main_thread
+def save_checkpoint(graph: "Graph", optimizers: Optimizers, output_dir: str, step: int) -> None:
+    """Save the model and optimizers
+
+    Args:
+        graph (Graph): graph to checkpoint
+        optimizers (Optimizers): optimizer to checkpoint
+        output_dir (str): directory to save the checkpoint
+        step (int): number of steps in training for given checkpoint
+    """
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
+    torch.save(
+        {
+            "step": step,
+            "model": graph.module.state_dict() if hasattr(graph, "module") else graph.state_dict(),
+            "optimizers": {k: v.state_dict() for (k, v) in optimizers.optimizers.items()},
+        },
+        ckpt_path,
+    )
+
+
+@profiler.time_function
+def setup_graph(
+    config: DictConfig, dataset_inputs: DatasetInputs, local_rank: int = 0, world_size: int = 1
+) -> Tuple["Graph", Optimizers, int]:
+    """Setup the graph. The dataset inputs should be set with the training data.
+
+    Args:
+        dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+    """
+    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+    graph = instantiate_from_dict_config(config.network, **dataset_inputs.as_dict())
+    graph.to(device)
+
+    optimizers = Optimizers(config.param_groups, graph.get_param_groups())  # NOTE(ethan): can this be before DDP?
+
+    start_step = 0
+    if config.resume_train.load_dir:
+        start_step = load_checkpoint(config.resume_train, graph, optimizers)
+
+    if world_size > 1:
+        graph = DDP(graph, device_ids=[local_rank])
+        dist.barrier(device_ids=[local_rank])
+    return graph, optimizers, start_step
 
 
 class AbstractGraph(nn.Module):
