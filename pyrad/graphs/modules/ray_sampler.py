@@ -109,7 +109,7 @@ class UniformSampler(Sampler):
             bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
             bins = bin_lower + (bin_upper - bin_lower) * t_rand
 
-        ray_samples = ray_bundle.get_ray_samples(bins)
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1], bin_ends=bins[..., 1:])
 
         return ray_samples
 
@@ -216,18 +216,28 @@ class PDFSampler(Sampler):
             x_end = torch.min(torch.where(~mask, x[..., None], x[..., -1:, None]), -2)[0]
             return x_start, x_end
 
-        bins_g0, bins_g1 = find_interval(mask, ray_samples.bins)
+        # Force bins to not have a gap between them. Kinda hacky, should reconsider.
+        existing_bins = torch.cat(
+            [
+                ray_samples.bin_starts[..., :1],
+                (ray_samples.bin_starts[..., 1:] + ray_samples.bin_ends[..., :-1]) / 2.0,
+                ray_samples.bin_ends[..., -1:],
+            ],
+            axis=-1,
+        )
+
+        bins_g0, bins_g1 = find_interval(mask, existing_bins)
         cdf_g0, cdf_g1 = find_interval(mask, cdf)
 
         t = torch.clip(torch.nan_to_num((u - cdf_g0) / (cdf_g1 - cdf_g0), 0), 0, 1)
         bins = bins_g0 + t * (bins_g1 - bins_g0)
 
         if self.include_original:
-            bins, _ = torch.sort(torch.cat([ray_samples.bins, bins], -1), -1)
+            bins, _ = torch.sort(torch.cat([existing_bins, bins], -1), -1)
 
         # Stop gradients
         bins = bins.detach()
 
-        ray_samples = ray_bundle.get_ray_samples(bins)
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1], bin_ends=bins[..., 1:])
 
         return ray_samples

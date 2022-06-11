@@ -21,6 +21,7 @@ import enum
 import os
 import sys
 from abc import abstractmethod
+from time import time
 from typing import Dict
 
 import imageio
@@ -84,42 +85,29 @@ def put_dict(name: str, scalar_dict: float, step: int):
 
 
 @check_main_thread
-def put_time(
-    name: str,
-    start_time: float,
-    end_time: float,
-    step: int,
-    avg_over_iters: bool = False,
-    avg_over_batch: int = None,
-    update_eta: bool = False,
-):
+def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True, update_eta: bool = False):
     """Setter function to place a time element into the queue to be written out
 
     Processes the time info according to the options:
-    avg_over_iters (bool): if True, calculate and record a running average of the times
-    avg_over_batch (int): if set, the size of the batch for which we take the average over (batch/second)
+    avg_over_steps (bool): if True, calculate and record a running average of the times
     update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
     """
     if isinstance(name, EventName):
         name = name.value
 
-    GLOBAL_BUFFER["step"] = step
-    val = end_time - start_time
-    if avg_over_batch:
-        val = avg_over_batch / val
-
-    if avg_over_iters:
+    if avg_over_steps:
+        GLOBAL_BUFFER["step"] = step
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
         curr_buffer = curr_event["buffer"]
         curr_avg = curr_event["avg"]
         if len(curr_buffer) >= GLOBAL_BUFFER["max_buffer_size"]:
             curr_buffer.pop(0)
-        curr_buffer.append(val)
+        curr_buffer.append(duration)
         curr_avg = sum(curr_buffer) / len(curr_buffer)
         put_scalar(name, curr_avg, step)
         GLOBAL_BUFFER["events"][name] = {"buffer": curr_buffer, "avg": curr_avg}
     else:
-        put_scalar(name, val, step)
+        put_scalar(name, duration, step)
 
     if update_eta:
         ## NOTE: eta should be called with avg train iteration time
@@ -202,6 +190,33 @@ class Writer:
         """
         for name, scalar in scalar_dict.items():
             self.write_scalar(name, scalar, step)
+
+
+class TimeWriter:
+    """Timer context manager that calculates duration around wrapped functions"""
+
+    def __init__(self, writer, name, step=None):
+        self.writer = writer
+        self.name = name
+        self.step = step
+
+        self.start = None
+        self.duration = None
+
+    def __enter__(self):
+        self.start = time()
+        return self
+
+    def __exit__(self, *args):
+        self.duration = time() - self.start
+        update_step = self.step is not None
+        self.writer.put_time(
+            name=self.name,
+            duration=self.duration,
+            step=self.step if update_step else GLOBAL_BUFFER["max_iter"],
+            avg_over_steps=update_step,
+            update_eta=self.name == EventName.ITER_TRAIN_TIME,
+        )
 
 
 @decorate_all([check_main_thread])
