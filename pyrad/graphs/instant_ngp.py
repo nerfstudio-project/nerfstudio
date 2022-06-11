@@ -162,4 +162,6 @@ class NGPGraph(Graph):
         writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(ssim), step=step)
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(lpips), step=step)
 
+        writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)
+
         return psnr.item()
