@@ -96,7 +96,7 @@ class Trainer:
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
                 if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
-                    save_checkpoint(self.config.graph.model_dir, step)
+                    save_checkpoint(self.graph, self.optimizers, self.config.graph.model_dir, step)
                 if step % self.config.graph.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
