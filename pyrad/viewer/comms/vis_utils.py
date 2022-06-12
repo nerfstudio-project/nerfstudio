@@ -7,7 +7,6 @@ import random
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.spatial.transform import Rotation as R
 
 import pyrad.viewer.comms.cameras as c
 import pyrad.viewer.comms.geometry as g
@@ -95,58 +94,6 @@ def show_obj(vis, obj_path, name="obj", color=None):
     else:
         material = g.MeshPhongMaterial(vertexColors=True)
     vis[name].set_object(g.ObjMeshGeometry.from_file(obj_path), material)
-
-
-def show_pair(vis, pair, name="pair"):
-    """Call show_data for both data points in the pair."""
-    show_data(vis, pair["data0"], name=f"{name}/data0")
-    show_data(vis, pair["data1"], name=f"{name}/data1")
-
-
-# TODO: bring back the functions below here
-
-
-def show_prediction_in_viewer(vis, data, pred_depth, name="data"):
-    d = copy.deepcopy(data)
-    d["image"] = data["image"][0].cpu().numpy()
-    d["depth"] = pred_depth[0].cpu().numpy()
-    d["pose"] = data["pose"][0].cpu().numpy().astype("float64")
-    d["intrinsics"] = data["intrinsics"][0].cpu().numpy()
-    show_data(vis, d, name=name)
-
-
-def show_experiment(vis, inputs, left_depth, right_depth, model_name="temp"):
-    show_prediction_in_viewer(vis, inputs["data0"], left_depth, name="{}/left_pred".format(model_name))
-    show_prediction_in_viewer(vis, inputs["data0"], inputs["data0"]["depth"], name="{}/left_gt".format(model_name))
-
-    show_prediction_in_viewer(vis, inputs["data1"], right_depth, name="{}/right_pred".format(model_name))
-    show_prediction_in_viewer(vis, inputs["data1"], inputs["data1"]["depth"], name="{}/right_gt".format(model_name))
-    return
-
-
-def pair_from_inputs(inputs, b=0):
-    """Return a pair without the batch dimension.
-    Note that b specifies which batch index to use.
-    Also note that inputs has a nested dictionary structure 2 layers deep.
-    """
-    pair = {}
-    for key, value in inputs.items():
-        if isinstance(value, dict):
-            pair[key] = {}
-            for key2, value2 in value.items():
-                pair[key][key2] = copy.deepcopy(value2[b])
-        else:
-            pair[key] = copy.deepcopy(value[b])
-    return pair
-
-
-def pair_outputs_from_outputs(outputs, b=0):
-    pair_outputs = pair_from_inputs(outputs, b=b)
-    return pair_outputs
-
-
-# COLMAP helper functions
-# camera drawing helper functions
 
 
 def draw_camera_frustum(

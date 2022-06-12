@@ -1,12 +1,8 @@
 from __future__ import absolute_import, division, print_function
 
-import atexit
 import base64
-import os
 import re
 import sys
-import subprocess
-import multiprocessing
 
 if sys.version_info >= (3, 0):
     ADDRESS_IN_USE_ERROR = OSError
@@ -15,23 +11,20 @@ else:
 
     ADDRESS_IN_USE_ERROR = socket.error
 
-import tornado.web
-import tornado.ioloop
-import tornado.websocket
 import tornado.gen
-
+import tornado.ioloop
+import tornado.web
+import tornado.websocket
 import zmq
 import zmq.eventloop.ioloop
+from pyrad.viewer.comms.tree import SceneTree, find_node, walk
 from zmq.eventloop.zmqstream import ZMQStream
-
-from servers.tree import SceneTree, walk, find_node
 
 
 def capture(pattern, s):
     match = re.match(pattern, s)
     if not match:
-        raise ValueError(
-            "Could not match {:s} with pattern {:s}".format(s, pattern))
+        raise ValueError("Could not match {:s} with pattern {:s}".format(s, pattern))
     else:
         return match.groups()[0]
 
@@ -55,17 +48,12 @@ def _zmq_install_ioloop():
 _zmq_install_ioloop()
 
 
-
 MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"
 DEFAULT_ZMQ_PORT = 6000
 DEFAULT_PORT = 8051
 
-MESHCAT_COMMANDS = ["set_transform",
-                    "set_object",
-                    "delete",
-                    "set_property",
-                    "set_animation"]
+MESHCAT_COMMANDS = ["set_transform", "set_object", "delete", "set_property", "set_animation"]
 
 
 def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs):
@@ -74,14 +62,18 @@ def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs)
         try:
             return func(port, **kwargs), port
         except (ADDRESS_IN_USE_ERROR, zmq.error.ZMQError):
-            print("Port: {:d} in use, trying another...".format(
-                port), file=sys.stderr)
+            print("Port: {:d} in use, trying another...".format(port), file=sys.stderr)
         except Exception as e:
             print(type(e))
             raise
     else:
-        raise (Exception("Could not find an available port in the range: [{:d}, {:d})".format(default_port,
-                                                                                              max_attempts + default_port)))
+        raise (
+            Exception(
+                "Could not find an available port in the range: [{:d}, {:d})".format(
+                    default_port, max_attempts + default_port
+                )
+            )
+        )
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
@@ -112,7 +104,9 @@ def create_command(data):
 fetch("data:application/octet-binary;base64,{}")
     .then(res => res.arrayBuffer())
     .then(buffer => viewer.handle_command_bytearray(new Uint8Array(buffer)));
-    """.format(base64.b64encode(data).decode("utf-8"))
+    """.format(
+        base64.b64encode(data).decode("utf-8")
+    )
 
 
 class StaticFileHandlerNoCache(tornado.web.StaticFileHandler):
@@ -123,33 +117,29 @@ class StaticFileHandlerNoCache(tornado.web.StaticFileHandler):
 
     def set_extra_headers(self, path):
         # Disable cache
-        self.set_header('Cache-Control',
-                        'no-store, no-cache, must-revalidate, max-age=0')
+        self.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 
 
 class ZMQWebSocketBridge(object):
     context = zmq.Context()
 
-    def __init__(self,
-                 zmq_url=None,
-                 host="0.0.0.0",
-                 zmq_port=None,
-                 port=None):
+    def __init__(self, zmq_url=None, host="0.0.0.0", zmq_port=None, port=None):
         self.host = host
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
 
         if zmq_url is None:
+
             def f(port):
                 return self.setup_zmq("{:s}://{:s}:{:d}".format(DEFAULT_ZMQ_METHOD, self.host, port))
 
             # TODO(ethan): handle the port setting better
-            (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(f,
-                                                                                      zmq_port if zmq_port is not None else DEFAULT_ZMQ_PORT)
+            (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(
+                f, zmq_port if zmq_port is not None else DEFAULT_ZMQ_PORT
+            )
         else:
-            self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(
-                zmq_url)
+            self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
         listen_kwargs = {}
         self.app.listen(DEFAULT_PORT, **listen_kwargs)
@@ -157,9 +147,7 @@ class ZMQWebSocketBridge(object):
         self.tree = SceneTree()
 
     def make_app(self):
-        return tornado.web.Application([
-            (r"/", WebSocketHandler, {"bridge": self})
-        ])
+        return tornado.web.Application([(r"/", WebSocketHandler, {"bridge": self})])
 
     def handle_zmq(self, frames):
         # print(frames)
@@ -227,15 +215,18 @@ def main():
     import sys
     import webbrowser
 
-    parser = argparse.ArgumentParser(
-        description="Serve the MeshCat HTML files and listen for ZeroMQ commands")
-    parser.add_argument('--zmq-url', '-z', type=str, nargs="?", default=None)
-    parser.add_argument('--open', '-o', action="store_true")
-    parser.add_argument('--certfile', type=str, default=None)
-    parser.add_argument('--keyfile', type=str, default=None)
-    parser.add_argument('--ngrok_http_tunnel', action="store_true", help="""    
+    parser = argparse.ArgumentParser(description="Serve the MeshCat HTML files and listen for ZeroMQ commands")
+    parser.add_argument("--zmq-url", "-z", type=str, nargs="?", default=None)
+    parser.add_argument("--open", "-o", action="store_true")
+    parser.add_argument("--certfile", type=str, default=None)
+    parser.add_argument("--keyfile", type=str, default=None)
+    parser.add_argument(
+        "--ngrok_http_tunnel",
+        action="store_true",
+        help="""    
 ngrok is a service for creating a public URL from your local machine, which 
-is very useful if you would like to make your meshcat server public.""")
+is very useful if you would like to make your meshcat server public.""",
+    )
     results = parser.parse_args()
     bridge = ZMQWebSocketBridge(zmq_url=results.zmq_url)
     print("zmq_url={:s}".format(bridge.zmq_url))
@@ -245,5 +236,5 @@ is very useful if you would like to make your meshcat server public.""")
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
