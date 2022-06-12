@@ -20,7 +20,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "electron": "electron ."
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -37,8 +38,14 @@
       "last 1 safari version"
     ]
   },
-  "main": "index.js",
+  "main": "public/electron.js",
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "concurrently": "^7.2.1",
+    "electron": "^19.0.4",
+    "electron-is-dev": "^2.0.0",
+    "wait-on": "^6.0.1"
+  }
 }
