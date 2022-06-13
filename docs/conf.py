@@ -41,6 +41,7 @@ extensions = [
     "myst_parser",
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
+    "nbsphinx",
 ]
 
 # List of patterns, relative to source directory, that match files and
