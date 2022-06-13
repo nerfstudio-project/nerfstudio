@@ -38,7 +38,13 @@ Contents
 .. toctree::
    :hidden:
    :caption: Reference
+
+   notebooks/index
    
+.. toctree::
+   :hidden:
+   :caption: API
+
    reference/index
 
 
