@@ -18,9 +18,9 @@ graph:
     loss_coefficients: # loss coefficients
       rgb_loss: 1.0
 
-  # optimizer options for network
-  param_groups:
-    fields:
-      optimizer:
-        lr: 1e-2
-      scheduler: null
+# optimizer options for network
+optimizers:
+  fields:
+    optimizer:
+      lr: 1e-2
+    scheduler: null

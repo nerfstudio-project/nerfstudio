@@ -18,7 +18,7 @@ Data loader.
 
 import random
 from typing import Dict, List, Tuple, Union
-from omegaconf import ListConfig
+from omegaconf import DictConfig, ListConfig
 
 from torchtyping import TensorType
 
@@ -27,7 +27,57 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.image_sampler import ImageSampler
 from pyrad.data.pixel_sampler import PixelSampler
-from pyrad.utils.misc import get_dict_to_torch
+from pyrad.data.structs import DatasetInputs
+from pyrad.data.utils import get_dataset_inputs_from_dataset_config
+from pyrad.utils import profiler
+from pyrad.utils.misc import get_dict_to_torch, instantiate_from_dict_config
+
+
+@profiler.time_function
+def setup_dataset_train(config: DictConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
+    """Helper method to load train dataset
+    Args:
+        config (DictConfig): Configuration of training dataset.
+        device (str): device to load the dataset to
+
+    Returns:
+        Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
+    """
+    dataset_inputs_train = get_dataset_inputs_from_dataset_config(**config.dataset_inputs_train, split="train")
+    # ImageDataset
+    image_dataset_train = instantiate_from_dict_config(config.image_dataset_train, **dataset_inputs_train.as_dict())
+    # ImageSampler
+    image_sampler_train = instantiate_from_dict_config(
+        config.dataloader_train.image_sampler, dataset=image_dataset_train, device=device
+    )
+    # PixelSampler
+    pixel_sampler_train = instantiate_from_dict_config(config.dataloader_train.pixel_sampler)
+    # Dataloader
+    dataloader_train = TrainDataloader(image_sampler_train, pixel_sampler_train)
+    return dataset_inputs_train, dataloader_train
+
+
+@profiler.time_function
+def setup_dataset_eval(config: DictConfig, test_mode: bool, device: str) -> Tuple[DatasetInputs, "EvalDataloader"]:
+    """Helper method to load test or val dataset based on test/train mode
+    Args:
+        config (DictConfig): Configuration of training dataset.
+        test_mode (bool): specifies whether you are training/testing mode, to load validation/test data
+        device (str): device to load the dataset to
+
+    Returns:
+        Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
+    """
+    eval_split = "test" if test_mode else "val"
+    dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**config.dataset_inputs_eval, split=eval_split)
+    image_dataset_eval = instantiate_from_dict_config(config.image_dataset_eval, **dataset_inputs_eval.as_dict())
+    dataloader_eval = instantiate_from_dict_config(
+        config.dataloader_eval,
+        image_dataset=image_dataset_eval,
+        device=device,
+        **dataset_inputs_eval.as_dict(),
+    )
+    return dataset_inputs_eval, dataloader_eval
 
 
 class TrainDataloader:
@@ -88,7 +138,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         num_rays_per_chunk: int,
         image_indices: Union[List[int], ListConfig],
         device="cpu",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(image_dataset, intrinsics, camera_to_world, num_rays_per_chunk, device, **kwargs)
         self.image_indices = image_indices

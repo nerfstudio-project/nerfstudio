@@ -26,13 +26,12 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
 from pyrad.cameras.rays import RayBundle
-from pyrad.data.dataloader import EvalDataloader, TrainDataloader
-from pyrad.data.utils import DatasetInputs, get_dataset_inputs_from_dataset_config
-from pyrad.optimizers.optimizers import Optimizers
+from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
+from pyrad.graphs.base import setup_graph
+from pyrad.optimizers.optimizers import setup_optimizers
 from pyrad.utils import profiler, writer
 from pyrad.utils.callbacks import update_occupancy
 from pyrad.utils.decorators import check_main_thread
-from pyrad.utils.misc import instantiate_from_dict_config
 from pyrad.utils.writer import EventName, TimeWriter
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
@@ -52,6 +51,7 @@ class Trainer:
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
+        self.device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         # dataset variables
         self.dataloader_train = None
         self.dataloader_eval = None
@@ -62,110 +62,20 @@ class Trainer:
         # logging variables
         writer.setup_event_writers(config)
         profiler.setup_profiler(config.logging)
-        self.device = "cpu" if self.world_size == 0 else f"cuda:{self.local_rank}"
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""
-        dataset_inputs_train = get_dataset_inputs_from_dataset_config(
-            **self.config.data.dataset_inputs_train, split="train"
-        )
-        eval_split = "test" if test_mode else "val"
-        dataset_inputs_eval = get_dataset_inputs_from_dataset_config(
-            **self.config.data.dataset_inputs_eval, split=eval_split
-        )
-        self.setup_dataset_train(dataset_inputs_train)
-        self.setup_dataset_eval(dataset_inputs_eval)
-        self.setup_graph(dataset_inputs_train)
-
-    @profiler.time_function
-    def setup_dataset_train(self, dataset_inputs: DatasetInputs):
-        """_summary_"""
-        # ImageDataset
-        image_dataset_train = instantiate_from_dict_config(
-            self.config.data.image_dataset_train, **dataset_inputs.as_dict()
-        )
-        # ImageSampler
-        image_sampler_train = instantiate_from_dict_config(
-            self.config.data.dataloader_train.image_sampler, dataset=image_dataset_train, device=self.device
-        )
-        # PixelSampler
-        pixel_sampler_train = instantiate_from_dict_config(self.config.data.dataloader_train.pixel_sampler)
-        # Dataloader
-        self.dataloader_train = TrainDataloader(image_sampler_train, pixel_sampler_train)
-
-    @profiler.time_function
-    def setup_dataset_eval(self, dataset_inputs: DatasetInputs):
-        """Helper method to load test or val dataset based on test/train mode"""
-        image_dataset_eval = instantiate_from_dict_config(
-            self.config.data.image_dataset_eval, **dataset_inputs.as_dict()
-        )
-        self.dataloader_eval = instantiate_from_dict_config(
-            self.config.data.dataloader_eval,
-            image_dataset=image_dataset_eval,
-            device=self.device,
-            **dataset_inputs.as_dict(),
-        )
-
-    @profiler.time_function
-    def setup_graph(self, dataset_inputs: DatasetInputs):
-        """Setup the graph. The dataset inputs should be set with the training data.
-
-        Args:
-            dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
-        """
-        self.graph = instantiate_from_dict_config(self.config.graph.network, **dataset_inputs.as_dict())
-        self.graph.to(self.device)
-
-        self.setup_optimizers()  # NOTE(ethan): can this be before DDP?
+        dataset_inputs_train, self.dataloader_train = setup_dataset_train(self.config.data, device=self.device)
+        _, self.dataloader_eval = setup_dataset_eval(self.config.data, test_mode=test_mode, device=self.device)
+        self.graph = setup_graph(self.config.graph, dataset_inputs_train, device=self.device)
+        self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
 
         if self.config.graph.resume_train.load_dir:
-            self.load_checkpoint(self.config.graph.resume_train)
+            self._load_checkpoint()
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
-
-    def setup_optimizers(self):
-        """_summary_"""
-        self.optimizers = Optimizers(self.config.graph.param_groups, self.graph.get_param_groups())
-
-    def load_checkpoint(self, load_config: DictConfig) -> int:
-        """Load the checkpoint from the given path
-
-        Args:
-            load_config (DictConfig): Configuration for loading a model.
-
-        Returns:
-            int: step iteration associated with the loaded checkpoint
-        """
-        load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
-        assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
-        loaded_state = torch.load(load_path, map_location="cpu")
-        self.graph.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
-        for k, v in loaded_state["optimizers"].items():
-            self.optimizers.optimizers[k].load_state_dict(v)
-        self.start_step = loaded_state["step"] + 1
-        logging.info("done loading checkpoint from %s", load_path)
-
-    @check_main_thread
-    def save_checkpoint(self, output_dir: str, step: int) -> None:
-        """Save the model and optimizers
-
-        Args:
-            output_dir (str): directory to save the checkpoint
-            step (int): number of steps in training for given checkpoint
-        """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
-        torch.save(
-            {
-                "step": step,
-                "model": self.graph.module.state_dict() if hasattr(self.graph, "module") else self.graph.state_dict(),
-                "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
-            },
-            ckpt_path,
-        )
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.tensor]):
@@ -194,7 +104,7 @@ class Trainer:
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
                 if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
-                    self.save_checkpoint(self.config.graph.model_dir, step)
+                    self._save_checkpoint(self.config.graph.model_dir, step)
                 if step % self.config.graph.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
@@ -214,6 +124,38 @@ class Trainer:
             or step == self.config.graph.max_num_iterations
         ):
             writer.write_out_storage()
+
+    def _load_checkpoint(self) -> None:
+        """helper function to load graph and optimizer from prespecified checkpoint"""
+        load_config = self.config.resume_train
+        load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
+        assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+        loaded_state = torch.load(load_path, map_location="cpu")
+        self.start_step = loaded_state["step"] + 1
+        # load the checkpoints for graph and optimizer
+        self.graph.load_graph(loaded_state)
+        self.optimizers.load_optimizers(loaded_state)
+        logging.info("done loading checkpoint from %s", load_path)
+
+    @check_main_thread
+    def _save_checkpoint(self, output_dir: str, step: int) -> None:
+        """Save the model and optimizers
+
+        Args:
+            output_dir (str): directory to save the checkpoint
+            step (int): number of steps in training for given checkpoint
+        """
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
+        torch.save(
+            {
+                "step": step,
+                "model": self.graph.module.state_dict() if hasattr(self.graph, "module") else self.graph.state_dict(),
+                "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
+            },
+            ckpt_path,
+        )
 
     @profiler.time_function
     def train_iteration(
