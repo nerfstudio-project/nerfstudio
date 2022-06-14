@@ -21,13 +21,12 @@ data:
     downscale_factor: 1
 
 graph:
-  network:
-    _target_: pyrad.graphs.semantic_nerf.SemanticNerfGraph
-    collider_config:
-      _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
-    num_coarse_samples: 64
-    num_importance_samples: 64
-    loss_coefficients:
-      rgb_loss_coarse: 1.0
-      rgb_loss_fine: 1.0
-      semantic_loss_fine: 0.05
+  _target_: pyrad.graphs.semantic_nerf.SemanticNerfGraph
+  collider_config:
+    _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+  num_coarse_samples: 64
+  num_importance_samples: 64
+  loss_coefficients:
+    rgb_loss_coarse: 1.0
+    rgb_loss_fine: 1.0
+    semantic_loss_fine: 0.05
