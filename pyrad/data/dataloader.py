@@ -34,19 +34,15 @@ from pyrad.utils.misc import get_dict_to_torch, instantiate_from_dict_config
 
 
 @profiler.time_function
-def setup_dataset_train(
-    config: DictConfig, local_rank: int = 0, world_size: int = 1
-) -> Tuple[DatasetInputs, "TrainDataloader"]:
+def setup_dataset_train(config: DictConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
     """Helper method to load train dataset
     Args:
         config (DictConfig): Configuration of training dataset.
-        local_rank (int): current rank of process
-        world_size (int): total number of gpus available
+        device (str): device to load the dataset to
 
     Returns:
         Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
     """
-    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
     dataset_inputs_train = get_dataset_inputs_from_dataset_config(**config.dataset_inputs_train, split="train")
     # ImageDataset
     image_dataset_train = instantiate_from_dict_config(config.image_dataset_train, **dataset_inputs_train.as_dict())
@@ -62,20 +58,16 @@ def setup_dataset_train(
 
 
 @profiler.time_function
-def setup_dataset_eval(
-    config: DictConfig, test_mode: bool, local_rank: int = 0, world_size: int = 1
-) -> Tuple[DatasetInputs, "EvalDataloader"]:
+def setup_dataset_eval(config: DictConfig, test_mode: bool, device: str) -> Tuple[DatasetInputs, "EvalDataloader"]:
     """Helper method to load test or val dataset based on test/train mode
     Args:
         config (DictConfig): Configuration of training dataset.
         test_mode (bool): specifies whether you are training/testing mode, to load validation/test data
-        local_rank (int): current rank of process
-        world_size (int): total number of gpus available
+        device (str): device to load the dataset to
 
     Returns:
         Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
     """
-    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
     eval_split = "test" if test_mode else "val"
     dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**config.dataset_inputs_eval, split=eval_split)
     image_dataset_eval = instantiate_from_dict_config(config.image_dataset_eval, **dataset_inputs_eval.as_dict())

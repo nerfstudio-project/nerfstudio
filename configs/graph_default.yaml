@@ -86,12 +86,13 @@ graph:
     loss_coefficients:
       rgb_loss_coarse: 1.0
       rgb_loss_fine: 1.0
-  param_groups:
-    fields:
-      optimizer:
-        _target_: torch.optim.RAdam
-        lr: 0.0005
-      scheduler:
-        _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
-        lr_final: 0.000005
-        max_steps: 1000000
+
+optimizers:
+  fields:
+    optimizer:
+      _target_: torch.optim.RAdam
+      lr: 0.0005
+    scheduler:
+      _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
+      lr_final: 0.000005
+      max_steps: 1000000

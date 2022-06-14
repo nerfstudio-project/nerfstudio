@@ -1,6 +1,8 @@
 """
 run_eval.py
 """
+import logging
+import os
 from typing import Tuple
 import hydra
 import torch
@@ -8,7 +10,7 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 
 from pyrad.data.dataloader import setup_dataset_eval, setup_dataset_train
-from pyrad.graphs.base import setup_graph
+from pyrad.graphs.base import Graph, setup_graph
 from pyrad.utils.writer import TimeWriter
 
 
@@ -26,7 +28,21 @@ def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
     return (step * prev_avg + new_val) / (step + 1)
 
 
-def run_inference(config: DictConfig) -> Tuple[float, float]:
+def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
+    """Helper function to load checkpointed graph
+
+    Args:
+        config (DictConfig): Configuration of graph to load
+        graph (Graph): Graph instance of which to load weights
+    """
+    load_path = os.path.join(config.load_dir, f"step-{config.load_step:09d}.ckpt")
+    assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+    loaded_state = torch.load(load_path, map_location="cpu")
+    graph.load_checkpoint(loaded_state)
+    logging.info("done loading checkpoint from %s", load_path)
+
+
+def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) -> Tuple[float, float]:
     """helper function to run inference given config specifications (also used in benchmarking)
 
     Args:
@@ -35,11 +51,14 @@ def run_inference(config: DictConfig) -> Tuple[float, float]:
     Returns:
         Tuple[float, float]: returns both the avg psnr and avg rays per second
     """
+    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
     # setup graph and dataset
-    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True)
-    dataset_inputs_train, _ = setup_dataset_train(config.data)
-    graph, _, _ = setup_graph(config.graph, dataset_inputs_train)
-    graph.eval()
+    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
+    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
+    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+
+    # load checkpointed information
+    _load_checkpoint(config.graph.resume_train, graph)
 
     # calculate average psnr across test dataset
     # TODO(ethan): trajector specification
