@@ -63,12 +63,9 @@ data:
     _target_: pyrad.data.dataloader.FixedIndicesEvalDataloader
     image_indices: [0] # which images to evaluate on
     num_rays_per_chunk: 4096
-  # dataloader_eval:
-  #   _target_: pyrad.data.dataloader.RandIndicesEvalDataloader
-  #   num_rays_per_chunk: 4096
 
 graph:
-  model_dir: /tmp/pyrad_models/
+  model_dir: ./pyrad_models/
   steps_per_save: 100
   steps_per_test: 1000
   max_num_iterations: 1000000
@@ -86,13 +83,12 @@ graph:
     loss_coefficients:
       rgb_loss_coarse: 1.0
       rgb_loss_fine: 1.0
-
-optimizers:
-  fields:
-    optimizer:
-      _target_: torch.optim.RAdam
-      lr: 0.0005
-    scheduler:
-      _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
-      lr_final: 0.000005
-      max_steps: 1000000
+  param_groups:
+    fields:
+      optimizer:
+        _target_: torch.optim.RAdam
+        lr: 5e-4
+      scheduler:
+        _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
+        lr_final: 5e-6
+        max_steps: 1e6
