@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
+
 if sys.version_info >= (3, 0):
     unicode = str
 
@@ -13,13 +14,11 @@ class SetObject:
     # __slots__ = ["object", "path"]
 
     def __init__(self, geometry_or_object, material=None, path=None):
-        # print(geometry_or_object)
         if isinstance(geometry_or_object, Object):
             if material is not None:
                 raise ValueError("Please supply either an Object OR a Geometry and a Material")
             self.object = geometry_or_object
         elif isinstance(geometry_or_object, Camera) or isinstance(geometry_or_object, CameraHelper):
-            # print(geometry_or_object)
             self.object = geometry_or_object
         else:
             if material is None:
@@ -35,11 +34,7 @@ class SetObject:
 
     def lower(self):
         # print(self.object)
-        return {
-            u"type": u"set_object",
-            u"object": self.object.lower(),
-            u"path": self.path.lower()
-        }
+        return {"type": "set_object", "object": self.object.lower(), "path": self.path.lower()}
 
 
 class SetTransform:
@@ -50,11 +45,7 @@ class SetTransform:
         self.path = path
 
     def lower(self):
-        return {
-            u"type": u"set_transform",
-            u"path": self.path.lower(),
-            u"matrix": list(self.matrix.T.flatten())
-        }
+        return {"type": "set_transform", "path": self.path.lower(), "matrix": list(self.matrix.T.flatten())}
 
 
 class Delete:
@@ -64,10 +55,7 @@ class Delete:
         self.path = path
 
     def lower(self):
-        return {
-            u"type": u"delete",
-            u"path": self.path.lower()
-        }
+        return {"type": "delete", "path": self.path.lower()}
 
 
 class SetProperty:
@@ -79,12 +67,7 @@ class SetProperty:
         self.path = path
 
     def lower(self):
-        return {
-            u"type": u"set_property",
-            u"path": self.path.lower(),
-            u"property": self.key.lower(),
-            u"value": self.value
-        }
+        return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}
 
 
 class SetAnimation:
@@ -97,13 +80,10 @@ class SetAnimation:
 
     def lower(self):
         return {
-            u"type": u"set_animation",
-            u"animations": self.animation.lower(),
-            u"options": {
-                u"play": self.play,
-                u"repetitions": self.repetitions
-            },
-            u"path": ""
+            "type": "set_animation",
+            "animations": self.animation.lower(),
+            "options": {"play": self.play, "repetitions": self.repetitions},
+            "path": "",
         }
 
 
@@ -114,7 +94,15 @@ class SetCamera:
         self.path = path
 
     def lower(self):
-        return {
-            u"type": u"set_camera",
-            u"path": self.path.lower()
-        }
+        return {"type": "set_camera", "path": self.path.lower()}
+
+
+class SetImage:
+    # __slots__ = ["path"]
+
+    def __init__(self, image, path):
+        self.image = image
+        self.path = path
+
+    def lower(self):
+        return {"type": "set_image", "image": self.image, "path": self.path.lower()}

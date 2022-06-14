@@ -19,6 +19,8 @@ http://localhost:13000/localhost:18051
 #### How to use with VNC
 
 ```
+https://tigervnc.org/doc/Xvnc.html
+
 # start vnc server
 /opt/TurboVNC/bin/Xvnc :5017 -rfbport 5017 -SecurityTypes none -localsts
 

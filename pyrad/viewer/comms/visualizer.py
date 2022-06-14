@@ -2,49 +2,49 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 import webbrowser
-import socketio
-
 import umsgpack
 import numpy as np
 import zmq
 from IPython.display import HTML
 
 from .path import Path
-from .commands import SetObject, SetTransform, Delete, SetProperty, SetAnimation, SetCamera
+from .commands import SetImage, SetObject, SetTransform, Delete, SetProperty, SetAnimation, SetCamera
 from .geometry import MeshPhongMaterial
+
+import time
 
 
 class ViewerWindow(object):
     context = zmq.Context()
 
     def __init__(self, zmq_url="tcp://0.0.0.0:6000"):
-        # self.client = socketio.Client()
-        # self.client.connect('https://recon.ethanweber.me')
         self.zmq_url = zmq_url
         self.client = self.context.socket(zmq.REQ)
         self.client.connect(self.zmq_url)
 
     def send(self, command):
+        # start = time.time()
         cmd_data = command.lower()
-        self.client.send_multipart([
-            cmd_data["type"].encode("utf-8"),
-            cmd_data["path"].encode("utf-8"),
-            umsgpack.packb(cmd_data)
-        ])
+        # print(cmd_data)
+        self.client.send_multipart(
+            [
+                cmd_data["type"].encode("utf-8"),
+                cmd_data["path"].encode("utf-8"),
+                umsgpack.packb(cmd_data),
+            ]
+        )
         self.client.recv()
 
 
 class Visualizer(object):
     __slots__ = ["window", "path"]
 
-    def __init__(self,
-                 window=None):
+    def __init__(self, window=None):
         if window is None:
             self.window = ViewerWindow()
         else:
             self.window = window
-        self.path = Path(("meshcat",))
-        # self.path = Path(())
+        self.path = Path(("meshcat",))  # TODO(ethan): change this
 
     @staticmethod
     def view_into(window, path):
@@ -71,6 +71,9 @@ class Visualizer(object):
     def set_camera(self, path):
         return self.window.send(SetCamera(self.path))
 
+    def set_image(self, image):
+        return self.window.send(SetImage(image, self.path))
+
     def delete(self):
         return self.window.send(Delete(self.path))
 
@@ -78,7 +81,7 @@ class Visualizer(object):
         return "<Visualizer using: {window} at path: {path}>".format(window=self.window, path=self.path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import time
     import sys
 

@@ -214,6 +214,8 @@ export class Viewer extends Component {
             // set the camera to view from
             // TODO(ethan): add controls to set which camera we want to use
             console.log("setting camera");
+        } else if (cmd.type === "set_image") {
+            console.log("ethan: setting camera");
         }
         this.set_dirty();
 

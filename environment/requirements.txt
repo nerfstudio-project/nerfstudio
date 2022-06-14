@@ -8,14 +8,17 @@ jupyterlab==3.3.4
 kaleido
 matplotlib
 mediapy
+opencv-python
 plotly==5.7.0
 protobuf==3.20.0
 pylint==2.13.4
 pytest
+python-socketio
 tensorboard==2.9.0
 torch==1.11.0
 torchmetrics[image]==0.8.2
 torchtyping
 torchvision==0.12.0
 tqdm
+u-msgpack-python>=2.4.1
 wandb
