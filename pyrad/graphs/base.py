@@ -40,7 +40,7 @@ def setup_graph(config: DictConfig, dataset_inputs: DatasetInputs, device: str) 
     Args:
         dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
     """
-    graph = instantiate_from_dict_config(config.network, **dataset_inputs.as_dict())
+    graph = instantiate_from_dict_config(config, **dataset_inputs.as_dict())
     graph.to(device)
     return graph
 

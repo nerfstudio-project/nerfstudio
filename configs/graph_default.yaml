@@ -25,7 +25,7 @@ logging:
   # profiler logs run times of functions and prints at end of training
   enable_profiler: True
 
-checkpointing:
+trainer:
   model_dir: /tmp/pyrad_models/
   steps_per_save: 100
   steps_per_test: 1000

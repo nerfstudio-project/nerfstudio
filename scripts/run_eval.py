@@ -38,7 +38,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     load_path = os.path.join(config.load_dir, f"step-{config.load_step:09d}.ckpt")
     assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
-    graph.load_checkpoint(loaded_state)
+    graph.load_graph(loaded_state)
     logging.info("done loading checkpoint from %s", load_path)
 
 
@@ -58,7 +58,7 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
     graph = setup_graph(config.graph, dataset_inputs_train, device=device)
 
     # load checkpointed information
-    _load_checkpoint(config.graph.resume_train, graph)
+    _load_checkpoint(config.trainer.resume_train, graph)
 
     # calculate average psnr across test dataset
     # TODO(ethan): trajector specification
@@ -78,8 +78,8 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
 @hydra.main(config_path="../configs", config_name="graph_default.yaml")
 def main(config: DictConfig):
     """Main function."""
-    assert config.graph.resume_train.load_dir, "Please specify checkpoint load path"
-    assert config.graph.resume_train.load_step, "Please specify checkpoint step to load"
+    assert config.trainer.resume_train.load_dir, "Please specify checkpoint load path"
+    assert config.trainer.resume_train.load_step, "Please specify checkpoint step to load"
 
     avg_psnr, avg_rays_per_sec = run_inference(config)
 

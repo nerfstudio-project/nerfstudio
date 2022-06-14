@@ -30,14 +30,13 @@ def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     Returns:
         str: path to the most recent checkpoint sorted by timestamps and step number
     """
-    model_dir = os.path.join(hydra_dir, config.graph.model_dir)
+    model_dir = os.path.join(hydra_dir, config.model_dir)
     latest_ckpt = os.listdir(model_dir)
     latest_ckpt.sort()
     latest_ckpt = latest_ckpt[-1]
     step = os.path.splitext(latest_ckpt)[0].split("-")[-1]
-    config.graph.resume_train.load_dir = model_dir
-    config.graph.resume_train.load_step = int(step)
-    config.logging.writer.TensorboardWriter.save_dir = "/tmp/"
+    config.resume_train.load_dir = model_dir
+    config.resume_train.load_step = int(step)
     return os.path.join(model_dir, latest_ckpt)
 
 
@@ -54,6 +53,8 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     hydra_dir = f"{hydra_dir}/{basename}"
     initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
     config = compose("config.yaml")
+    ## set the tensorboard to a /tmp/ output file for now
+    config.logging.writer.TensorboardWriter.log_dir = "/tmp/"
     return config
 
 
@@ -67,7 +68,7 @@ def main():
         # set up trainer, config, and checkpoint loading
         hydra_dir = f"{hydra_base_dir}/blender_{dataset}_{benchmark_date}/{method}/"
         config = _load_hydra_config(hydra_dir)
-        ckpt = _load_best_ckpt(hydra_dir, config)
+        ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
         avg_psnr, avg_rays_per_sec = run_inference(config)

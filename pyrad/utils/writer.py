@@ -141,13 +141,13 @@ def setup_event_writers(config: DictConfig) -> None:
         writer_class = getattr(sys.modules[__name__], writer_type)
         writer_config = logging_configs[writer_type]
         if writer_type == "LocalWriter":
-            curr_writer = writer_class(writer_config.save_dir, writer_config.stats_to_track, writer_config.max_log_size)
+            curr_writer = writer_class(writer_config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
         else:
-            curr_writer = writer_class(writer_config.save_dir)
+            curr_writer = writer_class(writer_config.log_dir)
         EVENT_WRITERS.append(curr_writer)
 
     ## configure all the global buffer basic information
-    GLOBAL_BUFFER["max_iter"] = config.graph.max_num_iterations
+    GLOBAL_BUFFER["max_iter"] = config.trainer.max_num_iterations
     GLOBAL_BUFFER["max_buffer_size"] = config.logging.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
     GLOBAL_BUFFER["events"] = {}
@@ -156,8 +156,8 @@ def setup_event_writers(config: DictConfig) -> None:
 class Writer:
     """Writer class"""
 
-    def __init__(self, save_dir: str):
-        self.save_dir = save_dir
+    def __init__(self, log_dir: str):
+        self.log_dir = log_dir
 
     @abstractmethod
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
@@ -225,9 +225,9 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, save_dir: str):
-        super().__init__(save_dir)
-        wandb.init(dir=save_dir)
+    def __init__(self, log_dir: str):
+        super().__init__(log_dir)
+        wandb.init(dir=log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -253,9 +253,9 @@ class WandbWriter(Writer):
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, save_dir: str):
-        super().__init__(save_dir)
-        self.tb_writer = SummaryWriter(log_dir=self.save_dir)
+    def __init__(self, log_dir: str):
+        super().__init__(log_dir)
+        self.tb_writer = SummaryWriter(log_dir=self.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -310,13 +310,13 @@ def _format_time(seconds):
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, save_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
+    def __init__(self, log_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
         """
         Args:
             stats_to_track (ListConfig): the names of stats that should be logged.
             max_log size (int): max number of lines that will be logged to teminal.
         """
-        super().__init__(save_dir)
+        super().__init__(log_dir)
         self.stats_to_track = [EventName[name].value for name in stats_to_track]
         self.max_log_size = max_log_size
         self.keys = set()
@@ -325,7 +325,7 @@ class LocalWriter(Writer):
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         if name in self.stats_to_track:
             image = to8b(image)
-            image_path = os.path.join(self.save_dir, f"{name}.jpg")
+            image_path = os.path.join(self.log_dir, f"{name}.jpg")
             imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:

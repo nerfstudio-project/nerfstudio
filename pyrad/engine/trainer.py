@@ -70,7 +70,7 @@ class Trainer:
         self.graph = setup_graph(self.config.graph, dataset_inputs_train, device=self.device)
         self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
 
-        if self.config.graph.resume_train.load_dir:
+        if self.config.trainer.resume_train.load_dir:
             self._load_checkpoint()
 
         if self.world_size > 1:
@@ -91,7 +91,7 @@ class Trainer:
     def train(self) -> None:
         """_summary_"""
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
-            num_iterations = self.config.graph.max_num_iterations
+            num_iterations = self.config.trainer.max_num_iterations
             iter_dataloader_train = iter(self.dataloader_train)
             for step in range(self.start_step, self.start_step + num_iterations):
                 with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
@@ -103,9 +103,9 @@ class Trainer:
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
-                if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
-                    self._save_checkpoint(self.config.graph.model_dir, step)
-                if step % self.config.graph.steps_per_test == 0:
+                if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
+                    self._save_checkpoint(self.config.trainer.model_dir, step)
+                if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
 
@@ -119,9 +119,9 @@ class Trainer:
         """
         if (
             step % self.config.logging.steps_per_log == 0
-            or (self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0)
-            or step % self.config.graph.steps_per_test == 0
-            or step == self.config.graph.max_num_iterations
+            or (self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0)
+            or step % self.config.trainer.steps_per_test == 0
+            or step == self.config.trainer.max_num_iterations
         ):
             writer.write_out_storage()
 
