@@ -195,10 +195,11 @@ class Writer:
 class TimeWriter:
     """Timer context manager that calculates duration around wrapped functions"""
 
-    def __init__(self, writer, name, step=None):
+    def __init__(self, writer, name, step=None, write=True):
         self.writer = writer
         self.name = name
         self.step = step
+        self.write = write
 
         self.start = None
         self.duration = None
@@ -210,13 +211,14 @@ class TimeWriter:
     def __exit__(self, *args):
         self.duration = time() - self.start
         update_step = self.step is not None
-        self.writer.put_time(
-            name=self.name,
-            duration=self.duration,
-            step=self.step if update_step else GLOBAL_BUFFER["max_iter"],
-            avg_over_steps=update_step,
-            update_eta=self.name == EventName.ITER_TRAIN_TIME,
-        )
+        if self.write:
+            self.writer.put_time(
+                name=self.name,
+                duration=self.duration,
+                step=self.step if update_step else GLOBAL_BUFFER["max_iter"],
+                avg_over_steps=update_step,
+                update_eta=self.name == EventName.ITER_TRAIN_TIME,
+            )
 
 
 @decorate_all([check_main_thread])

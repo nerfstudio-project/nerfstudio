@@ -1,87 +1,90 @@
 """
 run_eval.py
 """
-import json
 import logging
 import os
-from datetime import date
-
+from typing import Tuple
+import hydra
 import torch
-from hydra import compose, initialize
-from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from pyrad.engine.trainer import Trainer
-from pyrad.cameras.cameras import Camera
-
-BENCH = {
-    "method": "vanilla_nerf",
-    "hydra_base_dir": "outputs/",
-    "benchmark_date": "05-26-2022",
-    "object_list": ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"],
-}
+from pyrad.data.dataloader import setup_dataset_eval, setup_dataset_train
+from pyrad.graphs.base import Graph, setup_graph
+from pyrad.utils.writer import TimeWriter
 
 
-def load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
-    """helper function to update config with latest checkpoint in specified hydra_dir"""
-    model_dir = os.path.join(hydra_dir, config.graph.model_dir)
-    latest_ckpt = os.listdir(model_dir)
-    latest_ckpt.sort()
-    latest_ckpt = latest_ckpt[-1]
-    step = os.path.splitext(latest_ckpt)[0].split("-")[-1]
-    config.graph.resume_train.load_dir = model_dir
-    config.graph.resume_train.load_step = int(step)
-    config.logging.writer.TensorboardWriter.save_dir = "/tmp/"
-    return os.path.join(model_dir, latest_ckpt)
+def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
+    """helper to calculate the running average
+
+    Args:
+        prev_avg (float): previous average value
+        new_val (float): new value to update the average with
+        step (int): current step number
+
+    Returns:
+        float: new updated average
+    """
+    return (step * prev_avg + new_val) / (step + 1)
 
 
-def main():
+def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
+    """Helper function to load checkpointed graph
+
+    Args:
+        config (DictConfig): Configuration of graph to load
+        graph (Graph): Graph instance of which to load weights
+    """
+    load_path = os.path.join(config.load_dir, f"step-{config.load_step:09d}.ckpt")
+    assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+    loaded_state = torch.load(load_path, map_location="cpu")
+    graph.load_checkpoint(loaded_state)
+    logging.info("done loading checkpoint from %s", load_path)
+
+
+def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) -> Tuple[float, float]:
+    """helper function to run inference given config specifications (also used in benchmarking)
+
+    Args:
+        config (DictConfig): Configuration for loading the evaluation.
+
+    Returns:
+        Tuple[float, float]: returns both the avg psnr and avg rays per second
+    """
+    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+    # setup graph and dataset
+    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
+    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
+    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+
+    # load checkpointed information
+    _load_checkpoint(config.graph.resume_train, graph)
+
+    # calculate average psnr across test dataset
+    # TODO(ethan): trajector specification
+    avg_psnr = 0
+    avg_rays_per_sec = 0
+    for step, (camera_ray_bundle, batch) in tqdm(enumerate(dataloader_eval)):
+        with TimeWriter(writer=None, name=None, write=False) as t:
+            with torch.no_grad():
+                image_idx = int(camera_ray_bundle.camera_indices[0, 0])
+                outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                psnr = graph.log_test_image_outputs(image_idx, step, batch, outputs)
+        avg_rays_per_sec = _update_avg(avg_rays_per_sec, camera_ray_bundle.origins.shape[0] / t.duration, step)
+        avg_psnr = _update_avg(avg_psnr, psnr, step)
+    return avg_psnr, avg_rays_per_sec
+
+
+@hydra.main(config_path="../configs", config_name="graph_default.yaml")
+def main(config: DictConfig):
     """Main function."""
-    # benchmarks = {}
-    # hydra_base_dir = BENCH["hydra_base_dir"]
-    # method = BENCH["method"]
-    # benchmark_date = BENCH["benchmark_date"]
-    # for dataset in tqdm(BENCH["object_list"]):
+    assert config.graph.resume_train.load_dir, "Please specify checkpoint load path"
+    assert config.graph.resume_train.load_step, "Please specify checkpoint step to load"
 
-    # hydra_dir = f"{hydra_base_dir}/blender_{dataset}_{benchmark_date}/{method}/"
-    # basename = os.listdir(hydra_dir)[0]
-    # hydra_dir = f"{hydra_dir}/{basename}"
-    # initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
-    # config = compose("configs/flat.yaml")
+    avg_psnr, avg_rays_per_sec = run_inference(config)
 
-    with initialize(version_base=None, config_path="../configs"):
-        config = compose(config_name="flat.yaml")
-    trainer = Trainer(config, local_rank=0, world_size=1)
-    trainer.setup(test_mode=False)
-
-    # create a camera trajectory
-    print("Running eval.")
-    # camera = Camera()
-    # trainer.graph.eval()
-    # camera_ray_bundle = camera.get_camera_ray_bundle(device=trainer.device)
-    image_idx = 0
-    camera_ray_bundle, batch = trainer.dataloader_eval.get_data_from_image_idx(image_idx)
-    image_height, image_width = camera_ray_bundle.origins.shape[:2]
-    print(image_height, image_width)
-    outputs = trainer.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-    
-    # print(outputs)
-
-    # avg_psnr = 0
-    # for step, image_idx in enumerate(config.data.val_image_indices):
-    #     with torch.no_grad():
-    #         psnr = trainer.test_image(image_idx=image_idx, step=step)
-    #     avg_psnr = (step * avg_psnr + psnr) / (step + 1)
-    # benchmarks[dataset] = (avg_psnr, ckpt)
-    # GlobalHydra.instance().clear()
-
-    # benchmark_info = {"bench": BENCH, "results": benchmarks}
-    # timestamp = date.today().strftime("%b-%d-%Y")
-    # json_file = os.path.join(BENCH["hydra_base_dir"], f"{timestamp}.json")
-    # with open(json_file, "w", encoding="utf8") as f:
-    #     json.dump(benchmark_info, f, indent=2)
-    # logging.info("saved benchmark results to %s", json_file)
+    print(f"Avg. PSNR: {avg_psnr:0.4f}")
+    print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
 
 
 if __name__ == "__main__":

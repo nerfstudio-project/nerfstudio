@@ -17,7 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 import torch
 from omegaconf import DictConfig
@@ -27,9 +27,22 @@ from torchtyping import TensorType
 
 from pyrad.cameras.cameras import Camera
 from pyrad.cameras.rays import RayBundle
-from pyrad.data.structs import SceneBounds
+from pyrad.data.structs import DatasetInputs, SceneBounds
 from pyrad.graphs.modules.ray_generator import RayGenerator
+from pyrad.utils import profiler
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
+
+
+@profiler.time_function
+def setup_graph(config: DictConfig, dataset_inputs: DatasetInputs, device: str) -> "Graph":
+    """Setup the graph. The dataset inputs should be set with the training data.
+
+    Args:
+        dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+    """
+    graph = instantiate_from_dict_config(config.network, **dataset_inputs.as_dict())
+    graph.to(device)
+    return graph
 
 
 class AbstractGraph(nn.Module):
@@ -178,3 +191,7 @@ class Graph(AbstractGraph):
     @abstractmethod
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         """Writes the test image outputs."""
+
+    def load_graph(self, loaded_state: Dict[str, Any]) -> None:
+        """Load the checkpoint from the given path"""
+        self.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})

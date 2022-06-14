@@ -4,15 +4,13 @@ run_benchmark.py
 import json
 import logging
 import os
-from datetime import date
 
-import torch
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from pyrad.engine.trainer import Trainer
+from scripts.run_eval import run_inference
 
 BENCH = {
     "method": "vanilla_nerf",
@@ -22,8 +20,16 @@ BENCH = {
 }
 
 
-def load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
-    """helper function to update config with latest checkpoint in specified hydra_dir"""
+def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
+    """helper function to update config with latest checkpoint in specified hydra_dir
+
+    Args:
+        hydra_dir (str): base directory for the specified run (where the model directories are stored)
+        config (DictConfig): configuration for the specified run.
+
+    Returns:
+        str: path to the most recent checkpoint sorted by timestamps and step number
+    """
     model_dir = os.path.join(hydra_dir, config.graph.model_dir)
     latest_ckpt = os.listdir(model_dir)
     latest_ckpt.sort()
@@ -35,6 +41,22 @@ def load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     return os.path.join(model_dir, latest_ckpt)
 
 
+def _load_hydra_config(hydra_dir: str) -> DictConfig:
+    """helper function to load the specified hydra config from the specified directory
+
+    Args:
+        hydra_dir (str): base directory for the specified run (where the flattened config.yaml is stored)
+
+    Returns:
+        DictConfig: returns the loaded hydra dictionary config
+    """
+    basename = os.listdir(hydra_dir)[0]
+    hydra_dir = f"{hydra_dir}/{basename}"
+    initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
+    config = compose("config.yaml")
+    return config
+
+
 def main():
     """Main function."""
     benchmarks = {}
@@ -42,22 +64,19 @@ def main():
     method = BENCH["method"]
     benchmark_date = BENCH["benchmark_date"]
     for dataset in tqdm(BENCH["object_list"]):
+        # set up trainer, config, and checkpoint loading
         hydra_dir = f"{hydra_base_dir}/blender_{dataset}_{benchmark_date}/{method}/"
-        basename = os.listdir(hydra_dir)[0]
-        hydra_dir = f"{hydra_dir}/{basename}"
-        initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
-        config = compose("config.yaml")
-        ckpt = load_best_ckpt(hydra_dir, config)
-        trainer = Trainer(config, local_rank=0, world_size=1)
-        trainer.setup(test_mode=True)
-        avg_psnr = 0
-        for step, (camera_ray_bundle, batch) in enumerate(trainer.dataloader_eval):
-            with torch.no_grad():
-                psnr = trainer.test_image(camera_ray_bundle, batch, step=step)
-            avg_psnr = (step * avg_psnr + psnr) / (step + 1)
-        benchmarks[dataset] = (avg_psnr, ckpt)
+        config = _load_hydra_config(hydra_dir)
+        ckpt = _load_best_ckpt(hydra_dir, config)
+
+        # run evaluation
+        avg_psnr, avg_rays_per_sec = run_inference(config)
+        benchmarks[dataset] = {"avg psnr": avg_psnr, "avg rays/s": avg_rays_per_sec, "checkpoint": ckpt}
+
+        # reset hydra config
         GlobalHydra.instance().clear()
 
+    # output benchmark statistics to a json file
     benchmark_info = {"bench": BENCH, "results": benchmarks}
     timestamp = BENCH["benchmark_date"]
     json_file = os.path.join(BENCH["hydra_base_dir"], f"{timestamp}.json")
