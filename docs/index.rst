@@ -27,7 +27,7 @@ Contents
    tutorials/quickstart.md
    tutorials/creating_dataset.md
    tutorials/creating_graphs.md
-   tutorials/contributing.md
+   Contributing <tutorials/contributing.md>
 
 .. toctree::
    :hidden:
