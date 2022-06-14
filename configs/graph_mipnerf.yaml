@@ -4,8 +4,13 @@ defaults:
 
 method_name: mipnerf
 
+# Differences compared to paper
+#       This repo                         mipNeRF
+# density = softplus(x)          density = softplus(x-1)
+# rgb = sigmoid(x)               rgb = (1 + 2e) / (1 + exp(-x)) -e
+
 graph:
   network:
     _target_: pyrad.graphs.mipnerf.MipNerfGraph
-    num_coarse_samples: 64
+    num_coarse_samples: 128
     num_importance_samples: 128
