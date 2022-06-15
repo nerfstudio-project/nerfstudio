@@ -46,13 +46,9 @@ class NGPGraph(Graph):
         self.field = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
-    def register_callbacks(self) -> List[Callback]:
-        """registering callbacks to run after training iteration
-
-        Returns:
-            List[Callback]: list of callbacks
-        """
-        return [
+    def register_callbacks(self) -> None:
+        """defining callbacks to run after every training iteration"""
+        self.callbacks = [
             Callback(
                 self.occupancy_grid.update_every_num_iters,
                 self.occupancy_grid.update_occupancy_grid,

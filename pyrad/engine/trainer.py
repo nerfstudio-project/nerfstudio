@@ -58,7 +58,6 @@ class Trainer:
         self.graph = None
         self.optimizers = None
         self.start_step = 0
-        self.callbacks = None
         # logging variables
         writer.setup_event_writers(config)
         profiler.setup_profiler(config.logging)
@@ -77,7 +76,7 @@ class Trainer:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
 
-        self.callbacks = self.graph.register_callbacks()
+        self.graph.register_callbacks()
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.tensor]):
@@ -177,8 +176,8 @@ class Trainer:
         loss.backward()
         self.optimizers.optimizer_step_all()
         self.optimizers.scheduler_step_all(step)
-        if self.callbacks:
-            for _func in self.callbacks:
+        if self.graph.callbacks:
+            for _func in self.graph.callbacks:
                 _func.after_step(step)
         return loss_dict
 

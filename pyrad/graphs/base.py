@@ -99,10 +99,11 @@ class Graph(AbstractGraph):
         self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
+        self.callbacks = None
 
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
-        return []
+        self.callbacks = []
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
