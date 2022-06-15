@@ -5,20 +5,29 @@ import sys
 if sys.version_info >= (3, 0):
     unicode = str
 
-from .geometry import Geometry, Object, Mesh, MeshPhongMaterial, PointsMaterial, Points
+from .geometry import (
+    Geometry,
+    Object,
+    Mesh,
+    MeshPhongMaterial,
+    OrthographicCamera,
+    PerspectiveCamera,
+    PointsMaterial,
+    Points,
+)
 from .cameras import Camera, CameraHelper
 from .path import Path
 
 
 class SetObject:
-    # __slots__ = ["object", "path"]
+    __slots__ = ["object", "path"]
 
     def __init__(self, geometry_or_object, material=None, path=None):
         if isinstance(geometry_or_object, Object):
             if material is not None:
-                raise ValueError("Please supply either an Object OR a Geometry and a Material")
+                raise (ValueError("Please supply either an Object OR a Geometry and a Material"))
             self.object = geometry_or_object
-        elif isinstance(geometry_or_object, Camera) or isinstance(geometry_or_object, CameraHelper):
+        elif isinstance(geometry_or_object, (OrthographicCamera, PerspectiveCamera)):
             self.object = geometry_or_object
         else:
             if material is None:
@@ -33,12 +42,11 @@ class SetObject:
             self.path = Path()
 
     def lower(self):
-        # print(self.object)
         return {"type": "set_object", "object": self.object.lower(), "path": self.path.lower()}
 
 
 class SetTransform:
-    # __slots__ = ["matrix", "path"]
+    __slots__ = ["matrix", "path"]
 
     def __init__(self, matrix, path):
         self.matrix = matrix
@@ -49,7 +57,7 @@ class SetTransform:
 
 
 class Delete:
-    # __slots__ = ["path"]
+    __slots__ = ["path"]
 
     def __init__(self, path):
         self.path = path
@@ -59,7 +67,7 @@ class Delete:
 
 
 class SetProperty:
-    # __slots__ = ["path", "key", "value"]
+    __slots__ = ["path", "key", "value"]
 
     def __init__(self, key, value, path):
         self.key = key
@@ -71,7 +79,7 @@ class SetProperty:
 
 
 class SetAnimation:
-    # __slots__ = ["animation", "play", "repetitions"]
+    __slots__ = ["animation", "play", "repetitions"]
 
     def __init__(self, animation, play=True, repetitions=1):
         self.animation = animation
@@ -87,18 +95,8 @@ class SetAnimation:
         }
 
 
-class SetCamera:
-    # __slots__ = ["path"]
-
-    def __init__(self, path):
-        self.path = path
-
-    def lower(self):
-        return {"type": "set_camera", "path": self.path.lower()}
-
-
 class SetImage:
-    # __slots__ = ["path"]
+    __slots__ = ["image", "path"]
 
     def __init__(self, image, path):
         self.image = image

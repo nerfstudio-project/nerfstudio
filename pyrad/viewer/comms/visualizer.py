@@ -1,17 +1,14 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
-import webbrowser
-import umsgpack
-import numpy as np
-import zmq
-from IPython.display import HTML
-
-from .path import Path
-from .commands import SetImage, SetObject, SetTransform, Delete, SetProperty, SetAnimation, SetCamera
-from .geometry import MeshPhongMaterial
-
 import time
+
+import numpy as np
+import umsgpack
+import zmq
+
+from .commands import Delete, SetAnimation, SetImage, SetObject, SetProperty, SetTransform
+from .path import Path
 
 
 class ViewerWindow(object):
@@ -23,9 +20,7 @@ class ViewerWindow(object):
         self.client.connect(self.zmq_url)
 
     def send(self, command):
-        # start = time.time()
         cmd_data = command.lower()
-        # print(cmd_data)
         self.client.send_multipart(
             [
                 cmd_data["type"].encode("utf-8"),
@@ -68,9 +63,6 @@ class Visualizer(object):
     def set_animation(self, animation, play=True, repetitions=1):
         return self.window.send(SetAnimation(animation, play=play, repetitions=repetitions))
 
-    def set_camera(self, path):
-        return self.window.send(SetCamera(self.path))
-
     def set_image(self, image):
         return self.window.send(SetImage(image, self.path))
 
@@ -82,8 +74,8 @@ class Visualizer(object):
 
 
 if __name__ == "__main__":
-    import time
     import sys
+    import time
 
     args = []
     if len(sys.argv) > 1:

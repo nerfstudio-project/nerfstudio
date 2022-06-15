@@ -30,7 +30,7 @@ function merge_geometries(object, preserve_materials = false) {
 
     collectGeometries(object, root_transform);
     let result = null;
-    if (geometries.length == 1) {
+    if (geometries.length === 1) {
         result = geometries[0];
         if (preserve_materials) {
             result.material = materials[0];
@@ -53,7 +53,7 @@ function merge_geometries(object, preserve_materials = false) {
 //   * A new `THREE.Texture` if that json represents a special texture
 //   * `null` otherwise
 function handle_special_texture(json) {
-    if (json.type == "_text") {
+    if (json.type === "_text") {
         let canvas = document.createElement("canvas");
         // canvas width and height should be in the power of 2; otherwise although
         // the page usually loads successfully, WebGL does complain/warn
@@ -84,31 +84,31 @@ function handle_special_texture(json) {
 //   * A new `THREE.Mesh` if that json represents a special geometry
 //   * `null` otherwise
 function handle_special_geometry(geom) {
-    if (geom.type == "_meshfile") {
+    if (geom.type === "_meshfile") {
         console.warn(
             "_meshfile is deprecated. Please use _meshfile_geometry for geometries and _meshfile_object for objects with geometry and material"
         );
         geom.type = "_meshfile_geometry";
     }
-    if (geom.type == "_meshfile_geometry") {
-        if (geom.format == "obj") {
+    if (geom.type === "_meshfile_geometry") {
+        if (geom.format === "obj") {
             let loader = new OBJLoader();
             let obj = loader.parse(geom.data + "\n");
             let loaded_geom = merge_geometries(obj);
             loaded_geom.uuid = geom.uuid;
             return loaded_geom;
-        } else if (geom.format == "dae") {
+        } else if (geom.format === "dae") {
             let loader = new ColladaLoader();
             let obj = loader.parse(geom.data);
             let result = merge_geometries(obj.scene);
             result.uuid = geom.uuid;
             return result;
-        } else if (geom.format == "stl") {
+        } else if (geom.format === "stl") {
             let loader = new STLLoader();
             let loaded_geom = loader.parse(geom.data.buffer);
             loaded_geom.uuid = geom.uuid;
             return loaded_geom;
-        } else if (geom.format == "ply") {
+        } else if (geom.format === "ply") {
             let loader = new PLYLoader();
             let loaded_geom = loader.parse(geom.data.buffer);
             loaded_geom.uuid = geom.uuid;
@@ -174,7 +174,7 @@ export class ExtensibleObjectLoader extends THREE.ObjectLoader {
     }
 
     parseObject(json, geometries, materials) {
-        if (json.type == "_meshfile_object") {
+        if (json.type === "_meshfile_object") {
             let geometry;
             let material;
             let manager = new THREE.LoadingManager();
@@ -188,7 +188,7 @@ export class ExtensibleObjectLoader extends THREE.ObjectLoader {
                 }
                 return url;
             });
-            if (json.format == "obj") {
+            if (json.format === "obj") {
                 let loader = new OBJLoader(manager);
                 if (json.mtl_library) {
                     let mtl_loader = new MTLLoader(manager);
@@ -203,14 +203,14 @@ export class ExtensibleObjectLoader extends THREE.ObjectLoader {
                 geometry = merge_geometries(obj, true);
                 geometry.uuid = json.uuid;
                 material = geometry.material;
-            } else if (json.format == "dae") {
+            } else if (json.format === "dae") {
                 let loader = new ColladaLoader(manager);
                 loader.onTextureLoad = this.onTextureLoad;
                 let obj = loader.parse(json.data, path);
                 geometry = merge_geometries(obj.scene, true);
                 geometry.uuid = json.uuid;
                 material = geometry.material;
-            } else if (json.format == "stl") {
+            } else if (json.format === "stl") {
                 let loader = new STLLoader();
                 geometry = loader.parse(json.data.buffer, path);
                 geometry.uuid = json.uuid;
@@ -270,7 +270,7 @@ export class ExtensibleObjectLoader extends THREE.ObjectLoader {
             if (json.layers !== undefined) object.layers.mask = json.layers;
 
             return object;
-        } else if (json.type == "CameraHelper") {
+        } else if (json.type === "CameraHelper") {
             console.log("processing CameraHelper");
             console.log(json);
             console.log(geometries);

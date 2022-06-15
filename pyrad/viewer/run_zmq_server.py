@@ -51,9 +51,8 @@ _zmq_install_ioloop()
 MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"
 DEFAULT_ZMQ_PORT = 6000
-DEFAULT_PORT = 8051
-
-MESHCAT_COMMANDS = ["set_transform", "set_object", "delete", "set_property", "set_animation"]
+DEFAULT_WEBSOCKET_PORT = 8051
+MESHCAT_COMMANDS = ["set_transform", "set_object", "delete", "set_property", "set_animation", "set_image"]
 
 
 def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs):
@@ -88,9 +87,12 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         self.bridge.websocket_pool.add(self)
         print("opened:", self, file=sys.stderr)
-        # self.bridge.send_scene(self)
+        self.bridge.send_scene(self)
 
     def on_message(self, message):
+        # TODO(ethan): implement this
+        print("ethan: here")
+        print(message)
         pass
 
     def on_close(self):
@@ -109,21 +111,10 @@ fetch("data:application/octet-binary;base64,{}")
     )
 
 
-class StaticFileHandlerNoCache(tornado.web.StaticFileHandler):
-    """Ensures static files do not get cached.
-
-    Taken from: https://stackoverflow.com/a/18879658/7829525
-    """
-
-    def set_extra_headers(self, path):
-        # Disable cache
-        self.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
-
-
 class ZMQWebSocketBridge(object):
     context = zmq.Context()
 
-    def __init__(self, zmq_url=None, host="0.0.0.0", zmq_port=None, port=None):
+    def __init__(self, zmq_url=None, host="127.0.0.1", websocket_port=None):
         self.host = host
         self.websocket_pool = set()
         self.app = self.make_app()
@@ -134,54 +125,56 @@ class ZMQWebSocketBridge(object):
             def f(port):
                 return self.setup_zmq("{:s}://{:s}:{:d}".format(DEFAULT_ZMQ_METHOD, self.host, port))
 
-            # TODO(ethan): handle the port setting better
-            (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(
-                f, zmq_port if zmq_port is not None else DEFAULT_ZMQ_PORT
-            )
+            (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(f, DEFAULT_ZMQ_PORT)
         else:
             self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
         listen_kwargs = {}
-        self.app.listen(DEFAULT_PORT, **listen_kwargs)
-        print("using {}".format(DEFAULT_PORT))
+
+        if websocket_port is None:
+            _, self.websocket_port = find_available_port(self.app.listen, DEFAULT_WEBSOCKET_PORT, **listen_kwargs)
+        else:
+            self.app.listen(websocket_port, **listen_kwargs)
+            self.websocket_port = websocket_port
+
         self.tree = SceneTree()
+
+    def __str__(self) -> str:
+        class_name = self.__class__.__name__
+        return f"{class_name} using zmq_url={self.zmq_url} and websocket_port={self.websocket_port}"
 
     def make_app(self):
         return tornado.web.Application([(r"/", WebSocketHandler, {"bridge": self})])
 
     def handle_zmq(self, frames):
-        # print(frames)
+        cmd = frames[0].decode("utf-8")
+        if cmd not in MESHCAT_COMMANDS:
+            print(f"{cmd} not in MESHCAT_COMMANDS! Proceeding anyways.")
+            # self.zmq_socket.send(b"error: unrecognized comand")
+        if len(frames) != 3:
+            self.zmq_socket.send(b"error: expected 3 frames")
+            return
+        path = list(filter(lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
+        data = frames[2]
         self.forward_to_websockets(frames)
+        if cmd == "set_transform":
+            find_node(self.tree, path).transform = data
+        elif cmd == "set_object":
+            find_node(self.tree, path).object = data
+            find_node(self.tree, path).properties = []
+        elif cmd == "set_property":
+            find_node(self.tree, path).properties.append(data)
+        elif cmd == "set_animation":
+            find_node(self.tree, path).animation = data
+        elif cmd == "delete":
+            if len(path) > 0:
+                parent = find_node(self.tree, path[:-1])
+                child = path[-1]
+                if child in parent:
+                    del parent[child]
+            else:
+                self.tree = SceneTree()
         self.zmq_socket.send(b"ok")
-        # print(frames)
-        # cmd = frames[0].decode("utf-8")
-        # if cmd in MESHCAT_COMMANDS:
-        #     if len(frames) != 3:
-        #         self.zmq_socket.send(b"error: expected 3 frames")
-        #         return
-        #     path = list(filter(lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
-        #     data = frames[2]
-        #     self.forward_to_websockets(frames)
-        #     if cmd == "set_transform":
-        #         find_node(self.tree, path).transform = data
-        #     elif cmd == "set_object":
-        #         find_node(self.tree, path).object = data
-        #         find_node(self.tree, path).properties = []
-        #     elif cmd == "set_property":
-        #         find_node(self.tree, path).properties.append(data)
-        #     elif cmd == "set_animation":
-        #         find_node(self.tree, path).animation = data
-        #     elif cmd == "delete":
-        #         if len(path) > 0:
-        #             parent = find_node(self.tree, path[:-1])
-        #             child = path[-1]
-        #             if child in parent:
-        #                 del parent[child]
-        #         else:
-        #             self.tree = SceneTree()
-        #     self.zmq_socket.send(b"ok")
-        # else:
-        #     self.zmq_socket.send(b"error: unrecognized comand")
 
     def forward_to_websockets(self, frames):
         cmd, path, data = frames
@@ -212,24 +205,13 @@ class ZMQWebSocketBridge(object):
 
 def main():
     import argparse
-    import sys
-    import webbrowser
 
     parser = argparse.ArgumentParser(description="Serve the MeshCat HTML files and listen for ZeroMQ commands")
     parser.add_argument("--zmq-url", "-z", type=str, nargs="?", default=None)
-    parser.add_argument("--open", "-o", action="store_true")
-    parser.add_argument("--certfile", type=str, default=None)
-    parser.add_argument("--keyfile", type=str, default=None)
-    parser.add_argument(
-        "--ngrok_http_tunnel",
-        action="store_true",
-        help="""    
-ngrok is a service for creating a public URL from your local machine, which 
-is very useful if you would like to make your meshcat server public.""",
-    )
-    results = parser.parse_args()
-    bridge = ZMQWebSocketBridge(zmq_url=results.zmq_url)
-    print("zmq_url={:s}".format(bridge.zmq_url))
+    parser.add_argument("--websocket-port", "-wp", type=str, nargs="?", default=None)
+    args = parser.parse_args()
+    bridge = ZMQWebSocketBridge(zmq_url=args.zmq_url, websocket_port=args.websocket_port)
+    print(bridge)
     try:
         bridge.run()
     except KeyboardInterrupt:

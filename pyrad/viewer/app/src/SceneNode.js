@@ -123,7 +123,6 @@ export class SceneNode {
     }
 
     set_object(object) {
-        console.log(object);
         let parent = this.object.parent;
         this.dispose_recursive();
         this.object.parent.remove(this.object);
@@ -140,7 +139,6 @@ export class SceneNode {
     }
 
     delete(path) {
-        console.log(path);
         if (path.length == 0) {
             console.error("Can't delete an empty path");
         } else {

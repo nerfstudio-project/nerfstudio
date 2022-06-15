@@ -21,14 +21,6 @@ import umsgpack
 from tqdm import tqdm
 
 
-def start_server():
-    zmq_url = "tcp://127.0.0.1:5560"
-    args = ["meshcat-server", "--zmq-url", zmq_url]
-    if "CI" not in os.environ:
-        args.append("--open")
-    server_proc = subprocess.Popen(args)
-
-
 def test_drawing():
     vis = get_vis()
     vis.delete()
@@ -162,31 +154,42 @@ def test_camera_trajectory():
 
 def test_send_image_stream():
     vis = get_vis()
+    vis_Background = vis["/Background"]
 
     video_filename = get_absolute_path("data/instant_ngp/bear/bear.MOV")
-    print(video_filename)
-
     images = []
     cap = cv2.VideoCapture(video_filename)
     ret, image = cap.read()
     while ret:
+        image = image[:, :, ::-1]  # to RGB
+        image = cv2.resize(image, (200, 300))
         images.append(image)
         ret, image = cap.read()
-
-    vis_Background = vis["/Background"]
+        # break
 
     num_images = len(images)
     fps = 30
     for image in tqdm(images):
-        print(image.dtype)
-        encoded = umsgpack.Ext(0x12, image.tobytes())
+        rgba = cv2.cvtColor(image, cv2.COLOR_RGB2RGBA)
+        encoded = umsgpack.Ext(0x12, rgba.tobytes())
         vis_Background.set_image(encoded)
-        # time.sleep(1 / fps)
+        time.sleep(1 / fps)
+
+
+def test_perspective_camera():
+    vis = get_vis()
+    vis.set_object(g.Box([0.5, 0.5, 0.5]))
+    camera = g.PerspectiveCamera(fov=90)
+    vis["/Cameras/default/rotated"].set_object(camera)
+    vis["/Cameras/default"].set_transform(tf.translation_matrix([1, -1, 0.5]))
+    vis["/Cameras/default/rotated/<object>"].set_property("position", [0, 0, 0])
 
 
 if __name__ == "__main__":
     # TODO: start the TCP server
-    # test_drawing()
-    # test_camera_trajectory()
+    test_drawing()
+    time.sleep(5)
+    test_camera_trajectory()
     test_send_image_stream()
+    # test_perspective_camera()
     # TODO: close the TCP server
