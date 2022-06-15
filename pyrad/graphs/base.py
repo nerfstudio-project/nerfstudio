@@ -100,7 +100,7 @@ class Graph(AbstractGraph):
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
 
-    def register_callbacks(self):
+    def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
         return []
 

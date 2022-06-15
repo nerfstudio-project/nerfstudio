@@ -28,6 +28,14 @@ class Callback:
         self.args = args
         self.kwargs = kwargs
 
+    def before_step(self, step: int):
+        """callback to run before training step
+
+        Args:
+            step (int): current iteration step
+        """
+        raise NotImplementedError
+
     def after_step(self, step: int):
         """callback to run after training step
 
