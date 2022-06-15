@@ -100,6 +100,10 @@ class Graph(AbstractGraph):
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
 
+    def register_callbacks(self):
+        """Option to register callback for training functions"""
+        return []
+
     def populate_collider(self):
         """Set the scene bounds collider to use."""
         self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
