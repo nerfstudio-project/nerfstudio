@@ -8,6 +8,17 @@ import { split_path } from "./utils";
 import { SceneNode } from "./SceneNode";
 import { ExtensibleObjectLoader } from "./ExtensibleObjectLoader";
 
+function websocket_endpoint_from_url(url) {
+  let endpoint = url.split("/").pop();
+  if (endpoint == "") {
+    let message =
+      "Please set a websocket endpoint. For example, a correct URL may look like the following: http://localhost:3000/visiongpu10.csail.mit.edu:8051";
+    window.alert(message);
+    return null;
+  }
+  return endpoint;
+}
+
 function removeAllChildNodes(parent) {
   // https://www.javascripttutorial.net/dom/manipulating/remove-all-child-nodes/
   while (parent.firstChild) {
@@ -66,15 +77,15 @@ export class Viewer extends Component {
     this.state.camera_orth.updateProjectionMatrix();
     this.state.renderer_l.setSize(
       this.state.viewport_width,
-      this.state.viewport_height
+      (this.state.viewport_height * 2) / 3
     );
     this.state.renderer_r.setSize(
-      this.state.viewport_width,
-      this.state.viewport_height / 2
+      this.state.viewport_width / 2,
+      (this.state.viewport_height * 1) / 3
     );
     this.state.renderer_orth.setSize(
-      this.state.viewport_width,
-      this.state.viewport_height / 2
+      this.state.viewport_width / 2,
+      (this.state.viewport_height * 1) / 3
     );
   }
 
@@ -108,7 +119,10 @@ export class Viewer extends Component {
 
       // NOTE(ethan): trying to add background image
 
-      //   console.log(this.backgroundScene);
+      // console.log("ethan is here");
+      if (this.state.websocket_is_opened) {
+        this.state.websocket.send("TODO: put camera pose here");
+      }
 
       this.state.renderer_orth.render(
         this.backgroundScene,
@@ -230,8 +244,13 @@ export class Viewer extends Component {
       // document.getElementById("my-img").src = url;
       var height = 300;
       var width = 200;
-    //   console.log(cmd["image"]);
-      var texture = new THREE.DataTexture(cmd["image"], width, height, THREE.RGBFormat);
+      //   console.log(cmd["image"]);
+      var texture = new THREE.DataTexture(
+        cmd["image"],
+        width,
+        height,
+        THREE.RGBFormat
+      );
       //   var texture = new THREE.TextureLoader().load("texture2.jpeg");
       // var texture = new THREE.TextureLoader().load(url);
       // console.log(texture);
@@ -267,7 +286,7 @@ export class Viewer extends Component {
   }
 
   getViewportWidth() {
-    return (window.innerWidth - (window.innerWidth % 2)) / 2;
+    return window.innerWidth - (window.innerWidth % 2);
   }
 
   getViewportHeight() {
@@ -275,6 +294,21 @@ export class Viewer extends Component {
   }
 
   componentDidMount() {
+    // Open the websocket
+    let endpoint = websocket_endpoint_from_url(window.location.href);
+    this.state.websocket_is_opened = false;
+    this.state.websocket = new WebSocket("ws://" + endpoint + "/");
+    this.state.websocket.onopen = () => {
+      console.log("connected");
+      this.state.websocket_is_opened = true;
+    };
+    this.state.websocket.binaryType = "arraybuffer";
+    // 'command' for updates to Viewer
+    this.state.websocket.onmessage = (cmd) => this.handle_command(cmd.data);
+    this.state.websocket.onclose = function (evt) {
+      console.log("onclose:", evt);
+    };
+
     // Get size of screen
     this.state.viewport_width = this.getViewportWidth(); // notice that this is half width
     this.state.viewport_height = this.getViewportHeight();
@@ -303,7 +337,7 @@ export class Viewer extends Component {
     this.state.renderer_l.setPixelRatio(window.devicePixelRatio);
     this.state.renderer_l.setSize(
       this.state.viewport_width,
-      this.state.viewport_height
+      (this.state.viewport_height * 2) / 3
     );
     this.state.renderer_l.domElement.style.border = "1px solid black";
     this.mount.appendChild(this.state.renderer_l.domElement);
@@ -313,22 +347,25 @@ export class Viewer extends Component {
     this.state.renderer_r = new THREE.WebGLRenderer({ antialias: true });
     this.state.renderer_r.setPixelRatio(window.devicePixelRatio);
     this.state.renderer_r.setSize(
-      this.state.viewport_height,
-      this.state.viewport_height / 2
+      this.state.viewport_width / 2,
+      (this.state.viewport_height * 1) / 3
     );
     this.state.renderer_r.domElement.style.border = "1px solid black";
+    this.state.renderer_r.domElement.style = "inline-block";
     div.appendChild(this.state.renderer_r.domElement);
 
     this.state.renderer_orth = new THREE.WebGLRenderer({ antialias: true });
     this.state.renderer_orth.setPixelRatio(window.devicePixelRatio);
     this.state.renderer_orth.setSize(
-      this.state.viewport_height,
-      this.state.viewport_height / 2
+      this.state.viewport_width / 2,
+      (this.state.viewport_height * 1) / 3
     );
     this.state.renderer_orth.domElement.style.border = "1px solid black";
+    this.state.renderer_orth.domElement.style = "inline-block";
     div.appendChild(this.state.renderer_orth.domElement);
     // div.display.style = "relative";
 
+    // NOTE(ethan): not sure if this is needed anymore?
     this.state.renderer_save = new THREE.WebGLRenderer({
       antialias: true,
       preserveDrawingBuffer: true,
@@ -337,13 +374,13 @@ export class Viewer extends Component {
     this.state.renderer_save.setSize(960, 540);
     this.state.renderer_save.domElement.style.border = "1px solid black";
     this.state.renderer_save.domElement.style.display = "none";
-    div.appendChild(this.state.renderer_save.domElement);
+    // div.appendChild(this.state.renderer_save.domElement);
 
     this.mount.appendChild(div);
 
     // console.log(this.mount);
 
-    this.mount.style.display = "flex";
+    this.mount.style.display = "block";
 
     // Camera settings at https://stackoverflow.com/questions/46182845/field-of-view-aspect-ratio-view-matrix-from-projection-matrix-hmd-ost-calib/46195462
     // Camera left

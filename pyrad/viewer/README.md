@@ -40,7 +40,7 @@ https://tigervnc.org/doc/Xvnc.html
 # run the application. TODO: get electron to work!
 alias wgui='vglrun -d :0.0'
 export DISPLAY=:5017
-wgui chromium-browser http://localhost:3000/localhos8051
+wgui chromium-browser http://localhost:3000/localhost:8051
 ```
 
 

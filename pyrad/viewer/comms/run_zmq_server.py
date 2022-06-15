@@ -90,10 +90,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.bridge.send_scene(self)
 
     def on_message(self, message):
-        # TODO(ethan): implement this
-        print("ethan: here")
         print(message)
-        pass
 
     def on_close(self):
         self.bridge.websocket_pool.remove(self)
