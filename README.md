@@ -78,7 +78,7 @@ python scripts/run_train.py data/dataset=blender_lego
 python scripts/run_train.py data/dataset=friends_TBBT-big_living_room
 
 # Run with different datasets and config changes
-python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.network.far_plane=14
+python scripts/run_train.py data/dataset=friends_TBBT-big_living_room graph.far_plane=14
 
 # [Experimental] Speed up the dataloading pipeline by caching DatasetInputs.
 python scripts/run_data_preprocessor.py

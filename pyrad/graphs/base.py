@@ -40,7 +40,7 @@ def setup_graph(config: DictConfig, dataset_inputs: DatasetInputs, device: str) 
     Args:
         dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
     """
-    graph = instantiate_from_dict_config(config.network, **dataset_inputs.as_dict())
+    graph = instantiate_from_dict_config(config, **dataset_inputs.as_dict())
     graph.to(device)
     return graph
 
@@ -99,6 +99,11 @@ class Graph(AbstractGraph):
         self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
+        self.callbacks = None
+
+    def register_callbacks(self):  # pylint:disable=no-self-use
+        """Option to register callback for training functions"""
+        self.callbacks = []
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""

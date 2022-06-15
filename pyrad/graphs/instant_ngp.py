@@ -33,6 +33,7 @@ from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from pyrad.utils import colors
 from pyrad.cameras.rays import RayBundle
 from pyrad.utils import visualization, writer
+from pyrad.utils.callbacks import Callback
 
 
 class NGPGraph(Graph):
@@ -44,6 +45,16 @@ class NGPGraph(Graph):
         self.field_implementation = field_implementation
         self.field = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+
+    def register_callbacks(self) -> None:
+        """defining callbacks to run after every training iteration"""
+        self.callbacks = [
+            Callback(
+                self.occupancy_grid.update_every_num_iters,
+                self.occupancy_grid.update_occupancy_grid,
+                density_fn=self.field.density_fn,
+            )
+        ]
 
     def populate_fields(self):
         """Set the fields."""

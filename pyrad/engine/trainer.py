@@ -17,7 +17,7 @@ Code to train model.
 """
 import logging
 import os
-from typing import Callable, Dict, List
+from typing import Dict
 
 import torch
 import torch.distributed as dist
@@ -30,7 +30,6 @@ from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_data
 from pyrad.graphs.base import setup_graph
 from pyrad.optimizers.optimizers import setup_optimizers
 from pyrad.utils import profiler, writer
-from pyrad.utils.callbacks import update_occupancy
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
 
@@ -70,12 +69,14 @@ class Trainer:
         self.graph = setup_graph(self.config.graph, dataset_inputs_train, device=self.device)
         self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
 
-        if self.config.graph.resume_train.load_dir:
+        if self.config.trainer.resume_train.load_dir:
             self._load_checkpoint()
 
         if self.world_size > 1:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
+
+        self.graph.register_callbacks()
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.tensor]):
@@ -91,21 +92,21 @@ class Trainer:
     def train(self) -> None:
         """_summary_"""
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
-            num_iterations = self.config.graph.max_num_iterations
+            num_iterations = self.config.trainer.max_num_iterations
             iter_dataloader_train = iter(self.dataloader_train)
             for step in range(self.start_step, self.start_step + num_iterations):
                 with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
                     ray_indices, batch = next(iter_dataloader_train)
 
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
-                    loss_dict = self.train_iteration(ray_indices, batch, step, _callback=[update_occupancy])
+                    loss_dict = self.train_iteration(ray_indices, batch, step)
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=ray_indices.shape[0] / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
-                if step != 0 and self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0:
-                    self._save_checkpoint(self.config.graph.model_dir, step)
-                if step % self.config.graph.steps_per_test == 0:
+                if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
+                    self._save_checkpoint(self.config.trainer.model_dir, step)
+                if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
 
@@ -119,9 +120,9 @@ class Trainer:
         """
         if (
             step % self.config.logging.steps_per_log == 0
-            or (self.config.graph.steps_per_save and step % self.config.graph.steps_per_save == 0)
-            or step % self.config.graph.steps_per_test == 0
-            or step == self.config.graph.max_num_iterations
+            or (self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0)
+            or step % self.config.trainer.steps_per_test == 0
+            or step == self.config.trainer.max_num_iterations
         ):
             writer.write_out_storage()
 
@@ -158,9 +159,7 @@ class Trainer:
         )
 
     @profiler.time_function
-    def train_iteration(
-        self, ray_indices: TensorType["num_rays", 3], batch: dict, step: int, _callback: List[Callable] = None
-    ) -> Dict[str, float]:
+    def train_iteration(self, ray_indices: TensorType["num_rays", 3], batch: dict, step: int) -> Dict[str, float]:
         """Run one iteration with a batch of inputs.
 
         Args:
@@ -177,9 +176,9 @@ class Trainer:
         loss.backward()
         self.optimizers.optimizer_step_all()
         self.optimizers.scheduler_step_all(step)
-        if _callback:
-            for _func in _callback:
-                _func(self.graph)
+        if self.graph.callbacks:
+            for _func in self.graph.callbacks:
+                _func.after_step(step)
         return loss_dict
 
     @profiler.time_function

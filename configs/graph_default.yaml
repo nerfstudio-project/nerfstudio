@@ -16,14 +16,23 @@ logging:
   # writer logs losses and images per iteration
   writer:
     TensorboardWriter:
-      save_dir: "./"
+      log_dir: "./"
     LocalWriter:
-      save_dir: "./"
+      log_dir: "./"
       stats_to_track:
         [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
       max_log_size: 10 # if 0, logs everything with no erasing
   # profiler logs run times of functions and prints at end of training
   enable_profiler: True
+
+trainer:
+  model_dir: /tmp/pyrad_models/
+  steps_per_save: 100
+  steps_per_test: 1000
+  max_num_iterations: 1000000
+  resume_train:
+    load_dir: # pretrained model directory
+    load_step: # pretrained model's step number
 
 experiment_name: blender_lego
 method_name: vanilla_nerf
@@ -68,24 +77,16 @@ data:
   #   num_rays_per_chunk: 4096
 
 graph:
-  model_dir: /tmp/pyrad_models/
-  steps_per_save: 100
-  steps_per_test: 1000
-  max_num_iterations: 1000000
-  resume_train:
-    load_dir: # pretrained model directory
-    load_step: # pretrained model's step number
-  network:
-    _target_: pyrad.graphs.vanilla_nerf.NeRFGraph
-    collider_config:
-      _target_: pyrad.graphs.modules.scene_colliders.NearFarCollider
-      near_plane: 2.0
-      far_plane: 6.0
-    num_coarse_samples: 64
-    num_importance_samples: 128
-    loss_coefficients:
-      rgb_loss_coarse: 1.0
-      rgb_loss_fine: 1.0
+  _target_: pyrad.graphs.vanilla_nerf.NeRFGraph
+  collider_config:
+    _target_: pyrad.graphs.modules.scene_colliders.NearFarCollider
+    near_plane: 2.0
+    far_plane: 6.0
+  num_coarse_samples: 64
+  num_importance_samples: 128
+  loss_coefficients:
+    rgb_loss_coarse: 1.0
+    rgb_loss_fine: 1.0
 
 optimizers:
   fields:

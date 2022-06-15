@@ -38,9 +38,9 @@ class Field(nn.Module):
             frustums=Frustums(
                 origins=positions,
                 directions=torch.ones_like(positions),
-                frustum_starts=torch.zeros((*positions.shape[:-1], 1)),
-                frustum_ends=torch.zeros((*positions.shape[:-1], 1)),
-                pixel_area=torch.ones((*positions.shape[:-1], 1)),
+                frustum_starts=torch.zeros_like((positions[..., :1])),
+                frustum_ends=torch.zeros_like((positions[..., :1])),
+                pixel_area=torch.ones_like((positions[..., :1])),
             )
         )
         density, _ = self.get_density(point_samples)

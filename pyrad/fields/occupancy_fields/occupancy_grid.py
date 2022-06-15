@@ -28,7 +28,7 @@ class OccupancyGrid(nn.Module):
     """Module to keep track of the density and occupancy."""
 
     def __init__(
-        self, num_cascades: int = 1, resolution: int = 128, aabb=None, density_fn=None, update_every_num_iters: int = 16
+        self, num_cascades: int = 1, resolution: int = 128, aabb=None, update_every_num_iters: int = 16
     ) -> None:
         super().__init__()
         assert is_not_none(aabb), "The axis-aligned bounding box aabb is not defined!"
@@ -42,9 +42,7 @@ class OccupancyGrid(nn.Module):
         self.register_buffer("occupancy_grid", occupancy_grid)
         self.mean_density = 0.0
 
-        self.density_fn = density_fn
         self.update_every_num_iters = update_every_num_iters
-        self.iteration_count = 0
 
     def reset(self):
         """Zero out the occupancy grid."""
@@ -67,7 +65,6 @@ class OccupancyGrid(nn.Module):
         """
         # TODO(ethan): remove this pylint disable
         #  pylint: disable=invalid-name
-
         device = self.occupancy_grid.device
 
         assert self.num_cascades == 1, "Still need to implement code for multiple cascades."
