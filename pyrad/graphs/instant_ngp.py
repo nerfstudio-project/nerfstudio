@@ -33,6 +33,7 @@ from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from pyrad.utils import colors
 from pyrad.cameras.rays import RayBundle
 from pyrad.utils import visualization, writer
+from pyrad.utils.callbacks import Callback
 
 
 class NGPGraph(Graph):
@@ -44,6 +45,16 @@ class NGPGraph(Graph):
         self.field_implementation = field_implementation
         self.field = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+
+    def register_callbacks(self) -> None:
+        """defining callbacks to run after every training iteration"""
+        self.callbacks = [
+            Callback(
+                self.occupancy_grid.update_every_num_iters,
+                self.occupancy_grid.update_occupancy_grid,
+                density_fn=self.field.density_fn,
+            )
+        ]
 
     def populate_fields(self):
         """Set the fields."""
@@ -89,8 +100,11 @@ class NGPGraph(Graph):
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_uniform)
         field_outputs_pdf = self.field.forward(ray_samples_pdf.to_point_samples())
 
-        ts, indices = torch.sort(torch.cat([ray_samples_uniform.bins, ray_samples_pdf.bins], -1), -1)
-        ray_samples = ray_bundle.get_ray_samples(ts)
+        # Hacky treatment of bins as points to allow us to merge uniform and pdf.
+        ts_uniform = (ray_samples_uniform.bin_starts + ray_samples_uniform.bin_ends) / 2.0
+        ts_pdf = (ray_samples_pdf.bin_starts + ray_samples_pdf.bin_ends) / 2.0
+        ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -1), -1)
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=ts, bin_ends=ts)
         field_outputs = {}
         for fo_name, _ in field_outputs_pdf.items():
             fo_uniform = field_outputs_uniform[fo_name]
@@ -106,11 +120,11 @@ class NGPGraph(Graph):
             weights=weights,
         )
         accumulation = self.renderer_accumulation(weights)
-        depth = self.renderer_depth(weights, ray_samples.bins)
+        depth = self.renderer_depth(weights, ray_samples)
 
-        densities_occupancy_grid = self.occupancy_grid.get_densities(ray_samples.positions)
+        densities_occupancy_grid = self.occupancy_grid.get_densities(ray_samples.frustums.get_positions())
         weights_occupancy_grid = ray_samples.get_weights(densities_occupancy_grid)
-        depth_occupancy_grid = self.renderer_depth(weights_occupancy_grid, ray_samples.bins)
+        depth_occupancy_grid = self.renderer_depth(weights_occupancy_grid, ray_samples)
 
         outputs = {
             "rgb": rgb,
@@ -158,5 +172,7 @@ class NGPGraph(Graph):
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(psnr), step=step)
         writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(ssim), step=step)
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(lpips), step=step)
+
+        writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)
 
         return psnr.item()

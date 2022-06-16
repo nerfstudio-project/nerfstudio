@@ -145,14 +145,16 @@ class RaySamples:
         frustums (Frustums): Frustums along ray.
         camera_indices (TensorType[..., 1]): Camera index.
         valid_mask (TensorType[...]): Rays that are valid.
-        bins (TensorType[..., 1]): frustum bins along ray.
+        bin_starts (TensorType[..., 1]): frustum starts along ray.
+        bin_ends (TensorType[..., 1]): frustum ends along ray.
         deltas )TensorType[..., 1]): "width" of each sample.
     """
 
     frustums: TensorType[..., 3]
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[...] = None
-    bins: TensorType[..., 1] = None
+    bin_starts: TensorType[..., 1] = None
+    bin_ends: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
 
     def to_point_samples(self) -> PointSamples:
@@ -303,22 +305,25 @@ class RayBundle:
             camera_indices=camera_indices,
         )
 
-    def get_ray_samples(self, bins: TensorType["num_rays", "num_samples+1"]) -> RaySamples:
+    def get_ray_samples(
+        self, bin_starts: TensorType["num_rays", "num_samples"], bin_ends: TensorType["num_rays", "num_samples"]
+    ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction.
 
 
         Args:
-            bins (TensorType["num_rays", "num_samples+1"]): Distance from origin of sample points.
+            bin_starts (TensorType["num_rays", "num_samples"]): Distance from origin to start of bin.
+            bin_ends (TensorType["num_rays", "num_samples"]): Distance from origin to end of bin.
 
         Returns:
             RaySamples: Samples projected along ray.
         """
         device = self.origins.device
-        num_samples = bins.shape[-1] - 1
+        num_samples = bin_starts.shape[-1]
 
-        valid_mask = torch.ones((bins.shape[0], num_samples), dtype=torch.bool, device=device)
+        valid_mask = torch.ones((bin_starts.shape), dtype=torch.bool, device=device)
 
-        dists = bins[:, 1:] - bins[:, :-1]  # [N_rays, N_samples]
+        dists = bin_ends - bin_starts  # [N_rays, N_samples]
         deltas = dists * torch.norm(self.directions[:, None, :], dim=-1)
 
         if is_not_none(self.camera_indices):
@@ -329,8 +334,8 @@ class RayBundle:
         frustums = Frustums(
             origins=self.origins.unsqueeze(1).repeat(1, num_samples, 1),
             directions=self.directions.unsqueeze(1).repeat(1, num_samples, 1),
-            frustum_starts=bins[:, :-1, None].to(device),
-            frustum_ends=bins[:, 1:, None].to(device),
+            frustum_starts=bin_starts[:, :, None].to(device),
+            frustum_ends=bin_ends[:, :, None].to(device),
             pixel_area=self.pixel_area.unsqueeze(1).repeat(1, num_samples, 1).to(device),
         )
 
@@ -338,7 +343,8 @@ class RayBundle:
             frustums=frustums,
             camera_indices=camera_indices,
             valid_mask=valid_mask,
-            bins=bins,
+            bin_starts=bin_starts,
+            bin_ends=bin_ends,
             deltas=deltas,
         )
 

@@ -16,7 +16,7 @@
 Optimizers class.
 """
 
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import numpy as np
 from hydra.utils import instantiate
@@ -25,6 +25,19 @@ from torch.nn import Parameter
 from torch.optim.lr_scheduler import LambdaLR
 
 from pyrad.utils import writer
+
+
+def setup_optimizers(config: DictConfig, param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
+    """Helper to set up the optimizers
+
+    Args:
+        config (DictConfig): _description_
+        param_groups (Dict[str, List[Parameter]]): _description_
+
+    Returns:
+        Optimizers: _description_
+    """
+    return Optimizers(config, param_groups)
 
 
 class ExponentialDecaySchedule(LambdaLR):
@@ -108,3 +121,8 @@ class Optimizers:
             # TODO(ethan): clean this up. why is there indexing into a list?
             lr = scheduler.get_last_lr()[0]
             writer.put_scalar(name=f"learning_rate/{param_group_name}", scalar=lr, step=step)
+
+    def load_optimizers(self, loaded_state: Dict[str, Any]) -> None:
+        """Helper to load the optimizer state from previous checkpoint"""
+        for k, v in loaded_state["optimizers"].items():
+            self.optimizers[k].load_state_dict(v)

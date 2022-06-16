@@ -23,20 +23,19 @@ from pyrad.cameras.cameras import get_camera_model
 
 class RayGenerator(nn.Module):
     """torch.nn Module for generating rays.
-    This class will store the intrinsics and extrinsics parameters of the cameras."""
+    This class will store the intrinsics and extrinsics parameters of the cameras.
+
+    Args:
+        intrinsics (TensorType[&quot;num_cameras&quot;, &quot;num_intrinsics_params&quot;]):
+            The intrinsics parameters.
+        camera_to_world (TensorType[&quot;num_cameras&quot;, 3, 4]): Camera to world transformation matrix.
+    """
 
     def __init__(
         self,
         intrinsics: TensorType["num_cameras", "num_intrinsics_params"],
         camera_to_world: TensorType["num_cameras", 3, 4],
     ) -> None:
-        """_summary_
-
-        Args:
-            intrinsics (TensorType[&quot;num_cameras&quot;, &quot;num_intrinsics_params&quot;]):
-                The intrinsics parameters.
-            camera_to_world (TensorType[&quot;num_cameras&quot;, 3, 4]): Camera to world transformation matrix.
-        """
         super().__init__()
         self.num_cameras, self.num_intrinsics_params = intrinsics.shape
         assert self.num_cameras >= 0
@@ -54,7 +53,7 @@ class RayGenerator(nn.Module):
         """Index into the cameras to generate the rays.
 
         Args:
-            x (_type_): _description_
+            ray_indices (TensorType["num_rays", 3]): Contains camera, row, and col indicies for target rays.
         """
         c = ray_indices[:, 0]  # camera indices
         y = ray_indices[:, 1]  # row indices

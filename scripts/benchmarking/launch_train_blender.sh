@@ -40,12 +40,12 @@ for dataset in ${DATASETS[@]}; do
     python scripts/run_train.py \
            --config-name ${METHOD} \
            '~logging.writer.LocalWriter' \
-           data.dataset.data_directory=data/blender/${dataset} \
-           data.dataset.downscale_factor=1 \
+           data.dataset_inputs_train.data_directory=data/blender/${dataset} \
+           data.dataset_inputs_eval.data_directory=data/blender/${dataset} \
            experiment_name=blender_${dataset}_${tag} \
-           graph.model_dir=pyrad_models/ \
-           graph.steps_per_save=25000 \
-           graph.max_num_iterations=2000000 \
+           trainer.model_dir=pyrad_models/ \
+           trainer.steps_per_save=25000 \
+           trainer.max_num_iterations=2000000 \
            logging.enable_profiler=False &
     echo "Launched ${METHOD} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
 done

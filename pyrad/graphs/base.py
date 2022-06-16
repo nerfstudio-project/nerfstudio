@@ -17,7 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 import torch
 from omegaconf import DictConfig
@@ -27,9 +27,22 @@ from torchtyping import TensorType
 
 from pyrad.cameras.cameras import Camera
 from pyrad.cameras.rays import RayBundle
-from pyrad.data.structs import SceneBounds
+from pyrad.data.structs import DatasetInputs, SceneBounds
 from pyrad.graphs.modules.ray_generator import RayGenerator
+from pyrad.utils import profiler
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
+
+
+@profiler.time_function
+def setup_graph(config: DictConfig, dataset_inputs: DatasetInputs, device: str) -> "Graph":
+    """Setup the graph. The dataset inputs should be set with the training data.
+
+    Args:
+        dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+    """
+    graph = instantiate_from_dict_config(config, **dataset_inputs.as_dict())
+    graph.to(device)
+    return graph
 
 
 class AbstractGraph(nn.Module):
@@ -50,14 +63,24 @@ class AbstractGraph(nn.Module):
 
 
 class Graph(AbstractGraph):
-    """_summary_"""
+    """Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
+    subclassed for custom NeRF model.
+
+    Args:
+        intrinsics (torch.Tensor): Camera intrinsics.
+        camera_to_world (torch.Tensor): Camera to world transformation.
+        loss_coefficients (DictConfig): Loss specific weights.
+        steps_per_occupancy_grid_update (int): How often to update occupancy grid.
+        scene_bounds (SceneBounds): Bounds of target scene.
+        collider_config (DictConfig): Configuration of scene collider.
+    """
 
     def __init__(
         self,
-        intrinsics=None,
-        camera_to_world=None,
+        intrinsics: torch.Tensor = None,
+        camera_to_world: torch.Tensor = None,
         loss_coefficients: DictConfig = None,
-        steps_per_occupancy_grid_update=16,
+        steps_per_occupancy_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
         collider_config: DictConfig = None,
         **kwargs,
@@ -76,6 +99,11 @@ class Graph(AbstractGraph):
         self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
+        self.callbacks = None
+
+    def register_callbacks(self):  # pylint:disable=no-self-use
+        """Option to register callback for training functions"""
+        self.callbacks = []
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
@@ -94,8 +122,15 @@ class Graph(AbstractGraph):
         """
 
     @abstractmethod
-    def get_outputs(self, ray_bundle: RayBundle):
-        """Takes in a Ray Bundle and returns a dictionary of outputs."""
+    def get_outputs(self, ray_bundle: RayBundle) -> dict:
+        """Takes in a Ray Bundle and returns a dictionary of outputs.
+
+        Args:
+            ray_bundle (RayBundle): Input bundle of rays.
+
+        Returns:
+            dict: Outputs of graph. (ie. rendered colors)
+        """
 
     def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run forward starting with a ray bundle."""
@@ -161,3 +196,7 @@ class Graph(AbstractGraph):
     @abstractmethod
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         """Writes the test image outputs."""
+
+    def load_graph(self, loaded_state: Dict[str, Any]) -> None:
+        """Load the checkpoint from the given path"""
+        self.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})

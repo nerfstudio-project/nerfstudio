@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Implementation of vanilla nerf.
+Implementation of mip-NeRF.
 """
 
 
@@ -36,34 +36,24 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.utils import visualization, writer
 
 
-class NeRFGraph(Graph):
-    """Vanilla NeRF graph
-
-    Args:
-        intrinsics (torch.Tensor): Camera intrinsics.
-        camera_to_world (torch.Tensor): Camera to world transformation.
-        near_plane (float, optional): Where to start sampling points. Defaults to a distance of 2,
-        far_plane (float, optional): Where to stop sampling points. Defaults to a distance of 6,
-        num_coarse_samples (int, optional): Number of samples in coarse field evaluation. Defaults to 64,
-        num_importance_samples(int, optional): Number of samples in fine field evaluation. Defaults to 64,
-    """
+class MipNerfGraph(Graph):
+    """mip-NeRF graph"""
 
     def __init__(
         self,
-        intrinsics: torch.Tensor = None,
-        camera_to_world: torch.Tensor = None,
-        near_plane: float = 2.0,
-        far_plane: float = 6.0,
-        num_coarse_samples: int = 64,
-        num_importance_samples: int = 128,
+        intrinsics=None,
+        camera_to_world=None,
+        near_plane=2.0,
+        far_plane=6.0,
+        num_coarse_samples=64,
+        num_importance_samples=128,
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
-        self.field_coarse = None
-        self.field_fine = None
+        self.field = None
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
 
     def populate_fields(self):
@@ -76,13 +66,14 @@ class NeRFGraph(Graph):
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
         )
 
-        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
-        self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+        self.field = NeRFField(
+            position_encoding=position_encoding, direction_encoding=direction_encoding, use_integrated_encoding=True
+        )
 
     def populate_misc_modules(self):
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, include_original=False)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -99,15 +90,15 @@ class NeRFGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
+        param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
-        # coarse field:
-        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform.to_point_samples())
+        # First pass:
+        field_outputs_coarse = self.field.forward(ray_samples_uniform.to_point_samples())
         weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
         rgb_coarse = self.renderer_rgb(
             rgb=field_outputs_coarse[FieldHeadNames.RGB],
@@ -119,8 +110,8 @@ class NeRFGraph(Graph):
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
 
-        # fine field:
-        field_outputs_fine = self.field_fine.forward(ray_samples_pdf.to_point_samples())
+        # Second pass:
+        field_outputs_fine = self.field.forward(ray_samples_pdf.to_point_samples())
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
         rgb_fine = self.renderer_rgb(
             rgb=field_outputs_fine[FieldHeadNames.RGB],
