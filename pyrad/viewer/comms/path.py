@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
+
 if sys.version_info >= (3, 0):
     unicode = str
 
@@ -13,7 +14,7 @@ class Path(object):
 
     def append(self, other):
         new_path = self.entries
-        for element in other.split('/'):
+        for element in other.split("/"):
             if len(element) == 0:
                 new_path = tuple()
             else:

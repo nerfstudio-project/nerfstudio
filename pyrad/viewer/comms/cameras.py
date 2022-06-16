@@ -1,4 +1,5 @@
 from .geometry import SceneElement, Geometry, Object, LineSegments, PointsGeometry, LineBasicMaterial
+
 # import geometry as g
 from . import geometry as g
 import numpy as np
@@ -27,16 +28,16 @@ class OrthographicCamera(Camera):
 
     def lower(self):
         data = {
-            u"object": {
-                u"uuid": self.uuid,
-                u"type": u"OrthographicCamera",
-                u"left": self.left,
-                u"right": self.right,
-                u"top": self.top,
-                u"bottom": self.bottom,
-                u"near": self.near,
-                u"far": self.far,
-                u"zoom": self.zoom,
+            "object": {
+                "uuid": self.uuid,
+                "type": "OrthographicCamera",
+                "left": self.left,
+                "right": self.right,
+                "top": self.top,
+                "bottom": self.bottom,
+                "near": self.near,
+                "far": self.far,
+                "zoom": self.zoom,
             }
         }
         return data
@@ -52,56 +53,43 @@ class PerspectiveCamera(Camera):
 
     @staticmethod
     def from_intrinsics(focal_length, aspect_ratio):
-        """TODO(ethan): finish this
-        """
+        """TODO(ethan): finish this"""
         # convert the intrinsics matrix into three.js compatible format
         return PerspectiveCamera(aspect, fov, near, far)
 
     def lower(self):
         data = {
-            u"object": {
-                u"uuid": self.uuid,
-                u"type": u"PerspectiveCamera",
-                u"aspect": self.aspect,
-                u"fov": self.fov,
-                u"near": self.near,
-                u"far": self.far
+            "object": {
+                "uuid": self.uuid,
+                "type": "PerspectiveCamera",
+                "aspect": self.aspect,
+                "fov": self.fov,
+                "near": self.near,
+                "far": self.far,
             }
         }
         return data
 
 
 class CameraHelper(Camera):
-    """NOTE(ethan): Camera parent class might not make sense here?
-    """
+    """NOTE(ethan): Camera parent class might not make sense here?"""
 
     def __init__(self, camera):
         super().__init__()
         self.camera = camera
 
     def lower(self):
-        data = {
-            u"object": {
-                u"uuid": self.uuid,
-                u"type": u"CameraHelper",
-                u"camera": self.camera.lower()
-            }
-        }
+        data = {"object": {"uuid": self.uuid, "type": "CameraHelper", "camera": self.camera.lower()}}
         return data
 
 
 class ImagePlane(g.Mesh):
     def __init__(self, image, height=1, width=1):
-        """TODO(ethan): decide how to deal with the height and width
-        """
+        """TODO(ethan): decide how to deal with the height and width"""
         self.image = image
         geometry = g.PlaneGeometry([width, height])
         material = g.MeshBasicMaterial(
-            map=g.ImageTexture(
-                image=g.PngImage(
-                    cv2.imencode('.png', self.image[:, :, ::-1])[1].tobytes()
-                )
-            )
+            map=g.ImageTexture(image=g.PngImage(cv2.imencode(".png", self.image[:, :, ::-1])[1].tobytes()))
         )
         super().__init__(geometry, material)
 
@@ -123,10 +111,7 @@ def get_camera_wireframe(scale: float = 0.3, f=4, w=1.5, h=2):
     return lines
 
 
-def get_plane_pts(focal_length=(1.0, 1.0),
-                  image_size=(10, 10),
-                  camera_scale=1,
-                  scale_factor=1 / 4):
+def get_plane_pts(focal_length=(1.0, 1.0), image_size=(10, 10), camera_scale=1, scale_factor=1 / 4):
     Z = -(focal_length[0] + focal_length[1]) / 2 * camera_scale
     X0, Y0, X1, Y1 = (
         -image_size[0] / 2 * camera_scale,
@@ -146,7 +131,7 @@ def get_plane_pts(focal_length=(1.0, 1.0),
     Ys, Xs = np.meshgrid(
         np.linspace(Y0, Y1, num=hsteps),
         np.linspace(X0, X1, num=wsteps),
-        indexing='ij',
+        indexing="ij",
     )
     Zs = np.ones_like(Xs) * Z
     plane_pts = np.stack([Xs, Ys, Zs], axis=-1)
@@ -162,8 +147,7 @@ def frustum(scale=1.0, color=[0, 0, 0], focal_length=4, width=1.5, height=2):
     N = len(camera_wireframe_lines)
     colors = np.array([color for _ in range(N)])
     line_segments = LineSegments(
-        PointsGeometry(position=camera_wireframe_lines.astype(np.float32).T,
-                       color=colors.astype(np.float32).T),
-        LineBasicMaterial(vertexColors=True, linewidth=10.0)
+        PointsGeometry(position=camera_wireframe_lines.astype(np.float32).T, color=colors.astype(np.float32).T),
+        LineBasicMaterial(vertexColors=True, linewidth=10.0),
     )
     return line_segments

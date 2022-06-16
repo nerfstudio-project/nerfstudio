@@ -9,9 +9,4 @@ from .visualizer import ViewerWindow, Visualizer
 
 
 def viewer_assets_path():
-    return os.path.abspath(
-        os.path.join(
-            os.path.dirname(__file__),
-            "viewer"
-        )
-    )
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "viewer"))

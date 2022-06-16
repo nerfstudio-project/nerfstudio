@@ -5,6 +5,7 @@ import tarfile
 import sys
 import os.path
 import subprocess
+
 if sys.version_info >= (3, 0):
     unicode = str
 
@@ -34,19 +35,16 @@ class AnimationTrack(object):
 
     def lower(self):
         return {
-            u"name": unicode("." + self.name),
-            u"type": unicode(self.jstype),
-            u"keys": [{
-                u"time": self.frames[i],
-                u"value": self.values[i]
-            } for i in range(len(self.frames))]
+            "name": unicode("." + self.name),
+            "type": unicode(self.jstype),
+            "keys": [{"time": self.frames[i], "value": self.values[i]} for i in range(len(self.frames))],
         }
 
 
 class AnimationClip(object):
     __slots__ = ["tracks", "fps", "name"]
 
-    def __init__(self, tracks=None, fps=30, name=u"default"):
+    def __init__(self, tracks=None, fps=30, name="default"):
         if tracks is None:
             self.tracks = {}
         else:
@@ -61,11 +59,7 @@ class AnimationClip(object):
         track.set_property(frame, value)
 
     def lower(self):
-        return {
-            u"fps": self.fps,
-            u"name": unicode(self.name),
-            u"tracks": [t.lower() for t in self.tracks.values()]
-        }
+        return {"fps": self.fps, "name": unicode(self.name), "tracks": [t.lower() for t in self.tracks.values()]}
 
 
 class Animation(object):
@@ -79,10 +73,7 @@ class Animation(object):
         self.default_framerate = default_framerate
 
     def lower(self):
-        return [{
-            u"path": path.lower(),
-            u"clip": clip.lower()
-        } for (path, clip) in self.clips.items()]
+        return [{"path": path.lower(), "clip": clip.lower()} for (path, clip) in self.clips.items()]
 
     def at_frame(self, visualizer, frame):
         return AnimationFrameVisualizer(self, visualizer.path, frame)
@@ -113,8 +104,8 @@ class AnimationFrameVisualizer(object):
     def set_transform(self, matrix):
         assert matrix.shape == (4, 4)
         clip = self.get_clip()
-        clip.set_property(self.current_frame, u"position", u"vector3", js_position(matrix))
-        clip.set_property(self.current_frame, u"quaternion", u"quaternion", js_quaternion(matrix))
+        clip.set_property(self.current_frame, "position", "vector3", js_position(matrix))
+        clip.set_property(self.current_frame, "quaternion", "quaternion", js_quaternion(matrix))
 
     def set_property(self, prop, jstype, value):
         clip = self.get_clip()
@@ -140,28 +131,40 @@ def convert_frames_to_video(tar_file_path, output_path="output.mp4", framerate=6
     output_path = os.path.abspath(output_path)
     if os.path.isfile(output_path) and not overwrite:
         raise ValueError(
-            "The output path {:s} already exists. To overwrite that file, you can pass overwrite=True to this function.".format(output_path))
+            "The output path {:s} already exists. To overwrite that file, you can pass overwrite=True to this function.".format(
+                output_path
+            )
+        )
     with tempfile.TemporaryDirectory() as tmp_dir:
         with tarfile.open(tar_file_path) as tar:
             tar.extractall(tmp_dir)
-        args = ["ffmpeg",
-                "-r", str(framerate),
-                "-i", r"%07d.png",
-                "-vcodec", "libx264",
-                "-preset", "slow",
-                "-crf", "18"]
+        args = [
+            "ffmpeg",
+            "-r",
+            str(framerate),
+            "-i",
+            r"%07d.png",
+            "-vcodec",
+            "libx264",
+            "-preset",
+            "slow",
+            "-crf",
+            "18",
+        ]
         if overwrite:
             args.append("-y")
         args.append(output_path)
         try:
             subprocess.check_call(args, cwd=tmp_dir)
         except subprocess.CalledProcessError as e:
-            print("""
+            print(
+                """
 Could not call `ffmpeg` to convert your frames into a video.
 If you want to convert the frames manually, you can extract the
 .tar archive into a directory, cd to that directory, and run:
 ffmpeg -r 60 -i %07d.png \\\n\t -vcodec libx264 \\\n\t -preset slow \\\n\t -crf 18 \\\n\t output.mp4
-                """)
+                """
+            )
             raise
     print("Saved output as {:s}".format(output_path))
     return output_path
