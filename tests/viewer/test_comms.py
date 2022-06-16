@@ -4,21 +4,20 @@ Test the viewer comms code.
 
 
 import random
-import cv2
-
-import torch
 import time
-from pyrad.cameras.camera_paths import InterpolatedCameraPath
-from pyrad.data.utils import get_dataset_inputs
-from pyrad.utils.io import get_absolute_path, load_from_json
-import pyrad.viewer.comms.geometry as g
-import pyrad.viewer.comms.transformations as tf
-from pyrad.viewer.comms.vis_utils import get_vis, draw_camera_frustum, set_persp_camera
-import numpy as np
-from pyrad.cameras.cameras import Camera, get_camera
 
+import cv2
+import numpy as np
 import umsgpack
 from tqdm import tqdm
+
+import pyrad.viewer.backend.geometry as g
+import pyrad.viewer.backend.transformations as tf
+from pyrad.cameras.camera_paths import InterpolatedCameraPath
+from pyrad.cameras.cameras import get_camera
+from pyrad.data.utils import get_dataset_inputs
+from pyrad.utils.io import get_absolute_path
+from pyrad.viewer.backend.vis_utils import get_vis, set_camera
 
 
 def test_drawing():
@@ -115,13 +114,6 @@ def test_rendering():
     pass
 
 
-def vis_camera(vis, camera: Camera):
-    pose = camera.get_camera_to_world_h()
-    K = camera.get_intrinsics_matrix()
-    set_persp_camera(vis, pose=pose.double().numpy(), K=K.numpy())
-    pass
-
-
 def test_camera_trajectory():
     print("test_camera_trajectory")
     vis = get_vis()
@@ -146,7 +138,7 @@ def test_camera_trajectory():
 
     start = time.time()
     for camera in cameras:
-        vis_camera(vis, camera)
+        set_camera(vis, camera)
         time.sleep(1 / fps)
     time_elapsed = time.time() - start
     print("time_elapsed:", time_elapsed)

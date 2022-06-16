@@ -29,7 +29,7 @@ export class Animator {
     setup_capturer(format) {
         this.capturer = new CCapture({
             format: format,
-            name: "meshcat_" + String(Date.now())
+            name: "pyrad_" + String(Date.now())
         });
         this.capturer.format = format;
     }
