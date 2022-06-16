@@ -70,7 +70,7 @@ With support for [Hydra](https://hydra.cc/), you can run with other configuratio
 
 ```
 # Run with config changes
-python scripts/run_train.py machine_config.num_gpus=1
+python scripts/run_train.py machine.num_gpus=1
 python scripts/run_train.py data.dataset.downscale_factor=1
 
 # Run with different datasets

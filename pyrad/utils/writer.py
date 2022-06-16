@@ -28,9 +28,10 @@ import imageio
 import numpy as np
 import torch
 import wandb
-from omegaconf import DictConfig, ListConfig
+from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
+from pyrad.utils.config import LoggingConfig
 
 from pyrad.utils.decorators import check_main_thread, decorate_all
 
@@ -134,12 +135,11 @@ def write_out_storage():
 
 
 @check_main_thread
-def setup_event_writers(config: DictConfig) -> None:
+def setup_event_writers(config: LoggingConfig, max_iter: int) -> None:
     """Initialization of all event writers specified in config"""
-    logging_configs = config.logging.writer
-    for writer_type in logging_configs:
+    for writer_type in config.writer:
         writer_class = getattr(sys.modules[__name__], writer_type)
-        writer_config = logging_configs[writer_type]
+        writer_config = config.writer[writer_type]
         if writer_type == "LocalWriter":
             curr_writer = writer_class(writer_config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
         else:
@@ -147,9 +147,9 @@ def setup_event_writers(config: DictConfig) -> None:
         EVENT_WRITERS.append(curr_writer)
 
     ## configure all the global buffer basic information
-    GLOBAL_BUFFER["max_iter"] = config.trainer.max_num_iterations
-    GLOBAL_BUFFER["max_buffer_size"] = config.logging.max_buffer_size
-    GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
+    GLOBAL_BUFFER["max_iter"] = max_iter
+    GLOBAL_BUFFER["max_buffer_size"] = config.max_buffer_size
+    GLOBAL_BUFFER["steps_per_log"] = config.steps_per_log
     GLOBAL_BUFFER["events"] = {}
 
 

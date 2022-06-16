@@ -16,11 +16,13 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
-from omegaconf import DictConfig
 import yaml
+from hydra.core.config_store import ConfigStore
+from omegaconf import DictConfig
 
 from pyrad.engine.trainer import Trainer
 from pyrad.utils import comms, profiler
+from pyrad.utils.config import Config, setup_config
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 
@@ -53,7 +55,7 @@ def _distributed_worker(
     num_gpus_per_machine: int,
     machine_rank: int,
     dist_url: str,
-    config: DictConfig,
+    config: Config,
     timeout: datetime = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
@@ -68,7 +70,7 @@ def _distributed_worker(
         dist_url (str): url to connect to for distributed jobs, including protocol
                         e.g. "tcp://127.0.0.1:8686".
                         Can be set to "auto" to automatically select a free port on localhost
-        config (DictConfig): config file specifying trainng regimen
+        config (Config): config file specifying trainng regimen
         timeout (datetime, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
 
     Raises:
@@ -102,7 +104,7 @@ def _distributed_worker(
 
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
-    _set_random_seed(config.machine_config.seed + global_rank)
+    _set_random_seed(config.machine.seed + global_rank)
     comms.synchronize(world_size)
 
     output = main_func(local_rank, world_size, config)
@@ -111,7 +113,7 @@ def _distributed_worker(
     return output
 
 
-def _train(local_rank: int, world_size: int, config: DictConfig) -> Any:
+def _train(local_rank: int, world_size: int, config: Config) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -134,7 +136,7 @@ def launch(
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
-    config: DictConfig = None,
+    config: Config = None,
     timeout: datetime = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
@@ -145,17 +147,17 @@ def launch(
         num_machines (int, optional): total number of machines
         machine_rank (int, optional): rank of this machine. Defaults to 0.
         dist_url (str, optional): url to connect to for distributed jobs. Defaults to "auto".
-        config (DictConfig, optional): config file specifying trainng regimen Defaults to None.
+        config (Config, optional): config file specifying trainng regimen Defaults to None.
         timeout (datetime, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
     """
     world_size = num_machines * num_gpus_per_machine
     if world_size == 0:
         # Using only CPU and one process.
-        _set_random_seed(config.machine_config.seed)
+        _set_random_seed(config.machine.seed)
         main_func(local_rank=0, world_size=0, config=config)
     elif world_size == 1:
         # Using one gpu and one process.
-        _set_random_seed(config.machine_config.seed)
+        _set_random_seed(config.machine.seed)
         try:
             main_func(local_rank=0, world_size=1, config=config)
         except KeyboardInterrupt:
@@ -200,9 +202,15 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
+cs = ConfigStore.instance()
+cs.store(name="graph_default", node=Config)
+
+
 @hydra.main(config_path="../configs", config_name="graph_default.yaml")
 def main(config: DictConfig):
     """Main function."""
+    config = setup_config(config)  # converting to typed config
+
     unrolled_path = os.path.join(os.getcwd(), ".hydra/config.yaml")
     if os.path.exists(unrolled_path):
         with open(unrolled_path, "r", encoding="utf8") as f:
@@ -213,10 +221,10 @@ def main(config: DictConfig):
 
     launch(
         _train,
-        config.machine_config.num_gpus,
-        num_machines=config.machine_config.num_machines,
-        machine_rank=config.machine_config.machine_rank,
-        dist_url=config.machine_config.dist_url,
+        config.machine.num_gpus,
+        num_machines=config.machine.num_machines,
+        machine_rank=config.machine.machine_rank,
+        dist_url=config.machine.dist_url,
         config=config,
     )
 

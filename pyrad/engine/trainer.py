@@ -21,7 +21,6 @@ from typing import Dict
 
 import torch
 import torch.distributed as dist
-from omegaconf import DictConfig
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
@@ -30,6 +29,7 @@ from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_data
 from pyrad.graphs.base import setup_graph
 from pyrad.optimizers.optimizers import setup_optimizers
 from pyrad.utils import profiler, writer
+from pyrad.utils.config import Config
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
 
@@ -40,13 +40,13 @@ class Trainer:
     """Training class
 
     Args:
-        config (DictConfig): _description_
+        config (Config): _description_
         local_rank (int, optional): _description_. Defaults to 0.
         world_size (int, optional): _description_. Defaults to 1.
         cpu (bool, optional): Whether or not to use the CPU.
     """
 
-    def __init__(self, config: DictConfig, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: Config, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -59,7 +59,7 @@ class Trainer:
         self.optimizers = None
         self.start_step = 0
         # logging variables
-        writer.setup_event_writers(config)
+        writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
         profiler.setup_profiler(config.logging)
 
     def setup(self, test_mode=False):
