@@ -1,6 +1,7 @@
 """
 run_benchmark.py
 """
+import argparse
 import json
 import logging
 import os
@@ -12,12 +13,8 @@ from tqdm import tqdm
 
 from scripts.run_eval import run_inference
 
-BENCH = {
-    "method": "vanilla_nerf",
-    "hydra_base_dir": "outputs/",
-    "benchmark_date": "05-26-2022",
-    "object_list": ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"],
-}
+
+OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
 
 
 def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
@@ -30,7 +27,12 @@ def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     Returns:
         str: path to the most recent checkpoint sorted by timestamps and step number
     """
-    model_dir = os.path.join(hydra_dir, config.model_dir)
+    # get the most recent run in the model directory
+    latest_run = os.listdir(hydra_dir)
+    latest_run.sort()
+    latest_run = latest_run[-1]
+    # get the latest checkpoint name
+    model_dir = os.path.join(hydra_dir, latest_run, config.model_dir)
     latest_ckpt = os.listdir(model_dir)
     latest_ckpt.sort()
     latest_ckpt = latest_ckpt[-1]
@@ -58,15 +60,12 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     return config
 
 
-def main():
+def main(args):
     """Main function."""
     benchmarks = {}
-    hydra_base_dir = BENCH["hydra_base_dir"]
-    method = BENCH["method"]
-    benchmark_date = BENCH["benchmark_date"]
-    for dataset in tqdm(BENCH["object_list"]):
+    for dataset in tqdm(OBJECT_LIST):
         # set up trainer, config, and checkpoint loading
-        hydra_dir = f"{hydra_base_dir}/blender_{dataset}_{benchmark_date}/{method}/"
+        hydra_dir = f"{args.hydra_base_dir}/blender_{dataset}_{args.benchmark_date}/{args.graph}/"
         config = _load_hydra_config(hydra_dir)
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
@@ -78,13 +77,20 @@ def main():
         GlobalHydra.instance().clear()
 
     # output benchmark statistics to a json file
-    benchmark_info = {"bench": BENCH, "results": benchmarks}
-    timestamp = BENCH["benchmark_date"]
-    json_file = os.path.join(BENCH["hydra_base_dir"], f"{timestamp}.json")
+    benchmark_info = {
+        "meta info": {"graph": args.graph, "benchmark_date": args.benchmark_date, "hydra": args.hydra_base_dir},
+        "results": benchmarks,
+    }
+    json_file = os.path.join(args.hydra_base_dir, f"{args.timestamp}.json")
     with open(json_file, "w", encoding="utf8") as f:
         json.dump(benchmark_info, f, indent=2)
     logging.info("saved benchmark results to %s", json_file)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-g", "--graph", type=str, required=True, help="name of nerf graph to benchmark")
+    parser.add_argument("-d", "--benchmark_date", type=str, required=True, help="timestamp of run to benchmark")
+    parser.add_argument("-h", "--hydra_base_dir", type=str, required=True, help="hydra base output path")
+    args = parser.parse_args()
+    main(args)
