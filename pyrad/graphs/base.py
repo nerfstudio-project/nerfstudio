@@ -30,17 +30,18 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.data.structs import DatasetInputs, SceneBounds
 from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
+from pyrad.utils.config import GraphConfig
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
 
 
 @profiler.time_function
-def setup_graph(config: DictConfig, dataset_inputs: DatasetInputs, device: str) -> "Graph":
+def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str) -> "Graph":
     """Setup the graph. The dataset inputs should be set with the training data.
 
     Args:
         dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
     """
-    graph = instantiate_from_dict_config(config, **dataset_inputs.as_dict())
+    graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
     graph.to(device)
     return graph
 

@@ -26,7 +26,7 @@
             "program": "scripts/run_train.py",
             "console": "integratedTerminal",
             "args": [
-                "machine_config.num_gpus=0"
+                "machine.num_gpus=0"
             ]
         },
         {

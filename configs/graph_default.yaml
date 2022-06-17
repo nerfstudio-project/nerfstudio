@@ -3,7 +3,7 @@ defaults:
   - override hydra/hydra_logging: colorlog
   - _self_
 
-machine_config:
+machine:
   seed: 42
   num_gpus: 1
   num_machines: 1

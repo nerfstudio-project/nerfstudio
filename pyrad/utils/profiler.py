@@ -19,9 +19,8 @@ import logging
 import time
 from typing import Callable
 
-from omegaconf import DictConfig
-
 from pyrad.utils import comms
+from pyrad.utils.config import LoggingConfig
 from pyrad.utils.decorators import check_main_thread, check_profiler_enabled, decorate_all
 
 PROFILER = []
@@ -41,13 +40,13 @@ def time_function(func: Callable) -> Callable:
     return wrapper
 
 
-def flush_profiler(config: DictConfig):
+def flush_profiler(config: LoggingConfig):
     """Method that checks if profiler is enabled before flushing"""
     if config.enable_profiler and PROFILER:
         PROFILER[0].print_profile()
 
 
-def setup_profiler(config: DictConfig):
+def setup_profiler(config: LoggingConfig):
     """Initialization of profilers"""
     if comms.is_main_process():
         PROFILER.append(Profiler(config))
@@ -57,7 +56,7 @@ def setup_profiler(config: DictConfig):
 class Profiler:
     """Profiler class"""
 
-    def __init__(self, config: DictConfig):
+    def __init__(self, config: LoggingConfig):
         self.config = config
         self.profiler_dict = {}
 

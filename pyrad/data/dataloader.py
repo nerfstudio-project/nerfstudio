@@ -18,7 +18,7 @@ Data loader.
 
 import random
 from typing import Dict, List, Tuple, Union
-from omegaconf import DictConfig, ListConfig
+from omegaconf import ListConfig
 
 from torchtyping import TensorType
 
@@ -30,14 +30,15 @@ from pyrad.data.pixel_sampler import PixelSampler
 from pyrad.data.structs import DatasetInputs
 from pyrad.data.utils import get_dataset_inputs_from_dataset_config
 from pyrad.utils import profiler
+from pyrad.utils.config import DataConfig
 from pyrad.utils.misc import get_dict_to_torch, instantiate_from_dict_config
 
 
 @profiler.time_function
-def setup_dataset_train(config: DictConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
+def setup_dataset_train(config: DataConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
     """Helper method to load train dataset
     Args:
-        config (DictConfig): Configuration of training dataset.
+        config (DataConfig): Configuration of training dataset.
         device (str): device to load the dataset to
 
     Returns:
@@ -58,10 +59,10 @@ def setup_dataset_train(config: DictConfig, device: str) -> Tuple[DatasetInputs,
 
 
 @profiler.time_function
-def setup_dataset_eval(config: DictConfig, test_mode: bool, device: str) -> Tuple[DatasetInputs, "EvalDataloader"]:
+def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tuple[DatasetInputs, "EvalDataloader"]:
     """Helper method to load test or val dataset based on test/train mode
     Args:
-        config (DictConfig): Configuration of training dataset.
+        config (DataConfig): Configuration of training dataset.
         test_mode (bool): specifies whether you are training/testing mode, to load validation/test data
         device (str): device to load the dataset to
 

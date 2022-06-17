@@ -1,7 +1,7 @@
 defaults:
   - graph_default
 
-machine_config:
+machine:
   num_gpus: 0
 
 trainer:
