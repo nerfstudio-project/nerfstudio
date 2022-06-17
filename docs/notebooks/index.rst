@@ -15,3 +15,11 @@ Encoders
     :maxdepth: 0
 
     visualize_encoders.ipynb
+
+Point Samplers
+----------------
+
+.. toctree::
+    :maxdepth: 0
+
+    visualize_samplers.ipynb

@@ -17,7 +17,7 @@ Collection of sampling strategies
 """
 
 from abc import abstractmethod
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import torch
 from torch import nn
@@ -54,7 +54,73 @@ class Sampler(nn.Module):
         return ray_samples
 
 
-class UniformSampler(Sampler):
+class SpacedSampler(Sampler):
+    """Sample points according to a function."""
+
+    def __init__(
+        self,
+        num_samples: int,
+        spacing_fn: Callable,
+        spacing_fn_inv: Callable,
+        train_stratified=True,
+        occupancy_field: Optional[OccupancyGrid] = None,
+        weight_threshold: float = 1e-4,
+    ) -> None:
+        """
+        Args:
+            num_samples (int): Number of samples per ray
+            spacing_fn (Callable): Function that dictates sample spacing (ie `lambda x : x` is uniform).
+            spacing_fn_inv (Callable): The inverse of spacing_fn.
+            train_stratified (bool): Use stratified sampling during training. Defults to True
+            occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
+                samples below weight_threshold as set as invalid.
+            weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
+        """
+        super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
+        self.train_stratified = train_stratified
+        self.spacing_fn = spacing_fn
+        self.spacing_fn_inv = spacing_fn_inv
+
+    @torch.no_grad()
+    def generate_ray_samples(
+        self,
+        ray_bundle: RayBundle = None,
+        num_samples: Optional[int] = None,
+    ) -> RaySamples:
+        """Generates position samples accoring to spacing function.
+
+        Args:
+            ray_bundle (RayBundle): Rays to generate samples for
+            num_samples (Optional[int]): Number of samples per ray
+
+        Returns:
+            RaySamples: Positions and deltas for samples along a ray
+        """
+        assert ray_bundle is not None
+        assert ray_bundle.nears is not None
+        assert ray_bundle.fars is not None
+
+        num_samples = num_samples or self.num_samples
+        num_rays = ray_bundle.origins.shape[0]
+
+        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
+
+        s_near, s_far = [self.spacing_fn(x) for x in (ray_bundle.nears[:, None], ray_bundle.fars[:, None])]
+        bins = self.spacing_fn_inv(bins * s_far + (1 - bins) * s_near)  # [num_rays, num_samples+1]
+
+        if self.train_stratified and self.training:
+            t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
+            bin_centers = (bins[..., 1:] + bins[..., :-1]) / 2.0
+            bin_upper = torch.cat([bin_centers, bins[..., -1:]], -1)
+            bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
+            bins = bin_lower + (bin_upper - bin_lower) * t_rand
+
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1], bin_ends=bins[..., 1:])
+
+        return ray_samples
+
+
+class UniformSampler(SpacedSampler):
     """Sample uniformly along a ray"""
 
     def __init__(
@@ -72,46 +138,98 @@ class UniformSampler(Sampler):
                 samples below weight_threshold as set as invalid.
             weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
         """
-        super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
-        self.train_stratified = train_stratified
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=lambda x: x,
+            spacing_fn_inv=lambda x: x,
+            train_stratified=train_stratified,
+            occupancy_field=occupancy_field,
+            weight_threshold=weight_threshold,
+        )
 
-    @torch.no_grad()
-    def generate_ray_samples(
+
+class LinearDisparitySampler(SpacedSampler):
+    """Sample linearly in disparity along a ray"""
+
+    def __init__(
         self,
-        ray_bundle: RayBundle = None,
-        num_samples: Optional[int] = None,
-    ) -> RaySamples:
-        """Generates position samples uniformly.
-
-        Args:
-            ray_bundle (RayBundle): Rays to generate samples for
-            num_samples (Optional[int]): Number of samples per ray
-
-        Returns:
-            RaySamples: Positions and deltas for samples along a ray
+        num_samples: int,
+        train_stratified=True,
+        occupancy_field: Optional[OccupancyGrid] = None,
+        weight_threshold: float = 1e-4,
+    ) -> None:
         """
-        assert ray_bundle is not None
-        assert ray_bundle.nears is not None
-        assert ray_bundle.fars is not None
+        Args:
+            num_samples (int): Number of samples per ray
+            train_stratified (bool): Use stratified sampling during training. Defults to True
+            occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
+                samples below weight_threshold as set as invalid.
+            weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
+        """
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=lambda x: 1 / x,
+            spacing_fn_inv=lambda x: 1 / x,
+            train_stratified=train_stratified,
+            occupancy_field=occupancy_field,
+            weight_threshold=weight_threshold,
+        )
 
-        num_samples = num_samples or self.num_samples
-        num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)  # shape (num_samples+1)
-        bins = ray_bundle.nears[:, None] + bins[None, :] * (
-            ray_bundle.fars[:, None] - ray_bundle.nears[:, None]
-        )  # shape (num_rays, num_samples+1)
+class SqrtSampler(SpacedSampler):
+    """Square root sampler along a ray"""
 
-        if self.train_stratified and self.training:
-            t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
-            bin_centers = (bins[..., 1:] + bins[..., :-1]) / 2.0
-            bin_upper = torch.cat([bin_centers, bins[..., -1:]], -1)
-            bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
-            bins = bin_lower + (bin_upper - bin_lower) * t_rand
+    def __init__(
+        self,
+        num_samples: int,
+        train_stratified=True,
+        occupancy_field: Optional[OccupancyGrid] = None,
+        weight_threshold: float = 1e-4,
+    ) -> None:
+        """
+        Args:
+            num_samples (int): Number of samples per ray
+            train_stratified (bool): Use stratified sampling during training. Defults to True
+            occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
+                samples below weight_threshold as set as invalid.
+            weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
+        """
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=torch.sqrt,
+            spacing_fn_inv=lambda x: x**2,
+            train_stratified=train_stratified,
+            occupancy_field=occupancy_field,
+            weight_threshold=weight_threshold,
+        )
 
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1], bin_ends=bins[..., 1:])
 
-        return ray_samples
+class LogSampler(SpacedSampler):
+    """Log sampler along a ray"""
+
+    def __init__(
+        self,
+        num_samples: int,
+        train_stratified=True,
+        occupancy_field: Optional[OccupancyGrid] = None,
+        weight_threshold: float = 1e-4,
+    ) -> None:
+        """
+        Args:
+            num_samples (int): Number of samples per ray
+            train_stratified (bool): Use stratified sampling during training. Defults to True
+            occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
+                samples below weight_threshold as set as invalid.
+            weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
+        """
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=torch.log,
+            spacing_fn_inv=torch.exp,
+            train_stratified=train_stratified,
+            occupancy_field=occupancy_field,
+            weight_threshold=weight_threshold,
+        )
 
 
 class PDFSampler(Sampler):
