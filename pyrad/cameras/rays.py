@@ -210,8 +210,8 @@ class RayBundle:
         directions (TensorType[..., 3]): Unit ray direction vector
         pixel_area (TensorType[..., 1]): Projected area of pixel a distance 1 away from origin.
         camera_indices (TensorType[..., 1]): Camera indices
-        nears (TensorType[..., 1]): Distance along ray to start sampling
-        fars (TensorType[..., 1]): Rays Distance along ray to stop sampling
+        nears (TensorType[...]): Distance along ray to start sampling
+        fars (TensorType[...]): Rays Distance along ray to stop sampling
         valid_mask (TensorType[...]): Rays that are valid
     """
 

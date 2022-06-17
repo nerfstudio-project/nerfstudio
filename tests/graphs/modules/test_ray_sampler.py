@@ -2,7 +2,7 @@
 Test samplers
 """
 import torch
-from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from pyrad.graphs.modules.ray_sampler import LinearDisparitySampler, LogSampler, PDFSampler, SqrtSampler, UniformSampler
 
 from pyrad.cameras.rays import RayBundle
 from pyrad.graphs.modules.scene_colliders import NearFarCollider
@@ -27,6 +27,63 @@ def test_uniform_sampler():
     assert ray_samples.frustums.get_positions().shape[-2] == num_samples
 
     # TODO Tancik: Add more precise tests
+
+
+def test_lin_disp_sampler():
+    """Test linear in disparity sampler"""
+    near_plane = 2
+    far_plane = 4
+    num_samples = 15
+    sampler = LinearDisparitySampler(num_samples=num_samples)
+
+    origins = torch.zeros((10, 3))
+    directions = torch.ones_like(origins)
+    radius = torch.ones((10, 1))
+    ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
+    collider = NearFarCollider(near_plane, far_plane)
+    ray_bundle = collider(ray_bundle)
+
+    ray_samples = sampler(ray_bundle)
+
+    assert ray_samples.frustums.get_positions().shape[-2] == num_samples
+
+
+def test_sqrt_sampler():
+    """Test square root sampler"""
+    near_plane = 2
+    far_plane = 4
+    num_samples = 15
+    sampler = SqrtSampler(num_samples=num_samples)
+
+    origins = torch.zeros((10, 3))
+    directions = torch.ones_like(origins)
+    radius = torch.ones((10, 1))
+    ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
+    collider = NearFarCollider(near_plane, far_plane)
+    ray_bundle = collider(ray_bundle)
+
+    ray_samples = sampler(ray_bundle)
+
+    assert ray_samples.frustums.get_positions().shape[-2] == num_samples
+
+
+def test_log_sampler():
+    """Test log sampler"""
+    near_plane = 2
+    far_plane = 4
+    num_samples = 15
+    sampler = LogSampler(num_samples=num_samples)
+
+    origins = torch.zeros((10, 3))
+    directions = torch.ones_like(origins)
+    radius = torch.ones((10, 1))
+    ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
+    collider = NearFarCollider(near_plane, far_plane)
+    ray_bundle = collider(ray_bundle)
+
+    ray_samples = sampler(ray_bundle)
+
+    assert ray_samples.frustums.get_positions().shape[-2] == num_samples
 
 
 def test_pdf_sampler():
