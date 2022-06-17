@@ -115,20 +115,27 @@ To set up the graph config, create a new yaml under `configs/`.
 # configs/vanilla_nerf.yaml
 
 defaults:
-  - default_setup # inherit the basic yaml heirarchy
+  - graph_default # inherit the basic yaml heirarchy
   - _self_
+
+logging:
+  # <insert logging definitions here>
+
+trainer:
+  # <override configurations for loading/training/saving model here>
 
 experiment_name: blender_lego
 method_name: vanilla_nerf
 
-graph:
-    network:
-        _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
-
-    # <insert any additional graph related overrides here>
-
 data:
-    # <insert any additional dataset related overrides here>
+  # <insert any dataset related overrides here>
+
+graph:
+   _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
+  # <insert any graph related overrides here>
+
+optimizers:
+  # <insert any optimizer related overrides here>
 ```
 
 ## Training and testing

@@ -21,6 +21,7 @@ import enum
 import os
 import sys
 from abc import abstractmethod
+from time import time
 from typing import Dict
 
 import imageio
@@ -84,42 +85,29 @@ def put_dict(name: str, scalar_dict: float, step: int):
 
 
 @check_main_thread
-def put_time(
-    name: str,
-    start_time: float,
-    end_time: float,
-    step: int,
-    avg_over_iters: bool = False,
-    avg_over_batch: int = None,
-    update_eta: bool = False,
-):
+def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True, update_eta: bool = False):
     """Setter function to place a time element into the queue to be written out
 
     Processes the time info according to the options:
-    avg_over_iters (bool): if True, calculate and record a running average of the times
-    avg_over_batch (int): if set, the size of the batch for which we take the average over (batch/second)
+    avg_over_steps (bool): if True, calculate and record a running average of the times
     update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
     """
     if isinstance(name, EventName):
         name = name.value
 
-    GLOBAL_BUFFER["step"] = step
-    val = end_time - start_time
-    if avg_over_batch:
-        val = avg_over_batch / val
-
-    if avg_over_iters:
+    if avg_over_steps:
+        GLOBAL_BUFFER["step"] = step
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
         curr_buffer = curr_event["buffer"]
         curr_avg = curr_event["avg"]
         if len(curr_buffer) >= GLOBAL_BUFFER["max_buffer_size"]:
             curr_buffer.pop(0)
-        curr_buffer.append(val)
+        curr_buffer.append(duration)
         curr_avg = sum(curr_buffer) / len(curr_buffer)
         put_scalar(name, curr_avg, step)
         GLOBAL_BUFFER["events"][name] = {"buffer": curr_buffer, "avg": curr_avg}
     else:
-        put_scalar(name, val, step)
+        put_scalar(name, duration, step)
 
     if update_eta:
         ## NOTE: eta should be called with avg train iteration time
@@ -153,13 +141,13 @@ def setup_event_writers(config: DictConfig) -> None:
         writer_class = getattr(sys.modules[__name__], writer_type)
         writer_config = logging_configs[writer_type]
         if writer_type == "LocalWriter":
-            curr_writer = writer_class(writer_config.save_dir, writer_config.stats_to_track, writer_config.max_log_size)
+            curr_writer = writer_class(writer_config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
         else:
-            curr_writer = writer_class(writer_config.save_dir)
+            curr_writer = writer_class(writer_config.log_dir)
         EVENT_WRITERS.append(curr_writer)
 
     ## configure all the global buffer basic information
-    GLOBAL_BUFFER["max_iter"] = config.graph.max_num_iterations
+    GLOBAL_BUFFER["max_iter"] = config.trainer.max_num_iterations
     GLOBAL_BUFFER["max_buffer_size"] = config.logging.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.logging.steps_per_log
     GLOBAL_BUFFER["events"] = {}
@@ -168,8 +156,8 @@ def setup_event_writers(config: DictConfig) -> None:
 class Writer:
     """Writer class"""
 
-    def __init__(self, save_dir: str):
-        self.save_dir = save_dir
+    def __init__(self, log_dir: str):
+        self.log_dir = log_dir
 
     @abstractmethod
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
@@ -204,13 +192,42 @@ class Writer:
             self.write_scalar(name, scalar, step)
 
 
+class TimeWriter:
+    """Timer context manager that calculates duration around wrapped functions"""
+
+    def __init__(self, writer, name, step=None, write=True):
+        self.writer = writer
+        self.name = name
+        self.step = step
+        self.write = write
+
+        self.start = None
+        self.duration = None
+
+    def __enter__(self):
+        self.start = time()
+        return self
+
+    def __exit__(self, *args):
+        self.duration = time() - self.start
+        update_step = self.step is not None
+        if self.write:
+            self.writer.put_time(
+                name=self.name,
+                duration=self.duration,
+                step=self.step if update_step else GLOBAL_BUFFER["max_iter"],
+                avg_over_steps=update_step,
+                update_eta=self.name == EventName.ITER_TRAIN_TIME,
+            )
+
+
 @decorate_all([check_main_thread])
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, save_dir: str):
-        super().__init__(save_dir)
-        wandb.init(dir=save_dir)
+    def __init__(self, log_dir: str):
+        super().__init__(log_dir)
+        wandb.init(dir=log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -236,9 +253,9 @@ class WandbWriter(Writer):
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, save_dir: str):
-        super().__init__(save_dir)
-        self.tb_writer = SummaryWriter(log_dir=self.save_dir)
+    def __init__(self, log_dir: str):
+        super().__init__(log_dir)
+        self.tb_writer = SummaryWriter(log_dir=self.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -293,13 +310,13 @@ def _format_time(seconds):
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, save_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
+    def __init__(self, log_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
         """
         Args:
             stats_to_track (ListConfig): the names of stats that should be logged.
             max_log size (int): max number of lines that will be logged to teminal.
         """
-        super().__init__(save_dir)
+        super().__init__(log_dir)
         self.stats_to_track = [EventName[name].value for name in stats_to_track]
         self.max_log_size = max_log_size
         self.keys = set()
@@ -308,7 +325,7 @@ class LocalWriter(Writer):
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         if name in self.stats_to_track:
             image = to8b(image)
-            image_path = os.path.join(self.save_dir, f"{name}.jpg")
+            image_path = os.path.join(self.log_dir, f"{name}.jpg")
             imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:

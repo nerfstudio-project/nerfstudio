@@ -4,6 +4,9 @@ defaults:
 machine_config:
   num_gpus: 0
 
+trainer:
+  max_num_iterations: 2
+
 data:
   dataset_inputs_train:
     data_directory: tests/data/lego_test
@@ -20,15 +23,13 @@ data:
     downscale_factor: 16
 
 graph:
-  max_num_iterations: 2
-  network:
-    num_coarse_samples: 4
-    num_importance_samples: 4
+  num_coarse_samples: 4
+  num_importance_samples: 4
 
 logging:
   writer:
     TensorboardWriter:
-      save_dir: "/tmp/"
+      log_dir: "/tmp/"
 
 hydra:
   searchpath:

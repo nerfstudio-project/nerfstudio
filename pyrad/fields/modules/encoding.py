@@ -29,13 +29,13 @@ from pyrad.utils.math import components_from_spherical_harmonics, expected_sin
 
 
 class Encoding(FieldModule):
-    """Encode an input tensor. Intended to be subclassed"""
+    """Encode an input tensor. Intended to be subclassed
+
+    Args:
+        in_dim (int): Input dimension of tensor
+    """
 
     def __init__(self, in_dim: int) -> None:
-        """
-        Args:
-            in_dim (int): Input dimension of tensor
-        """
         if in_dim <= 0:
             raise ValueError("Input dimension should be greater than zero")
         super().__init__(in_dim=in_dim)
@@ -56,16 +56,15 @@ class Identity(Encoding):
 
 
 class ScalingAndOffset(Encoding):
-    """Simple scaling and offet to input"""
+    """Simple scaling and offet to input
+
+    Args:
+        in_dim (int): Input dimension of tensor
+        scaling (float, optional): Scaling applied to tensor. Defaults to 1.0.
+        offset (float, optional): Offset applied to tensor. Defaults to 0.0.
+    """
 
     def __init__(self, in_dim: int, scaling: float = 1.0, offset: float = 0.0) -> None:
-        """Each input is scaled then offset
-
-        Args:
-            in_dim (int): Input dimension of tensor
-            scaling (float, optional): Scaling applied to tensor. Defaults to 1.0.
-            offset (float, optional): Offset applied to tensor. Defaults to 0.0.
-        """
         super().__init__(in_dim)
 
         self.scaling = scaling
@@ -79,20 +78,20 @@ class ScalingAndOffset(Encoding):
 
 
 class NeRFEncoding(Encoding):
-    """Multi-scale sinousoidal encodings. Support ``integrated positional encodings`` if covariances are provided."""
+    """Multi-scale sinousoidal encodings. Support ``integrated positional encodings`` if covariances are provided.
+    Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.
+
+    Args:
+        in_dim (int): Input dimension of tensor
+        num_frequencies (int): Number of encoded frequencies per axis
+        min_freq_exp (float): Minimum frequency exponent
+        max_freq_exp (float): Maximum frequency exponent
+        include_input (float): Append the input coordinate to the encoding
+    """
 
     def __init__(
         self, in_dim: int, num_frequencies: int, min_freq_exp: float, max_freq_exp: float, include_input: bool = False
     ) -> None:
-        """Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.
-
-        Args:
-            in_dim (int): Input dimension of tensor
-            num_frequencies (int): Number of encoded frequencies per axis
-            min_freq_exp (float): Minimum frequency exponent
-            max_freq_exp (float): Maximum frequency exponent
-            include_input (float): Append the input coordinate to the encoding
-        """
         super().__init__(in_dim)
 
         self.num_frequencies = num_frequencies
@@ -126,7 +125,7 @@ class NeRFEncoding(Encoding):
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
         else:
-            input_var = torch.diagonal(covs, dim1=-2, dim2=-1)[..., None, :] * freqs[:, None] ** 2
+            input_var = torch.diagonal(covs, dim1=-2, dim2=-1)[..., :, None] * freqs[None, :] ** 2
             input_var = input_var.reshape((*input_var.shape[:-2], -1))
             encoded_inputs = expected_sin(
                 torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
@@ -138,16 +137,16 @@ class NeRFEncoding(Encoding):
 
 
 class RFFEncoding(Encoding):
-    """Random Fourier Feature encoding"""
+    """Random Fourier Feature encoding. Supports integrated encodings.
 
-    def __init__(self, in_dim: int, num_frequencies: int, scale: float) -> None:
-        """
+    Args:
+        in_dim (int): Input dimension of tensor
+        num_frequencies (int): Number of encoding frequencies
+        scale (float): Std of Gaussian to sample frequencies. Must be greater than zero
+        include_input (float): Append the input coordinate to the encoding
+    """
 
-        Args:
-            in_dim (int): Input dimension of tensor
-            num_frequencies (int): Number of encoding frequencies
-            scale (float): Std of Gaussian to sample frequencies. Must be greater than zero
-        """
+    def __init__(self, in_dim: int, num_frequencies: int, scale: float, include_input: bool = False) -> None:
         super().__init__(in_dim)
 
         self.num_frequencies = num_frequencies
@@ -156,25 +155,52 @@ class RFFEncoding(Encoding):
         self.scale = scale
         b_matrix = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
         self.register_buffer(name="b_matrix", tensor=b_matrix)
+        self.include_input = include_input
 
     def get_out_dim(self) -> int:
         return self.num_frequencies * 2
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """
+    def forward(
+        self, in_tensor: TensorType[..., "input_dim"], covs: Optional[TensorType[..., "input_dim", "input_dim"]] = None
+    ) -> TensorType[..., "output_dim"]:
+        """Calculates RFF encoding. If covariances are provided the encodings will be integrated as proposed
+            in mip-NeRF.
+
         Args:
             in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
+            covs (TensorType[..., "input_dim", "input_dim"], optional): Covariances of input points. Defaults to None.
 
         Returns:
             TensorType[..., "output_dim"]: Output values will be between -1 and 1
         """
+        in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         scaled_inputs = in_tensor @ self.b_matrix  # [..., "num_frequencies"]
-        encoded_inputs = torch.cat([torch.sin(scaled_inputs), torch.cos(scaled_inputs)], axis=-1)
+
+        if covs is None:
+            encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
+        else:
+            input_var = torch.sum(((covs @ self.b_matrix)) * self.b_matrix, -2)
+            encoded_inputs = expected_sin(
+                torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
+            )
+
+        if self.include_input:
+            encoded_inputs = torch.cat([encoded_inputs, in_tensor], axis=-1)
+
         return encoded_inputs
 
 
 class HashEncoding(Encoding):
-    """Hash encoding"""
+    """Hash encoding
+
+    Args:
+        num_levels (int, optional): Number of feature grids. Defaults to 16.
+        min_res (int, optional): Resolution of smallest feature grid. Defaults to 16.
+        max_res (int, optional): Resolution of largest feature grid. Defaults to 1024.
+        hash_table_size (int, optional): Size of hash table. Defaults to 2**19.
+        features_per_level (int, optional): Number of features per level. Defaults to 2.
+        hash_init_scale (float, optional): Value to initialize hash grid. Defaults to 0.001.
+    """
 
     def __init__(
         self,
@@ -185,16 +211,7 @@ class HashEncoding(Encoding):
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
     ) -> None:
-        """_summary_
 
-        Args:
-            num_levels (int, optional): Number of feature grids. Defaults to 16.
-            min_res (int, optional): Resolution of smallest feature grid. Defaults to 16.
-            max_res (int, optional): Resolution of largest feature grid. Defaults to 1024.
-            hash_table_size (int, optional): Size of hash table. Defaults to 2**19.
-            features_per_level (int, optional): Number of features per level. Defaults to 2.
-            hash_init_scale (float, optional): Value to initialize hash grid. Defaults to 0.001.
-        """
         super().__init__(in_dim=3)
         self.num_levels = num_levels
         self.features_per_level = features_per_level
@@ -278,15 +295,15 @@ class HashEncoding(Encoding):
 
 
 class TensorCPEncoding(Encoding):
-    """Learned CANDECOMP/PARFAC (CP) decomposition encoding used in TensoRF"""
+    """Learned CANDECOMP/PARFAC (CP) decomposition encoding used in TensoRF
+
+    Args:
+        resolution (int, optional): Resolution of grid. Defaults to 256.
+        num_components (int, optional): Number of components per dimension. Defaults to 24.
+        init_scale (float, optional): Initialization scale. Defaults to 0.1.
+    """
 
     def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
-        """
-        Args:
-            resolution (int, optional): Resolution of grid. Defaults to 256.
-            num_components (int, optional): Number of components per dimension. Defaults to 24.
-            init_scale (float, optional): Initialization scale. Defaults to 0.1.
-        """
         super().__init__(in_dim=3)
 
         self.resolution = resolution
@@ -328,15 +345,15 @@ class TensorCPEncoding(Encoding):
 
 
 class TensorVMEncoding(Encoding):
-    """Learned vector-matrix encoding proposed by TensoRF"""
+    """Learned vector-matrix encoding proposed by TensoRF
+
+    Args:
+        resolution (int, optional): Resolution of grid. Defaults to 256.
+        num_components (int, optional): Number of components per dimension. Defaults to 24.
+        init_scale (float, optional): Initialization scale. Defaults to 0.1.
+    """
 
     def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
-        """
-        Args:
-            resolution (int, optional): Resolution of grid. Defaults to 256.
-            num_components (int, optional): Number of components per dimension. Defaults to 24.
-            init_scale (float, optional): Initialization scale. Defaults to 0.1.
-        """
         super().__init__(in_dim=3)
 
         self.resolution = resolution
@@ -386,13 +403,13 @@ class TensorVMEncoding(Encoding):
 
 
 class SHEncoding(Encoding):
-    """Spherical harmonic encoding"""
+    """Spherical harmonic encoding
+
+    Args:
+        levels (int, optional): Number of spherical hamonic levels to encode. Defaults to 4.
+    """
 
     def __init__(self, levels: int = 4) -> None:
-        """
-        Args:
-            levels (int, optional): Number of spherical hamonic levels to encode. Defaults to 4.
-        """
         super().__init__(in_dim=3)
 
         if levels <= 0 or levels > 4:

@@ -11,9 +11,9 @@ logging:
     max_buffer_size: 20     # defines how many steps to average over (if reporting averages)
     writer:                 # definition of all writers you want to use
         TensorboardWriter:  
-            save_dir: "./"  # must specify the output path for all writers
+            log_dir: "./"  # must specify the output path for all writers
         LocalWriter:
-            save_dir: "./"
+            log_dir: "./"
             stats_to_track:
                 [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
             max_log_size: 10 

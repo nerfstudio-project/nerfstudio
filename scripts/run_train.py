@@ -116,8 +116,8 @@ def _train(local_rank: int, world_size: int, config: DictConfig) -> Any:
 
     Args:
         local_rank (int): _description_
-        world_size (int): _description_
-        config (DictConfig): _description_
+        local_rank (int): current rank of process
+        world_size (int): total number of gpus available
 
     Returns:
         Any: TODO(): determine the return type
