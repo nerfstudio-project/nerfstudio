@@ -57,9 +57,19 @@ class Camera:
     def get_camera_to_world(self) -> TensorType[3, 4]:
         """
         Returns:
-            int: Camera to world transformation
+            TensorType[3, 4]: Camera to world transformation
         """
         return self.camera_to_world
+
+    def get_camera_to_world_h(self) -> TensorType[4, 4]:
+        """
+        Returns:
+            TensorType[4, 4]: Camera to world transformation with homogeneous coordinates
+        """
+        c2w = self.camera_to_world
+        ones = torch.tensor([0, 0, 0, 1], device=c2w.device)[None]
+        c2w = torch.cat([c2w, ones], dim=0)
+        return c2w
 
     @abstractmethod
     def get_image_height(self) -> int:
@@ -323,6 +333,19 @@ class EquirectangularCamera(Camera):
         dy = torch.sqrt(torch.sum((diry_max - diry_min) ** 2, dim=-1))
         pixel_area = dx * dy
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area)
+
+
+def get_intrinsics_from_intrinsics_matrix(intrinsics_matrix: TensorType[3, 3]):
+    """
+    Return a flat intrinsics tensor.
+    """
+    fx = intrinsics_matrix[0, 0]
+    fy = intrinsics_matrix[1, 1]
+    cx = intrinsics_matrix[0, 2]
+    cy = intrinsics_matrix[1, 2]
+    if fx == fy:
+        return torch.tensor([cx, cy, fx])
+    return torch.tensor([cx, cy, fx, fy])
 
 
 def get_camera_model(num_intrinsics_params: int) -> Type[Camera]:
