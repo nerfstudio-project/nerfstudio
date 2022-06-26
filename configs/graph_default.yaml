@@ -39,6 +39,7 @@ method_name: vanilla_nerf
 
 # hydra settings
 hydra:
+  mode: RunMode.RUN
   run:
     dir: outputs/${experiment_name}/${method_name}/${now:%Y-%m-%d_%H%M%S}
 
