@@ -31,10 +31,12 @@ def load_mipnerf_360_data(
     split: str = "train",
     val_skip: int = 8,
     auto_scale: bool = True,
-    aabb_scale: float = 1.0,
+    aabb_scale: float = 5.0,
 ) -> DatasetInputs:
     """Processes mipnerf 360 data.
     Example data can be downloaded from https://jonbarron.info/mipnerf360/.
+
+    TODO: code currently assumes images were previously downscaled.
 
     Args:
         data_directory (str): Location of data
@@ -65,19 +67,9 @@ def load_mipnerf_360_data(
     image_filenames = sorted(image_filenames)
     num_images = len(image_filenames)
 
-    poses_bounds = np.load(os.path.join(basedir, "poses_bounds.npy"))
-    poses = poses_bounds[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
-    bounds = poses_bounds[:, -2:].transpose([1, 0])
-
-    # Scale factor used in mipnerf
-    if auto_scale:
-        scale_factor = 1 / (np.min(poses_bounds) * 0.75)
-        poses[:, :3, 3] *= scale_factor
-        bounds *= scale_factor
-
-    # Center poses
-    center = poses[:, :3, 3].mean(0)
-    poses[:, :3, :3] -= center
+    poses_data = np.load(os.path.join(basedir, "poses_bounds.npy"))
+    poses = poses_data[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
+    bounds = poses_data[:, -2:].transpose([1, 0])
 
     if num_images != poses.shape[0]:
         raise RuntimeError(f"Different number of images ({num_images}), and poses ({poses.shape[0]})")
@@ -94,6 +86,18 @@ def load_mipnerf_360_data(
 
     poses[:, :2, 4] = np.array([image_height, image_width])
     poses[:, 2, 4] = poses[:, 2, 4] * 1.0 / downscale_factor
+
+    # Reorder pose to match our convention
+    poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
+
+    # Scale factor used in mipnerf
+    if auto_scale:
+        scale_factor = 1 / (np.min(bounds) * 0.75)
+        poses[:, :3, 3] *= scale_factor
+        bounds *= scale_factor
+
+    # Center poses
+    poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, :], axis=0)[:, 3]
 
     focal_length = poses[0, -1, -1]
 
