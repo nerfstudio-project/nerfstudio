@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
     "nbsphinx",
+    "sphinx_design",
 ]
 
 # List of patterns, relative to source directory, that match files and
@@ -60,6 +61,13 @@ html_theme = "furo"
 html_title = "pyRad"
 
 autosectionlabel_prefix_document = True
+
+html_theme_options = {
+    "light_css_variables": {
+        "color-brand-primary": "#00878e",
+        "color-brand-content": "#00878e",
+    },
+}
 
 # -- Code block theme --------------------------------------------------------
 

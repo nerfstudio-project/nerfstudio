@@ -1,5 +1,12 @@
 # Quickstart guide
 
+```{include} ../../README.md
+:relative-docs: docs/
+:relative-images:
+:start-after: quick_tour.html).
+:end-before: 6. In-depth
+```
+
 These quickstart steps will help you get started with training and testing the default vanilla nerf on the classic blender lego scene. 
 
 

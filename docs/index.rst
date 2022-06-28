@@ -25,7 +25,7 @@ Contents
    :caption: Tutorials
 
    tutorials/quickstart.md
-   tutorials/creating_dataset.md
+   tutorials/data_setup.rst
    tutorials/creating_graphs.md
    Contributing <tutorials/contributing.md>
 
