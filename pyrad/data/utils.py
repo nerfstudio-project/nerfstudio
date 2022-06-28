@@ -24,6 +24,7 @@ from omegaconf import ListConfig
 from pyrad.data.format.blender import load_blender_data
 from pyrad.data.format.friends import load_friends_data
 from pyrad.data.format.instant_ngp import load_instant_ngp_data
+from pyrad.data.format.mipnerf_360 import load_mipnerf_360_data
 from pyrad.data.structs import DatasetInputs
 from pyrad.utils.colors import get_color
 from pyrad.utils.io import get_absolute_path, load_from_pkl, make_dir, write_to_pkl
@@ -92,6 +93,12 @@ def get_dataset_inputs(
         )
     elif dataset_format == "instant_ngp":
         dataset_inputs = load_instant_ngp_data(
+            get_absolute_path(data_directory),
+            downscale_factor=downscale_factor,
+            split="train",
+        )
+    elif dataset_format == "mipnerf_360":
+        dataset_inputs = load_mipnerf_360_data(
             get_absolute_path(data_directory),
             downscale_factor=downscale_factor,
             split="train",
