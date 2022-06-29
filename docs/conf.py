@@ -51,6 +51,25 @@ extensions = [
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 suppress_warnings = ["myst.header"]
 
+# Add any paths that contain templates here, relative to this directory.
+templates_path = ["_templates"]
+
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ["_static"]
+
+# Needed for interactive plotly in notebooks
+html_js_files = [
+    "require.min.js",
+    "custom.js",
+]
+
+# -- MYST configs -----------------------------------------------------------
+
+# To enable admonitions:
+myst_enable_extensions = ["colon_fence"]
+
 
 # -- Options for HTML output -------------------------------------------------
 
