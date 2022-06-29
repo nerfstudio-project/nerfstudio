@@ -1,7 +1,9 @@
 
-# Custom Data Formats
+# Custom dataset formats
 
-In this page, we explain how to use pyRad with your own data. We've implemented many common datasets inside the `pyrad/format/<dataset_format>.py` files. Each of these files implements a function called `load_<dataset_format>_data`. Each of these functions returns a `DatasetInputs` object. Furthermore, `get_dataset_inputs` in `pyrad/data/utils.py` will have to be updated to handle the new function.
+We've implemented many common datasets inside the `pyrad/format/<dataset_format>.py` files. If you have a posed image dataset that does not match these existing formats can create a custom dataset format.
+
+1. Create a function `pyrad/format/<dataset_format>.py` and implements a function called `load_<dataset_format>_data` returns a `DatasetInputs` object.
 
 ```python
 # The DatasetInputs dataclass that is passed around to create datasets and initialize the graphs.
@@ -29,7 +31,12 @@ def load_instant_ngp_data(
     split: str = "train", camera_translation_scalar=0.33
 ) -> DatasetInputs:
     """Returns a DatasetInputs struct."""
+```
 
+
+2. Add a new case to `get_dataset_inputs()` in `pyrad/data/utils.py` for the new dataset.
+
+```python
 # The method signature for get_dataset_inputs.
 # Notice that the parameters match the yaml config parameters above.
 # See `pyrad/data/utils.py` for the code.
