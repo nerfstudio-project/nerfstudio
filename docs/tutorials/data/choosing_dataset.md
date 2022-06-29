@@ -1,8 +1,8 @@
 # Dataset configuration
 
-#### Referring to a specific dataset
+#### Specifying dataset
 
-Here is how we refer to a dataset. We have a `dataset_inputs_train` and a `dataset_inputs_eval` config. These live under the `data` directory. You can see `configs/graph_default.yaml` for more details on what a full config would look like.
+The dataset path and type is specified in the model config. Both `dataset_inputs_train` and a `dataset_inputs_eval` need to be set. You can see `configs/graph_default.yaml` for more details on what a full config would look like.
 
 ```yaml
 data:
@@ -18,7 +18,7 @@ data:
     alpha_color: white
 ```
 
-#### Sanity check with a notebook
+#### Visualize dataset
 
 You can use `notebooks/visualize_dataset.ipynb` to see how your formatted dataset looks. This code will load a dataset from a yaml config, show the camera poses, and visualize rays with the specified collider in the config. TODO: add a better visualization with images too
 
@@ -53,4 +53,16 @@ Download
 
 ```yaml
 dataset_format: instant_ngp
+```
+
+###### MipNeRF 360
+
+```{button-link} https://jonbarron.info/mipnerf360/
+:color: primary
+:outline:
+Download
+```
+
+```yaml
+dataset_format: mipnerf_360
 ```
