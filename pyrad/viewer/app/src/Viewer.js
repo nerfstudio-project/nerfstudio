@@ -1,5 +1,4 @@
 import React, { Component } from "react";
-import "./App.css";
 import * as THREE from "three";
 import { TrackballControls } from "three/examples/jsm/controls/TrackballControls";
 import Stats from "three/examples/jsm/libs/stats.module.js";
@@ -7,6 +6,8 @@ import { GUI } from "dat.gui";
 import { split_path } from "./utils";
 import { SceneNode } from "./SceneNode";
 import { ExtensibleObjectLoader } from "./ExtensibleObjectLoader";
+import { WebRTCVideo } from "./Video";
+import { BackgroundDiv } from "./Background";
 
 function websocket_endpoint_from_url(url) {
   let endpoint = url.split("/").pop();
@@ -59,8 +60,7 @@ export class Viewer extends Component {
     this.animate = this.animate.bind(this);
     this.set_object = this.set_object.bind(this);
     this.handle_command = this.handle_command.bind(this);
-
-    // window.addEventListener('resize', this.handleResize.bind(this));
+    this.threejs_ref = React.createRef();
   }
 
   set_dirty() {
@@ -176,7 +176,7 @@ export class Viewer extends Component {
           obj.geometry.computeVertexNormals();
         }
       } else if (obj.type.includes("Camera")) {
-        console.log("uses camera !!");
+        // console.log("uses camera !!");
         // this.set_camera(obj);
         // this.set_3d_pane_size();
       }
@@ -209,11 +209,11 @@ export class Viewer extends Component {
   }
 
   handle_command(cmd) {
-    console.log(cmd);
+    // console.log(cmd);
 
     // convert binary serialization format back to JSON
     cmd = msgpack.decode(new Uint8Array(cmd));
-    console.log(cmd);
+    // console.log(cmd);
 
     // TODO(ethan): ignore these or remove status. maybe incorporate into a clean view
     if (cmd.type === "status") {
@@ -236,7 +236,7 @@ export class Viewer extends Component {
       // TODO(ethan): implement animations
       console.error("Animations not implemented yet.");
     } else if (cmd.type === "set_image") {
-      console.log("ethan: setting camera");
+      // console.log("ethan: setting camera");
       // var url = URL.createObjectURL(
       //   new Blob([cmd["image"].buffer], { type: "image/png" } /* (1) */)
       // );
@@ -332,6 +332,8 @@ export class Viewer extends Component {
 
     // console.log(this.mount);
 
+    this.mount = this.threejs_ref.current;
+
     // Renderer Left
     this.state.renderer_l = new THREE.WebGLRenderer({ antialias: true });
     this.state.renderer_l.setPixelRatio(window.devicePixelRatio);
@@ -341,6 +343,9 @@ export class Viewer extends Component {
     );
     this.state.renderer_l.domElement.style.border = "1px solid black";
     this.mount.appendChild(this.state.renderer_l.domElement);
+
+    console.log("this.mount");
+    console.log(this.mount);
 
     // Renderer Right
     let div = document.createElement("div");
@@ -513,30 +518,24 @@ export class Viewer extends Component {
     var stats = new Stats();
     this.mount.appendChild(stats.dom);
 
-    // let camera = new THREE.PerspectiveCamera(75, this.state.width / this.state.height, 0.1, 1000);
-    // let helper = new THREE.CameraHelper(camera);
-    // // scene.add( helper );
-    // // console.log(helper);
-    // console.log(helper);
-    // // this.set_object(["Helper"], helper);
-    // // console.log(this.state.scene);
-
-    // Cube
-    // var geometry = new THREE.BoxGeometry(1, 1, 1);
-    // var material = new THREE.MeshBasicMaterial({color: 0x00ff00});
-    // var cube = new THREE.Mesh(geometry, material);
-    // this.state.scene.add(cube);
-
     this.animate();
   }
 
   componentWillUnmount() {
     // this.mount.removeChild(this.state.renderer_l.domElement);
     // this.mount.removeChild(this.state.renderer_r.domElement);
+    console.log("unmounting!");
+    this.mount = this.threejs_ref.current;
     removeAllChildNodes(this.mount);
   }
 
   render() {
-    return <div ref={(ref) => (this.mount = ref)} />;
+    return (
+      <div>
+        <WebRTCVideo></WebRTCVideo>
+        <BackgroundDiv></BackgroundDiv>
+        <div ref={this.threejs_ref}> </div>
+      </div>
+    );
   }
 }
