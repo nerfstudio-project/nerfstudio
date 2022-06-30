@@ -43,6 +43,7 @@ extensions = [
     "sphinx_copybutton",
     "nbsphinx",
     "sphinx_design",
+    "sphinx.ext.mathjax",
 ]
 
 # List of patterns, relative to source directory, that match files and

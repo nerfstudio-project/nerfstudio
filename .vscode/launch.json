@@ -40,6 +40,16 @@
             ]
         },
         {
+            "name": "Python: run_train mipnerf 360 (gpu)",
+            "type": "python",
+            "request": "launch",
+            "program": "scripts/run_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--config-name=graph_mipnerf_360.yaml"
+            ]
+        },
+        {
             "name": "Python: run_train nerfw (gpu)",
             "type": "python",
             "request": "launch",

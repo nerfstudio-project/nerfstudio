@@ -12,3 +12,4 @@ TODO: High level description of field modules and how they connect together.
    field_heads
    field_losses
    mlp
+   spatial_distortions
