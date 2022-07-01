@@ -49,8 +49,8 @@ class SceneContraction(SpatialDistortion):
             \\end{cases}
     """
 
-    def forward(self, positions: Union[TensorType[..., 3], Gaussians]) -> Union[TensorType[..., 3], Gaussians]:
-        def contract(x: TensorType[..., "in_dim"]) -> TensorType[..., "in_dim"]:
+    def forward(self, positions):
+        def contract(x):
             mag = x.norm(dim=-1)
             mask = mag >= 1
             x[mask] = (2 - (1 / mag[mask][..., None])) * (x[mask] / mag[mask][..., None])
@@ -58,16 +58,18 @@ class SceneContraction(SpatialDistortion):
             return x
 
         if isinstance(positions, Gaussians):
-            means = contract(positions.mean)
+            means = contract(positions.mean.clone())
 
             contract = lambda x: (2 - (1 / x.norm(dim=-1, keepdim=True))) * (x / x.norm(dim=-1, keepdim=True))
-            jc_means = vmap(jacrev(contract))(positions.mean)
+            jc_means = vmap(jacrev(contract))(positions.mean.view(-1, positions.mean.shape[-1]))
+            jc_means = jc_means.view(list(positions.mean.shape) + [positions.mean.shape[-1]])
 
             # Only update covariances on positions outside the unit sphere
             mag = positions.mean.norm(dim=-1)
             mask = mag >= 1
-            positions.cov[mask] = jc_means[mask] @ positions.cov[mask] @ torch.transpose(jc_means[mask], -2, -1)
+            cov = positions.cov.clone()
+            cov[mask] = jc_means[mask] @ positions.cov[mask] @ torch.transpose(jc_means[mask], -2, -1)
 
-            return Gaussians(mean=means, cov=positions.cov)
+            return Gaussians(mean=means, cov=cov)
 
         return contract(positions)

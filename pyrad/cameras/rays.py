@@ -33,8 +33,8 @@ class Frustums:
     Args:
         origins (TensorType[..., 3]): xyz coordinate for ray origin.
         directions (TensorType[..., 3]): Direction of ray.
-        frustum_starts (TensorType[..., 1]): Where the frustum starts along a ray.
-        frustum_ends (TensorType[..., 3]): Where the frustim ends along a ray.
+        frustum_starts (TensorType[..., num_samples, 1]): Where the frustum starts along a ray.
+        frustum_ends (TensorType[..., num_samples, 1]): Where the frustum ends along a ray.
         pixel_area (TensorType[..., 1]): Projected area of pixel a distance 1 away from origin.
     """
 
