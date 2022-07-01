@@ -102,42 +102,6 @@ class Frustums:
 
 
 @dataclass
-class PointSamples:
-    """Samples in space.
-
-    Args:
-        frustims (Frustums): Frustums along ray.
-        directions (TensorType[..., 3]): Unit direction vector.
-        camera_indices (TensorType[..., 1]): Camera index.
-        valid_mask (TensorType[...]): Rays that are valid.
-    """
-
-    frustums: Frustums
-    camera_indices: TensorType[..., 1] = None
-    valid_mask: TensorType[...] = None
-
-    def apply_masks(self) -> "PointSamples":
-        """Use valid_mask to mask samples.
-
-        Returns:
-            PointSamples: New set of masked samples.
-        """
-        if is_not_none(self.valid_mask):
-            frustums = self.frustums.apply_masks(self.valid_mask)
-            camera_indices = (
-                self.camera_indices[self.valid_mask] if is_not_none(self.camera_indices) else self.camera_indices
-            )
-            return PointSamples(
-                frustums=frustums,
-                camera_indices=camera_indices,
-            )
-        return PointSamples(
-            frustums=self.frustums,
-            camera_indices=self.camera_indices,
-        )
-
-
-@dataclass
 class RaySamples:
     """Samples along a ray
 
@@ -156,15 +120,6 @@ class RaySamples:
     bin_starts: TensorType[..., 1] = None
     bin_ends: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
-
-    def to_point_samples(self) -> PointSamples:
-        """Convert to PointSamples instance and return."""
-        # TODO: make this more interpretable
-        return PointSamples(
-            frustums=self.frustums,
-            camera_indices=self.camera_indices,
-            valid_mask=self.valid_mask,
-        )
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples"]:
         """Return weights based on predicted densities
@@ -199,6 +154,29 @@ class RaySamples:
     def set_valid_mask(self, valid_mask: TensorType[..., "num_samples"]) -> None:
         """Sets valid mask"""
         self.valid_mask = valid_mask
+
+    def apply_masks(self) -> "RaySamples":
+        """Use valid_mask to mask samples.
+
+        Returns:
+            RaySamples: New set of masked samples.
+        """
+        if is_not_none(self.valid_mask):
+            frustums = self.frustums.apply_masks(self.valid_mask)
+            camera_indices = (
+                self.camera_indices[self.valid_mask] if is_not_none(self.camera_indices) else self.camera_indices
+            )
+            bin_starts = self.bin_starts[self.valid_mask] if is_not_none(self.bin_starts) else self.bin_starts
+            bin_ends = self.bin_ends[self.valid_mask] if is_not_none(self.bin_ends) else self.bin_ends
+            deltas = self.deltas[self.valid_mask] if is_not_none(self.deltas) else self.deltas
+            return RaySamples(
+                frustums=frustums,
+                camera_indices=camera_indices,
+                bin_starts=bin_starts,
+                bin_ends=bin_ends,
+                deltas=deltas,
+            )
+        return self
 
 
 @dataclass

@@ -32,7 +32,7 @@ from pyrad.fields.modules.field_heads import (
 )
 from pyrad.fields.modules.mlp import MLP
 from pyrad.fields.base import Field
-from pyrad.cameras.rays import PointSamples
+from pyrad.cameras.rays import RaySamples
 
 
 class VanillaNerfWField(Field):
@@ -106,22 +106,22 @@ class VanillaNerfWField(Field):
         self.field_head_transient_rgb = TransientRGBFieldHead(in_dim=self.mlp_transient.get_out_dim())
         self.field_head_transient_density = TransientDensityFieldHead(in_dim=self.mlp_transient.get_out_dim())
 
-    def get_density(self, point_samples: PointSamples):
+    def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        encoded_xyz = self.position_encoding(point_samples.frustums.positions())
+        encoded_xyz = self.position_encoding(ray_samples.frustums.positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_head_density(base_mlp_out)
         return density, base_mlp_out
 
     def get_outputs(
-        self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
         outputs = {}
-        encoded_dir = self.direction_encoding(point_samples.directions)
-        embedded_appearance = self.embedding_appearance(point_samples.camera_indices)
+        encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
+        embedded_appearance = self.embedding_appearance(ray_samples.camera_indices)
         mlp_head_out = self.mlp_head(torch.cat([density_embedding, encoded_dir, embedded_appearance], dim=-1))
         outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_head_out)  # static rgb
-        embedded_transient = self.embedding_transient(point_samples.camera_indices)
+        embedded_transient = self.embedding_transient(ray_samples.camera_indices)
         transient_mlp_out = self.mlp_transient(torch.cat([density_embedding, embedded_transient], dim=-1))
         outputs[self.field_head_transient_uncertainty.field_head_name] = self.field_head_transient_uncertainty(
             transient_mlp_out
