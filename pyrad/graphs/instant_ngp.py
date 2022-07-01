@@ -93,12 +93,12 @@ class NGPGraph(Graph):
 
         # uniform sampling
         ray_samples_uniform = self.sampler_occupancy_grid(ray_bundle)
-        field_outputs_uniform = self.field.forward(ray_samples_uniform.to_point_samples())
+        field_outputs_uniform = self.field.forward(ray_samples_uniform)
         weights_uniform = ray_samples_uniform.get_weights(field_outputs_uniform[FieldHeadNames.DENSITY])
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_uniform)
-        field_outputs_pdf = self.field.forward(ray_samples_pdf.to_point_samples())
+        field_outputs_pdf = self.field.forward(ray_samples_pdf)
 
         # Hacky treatment of bins as points to allow us to merge uniform and pdf.
         ts_uniform = (ray_samples_uniform.bin_starts + ray_samples_uniform.bin_ends) / 2.0

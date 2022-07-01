@@ -27,7 +27,7 @@ from pyrad.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.base import Field
 from pyrad.fields.nerf_field import NeRFField
-from pyrad.cameras.rays import PointSamples
+from pyrad.cameras.rays import RaySamples
 
 try:
     import tinycudann as tcnn
@@ -107,26 +107,26 @@ class TCNNInstantNGPField(Field):
             },
         )
 
-    def get_density(self, point_samples: PointSamples):
+    def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        positions = get_normalized_positions(point_samples.frustums.get_positions(), self.aabb)
+        positions = get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         dtype = positions_flat.dtype
         x = self.position_encoding(positions_flat)
-        h = self.mlp_base(x).view(*point_samples.frustums.get_positions().shape[:-1], -1).to(dtype)
+        h = self.mlp_base(x).view(*ray_samples.frustums.get_positions().shape[:-1], -1).to(dtype)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         density = F.softplus(density_before_activation)
         return density, base_mlp_out
 
-    def get_outputs(self, point_samples: PointSamples, density_embedding=None):
+    def get_outputs(self, ray_samples: RaySamples, density_embedding=None):
         # TODO: add valid_mask masking!
         # tcnn requires directions in the range [0,1]
-        directions = get_normalized_directions(point_samples.frustums.directions)
+        directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         dtype = directions_flat.dtype
         d = self.direction_encoding(directions_flat)
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        h = self.mlp_head(h).view(*point_samples.frustums.directions.shape[:-1], -1).to(dtype)
+        h = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(dtype)
         rgb = torch.sigmoid(h)
         return {FieldHeadNames.RGB: rgb}
 
@@ -158,12 +158,12 @@ class TorchInstantNGPField(NeRFField):
         )
         self.aabb = Parameter(aabb, requires_grad=False)
 
-    def get_density(self, point_samples: PointSamples):
-        normalized_point_samples = point_samples
-        normalized_point_samples.positions = get_normalized_positions(
-            normalized_point_samples.frustums.get_positions(), self.aabb
+    def get_density(self, ray_samples: RaySamples):
+        normalized_ray_samples = ray_samples
+        normalized_ray_samples.positions = get_normalized_positions(
+            normalized_ray_samples.frustums.get_positions(), self.aabb
         )
-        return super().get_density(normalized_point_samples)
+        return super().get_density(normalized_ray_samples)
 
 
 field_implementation_to_class = {"tcnn": TCNNInstantNGPField, "torch": TorchInstantNGPField}

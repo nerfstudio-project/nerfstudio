@@ -19,7 +19,7 @@ Example:
 
 .. code-block:: python
 
-    field_outputs = field(ray_sampler.to_point_samples())
+    field_outputs = field(ray_sampler)
     weights = ray_sampler.get_weights(field_outputs[FieldHeadNames.DENSITY])
 
     rgb_renderer = RGBRenderer()
