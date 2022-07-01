@@ -5,40 +5,73 @@ import logging
 import os
 import platform
 import ssl
+import numpy
+import math
+import cv2
 
 from aiohttp import web
 
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.contrib.media import MediaPlayer, MediaRelay
 from aiortc.rtcrtpsender import RTCRtpSender
+
+from av import VideoFrame
 
 import aiohttp_cors
 
 ROOT = os.path.dirname(__file__)
 
 
-relay = None
-webcam = None
+class FlagVideoStreamTrack(VideoStreamTrack):
+    """
+    A video track that returns an animated flag.
+    """
 
+    def __init__(self):
+        super().__init__()  # don't forget this!
+        self.counter = 0
+        height, width = 480, 640
 
-def create_local_tracks(play_from, decode):
-    global relay, webcam
+        # generate flag
+        data_bgr = numpy.hstack(
+            [
+                self._create_rectangle(width=213, height=480, color=(255, 0, 0)),  # blue
+                self._create_rectangle(width=214, height=480, color=(255, 255, 255)),  # white
+                self._create_rectangle(width=213, height=480, color=(0, 0, 255)),  # red
+            ]
+        )
 
-    if play_from:
-        # player = MediaPlayer(play_from, decode=decode)
-        player = MediaPlayer(play_from)
-        return player.audio, player.video
-    else:
-        options = {"framerate": "30", "video_size": "640x480"}
-        if relay is None:
-            if platform.system() == "Darwin":
-                webcam = MediaPlayer("default:none", format="avfoundation", options=options)
-            elif platform.system() == "Windows":
-                webcam = MediaPlayer("video=Integrated Camera", format="dshow", options=options)
-            else:
-                webcam = MediaPlayer("/dev/video0", format="v4l2", options=options)
-            relay = MediaRelay()
-        return None, relay.subscribe(webcam.video)
+        # shrink and center it
+        M = numpy.float32([[0.5, 0, width / 4], [0, 0.5, height / 4]])
+        data_bgr = cv2.warpAffine(data_bgr, M, (width, height))
+
+        # compute animation
+        omega = 2 * math.pi / height
+        id_x = numpy.tile(numpy.array(range(width), dtype=numpy.float32), (height, 1))
+        id_y = numpy.tile(numpy.array(range(height), dtype=numpy.float32), (width, 1)).transpose()
+
+        self.frames = []
+        for k in range(30):
+            phase = 2 * k * math.pi / 30
+            map_x = id_x + 10 * numpy.cos(omega * id_x + phase)
+            map_y = id_y + 10 * numpy.sin(omega * id_x + phase)
+            self.frames.append(
+                VideoFrame.from_ndarray(cv2.remap(data_bgr, map_x, map_y, cv2.INTER_LINEAR), format="bgr24")
+            )
+
+    async def recv(self):
+        pts, time_base = await self.next_timestamp()
+
+        frame = self.frames[self.counter % 30]
+        frame.pts = pts
+        frame.time_base = time_base
+        self.counter += 1
+        return frame
+
+    def _create_rectangle(self, width, height, color):
+        data_bgr = numpy.zeros((height, width, 3), numpy.uint8)
+        data_bgr[:, :] = color
+        return data_bgr
 
 
 def force_codec(pc, sender, forced_codec):
@@ -72,15 +105,14 @@ async def offer(request):
             await pc.close()
             pcs.discard(pc)
 
-    # open media source
-    audio, video = create_local_tracks(args.play_from, decode=not args.play_without_decoding)
+    video = FlagVideoStreamTrack()
 
-    if audio:
-        audio_sender = pc.addTrack(audio)
-        if args.audio_codec:
-            force_codec(pc, audio_sender, args.audio_codec)
-        elif args.play_without_decoding:
-            raise Exception("You must specify the audio codec using --audio-codec")
+    # if audio:
+    #     audio_sender = pc.addTrack(audio)
+    #     if args.audio_codec:
+    #         force_codec(pc, audio_sender, args.audio_codec)
+    #     elif args.play_without_decoding:
+    #         raise Exception("You must specify the audio codec using --audio-codec")
 
     if video:
         video_sender = pc.addTrack(video)
