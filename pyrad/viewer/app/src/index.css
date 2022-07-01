@@ -28,8 +28,6 @@ code {
   object-fit: fill;
 }
 
-/* three.js canvas */
-
 #canvas-container-main {
   position: absolute;
   top: 0px;

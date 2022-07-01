@@ -311,6 +311,7 @@ export class Viewer extends Component {
         <div id="canvas-container-main"> </div>
         <div id="stats-container"> </div>
       </div>
+      
     );
   }
 }

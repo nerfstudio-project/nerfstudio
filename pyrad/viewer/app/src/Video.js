@@ -1,145 +1,83 @@
 import React, { Component } from "react";
-import io from "socket.io-client";
 
-const PC_CONFIG = {};
+var pc = null;
 
-let socket;
-let pc;
-let localStream;
-
-let connect = (url) => {
-  socket = io(url, { autoConnect: false });
-  socket.on("data", (data) => {
-    console.log("Data received: ", data);
-    handleSignalingData(data);
-  });
-
-  socket.on("ready", () => {
-    console.log("Ready");
-    createPeerConnection();
-
-    if (localStream) {
-      sendOffer();
-    }
-  });
-  socket.connect();
-};
-
-let sendData = (data) => {
-  socket.emit("data", data);
-};
-
-// document.getElementById("startCapture").onclick = () => {
-//   navigator.mediaDevices
-//     .getDisplayMedia({ audio: true, video: true })
-//     .then((stream) => {
-//       console.log("Stream found");
-//       localStream = stream;
-
-//       connect(
-//         "http://" +
-//           document.getElementById("sigHost").value +
-//           ":" +
-//           document.getElementById("sigPort").value
-//       );
-//     })
-//     .catch((error) => {
-//       console.error("Stream not found: ", error);
-//     });
-// };
-
-// document.getElementById("startReceive").onclick = () => {
-//   connect(
-//     "http://" +
-//       document.getElementById("sigHost").value +
-//       ":" +
-//       document.getElementById("sigPort").value
-//   );
-// };
-
-let createPeerConnection = () => {
-  try {
-    pc = new RTCPeerConnection(PC_CONFIG);
-    pc.onicecandidate = onIceCandidate;
-    pc.onaddstream = onAddStream;
-    if (localStream) {
-      pc.addStream(localStream);
-    }
-    console.log("PeerConnection created");
-  } catch (error) {
-    console.error("PeerConnection failed: ", error);
-  }
-};
-
-let sendOffer = () => {
-  console.log("Send offer");
-  // console.log(pc);
-  pc.createOffer().then(setAndSendLocalDescription, (error) => {
-    console.error("Send offer failed: ", error);
-  });
-};
-
-let sendAnswer = () => {
-  console.log("Send answer");
-  // console.log(pc);
-  pc.createAnswer().then(setAndSendLocalDescription, (error) => {
-    console.error("Send answer failed: ", error);
-  });
-};
-
-let setAndSendLocalDescription = (sessionDescription) => {
-  pc.setLocalDescription(sessionDescription);
-  console.log("Local description set");
-  sendData(sessionDescription);
-};
-
-let onIceCandidate = (event) => {
-  if (event.candidate) {
-    console.log("ICE candidate");
-    sendData({
-      type: "candidate",
-      candidate: event.candidate,
+function negotiate() {
+  pc.addTransceiver("video", { direction: "recvonly" });
+  return pc
+    .createOffer()
+    .then(function (offer) {
+      return pc.setLocalDescription(offer);
+    })
+    .then(function () {
+      // wait for ICE gathering to complete
+      return new Promise(function (resolve) {
+        if (pc.iceGatheringState === "complete") {
+          resolve();
+        } else {
+          function checkState() {
+            if (pc.iceGatheringState === "complete") {
+              pc.removeEventListener("icegatheringstatechange", checkState);
+              resolve();
+            }
+          }
+          pc.addEventListener("icegatheringstatechange", checkState);
+        }
+      });
+    })
+    .then(function () {
+      var offer = pc.localDescription;
+      return fetch("http://localhost:8052/offer", {
+        body: JSON.stringify({
+          sdp: offer.sdp,
+          type: offer.type,
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+    })
+    .then(function (response) {
+      return response.json();
+    })
+    .then(function (answer) {
+      return pc.setRemoteDescription(answer);
+    })
+    .catch(function (e) {
+      alert(e);
     });
-  }
-};
+}
 
-let onAddStream = (event) => {
-  console.log("Add stream");
-  let remoteStreamElement = document.querySelector("#WebRTCVideo-video");
-  remoteStreamElement.srcObject = event.stream;
-};
+function start() {
+  var config = {
+    sdpSemantics: "unified-plan",
+  };
+  config.iceServers = [{ urls: ["stun:stun.l.google.com:19302"] }];
 
-let handleSignalingData = (data) => {
-  switch (data.type) {
-    case "offer":
-      createPeerConnection();
-      pc.setRemoteDescription(new RTCSessionDescription(data));
-      sendAnswer();
-      break;
+  pc = new RTCPeerConnection(config);
 
-    case "answer":
-      pc.setRemoteDescription(new RTCSessionDescription(data));
-      break;
+  // connect audio / video
+  pc.addEventListener("track", function (evt) {
+    if (evt.track.kind == "video") {
+      console.log("setting event steam");
+      console.log(evt.streams[0]);
+      document.getElementById("WebRTCVideo-video").srcObject = evt.streams[0];
+    }
+  });
 
-    case "candidate":
-      pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-      break;
-  }
-};
+  negotiate();
+}
 
 export class WebRTCVideo extends Component {
   componentDidMount() {
-    let sigHost = "localhost";
-    let sigPort = 8052;
-    connect("http://" + sigHost + ":" + sigPort);
+    start();
   }
 
   render() {
     return (
       <div className="WebRTCVideo">
-        <video id="WebRTCVideo-video" autoPlay playsInline>
-          {" "}
-        </video>{" "}
+        <video id="WebRTCVideo-video" autoPlay playsInline muted></video>
       </div>
     );
   }
