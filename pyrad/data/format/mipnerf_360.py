@@ -22,7 +22,7 @@ import imageio
 import numpy as np
 import torch
 
-from pyrad.data.structs import DatasetInputs, SceneBounds
+from pyrad.data.structs import DatasetInputs
 
 
 def load_mipnerf_360_data(
@@ -31,7 +31,6 @@ def load_mipnerf_360_data(
     split: str = "train",
     val_skip: int = 8,
     auto_scale: bool = True,
-    aabb_scale: float = 5.0,
 ) -> DatasetInputs:
     """Processes mipnerf 360 data.
     Example data can be downloaded from https://jonbarron.info/mipnerf360/.
@@ -109,18 +108,11 @@ def load_mipnerf_360_data(
     intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
     intrinsics *= torch.tensor([cx, cy, focal_length])
 
-    scene_bounds = SceneBounds(
-        aabb=torch.tensor(
-            [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
-        )
-    )
-
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=1,
         intrinsics=intrinsics,
         camera_to_world=camera_to_world,
-        scene_bounds=scene_bounds,
     )
 
     return dataset_inputs

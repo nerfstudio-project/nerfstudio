@@ -30,7 +30,7 @@ from pyrad.fields.base import Field
 from pyrad.fields.nerf_field import NeRFField
 from pyrad.graphs.vanilla_nerf import NeRFGraph
 from pyrad.renderers.renderers import SemanticRenderer
-from pyrad.cameras.rays import PointSamples, RayBundle
+from pyrad.cameras.rays import RaySamples, RayBundle
 from pyrad.utils import writer
 
 
@@ -75,16 +75,16 @@ class SemanticNerfField(Field):
             in_dim=self.mlp_semantic.get_out_dim(), num_classes=self.num_semantic_classes
         )
 
-    def get_density(self, point_samples: PointSamples):
-        encoded_xyz = self.position_encoding(point_samples.frustums.get_positions())
+    def get_density(self, ray_samples: RaySamples):
+        encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_head_density(base_mlp_out)
         return density, base_mlp_out
 
     def get_outputs(
-        self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-        encoded_dir = self.direction_encoding(point_samples.directions)
+        encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
         mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
         outputs = {}
         # rgb
@@ -128,7 +128,7 @@ class SemanticNerfGraph(NeRFGraph):
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
         # coarse field
-        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform.to_point_samples())
+        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform)
         weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
         rgb_coarse = self.renderer_rgb(
             rgb=field_outputs_coarse[FieldHeadNames.RGB],
@@ -141,7 +141,7 @@ class SemanticNerfGraph(NeRFGraph):
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
 
         # fine field
-        field_outputs_fine = self.field_fine.forward(ray_samples_pdf.to_point_samples())
+        field_outputs_fine = self.field_fine.forward(ray_samples_pdf)
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
         rgb_fine = self.renderer_rgb(
             rgb=field_outputs_fine[FieldHeadNames.RGB],

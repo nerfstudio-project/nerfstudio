@@ -24,7 +24,7 @@ import torch
 from torchtyping import TensorType
 from pyrad.fields.modules.field_heads import FieldHeadNames
 
-from pyrad.cameras.rays import Frustums, PointSamples
+from pyrad.cameras.rays import Frustums, RaySamples
 from pyrad.utils.misc import is_not_none
 
 
@@ -34,7 +34,7 @@ class Field(nn.Module):
     def density_fn(self, positions):
         """Returns only the density. Used primarily with the occupancy grid."""
         # Need to figure out a better way to descibe positions with a ray.
-        point_samples = PointSamples(
+        ray_samples = RaySamples(
             frustums=Frustums(
                 origins=positions,
                 directions=torch.ones_like(positions),
@@ -43,15 +43,15 @@ class Field(nn.Module):
                 pixel_area=torch.ones_like((positions[..., :1])),
             )
         )
-        density, _ = self.get_density(point_samples)
+        density, _ = self.get_density(ray_samples)
         return density
 
     @abstractmethod
-    def get_density(self, point_samples: PointSamples) -> Tuple[TensorType[..., 1], TensorType[..., "num_features"]]:
+    def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType[..., 1], TensorType[..., "num_features"]]:
         """Computes and returns the densities.
 
         Args:
-            point_samples (PointSamples): Samples locations to compute density.
+            ray_samples (RaySamples): Samples locations to compute density.
 
         Returns:
             Tuple[TensorType[...,1], TensorType[...,"num_features"]]: A tensor of densities and a tensor of features.
@@ -59,34 +59,34 @@ class Field(nn.Module):
 
     @abstractmethod
     def get_outputs(
-        self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
         """Computes and returns the colors.
 
         Args:
-            point_samples (PointSamples): Samples locations to compute outputs.
+            ray_samples (RaySamples): Samples locations to compute outputs.
             density_embedding (TensorType, optional): Density embeddings to condition on.
 
         Returns:
             Dict[FieldHeadNames, TensorType]: Output field values.
         """
 
-    def forward(self, point_samples: PointSamples):
+    def forward(self, ray_samples: RaySamples):
         """Evaluates the field at points along the ray.
 
         Args:
-            point_samples (PointSamples): Samples to evaluate field on.
+            ray_samples (RaySamples): Samples to evaluate field on.
         """
-        valid_mask = point_samples.valid_mask
+        valid_mask = ray_samples.valid_mask
 
         if is_not_none(valid_mask):
             # Hacky handling of empty masks. Tests on a single ray but doesn't use results
             if not valid_mask.any():
-                point_samples = PointSamples(frustums=Frustums.get_mock_frustum())
+                ray_samples = RaySamples(frustums=Frustums.get_mock_frustum())
             else:
-                point_samples = point_samples.apply_masks()
-            density_masked, density_embedding_masked = self.get_density(point_samples)
-            field_outputs_masked = self.get_outputs(point_samples, density_embedding=density_embedding_masked)
+                ray_samples = ray_samples.apply_masks()
+            density_masked, density_embedding_masked = self.get_density(ray_samples)
+            field_outputs_masked = self.get_outputs(ray_samples, density_embedding=density_embedding_masked)
 
             field_outputs = {}
             for k, value in field_outputs_masked.items():
@@ -100,8 +100,8 @@ class Field(nn.Module):
             if valid_mask.any():
                 density[valid_mask] = density_masked
         else:
-            density, density_embedding = self.get_density(point_samples)
-            field_outputs = self.get_outputs(point_samples, density_embedding=density_embedding)
+            density, density_embedding = self.get_density(ray_samples)
+            field_outputs = self.get_outputs(ray_samples, density_embedding=density_embedding)
 
         field_outputs[FieldHeadNames.DENSITY] = density
         return field_outputs

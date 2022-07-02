@@ -60,7 +60,7 @@ class SceneBounds:
         return length
 
     def get_center(self):
-        """Reterns the center of the box."""
+        """Returns the center of the box."""
         diff = self.aabb[1] - self.aabb[0]
         return self.aabb[0] + diff / 2.0
 

@@ -25,7 +25,8 @@ from pyrad.fields.modules.encoding import Encoding, Identity
 from pyrad.fields.modules.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
 from pyrad.fields.modules.mlp import MLP
 from pyrad.fields.base import Field
-from pyrad.cameras.rays import PointSamples
+from pyrad.cameras.rays import RaySamples
+from pyrad.fields.modules.spatial_distortions import SpatialDistortion
 
 
 class NeRFField(Field):
@@ -40,6 +41,7 @@ class NeRFField(Field):
         head_mlp_layer_width (int, optional): Width of output head MLP layers. Defaults to 128.
         skip_connections (Tuple, optional): Where to add skip connection in base MLP. Defaults to (4,).
         use_integrated_encoding (bool, optional): Used integrated samples as encoding input, Defaults to False.
+        spatial_distortion (SpatialDistortion, optional): Spatial distortion. Defaults to None.
     """
 
     def __init__(
@@ -53,11 +55,13 @@ class NeRFField(Field):
         skip_connections: Tuple[int] = (4,),
         field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
         use_integrated_encoding: bool = False,
+        spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
         self.position_encoding = position_encoding
         self.direction_encoding = direction_encoding
         self.use_integrated_encoding = use_integrated_encoding
+        self.spatial_distortion = spatial_distortion
 
         self.mlp_base = MLP(
             in_dim=self.position_encoding.get_out_dim(),
@@ -77,22 +81,27 @@ class NeRFField(Field):
         for field_head in self.field_heads:
             field_head.set_in_dim(self.mlp_head.get_out_dim())
 
-    def get_density(self, point_samples: PointSamples):
+    def get_density(self, ray_samples: RaySamples):
         if self.use_integrated_encoding:
-            gaussian_samples = point_samples.frustums.get_gaussian_blob()
+            gaussian_samples = ray_samples.frustums.get_gaussian_blob()
+            if self.spatial_distortion is not None:
+                gaussian_samples = self.spatial_distortion(gaussian_samples)
             encoded_xyz = self.position_encoding(gaussian_samples.mean, covs=gaussian_samples.cov)
         else:
-            encoded_xyz = self.position_encoding(point_samples.frustums.get_positions())
+            positions = ray_samples.frustums.get_positions()
+            if self.spatial_distortion is not None:
+                positions = self.spatial_distortion(positions)
+            encoded_xyz = self.position_encoding(positions)
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_output_density(base_mlp_out)
         return density, base_mlp_out
 
     def get_outputs(
-        self, point_samples: PointSamples, density_embedding: Optional[TensorType] = None
+        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
         outputs = {}
         for field_head in self.field_heads:
-            encoded_dir = self.direction_encoding(point_samples.frustums.directions)
+            encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
             mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
             outputs[field_head.field_head_name] = field_head(mlp_out)
         return outputs
