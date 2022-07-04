@@ -69,18 +69,18 @@ class Frustums:
         )
 
     @classmethod
-    def get_mock_frustum(cls) -> "Frustums":
+    def get_mock_frustum(cls, device="cpu") -> "Frustums":
         """Helper function to generate a placeholder frustum.
 
         Returns:
             Frustums: A size 1 frustum with meaningless values.
         """
         return Frustums(
-            origins=torch.ones((1, 3)),
-            directions=torch.ones((1, 3)),
-            frustum_starts=torch.ones((1, 1)),
-            frustum_ends=torch.ones((1, 1)),
-            pixel_area=torch.ones((1, 1)),
+            origins=torch.ones((1, 3)).to(device),
+            directions=torch.ones((1, 3)).to(device),
+            frustum_starts=torch.ones((1, 1)).to(device),
+            frustum_ends=torch.ones((1, 1)).to(device),
+            pixel_area=torch.ones((1, 1)).to(device),
         )
 
     def apply_masks(self, mask: TensorType) -> "Frustums":
