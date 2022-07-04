@@ -18,13 +18,6 @@ function websocket_endpoint_from_url(url) {
   return endpoint;
 }
 
-function removeAllChildNodes(parent) {
-  // https://www.javascripttutorial.net/dom/manipulating/remove-all-child-nodes/
-  while (parent.firstChild) {
-    parent.removeChild(parent.firstChild);
-  }
-}
-
 function findCameraObjectUnderObject3D(object) {
   // seach the tree for the camera
   if (object instanceof THREE.Camera) {
@@ -174,17 +167,11 @@ export class Viewer extends Component {
   }
 
   handle_command(cmd) {
-    // console.log(cmd);
-
     // convert binary serialization format back to JSON
     cmd = msgpack.decode(new Uint8Array(cmd));
     console.log(cmd);
 
-    // TODO(ethan): ignore these or remove status. maybe incorporate into a clean view
-    if (cmd.type === "status") {
-      return;
-    }
-
+    // three js scene commands
     if (cmd.type === "set_object") {
       let path = split_path(cmd.path);
       this.set_object_from_json(path, cmd.object);
@@ -198,20 +185,14 @@ export class Viewer extends Component {
     } else if (cmd.type === "set_property") {
       let path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
-    } else if (cmd.type === "set_animation") {
-      console.error("Not implemented.");
     }
-    // web rtc
+    // web rtc commands
     else if (cmd.type === "answer") {
       let answer = cmd.data;
       console.log(answer);
       this.state.pc.setRemoteDescription(answer);
     }
   }
-
-  save_scene() {}
-
-  load_scene() {}
 
   getViewportWidth() {
     return window.innerWidth - (window.innerWidth % 2);

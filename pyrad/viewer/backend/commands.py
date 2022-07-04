@@ -114,20 +114,3 @@ class SetProperty:
 
     def lower(self):
         return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}
-
-
-class SetAnimation:
-    __slots__ = ["animation", "play", "repetitions"]
-
-    def __init__(self, animation, play=True, repetitions=1):
-        self.animation = animation
-        self.play = play
-        self.repetitions = repetitions
-
-    def lower(self):
-        return {
-            "type": "set_animation",
-            "animations": self.animation.lower(),
-            "options": {"play": self.play, "repetitions": self.repetitions},
-            "path": "",
-        }

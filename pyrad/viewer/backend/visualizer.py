@@ -18,7 +18,7 @@ import numpy as np
 import umsgpack
 import zmq
 
-from .commands import Delete, SetAnimation, SetObject, GetObject, SetImage, SetProperty, SetTransform
+from .commands import Delete, SetObject, GetObject, SetImage, SetProperty, SetTransform
 from .path import Path
 
 
@@ -43,7 +43,6 @@ class ViewerWindow(object):
 
 
 class Visualizer(object):
-    __slots__ = ["window", "path"]
 
     def __init__(self, window):
         self.window = window
@@ -73,9 +72,6 @@ class Visualizer(object):
 
     def set_property(self, key, value):
         return self.window.send(SetProperty(key, value, self.path))
-
-    def set_animation(self, animation, play=True, repetitions=1):
-        return self.window.send(SetAnimation(animation, play=play, repetitions=repetitions))
 
     def delete(self):
         return self.window.send(Delete(self.path))

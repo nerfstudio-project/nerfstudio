@@ -1,3 +1,5 @@
+import asyncio
+import queue
 import math
 
 import cv2
@@ -39,9 +41,8 @@ class FlagVideoStreamTrack(VideoStreamTrack):
             phase = 2 * k * math.pi / 30
             map_x = id_x + 10 * numpy.cos(omega * id_x + phase)
             map_y = id_y + 10 * numpy.sin(omega * id_x + phase)
-            self.frames.append(
-                VideoFrame.from_ndarray(cv2.remap(data_bgr, map_x, map_y, cv2.INTER_LINEAR), format="bgr24")
-            )
+            frame = cv2.remap(data_bgr, map_x, map_y, cv2.INTER_LINEAR)
+            self.frames.append(VideoFrame.from_ndarray(frame, format="bgr24"))
 
     async def recv(self):
         pts, time_base = await self.next_timestamp()
@@ -56,3 +57,23 @@ class FlagVideoStreamTrack(VideoStreamTrack):
         data_bgr = numpy.zeros((height, width, 3), numpy.uint8)
         data_bgr[:, :] = color
         return data_bgr
+
+
+class SingleFrameStreamTrack(VideoStreamTrack):
+    def __init__(self):
+        super().__init__()
+        self.background_frame = numpy.zeros((480, 640, 3), dtype="uint8") * 255
+        self.frame = None
+        self.put_frame(self.background_frame)
+
+    def put_frame(self, frame):
+        self.frame = VideoFrame.from_ndarray(frame)
+
+    async def recv(self):
+
+        pts, time_base = await self.next_timestamp()
+
+        frame = self.frame
+        frame.pts = pts
+        frame.time_base = time_base
+        return frame
