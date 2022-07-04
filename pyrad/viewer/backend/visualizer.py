@@ -14,14 +14,11 @@
 
 from __future__ import absolute_import, division, print_function
 
-import sys
-import time
-
 import numpy as np
 import umsgpack
 import zmq
 
-from .commands import Delete, SetAnimation, SetImage, SetObject, SetProperty, SetTransform
+from .commands import Delete, SetAnimation, SetObject, GetObject, SetImage, SetProperty, SetTransform
 from .path import Path
 
 
@@ -42,7 +39,7 @@ class ViewerWindow(object):
                 umsgpack.packb(cmd_data),
             ]
         )
-        self.client.recv()
+        return self.client.recv()
 
 
 class Visualizer(object):
@@ -54,7 +51,7 @@ class Visualizer(object):
 
     @staticmethod
     def view_into(window, path):
-        vis = Visualizer(window=window)
+        vis = Visualizer(window)
         vis.path = path
         return vis
 
@@ -63,6 +60,12 @@ class Visualizer(object):
 
     def set_object(self, geometry, material=None):
         return self.window.send(SetObject(geometry, material, self.path))
+
+    def get_object(self):
+        return self.window.send(GetObject(self.path))
+
+    def set_image(self, image):
+        return self.window.send(SetImage(image, self.path))
 
     def set_transform(self, matrix=np.eye(4)):
         assert matrix.shape == (4, 4)
@@ -73,9 +76,6 @@ class Visualizer(object):
 
     def set_animation(self, animation, play=True, repetitions=1):
         return self.window.send(SetAnimation(animation, play=play, repetitions=repetitions))
-
-    def set_image(self, image):
-        return self.window.send(SetImage(image, self.path))
 
     def delete(self):
         return self.window.send(Delete(self.path))

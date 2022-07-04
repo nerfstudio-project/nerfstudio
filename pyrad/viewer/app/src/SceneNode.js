@@ -81,24 +81,6 @@ export class SceneNode {
         this.folder.domElement.prepend(this.vis_controller.domElement);
         this.vis_controller.domElement.style.height = "0";
         this.vis_controller.domElement.style.float = "right";
-
-        // // add on hover controls and clickable functionality
-        // // hover
-        // this.folder.domElement.addEventListener("mouseenter", function (event) {
-        //     event.target.style.color = "purple";
-        // }, false);
-        // this.folder.domElement.addEventListener("mouseleave", function (event) {
-        //     event.target.style.color = "";
-        // }, false);
-
-        // // click
-        // this.folder.domElement.addEventListener("dblclick", () => this.printValue(), false);
-    }
-
-    printValue() {
-        console.log("calling print value");
-        console.log(this.object);
-        console.log(this);
     }
 
     set_property(property, value) {
