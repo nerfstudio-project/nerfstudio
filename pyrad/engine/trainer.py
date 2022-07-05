@@ -199,8 +199,8 @@ class Trainer:
         self.optimizers.optimizer_step_all()
         self.optimizers.scheduler_step_all(step)
         if self.graph.callbacks:
-            for _func in self.graph.callbacks:
-                _func.after_step(step)
+            for func_ in self.graph.callbacks:
+                func_.after_step(step)
         return loss_dict
 
     @profiler.time_function
@@ -253,8 +253,9 @@ class Trainer:
         message = umsgpack.unpackb(data)
         camera_object = message["object"]["object"]
         # TODO: remove the notion of the hardcoded image_height below
+        image_height = 800
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=100
+            camera_object, image_height=image_height
         )
 
         camera_to_world = camera_to_world_h[:3, :]
@@ -270,6 +271,7 @@ class Trainer:
         # gross hack to get the image key
         rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
         image = outputs[rgb_key].cpu().numpy().astype("float64") * 255
+        print(image.shape)
         self.vis["/Cameras/Main Camera"].set_image(image)
         return outputs
 
