@@ -17,8 +17,9 @@ NeRF-W (NeRF in the wild) implementation.
 """
 
 import torch
-from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchmetrics.functional import structural_similarity_index_measure
 
 from pyrad.fields.modules.encoding import NeRFEncoding
 from pyrad.fields.modules.field_heads import FieldHeadNames
@@ -92,7 +93,7 @@ class NerfWGraph(Graph):
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-        self.ssim = StructuralSimilarityIndexMeasure()
+        self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
     def get_param_groups(self):
