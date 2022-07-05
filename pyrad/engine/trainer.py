@@ -177,8 +177,8 @@ class Trainer:
         self.optimizers.optimizer_step_all()
         self.optimizers.scheduler_step_all(step)
         if self.graph.callbacks:
-            for _func in self.graph.callbacks:
-                _func.after_step(step)
+            for func_ in self.graph.callbacks:
+                func_.after_step(step)
         return loss_dict
 
     @profiler.time_function

@@ -105,7 +105,10 @@ class NGPGraph(Graph):
         ts_uniform = (ray_samples_uniform.bin_starts + ray_samples_uniform.bin_ends) / 2.0
         ts_pdf = (ray_samples_pdf.bin_starts + ray_samples_pdf.bin_ends) / 2.0
         ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -1), -1)
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=ts, bin_ends=ts)
+        bin_starts = ts
+        bin_ends = torch.cat([ts[..., 1:], ts[..., -1:]], dim=-1)
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bin_starts, bin_ends=bin_ends)
+
         field_outputs = {}
         for fo_name, _ in field_outputs_pdf.items():
             fo_uniform = field_outputs_uniform[fo_name]
