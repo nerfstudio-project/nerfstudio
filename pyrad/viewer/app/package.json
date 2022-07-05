@@ -13,7 +13,7 @@
     "react-dom": "^18.1.0",
     "react-scripts": "^5.0.1",
     "socket.io-client": "^4.5.1",
-    "three": "^0.141.0",
+    "three": "^0.142.0",
     "websocket": "^1.0.34"
   },
   "scripts": {

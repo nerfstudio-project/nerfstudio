@@ -74,8 +74,17 @@ export class Viewer extends Component {
       this.state.controls_main.update();
     }
     this.state.renderer_main.render(this.state.scene, camera_main);
+  }
+
+  send_camera_over_websocket() {
+    /* update the camera information in the python server
+    if the websocket is connected */
+    console.log("send_camera_over_websocket");
     if (this.state.websocket.readyState === WebSocket.OPEN) {
       // update the camera information in the python server
+      let camera_main = findCameraObjectUnderObject3D(
+        this.state.scene_tree.find(["Cameras", "Main Camera"]).object
+      );
       let cmd = "set_object";
       let path = "Cameras/Main Camera";
       let data = {
@@ -122,6 +131,9 @@ export class Viewer extends Component {
       this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
       this.state.controls_main.autoRotate = false;
       this.state.controls_main.update();
+      this.state.controls_main.addEventListener("change", () => {
+        this.send_camera_over_websocket();
+      });
     }
   }
 
