@@ -29,7 +29,6 @@ from .geometry import (
     PointsMaterial,
     Points,
 )
-from .cameras import Camera, CameraHelper
 from .path import Path
 
 
