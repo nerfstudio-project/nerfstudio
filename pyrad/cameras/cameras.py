@@ -366,7 +366,7 @@ def get_camera_model(num_intrinsics_params: int) -> Type[Camera]:
     raise NotImplementedError
 
 
-def get_camera(intrinsics, camera_to_world, camera_index):
+def get_camera(intrinsics, camera_to_world, camera_index=None):
     assert len(intrinsics.shape) == 1, "The intrinsics object should be a flat tensor."
     num_intrinsics_params = len(intrinsics)
     camera_class = get_camera_model(num_intrinsics_params)
