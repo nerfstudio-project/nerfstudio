@@ -98,3 +98,10 @@ optimizers:
       _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
       lr_final: 0.000005
       max_steps: 1000000
+
+viewer:
+  enable: False
+  zmq_url: tcp://127.0.0.1:6000
+  render_image_height: 100
+  steps_per_render_image: 100
+  num_rays_per_chunk: 4096

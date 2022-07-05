@@ -18,7 +18,6 @@ from . import commands
 from . import geometry
 from . import visualizer
 from . import transformations
-from . import animation
 from .visualizer import ViewerWindow, Visualizer
 
 

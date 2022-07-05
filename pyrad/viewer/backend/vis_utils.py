@@ -217,3 +217,11 @@ def set_camera(vis, camera: Camera):
     pose = camera.get_camera_to_world_h()
     K = camera.get_intrinsics_matrix()
     set_persp_camera(vis, pose=pose.double().numpy(), K=K.double().numpy())
+
+
+def draw_aabb(vis, aabb, name="aabb"):
+    """Draw the axis-aligned bounding box."""
+    lengths = aabb[1] - aabb[0]
+    vis[name].set_object(g.Box(lengths.tolist()), material=g.MeshPhongMaterial(color=0xFF0000, opacity=0.1))
+    center = aabb[0] + lengths / 2.0
+    vis[name].set_transform(tf.translation_matrix(center.tolist()))

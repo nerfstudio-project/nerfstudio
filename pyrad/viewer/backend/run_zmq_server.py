@@ -15,8 +15,10 @@
 from __future__ import absolute_import, division, print_function
 
 import base64
+import json
 import re
 import sys
+import numpy as np
 
 if sys.version_info >= (3, 0):
     ADDRESS_IN_USE_ERROR = OSError
@@ -29,10 +31,15 @@ import tornado.gen
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
+import umsgpack
 import zmq
 import zmq.eventloop.ioloop
-from pyrad.viewer.backend.tree import SceneTree, find_node, walk
+from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
+from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
+
+from pyrad.viewer.backend.tree import SceneTree, find_node, walk
+from pyrad.viewer.backend.video_stream import FlagVideoStreamTrack, SingleFrameStreamTrack
 
 
 def capture(pattern, s):
@@ -66,7 +73,8 @@ MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"
 DEFAULT_ZMQ_PORT = 6000
 DEFAULT_WEBSOCKET_PORT = 8051
-MESHCAT_COMMANDS = ["set_transform", "set_object", "delete", "set_property", "set_animation", "set_image"]
+WEBSOCKET_COMMANDS = ["set_transform", "set_object", "get_object", "set_property", "delete"]
+WEBRTC_COMMANDS = ["set_image"]
 
 
 def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs):
@@ -89,6 +97,13 @@ def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs)
         )
 
 
+def force_codec(pc, sender, forced_codec):
+    kind = forced_codec.split("/")[0]
+    codecs = RTCRtpSender.getCapabilities(kind).codecs
+    transceiver = next(t for t in pc.getTransceivers() if t.sender == sender)
+    transceiver.setCodecPreferences([codec for codec in codecs if codec.mimeType == forced_codec])
+
+
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     def __init__(self, *args, **kwargs):
         self.bridge = kwargs.pop("bridge")
@@ -103,23 +118,49 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print("opened:", self, file=sys.stderr)
         self.bridge.send_scene(self)
 
-    def on_message(self, message):
-        print(message)
+    async def on_message(self, message):
+
+        data = message
+        m = umsgpack.unpackb(message)
+        type_ = m["type"]
+        path = list(filter(lambda x: len(x) > 0, m["path"].split("/")))
+
+        if type_ == "set_transform":
+            find_node(self.bridge.tree, path).transform = data
+        elif type_ == "set_object":
+            find_node(self.bridge.tree, path).object = data
+            find_node(self.bridge.tree, path).properties = []
+        elif type_ == "offer":
+            print("making an offer")
+            print("sending an answer")
+            # print(m)
+
+            offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
+
+            pc = RTCPeerConnection()
+            self.bridge.pcs.add(pc)  # TODO(ethan): handle this better, since this set will get large
+
+            # video = FlagVideoStreamTrack()
+            video = SingleFrameStreamTrack()
+            self.bridge.video_tracks.add(video)
+            video_sender = pc.addTrack(video)
+            # force_codec(this.bridge.pc, video_sender, video_codec)
+
+            await pc.setRemoteDescription(offer)
+            answer = await pc.createAnswer()
+            await pc.setLocalDescription(answer)
+
+            cmd_data = {
+                "type": "answer",
+                "path": "",
+                "data": {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type},
+            }
+            data = umsgpack.packb(cmd_data)
+            self.write_message(data, binary=True)
 
     def on_close(self):
         self.bridge.websocket_pool.remove(self)
         print("closed:", self, file=sys.stderr)
-
-
-def create_command(data):
-    """Encode the drawing command into a Javascript fetch() command for display."""
-    return """
-fetch("data:application/octet-binary;base64,{}")
-    .then(res => res.arrayBuffer())
-    .then(buffer => viewer.handle_command_bytearray(new Uint8Array(buffer)));
-    """.format(
-        base64.b64encode(data).decode("utf-8")
-    )
 
 
 class ZMQWebSocketBridge(object):
@@ -130,6 +171,8 @@ class ZMQWebSocketBridge(object):
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
+        self.pcs = set()
+        self.video_tracks = set()
 
         if zmq_url is None:
 
@@ -155,44 +198,58 @@ class ZMQWebSocketBridge(object):
         return f"{class_name} using zmq_url={self.zmq_url} and websocket_port={self.websocket_port}"
 
     def make_app(self):
+        """Create a tornado application for the websocket server."""
         return tornado.web.Application([(r"/", WebSocketHandler, {"bridge": self})])
 
     def handle_zmq(self, frames):
         cmd = frames[0].decode("utf-8")
-        if cmd not in MESHCAT_COMMANDS:
-            print(f"{cmd} not in MESHCAT_COMMANDS! Proceeding anyways.")
-            # self.zmq_socket.send(b"error: unrecognized comand")
+        print(cmd)
         if len(frames) != 3:
             self.zmq_socket.send(b"error: expected 3 frames")
             return
         path = list(filter(lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
         data = frames[2]
-        self.forward_to_websockets(frames)
-        if cmd == "set_transform":
-            find_node(self.tree, path).transform = data
-        elif cmd == "set_object":
-            find_node(self.tree, path).object = data
-            find_node(self.tree, path).properties = []
-        elif cmd == "set_property":
-            find_node(self.tree, path).properties.append(data)
-        elif cmd == "set_animation":
-            find_node(self.tree, path).animation = data
-        elif cmd == "delete":
-            if len(path) > 0:
-                parent = find_node(self.tree, path[:-1])
-                child = path[-1]
-                if child in parent:
-                    del parent[child]
-            else:
-                self.tree = SceneTree()
+        if cmd in WEBSOCKET_COMMANDS:
+            self.forward_to_websockets(frames)
+            if cmd == "set_transform":
+                find_node(self.tree, path).transform = data
+            elif cmd == "set_object":
+                find_node(self.tree, path).object = data
+                find_node(self.tree, path).properties = []
+            elif cmd == "get_object":
+                data = find_node(self.tree, path).object
+                self.zmq_socket.send(data)
+                return
+            elif cmd == "set_property":
+                find_node(self.tree, path).properties.append(data)
+            elif cmd == "delete":
+                if len(path) > 0:
+                    parent = find_node(self.tree, path[:-1])
+                    child = path[-1]
+                    if child in parent:
+                        del parent[child]
+                else:
+                    self.tree = SceneTree()
+        elif cmd in WEBRTC_COMMANDS:
+            if cmd == "set_image":
+                for video_track in self.video_tracks:
+                    unpacked_data = umsgpack.unpackb(data)
+                    image = np.array(unpacked_data["image"], dtype="uint8").reshape(unpacked_data["shape"])
+                    video_track.put_frame(image)
+        else:
+            self.zmq_socket.send(b"error: unknown command")
+            return
         self.zmq_socket.send(b"ok")
+        return
 
     def forward_to_websockets(self, frames):
-        cmd, path, data = frames
+        """Forward a zmq message to all websockets."""
+        _, _, data = frames  # cmd, path, data
         for websocket in self.websocket_pool:
             websocket.write_message(data, binary=True)
 
     def setup_zmq(self, url):
+        """Setup a zmq socket and connect it to the given url."""
         zmq_socket = self.context.socket(zmq.REP)
         zmq_socket.bind(url)
         zmq_stream = ZMQStream(zmq_socket)
@@ -207,8 +264,6 @@ class ZMQWebSocketBridge(object):
                 websocket.write_message(p, binary=True)
             if node.transform is not None:
                 websocket.write_message(node.transform, binary=True)
-            if node.animation is not None:
-                websocket.write_message(node.animation, binary=True)
 
     def run(self):
         self.ioloop.start()
@@ -217,7 +272,7 @@ class ZMQWebSocketBridge(object):
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Serve the MeshCat HTML files and listen for ZeroMQ commands")
+    parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
     parser.add_argument("--zmq-url", "-z", type=str, nargs="?", default=None)
     parser.add_argument("--websocket-port", "-wp", type=str, nargs="?", default=None)
     args = parser.parse_args()

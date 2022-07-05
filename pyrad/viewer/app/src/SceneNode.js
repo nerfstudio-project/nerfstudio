@@ -36,11 +36,10 @@ function dispose(object) {
 }
 
 export class SceneNode {
-    constructor(object, folder, on_update) {
+    constructor(object, folder) {
         this.object = object;
         this.folder = folder;
         this.children = {};
-        this.on_update = on_update;
         this.create_controls();
         for (let c of this.object.children) {
             this.add_child(c);
@@ -49,7 +48,7 @@ export class SceneNode {
 
     add_child(object) {
         let f = this.folder.addFolder(object.name);
-        let node = new SceneNode(object, f, this.on_update);
+        let node = new SceneNode(object, f);
         this.children[object.name] = node;
         return node;
     }
@@ -79,28 +78,9 @@ export class SceneNode {
             this.folder.domElement.removeChild(this.vis_controller.domElement);
         }
         this.vis_controller = new dat.controllers.BooleanController(this.object, "visible");
-        this.vis_controller.onChange(() => this.on_update());
         this.folder.domElement.prepend(this.vis_controller.domElement);
         this.vis_controller.domElement.style.height = "0";
         this.vis_controller.domElement.style.float = "right";
-
-        // // add on hover controls and clickable functionality
-        // // hover
-        // this.folder.domElement.addEventListener("mouseenter", function (event) {
-        //     event.target.style.color = "purple";
-        // }, false);
-        // this.folder.domElement.addEventListener("mouseleave", function (event) {
-        //     event.target.style.color = "";
-        // }, false);
-
-        // // click
-        // this.folder.domElement.addEventListener("dblclick", () => this.printValue(), false);
-    }
-
-    printValue() {
-        console.log("calling print value");
-        console.log(this.object);
-        console.log(this);
     }
 
     set_property(property, value) {
