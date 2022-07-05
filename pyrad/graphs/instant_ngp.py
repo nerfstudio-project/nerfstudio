@@ -20,8 +20,9 @@ from typing import Dict, List
 
 import torch
 from torch.nn import Parameter
-from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
+from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchmetrics.functional import structural_similarity_index_measure
 
 from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
@@ -81,7 +82,7 @@ class NGPGraph(Graph):
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-        self.ssim = StructuralSimilarityIndexMeasure()
+        self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
