@@ -72,6 +72,7 @@ class SetImage:
     """
     Sets the image for showing with web rtc.
     """
+
     __slots__ = ["image", "path"]
 
     def __init__(self, image, path):
@@ -79,7 +80,12 @@ class SetImage:
         self.path = path
 
     def lower(self):
-        return {"type": "set_image", "path": self.path.lower(), "image": list(self.image.flatten()), "shape": list(self.image.shape)}
+        return {
+            "type": "set_image",
+            "path": self.path.lower(),
+            "image": list(self.image.flatten()),
+            "shape": list(self.image.shape),
+        }
 
 
 class SetTransform:

@@ -43,7 +43,6 @@ class ViewerWindow(object):
 
 
 class Visualizer(object):
-
     def __init__(self, window):
         self.window = window
         self.path = Path(("pyrad",))  # TODO(ethan): change this

@@ -148,5 +148,5 @@ def setup_config(config: DictConfig) -> Config:
         data=data,
         graph=graph,
         optimizers=optimizers,
-        viewer=viewer
+        viewer=viewer,
     )
