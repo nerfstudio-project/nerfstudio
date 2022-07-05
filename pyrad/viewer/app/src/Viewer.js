@@ -177,7 +177,6 @@ export class Viewer extends Component {
       this.set_object_from_json(path, cmd.object);
     } else if (cmd.type === "set_transform") {
       let path = split_path(cmd.path);
-      console.log(cmd.matrix);
       this.set_transform(path, cmd.matrix);
     } else if (cmd.type === "delete") {
       let path = split_path(cmd.path);
@@ -189,7 +188,6 @@ export class Viewer extends Component {
     // web rtc commands
     else if (cmd.type === "answer") {
       let answer = cmd.data;
-      console.log(answer);
       this.state.pc.setRemoteDescription(answer);
     }
   }

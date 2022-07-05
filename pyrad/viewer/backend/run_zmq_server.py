@@ -119,14 +119,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.bridge.send_scene(self)
 
     async def on_message(self, message):
-        # print("on_message")
-        # message = json.loads(message_str)
-        # print(message)
-        # path = ["Cameras", "Main Camera"]
-        # find_node(self.bridge.tree, path).transform = "test"
-        # print(find_node(self.bridge.tree, message["path"]).transform)
-
-        # print(message)
 
         data = message
         m = umsgpack.unpackb(message)
