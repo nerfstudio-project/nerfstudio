@@ -23,3 +23,9 @@ optimizers:
     optimizer:
       lr: 1e-2
     scheduler: null
+
+viewer:
+  enable: True
+  render_image_height: 200
+  steps_per_render_image: 5
+  num_rays_per_chunk: 16384

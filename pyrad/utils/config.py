@@ -116,6 +116,7 @@ class Config:
     data: DataConfig = MISSING
     graph: GraphConfig = MISSING
     optimizers: Dict[str, Any] = MISSING
+    viewer: Dict[str, Any] = MISSING
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 
@@ -137,6 +138,7 @@ def setup_config(config: DictConfig) -> Config:
     data = DataConfig(**config.data)
     graph = GraphConfig(**config.graph)
     optimizers = config.optimizers
+    viewer = config.viewer
     return Config(
         machine=machine,
         logging=logging,
@@ -146,4 +148,5 @@ def setup_config(config: DictConfig) -> Config:
         data=data,
         graph=graph,
         optimizers=optimizers,
+        viewer=viewer,
     )

@@ -29,7 +29,6 @@ from .geometry import (
     PointsMaterial,
     Points,
 )
-from .cameras import Camera, CameraHelper
 from .path import Path
 
 
@@ -57,6 +56,36 @@ class SetObject:
 
     def lower(self):
         return {"type": "set_object", "object": self.object.lower(), "path": self.path.lower()}
+
+
+class GetObject:
+    __slots__ = ["path"]
+
+    def __init__(self, path):
+        self.path = path
+
+    def lower(self):
+        return {"type": "get_object", "path": self.path.lower()}
+
+
+class SetImage:
+    """
+    Sets the image for showing with web rtc.
+    """
+
+    __slots__ = ["image", "path"]
+
+    def __init__(self, image, path):
+        self.image = image
+        self.path = path
+
+    def lower(self):
+        return {
+            "type": "set_image",
+            "path": self.path.lower(),
+            "image": list(self.image.flatten()),
+            "shape": list(self.image.shape),
+        }
 
 
 class SetTransform:
@@ -90,31 +119,3 @@ class SetProperty:
 
     def lower(self):
         return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}
-
-
-class SetAnimation:
-    __slots__ = ["animation", "play", "repetitions"]
-
-    def __init__(self, animation, play=True, repetitions=1):
-        self.animation = animation
-        self.play = play
-        self.repetitions = repetitions
-
-    def lower(self):
-        return {
-            "type": "set_animation",
-            "animations": self.animation.lower(),
-            "options": {"play": self.play, "repetitions": self.repetitions},
-            "path": "",
-        }
-
-
-class SetImage:
-    __slots__ = ["image", "path"]
-
-    def __init__(self, image, path):
-        self.image = image
-        self.path = path
-
-    def lower(self):
-        return {"type": "set_image", "image": self.image, "path": self.path.lower()}
