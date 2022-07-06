@@ -1,6 +1,6 @@
 {
     "name": "viewer",
-    "homepage": "http://ethanweber.me/pyrad-private/",
+    "homepage": "https://ethanweber.me/pyrad-private/",
     "version": "0.0.0",
     "private": true,
     "dependencies": {
