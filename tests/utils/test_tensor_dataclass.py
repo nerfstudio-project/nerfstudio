@@ -2,11 +2,17 @@
 Test tensor dataclass
 """
 from dataclasses import dataclass
-from typing import Any
 import pytest
 import torch
 
 from pyrad.utils.tensor_dataclass import TensorDataclass
+
+
+@dataclass
+class TestNestedClass(TensorDataclass):
+    """Dummy dataclass"""
+
+    x: torch.Tensor
 
 
 @dataclass
@@ -15,7 +21,7 @@ class TestTensorDataclass(TensorDataclass):
 
     a: torch.Tensor
     b: torch.Tensor
-    c: torch.Tensor = None
+    c: TestNestedClass = None
 
 
 def test_init():
@@ -25,7 +31,7 @@ def test_init():
     class Dummy(TensorDataclass):
         """Dummy dataclass"""
 
-        dummy_vals: Any = None
+        dummy_vals: torch.Tensor = None
 
     dummy = Dummy(dummy_vals=torch.ones(1))
     with pytest.raises(ValueError):
@@ -53,7 +59,7 @@ def test_broadcasting():
 
 
 def test_tensor_ops():
-    """Test get shape"""
+    """Test tensor operations"""
 
     a = torch.ones((4, 6, 3))
     b = torch.ones((6, 2))
@@ -75,10 +81,13 @@ def test_tensor_ops():
     assert flattened.shape == (24,)
     assert flattened.a.shape == (24, 3)
     assert flattened.b.shape == (24, 2)
+    assert flattened[0:4].shape == (4,)
 
     # Test indexing operations
     assert tensor_dataclass[:, 1].shape == (4,)
     assert tensor_dataclass[:, 1].a.shape == (4, 3)
+    assert tensor_dataclass[:, 0:2].shape == (4, 2)
+    assert tensor_dataclass[:, 0:2].a.shape == (4, 2, 3)
     assert tensor_dataclass[..., 1].shape == (4,)
     assert tensor_dataclass[..., 1].a.shape == (4, 3)
     assert tensor_dataclass[0].shape == (6,)
@@ -93,6 +102,42 @@ def test_tensor_ops():
     assert tensor_dataclass[0, ..., 0].a.shape == (3, 5)
     assert tensor_dataclass[..., 0].shape == (2, 3)
     assert tensor_dataclass[..., 0].a.shape == (2, 3, 5)
+
+    mask = torch.rand(size=(2, 3)) > 0.5
+    assert tensor_dataclass[mask].ndim == 2
+
+
+def test_nested_class():
+    """Test nested TensorDataclasses"""
+
+    a = torch.ones((4, 6, 3))
+    b = torch.ones((6, 2))
+    c = TestNestedClass(x=torch.ones(6, 5))
+    tensor_dataclass = TestTensorDataclass(a=a, b=b, c=c)
+
+    assert tensor_dataclass.shape == (4, 6)
+    assert tensor_dataclass.a.shape == (4, 6, 3)
+    assert tensor_dataclass.b.shape == (4, 6, 2)
+    assert tensor_dataclass.c.shape == (4, 6)
+    assert tensor_dataclass.c.x.shape == (4, 6, 5)
+    assert tensor_dataclass.size == 24
+    assert tensor_dataclass.c.size == 24
+
+    reshaped = tensor_dataclass.reshape((2, 12))
+    assert reshaped.shape == (2, 12)
+    assert reshaped.c.shape == (2, 12)
+    assert reshaped.c.x.shape == (2, 12, 5)
+
+    flattened = tensor_dataclass.flatten()
+    assert flattened.c.shape == (24,)
+    assert flattened.c.x.shape == (24, 5)
+
+    # Test indexing operations
+    assert tensor_dataclass[:, 1].c.shape == (4,)
+    assert tensor_dataclass[:, 1].c.x.shape == (4, 5)
+
+    mask = torch.rand(size=(4,)) > 0.5
+    assert tensor_dataclass[mask].c.ndim == 2
 
 
 def test_iter():
@@ -109,3 +154,4 @@ if __name__ == "__main__":
     test_broadcasting()
     test_tensor_ops()
     test_iter()
+    test_nested_class()

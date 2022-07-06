@@ -65,5 +65,5 @@ class RayGenerator(nn.Module):
         ray_bundle = self.camera_class.generate_rays(
             intrinsics=intrinsics, camera_to_world=camera_to_world, coords=coords
         )
-        ray_bundle.camera_indices = c
+        ray_bundle.camera_indices = c[..., None]  # ["num_rays",1]
         return ray_bundle
