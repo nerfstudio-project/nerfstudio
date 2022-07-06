@@ -13,7 +13,7 @@ jobs:
 
     defaults:
       run:
-        working-directory:
+        working-directory: ./pyrad/viewer/app
 
     steps:
       - name: Checkout code
