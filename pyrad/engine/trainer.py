@@ -37,7 +37,7 @@ from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
 from pyrad.viewer.server import vis_utils
 from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from pyrad.viewer.server.visualizer import ViewerWindow, Visualizer
+from pyrad.viewer.server.visualizer import Viewer
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -70,8 +70,7 @@ class Trainer:
 
         self.vis = None
         if self.config.viewer.enable:
-            window = ViewerWindow(zmq_url=self.config.viewer.zmq_url)
-            self.vis = Visualizer(window=window)
+            self.vis = Viewer(zmq_url=self.config.viewer.zmq_url)
             logging.info("Connected to viewer at %s", self.config.viewer.zmq_url)
             self.vis.delete()
         else:

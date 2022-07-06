@@ -23,14 +23,14 @@ import pyrad.viewer.server.cameras as c
 import pyrad.viewer.server.geometry as g
 import pyrad.viewer.server.transformations as tf
 from pyrad.cameras.cameras import Camera
-from pyrad.viewer.server import ViewerWindow, Visualizer
+from pyrad.viewer.server import Viewer
 
 
-def get_vis(zmq_url="tcp://0.0.0.0:6000"):
-    """Returns the vis object."""
-    window = ViewerWindow(zmq_url)
-    vis = Visualizer(window=window)
-    return vis
+def get_default_vis():
+    """Returns the default Visualizer."""
+    zmq_url = "tcp://0.0.0.0:6000"
+    viewer = Viewer(zmq_url=zmq_url)
+    return viewer
 
 
 def show_box_test(vis):

@@ -42,19 +42,27 @@ class ViewerWindow(object):
         return self.client.recv()
 
 
-class Visualizer(object):
-    def __init__(self, window):
-        self.window = window
-        self.path = Path(("pyrad",))  # TODO(ethan): change this
+class Viewer(object):
+    """Visualizer class for connecting to the bridge server."""
+
+    def __init__(self, zmq_url: str = None, window: ViewerWindow = None):
+        if zmq_url is None and window is None:
+            raise ValueError("Must specify either zmq_url or window.")
+        if window is None:
+            self.window = ViewerWindow(zmq_url=zmq_url)
+        else:
+            self.window = window
+        self.path = Path(("pyrad",))
 
     @staticmethod
-    def view_into(window, path):
-        vis = Visualizer(window)
+    def view_into(window: ViewerWindow, path: Path):
+        """Returns a new Viewer but keeping the same ViewerWindow."""
+        vis = Viewer(window=window)
         vis.path = path
         return vis
 
     def __getitem__(self, path):
-        return Visualizer.view_into(self.window, self.path.append(path))
+        return Viewer.view_into(self.window, self.path.append(path))
 
     def set_object(self, geometry, material=None):
         return self.window.send(SetObject(geometry, material, self.path))
@@ -76,4 +84,4 @@ class Visualizer(object):
         return self.window.send(Delete(self.path))
 
     def __repr__(self):
-        return "<Visualizer using: {window} at path: {path}>".format(window=self.window, path=self.path)
+        return "<Viewer using: {window} at path: {path}>".format(window=self.window, path=self.path)

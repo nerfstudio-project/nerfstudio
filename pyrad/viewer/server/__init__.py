@@ -18,7 +18,7 @@ from . import commands
 from . import geometry
 from . import visualizer
 from . import transformations
-from .visualizer import ViewerWindow, Visualizer
+from .visualizer import ViewerWindow, Viewer
 
 
 def viewer_assets_path():
