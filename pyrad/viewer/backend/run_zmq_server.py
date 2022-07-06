@@ -210,7 +210,8 @@ class ZMQWebSocketBridge(object):
         path = list(filter(lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
         data = frames[2]
         if cmd in WEBSOCKET_COMMANDS:
-            self.forward_to_websockets(frames)
+            if cmd != "get_object":
+                self.forward_to_websockets(frames)
             if cmd == "set_transform":
                 find_node(self.tree, path).transform = data
             elif cmd == "set_object":

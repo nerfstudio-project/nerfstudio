@@ -16,17 +16,187 @@
 """
 
 import copy
+import logging
 import random
+import sys
+import threading
+import time
 
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from pyrad.cameras.cameras import Camera
+import torch
+import umsgpack
+from omegaconf import DictConfig
+from pyrad.cameras.rays import RayBundle
+from pyrad.utils.config import ViewerConfig
 
 import pyrad.viewer.backend.cameras as c
 import pyrad.viewer.backend.geometry as g
 import pyrad.viewer.backend.transformations as tf
+from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from pyrad.utils import profiler
 from pyrad.viewer.backend import ViewerWindow, Visualizer
+from pyrad.viewer.backend.utils import get_intrinsics_matrix_and_camera_to_world_h
+
+
+class CameraChangeException(Exception):
+    """Basic camera exception to interrupt visualizer"""
+
+    pass
+
+
+class SetTrace:
+    """Basic trace function"""
+
+    def __init__(self, func):
+        self.func = func
+
+    def __enter__(self):
+        sys.settrace(self.func)
+        return self
+
+    def __exit__(self, ext_type, exc_value, traceback):
+        sys.settrace(None)
+
+
+class VisualizerState:
+    """Class to hold state for"""
+
+    def __init__(self, config: ViewerConfig):
+        self.config = config
+        self.vis = None
+        if self.config.enable:
+            window = ViewerWindow(zmq_url=self.config.zmq_url)
+            self.vis = Visualizer(window=window)
+            logging.info("Connected to viewer at %s", self.config.zmq_url)
+            self.vis.delete()
+        else:
+            logging.info("Continuing without viewer.")
+
+        # visualizer specific variables
+        self.prev_camera_matrix = None
+        self.res_upscale_factor = 1
+        self.lock = threading.Lock()
+        self.check_interrupt_vis = False
+        self.check_done_render = True
+
+    def init_scene(self, image_dataset, dataset_inputs):
+        """initializes the scene with the datasets"""
+        if self.vis:
+            self._draw_scene_in_viewer(image_dataset, dataset_inputs)
+
+    def update_scene(self, step, graph):
+        """updates the scene based on the graph weights"""
+        if self._is_render_step(step):
+            self._render_image_in_viewer(graph)
+
+    def _check_interrupt(self, frame, event, arg):
+        if event == "line":
+            if self.check_interrupt_vis:
+                raise CameraChangeException
+        return self._check_interrupt
+
+    def _is_render_step(self, step, default_steps=10):
+        """dynamically calculate when to render grapic based on resolution of image"""
+        if self.vis and step != 0:
+            steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
+            return step % steps_per_render_image == 0
+        return False
+
+    def _draw_scene_in_viewer(self, image_dataset, dataset_inputs):
+        """Draw some images and the scene aabb in the viewer."""
+        indices = random.sample(range(len(image_dataset)), k=10)
+        for idx in indices:
+            image = image_dataset[idx]["image"]
+            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
+            pose = camera.get_camera_to_world().double().numpy()
+            K = camera.get_intrinsics_matrix().double().numpy()
+            draw_camera_frustum(
+                self.vis,
+                image=(image.double().numpy() * 255.0),
+                pose=pose,
+                K=K,
+                height=1.0,
+                name=f"image_dataset/{idx:06d}",
+                displayed_focal_length=0.5,
+                realistic=False,
+            )
+        aabb = dataset_inputs.scene_bounds.aabb
+        draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
+
+    def _async_check_camera_update(self):
+        """Async function to check whether camera has been updated in visualizer"""
+        with self.lock:
+            self.check_done_render = False
+        while not self.check_done_render:
+            data = self.vis["/Cameras/Main Camera"].get_object()
+            message = umsgpack.unpackb(data)
+            camera_object = message["object"]["object"]
+            if self.prev_camera_matrix is None or not np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
+                with self.lock:
+                    self.check_interrupt_vis = True
+                    self.prev_camera_matrix = camera_object["matrix"]
+                    self.res_upscale_factor = 1
+            time.sleep(0.001)
+
+    @torch.no_grad()
+    def _async_get_visualizer_outputs(self, graph, camera_ray_bundle: RayBundle):
+        """async getter function for visualizer without returning"""
+        with SetTrace(self._check_interrupt):
+            graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        with self.lock:
+            self.check_done_render = True
+            self.check_interrupt_vis = False
+
+    @profiler.time_function
+    def _render_image_in_viewer(self, graph):
+        """
+        Draw an image using the current camera pose from the viewer.
+        The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
+        """
+        data = self.vis["/Cameras/Main Camera"].get_object()
+        message = umsgpack.unpackb(data)
+        camera_object = message["object"]["object"]
+        # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
+        if self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
+            self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
+        else:
+            self.prev_camera_matrix = camera_object["matrix"]
+            self.res_upscale_factor = 1
+
+        image_height = min(
+            self.config.min_render_image_height * self.res_upscale_factor,
+            self.config.max_render_image_height,
+        )
+        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+            camera_object, image_height=image_height
+        )
+
+        camera_to_world = camera_to_world_h[:3, :]
+        intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
+        camera = get_camera(intrinsics, camera_to_world)
+        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.get_device())
+        camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
+
+        graph.eval()
+        try:
+            check_thread = threading.Thread(target=self._async_check_camera_update)
+            render_thread = threading.Thread(target=self._async_get_visualizer_outputs, args=(graph, camera_ray_bundle))
+            check_thread.start()
+            render_thread.start()
+            check_thread.join()
+            render_thread.join()
+        except Exception as e:  # pylint: disable=broad-except
+            print(e)
+        graph.train()
+        outputs = graph.vis_outputs
+        if outputs is not None:
+            # gross hack to get the image key, depending on which keys the graph uses
+            rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
+            # TODO: make it such that the TCP connection doesn't need float64
+            image = outputs[rgb_key].cpu().numpy().astype("float64") * 255
+            self.vis["/Cameras/Main Camera"].set_image(image)
+        return outputs
 
 
 def get_vis(zmq_url="tcp://0.0.0.0:6000"):
@@ -45,50 +215,6 @@ def get_random_color():
     color = np.random.rand(3) * 255.0
     color = tuple([int(x) for x in color])
     return color
-
-
-def plot_correspondences(pair, plot=True):
-    """Draw what the pair looks like, with the correspondences as lines."""
-    image0 = (pair["data0"]["image"] * 255).astype("uint8").transpose((1, 2, 0))
-    image1 = (pair["data1"]["image"] * 255).astype("uint8").transpose((1, 2, 0))
-    original_image = np.hstack([image0, image1])
-    h, w, _ = image0.shape
-
-    matches_image = original_image.copy()
-    # draw lines
-    correspondences = list(pair["correspondences"])
-    num = min(20, len(correspondences))
-    for x0, y0, x1, y1 in np.array(random.sample(correspondences, k=num)).astype("uint64"):
-        color = get_random_color()
-        thickness = 2
-        matches_image = cv2.line(matches_image, (x0, y0), (int(w + x1), y1), color, thickness)
-    # show image
-    if plot:
-        print("Correspondences:")
-        plt.figure(figsize=(20, 10))
-        plt.imshow(matches_image)
-        plt.show()
-
-    # ----------
-    # example training data
-    equal_distances_image = original_image.copy()
-    for i in range(num):
-        c0, c1 = np.array(random.sample(correspondences, k=2)).astype("uint64")
-        color = get_random_color()
-        thickness = 2
-        p0, p1 = c0[:2], c1[:2]
-        equal_distances_image = cv2.line(equal_distances_image, tuple(p0), tuple(p1), color, thickness)
-        p0, p1 = c0[2:], c1[2:]
-        p0[0] += w
-        p1[0] += w
-        equal_distances_image = cv2.line(equal_distances_image, tuple(p0), tuple(p1), color, thickness)
-    if plot:
-        print("Example training data:")
-        plt.figure(figsize=(20, 10))
-        plt.imshow(equal_distances_image)
-        plt.show()
-
-    return matches_image, equal_distances_image
 
 
 def show_ply(vis, ply_path, name="ply", color=None):
@@ -171,17 +297,6 @@ def draw_camera_frustum(
     vis[name].set_transform(pose)
 
 
-def set_camera_render(vis, intrinsics=None, pose=None, name="renderer"):
-    """Place a three.js camera in the scene.
-    This can be used to render an image from.
-    """
-    full_name_str = f"/Cameras/{name}/rotated"
-    g_camera = c.PerspectiveCamera(fov=120, aspect=1.0, near=0.01, far=1000)
-    g_camera_helper = c.CameraHelper(g_camera)
-    # vis[full_name_str].set_object(g_camera)
-    vis[full_name_str].set_object(g_camera_helper)
-
-
 def set_persp_camera(vis, pose, K, colmap=True):
     """Assumes simple pinhole model for intrinsics.
     Args:
@@ -196,21 +311,9 @@ def set_persp_camera(vis, pose, K, colmap=True):
     focal_length = K[0, 0]
     x = pp_h / (focal_length)
     fov = 2.0 * np.arctan(x) * (180.0 / np.pi)
-    vis["/Cameras/Main Camera R/<object>"].set_property("fov", fov)
-    vis["/Cameras/Main Camera R/<object>"].set_property("aspect", float(pp_w / pp_h))  # three.js expects width/height
-    vis["/Cameras/Main Camera R"].set_transform(pose_processed)
-
-
-def set_orth_camera(vis, pose, width, height, colmap=True):
-    """ """
-    pose_processed = copy.deepcopy(pose)
-    if colmap:
-        pose_processed[:, 1:3] *= -1
-    vis["/Cameras/Main Camera Orth"].set_transform(pose_processed)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("left", -width / 2.0)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("right", width / 2.0)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("top", height / 2.0)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("bottom", -height / 2.0)
+    vis["/Cameras/Main Camera/<object>"].set_property("fov", fov)
+    vis["/Cameras/Main Camera/<object>"].set_property("aspect", float(pp_w / pp_h))  # three.js expects width/height
+    vis["/Cameras/Main Camera/<object>"].set_transform(pose_processed)
 
 
 def set_camera(vis, camera: Camera):

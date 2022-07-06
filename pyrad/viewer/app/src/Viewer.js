@@ -74,8 +74,19 @@ export class Viewer extends Component {
       this.state.controls_main.update();
     }
     this.state.renderer_main.render(this.state.scene, camera_main);
+    this.send_camera_over_websocket();
+  }
+
+  send_camera_over_websocket() {
+    /* update the camera information in the python server
+    if the websocket is connected */
+    console.log("send_camera_over_websocket");
     if (this.state.websocket.readyState === WebSocket.OPEN) {
       // update the camera information in the python server
+      let camera_main = findCameraObjectUnderObject3D(
+        this.state.scene_tree.find(["Cameras", "Main Camera"]).object
+      );
+      console.log(camera_main.toJSON());
       let cmd = "set_object";
       let path = "Cameras/Main Camera";
       let data = {
@@ -121,7 +132,12 @@ export class Viewer extends Component {
       this.state.controls_main.staticMoving = false; // false is default
       this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
       this.state.controls_main.autoRotate = false;
+      this.state.controls_main.dynamicDampingFactor = 1.0;
       this.state.controls_main.update();
+      // this.send_camera_over_websocket();
+      // this.state.controls_main.addEventListener("change", () => {
+      //   this.send_camera_over_websocket();
+      // });
     }
   }
 
@@ -190,6 +206,9 @@ export class Viewer extends Component {
       let answer = cmd.data;
       this.state.pc.setRemoteDescription(answer);
     }
+
+    // possibly update the camera information in the python server
+    // this.send_camera_over_websocket();
   }
 
   getViewportWidth() {

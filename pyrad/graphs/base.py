@@ -17,6 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
+import time
 from typing import Any, Dict, List, Union
 
 import torch
@@ -32,6 +33,7 @@ from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
 from pyrad.utils.config import GraphConfig
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
+from pyrad.viewer.backend.vis_utils import CameraChangeException
 
 
 @profiler.time_function
@@ -101,6 +103,8 @@ class Graph(AbstractGraph):
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
+        # variable for visualizer to fetch TODO(figure out if there is cleaner way to do this)
+        self.vis_outputs = None
 
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
@@ -173,21 +177,27 @@ class Graph(AbstractGraph):
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
         """Takes in camera parameters and computes the output of the graph."""
-        assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
-        image_height, image_width = camera_ray_bundle.origins.shape[:2]
-        num_rays = len(camera_ray_bundle)
-        outputs = {}
-        outputs_lists = defaultdict(list)
-        for i in range(0, num_rays, camera_ray_bundle.num_rays_per_chunk):
-            start_idx = i
-            end_idx = i + camera_ray_bundle.num_rays_per_chunk
-            ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            outputs = self.forward_after_ray_generator(ray_bundle)
-            for output_name, output in outputs.items():
-                outputs_lists[output_name].append(output)
-        for output_name, outputs_list in outputs_lists.items():
-            outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
-        return outputs
+        try:
+            assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
+            image_height, image_width = camera_ray_bundle.origins.shape[:2]
+            num_rays = len(camera_ray_bundle)
+            outputs = {}
+            outputs_lists = defaultdict(list)
+            for i in range(0, num_rays, camera_ray_bundle.num_rays_per_chunk):
+                start_idx = i
+                end_idx = i + camera_ray_bundle.num_rays_per_chunk
+                ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
+                outputs = self.forward_after_ray_generator(ray_bundle)
+                for output_name, output in outputs.items():
+                    outputs_lists[output_name].append(output)
+                time.sleep(0.001)  # visualizer allow thread to switch off
+            for output_name, outputs_list in outputs_lists.items():
+                outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
+                time.sleep(0.001)  # visualizer allow thread to switch off
+            self.vis_outputs = outputs
+            return outputs
+        except CameraChangeException:
+            return None
 
     def get_outputs_for_camera(self, camera: Camera):
         """Get the graph outputs for a Camera."""

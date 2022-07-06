@@ -17,16 +17,13 @@ Code to train model.
 """
 import logging
 import os
-import random
 from typing import Dict
 
 import torch
 import torch.distributed as dist
-import umsgpack
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
-from pyrad.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from pyrad.cameras.rays import RayBundle
 from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
 from pyrad.graphs.base import setup_graph
@@ -36,8 +33,6 @@ from pyrad.utils.config import Config
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
 from pyrad.viewer.backend import vis_utils
-from pyrad.viewer.backend.utils import get_intrinsics_matrix_and_camera_to_world_h
-from pyrad.viewer.backend.visualizer import ViewerWindow, Visualizer
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -67,15 +62,8 @@ class Trainer:
         # logging variables
         writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
         profiler.setup_profiler(config.logging)
-
-        self.vis = None
-        if self.config.viewer.enable:
-            window = ViewerWindow(zmq_url=self.config.viewer.zmq_url)
-            self.vis = Visualizer(window=window)
-            logging.info("Connected to viewer at %s", self.config.viewer.zmq_url)
-            self.vis.delete()
-        else:
-            logging.info("Continuing without viewer.")
+        # visualizer variable
+        self.visualizer_state = vis_utils.VisualizerState(config.viewer)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""
@@ -106,10 +94,9 @@ class Trainer:
 
     def train(self) -> None:
         """Train the model."""
-
-        if self.vis:
-            self.draw_scene_in_viewer()
-
+        self.visualizer_state.init_scene(
+            image_dataset=self.dataloader_train.image_sampler.dataset, dataset_inputs=self.dataset_inputs_train
+        )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             iter_dataloader_train = iter(self.dataloader_train)
@@ -125,16 +112,10 @@ class Trainer:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
-                if (
-                    self.vis
-                    and step != 0
-                    and self.config.viewer.steps_per_render_image
-                    and step % self.config.viewer.steps_per_render_image == 0
-                ):
-                    _ = self.render_image_in_viewer()
                 if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
+                self.visualizer_state.update_scene(step, self.graph)
 
         self._write_out_storage(num_iterations)
 
@@ -225,60 +206,6 @@ class Trainer:
         psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
         self.graph.train()
         return psnr
-
-    def draw_scene_in_viewer(self):
-        """Draw some images and the scene aabb in the viewer."""
-        image_dataset_train = self.dataloader_train.image_sampler.dataset
-        dataset_inputs = self.dataset_inputs_train
-        indices = random.sample(range(len(image_dataset_train)), k=10)
-        for idx in indices:
-            image = image_dataset_train[idx]["image"]
-            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
-            pose = camera.get_camera_to_world().double().numpy()
-            K = camera.get_intrinsics_matrix().double().numpy()
-            vis_utils.draw_camera_frustum(
-                self.vis,
-                image=(image.double().numpy() * 255.0),
-                pose=pose,
-                K=K,
-                height=1.0,
-                name=f"image_dataset_train/{idx:06d}",
-                displayed_focal_length=0.5,
-                realistic=False,
-            )
-        aabb = dataset_inputs.scene_bounds.aabb
-        vis_utils.draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
-
-    @profiler.time_function
-    def render_image_in_viewer(self):
-        """
-        Draw an image using the current camera pose from the viewer.
-        The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
-        """
-        data = self.vis["/Cameras/Main Camera"].get_object()
-        message = umsgpack.unpackb(data)
-        camera_object = message["object"]["object"]
-        image_height = self.config.viewer.render_image_height
-        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=image_height
-        )
-
-        camera_to_world = camera_to_world_h[:3, :]
-        intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
-        camera = get_camera(intrinsics, camera_to_world)
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
-        camera_ray_bundle.num_rays_per_chunk = self.config.viewer.num_rays_per_chunk
-
-        self.graph.eval()
-        outputs = self.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        self.graph.train()
-
-        # gross hack to get the image key, depending on which keys the graph uses
-        rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
-        # TODO: make it such that the TCP connection doesn't need float64
-        image = outputs[rgb_key].cpu().numpy().astype("float64") * 255
-        self.vis["/Cameras/Main Camera"].set_image(image)
-        return outputs
 
     def eval_with_dataloader(self, dataloader: EvalDataloader, step: int = None) -> None:
         """Run evaluation with a given dataloader.
