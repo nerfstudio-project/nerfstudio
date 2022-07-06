@@ -38,8 +38,8 @@ from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
-from pyrad.viewer.backend.tree import SceneTree, find_node, walk
-from pyrad.viewer.backend.video_stream import FlagVideoStreamTrack, SingleFrameStreamTrack
+from pyrad.viewer.server.tree import SceneTree, find_node, walk
+from pyrad.viewer.server.video_stream import FlagVideoStreamTrack, SingleFrameStreamTrack
 
 
 def capture(pattern, s):
@@ -267,22 +267,3 @@ class ZMQWebSocketBridge(object):
 
     def run(self):
         self.ioloop.start()
-
-
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
-    parser.add_argument("--zmq-url", "-z", type=str, nargs="?", default=None)
-    parser.add_argument("--websocket-port", "-wp", type=str, nargs="?", default=None)
-    args = parser.parse_args()
-    bridge = ZMQWebSocketBridge(zmq_url=args.zmq_url, websocket_port=args.websocket_port)
-    print(bridge)
-    try:
-        bridge.run()
-    except KeyboardInterrupt:
-        pass
-
-
-if __name__ == "__main__":
-    main()

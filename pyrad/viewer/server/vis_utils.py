@@ -23,10 +23,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyrad.cameras.cameras import Camera
 
-import pyrad.viewer.backend.cameras as c
-import pyrad.viewer.backend.geometry as g
-import pyrad.viewer.backend.transformations as tf
-from pyrad.viewer.backend import ViewerWindow, Visualizer
+import pyrad.viewer.server.cameras as c
+import pyrad.viewer.server.geometry as g
+import pyrad.viewer.server.transformations as tf
+from pyrad.viewer.server import ViewerWindow, Visualizer
 
 
 def get_vis(zmq_url="tcp://0.0.0.0:6000"):

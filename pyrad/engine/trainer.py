@@ -35,9 +35,9 @@ from pyrad.utils import profiler, writer
 from pyrad.utils.config import Config
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
-from pyrad.viewer.backend import vis_utils
-from pyrad.viewer.backend.utils import get_intrinsics_matrix_and_camera_to_world_h
-from pyrad.viewer.backend.visualizer import ViewerWindow, Visualizer
+from pyrad.viewer.server import vis_utils
+from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.viewer.server.visualizer import ViewerWindow, Visualizer
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
