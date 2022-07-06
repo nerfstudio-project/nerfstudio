@@ -13,8 +13,8 @@ def test_rgb_renderer():
     num_samples = 10
 
     rgb_samples = torch.ones((3, num_samples, 3))
-    weights = torch.ones((3, num_samples))
-    weights /= torch.sum(weights, axis=-1, keepdim=True)
+    weights = torch.ones((3, num_samples, 1))
+    weights /= torch.sum(weights, axis=-2, keepdim=True)
 
     rgb_renderer = renderers.RGBRenderer()
 
@@ -32,8 +32,8 @@ def test_sh_renderer():
     num_samples = 10
 
     sh = torch.ones((3, num_samples, 3 * levels**2))
-    weights = torch.ones((3, num_samples))
-    weights /= torch.sum(weights, axis=-1, keepdim=True)
+    weights = torch.ones((3, num_samples, 1))
+    weights /= torch.sum(weights, axis=-2, keepdim=True)
     directions = torch.zeros((3, num_samples, 3))
     directions[..., 0] = 1
 
@@ -47,8 +47,8 @@ def test_acc_renderer():
     """Test accumulation rendering"""
 
     num_samples = 10
-    weights = torch.ones((3, num_samples))
-    weights /= torch.sum(weights, axis=-1, keepdim=True)
+    weights = torch.ones((3, num_samples, 1))
+    weights /= torch.sum(weights, axis=-2, keepdim=True)
 
     acc_renderer = renderers.AccumulationRenderer()
 
@@ -60,16 +60,16 @@ def test_depth_renderer():
     """Test depth rendering"""
 
     num_samples = 10
-    weights = torch.ones((3, num_samples))
-    weights /= torch.sum(weights, axis=-1, keepdim=True)
+    weights = torch.ones((3, num_samples, 1))
+    weights /= torch.sum(weights, axis=-2, keepdim=True)
 
     ray_samples = RaySamples(
         frustums=Frustums.get_mock_frustum(),
-        camera_indices=torch.ones((num_samples)),
-        valid_mask=torch.ones((num_samples)),
-        bin_starts=torch.linspace(0, 100, num_samples),
-        bin_ends=torch.linspace(1, 101, num_samples),
-        deltas=torch.ones((num_samples)),
+        camera_indices=torch.ones((num_samples, 1)),
+        valid_mask=torch.ones((num_samples, 1)),
+        bin_starts=torch.linspace(0, 100, num_samples)[..., None],
+        bin_ends=torch.linspace(1, 101, num_samples)[..., None],
+        deltas=torch.ones((num_samples, 1)),
     )
 
     depth_renderer = renderers.DepthRenderer()
