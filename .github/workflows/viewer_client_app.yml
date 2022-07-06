@@ -41,9 +41,6 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./pyrad/viewer/app
     if: github.ref == 'refs/heads/master'
 
     steps:
@@ -51,10 +48,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: production-files
-          path: ./build
+          path: ./pyrad/viewer/app/build
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
+          publish_dir: ./pyrad/viewer/app/build
