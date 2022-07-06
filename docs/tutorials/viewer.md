@@ -33,9 +33,17 @@ yarn start
 
 #### WebRTC
 
-# References
+WebRTC is a framework for real-time communication that allows two peers to send video, audio, or general data to and from each other with low latency. We've adopted WebRTC to stream rendered images to our viewer.
 
-We thank [Robin Deits](https://github.com/rdeits) and other contributors to the following repos, which we've started with and modified for our implementations.
+# Acknowledgements and references
+
+We thank [Robin Deits](https://github.com/rdeits) and other contributors to the following repos, which we've started with and modified and extended for our use.
 
 - [meshcat-python](https://github.com/rdeits/meshcat-python)
 - [meshcat](https://github.com/rdeits/meshcat)
+
+Here are other resources that we've used and/or have found helpful while building the viewer code.
+
+- [ThreeJS](https://threejs.org/)
+- [ReactJS](https://reactjs.org/)
+- [WebRTC](https://webrtc.org/)

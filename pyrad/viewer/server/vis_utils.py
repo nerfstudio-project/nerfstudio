@@ -16,16 +16,13 @@
 """
 
 import copy
-import random
 
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
-from pyrad.cameras.cameras import Camera
 
 import pyrad.viewer.server.cameras as c
 import pyrad.viewer.server.geometry as g
 import pyrad.viewer.server.transformations as tf
+from pyrad.cameras.cameras import Camera
 from pyrad.viewer.server import ViewerWindow, Visualizer
 
 
@@ -39,56 +36,6 @@ def get_vis(zmq_url="tcp://0.0.0.0:6000"):
 def show_box_test(vis):
     """Simple test to draw a box and make sure everything is working."""
     vis["box"].set_object(g.Box([1.0, 1.0, 1.0]), material=g.MeshPhongMaterial(color=0xFF0000))
-
-
-def get_random_color():
-    color = np.random.rand(3) * 255.0
-    color = tuple([int(x) for x in color])
-    return color
-
-
-def plot_correspondences(pair, plot=True):
-    """Draw what the pair looks like, with the correspondences as lines."""
-    image0 = (pair["data0"]["image"] * 255).astype("uint8").transpose((1, 2, 0))
-    image1 = (pair["data1"]["image"] * 255).astype("uint8").transpose((1, 2, 0))
-    original_image = np.hstack([image0, image1])
-    h, w, _ = image0.shape
-
-    matches_image = original_image.copy()
-    # draw lines
-    correspondences = list(pair["correspondences"])
-    num = min(20, len(correspondences))
-    for x0, y0, x1, y1 in np.array(random.sample(correspondences, k=num)).astype("uint64"):
-        color = get_random_color()
-        thickness = 2
-        matches_image = cv2.line(matches_image, (x0, y0), (int(w + x1), y1), color, thickness)
-    # show image
-    if plot:
-        print("Correspondences:")
-        plt.figure(figsize=(20, 10))
-        plt.imshow(matches_image)
-        plt.show()
-
-    # ----------
-    # example training data
-    equal_distances_image = original_image.copy()
-    for i in range(num):
-        c0, c1 = np.array(random.sample(correspondences, k=2)).astype("uint64")
-        color = get_random_color()
-        thickness = 2
-        p0, p1 = c0[:2], c1[:2]
-        equal_distances_image = cv2.line(equal_distances_image, tuple(p0), tuple(p1), color, thickness)
-        p0, p1 = c0[2:], c1[2:]
-        p0[0] += w
-        p1[0] += w
-        equal_distances_image = cv2.line(equal_distances_image, tuple(p0), tuple(p1), color, thickness)
-    if plot:
-        print("Example training data:")
-        plt.figure(figsize=(20, 10))
-        plt.imshow(equal_distances_image)
-        plt.show()
-
-    return matches_image, equal_distances_image
 
 
 def show_ply(vis, ply_path, name="ply", color=None):
@@ -171,17 +118,6 @@ def draw_camera_frustum(
     vis[name].set_transform(pose)
 
 
-def set_camera_render(vis, intrinsics=None, pose=None, name="renderer"):
-    """Place a three.js camera in the scene.
-    This can be used to render an image from.
-    """
-    full_name_str = f"/Cameras/{name}/rotated"
-    g_camera = c.PerspectiveCamera(fov=120, aspect=1.0, near=0.01, far=1000)
-    g_camera_helper = c.CameraHelper(g_camera)
-    # vis[full_name_str].set_object(g_camera)
-    vis[full_name_str].set_object(g_camera_helper)
-
-
 def set_persp_camera(vis, pose, K, colmap=True):
     """Assumes simple pinhole model for intrinsics.
     Args:
@@ -196,21 +132,9 @@ def set_persp_camera(vis, pose, K, colmap=True):
     focal_length = K[0, 0]
     x = pp_h / (focal_length)
     fov = 2.0 * np.arctan(x) * (180.0 / np.pi)
-    vis["/Cameras/Main Camera R/<object>"].set_property("fov", fov)
-    vis["/Cameras/Main Camera R/<object>"].set_property("aspect", float(pp_w / pp_h))  # three.js expects width/height
-    vis["/Cameras/Main Camera R"].set_transform(pose_processed)
-
-
-def set_orth_camera(vis, pose, width, height, colmap=True):
-    """ """
-    pose_processed = copy.deepcopy(pose)
-    if colmap:
-        pose_processed[:, 1:3] *= -1
-    vis["/Cameras/Main Camera Orth"].set_transform(pose_processed)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("left", -width / 2.0)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("right", width / 2.0)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("top", height / 2.0)
-    vis["/Cameras/Main Camera Orth/<object>"].set_property("bottom", -height / 2.0)
+    vis["/Cameras/Main Camera/<object>"].set_property("fov", fov)
+    vis["/Cameras/Main Camera/<object>"].set_property("aspect", float(pp_w / pp_h))  # three.js expects width/height
+    vis["/Cameras/Main Camera/<object>"].set_transform(pose_processed)
 
 
 def set_camera(vis, camera: Camera):
