@@ -17,6 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
+import threading
 from typing import Any, Dict, List, Union
 
 import torch
@@ -102,6 +103,12 @@ class Graph(AbstractGraph):
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
 
+        # visualizer specific variables
+        self.vis_outputs = None
+        self.lock = threading.Lock()
+        self.check_interrupt_vis = False
+        self.check_done_render = True
+
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
         self.callbacks = []
@@ -179,6 +186,8 @@ class Graph(AbstractGraph):
         outputs = {}
         outputs_lists = defaultdict(list)
         for i in range(0, num_rays, camera_ray_bundle.num_rays_per_chunk):
+            if self.check_interrupt_vis:  # interrupt rendering if the visualizer has changed
+                return None
             start_idx = i
             end_idx = i + camera_ray_bundle.num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
@@ -186,8 +195,19 @@ class Graph(AbstractGraph):
             for output_name, output in outputs.items():
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
+            if self.check_interrupt_vis:  # interrupt rendering if the visualizer has changed
+                return None
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
         return outputs
+
+    @torch.no_grad()
+    def get_visualizer_outputs(self, camera_ray_bundle: RayBundle):
+        """getter function for visualizer without returning"""
+        outputs = self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        self.vis_outputs = outputs  # need this for visualizer TODO(check if threads can do returns nicer)
+        with self.lock:
+            self.check_done_render = True
+            self.check_interrupt_vis = False
 
     def get_outputs_for_camera(self, camera: Camera):
         """Get the graph outputs for a Camera."""

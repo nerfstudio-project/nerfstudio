@@ -121,6 +121,7 @@ export class Viewer extends Component {
       this.state.controls_main.staticMoving = false; // false is default
       this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
       this.state.controls_main.autoRotate = false;
+      this.state.controls_main.dynamicDampingFactor = 1.0;
       this.state.controls_main.update();
     }
   }
