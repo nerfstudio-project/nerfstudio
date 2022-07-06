@@ -143,8 +143,8 @@ class Graph(AbstractGraph):
             return outputs
 
         # during training, keep only the rays that intersect the scene. discard the rest
-        valid_mask = intersected_ray_bundle.valid_mask
-        masked_intersected_ray_bundle = intersected_ray_bundle.get_masked_ray_bundle(valid_mask)
+        valid_mask = intersected_ray_bundle.valid_mask[..., 0]
+        masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)

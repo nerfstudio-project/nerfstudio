@@ -82,7 +82,7 @@ class Field(nn.Module):
         if is_not_none(valid_mask):
             # Hacky handling of empty masks. Tests on a single ray but doesn't use results
             if not valid_mask.any():
-                ray_samples = RaySamples(frustums=Frustums.get_mock_frustum(device=valid_mask.device))
+                ray_samples = RaySamples(frustums=Frustums.get_mock_frustum().to(valid_mask.device))
             else:
                 ray_samples = ray_samples.apply_masks()
             density_masked, density_embedding_masked = self.get_density(ray_samples)

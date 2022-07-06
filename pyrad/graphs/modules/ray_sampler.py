@@ -105,7 +105,7 @@ class SpacedSampler(Sampler):
 
         bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
 
-        s_near, s_far = [self.spacing_fn(x) for x in (ray_bundle.nears[:, None], ray_bundle.fars[:, None])]
+        s_near, s_far = [self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars)]
         bins = self.spacing_fn_inv(bins * s_far + (1 - bins) * s_near)  # [num_rays, num_samples+1]
 
         if self.train_stratified and self.training:
