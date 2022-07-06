@@ -48,7 +48,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: production-files
-          path: ./pyrad/viewer/app/build
+          path: ./build
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
