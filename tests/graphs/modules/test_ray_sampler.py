@@ -102,7 +102,7 @@ def test_pdf_sampler():
     uniform_sampler = UniformSampler(num_samples=num_samples)
     coarse_ray_samples = uniform_sampler(ray_bundle)
 
-    weights = torch.ones((10, num_samples))
+    weights = torch.ones((10, num_samples, 1))
 
     # Just check that it doesn't crash. Need to add some actual tests.
     pdf_sampler = PDFSampler(num_samples)

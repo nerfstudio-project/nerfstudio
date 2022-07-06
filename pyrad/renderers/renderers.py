@@ -52,38 +52,38 @@ class RGBRenderer(nn.Module):
     def combine_rgb(
         cls,
         rgb: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples"],
+        weights: TensorType[..., "num_samples", 1],
         background_color: Optional[TensorType[3]] = None,
     ) -> TensorType[..., 3]:
         """Composite samples along ray and render color image
 
         Args:
-            rgb (TensorType[..., "num_samples", -1]): RGB for each sample
-            weights (TensorType[..., "num_samples"]): Weights for each sample
+            rgb (TensorType[..., "num_samples", 3]): RGB for each sample
+            weights (TensorType[..., "num_samples", 1]): Weights for each sample
             background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
 
         Returns:
             TensorType[..., 3]: Outputs rgb values.
         """
-        rgb = torch.sum(weights[..., None] * rgb, dim=-2)
+        rgb = torch.sum(weights * rgb, dim=-2)
 
         if background_color is None:
             background_color = torch.rand_like(rgb).to(rgb.device)
 
-        rgb = rgb + background_color.to(weights.device) * (1.0 - torch.sum(weights, dim=-1)[..., None])
+        rgb = rgb + background_color.to(weights.device) * (1.0 - torch.sum(weights, dim=-2))
 
         return rgb
 
     def forward(
         self,
         rgb: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples"],
+        weights: TensorType[..., "num_samples", 1],
     ) -> TensorType[..., 3]:
         """Composite samples along ray and render color image
 
         Args:
-            rgb (TensorType[..., "num_samples", -1]): RGB for each sample
-            weights (TensorType[..., "num_samples"]): Weights for each sample
+            rgb (TensorType[..., "num_samples", 3]): RGB for each sample
+            weights (TensorType[..., "num_samples", 1]): Weights for each sample
 
         Returns:
             TensorType[..., 3]: Outputs of rgb values.
@@ -114,14 +114,14 @@ class SHRenderer(nn.Module):
         self,
         sh: TensorType[..., "num_samples", "coeffs"],
         directions: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples"],
+        weights: TensorType[..., "num_samples", 1],
     ) -> TensorType[..., 3]:
         """Composite samples along ray and render color image
 
         Args:
             sh (TensorType[..., "num_samples", "coeffs"]): Spherical hamonics coefficients for each sample
             directions: (TensorType[..., "num_samples", 3]): Sample direction
-            weights (TensorType[..., "num_samples"]): Weights for each sample
+            weights (TensorType[..., "num_samples", 1]): Weights for each sample
 
         Returns:
             TensorType[..., 3]: Outputs of rgb values.
@@ -149,7 +149,7 @@ class AccumulationRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        weights: TensorType[..., "num_samples"],
+        weights: TensorType[..., "num_samples", 1],
     ) -> TensorType:
         """Composite samples along ray and calculate accumulation.
 
@@ -160,7 +160,7 @@ class AccumulationRenderer(nn.Module):
             TensorType: Outputs of accumulated values.
         """
 
-        accumulation = torch.sum(weights, dim=-1)[..., None]
+        accumulation = torch.sum(weights, dim=-2)
         return accumulation
 
 
@@ -177,11 +177,11 @@ class DepthRenderer(nn.Module):
             raise ValueError(f"{method} is an invalid depth calculation method")
         self.method = method
 
-    def forward(self, weights: TensorType[..., "num_samples"], ray_samples: RaySamples) -> TensorType[..., 1]:
+    def forward(self, weights: TensorType[..., "num_samples", 1], ray_samples: RaySamples) -> TensorType[..., 1]:
         """Composite samples along ray and calculate disparities.
 
         Args:
-            weights (TensorType[..., "num_samples"]): Weights for each sample.
+            weights (TensorType[..., "num_samples", 1]): Weights for each sample.
             ray_samples (RaySamples): Set of ray samples.
 
         Returns:
@@ -191,11 +191,11 @@ class DepthRenderer(nn.Module):
         if self.method == "expected":
             eps = 1e-10
             steps = (ray_samples.bin_starts + ray_samples.bin_ends) / 2
-            depth = torch.sum(weights * steps, dim=-1) / (torch.sum(weights, -1) + eps)
+            depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
 
-            depth = torch.clip(depth, steps[..., 0], steps[..., -1])
+            depth = torch.clip(depth, steps[..., 0, :], steps[..., -1, :])
 
-            return depth[..., None]
+            return depth
 
         raise NotImplementedError(f"Method {self.method} not implemented")
 
@@ -204,17 +204,19 @@ class UncertaintyRenderer(nn.Module):
     """Calculate uncertainty along the ray."""
 
     @classmethod
-    def forward(cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples"]) -> TensorType:
+    def forward(
+        cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples", 1]
+    ) -> TensorType:
         """_summary_
 
         Args:
-            betas (TensorType[..., &quot;num_samples&quot;, 1]): _description_
-            weights (TensorType[..., &quot;num_samples&quot;]): _description_
+            betas (TensorType[..., num_samples, 1]): _description_
+            weights (TensorType[..., num_samples, 1]): _description_
 
         Returns:
             TensorType: _description_
         """
-        uncertainty = torch.sum(weights[..., None] * betas, dim=-2)
+        uncertainty = torch.sum(weights * betas, dim=-2)
         return uncertainty
 
 
@@ -223,8 +225,8 @@ class SemanticRenderer(nn.Module):
 
     @classmethod
     def forward(
-        cls, semantics: TensorType[..., "num_samples", "num_classes"], weights: TensorType[..., "num_samples"]
+        cls, semantics: TensorType[..., "num_samples", "num_classes"], weights: TensorType[..., "num_samples", 1]
     ) -> TensorType[..., "num_classes"]:
         """_summary_"""
-        sem = torch.sum(weights[..., None] * semantics, dim=-2)
+        sem = torch.sum(weights * semantics, dim=-2)
         return sem
