@@ -1,4 +1,4 @@
-name: Build & deploy
+name: Build and deploy viewer client app.
 
 on:
   push:
@@ -17,21 +17,27 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
 
       - name: Install Node.js
         uses: actions/setup-node@v1
         with:
           node-version: 13.x
 
-      - name: Install NPM packages
-        run: npm ci
+      - name: Install packages
+        uses: borales/actions-yarn@v2.0.0
+        with:
+          cmd: install
 
       - name: Build project
-        run: npm run build
+        uses: borales/actions-yarn@v2.0.0
+        with:
+          cmd: build
 
       - name: Run tests
-        run: npm run test
+        uses: borales/actions-yarn@v2.0.0
+        with:
+          cmd: tests
 
       - name: Upload production-ready build files
         uses: actions/upload-artifact@v2
