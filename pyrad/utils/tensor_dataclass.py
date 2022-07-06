@@ -15,14 +15,15 @@
 """Tensor dataclass"""
 
 import dataclasses
-from typing import Tuple
+from typing import Tuple, Union
 
 import numpy as np
 import torch
 
 
 class TensorDataclass:
-    """Data class of tensor with the same size batch. Allows indexing and standard tensor ops.
+    """Data class of tensors with the same size batch. Allows indexing and standard tensor ops.
+    Fields that are not Tensors will not be batched unless they are also a TensorDataclass.
 
     Example:
 
@@ -54,22 +55,40 @@ class TensorDataclass:
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
-        fields = dataclasses.asdict(self)
-        batch_shapes = [v.shape[:-1] for v in fields.values() if v is not None]
+        field_names = [f.name for f in dataclasses.fields(self)]
+        batch_shapes = []
+        for f in field_names:
+            v = self.__getattribute__(f)
+            if v is not None:
+                if isinstance(v, torch.Tensor):
+                    batch_shapes.append(v.shape[:-1])
+                elif isinstance(v, TensorDataclass):
+                    batch_shapes.append(v.shape)
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
 
-        for k, v in fields.items():
+        for f in field_names:
+            v = self.__getattribute__(f)
             if v is not None:
-                self.__setattr__(k, torch.broadcast_to(v, (*batch_shape, v.shape[-1])))
+                if isinstance(v, torch.Tensor):
+                    self.__setattr__(f, v.broadcast_to((*batch_shape, v.shape[-1])))
+                elif isinstance(v, TensorDataclass):
+                    self.__setattr__(f, v.broadcast_to(batch_shape))
 
         self.__setattr__("_shape", batch_shape)
 
     def __getitem__(self, indices) -> "TensorDataclass":
-        if isinstance(indices, int):
+        if isinstance(indices, torch.Tensor):
+            return self._apply_fn_to_fields(lambda x: x[indices])
+        if isinstance(indices, (int, slice)):
             indices = (indices,)
-        return self._apply_fn_to_fields(lambda x: x[indices + (slice(None),)])
+        tensor_fn = lambda x: x[indices + (slice(None),)]
+        dataclass_fn = lambda x: x[indices]
+        return self._apply_fn_to_fields(tensor_fn, dataclass_fn)
+
+    def __setitem__(self, indices, value) -> "TensorDataclass":
+        raise RuntimeError("Index assignment is not supported for TensorDataclass")
 
     def __len__(self) -> int:
         return self.shape[0]
@@ -110,7 +129,9 @@ class TensorDataclass:
         """
         if isinstance(shape, int):
             shape = (shape,)
-        return self._apply_fn_to_fields(lambda x: x.reshape((*shape, x.shape[-1])))
+        tensor_fn = lambda x: x.reshape((*shape, x.shape[-1]))
+        dataclass_fn = lambda x: x.reshape(shape)
+        return self._apply_fn_to_fields(tensor_fn, dataclass_fn)
 
     def flatten(self) -> "TensorDataclass":
         """Returns a new TensorDataclass with flattened batch dimensions
@@ -120,7 +141,7 @@ class TensorDataclass:
         """
         return self.reshape((-1,))
 
-    def broadcast_to(self, shape: Tuple[int]) -> "TensorDataclass":
+    def broadcast_to(self, shape: Union[torch.Size, Tuple[int]]) -> "TensorDataclass":
         """Returns a new TensorDataclass broadcast to new shape.
 
         Args:
@@ -129,20 +150,38 @@ class TensorDataclass:
         Returns:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
         """
-
         return self._apply_fn_to_fields(lambda x: x.broadcast_to((*shape, x.shape[-1])))
 
-    def _apply_fn_to_fields(self, fn: callable) -> "TensorDataclass":
+    def to(self, device) -> "TensorDataclass":
+        """Returns a new TensorDataclass with the same data but on the specified device.
+
+        Args:
+            device: The device to place the tensor dataclass.
+
+        Returns:
+            TensorDataclass: A new TensorDataclass with the same data but on the specified device.
+        """
+        return self._apply_fn_to_fields(lambda x: x.to(device))
+
+    def _apply_fn_to_fields(self, fn: callable, dataclass_fn: callable = None) -> "TensorDataclass":
         """Applies a function to all fields of the tensor dataclass.
 
         Args:
-            fn (callable): The function to apply to all fields.
+            fn (callable): The function to apply to tensor fields.
+            dataclass_fn (callable): The function to apply to TensorDataclass fields. Else use fn.
 
         Returns:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
         """
 
-        fields = dataclasses.asdict(self)
-        fields = {k: fn(v) for k, v in fields.items() if v is not None}
+        field_names = [f.name for f in dataclasses.fields(self)]
+        new_fields = {}
+        for f in field_names:
+            v = self.__getattribute__(f)
+            if v is not None:
+                if isinstance(v, TensorDataclass) and dataclass_fn is not None:
+                    new_fields[f] = dataclass_fn(v)
+                elif isinstance(v, (torch.Tensor, TensorDataclass)):
+                    new_fields[f] = fn(v)
 
-        return dataclasses.replace(self, **fields)
+        return dataclasses.replace(self, **new_fields)

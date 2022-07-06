@@ -4,8 +4,8 @@ av
 black[jupyter]==22.3.0
 functorch==0.1.1
 h5py>=2.9.0
-hydra-colorlog
-hydra-core
+hydra-colorlog==1.2.0
+hydra-core==1.2.0
 imageio
 ipywidgets>=7.6
 jupyterlab==3.3.4

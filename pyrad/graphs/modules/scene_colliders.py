@@ -86,9 +86,9 @@ class AABBBoxCollider(SceneBoundsCollider):
         """
         aabb = self.scene_bounds.aabb
         nears, fars, valid_mask = self.intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
-        ray_bundle.nears = nears
-        ray_bundle.fars = fars
-        ray_bundle.valid_mask = valid_mask
+        ray_bundle.nears = nears[..., None]
+        ray_bundle.fars = fars[..., None]
+        ray_bundle.valid_mask = valid_mask[..., None]
         return ray_bundle
 
 
@@ -101,7 +101,7 @@ class NearFarCollider(SceneBoundsCollider):
         super().__init__(**kwargs)
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
-        ones = torch.ones_like(ray_bundle.origins[:, 0])
+        ones = torch.ones_like(ray_bundle.origins[..., 0:1])
         ray_bundle.nears = ones * self.near_plane
         ray_bundle.fars = ones * self.far_plane
         ray_bundle.valid_mask = ones.bool()
