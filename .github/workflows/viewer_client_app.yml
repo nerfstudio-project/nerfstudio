@@ -7,18 +7,20 @@ on:
     branches: [master]
 
 jobs:
-  build:
-    name: Build
+  checkout:
+    name: Checkout
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: ./pyrad/viewer/app
-
     steps:
       - name: Checkout code
         uses: actions/checkout@master
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./pyrad/viewer/app
+    steps:
       - name: Install Node.js
         uses: actions/setup-node@v1
         with:
