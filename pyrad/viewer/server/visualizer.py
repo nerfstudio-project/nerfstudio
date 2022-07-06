@@ -68,9 +68,16 @@ class Viewer(object):
         return self.window.send(SetObject(geometry, material, self.path))
 
     def get_object(self):
-        return self.window.send(GetObject(self.path))
+        """Get the object at the current path."""
+        data = self.window.send(GetObject(self.path))
+        data = umsgpack.unpackb(data)
+        if isinstance(data, str) and data.find("error") == 0:
+            # some error meaning that the object does not exist
+            return None
+        return data
 
     def set_image(self, image):
+        """Set the image"""
         return self.window.send(SetImage(image, self.path))
 
     def set_transform(self, matrix=np.eye(4)):

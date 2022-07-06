@@ -6,6 +6,17 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 
 ![visualize_dataset](data/media/viewer_figure.png)
 
+## Quick start
+
+```
+# run training script with the viewer
+
+```
+
+<hr>
+
+## For developers
+
 #### Connection between PyRad and the Bridge Server
 
 In the center, we have the Bridge Server, which facilitates the connection between PyRad code and the Client App. This server runs on the same machine that you are using PyRad. It has a TCP Request/Reply (REQ/REP) connection that PyRad can connect to with the Viewer object (left). We use [ZeroMQ](https://zeromq.org/), an open-sourced messaging library, to implement this lightweight TCP connection. The Viewer class can send commands to the Bridge Server and receive replies. The Bridge Server will either dispatch commands to the Client App via a websocket or it will return information stored in the Bridge Server state.
@@ -18,7 +29,7 @@ The connection between the Bridge Server and the Client App works with WebSocket
 
 - **WebRTC connection** - We use WebRTC to stream images being rendered from PyRad. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the PyRad code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
 
-# Getting started
+## Getting started
 
 #### Running the Bridge Server
 
@@ -69,13 +80,13 @@ PORT=4000
 
 - **Notebook demo** - See `notebooks/visualize_viewer.ipynb` for an overview for how to interact with the viewer with the Viewer object from PyRad.
 
-# Features checklist
+## Features checklist
 
 - [x] WebRTC video stream
 - [x] Dynamic Resolution Scaling (DRS)
 - [ ] Draw camera frustums from the DatasetInputs
 
-# Acknowledgements and references
+## Acknowledgements and references
 
 We thank [Robin Deits](https://github.com/rdeits) and other contributors to the following repos, which we've started with and modified and extended for our use.
 

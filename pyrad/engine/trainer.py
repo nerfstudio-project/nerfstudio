@@ -255,8 +255,9 @@ class Trainer:
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
         """
         data = self.vis["/Cameras/Main Camera"].get_object()
-        message = umsgpack.unpackb(data)
-        camera_object = message["object"]["object"]
+        if data is None:
+            return
+        camera_object = data["object"]["object"]
         image_height = self.config.viewer.render_image_height
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
             camera_object, image_height=image_height

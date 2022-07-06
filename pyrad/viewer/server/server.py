@@ -14,19 +14,9 @@
 
 from __future__ import absolute_import, division, print_function
 
-import base64
-import json
-import re
 import sys
+
 import numpy as np
-
-if sys.version_info >= (3, 0):
-    ADDRESS_IN_USE_ERROR = OSError
-else:
-    import socket
-
-    ADDRESS_IN_USE_ERROR = socket.error
-
 import tornado.gen
 import tornado.ioloop
 import tornado.web
@@ -34,40 +24,12 @@ import tornado.websocket
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
-from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
+from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
 from pyrad.viewer.server.tree import SceneTree, find_node, walk
-from pyrad.viewer.server.video_stream import FlagVideoStreamTrack, SingleFrameStreamTrack
-
-
-def capture(pattern, s):
-    match = re.match(pattern, s)
-    if not match:
-        raise ValueError("Could not match {:s} with pattern {:s}".format(s, pattern))
-    else:
-        return match.groups()[0]
-
-
-def match_zmq_url(line):
-    return capture(r"^zmq_url=(.*)$", line)
-
-
-def _zmq_install_ioloop():
-    # For pyzmq<17, install ioloop instead of a tornado ioloop
-    # http://zeromq.github.com/pyzmq/eventloop.html
-    try:
-        pyzmq_major = int(zmq.__version__.split(".")[0])
-    except ValueError:
-        # Development version?
-        return
-    if pyzmq_major < 17:
-        zmq.eventloop.ioloop.install()
-
-
-_zmq_install_ioloop()
-
+from pyrad.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"
@@ -82,7 +44,7 @@ def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs)
         port = default_port + i
         try:
             return func(port, **kwargs), port
-        except (ADDRESS_IN_USE_ERROR, zmq.error.ZMQError):
+        except (OSError, zmq.error.ZMQError):
             print("Port: {:d} in use, trying another...".format(port), file=sys.stderr)
         except Exception as e:
             print(type(e))
@@ -105,12 +67,14 @@ def force_codec(pc, sender, forced_codec):
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    """Tornado websocket handler for receiving and sending commands from/to the viewer."""
+
     def __init__(self, *args, **kwargs):
         self.bridge = kwargs.pop("bridge")
         super(WebSocketHandler, self).__init__(*args, **kwargs)
 
-    # this disables CORS
     def check_origin(self, origin):
+        """This disables CORS."""
         return True
 
     def open(self):
@@ -119,7 +83,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.bridge.send_scene(self)
 
     async def on_message(self, message):
-
         data = message
         m = umsgpack.unpackb(message)
         type_ = m["type"]
@@ -131,20 +94,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             find_node(self.bridge.tree, path).object = data
             find_node(self.bridge.tree, path).properties = []
         elif type_ == "offer":
-            print("making an offer")
-            print("sending an answer")
-            # print(m)
-
             offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
 
             pc = RTCPeerConnection()
-            self.bridge.pcs.add(pc)  # TODO(ethan): handle this better, since this set will get large
+            self.bridge.pcs.add(pc)
 
-            # video = FlagVideoStreamTrack()
             video = SingleFrameStreamTrack()
             self.bridge.video_tracks.add(video)
             video_sender = pc.addTrack(video)
-            # force_codec(this.bridge.pc, video_sender, video_codec)
+            # force_codec(pc, video_sender, video_codec)
 
             await pc.setRemoteDescription(offer)
             answer = await pc.createAnswer()
@@ -203,7 +161,7 @@ class ZMQWebSocketBridge(object):
 
     def handle_zmq(self, frames):
         cmd = frames[0].decode("utf-8")
-        print(cmd)
+        # print(cmd)
         if len(frames) != 3:
             self.zmq_socket.send(b"error: expected 3 frames")
             return
@@ -218,6 +176,8 @@ class ZMQWebSocketBridge(object):
                 find_node(self.tree, path).properties = []
             elif cmd == "get_object":
                 data = find_node(self.tree, path).object
+                if isinstance(data, type(None)):
+                    data = umsgpack.packb("error: object not found")
                 self.zmq_socket.send(data)
                 return
             elif cmd == "set_property":
@@ -267,3 +227,8 @@ class ZMQWebSocketBridge(object):
 
     def run(self):
         self.ioloop.start()
+
+
+def start_server_as_subprocess(zmq_url=None):
+    """Starts the ZMQWebSocketBridge server as a subprocess."""
+    raise NotImplementedError()
