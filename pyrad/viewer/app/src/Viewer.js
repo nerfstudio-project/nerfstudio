@@ -8,10 +8,10 @@ import { SceneNode } from "./SceneNode";
 import { ExtensibleObjectLoader } from "./ExtensibleObjectLoader";
 
 function websocket_endpoint_from_url(url) {
-  let endpoint = url.split("/").pop();
+  let endpoint = url.split("?").pop();
   if (endpoint == "") {
     let message =
-      "Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000/localhost:8051";
+      "Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051";
     window.alert(message);
     return null;
   }
