@@ -110,7 +110,8 @@ class Trainer:
             loss_sum += loss_dict[loss_name]
         return loss_sum
 
-    def is_render_step(self, step, default_steps=10):
+    def _is_render_step(self, step, default_steps=10):
+        """dynamically calculate when to render grapic based on resolution of image"""
         if self.vis and step != 0:
             steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
             print(steps_per_render_image)
@@ -138,7 +139,7 @@ class Trainer:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
-                if self.is_render_step(step):
+                if self._is_render_step(step):
                     _ = self.render_image_in_viewer()
                 if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
@@ -257,7 +258,8 @@ class Trainer:
         aabb = dataset_inputs.scene_bounds.aabb
         vis_utils.draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
 
-    def check_camera_update(self):
+    def _check_camera_update(self):
+        """Async function to check whether camera has been updated in visualizer"""
         with self.graph.lock:
             self.graph.check_done_render = False
         while not self.graph.check_done_render:
@@ -307,13 +309,13 @@ class Trainer:
 
         self.graph.eval()
         try:
-            check_thread = Thread(target=self.check_camera_update)
+            check_thread = Thread(target=self._check_camera_update)
             render_thread = Thread(target=self.graph.get_visualizer_outputs, args=(camera_ray_bundle,))
             check_thread.start()
             render_thread.start()
             check_thread.join()
             render_thread.join()
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             print(e)
         self.graph.train()
         outputs = self.graph.vis_outputs
