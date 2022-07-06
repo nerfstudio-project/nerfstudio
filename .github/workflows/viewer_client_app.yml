@@ -7,13 +7,6 @@ on:
     branches: [master]
 
 jobs:
-  checkout:
-    name: Checkout
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@master
-
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -21,6 +14,9 @@ jobs:
       run:
         working-directory: ./pyrad/viewer/app
     steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
       - name: Install Node.js
         uses: actions/setup-node@v1
         with:
@@ -29,17 +25,17 @@ jobs:
       - name: Install packages
         uses: borales/actions-yarn@v2.0.0
         with:
-          cmd: install
+          cmd: --cwd install
 
       - name: Build project
         uses: borales/actions-yarn@v2.0.0
         with:
-          cmd: build
+          cmd: --cwd build
 
       - name: Run tests
         uses: borales/actions-yarn@v2.0.0
         with:
-          cmd: tests
+          cmd: --cwd tests
 
       - name: Upload production-ready build files
         uses: actions/upload-artifact@v2
