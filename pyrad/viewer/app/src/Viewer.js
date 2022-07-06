@@ -151,6 +151,7 @@ export class Viewer extends Component {
         }
     }
 
+<<<<<<< HEAD
     set_property(path, property, value) {
         this.state.scene_tree.find(path).set_property(property, value);
         // TODO(ethan): handle this issue
@@ -229,6 +230,81 @@ export class Viewer extends Component {
                 console.log("setting event stream");
                 document.getElementById("WebRTCVideo-video").srcObject = evt.streams[0];
             }
+=======
+    // possibly update the camera information in the python server
+    // this.send_camera_over_websocket();
+  }
+
+  getViewportWidth() {
+    return window.innerWidth - (window.innerWidth % 2);
+  }
+
+  getViewportHeight() {
+    return window.innerHeight;
+  }
+
+  setupWebRTC() {
+    console.log("setting up WebRTC");
+    // The iceServers config comes from the following URL:
+    // https://www.metered.ca/tools/openrelay/
+    this.state.pc = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: "stun:openrelay.metered.ca:80",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:80",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+        {
+          urls: "turn:openrelay.metered.ca:443?transport=tcp",
+          username: "openrelayproject",
+          credential: "openrelayproject",
+        },
+      ],
+    });
+
+    // connect video
+    this.state.pc.addEventListener("track", function (evt) {
+      if (evt.track.kind == "video") {
+        console.log("setting event stream");
+        document.getElementById("WebRTCVideo-video").srcObject = evt.streams[0];
+      }
+    });
+    this.state.pc.addTransceiver("video", { direction: "recvonly" });
+
+    this.state.pc
+      .createOffer()
+      .then((offer) => {
+        return this.state.pc.setLocalDescription(offer);
+      })
+      .then(() => {
+        // wait for ICE gathering to complete
+        return new Promise((resolve) => {
+          if (this.state.pc.iceGatheringState === "complete") {
+            resolve();
+          } else {
+            var checkState = () => {
+              if (this.state.pc.iceGatheringState === "complete") {
+                this.state.pc.removeEventListener(
+                  "icegatheringstatechange",
+                  checkState
+                );
+                resolve();
+              }
+            };
+            this.state.pc.addEventListener(
+              "icegatheringstatechange",
+              checkState
+            );
+          }
+>>>>>>> master
         });
         this.state.pc.addTransceiver("video", { direction: "recvonly" });
 

@@ -56,7 +56,7 @@ def test_frustum_apply_masks():
     )
 
     mask = torch.tensor([False, True, False, True, True], dtype=torch.bool)
-    frustum = frustum.apply_masks(mask)
+    frustum = frustum[mask]
 
     assert frustum.origins.shape == (3, 3)
     assert frustum.directions.shape == (3, 3)

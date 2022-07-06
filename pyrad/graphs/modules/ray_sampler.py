@@ -105,7 +105,7 @@ class SpacedSampler(Sampler):
 
         bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
 
-        s_near, s_far = [self.spacing_fn(x) for x in (ray_bundle.nears[:, None], ray_bundle.fars[:, None])]
+        s_near, s_far = [self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars)]
         bins = self.spacing_fn_inv(bins * s_far + (1 - bins) * s_near)  # [num_rays, num_samples+1]
 
         if self.train_stratified and self.training:
@@ -264,7 +264,7 @@ class PDFSampler(Sampler):
         self,
         ray_bundle: RayBundle = None,
         ray_samples: RaySamples = None,
-        weights: TensorType[..., "num_samples"] = None,
+        weights: TensorType[..., "num_samples", 1] = None,
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
     ) -> RaySamples:
@@ -273,7 +273,7 @@ class PDFSampler(Sampler):
         Args:
             ray_bundle (RayBundle): Rays to generate samples for
             ray_samples (RaySamples): Existing ray samples
-            weights: (TensorType[..., "num_samples"]): Weights for each bin
+            weights: (TensorType[..., "num_samples", 1]): Weights for each bin
             num_samples (Optional[int]): Number of samples per ray
             eps: float: Small value to prevent numerical issues. Defaults to 1e-5
 
@@ -283,7 +283,7 @@ class PDFSampler(Sampler):
         num_samples = num_samples or self.num_samples
         num_bins = num_samples + 1
 
-        weights = weights + self.histogram_padding
+        weights = weights[..., 0] + self.histogram_padding
 
         # Add small offset to rays with zero weight to prevent NaNs
         weights_sum = torch.sum(weights, dim=-1, keepdim=True)
@@ -337,9 +337,9 @@ class PDFSampler(Sampler):
         # Force bins to not have a gap between them. Kinda hacky, should reconsider.
         existing_bins = torch.cat(
             [
-                ray_samples.bin_starts[..., :1],
-                (ray_samples.bin_starts[..., 1:] + ray_samples.bin_ends[..., :-1]) / 2.0,
-                ray_samples.bin_ends[..., -1:],
+                ray_samples.bin_starts[..., :1, 0],
+                (ray_samples.bin_starts[..., 1:, 0] + ray_samples.bin_ends[..., :-1, 0]) / 2.0,
+                ray_samples.bin_ends[..., -1:, 0],
             ],
             axis=-1,
         )

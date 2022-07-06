@@ -105,6 +105,17 @@ class GraphConfig:
 
 
 @dataclass
+class ViewerConfig:
+    """Configuration for viewer instantiation"""
+
+    enable: bool = MISSING
+    zmq_url: str = MISSING
+    min_render_image_height: int = MISSING
+    max_render_image_height: int = MISSING
+    num_rays_per_chunk: int = MISSING
+
+
+@dataclass
 class Config:
     """Full config contents"""
 
@@ -138,7 +149,7 @@ def setup_config(config: DictConfig) -> Config:
     data = DataConfig(**config.data)
     graph = GraphConfig(**config.graph)
     optimizers = config.optimizers
-    viewer = config.viewer
+    viewer = ViewerConfig(**config.viewer)
     return Config(
         machine=machine,
         logging=logging,
