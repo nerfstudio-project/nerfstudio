@@ -86,13 +86,13 @@ class Frustums(TensorDataclass):
 
 
 @dataclass
-class RaySamples:
+class RaySamples(TensorDataclass):
     """Samples along a ray
 
     Args:
         frustums (Frustums): Frustums along ray.
         camera_indices (TensorType[..., 1]): Camera index.
-        valid_mask (TensorType[...]): Rays that are valid.
+        valid_mask (TensorType[..., 1]): Rays that are valid.
         bin_starts (TensorType[..., 1]): frustum starts along ray.
         bin_ends (TensorType[..., 1]): frustum ends along ray.
         deltas )TensorType[..., 1]): "width" of each sample.
@@ -105,23 +105,23 @@ class RaySamples:
     bin_ends: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
 
-    def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples"]:
+    def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities
 
         Args:
             densities (TensorType[..., "num_samples", 1]): Predicted densities for samples along ray
 
         Returns:
-            TensorType[..., "num_samples"]: Weights for each sample
+            TensorType[..., "num_samples", 1]: Weights for each sample
         """
 
-        delta_density = self.deltas * densities[..., 0]
+        delta_density = self.deltas * densities
         alphas = 1 - torch.exp(-delta_density)
 
         # mip-nerf version of transmittance calculation:
-        transmittance = torch.cumsum(delta_density[..., :-1], dim=-1)
+        transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)
         transmittance = torch.cat(
-            [torch.zeros((*transmittance.shape[:1], 1)).to(densities.device), transmittance], axis=-1
+            [torch.zeros((*transmittance.shape[:1], 1, 1)).to(densities.device), transmittance], axis=-2
         )
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
 
@@ -146,20 +146,7 @@ class RaySamples:
             RaySamples: New set of masked samples.
         """
         if is_not_none(self.valid_mask):
-            frustums = self.frustums[self.valid_mask]
-            camera_indices = (
-                self.camera_indices[self.valid_mask] if is_not_none(self.camera_indices) else self.camera_indices
-            )
-            bin_starts = self.bin_starts[self.valid_mask] if is_not_none(self.bin_starts) else self.bin_starts
-            bin_ends = self.bin_ends[self.valid_mask] if is_not_none(self.bin_ends) else self.bin_ends
-            deltas = self.deltas[self.valid_mask] if is_not_none(self.deltas) else self.deltas
-            return RaySamples(
-                frustums=frustums,
-                camera_indices=camera_indices,
-                bin_starts=bin_starts,
-                bin_ends=bin_ends,
-                deltas=deltas,
-            )
+            return self[self.valid_mask[..., 0]]
         return self
 
 
@@ -257,25 +244,25 @@ class RayBundle(TensorDataclass):
         deltas = dists * torch.norm(self.directions[:, None, :], dim=-1)
 
         if is_not_none(self.camera_indices):
-            camera_indices = self.camera_indices.repeat(1, num_samples)
+            camera_indices = self.camera_indices.repeat(1, num_samples)[..., None]
         else:
             camera_indices = None
 
         frustums = Frustums(
-            origins=self.origins[:, None, :],
-            directions=self.directions[:, None, :],
-            frustum_starts=bin_starts[:, :, None],
-            frustum_ends=bin_ends[:, :, None],
-            pixel_area=self.pixel_area[:, None, :],
+            origins=self.origins[:, None, :],  # [N_rays, 1, 3]
+            directions=self.directions[:, None, :],  # [N_rays, 1, 3]
+            frustum_starts=bin_starts[:, :, None],  # [N_rays, N_samples, 1]
+            frustum_ends=bin_ends[:, :, None],  # [N_rays, N_samples, 1]
+            pixel_area=self.pixel_area[:, None, :],  # [N_rays, 2, 1]
         ).to(device)
 
         ray_samples = RaySamples(
             frustums=frustums,
-            camera_indices=camera_indices,
-            valid_mask=valid_mask,
-            bin_starts=bin_starts,
-            bin_ends=bin_ends,
-            deltas=deltas,
+            camera_indices=camera_indices,  # [N_rays, N_samples, 1]
+            valid_mask=valid_mask[..., None],  # [N_rays, N_samples, 1]
+            bin_starts=bin_starts[..., None],  # [N_rays, N_samples, 1]
+            bin_ends=bin_ends[..., None],  # [N_rays, N_samples, 1]
+            deltas=deltas[..., None],  # [N_rays, N_samples, 1]
         )
 
         return ray_samples
