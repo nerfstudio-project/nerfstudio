@@ -17,19 +17,13 @@ Code to train model.
 """
 import logging
 import os
-import random
-from threading import Thread
-import time
 from typing import Dict
 
-import numpy as np
 import torch
 import torch.distributed as dist
-import umsgpack
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
-from pyrad.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from pyrad.cameras.rays import RayBundle
 from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
 from pyrad.graphs.base import setup_graph
@@ -39,8 +33,6 @@ from pyrad.utils.config import Config
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
 from pyrad.viewer.backend import vis_utils
-from pyrad.viewer.backend.utils import get_intrinsics_matrix_and_camera_to_world_h
-from pyrad.viewer.backend.visualizer import ViewerWindow, Visualizer
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -70,18 +62,8 @@ class Trainer:
         # logging variables
         writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
         profiler.setup_profiler(config.logging)
-
-        # viewer variables
-        self.vis = None
-        if self.config.viewer.enable:
-            window = ViewerWindow(zmq_url=self.config.viewer.zmq_url)
-            self.vis = Visualizer(window=window)
-            logging.info("Connected to viewer at %s", self.config.viewer.zmq_url)
-            self.vis.delete()
-        else:
-            logging.info("Continuing without viewer.")
-        self.prev_camera_matrix = None
-        self.res_upscale_factor = 1
+        # visualizer variable
+        self.visualizer_state = vis_utils.VisualizerState(config.viewer)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""
@@ -110,20 +92,11 @@ class Trainer:
             loss_sum += loss_dict[loss_name]
         return loss_sum
 
-    def _is_render_step(self, step, default_steps=10):
-        """dynamically calculate when to render grapic based on resolution of image"""
-        if self.vis and step != 0:
-            steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
-            print(steps_per_render_image)
-            return step % steps_per_render_image == 0
-        return False
-
     def train(self) -> None:
         """Train the model."""
-
-        if self.vis:
-            self.draw_scene_in_viewer()
-
+        self.visualizer_state.init_scene(
+            image_dataset=self.dataloader_train.image_sampler.dataset, dataset_inputs=self.dataset_inputs_train
+        )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             iter_dataloader_train = iter(self.dataloader_train)
@@ -139,11 +112,10 @@ class Trainer:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
-                if self._is_render_step(step):
-                    _ = self.render_image_in_viewer()
                 if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
+                self.visualizer_state.update_scene(step, self.graph)
 
         self._write_out_storage(num_iterations)
 
@@ -234,100 +206,6 @@ class Trainer:
         psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
         self.graph.train()
         return psnr
-
-    def draw_scene_in_viewer(self):
-        """Draw some images and the scene aabb in the viewer."""
-        image_dataset_train = self.dataloader_train.image_sampler.dataset
-        dataset_inputs = self.dataset_inputs_train
-        indices = random.sample(range(len(image_dataset_train)), k=10)
-        for idx in indices:
-            image = image_dataset_train[idx]["image"]
-            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
-            pose = camera.get_camera_to_world().double().numpy()
-            K = camera.get_intrinsics_matrix().double().numpy()
-            vis_utils.draw_camera_frustum(
-                self.vis,
-                image=(image.double().numpy() * 255.0),
-                pose=pose,
-                K=K,
-                height=1.0,
-                name=f"image_dataset_train/{idx:06d}",
-                displayed_focal_length=0.5,
-                realistic=False,
-            )
-        aabb = dataset_inputs.scene_bounds.aabb
-        vis_utils.draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
-
-    def _check_camera_update(self):
-        """Async function to check whether camera has been updated in visualizer"""
-        with self.graph.lock:
-            self.graph.check_done_render = False
-        while not self.graph.check_done_render:
-            data = self.vis["/Cameras/Main Camera"].get_object()
-            message = umsgpack.unpackb(data)
-            camera_object = message["object"]["object"]
-            if not (
-                self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix)
-            ):
-                print("registered camera change")
-                with self.graph.lock:
-                    self.graph.check_interrupt_vis = True
-                self.prev_camera_matrix = camera_object["matrix"]
-                self.res_upscale_factor = 1
-            time.sleep(0.05)
-
-    @profiler.time_function
-    def render_image_in_viewer(self):
-        """
-        Draw an image using the current camera pose from the viewer.
-        The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
-        """
-        data = self.vis["/Cameras/Main Camera"].get_object()
-        message = umsgpack.unpackb(data)
-        camera_object = message["object"]["object"]
-        # hacky way to prevent overflow check to see if < 10; TODO(make less hacky)
-        if self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
-            self.res_upscale_factor = min(self.res_upscale_factor * 2, 10)
-        else:
-            self.prev_camera_matrix = camera_object["matrix"]
-            self.res_upscale_factor = 1
-
-        image_height = min(
-            self.config.viewer.min_render_image_height * self.res_upscale_factor,
-            self.config.viewer.max_render_image_height,
-        )
-        # print("res", self.res_upscale_factor, image_height)
-        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=image_height
-        )
-
-        camera_to_world = camera_to_world_h[:3, :]
-        intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
-        camera = get_camera(intrinsics, camera_to_world)
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
-        camera_ray_bundle.num_rays_per_chunk = self.config.viewer.num_rays_per_chunk
-
-        self.graph.eval()
-        try:
-            check_thread = Thread(target=self._check_camera_update)
-            render_thread = Thread(target=self.graph.get_visualizer_outputs, args=(camera_ray_bundle,))
-            check_thread.start()
-            render_thread.start()
-            check_thread.join()
-            render_thread.join()
-        except Exception as e:  # pylint: disable=broad-except
-            print(e)
-        self.graph.train()
-        outputs = self.graph.vis_outputs
-        if outputs is not None:
-            # gross hack to get the image key, depending on which keys the graph uses
-            rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
-            # TODO: make it such that the TCP connection doesn't need float64
-            image = outputs[rgb_key].cpu().numpy().astype("float64") * 255
-            print("before set")
-            self.vis["/Cameras/Main Camera"].set_image(image)
-            print("after set")
-        return outputs
 
     def eval_with_dataloader(self, dataloader: EvalDataloader, step: int = None) -> None:
         """Run evaluation with a given dataloader.
