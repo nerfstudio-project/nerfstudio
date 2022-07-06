@@ -16,16 +16,6 @@
 """
 
 import copy
-<<<<<<< HEAD:pyrad/viewer/server/vis_utils.py
-
-import numpy as np
-
-import pyrad.viewer.server.cameras as c
-import pyrad.viewer.server.geometry as g
-import pyrad.viewer.server.transformations as tf
-from pyrad.cameras.cameras import Camera
-from pyrad.viewer.server import Viewer
-
 import logging
 import random
 import sys
@@ -34,18 +24,20 @@ import time
 
 import numpy as np
 import torch
-import umsgpack
-from pyrad.cameras.rays import RayBundle
-from pyrad.utils.config import ViewerConfig
 
+import pyrad.viewer.server.cameras as c
+import pyrad.viewer.server.geometry as g
+import pyrad.viewer.server.transformations as tf
 from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler
+from pyrad.utils.config import ViewerConfig
+from pyrad.viewer.server import Viewer
+from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 
 
 class CameraChangeException(Exception):
     """Basic camera exception to interrupt visualizer"""
-
-    pass
 
 
 class SetTrace:
@@ -132,8 +124,9 @@ class VisualizerState:
             self.check_done_render = False
         while not self.check_done_render:
             data = self.vis["/Cameras/Main Camera"].get_object()
-            message = umsgpack.unpackb(data)
-            camera_object = message["object"]["object"]
+            if data is None:
+                return
+            camera_object = data["object"]["object"]
             if self.prev_camera_matrix is None or not np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
                 with self.lock:
                     self.check_interrupt_vis = True
@@ -157,8 +150,9 @@ class VisualizerState:
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
         """
         data = self.vis["/Cameras/Main Camera"].get_object()
-        message = umsgpack.unpackb(data)
-        camera_object = message["object"]["object"]
+        if data is None:
+            return
+        camera_object = data["object"]["object"]
         # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
         if self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
             self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
@@ -211,6 +205,7 @@ def get_default_vis():
 def show_box_test(vis):
     """Simple test to draw a box and make sure everything is working."""
     vis["box"].set_object(g.Box([1.0, 1.0, 1.0]), material=g.MeshPhongMaterial(color=0xFF0000))
+
 
 def show_ply(vis, ply_path, name="ply", color=None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input."""
