@@ -12,28 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import, division, print_function
+import logging
+import signal
+import sys
 
-import numpy as np
 import msgpack
 import msgpack_numpy
+import numpy as np
 import umsgpack
 import zmq
 
-from pyrad.viewer.server.socket import SerializingContext
-
-from .commands import Delete, SetObject, GetObject, SetProperty, SetTransform
-from .path import Path
+from pyrad.viewer.server.commands import Delete, GetObject, SetObject, SetProperty, SetTransform
+from pyrad.viewer.server.path import Path
 
 
 class ViewerWindow(object):
     context = zmq.Context()
-    # context = SerializingContext()
 
     def __init__(self, zmq_url):
         self.zmq_url = zmq_url
         self.client = self.context.socket(zmq.REQ)
         self.client.connect(self.zmq_url)
+        self.assert_connected()
 
     def send(self, command):
         cmd_data = command.lower()
@@ -46,11 +46,53 @@ class ViewerWindow(object):
         )
         return self.client.recv()
 
+    def send_ping(self):
+        """Tries to contact the viewer bridge server."""
+        type_ = "ping"
+        path = ""
+        data = umsgpack.packb({"type": type_, "path": path})
+        self.client.send_multipart(
+            [
+                type_.encode("utf-8"),
+                path.encode("utf-8"),
+                data,
+            ]
+        )
+        return self.client.recv()
+
+    def assert_connected(self, timeout_in_sec: int = 5):
+        """Check if the connection was established properly within some time.
+
+        Args:
+            timeout_in_sec (int): The maximum time to wait for the connection to be established.
+        """
+
+        def timeout_handler(signum, frame):
+            raise Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")
+
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(timeout_in_sec)
+        try:
+            logging.info("Sending ping to the viewer Bridge Server...")
+            response = self.send_ping()
+            logging.info("Successfully connected.")
+            signal.alarm(0)  # cancel the alarm
+        except Exception as e:
+            logging.info(e)
+            sys.exit()
+
 
 class Viewer(object):
     """Visualizer class for connecting to the bridge server."""
 
     def __init__(self, zmq_url: str = None, window: ViewerWindow = None):
+        """_summary_
+
+        Args:
+            zmq_url (str, optional): _description_. Defaults to None.
+            window (ViewerWindow, optional): _description_. Defaults to None.
+            timeout (str, optional): _description_. Defaults to None.
+        """
         if zmq_url is None and window is None:
             raise ValueError("Must specify either zmq_url or window.")
         if window is None:

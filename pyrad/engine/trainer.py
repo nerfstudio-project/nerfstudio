@@ -32,7 +32,7 @@ from pyrad.utils import profiler, writer
 from pyrad.utils.config import Config
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
-from pyrad.viewer.server import vis_utils
+from pyrad.viewer.server import viewer_utils
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
@@ -63,7 +63,7 @@ class Trainer:
         writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
         profiler.setup_profiler(config.logging)
         # visualizer variable
-        self.visualizer_state = vis_utils.VisualizerState(config.viewer)
+        self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions."""

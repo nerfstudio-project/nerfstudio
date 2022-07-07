@@ -27,13 +27,13 @@ import torch
 
 import pyrad.viewer.server.cameras as c
 import pyrad.viewer.server.geometry as g
-import pyrad.viewer.server.transformations as tf
 from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
 from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler
 from pyrad.utils.config import ViewerConfig
-from pyrad.viewer.server import Viewer
+from pyrad.viewer.server.visualizer import Viewer
 from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.viewer.server.transformations import get_translation_matrix
 
 
 class CameraChangeException(Exception):
@@ -64,7 +64,6 @@ class VisualizerState:
         if self.config.enable:
             zmq_url = self.config.zmq_url
             self.vis = Viewer(zmq_url=zmq_url)
-            logging.info("Connected to viewer at %s", zmq_url)
             self.vis.delete()
         else:
             logging.info("Continuing without viewer.")
@@ -122,6 +121,10 @@ class VisualizerState:
             )
         aabb = dataset_inputs.scene_bounds.aabb
         draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
+
+        # set the main camera intrinsics to one from the dataset
+        K = camera.get_intrinsics_matrix()
+        set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
     def _async_check_camera_update(self):
         """Async function to check whether camera has been updated in visualizer"""
@@ -229,7 +232,7 @@ def show_obj(vis, obj_path, name="obj", color=None):
 def draw_camera_frustum(
     vis,
     image=np.random.rand(100, 100, 3) * 255.0,
-    pose=tf.translation_matrix([0, 0, 0]),
+    pose=get_translation_matrix([0, 0, 0]),
     K=None,
     name="0000000",
     displayed_focal_length=None,
@@ -268,17 +271,17 @@ def draw_camera_frustum(
     g_frustum = c.frustum(scale=1.0, focal_length=displayed_focal_length, width=width, height=height)
     vis[name + "/frustum"].set_object(g_frustum)
     if not realistic:
-        vis[name + "/frustum"].set_transform(tf.translation_matrix([0, 0, displayed_focal_length]))
+        vis[name + "/frustum"].set_transform(get_translation_matrix([0, 0, displayed_focal_length]))
 
     # draw the image plane
     g_image_plane = c.ImagePlane(image, width=width, height=height)
     vis[name + "/image_plane"].set_object(g_image_plane)
     if realistic:
-        vis[name + "/image_plane"].set_transform(tf.translation_matrix([0, 0, -displayed_focal_length]))
+        vis[name + "/image_plane"].set_transform(get_translation_matrix([0, 0, -displayed_focal_length]))
 
     if shift_forward:
-        matrix = tf.translation_matrix([0, 0, displayed_focal_length])
-        matrix2 = tf.translation_matrix([0, 0, -shift_forward])
+        matrix = get_translation_matrix([0, 0, displayed_focal_length])
+        matrix2 = get_translation_matrix([0, 0, -shift_forward])
         vis[name + "/frustum"].set_transform(matrix2 @ matrix)
         vis[name + "/image_plane"].set_transform(matrix2)
 
@@ -286,14 +289,7 @@ def draw_camera_frustum(
     vis[name].set_transform(pose)
 
 
-def set_persp_camera(vis, pose, K, colmap=True):
-    """Assumes simple pinhole model for intrinsics.
-    Args:
-        colmap: whether to use the colmap camera coordinate convention or not
-    """
-    pose_processed = copy.deepcopy(pose)
-    if colmap:
-        pose_processed[:, 1:3] *= -1
+def set_persp_intrinsics_matrix(vis, K):
     pp_w = K[0, 2]
     pp_h = K[1, 2]
     assert K[0, 0] == K[1, 1]
@@ -302,7 +298,22 @@ def set_persp_camera(vis, pose, K, colmap=True):
     fov = 2.0 * np.arctan(x) * (180.0 / np.pi)
     vis["/Cameras/Main Camera/<object>"].set_property("fov", fov)
     vis["/Cameras/Main Camera/<object>"].set_property("aspect", float(pp_w / pp_h))  # three.js expects width/height
+
+
+def set_persp_pose(vis, pose, colmap=True):
+    pose_processed = copy.deepcopy(pose)
+    if colmap:
+        pose_processed[:, 1:3] *= -1
     vis["/Cameras/Main Camera/<object>"].set_transform(pose_processed)
+
+
+def set_persp_camera(vis, pose, K, colmap=True):
+    """Assumes simple pinhole model for intrinsics.
+    Args:
+        colmap: whether to use the colmap camera coordinate convention or not
+    """
+    set_persp_intrinsics_matrix(vis, K)
+    set_persp_pose(vis, pose, colmap=colmap)
 
 
 def set_camera(vis, camera: Camera):
@@ -316,4 +327,4 @@ def draw_aabb(vis, aabb, name="aabb"):
     lengths = aabb[1] - aabb[0]
     vis[name].set_object(g.Box(lengths.tolist()), material=g.MeshPhongMaterial(color=0xFF0000, opacity=0.1))
     center = aabb[0] + lengths / 2.0
-    vis[name].set_transform(tf.translation_matrix(center.tolist()))
+    vis[name].set_transform(get_translation_matrix(center.tolist()))

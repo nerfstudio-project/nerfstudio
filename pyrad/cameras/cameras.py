@@ -16,7 +16,6 @@
 Camera Models
 """
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import Optional, Type
 
 import torch
@@ -366,7 +365,14 @@ def get_camera_model(num_intrinsics_params: int) -> Type[Camera]:
     raise NotImplementedError
 
 
-def get_camera(intrinsics, camera_to_world, camera_index=None):
+def get_camera(intrinsics: TensorType["num_intrinsics"], camera_to_world: TensorType[3, 4], camera_index=None):
+    """Returns a transformed camera.
+
+    Args:
+        intrinsics (TensorType["num_intrinsics"]): Intrinsics tensor.
+        camera_to_world (TensorType[3, 4]): Camera to world transformation.
+        camera_index (int): Camera index.
+    """
     assert len(intrinsics.shape) == 1, "The intrinsics object should be a flat tensor."
     num_intrinsics_params = len(intrinsics)
     camera_class = get_camera_model(num_intrinsics_params)

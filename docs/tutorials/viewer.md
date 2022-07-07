@@ -9,8 +9,12 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 ## Quick start
 
 ```
-# run training script with the viewer
+# Run bridge server in the background.
+python scripts/run_viewer_bridge_server.py
 
+# Run training script with viewer enabled.
+# note that running with instant ngp if much faster than vanilla nerf
+python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
 ```
 
 <hr>
@@ -63,8 +67,8 @@ yarn start
 
 # forward port and open in your local browser
 # the URL takes the following form
-# http://localhost:<forwarded_react_port>/localhost:<forwarded_backend_tcp_port>
-http://localhost:4000/localhost:8051
+# http://localhost:<forwarded_react_port>?localhost:<forwarded_backend_tcp_port>
+http://localhost:4000?localhost:8051
 ```
 
 Possibly edit the port in `app/.env.development` file with the following:

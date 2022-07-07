@@ -1,5 +1,4 @@
 {
-    // "python.pythonPath": "/path/to/bin/python",
     "files.watcherExclude": {
         "**/__pycache__/": true,
         "**/.ipynb_checkpoints": true,
@@ -7,6 +6,10 @@
         "**/old*": true,
         "**/runs*": true,
         "**/temp*": true,
+    },
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.python"
     },
     "editor.formatOnSave": true,
     "python.envFile": "${workspaceFolder}/.env",

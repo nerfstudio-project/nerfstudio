@@ -12,24 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import, division, print_function
 
-import sys
-
-if sys.version_info >= (3, 0):
-    unicode = str
-
-from .geometry import (
-    Geometry,
-    Object,
+from pyrad.viewer.server.geometry import (
     Mesh,
     MeshPhongMaterial,
+    Object,
     OrthographicCamera,
     PerspectiveCamera,
-    PointsMaterial,
     Points,
+    PointsMaterial,
 )
-from .path import Path
+from pyrad.viewer.server.path import Path
 
 
 class SetObject:

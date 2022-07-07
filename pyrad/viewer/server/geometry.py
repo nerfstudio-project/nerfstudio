@@ -29,15 +29,13 @@ else:
 import umsgpack
 import numpy as np
 
-from . import transformations as tf
-
 
 class SceneElement(object):
     def __init__(self):
         self.uuid = unicode(uuid.uuid1())
 
     def intrinsic_transform(self):
-        return tf.identity_matrix()
+        return np.identity(4)
 
 
 class ReferenceSceneElement(SceneElement):

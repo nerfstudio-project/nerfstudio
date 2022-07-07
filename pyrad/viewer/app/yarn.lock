@@ -8745,6 +8745,18 @@ text-table@^0.2.0:
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
   integrity sha512-N+8UisAXDGk8PFXP4HAzVR9nbfmVJ3zYLAWiTIoqC5v5isinhr+r5uaO8+7r3BMfuNIufIsA7RdpVgacC2cSpw==
 
+three-wtm@^1.0:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/three-wtm/-/three-wtm-1.0.2.tgz#f923ba885fc14ec15808670f67f82a0a7139bd64"
+  integrity sha512-gsjjF9XYHeqsKxCHqN+hhGAKuTqcV9ouw0Ad7SRTdZ65cDjjZkSR5KYcbW7tgwBu16jFagOG9VVjuBbGd40Kbw==
+  dependencies:
+    three "^0.133.1"
+
+three@^0.133.1:
+  version "0.133.1"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.133.1.tgz#5606f4817d67a09d9212d4ccbd6826564774f8f4"
+  integrity sha512-WydohO8ll949B0FTD6MGz59Yv2Lwj8hvObg/0Heh2r42S6+tQC1WByfCNRdmG4D7+odfGod+n8JPV1I2xrboWw==
+
 three@^0.142.0:
   version "0.142.0"
   resolved "https://registry.yarnpkg.com/three/-/three-0.142.0.tgz#89e226a16221f212eb1d40f0786604b711f28aed"
@@ -9526,6 +9538,13 @@ ws@~8.2.3:
   version "8.2.3"
   resolved "https://registry.yarnpkg.com/ws/-/ws-8.2.3.tgz#63a56456db1b04367d0b721a0b80cae6d8becbba"
   integrity sha512-wBuoj1BDpC6ZQ1B7DWQBYVLphPWkm8i9Y0/3YdHjHKHiohOJ1ws+3OccDWtH+PoC9DZD5WOTrJvNbWvjS6JWaA==
+
+wwobjloader2@^4.0:
+  version "4.0.1"
+  resolved "https://registry.yarnpkg.com/wwobjloader2/-/wwobjloader2-4.0.1.tgz#8846325f313b100e6762d09e382398a9ac5a556b"
+  integrity sha512-+i8jex37jeIcWfTaHLioAvKMcKC/T6yvODVu09FkvKkRsOb843JNjoPxWj5oehedpx2Fj59kK0b7mvO/g4/FXg==
+  dependencies:
+    three "^0.133.1"
 
 xml-name-validator@^3.0.0:
   version "3.0.0"
