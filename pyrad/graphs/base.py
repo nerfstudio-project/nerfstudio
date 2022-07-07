@@ -198,7 +198,6 @@ class Graph(AbstractGraph):
             self.vis_outputs = outputs
             return outputs
         except CameraChangeException:
-            print(traceback.format_exc())
             return None
 
     def get_outputs_for_camera(self, camera: Camera):

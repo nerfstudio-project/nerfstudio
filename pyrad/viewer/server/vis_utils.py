@@ -72,7 +72,6 @@ class VisualizerState:
         # visualizer specific variables
         self.prev_camera_matrix = None
         self.res_upscale_factor = 1
-        self.lock = threading.Lock()
         self.check_interrupt_vis = False
         self.check_done_render = True
 
@@ -89,14 +88,18 @@ class VisualizerState:
     def _check_interrupt(self, frame, event, arg):
         if event == "line":
             if self.check_interrupt_vis and self.res_upscale_factor > 1:
+                self.res_upscale_factor = 1
                 raise CameraChangeException
         return self._check_interrupt
 
-    def _is_render_step(self, step, default_steps=10):
+    def _is_render_step(self, step, default_steps=5):
         """dynamically calculate when to render grapic based on resolution of image"""
         if self.vis and step != 0:
-            steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
-            return step % steps_per_render_image == 0
+            if self.res_upscale_factor == 1:
+                return True
+            else:
+                steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
+                return step % steps_per_render_image == 0
         return False
 
     def _draw_scene_in_viewer(self, image_dataset, dataset_inputs):
@@ -122,18 +125,14 @@ class VisualizerState:
 
     def _async_check_camera_update(self):
         """Async function to check whether camera has been updated in visualizer"""
-        with self.lock:
-            self.check_done_render = False
+        self.check_done_render = False
         while not self.check_done_render:
             data = self.vis["/Cameras/Main Camera"].get_object()
             if data is None:
                 return
             camera_object = data["object"]["object"]
             if self.prev_camera_matrix is None or not np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
-                with self.lock:
-                    self.check_interrupt_vis = True
-                    self.prev_camera_matrix = camera_object["matrix"]
-                    self.res_upscale_factor = 1
+                self.check_interrupt_vis = True
             time.sleep(0.001)
 
     @torch.no_grad()
@@ -141,9 +140,8 @@ class VisualizerState:
         """async getter function for visualizer without returning"""
         with SetTrace(self._check_interrupt):
             graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        with self.lock:
-            self.check_done_render = True
-            self.check_interrupt_vis = False
+        self.check_done_render = True
+        self.check_interrupt_vis = False
 
     @profiler.time_function
     def _render_image_in_viewer(self, graph):
