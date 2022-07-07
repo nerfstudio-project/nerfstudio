@@ -15,15 +15,20 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import msgpack
+import msgpack_numpy
 import umsgpack
 import zmq
 
-from .commands import Delete, SetObject, GetObject, SetImage, SetProperty, SetTransform
+from pyrad.viewer.server.socket import SerializingContext
+
+from .commands import Delete, SetObject, GetObject, SetProperty, SetTransform
 from .path import Path
 
 
 class ViewerWindow(object):
     context = zmq.Context()
+    # context = SerializingContext()
 
     def __init__(self, zmq_url):
         self.zmq_url = zmq_url
@@ -78,7 +83,17 @@ class Viewer(object):
 
     def set_image(self, image):
         """Set the image"""
-        return self.window.send(SetImage(image, self.path))
+        type_ = "set_image"
+        path = self.path.lower()
+        data = msgpack.packb(image, default=msgpack_numpy.encode, use_bin_type=True)
+        self.window.client.send_multipart(
+            [
+                type_.encode("utf-8"),
+                path.encode("utf-8"),
+                data,
+            ]
+        )
+        return self.window.client.recv()
 
     def set_transform(self, matrix=np.eye(4)):
         assert matrix.shape == (4, 4)

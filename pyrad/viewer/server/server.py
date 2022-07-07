@@ -21,12 +21,15 @@ import tornado.gen
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
+import msgpack
+import msgpack_numpy
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
+from pyrad.viewer.server.socket import SerializingContext
 
 from pyrad.viewer.server.tree import SceneTree, find_node, walk
 from pyrad.viewer.server.video_stream import SingleFrameStreamTrack
@@ -123,6 +126,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
 class ZMQWebSocketBridge(object):
     context = zmq.Context()
+    # context = SerializingContext()
 
     def __init__(self, zmq_url=None, host="127.0.0.1", websocket_port=None):
         self.host = host
@@ -161,7 +165,7 @@ class ZMQWebSocketBridge(object):
 
     def handle_zmq(self, frames):
         cmd = frames[0].decode("utf-8")
-        # print(cmd)
+        print(cmd)
         if len(frames) != 3:
             self.zmq_socket.send(b"error: expected 3 frames")
             return
@@ -193,9 +197,10 @@ class ZMQWebSocketBridge(object):
                     self.tree = SceneTree()
         elif cmd in WEBRTC_COMMANDS:
             if cmd == "set_image":
+                image = msgpack.unpackb(
+                    data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
+                )
                 for video_track in self.video_tracks:
-                    unpacked_data = umsgpack.unpackb(data)
-                    image = np.array(unpacked_data["image"], dtype="uint8").reshape(unpacked_data["shape"])
                     video_track.put_frame(image)
         else:
             self.zmq_socket.send(b"error: unknown command")

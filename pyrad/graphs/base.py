@@ -18,6 +18,7 @@ The Graph module contains all trainable parameters.
 from abc import abstractmethod
 from collections import defaultdict
 import time
+import traceback
 from typing import Any, Dict, List, Union
 
 import torch
@@ -197,6 +198,7 @@ class Graph(AbstractGraph):
             self.vis_outputs = outputs
             return outputs
         except CameraChangeException:
+            print(traceback.format_exc())
             return None
 
     def get_outputs_for_camera(self, camera: Camera):

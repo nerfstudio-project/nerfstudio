@@ -59,10 +59,12 @@ class VisualizerState:
 
     def __init__(self, config: ViewerConfig):
         self.config = config
+
         self.vis = None
         if self.config.enable:
-            self.vis = Viewer(zmq_url=self.config.zmq_url)
-            logging.info("Connected to viewer at %s", self.config.zmq_url)
+            zmq_url = self.config.zmq_url
+            self.vis = Viewer(zmq_url=zmq_url)
+            logging.info("Connected to viewer at %s", zmq_url)
             self.vis.delete()
         else:
             logging.info("Continuing without viewer.")
@@ -86,7 +88,8 @@ class VisualizerState:
 
     def _check_interrupt(self, frame, event, arg):
         if event == "line":
-            if self.check_interrupt_vis:
+            if self.check_interrupt_vis and self.res_upscale_factor > 1:
+                print("register camera change")
                 raise CameraChangeException
         return self._check_interrupt
 
@@ -189,8 +192,7 @@ class VisualizerState:
         if outputs is not None:
             # gross hack to get the image key, depending on which keys the graph uses
             rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
-            # TODO: make it such that the TCP connection doesn't need float64
-            image = outputs[rgb_key].cpu().numpy().astype("float64") * 255
+            image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
             self.vis["/Cameras/Main Camera"].set_image(image)
         return outputs
 
