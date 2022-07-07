@@ -89,7 +89,6 @@ class VisualizerState:
     def _check_interrupt(self, frame, event, arg):
         if event == "line":
             if self.check_interrupt_vis and self.res_upscale_factor > 1:
-                print("register camera change")
                 raise CameraChangeException
         return self._check_interrupt
 
