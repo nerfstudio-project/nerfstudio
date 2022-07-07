@@ -29,7 +29,6 @@ import zmq.eventloop.ioloop
 from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
-from pyrad.viewer.server.socket import SerializingContext
 
 from pyrad.viewer.server.tree import SceneTree, find_node, walk
 from pyrad.viewer.server.video_stream import SingleFrameStreamTrack
@@ -126,7 +125,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
 class ZMQWebSocketBridge(object):
     context = zmq.Context()
-    # context = SerializingContext()
 
     def __init__(self, zmq_url=None, host="127.0.0.1", websocket_port=None):
         self.host = host

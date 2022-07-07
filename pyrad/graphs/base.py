@@ -34,7 +34,7 @@ from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
 from pyrad.utils.config import GraphConfig
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
-from pyrad.viewer.server.vis_utils import CameraChangeException
+from pyrad.viewer.server.viewer_utils import CameraChangeException
 
 
 @profiler.time_function
