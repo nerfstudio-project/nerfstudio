@@ -18,6 +18,7 @@ The Graph module contains all trainable parameters.
 from abc import abstractmethod
 from collections import defaultdict
 import time
+import traceback
 from typing import Any, Dict, List, Union
 
 import torch
@@ -33,7 +34,7 @@ from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
 from pyrad.utils.config import GraphConfig
 from pyrad.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
-from pyrad.viewer.backend.vis_utils import CameraChangeException
+from pyrad.viewer.server.vis_utils import CameraChangeException
 
 
 @profiler.time_function
@@ -197,6 +198,7 @@ class Graph(AbstractGraph):
             self.vis_outputs = outputs
             return outputs
         except CameraChangeException:
+            print(traceback.format_exc())
             return None
 
     def get_outputs_for_camera(self, camera: Camera):

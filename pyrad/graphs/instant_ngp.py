@@ -104,9 +104,9 @@ class NGPGraph(Graph):
         # Hacky treatment of bins as points to allow us to merge uniform and pdf.
         ts_uniform = (ray_samples_uniform.bin_starts + ray_samples_uniform.bin_ends) / 2.0
         ts_pdf = (ray_samples_pdf.bin_starts + ray_samples_pdf.bin_ends) / 2.0
-        ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -1), -1)
+        ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -2), -2)
         bin_starts = ts
-        bin_ends = torch.cat([ts[..., 1:], ts[..., -1:]], dim=-1)
+        bin_ends = torch.cat([ts[..., 1:, :], ts[..., -1:, :]], dim=-2)
         ray_samples = ray_bundle.get_ray_samples(bin_starts=bin_starts, bin_ends=bin_ends)
 
         field_outputs = {}

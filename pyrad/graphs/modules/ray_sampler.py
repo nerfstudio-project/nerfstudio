@@ -115,7 +115,7 @@ class SpacedSampler(Sampler):
             bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
             bins = bin_lower + (bin_upper - bin_lower) * t_rand
 
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1], bin_ends=bins[..., 1:])
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
 
         return ray_samples
 
@@ -356,6 +356,6 @@ class PDFSampler(Sampler):
         # Stop gradients
         bins = bins.detach()
 
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1], bin_ends=bins[..., 1:])
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
 
         return ray_samples
