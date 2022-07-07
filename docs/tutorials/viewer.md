@@ -13,7 +13,8 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 python scripts/run_viewer_bridge_server.py
 
 # Run training script with viewer enabled.
-python scripts/run_train.py viewer.enable=True
+# note that running with instant ngp if much faster than vanilla nerf
+python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
 ```
 
 <hr>
