@@ -12,35 +12,35 @@ import umsgpack
 from tqdm import tqdm
 
 import pyrad.viewer.server.geometry as g
-import pyrad.viewer.server.transformations as tf
 from pyrad.cameras.camera_paths import InterpolatedCameraPath
 from pyrad.cameras.cameras import get_camera
 from pyrad.data.utils import get_dataset_inputs
 from pyrad.utils.io import get_absolute_path
-from pyrad.viewer.server.vis_utils import get_vis, set_camera
+from pyrad.viewer.server.viewer_utils import get_default_vis, set_camera
+from pyrad.viewer.server.transformations import get_rotation_matrix, get_translation_matrix
 
 
 def test_drawing():
-    vis = get_vis()
+    vis = get_default_vis()
     vis.delete()
 
     v = vis["shapes"]
-    v.set_transform(tf.translation_matrix([1.0, 0, 0]))
+    v.set_transform(get_translation_matrix([1.0, 0, 0]))
     v["box"].set_object(g.Box([1.0, 0.2, 0.3]))
     v["box"].delete()
     v["box"].set_object(g.Box([0.1, 0.2, 0.3]))
-    v["box"].set_transform(tf.translation_matrix([0.05, 0.1, 0.15]))
+    v["box"].set_transform(get_translation_matrix([0.05, 0.1, 0.15]))
     v["cylinder"].set_object(g.Cylinder(0.2, 0.1), g.MeshLambertMaterial(color=0x22DD22))
-    v["cylinder"].set_transform(tf.translation_matrix([0, 0.5, 0.1]).dot(tf.rotation_matrix(-np.pi / 2, [1, 0, 0])))
+    v["cylinder"].set_transform(get_translation_matrix([0, 0.5, 0.1]).dot(get_rotation_matrix(-np.pi / 2, [1, 0, 0])))
     v["sphere"].set_object(g.Mesh(g.Sphere(0.15), g.MeshLambertMaterial(color=0xFF11DD)))
-    v["sphere"].set_transform(tf.translation_matrix([0, 1, 0.15]))
+    v["sphere"].set_transform(get_translation_matrix([0, 1, 0.15]))
     v["ellipsoid"].set_object(g.Ellipsoid([0.3, 0.1, 0.1]))
-    v["ellipsoid"].set_transform(tf.translation_matrix([0, 1.5, 0.1]))
+    v["ellipsoid"].set_transform(get_translation_matrix([0, 1.5, 0.1]))
 
     v["transparent_ellipsoid"].set_object(
         g.Mesh(g.Ellipsoid([0.3, 0.1, 0.1]), g.MeshLambertMaterial(color=0xFFFFFF, opacity=0.5))
     )
-    v["transparent_ellipsoid"].set_transform(tf.translation_matrix([0, 2.0, 0.1]))
+    v["transparent_ellipsoid"].set_transform(get_translation_matrix([0, 2.0, 0.1]))
 
     v = vis["meshes/convex"]
     v["obj"].set_object(
@@ -49,43 +49,43 @@ def test_drawing():
     v["stl_ascii"].set_object(
         g.Mesh(g.StlMeshGeometry.from_file(get_absolute_path("tests/viewer/data/mesh_0_convex_piece_0.stl_ascii")))
     )
-    v["stl_ascii"].set_transform(tf.translation_matrix([0, -0.5, 0]))
+    v["stl_ascii"].set_transform(get_translation_matrix([0, -0.5, 0]))
     v["stl_binary"].set_object(
         g.Mesh(g.StlMeshGeometry.from_file(get_absolute_path("tests/viewer/data/mesh_0_convex_piece_0.stl_binary")))
     )
-    v["stl_binary"].set_transform(tf.translation_matrix([0, -1, 0]))
+    v["stl_binary"].set_transform(get_translation_matrix([0, -1, 0]))
     v["dae"].set_object(
         g.Mesh(g.DaeMeshGeometry.from_file(get_absolute_path("tests/viewer/data/mesh_0_convex_piece_0.dae")))
     )
-    v["dae"].set_transform(tf.translation_matrix([0, -1.5, 0]))
+    v["dae"].set_transform(get_translation_matrix([0, -1.5, 0]))
 
     v = vis["points"]
-    v.set_transform(tf.translation_matrix([0, 2, 0]))
+    v.set_transform(get_translation_matrix([0, 2, 0]))
     verts = np.random.rand(3, 1000000)
     colors = verts
     v["random"].set_object(g.PointCloud(verts, colors))
-    v["random"].set_transform(tf.translation_matrix([-0.5, -0.5, 0]))
+    v["random"].set_transform(get_translation_matrix([-0.5, -0.5, 0]))
 
     v = vis["lines"]
-    v.set_transform(tf.translation_matrix(([-2, -3, 0])))
+    v.set_transform(get_translation_matrix(([-2, -3, 0])))
 
     vertices = np.random.random((3, 10)).astype(np.float32)
     v["line_segments"].set_object(g.LineSegments(g.PointsGeometry(vertices)))
 
     v["line"].set_object(g.Line(g.PointsGeometry(vertices)))
-    v["line"].set_transform(tf.translation_matrix([0, 1, 0]))
+    v["line"].set_transform(get_translation_matrix([0, 1, 0]))
 
     v["line_loop"].set_object(g.LineLoop(g.PointsGeometry(vertices)))
-    v["line_loop"].set_transform(tf.translation_matrix([0, 2, 0]))
+    v["line_loop"].set_transform(get_translation_matrix([0, 2, 0]))
 
     v["line_loop_with_material"].set_object(g.LineLoop(g.PointsGeometry(vertices), g.LineBasicMaterial(color=0xFF0000)))
-    v["line_loop_with_material"].set_transform(tf.translation_matrix([0, 3, 0]))
+    v["line_loop_with_material"].set_transform(get_translation_matrix([0, 3, 0]))
 
     colors = vertices  # Color each line by treating its xyz coordinates as RGB colors
     v["line_with_vertex_colors"].set_object(
         g.Line(g.PointsGeometry(vertices, colors), g.LineBasicMaterial(vertexColors=True))
     )
-    v["line_with_vertex_colors"].set_transform(tf.translation_matrix([0, 4, 0]))
+    v["line_with_vertex_colors"].set_transform(get_translation_matrix([0, 4, 0]))
 
     v["triad"].set_object(
         g.LineSegments(
@@ -100,10 +100,10 @@ def test_drawing():
             g.LineBasicMaterial(vertexColors=True),
         )
     )
-    v["triad"].set_transform(tf.translation_matrix(([0, 5, 0])))
+    v["triad"].set_transform(get_translation_matrix(([0, 5, 0])))
 
     v["triad_function"].set_object(g.triad(0.5))
-    v["triad_function"].set_transform(tf.translation_matrix([0, 6, 0]))
+    v["triad_function"].set_transform(get_translation_matrix([0, 6, 0]))
 
 
 def test_streaming():
@@ -116,7 +116,7 @@ def test_rendering():
 
 def test_camera_trajectory():
     print("test_camera_trajectory")
-    vis = get_vis()
+    vis = get_default_vis()
     # vis.delete()
 
     # sample poses from a dataset
@@ -145,7 +145,7 @@ def test_camera_trajectory():
 
 
 def test_send_image_stream():
-    vis = get_vis()
+    vis = get_default_vis()
     vis_Background = vis["/Background"]
 
     video_filename = get_absolute_path("data/instant_ngp/bear/bear.MOV")
@@ -169,11 +169,11 @@ def test_send_image_stream():
 
 
 def test_perspective_camera():
-    vis = get_vis()
+    vis = get_default_vis()
     vis.set_object(g.Box([0.5, 0.5, 0.5]))
     camera = g.PerspectiveCamera(fov=90)
     vis["/Cameras/default/rotated"].set_object(camera)
-    vis["/Cameras/default"].set_transform(tf.translation_matrix([1, -1, 0.5]))
+    vis["/Cameras/default"].set_transform(get_translation_matrix([1, -1, 0.5]))
     vis["/Cameras/default/rotated/<object>"].set_property("position", [0, 0, 0])
 
 
