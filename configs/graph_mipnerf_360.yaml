@@ -28,3 +28,6 @@ graph:
     _target_: pyrad.graphs.modules.scene_colliders.NearFarCollider
     near_plane: 0.5
     far_plane: 20.0
+  loss_coefficients:
+    ray_loss_coarse: 1.0
+    ray_loss_fine: 1.0

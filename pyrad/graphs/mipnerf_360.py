@@ -30,6 +30,7 @@ from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.modules.spatial_distortions import SceneContraction
 from pyrad.fields.nerf_field import NeRFField
 from pyrad.graphs.base import Graph
+from pyrad.graphs.modules.ray_losses import interval_loss
 from pyrad.optimizers.loss import MSELoss
 from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
@@ -111,6 +112,7 @@ class MipNerf360Graph(Graph):
         )
         accumulation_coarse = self.renderer_accumulation(weights_coarse)
         depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform)
+        ray_loss_coarse = interval_loss(ray_samples_uniform, field_outputs_coarse[FieldHeadNames.DENSITY])
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
@@ -124,6 +126,7 @@ class MipNerf360Graph(Graph):
         )
         accumulation_fine = self.renderer_accumulation(weights_fine)
         depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf)
+        ray_loss_fine = interval_loss(ray_samples_pdf, field_outputs_fine[FieldHeadNames.DENSITY])
 
         outputs = {
             "rgb_coarse": rgb_coarse,
@@ -132,6 +135,8 @@ class MipNerf360Graph(Graph):
             "accumulation_fine": accumulation_fine,
             "depth_coarse": depth_coarse,
             "depth_fine": depth_fine,
+            "ray_loss_coarse": ray_loss_coarse,
+            "ray_loss_fine": ray_loss_fine,
         }
         return outputs
 
@@ -139,7 +144,12 @@ class MipNerf360Graph(Graph):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
-        loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        loss_dict = {
+            "rgb_loss_coarse": rgb_loss_coarse,
+            "rgb_loss_fine": rgb_loss_fine,
+            "ray_loss_coarse": torch.mean(outputs["ray_loss_coarse"]),
+            "ray_loss_fine": torch.mean(outputs["ray_loss_fine"]),
+        }
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
@@ -183,6 +193,12 @@ class MipNerf360Graph(Graph):
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
         writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
+        writer.put_scalar(
+            name=f"ray_loss_coarse/val_{image_idx}", scalar=float(torch.mean(outputs["ray_loss_coarse"])), step=step
+        )
+        writer.put_scalar(
+            name=f"ray_loss_fine/val_{image_idx}", scalar=float(torch.mean(outputs["ray_loss_fine"])), step=step
+        )
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
 
