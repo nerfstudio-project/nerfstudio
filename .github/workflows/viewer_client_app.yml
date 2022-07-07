@@ -1,0 +1,57 @@
+name: Build and deploy viewer client app.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./pyrad/viewer/app
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: Install Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: 17.8.0
+
+      - name: Install packages
+        run: npm install
+
+      - name: Build project
+        run: CI=false npm run build
+
+      # - name: Run tests
+      #   run: npm test
+
+      - name: Upload production-ready build files
+        uses: actions/upload-artifact@v2
+        with:
+          name: production-files
+          path: ./pyrad/viewer/app/build
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    # if: github.ref == 'refs/heads/master'
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: production-files
+          path: ./pyrad/viewer/app/build
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pyrad/viewer/app/build

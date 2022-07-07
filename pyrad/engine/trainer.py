@@ -32,7 +32,7 @@ from pyrad.utils import profiler, writer
 from pyrad.utils.config import Config
 from pyrad.utils.decorators import check_main_thread
 from pyrad.utils.writer import EventName, TimeWriter
-from pyrad.viewer.backend import vis_utils
+from pyrad.viewer.server import vis_utils
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 

@@ -11,13 +11,13 @@ import numpy as np
 import umsgpack
 from tqdm import tqdm
 
-import pyrad.viewer.backend.geometry as g
-import pyrad.viewer.backend.transformations as tf
+import pyrad.viewer.server.geometry as g
+import pyrad.viewer.server.transformations as tf
 from pyrad.cameras.camera_paths import InterpolatedCameraPath
 from pyrad.cameras.cameras import get_camera
 from pyrad.data.utils import get_dataset_inputs
 from pyrad.utils.io import get_absolute_path
-from pyrad.viewer.backend.vis_utils import get_vis, set_camera
+from pyrad.viewer.server.vis_utils import get_vis, set_camera
 
 
 def test_drawing():

@@ -22,27 +22,22 @@ import sys
 import threading
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import umsgpack
-from omegaconf import DictConfig
-from pyrad.cameras.rays import RayBundle
-from pyrad.utils.config import ViewerConfig
 
-import pyrad.viewer.backend.cameras as c
-import pyrad.viewer.backend.geometry as g
-import pyrad.viewer.backend.transformations as tf
+import pyrad.viewer.server.cameras as c
+import pyrad.viewer.server.geometry as g
+import pyrad.viewer.server.transformations as tf
 from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler
-from pyrad.viewer.backend import ViewerWindow, Visualizer
-from pyrad.viewer.backend.utils import get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.utils.config import ViewerConfig
+from pyrad.viewer.server import Viewer
+from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 
 
 class CameraChangeException(Exception):
     """Basic camera exception to interrupt visualizer"""
-
-    pass
 
 
 class SetTrace:
@@ -64,11 +59,12 @@ class VisualizerState:
 
     def __init__(self, config: ViewerConfig):
         self.config = config
+
         self.vis = None
         if self.config.enable:
-            window = ViewerWindow(zmq_url=self.config.zmq_url)
-            self.vis = Visualizer(window=window)
-            logging.info("Connected to viewer at %s", self.config.zmq_url)
+            zmq_url = self.config.zmq_url
+            self.vis = Viewer(zmq_url=zmq_url)
+            logging.info("Connected to viewer at %s", zmq_url)
             self.vis.delete()
         else:
             logging.info("Continuing without viewer.")
@@ -130,8 +126,9 @@ class VisualizerState:
             self.check_done_render = False
         while not self.check_done_render:
             data = self.vis["/Cameras/Main Camera"].get_object()
-            message = umsgpack.unpackb(data)
-            camera_object = message["object"]["object"]
+            if data is None:
+                return
+            camera_object = data["object"]["object"]
             if self.prev_camera_matrix is None or not np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
                 with self.lock:
                     self.check_interrupt_vis = True
@@ -155,8 +152,9 @@ class VisualizerState:
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
         """
         data = self.vis["/Cameras/Main Camera"].get_object()
-        message = umsgpack.unpackb(data)
-        camera_object = message["object"]["object"]
+        if data is None:
+            return
+        camera_object = data["object"]["object"]
         # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
         if self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
             self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
@@ -193,28 +191,21 @@ class VisualizerState:
         if outputs is not None:
             # gross hack to get the image key, depending on which keys the graph uses
             rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
-            # TODO: make it such that the TCP connection doesn't need float64
-            image = outputs[rgb_key].cpu().numpy().astype("float64") * 255
+            image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
             self.vis["/Cameras/Main Camera"].set_image(image)
         return outputs
 
 
-def get_vis(zmq_url="tcp://0.0.0.0:6000"):
-    """Returns the vis object."""
-    window = ViewerWindow(zmq_url)
-    vis = Visualizer(window=window)
-    return vis
+def get_default_vis():
+    """Returns the default Visualizer."""
+    zmq_url = "tcp://0.0.0.0:6000"
+    viewer = Viewer(zmq_url=zmq_url)
+    return viewer
 
 
 def show_box_test(vis):
     """Simple test to draw a box and make sure everything is working."""
     vis["box"].set_object(g.Box([1.0, 1.0, 1.0]), material=g.MeshPhongMaterial(color=0xFF0000))
-
-
-def get_random_color():
-    color = np.random.rand(3) * 255.0
-    color = tuple([int(x) for x in color])
-    return color
 
 
 def show_ply(vis, ply_path, name="ply", color=None):

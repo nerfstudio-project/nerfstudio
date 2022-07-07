@@ -15,15 +15,20 @@
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+import msgpack
+import msgpack_numpy
 import umsgpack
 import zmq
 
-from .commands import Delete, SetObject, GetObject, SetImage, SetProperty, SetTransform
+from pyrad.viewer.server.socket import SerializingContext
+
+from .commands import Delete, SetObject, GetObject, SetProperty, SetTransform
 from .path import Path
 
 
 class ViewerWindow(object):
     context = zmq.Context()
+    # context = SerializingContext()
 
     def __init__(self, zmq_url):
         self.zmq_url = zmq_url
@@ -42,28 +47,53 @@ class ViewerWindow(object):
         return self.client.recv()
 
 
-class Visualizer(object):
-    def __init__(self, window):
-        self.window = window
-        self.path = Path(("pyrad",))  # TODO(ethan): change this
+class Viewer(object):
+    """Visualizer class for connecting to the bridge server."""
+
+    def __init__(self, zmq_url: str = None, window: ViewerWindow = None):
+        if zmq_url is None and window is None:
+            raise ValueError("Must specify either zmq_url or window.")
+        if window is None:
+            self.window = ViewerWindow(zmq_url=zmq_url)
+        else:
+            self.window = window
+        self.path = Path(("pyrad",))
 
     @staticmethod
-    def view_into(window, path):
-        vis = Visualizer(window)
+    def view_into(window: ViewerWindow, path: Path):
+        """Returns a new Viewer but keeping the same ViewerWindow."""
+        vis = Viewer(window=window)
         vis.path = path
         return vis
 
     def __getitem__(self, path):
-        return Visualizer.view_into(self.window, self.path.append(path))
+        return Viewer.view_into(self.window, self.path.append(path))
 
     def set_object(self, geometry, material=None):
         return self.window.send(SetObject(geometry, material, self.path))
 
     def get_object(self):
-        return self.window.send(GetObject(self.path))
+        """Get the object at the current path."""
+        data = self.window.send(GetObject(self.path))
+        data = umsgpack.unpackb(data)
+        if isinstance(data, str) and data.find("error") == 0:
+            # some error meaning that the object does not exist
+            return None
+        return data
 
     def set_image(self, image):
-        return self.window.send(SetImage(image, self.path))
+        """Set the image"""
+        type_ = "set_image"
+        path = self.path.lower()
+        data = msgpack.packb(image, default=msgpack_numpy.encode, use_bin_type=True)
+        self.window.client.send_multipart(
+            [
+                type_.encode("utf-8"),
+                path.encode("utf-8"),
+                data,
+            ]
+        )
+        return self.window.client.recv()
 
     def set_transform(self, matrix=np.eye(4)):
         assert matrix.shape == (4, 4)
@@ -76,4 +106,4 @@ class Visualizer(object):
         return self.window.send(Delete(self.path))
 
     def __repr__(self):
-        return "<Visualizer using: {window} at path: {path}>".format(window=self.window, path=self.path)
+        return "<Viewer using: {window} at path: {path}>".format(window=self.window, path=self.path)

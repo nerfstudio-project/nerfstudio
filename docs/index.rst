@@ -28,6 +28,7 @@ Contents
    tutorials/data_setup.rst
    tutorials/creating_graphs.md
    Contributing <tutorials/contributing.md>
+   tutorials/viewer.md
 
 .. toctree::
    :hidden:
