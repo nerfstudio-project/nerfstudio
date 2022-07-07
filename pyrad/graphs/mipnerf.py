@@ -169,6 +169,8 @@ class MipNerfGraph(Graph):
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
         rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
+        rgb_coarse = torch.clip(rgb_coarse, min=-1, max=1)
+        rgb_fine = torch.clip(rgb_fine, min=-1, max=1)
 
         coarse_psnr = self.psnr(image, rgb_coarse)
         fine_psnr = self.psnr(image, rgb_fine)

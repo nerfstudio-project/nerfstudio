@@ -55,8 +55,6 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     hydra_dir = f"{hydra_dir}/{basename}"
     initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
     config = compose("config.yaml")
-    ## set the tensorboard to a /tmp/ output file for now
-    config.logging.writer.TensorboardWriter.log_dir = "/tmp/"
     return config
 
 
@@ -81,7 +79,7 @@ def main(args):
         "meta info": {"graph": args.graph, "benchmark_date": args.benchmark_date, "hydra": args.hydra_base_dir},
         "results": benchmarks,
     }
-    json_file = os.path.join(args.hydra_base_dir, f"{args.timestamp}.json")
+    json_file = os.path.join(args.hydra_base_dir, f"{args.benchmark_date}.json")
     with open(json_file, "w", encoding="utf8") as f:
         json.dump(benchmark_info, f, indent=2)
     logging.info("saved benchmark results to %s", json_file)
@@ -91,6 +89,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-g", "--graph", type=str, required=True, help="name of nerf graph to benchmark")
     parser.add_argument("-d", "--benchmark_date", type=str, required=True, help="timestamp of run to benchmark")
-    parser.add_argument("-h", "--hydra_base_dir", type=str, required=True, help="hydra base output path")
+    parser.add_argument("-o", "--hydra_base_dir", type=str, default="outputs/", help="hydra base output path")
     args = parser.parse_args()
     main(args)

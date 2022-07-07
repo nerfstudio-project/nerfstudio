@@ -107,7 +107,7 @@ class NGPGraph(Graph):
         ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -2), -2)
         bin_starts = ts
         bin_ends = torch.cat([ts[..., 1:, :], ts[..., -1:, :]], dim=-2)
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bin_starts[..., 0], bin_ends=bin_ends[..., 0])
+        ray_samples = ray_bundle.get_ray_samples(bin_starts=bin_starts, bin_ends=bin_ends)
 
         field_outputs = {}
         for fo_name, _ in field_outputs_pdf.items():
