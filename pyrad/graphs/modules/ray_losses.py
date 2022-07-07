@@ -28,8 +28,8 @@ def interval_loss(ray_samples: RaySamples, densities: TensorType[..., "num_sampl
         \\mathcal{L}(\\mathbf{s}, \\mathbf{w}) =\\iint\\limits_{-\\infty}^{\\,\\,\\,\\infty}
         \\mathbf{w}_\\mathbf{s}(u)\\mathbf{w}_\\mathbf{s}(v)|u - v|\\,d_{u}\\,d_{v}
 
-    where :math:`\\mathbf{w}_\\mathbf{s}(u)=\\sum_i w_i \\mathbb{1}_{[\\mathbf{s}_i, \\mathbf{s}_{i+1})}(u)` is the weight
-    at location :math:`u` between bin locations :math:`s_i` and :math:`s_{i+1}`.
+    where :math:`\\mathbf{w}_\\mathbf{s}(u)=\\sum_i w_i \\mathbb{1}_{[\\mathbf{s}_i, \\mathbf{s}_{i+1})}(u)`
+    is the weight at location :math:`u` between bin locations :math:`s_i` and :math:`s_{i+1}`.
 
     Args:
         ray_samples (RaySamples): Ray samples to compute loss over
