@@ -2,7 +2,6 @@
 run_train_nerf.py
 """
 
-import datetime
 import logging
 import os
 import random
@@ -56,7 +55,7 @@ def _distributed_worker(
     machine_rank: int,
     dist_url: str,
     config: Config,
-    timeout: datetime = DEFAULT_TIMEOUT,
+    timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
        training process on multiple processes
@@ -70,8 +69,8 @@ def _distributed_worker(
         dist_url (str): url to connect to for distributed jobs, including protocol
                         e.g. "tcp://127.0.0.1:8686".
                         Can be set to "auto" to automatically select a free port on localhost
-        config (Config): config file specifying trainng regimen
-        timeout (datetime, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
+        config (Config): config file specifying training regimen
+        timeout (timedelta, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
 
     Raises:
         e: Exception in initializing the process group
@@ -137,7 +136,7 @@ def launch(
     machine_rank: int = 0,
     dist_url: str = "auto",
     config: Config = None,
-    timeout: datetime = DEFAULT_TIMEOUT,
+    timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
 
@@ -147,8 +146,8 @@ def launch(
         num_machines (int, optional): total number of machines
         machine_rank (int, optional): rank of this machine. Defaults to 0.
         dist_url (str, optional): url to connect to for distributed jobs. Defaults to "auto".
-        config (Config, optional): config file specifying trainng regimen Defaults to None.
-        timeout (datetime, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
+        config (Config, optional): config file specifying training regimen. Defaults to None.
+        timeout (timedelta, optional): timeout of the distributed workers. Defaults to DEFAULT_TIMEOUT.
     """
     world_size = num_machines * num_gpus_per_machine
     if world_size == 0:

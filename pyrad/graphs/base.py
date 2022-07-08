@@ -140,7 +140,7 @@ class Graph(AbstractGraph):
         """Run forward starting with a ray bundle."""
         intersected_ray_bundle = self.collider(ray_bundle)
 
-        if isinstance(batch, type(None)):
+        if batch is None:
             # during inference, keep all rays
             outputs = self.get_outputs(intersected_ray_bundle)
             return outputs

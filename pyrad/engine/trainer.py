@@ -15,6 +15,7 @@
 """
 Code to train model.
 """
+import functools
 import logging
 import os
 from typing import Dict
@@ -82,15 +83,14 @@ class Trainer:
         self.graph.register_callbacks()
 
     @classmethod
-    def get_aggregated_loss(cls, loss_dict: Dict[str, torch.tensor]):
+    def get_aggregated_loss(cls, loss_dict: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Returns the aggregated losses and the scalar for calling .backwards() on.
         # TODO: move this out to another file/class/etc.
         """
-        loss_sum = 0.0
-        for loss_name in loss_dict.keys():
-            # TODO(ethan): add loss weightings here from a config
-            loss_sum += loss_dict[loss_name]
-        return loss_sum
+        # TODO(ethan): add loss weightings here from a config
+        # e.g. weighted_losses = map(lambda k: some_weight_dict[k] * loss_dict[k], loss_dict.keys())
+        weighted_losses = loss_dict.values()
+        return functools.reduce(torch.add, weighted_losses)
 
     def train(self) -> None:
         """Train the model."""

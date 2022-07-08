@@ -31,7 +31,7 @@ from pyrad.cameras.rays import RaySamples
 
 try:
     import tinycudann as tcnn
-except ImportError as e:
+except ImportError:
     # tinycudann module doesn't exist
     pass
 
