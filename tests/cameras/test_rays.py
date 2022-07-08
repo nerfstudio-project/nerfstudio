@@ -20,8 +20,8 @@ def test_frustum_get_position():
     frustum = Frustums(
         origins=origin,
         directions=direction,
-        frustum_starts=frustum_start,
-        frustum_ends=frustum_end,
+        starts=frustum_start,
+        ends=frustum_end,
         pixel_area=torch.ones((1, 1)),
     )
 
@@ -35,8 +35,8 @@ def test_frustum_get_gaussian_blob():
     frustum = Frustums(
         origins=torch.ones((5, 3)),
         directions=torch.ones((5, 3)),
-        frustum_starts=torch.ones((5, 1)),
-        frustum_ends=torch.ones((5, 1)),
+        starts=torch.ones((5, 1)),
+        ends=torch.ones((5, 1)),
         pixel_area=torch.ones((5, 1)),
     )
 
@@ -50,8 +50,8 @@ def test_frustum_apply_masks():
     frustum = Frustums(
         origins=torch.ones((5, 3)),
         directions=torch.ones((5, 3)),
-        frustum_starts=torch.ones((5, 1)),
-        frustum_ends=torch.ones((5, 1)),
+        starts=torch.ones((5, 1)),
+        ends=torch.ones((5, 1)),
         pixel_area=torch.ones((5, 1)),
     )
 
@@ -60,8 +60,8 @@ def test_frustum_apply_masks():
 
     assert frustum.origins.shape == (3, 3)
     assert frustum.directions.shape == (3, 3)
-    assert frustum.frustum_starts.shape == (3, 1)
-    assert frustum.frustum_ends.shape == (3, 1)
+    assert frustum.starts.shape == (3, 1)
+    assert frustum.ends.shape == (3, 1)
     assert frustum.pixel_area.shape == (3, 1)
 
 
