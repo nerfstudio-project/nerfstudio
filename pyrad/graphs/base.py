@@ -18,7 +18,6 @@ The Graph module contains all trainable parameters.
 from abc import abstractmethod
 from collections import defaultdict
 import time
-import traceback
 from typing import Any, Dict, List, Union
 
 import torch
