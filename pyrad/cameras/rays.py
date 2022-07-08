@@ -34,15 +34,15 @@ class Frustums(TensorDataclass):
     Args:
         origins (TensorType[..., 3]): xyz coordinate for ray origin.
         directions (TensorType[..., 3]): Direction of ray.
-        frustum_starts (TensorType[..., num_samples, 1]): Where the frustum starts along a ray.
-        frustum_ends (TensorType[..., num_samples, 1]): Where the frustum ends along a ray.
+        starts (TensorType[..., num_samples, 1]): Where the frustum starts along a ray.
+        ends (TensorType[..., num_samples, 1]): Where the frustum ends along a ray.
         pixel_area (TensorType[..., 1]): Projected area of pixel a distance 1 away from origin.
     """
 
     origins: TensorType[..., 3]
     directions: TensorType[..., 3]
-    frustum_starts: TensorType[..., 1]
-    frustum_ends: TensorType[..., 1]
+    starts: TensorType[..., 1]
+    ends: TensorType[..., 1]
     pixel_area: TensorType[..., 1]
 
     def get_positions(self) -> TensorType[..., 3]:
@@ -51,7 +51,7 @@ class Frustums(TensorDataclass):
         Returns:
             TensorType[..., 3]: xyz positions.
         """
-        return self.origins + self.directions * (self.frustum_starts + self.frustum_ends) / 2
+        return self.origins + self.directions * (self.starts + self.ends) / 2
 
     def get_gaussian_blob(self) -> Gaussians:
         """Calculates of guassian approximation of conical frustum.
@@ -64,8 +64,8 @@ class Frustums(TensorDataclass):
         return conical_frustum_to_gaussian(
             origins=self.origins,
             directions=self.directions,
-            starts=self.frustum_starts,
-            ends=self.frustum_ends,
+            starts=self.starts,
+            ends=self.ends,
             radius=cone_radius,
         )
 
@@ -79,8 +79,8 @@ class Frustums(TensorDataclass):
         return Frustums(
             origins=torch.ones((1, 3)).to(device),
             directions=torch.ones((1, 3)).to(device),
-            frustum_starts=torch.ones((1, 1)).to(device),
-            frustum_ends=torch.ones((1, 1)).to(device),
+            starts=torch.ones((1, 1)).to(device),
+            ends=torch.ones((1, 1)).to(device),
             pixel_area=torch.ones((1, 1)).to(device),
         )
 
@@ -93,16 +93,12 @@ class RaySamples(TensorDataclass):
         frustums (Frustums): Frustums along ray.
         camera_indices (TensorType[..., 1]): Camera index.
         valid_mask (TensorType[..., 1]): Rays that are valid.
-        bin_starts (TensorType[..., 1]): frustum starts along ray.
-        bin_ends (TensorType[..., 1]): frustum ends along ray.
-        deltas )TensorType[..., 1]): "width" of each sample.
+        deltas (TensorType[..., 1]): "width" of each sample.
     """
 
     frustums: Frustums
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[..., 1] = None
-    bin_starts: TensorType[..., 1] = None
-    bin_ends: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
@@ -250,8 +246,8 @@ class RayBundle(TensorDataclass):
         frustums = Frustums(
             origins=self.origins[:, None, :],  # [N_rays, 1, 3]
             directions=self.directions[:, None, :],  # [N_rays, 1, 3]
-            frustum_starts=bin_starts,  # [N_rays, N_samples, 1]
-            frustum_ends=bin_ends,  # [N_rays, N_samples, 1]
+            starts=bin_starts,  # [N_rays, N_samples, 1]
+            ends=bin_ends,  # [N_rays, N_samples, 1]
             pixel_area=self.pixel_area[:, None, :],  # [N_rays, 1, 1]
         ).to(device)
 
@@ -259,8 +255,6 @@ class RayBundle(TensorDataclass):
             frustums=frustums,
             camera_indices=camera_indices,  # [N_rays, 1, 1]
             valid_mask=valid_mask,  # [N_rays, N_samples, 1]
-            bin_starts=bin_starts,  # [N_rays, N_samples, 1]
-            bin_ends=bin_ends,  # [N_rays, N_samples, 1]
             deltas=deltas,  # [N_rays, N_samples, 1]
         )
 

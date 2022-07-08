@@ -63,12 +63,14 @@ def test_depth_renderer():
     weights = torch.ones((3, num_samples, 1))
     weights /= torch.sum(weights, axis=-2, keepdim=True)
 
+    frustums = Frustums.get_mock_frustum()
+    frustums.starts = torch.linspace(0, 100, num_samples)[..., None]
+    frustums.ends = torch.linspace(1, 101, num_samples)[..., None]
+
     ray_samples = RaySamples(
-        frustums=Frustums.get_mock_frustum(),
+        frustums=frustums,
         camera_indices=torch.ones((num_samples, 1)),
         valid_mask=torch.ones((num_samples, 1)),
-        bin_starts=torch.linspace(0, 100, num_samples)[..., None],
-        bin_ends=torch.linspace(1, 101, num_samples)[..., None],
         deltas=torch.ones((num_samples, 1)),
     )
 

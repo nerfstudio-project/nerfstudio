@@ -190,7 +190,7 @@ class DepthRenderer(nn.Module):
 
         if self.method == "expected":
             eps = 1e-10
-            steps = (ray_samples.bin_starts + ray_samples.bin_ends) / 2
+            steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
             depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
 
             depth = torch.clip(depth, steps[..., 0, :], steps[..., -1, :])
