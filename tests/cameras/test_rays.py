@@ -60,8 +60,8 @@ def test_frustum_apply_masks():
 
     assert frustum.origins.shape == (3, 3)
     assert frustum.directions.shape == (3, 3)
-    assert frustum.frustum_starts.shape == (3, 1)
-    assert frustum.frustum_ends.shape == (3, 1)
+    assert frustum.starts.shape == (3, 1)
+    assert frustum.ends.shape == (3, 1)
     assert frustum.pixel_area.shape == (3, 1)
 
 
