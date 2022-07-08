@@ -14,9 +14,9 @@
 
 """Structured config classes"""
 
-from dataclasses import MISSING, dataclass
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
-from omegaconf import DictConfig
+from omegaconf import DictConfig, MISSING
 
 
 @dataclass
@@ -56,8 +56,7 @@ class TrainerConfig:
     steps_per_save: int = MISSING
     steps_per_test: int = MISSING
     max_num_iterations: int = MISSING
-    # additional optional parameters here
-    resume_train: Optional[ResumeTrainConfig] = None
+    resume_train: ResumeTrainConfig = MISSING
 
 
 @dataclass

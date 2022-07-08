@@ -77,7 +77,11 @@ class Profiler:
     def print_profile(self):
         """helper to print out the profiler stats"""
         logging.info("Printing profiling stats, from longest to shortest duration in seconds")
-        sorted_keys = [k for k, _ in sorted(self.profiler_dict.items(), key=lambda item: item[1]["val"], reverse=True)]
+        sorted_keys = sorted(
+            self.profiler_dict.keys(),
+            key=lambda k: self.profiler_dict[k]["val"],
+            reverse=True,
+        )
         for k in sorted_keys:
             val = f"{self.profiler_dict[k]['val']:0.4f}"
             print(f"{k:<20}: {val:<20}")
