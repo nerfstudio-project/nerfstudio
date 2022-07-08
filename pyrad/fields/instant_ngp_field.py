@@ -20,7 +20,6 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 from typing import Tuple
 
 import torch
-import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 from pyrad.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
@@ -28,6 +27,7 @@ from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.base import Field
 from pyrad.fields.nerf_field import NeRFField
 from pyrad.cameras.rays import RaySamples
+from pyrad.utils.activations import trunc_exp
 
 try:
     import tinycudann as tcnn
@@ -115,7 +115,12 @@ class TCNNInstantNGPField(Field):
         x = self.position_encoding(positions_flat)
         h = self.mlp_base(x).view(*ray_samples.frustums.get_positions().shape[:-1], -1).to(dtype)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
-        density = F.softplus(density_before_activation)
+
+        # Rectifying the density with an exponential is much more stable than a ReLU or
+        # softplus, because it enables high post-activation (float32) density outputs
+        # from smaller internal (float16) parameters.
+        assert density_before_activation.dtype is torch.float32
+        density = trunc_exp(density_before_activation)
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding=None):
