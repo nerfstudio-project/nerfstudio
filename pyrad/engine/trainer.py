@@ -15,6 +15,7 @@
 """
 Code to train model.
 """
+import functools
 import logging
 import os
 from typing import Dict
@@ -23,7 +24,6 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
-import functools
 
 from pyrad.cameras.rays import RayBundle
 from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
