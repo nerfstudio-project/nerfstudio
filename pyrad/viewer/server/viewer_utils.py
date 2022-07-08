@@ -85,6 +85,7 @@ class VisualizerState:
             self._render_image_in_viewer(graph)
 
     def _check_interrupt(self, frame, event, arg):
+        """raises interrupt when flag has been set and not already on lowest resolution"""
         if event == "line":
             if self.check_interrupt_vis and self.res_upscale_factor > 1:
                 self.res_upscale_factor = 1
@@ -96,9 +97,8 @@ class VisualizerState:
         if self.vis and step != 0:
             if self.res_upscale_factor == 1:
                 return True
-            else:
-                steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
-                return step % steps_per_render_image == 0
+            steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
+            return step % steps_per_render_image == 0
         return False
 
     def _draw_scene_in_viewer(self, image_dataset, dataset_inputs):
@@ -138,11 +138,19 @@ class VisualizerState:
                 self.check_interrupt_vis = True
             time.sleep(0.001)
 
+    def _interruptable_get_outputs_for_camera_ray_bundle(self, graph, camera_ray_bundle: RayBundle):
+        """wrapper around graph function, terminating when interrupting"""
+        try:
+            outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            return outputs
+        except CameraChangeException:
+            return None
+
     @torch.no_grad()
     def _async_get_visualizer_outputs(self, graph, camera_ray_bundle: RayBundle):
         """async getter function for visualizer without returning"""
         with SetTrace(self._check_interrupt):
-            graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            self._interruptable_get_outputs_for_camera_ray_bundle(graph, camera_ray_bundle)
         self.check_done_render = True
         self.check_interrupt_vis = False
 
