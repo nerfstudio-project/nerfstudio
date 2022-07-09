@@ -95,7 +95,7 @@ class VisualizerState:
                 raise CameraChangeException
         return self._check_interrupt
 
-    def _is_render_step(self, step: int, default_steps: int=5) -> bool:
+    def _is_render_step(self, step: int, default_steps: int = 5) -> bool:
         """dynamically calculate when to render grapic based on resolution of image"""
         if self.vis and step != 0:
             if self.res_upscale_factor == 1:
@@ -219,7 +219,7 @@ def show_box_test(vis: Viewer):
     vis["box"].set_object(g.Box([1.0, 1.0, 1.0]), material=g.MeshPhongMaterial(color=0xFF0000))
 
 
-def show_ply(vis: Viewer, ply_path: str, name: str="ply", color=None):
+def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color=None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input."""
     assert ply_path.endswith(".ply")
     if color:
@@ -229,7 +229,7 @@ def show_ply(vis: Viewer, ply_path: str, name: str="ply", color=None):
     vis[name].set_object(g.PlyMeshGeometry.from_file(ply_path), material)
 
 
-def show_obj(vis: Viewer, obj_path: str, name: str="obj", color=None):
+def show_obj(vis: Viewer, obj_path: str, name: str = "obj", color=None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input."""
     assert obj_path.endswith(".obj")
     if color:
