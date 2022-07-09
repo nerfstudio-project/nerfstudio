@@ -31,8 +31,8 @@ def test_tcnn_instant_ngp_field():
     frustums = Frustums(
         origins=positions,
         directions=directions,
-        frustum_starts=torch.zeros((*directions.shape[:-1], 1), device=device),
-        frustum_ends=torch.zeros((*directions.shape[:-1], 1), device=device),
+        starts=torch.zeros((*directions.shape[:-1], 1), device=device),
+        ends=torch.zeros((*directions.shape[:-1], 1), device=device),
         pixel_area=torch.ones((*directions.shape[:-1], 1), device=device),
     )
     ray_samples = RaySamples(frustums=frustums)

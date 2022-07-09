@@ -337,9 +337,9 @@ class PDFSampler(Sampler):
         # Force bins to not have a gap between them. Kinda hacky, should reconsider.
         existing_bins = torch.cat(
             [
-                ray_samples.bin_starts[..., :1, 0],
-                (ray_samples.bin_starts[..., 1:, 0] + ray_samples.bin_ends[..., :-1, 0]) / 2.0,
-                ray_samples.bin_ends[..., -1:, 0],
+                ray_samples.frustums.starts[..., :1, 0],
+                (ray_samples.frustums.starts[..., 1:, 0] + ray_samples.frustums.ends[..., :-1, 0]) / 2.0,
+                ray_samples.frustums.ends[..., -1:, 0],
             ],
             axis=-1,
         )

@@ -20,8 +20,8 @@ from torchtyping import TensorType
 from pyrad.cameras.rays import RaySamples
 
 
-def interval_loss(ray_samples: RaySamples, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., 1]:
-    """Interval loss origially proposed in MipNeRF-360.
+def distortion_loss(ray_samples: RaySamples, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., 1]:
+    """Ray baserd distortion loss proposed in MipNeRF-360.
 
     .. math::
 
@@ -36,18 +36,18 @@ def interval_loss(ray_samples: RaySamples, densities: TensorType[..., "num_sampl
         densities (TensorType[..., "num_samples", 1]): Predicted sample densities
 
     Returns:
-        TensorType[..., 1]: Interval Loss.
+        TensorType[..., 1]: Distortion Loss.
     """
 
     # Compute the weight at each sample location
     weights = ray_samples.get_weights(densities)
 
-    midpoints = (ray_samples.bin_starts + ray_samples.bin_ends) / 2.0  # (..., num_samples, 1)
+    midpoints = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2.0  # (..., num_samples, 1)
 
     loss = (
         weights * weights[..., None, :, 0] * torch.abs(midpoints - midpoints[..., None, :, 0])
     )  # (..., num_samples, num_samples)
     loss = torch.sum(loss, dim=(-1, -2))[..., None]  # (..., num_samples)
-    loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ray_samples.bin_ends - ray_samples.bin_starts), dim=-2)
+    loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ray_samples.frustums.ends - ray_samples.frustums.starts), dim=-2)
 
     return loss
