@@ -24,6 +24,9 @@ import time
 
 import numpy as np
 import torch
+from pyrad.data.image_dataset import ImageDataset
+from pyrad.data.structs import DatasetInputs
+from pyrad.graphs.base import Graph
 
 import pyrad.viewer.server.cameras as c
 import pyrad.viewer.server.geometry as g
@@ -55,7 +58,7 @@ class SetTrace:
 
 
 class VisualizerState:
-    """Class to hold state for"""
+    """Class to hold state for visualizer variables"""
 
     def __init__(self, config: ViewerConfig):
         self.config = config
@@ -74,12 +77,12 @@ class VisualizerState:
         self.check_interrupt_vis = False
         self.check_done_render = True
 
-    def init_scene(self, image_dataset, dataset_inputs):
+    def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """initializes the scene with the datasets"""
         if self.vis:
             self._draw_scene_in_viewer(image_dataset, dataset_inputs)
 
-    def update_scene(self, step, graph):
+    def update_scene(self, step: int, graph: Graph) -> None:
         """updates the scene based on the graph weights"""
         if self._is_render_step(step):
             self._render_image_in_viewer(graph)
@@ -92,7 +95,7 @@ class VisualizerState:
                 raise CameraChangeException
         return self._check_interrupt
 
-    def _is_render_step(self, step, default_steps=5):
+    def _is_render_step(self, step: int, default_steps: int = 5) -> bool:
         """dynamically calculate when to render grapic based on resolution of image"""
         if self.vis and step != 0:
             if self.res_upscale_factor == 1:
@@ -101,7 +104,7 @@ class VisualizerState:
             return step % steps_per_render_image == 0
         return False
 
-    def _draw_scene_in_viewer(self, image_dataset, dataset_inputs):
+    def _draw_scene_in_viewer(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """Draw some images and the scene aabb in the viewer."""
         indices = random.sample(range(len(image_dataset)), k=10)
         for idx in indices:
@@ -126,7 +129,7 @@ class VisualizerState:
         K = camera.get_intrinsics_matrix()
         set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def _async_check_camera_update(self):
+    def _async_check_camera_update(self) -> None:
         """Async function to check whether camera has been updated in visualizer"""
         self.check_done_render = False
         while not self.check_done_render:
@@ -138,7 +141,7 @@ class VisualizerState:
                 self.check_interrupt_vis = True
             time.sleep(0.001)
 
-    def _interruptable_get_outputs_for_camera_ray_bundle(self, graph, camera_ray_bundle: RayBundle):
+    def _interruptable_get_outputs_for_camera_ray_bundle(self, graph: Graph, camera_ray_bundle: RayBundle) -> None:
         """wrapper around graph function, terminating when interrupting"""
         try:
             outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
@@ -147,7 +150,7 @@ class VisualizerState:
             return None
 
     @torch.no_grad()
-    def _async_get_visualizer_outputs(self, graph, camera_ray_bundle: RayBundle):
+    def _async_get_visualizer_outputs(self, graph: Graph, camera_ray_bundle: RayBundle) -> None:
         """async getter function for visualizer without returning"""
         with SetTrace(self._check_interrupt):
             self._interruptable_get_outputs_for_camera_ray_bundle(graph, camera_ray_bundle)
@@ -155,7 +158,7 @@ class VisualizerState:
         self.check_interrupt_vis = False
 
     @profiler.time_function
-    def _render_image_in_viewer(self, graph):
+    def _render_image_in_viewer(self, graph: Graph) -> None:
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
@@ -202,22 +205,21 @@ class VisualizerState:
             rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
             image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
             self.vis["/Cameras/Main Camera"].set_image(image)
-        return outputs
 
 
-def get_default_vis():
+def get_default_vis() -> Viewer:
     """Returns the default Visualizer."""
     zmq_url = "tcp://0.0.0.0:6000"
     viewer = Viewer(zmq_url=zmq_url)
     return viewer
 
 
-def show_box_test(vis):
+def show_box_test(vis: Viewer):
     """Simple test to draw a box and make sure everything is working."""
     vis["box"].set_object(g.Box([1.0, 1.0, 1.0]), material=g.MeshPhongMaterial(color=0xFF0000))
 
 
-def show_ply(vis, ply_path, name="ply", color=None):
+def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color=None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input."""
     assert ply_path.endswith(".ply")
     if color:
@@ -227,7 +229,7 @@ def show_ply(vis, ply_path, name="ply", color=None):
     vis[name].set_object(g.PlyMeshGeometry.from_file(ply_path), material)
 
 
-def show_obj(vis, obj_path, name="obj", color=None):
+def show_obj(vis: Viewer, obj_path: str, name: str = "obj", color=None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input."""
     assert obj_path.endswith(".obj")
     if color:
@@ -238,7 +240,7 @@ def show_obj(vis, obj_path, name="obj", color=None):
 
 
 def draw_camera_frustum(
-    vis,
+    vis: Viewer,
     image=np.random.rand(100, 100, 3) * 255.0,
     pose=get_translation_matrix([0, 0, 0]),
     K=None,
