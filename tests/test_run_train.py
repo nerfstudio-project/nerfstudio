@@ -17,10 +17,12 @@ def set_reduced_config(config: DictConfig):
     """Reducing the config settings to speedup test"""
     config.machine.num_gpus = 0
     config.trainer.max_num_iterations = 2
-    # reduce dataset factors
+    # reduce dataset factors; set dataset to test
+    config.data.dataset_inputs_train.data_directory = "tests/data/lego_test"
     config.data.dataset_inputs_train.downscale_factor = 16
     config.data.dataloader_train.image_sampler.num_images_to_sample_from = 1
     config.data.dataloader_train.pixel_sampler.num_rays_per_batch = 4
+    config.data.dataset_inputs_eval.data_directory = "tests/data/lego_test"
     config.data.dataset_inputs_eval.downscale_factor = 16
     # reduce graph factors
     config.graph.num_coarse_samples = 4
