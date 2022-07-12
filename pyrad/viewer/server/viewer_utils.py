@@ -77,6 +77,8 @@ class VisualizerState:
         self.check_interrupt_vis = False
         self.check_done_render = True
 
+        self.outputs_set = False
+
     def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """initializes the scene with the datasets"""
         if self.vis:
@@ -201,6 +203,10 @@ class VisualizerState:
         graph.train()
         outputs = graph.vis_outputs
         if outputs is not None:
+            if not self.outputs_set:
+                set_output_options(self.vis, list(outputs.keys()))
+                self.outputs_set = True
+
             # gross hack to get the image key, depending on which keys the graph uses
             rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
             image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
@@ -212,6 +218,10 @@ def get_default_vis() -> Viewer:
     zmq_url = "tcp://0.0.0.0:6000"
     viewer = Viewer(zmq_url=zmq_url)
     return viewer
+
+
+def set_output_options(vis: Viewer, output_options):
+    vis["output_options"].set_output_options(output_options)
 
 
 def show_box_test(vis: Viewer):

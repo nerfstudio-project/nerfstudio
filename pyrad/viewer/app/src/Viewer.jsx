@@ -161,6 +161,14 @@ export class Viewer extends Component {
     }
   }
 
+  set_output_options(object) {
+    let output_options_control = new function () {
+        this.output_options = 'rgb';
+    }
+    // add controls
+    this.state.gui.add(output_options_control, 'output_options', object)
+  }
+
   handle_command(cmd) {
     // convert binary serialization format back to JSON
     cmd = msgpack.decode(new Uint8Array(cmd));
@@ -179,6 +187,8 @@ export class Viewer extends Component {
     } else if (cmd.type === "set_property") {
       let path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
+    } else if(cmd.type == 'set_output_options') {
+      this.set_output_options(cmd.output_options);
     }
     // web rtc commands
     else if (cmd.type === "answer") {

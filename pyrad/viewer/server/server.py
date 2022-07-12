@@ -37,7 +37,7 @@ MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"
 DEFAULT_ZMQ_PORT = 6000
 DEFAULT_WEBSOCKET_PORT = 8051
-WEBSOCKET_COMMANDS = ["set_transform", "set_object", "get_object", "set_property", "delete"]
+WEBSOCKET_COMMANDS = ["set_transform", "set_object", "set_output_options", "get_object", "set_property", "delete"]
 WEBRTC_COMMANDS = ["set_image"]
 
 
@@ -95,6 +95,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         elif type_ == "set_object":
             find_node(self.bridge.tree, path).object = data
             find_node(self.bridge.tree, path).properties = []
+        elif type_ == "set_output_options":
+            find_node(self.bridge.tree, path).object = data
         elif type_ == "offer":
             offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
 
@@ -177,6 +179,8 @@ class ZMQWebSocketBridge(object):
             elif cmd == "set_object":
                 find_node(self.tree, path).object = data
                 find_node(self.tree, path).properties = []
+            elif cmd == "set_output_options":
+                find_node(self.tree, path).object = data
             elif cmd == "get_object":
                 data = find_node(self.tree, path).object
                 if isinstance(data, type(None)):
