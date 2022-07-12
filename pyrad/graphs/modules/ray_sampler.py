@@ -23,8 +23,8 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
 from pyrad.cameras.rays import RayBundle, RaySamples
+from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
 
 
 class Sampler(nn.Module):
@@ -305,34 +305,34 @@ class PDFSampler(Sampler):
             u = torch.linspace(0.0, 1.0, steps=num_bins, device=cdf.device)
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
 
-        mask = u[..., None, :] >= cdf[..., :, None]  # [num_samples, num_orig_bins, num_bins]
+        # mask = u[..., None, :] >= cdf[..., :, None]  # [num_samples, num_orig_bins, num_bins]
 
-        # Uses same interval trick as mip-NeRF
-        def find_interval(
-            mask: TensorType[..., "num_orig_bins", "num_bins"], x: TensorType[..., "num_orig_bins"]
-        ) -> Tuple[TensorType[..., "num_bins"], TensorType[..., "num_bins"]]:
-            """Find intervals based on cdf mask.
+        # # Uses same interval trick as mip-NeRF
+        # def find_interval(
+        #     mask: TensorType[..., "num_orig_bins", "num_bins"], x: TensorType[..., "num_orig_bins"]
+        # ) -> Tuple[TensorType[..., "num_bins"], TensorType[..., "num_bins"]]:
+        #     """Find intervals based on cdf mask.
 
-                 Mask                x              x_start         x_end
-               T T T T F      [x0 x1 x2 x3 x4]   [x0 x2 x3 x3]   [x1 x3 x4 x4]
-               T T T T F
-               T T T F F
-               T F F F F
+        #          Mask                x              x_start         x_end
+        #        T T T T F      [x0 x1 x2 x3 x4]   [x0 x2 x3 x3]   [x1 x3 x4 x4]
+        #        T T T T F
+        #        T T T F F
+        #        T F F F F
 
-               Where the number of rows correspond to the target number of bins. The number of columns
-               correspond to the input number of bins
+        #        Where the number of rows correspond to the target number of bins. The number of columns
+        #        correspond to the input number of bins
 
-            Args:
-                mask (TensorType[..., "num_orig_bins", "num_bins"]): PDF represented as a boolean mask.
-                x (TensorType[..., "num_original_bins"]): Probe to calculate intervals for.
+        #     Args:
+        #         mask (TensorType[..., "num_orig_bins", "num_bins"]): PDF represented as a boolean mask.
+        #         x (TensorType[..., "num_original_bins"]): Probe to calculate intervals for.
 
-            Returns:
-                Tuple[TensorType[..., "num_bins"], TensorType[..., "num_bins"]]: (x_start, x_end)
-            """
+        #     Returns:
+        #         Tuple[TensorType[..., "num_bins"], TensorType[..., "num_bins"]]: (x_start, x_end)
+        #     """
 
-            x_start = torch.max(torch.where(mask, x[..., None], x[..., :1, None]), -2)[0]
-            x_end = torch.min(torch.where(~mask, x[..., None], x[..., -1:, None]), -2)[0]
-            return x_start, x_end
+        #     x_start = torch.max(torch.where(mask, x[..., None], x[..., :1, None]), -2)[0]
+        #     x_end = torch.min(torch.where(~mask, x[..., None], x[..., -1:, None]), -2)[0]
+        #     return x_start, x_end
 
         # Force bins to not have a gap between them. Kinda hacky, should reconsider.
         existing_bins = torch.cat(
@@ -344,8 +344,20 @@ class PDFSampler(Sampler):
             axis=-1,
         )
 
-        bins_g0, bins_g1 = find_interval(mask, existing_bins)
-        cdf_g0, cdf_g1 = find_interval(mask, cdf)
+        # _bins_g0, _bins_g1 = find_interval(mask, existing_bins)
+        # _cdf_g0, _cdf_g1 = find_interval(mask, cdf)
+
+        # ~7x faster than `find_interval`
+        u = u.contiguous()
+        inds = torch.searchsorted(cdf, u, side="right")
+        below = torch.clamp(inds - 1, 0, num_bins - 1)
+        above = torch.clamp(inds, 0, num_bins - 1)
+        cdf_g0 = torch.gather(cdf, -1, below)
+        bins_g0 = torch.gather(existing_bins, -1, below)
+        cdf_g1 = torch.gather(cdf, -1, above)
+        bins_g1 = torch.gather(existing_bins, -1, above)
+        # assert torch.isclose(_bins_g0, bins_g0).all()
+        # assert torch.isclose(_cdf_g1, cdf_g1).all()
 
         t = torch.clip(torch.nan_to_num((u - cdf_g0) / (cdf_g1 - cdf_g0), 0), 0, 1)
         bins = bins_g0 + t * (bins_g1 - bins_g0)
