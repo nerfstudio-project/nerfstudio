@@ -25,6 +25,7 @@ from plotly import express as ex
 from torchtyping import TensorType
 
 from pyrad.cameras.rays import Frustums, RayBundle
+from pyrad.utils.math import Gaussians
 
 
 def color_str(color):
@@ -131,6 +132,63 @@ def visualize_dataset(camera_origins, ray_bundle: RayBundle):
     return fig
 
 
+def get_random_color(colormap: List[str] = None, idx: int = None) -> str:
+    """Get a random color from a colormap.
+
+    Args:
+        colormap (List[str], optional): List of colors. Defaults to Plotly colors.
+        idx (int, optional): Index of color to return. Defaults to None.
+
+    Returns:
+        str: random color string
+    """
+    if colormap is None:
+        colormap = ex.colors.qualitative.Plotly
+    if idx is None:
+        return colormap[np.random.randint(0, len(colormap))]
+    return colormap[idx % len(colormap)]
+
+
+def get_sphere(
+    radius: float, center: TensorType[3] = None, color: str = "black", opacity: float = 1.0, resolution: int = 32
+) -> go.Mesh3d:
+    """Returns a sphere object for plotting with plotly.
+
+    Args:
+        radius (float): radius of sphere.
+        center (TensorType[3], optional): center of sphere. Defaults to origin.
+        color (str, optional): color of sphere. Defaults to "black".
+        opacity (float, optional): opacity of sphere. Defaults to 1.0.
+        resolution (int, optional): resolution of sphere. Defaults to 32.
+
+    Returns:
+        go.Mesh3d: sphere object.
+    """
+    phi = torch.linspace(0, 2 * torch.pi, resolution)
+    theta = torch.linspace(-torch.pi / 2, torch.pi / 2, resolution)
+    phi, theta = torch.meshgrid(phi, theta, indexing="ij")
+
+    x = torch.cos(theta) * torch.sin(phi)
+    y = torch.cos(theta) * torch.cos(phi)
+    z = torch.sin(theta)
+    pts = torch.stack((x, y, z), axis=-1)
+
+    pts *= radius
+    if center is not None:
+        pts += center
+
+    return go.Mesh3d(
+        {
+            "x": pts[:, :, 0].flatten(),
+            "y": pts[:, :, 1].flatten(),
+            "z": pts[:, :, 2].flatten(),
+            "alphahull": 0,
+            "opacity": opacity,
+            "color": color,
+        }
+    )
+
+
 def get_gaussian_ellipsiod(
     mean: TensorType[3],
     cov: TensorType[3, 3],
@@ -139,7 +197,7 @@ def get_gaussian_ellipsiod(
     opacity: float = 0.5,
     resolution: int = 20,
     name: str = "ellipse",
-):
+) -> go.Mesh3d:
     """Get a plotly ellipsoid for a Gaussian.
 
     Args:
@@ -150,6 +208,9 @@ def get_gaussian_ellipsiod(
         opacity (float, optional): Opacity of the ellipsoid. Defaults to 0.5.
         resolution (int, optional): Resolution of the ellipsoid. Defaults to 20.
         name (str, optional): Name of the ellipsoid. Defaults to "ellipse".
+
+    Returns:
+        go.Mesh3d: ellipsoid object.
     """
 
     phi = torch.linspace(0, 2 * torch.pi, resolution)
@@ -164,7 +225,7 @@ def get_gaussian_ellipsiod(
     eigenvals, eigenvecs = torch.linalg.eigh(cov)
     idx = torch.sum(cov, axis=0).argsort()
     idx = eigenvals[idx].argsort()
-    eigenvals = eigenvals[idx][idx]
+    eigenvals = eigenvals[idx]
     eigenvecs = eigenvecs[:, idx]
 
     scaling = torch.sqrt(eigenvals) * n_std
@@ -185,6 +246,49 @@ def get_gaussian_ellipsiod(
             "name": name,
         }
     )
+
+
+def get_gaussian_ellipsoids_list(
+    gaussians: Gaussians, opacity: float = 0.5, color: str = "random", resolution: int = 20
+) -> List[Union[go.Mesh3d, go.Scatter3d]]:
+    """Get a list of plotly meshes for frustums.
+
+    Args:
+        gaussians (Gaussians): Gaussians to visualize.
+        opacity (float, optional): Opacity of the mesh. Defaults to 0.3.
+        color (str, optional): Color of the mesh. Defaults to "random".
+        resolution (int, optional): Resolution of the mesh. Defaults to 20.
+
+    Returns:
+        List[go.Mesh3d]: List of plotly meshes
+    """
+    data = []
+
+    vis_means = go.Scatter3d(
+        x=gaussians.mean[:, 0],
+        y=gaussians.mean[:, 1],
+        z=gaussians.mean[:, 2],
+        mode="markers",
+        marker=dict(size=2, color="black"),
+        name="Means",
+    )
+    data.append(vis_means)
+
+    for i in range(gaussians.mean.shape[0]):
+        if color == "random":
+            c = get_random_color()
+        else:
+            c = color
+        ellipse = get_gaussian_ellipsiod(
+            gaussians.mean[i],
+            cov=gaussians.cov[i],
+            color=c,
+            opacity=opacity,
+            resolution=resolution,
+        )
+        data.append(ellipse)
+
+    return data
 
 
 def get_frustum_mesh(
@@ -255,54 +359,10 @@ def get_frustums_mesh_list(
     data = []
     for i, frustum in enumerate(frustums.flatten()):
         if color == "random":
-            c = ex.colors.qualitative.Plotly[i % len(ex.colors.qualitative.Plotly)]
+            c = get_random_color(idx=i)
         else:
             c = color
         data.append(get_frustum_mesh(frustum, opacity=opacity, color=c, resolution=resolution))
-    return data
-
-
-def get_frustums_gaussian_list(
-    frustums: Frustums, opacity: float = 0.5, color: str = "random", resolution: int = 20
-) -> List[Union[go.Mesh3d, go.Scatter3d]]:
-    """Get a list of plotly meshes for frustums.
-
-    Args:
-        frustums (Frustum): Frustums to compute gaussians meshes for.
-        opacity (float, optional): Opacity of the mesh. Defaults to 0.3.
-        color (str, optional): Color of the mesh. Defaults to "random".
-        resolution (int, optional): Resolution of the mesh. Defaults to 20.
-
-    Returns:
-        List[go.Mesh3d]: List of plotly meshes
-    """
-
-    gaussians = frustums.flatten().get_gaussian_blob()
-
-    data = []
-    vis_means = go.Scatter3d(
-        x=gaussians.mean[:, 0],
-        y=gaussians.mean[:, 1],
-        z=gaussians.mean[:, 2],
-        mode="markers",
-        marker=dict(size=2, color="black"),
-        name="Means",
-    )
-    data.append(vis_means)
-    for i in range(gaussians.mean.shape[0]):
-        if color == "random":
-            c = ex.colors.qualitative.Plotly[i % len(ex.colors.qualitative.Plotly)]
-        else:
-            c = color
-        ellipse = get_gaussian_ellipsiod(
-            gaussians.mean[i],
-            cov=gaussians.cov[i],
-            color=c,
-            opacity=opacity,
-            resolution=resolution,
-        )
-        data.append(ellipse)
-
     return data
 
 
