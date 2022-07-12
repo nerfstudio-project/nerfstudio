@@ -27,26 +27,37 @@ Contents
    tutorials/quickstart.md
    tutorials/data_setup.rst
    tutorials/creating_graphs.md
-   Contributing <tutorials/contributing.md>
    tutorials/viewer.md
+
+.. toctree::
+   :hidden:
+   :caption: Models
+
+   NeRF<models/nerf.md>
+   Mip-NeRF<models/mipnerf.md>
+   Mip-NeRF 360<models/mipnerf_360.md>
+   Instan-NGP<models/instant_ngp.md>
+   NeRF-W<models/nerf_w.md>
+   Semantic NeRF<models/semantic_nerf.md>
+
+.. toctree::
+   :hidden:
+   :caption: Component Guides
+
+   notebooks/index
 
 .. toctree::
    :hidden:
    :caption: Tooling
 
    tooling/index
-
+   
 .. toctree::
    :hidden:
    :caption: Reference
 
-   notebooks/index
-   
-.. toctree::
-   :hidden:
-   :caption: API
-
-   reference/index
+   Contributing<reference/contributing.md>
+   reference/api/index
 
 
 
