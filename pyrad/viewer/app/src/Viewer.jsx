@@ -180,7 +180,7 @@ export class Viewer extends Component {
 
   set_output_options(object) {
     let output_options_control = new function () {
-        this.output_options = 'rgb';
+        this.output_options = 'default';
     }
     // add controls
     this.state.gui.add(output_options_control, 'output_options', object).listen().onChange(

@@ -21,6 +21,7 @@ import random
 import sys
 import threading
 import time
+from typing import List
 
 import numpy as np
 import torch
@@ -155,17 +156,6 @@ class VisualizerState:
 
             time.sleep(0.001)
 
-    def _interruptable_get_outputs_for_camera_ray_bundle(self, graph: Graph, camera_ray_bundle: RayBundle) -> None:
-        """wrapper around graph function, terminating when interrupting"""
-        try:
-            outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            return outputs
-        except IOChangeException:
-            return None
-        finally:
-            # TODO(): find out better way to do interrupts for camera change
-            return None  # pylint: disable=lost-exception
-
     @torch.no_grad()
     def _async_get_visualizer_outputs(self, graph: Graph, camera_ray_bundle: RayBundle) -> None:
         """async getter function for visualizer without returning"""
@@ -233,7 +223,6 @@ class VisualizerState:
             # gross hack to get the image key, depending on which keys the graph uses
             # rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
             # image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
-            print("output_type", output_type)
             image_output = outputs[output_type].cpu().numpy() * 255
             if image_output.shape[-1] == 1:
                 image_output = np.tile(image_output, (1, 1, 3))
@@ -246,7 +235,7 @@ def interruptable_get_outputs_for_camera_ray_bundle(graph: Graph, camera_ray_bun
     try:
         outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         return outputs
-    except CameraChangeException:
+    except IOChangeException:
         return None
     finally:
         # TODO(): find out better way to do interrupts for camera change
@@ -260,7 +249,8 @@ def get_default_vis() -> Viewer:
     return viewer
 
 
-def set_output_options(vis: Viewer, output_options):
+def set_output_options(vis: Viewer, output_options: List[str]):
+    """Sets the possible list of output options for user to toggle"""
     vis["output_options"].set_output_options(output_options)
 
 
