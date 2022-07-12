@@ -24,6 +24,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r environment/requirements.txt
           pip install -e .
+      - name: Run license checks
+        run: |
+          ./scripts/licensing/license_headers.sh --check
       - name: Run Black
         run: black pyrad/ notebooks/ --check
       - name: Python Pylint
