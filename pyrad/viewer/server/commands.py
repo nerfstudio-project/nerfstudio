@@ -83,6 +83,17 @@ class SetOutputOptions:
         return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_options)}
 
 
+class SetOutputType:
+    __slots__ = ["output_type", "path"]
+
+    def __init__(self, output_type, path):
+        self.output_type = output_type
+        self.path = path
+
+    def lower(self):
+        return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_type)}
+
+
 class Delete:
     __slots__ = ["path"]
 

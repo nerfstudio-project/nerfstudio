@@ -97,6 +97,23 @@ export class Viewer extends Component {
     }
   }
 
+  send_output_type_over_websocket(value) {
+    /* update the output option in the python server
+                            if the user changes selection */
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_output_type";
+      let path = "Output Type";
+      let data = {
+        type: cmd,
+        path: path,
+        output_type: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+      console.log('SETTING STATE', value)
+    }
+  }
+
   set_object(path, object) {
     this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
     // add controls if object is a camera
@@ -166,7 +183,11 @@ export class Viewer extends Component {
         this.output_options = 'rgb';
     }
     // add controls
-    this.state.gui.add(output_options_control, 'output_options', object)
+    this.state.gui.add(output_options_control, 'output_options', object).listen().onChange(
+      (value) => {
+        this.send_output_type_over_websocket(value);
+      }
+    )
   }
 
   handle_command(cmd) {
