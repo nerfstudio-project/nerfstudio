@@ -4,7 +4,7 @@ import sys
 
 import yaml
 
-LOCAL_TESTS = ["Run Black", "Python Pylint", "Test with pytest"]
+LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
 
 
 def run_command(command):
@@ -25,6 +25,7 @@ if __name__ == "__main__":
     for step in steps:
         if "name" in step and step["name"] in LOCAL_TESTS:
             compressed = step["run"].replace("\n", ";").replace("\\", "")
+            compressed = compressed.replace("--check", "")
             curr_command = f"{compressed}"
 
             print("*" * 100)
@@ -37,10 +38,6 @@ if __name__ == "__main__":
     # Add checks for building documentation
     print_green("Building Documentation")
     run_command("cd docs/; make html; cd ../")
-
-    # Add licensing to all pyrad files
-    print_green("Add licensing headers")
-    run_command("./scripts/licensing/license_headers.sh")
 
     print("\n")
     print_green("=" * 100)
