@@ -162,12 +162,15 @@ class VisualizerState:
             return outputs
         except IOChangeException:
             return None
+        finally:
+            # TODO(): find out better way to do interrupts for camera change
+            return None  # pylint: disable=lost-exception
 
     @torch.no_grad()
     def _async_get_visualizer_outputs(self, graph: Graph, camera_ray_bundle: RayBundle) -> None:
         """async getter function for visualizer without returning"""
         with SetTrace(self._check_interrupt):
-            self._interruptable_get_outputs_for_camera_ray_bundle(graph, camera_ray_bundle)
+            interruptable_get_outputs_for_camera_ray_bundle(graph, camera_ray_bundle)
         self.check_done_render = True
         self.check_interrupt_vis = False
 
@@ -236,6 +239,18 @@ class VisualizerState:
                 image_output = np.tile(image_output, (1, 1, 3))
             image = (image_output).astype("uint8")
             self.vis["/Cameras/Main Camera"].set_image(image)
+
+
+def interruptable_get_outputs_for_camera_ray_bundle(graph: Graph, camera_ray_bundle: RayBundle) -> None:
+    """wrapper around graph function, terminating when interrupting"""
+    try:
+        outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        return outputs
+    except CameraChangeException:
+        return None
+    finally:
+        # TODO(): find out better way to do interrupts for camera change
+        return None  # pylint: disable=lost-exception
 
 
 def get_default_vis() -> Viewer:
