@@ -291,13 +291,15 @@ def get_swirl_poses(pose):
         poses[i, 2, 3] += dz[i]
     return poses
 
+
 def normalize(x):
     """Returns a normalized vector."""
     return x / torch.linalg.norm(x)
 
+
 def viewmatrix(lookat, up, pos):
     """Returns a camera transformation matrix.
-    
+
     Args:
         lookat: The direction the camera is looking.
         up: The upward direction of the camera.

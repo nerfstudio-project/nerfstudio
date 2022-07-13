@@ -44,7 +44,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     if config.load_step is None:
         print("Loading latest checkpoint from load_dir")
         # NOTE: this is specific to the checkpoint name format
-        load_step = sorted([int(x[x.find("-")+1:x.find(".")]) for x in os.listdir(config.load_dir)])[-1]
+        load_step = sorted([int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir)])[-1]
     else:
         load_step = config.load_step
     load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")
@@ -102,18 +102,20 @@ def create_spiral_video(
 
     # get a trajecory
     start_camera = dataloader_eval.get_camera(image_idx=0)
-    camera_path = get_spiral_path(start_camera, steps=60)
+    # TODO(ethan): replace with radius with radiuses, based on camera pose percentiles
+    # see original nerf paper code for details
+    camera_path = get_spiral_path(start_camera, steps=60, radius=0.5)
 
     images = []
     for camera in tqdm(camera_path.cameras):
-        # camera.cx /= 4
-        # camera.cy /= 4
-        # camera.fx /= 4
-        # camera.fy /= 4
+        camera.cx /= 4
+        camera.cy /= 4
+        camera.fx /= 4
+        camera.fy /= 4
         camera_ray_bundle = camera.get_camera_ray_bundle().to(device)
         camera_ray_bundle.num_rays_per_chunk = 4096
         outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        # TODO: don't hardcode the key
+        # TODO: don't hardcode the key! this will break for some nerf Graphs
         image = outputs["rgb"].cpu().numpy()
         images.append(image)
 
@@ -122,11 +124,10 @@ def create_spiral_video(
     media.write_video(output_filename, images, fps=fps)
 
 
-
 def main():
     """Main function."""
 
-    parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
+    parser = argparse.ArgumentParser(description="Run the evaluation of a model.")
     parser.add_argument(
         "--method",
         type=str,
@@ -144,11 +145,8 @@ def main():
     initialize(version_base="1.2", config_path=config_path)
     config = compose(args.config_name, overrides=args.overrides)
 
-    print(args)
-    print(config)
-
     assert config.trainer.resume_train.load_dir, "Please specify checkpoint load path"
-    # assert config.trainer.resume_train.load_step, "Please specify checkpoint step to load"
+    assert args.traj != "interp", "Camera pose interpolation trajectory isn't yet implemented."
 
     if args.method == "psnr":
         avg_psnr, avg_rays_per_sec = run_inference(config)
