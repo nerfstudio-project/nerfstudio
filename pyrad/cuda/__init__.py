@@ -11,3 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from pyrad.cuda.backend import _C
+
+sample_uniformly_along_ray_bundle = _C.sample_uniformly_along_ray_bundle
+generate_ray_samples_uniform = _C.generate_ray_samples_uniform
+grid_sample = _C.grid_sample
+RayBundle = _C.RayBundle
+Frustums = _C.Frustums
+RaySamples = _C.RaySamples
+DensityGrid = _C.DensityGrid

@@ -1,11 +1,11 @@
 """
 Test the CUDA bindings.
 """
-import torch
-from pyrad.cuda.sampler import Sampler
 import time
-import pyrad_cuda
-import os
+
+import torch
+
+import pyrad.cuda as pyrad_cuda
 
 
 def test_gradients():
@@ -47,7 +47,6 @@ def test_benchmark():
     """The test cases assume that rays can be at most of length 1.0."""
 
     device = torch.device("cuda")
-    dtype = torch.float32
 
     near_range = [0, 0.2]
     far_range = [0.8, 1.0]
