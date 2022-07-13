@@ -24,7 +24,6 @@ import time
 from typing import List
 
 import numpy as np
-import torch
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.structs import DatasetInputs
 from pyrad.graphs.base import Graph
@@ -36,7 +35,7 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler
 from pyrad.utils.config import ViewerConfig
 from pyrad.viewer.server.visualizer import Viewer
-from pyrad.viewer.server.utils import get_camera_from_vis, get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from pyrad.viewer.server.transformations import get_translation_matrix
 
 
@@ -58,6 +57,67 @@ class SetTrace:
         sys.settrace(None)
 
 
+class RenderThread(threading.Thread):
+    """Thread that does all the rendering calls while listening for interrupts"""
+
+    def __init__(self, state: "VisualizerState", graph: Graph, camera_ray_bundle: RayBundle):
+        threading.Thread.__init__(self)
+        self.state = state
+        self.graph = graph
+        self.camera_ray_bundle = camera_ray_bundle
+        self.exc = None
+
+    def run(self):
+        outputs = None
+        try:
+            with SetTrace(self.state.check_interrupt):
+                outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+        except IOChangeException as e:
+            self.exc = e
+
+        if outputs:
+            self.graph.process_outputs_as_images(outputs)
+
+        self.state.check_done_render = True
+        self.state.check_interrupt_vis = False
+
+    def join(self, timeout=None):
+        threading.Thread.join(self)
+        if self.exc:
+            raise self.exc
+
+
+class CheckThread(threading.Thread):
+    """Thread the constantly checks for io changes and sets a flag indicating interrupt"""
+
+    def __init__(self, state):
+        threading.Thread.__init__(self)
+        self.state = state
+
+    def run(self):
+        self.state.check_done_render = False
+        while not self.state.check_done_render:
+            # check camera
+            data = self.state.vis["/Cameras/Main Camera"].get_object()
+            if data is None:
+                return
+            camera_object = data["object"]["object"]
+            if self.state.prev_camera_matrix is None or not np.array_equal(
+                camera_object["matrix"], self.state.prev_camera_matrix
+            ):
+                self.state.check_interrupt_vis = True
+
+            # check output type
+            data = self.state.vis["/Output Type"].get_object()
+            if data is None:
+                output_type = "default"
+            else:
+                output_type = data["output_type"]
+            if self.state.prev_output_type != output_type:
+                self.state.check_interrupt_vis = True
+            time.sleep(0.001)
+
+
 class VisualizerState:
     """Class to hold state for visualizer variables"""
 
@@ -74,7 +134,7 @@ class VisualizerState:
 
         # visualizer specific variables
         self.prev_camera_matrix = None
-        self.prev_output_type = "rgb"
+        self.prev_output_type = "default"
         self.res_upscale_factor = 1
         self.check_interrupt_vis = False
         self.check_done_render = True
@@ -91,13 +151,13 @@ class VisualizerState:
         if self._is_render_step(step):
             self._render_image_in_viewer(graph)
 
-    def _check_interrupt(self, frame, event, arg):
+    def check_interrupt(self, frame, event, arg):
         """raises interrupt when flag has been set and not already on lowest resolution"""
         if event == "line":
             if self.check_interrupt_vis and self.res_upscale_factor > 1:
                 self.res_upscale_factor = 1
                 raise IOChangeException
-        return self._check_interrupt
+        return self.check_interrupt
 
     def _is_render_step(self, step: int, default_steps: int = 5) -> bool:
         """dynamically calculate when to render grapic based on resolution of image"""
@@ -133,37 +193,6 @@ class VisualizerState:
         K = camera.get_intrinsics_matrix()
         set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def _async_check_io_update(self) -> None:
-        """Async function to check whether camera has been updated in visualizer"""
-        self.check_done_render = False
-        while not self.check_done_render:
-            # check camera
-            data = self.vis["/Cameras/Main Camera"].get_object()
-            if data is None:
-                return
-            camera_object = data["object"]["object"]
-            if self.prev_camera_matrix is None or not np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
-                self.check_interrupt_vis = True
-
-            # check output type
-            data = self.vis["/Output Type"].get_object()
-            if data is None:
-                output_type = "rgb"
-            else:
-                output_type = data["output_type"]
-            if self.prev_output_type != output_type:
-                self.check_interrupt_vis = True
-
-            time.sleep(0.001)
-
-    @torch.no_grad()
-    def _async_get_visualizer_outputs(self, graph: Graph, camera_ray_bundle: RayBundle) -> None:
-        """async getter function for visualizer without returning"""
-        with SetTrace(self._check_interrupt):
-            interruptable_get_outputs_for_camera_ray_bundle(graph, camera_ray_bundle)
-        self.check_done_render = True
-        self.check_interrupt_vis = False
-
     @profiler.time_function
     def _render_image_in_viewer(self, graph: Graph) -> None:
         """
@@ -185,7 +214,7 @@ class VisualizerState:
         # check and perform output type updates
         data = self.vis["/Output Type"].get_object()
         if data is None:
-            output_type = "rgb"
+            output_type = "default"
         else:
             output_type = data["output_type"]
         self.prev_output_type = output_type
@@ -205,15 +234,21 @@ class VisualizerState:
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
-        check_thread = threading.Thread(target=self._async_check_io_update)
-        render_thread = threading.Thread(target=self._async_get_visualizer_outputs, args=(graph, camera_ray_bundle))
+        check_thread = CheckThread(state=self)
+        render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
         check_thread.start()
         render_thread.start()
+
+        try:
+            render_thread.join()
+        except Exception:  # pylint: disable=broad-except
+            pass
+
         try:
             check_thread.join()
-            render_thread.join()
-        except Exception as e:  # pylint: disable=broad-except
-            print(e)
+        except Exception:  # pylint: disable=broad-except
+            pass
+
         graph.train()
         outputs = graph.vis_outputs
         if outputs is not None:
@@ -221,25 +256,11 @@ class VisualizerState:
                 set_output_options(self.vis, list(outputs.keys()))
                 self.outputs_set = True
             # gross hack to get the image key, depending on which keys the graph uses
-            # rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
-            # image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
+            if output_type == "default":
+                output_type = "rgb" if "rgb" in outputs else "rgb_fine"
             image_output = outputs[output_type].cpu().numpy() * 255
-            if image_output.shape[-1] == 1:
-                image_output = np.tile(image_output, (1, 1, 3))
             image = (image_output).astype("uint8")
             self.vis["/Cameras/Main Camera"].set_image(image)
-
-
-def interruptable_get_outputs_for_camera_ray_bundle(graph: Graph, camera_ray_bundle: RayBundle) -> None:
-    """wrapper around graph function, terminating when interrupting"""
-    try:
-        outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        return outputs
-    except IOChangeException:
-        return None
-    finally:
-        # TODO(): find out better way to do interrupts for camera change
-        return None  # pylint: disable=lost-exception
 
 
 def get_default_vis() -> Viewer:

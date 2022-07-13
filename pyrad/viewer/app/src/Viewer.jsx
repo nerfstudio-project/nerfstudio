@@ -43,6 +43,7 @@ export class Viewer extends Component {
       viewport_width: null,
       viewport_height: null,
     };
+    this.created_controls = false;
     this.update = this.update.bind(this);
     this.set_object = this.set_object.bind(this);
     this.handle_command = this.handle_command.bind(this);
@@ -178,15 +179,18 @@ export class Viewer extends Component {
   }
 
   set_output_options(object) {
-    let output_options_control = new function () {
-        this.output_options = 'default';
-    }
-    // add controls
-    this.state.gui.add(output_options_control, 'output_options', object).listen().onChange(
-      (value) => {
-        this.send_output_type_over_websocket(value);
+    if (this.created_controls === false) {
+      let output_options_control = new function () {
+          this.output_options = 'default';
       }
-    )
+      // add controls
+      this.state.gui.add(output_options_control, 'output_options', object).listen().onChange(
+        (value) => {
+          this.send_output_type_over_websocket(value);
+        }
+      )
+    }
+    this.created_controls = true
   }
 
   handle_command(cmd) {
