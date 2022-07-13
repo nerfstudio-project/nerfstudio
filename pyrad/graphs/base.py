@@ -136,6 +136,14 @@ class Graph(AbstractGraph):
             dict: Outputs of graph. (ie. rendered colors)
         """
 
+    def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
+        """Process output images into visualizable colored images"""
+        # TODO override this function elsewhere or do something else for processing images
+        for k, v in outputs.items():
+            if v.shape[-1] == 1:
+                v = torch.tile(v, (1, 1, 3))
+            outputs[k] = v
+
     def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run forward starting with a ray bundle."""
         intersected_ray_bundle = self.collider(ray_bundle)

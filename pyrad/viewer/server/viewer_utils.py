@@ -24,7 +24,6 @@ import time
 from typing import List
 
 import numpy as np
-import torch
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.structs import DatasetInputs
 from pyrad.graphs.base import Graph
@@ -36,7 +35,7 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler
 from pyrad.utils.config import ViewerConfig
 from pyrad.viewer.server.visualizer import Viewer
-from pyrad.viewer.server.utils import get_camera_from_vis, get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from pyrad.viewer.server.transformations import get_translation_matrix
 
 
@@ -61,7 +60,7 @@ class SetTrace:
 class RenderThread(threading.Thread):
     """Thread that does all the rendering calls while listening for interrupts"""
 
-    def __init__(self, state, graph, camera_ray_bundle):
+    def __init__(self, state: "VisualizerState", graph: Graph, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph

@@ -145,8 +145,8 @@ class NGPGraph(Graph):
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 
-    def process_outputs_as_images(self, outputs):
-        """Do preprocessing ot make images valid"""
+    def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
+        """Do preprocessing to make images valid"""
         # TODO: make log_test_image_outputs use this directly
         # TODO: implement across all the different graph implementations
         acc = visualization.apply_colormap(outputs["accumulation"])
@@ -160,7 +160,6 @@ class NGPGraph(Graph):
         outputs["depth"] = combined_depth
         depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
         outputs["depth_occupancy_grid"] = combined_depth
-        
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
