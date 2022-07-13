@@ -110,7 +110,6 @@ export class Viewer extends Component {
       };
       let message = msgpack.encode(data);
       this.state.websocket.send(message);
-      console.log('SETTING STATE', value)
     }
   }
 

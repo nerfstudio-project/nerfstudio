@@ -205,11 +205,11 @@ class VisualizerState:
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
+        check_thread = threading.Thread(target=self._async_check_io_update)
+        render_thread = threading.Thread(target=self._async_get_visualizer_outputs, args=(graph, camera_ray_bundle))
+        check_thread.start()
+        render_thread.start()
         try:
-            check_thread = threading.Thread(target=self._async_check_io_update)
-            render_thread = threading.Thread(target=self._async_get_visualizer_outputs, args=(graph, camera_ray_bundle))
-            check_thread.start()
-            render_thread.start()
             check_thread.join()
             render_thread.join()
         except Exception as e:  # pylint: disable=broad-except
