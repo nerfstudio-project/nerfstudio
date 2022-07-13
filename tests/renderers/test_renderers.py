@@ -3,8 +3,8 @@ Test renderers
 """
 import pytest
 import torch
-from pyrad.cameras.rays import Frustums, RaySamples
 
+from pyrad.cameras.rays import Frustums, RaySamples
 from pyrad.renderers import renderers
 
 
@@ -14,7 +14,7 @@ def test_rgb_renderer():
 
     rgb_samples = torch.ones((3, num_samples, 3))
     weights = torch.ones((3, num_samples, 1))
-    weights /= torch.sum(weights, axis=-2, keepdim=True)
+    weights /= torch.sum(weights, dim=-2, keepdim=True)
 
     rgb_renderer = renderers.RGBRenderer()
 
@@ -33,7 +33,7 @@ def test_sh_renderer():
 
     sh = torch.ones((3, num_samples, 3 * levels**2))
     weights = torch.ones((3, num_samples, 1))
-    weights /= torch.sum(weights, axis=-2, keepdim=True)
+    weights /= torch.sum(weights, dim=-2, keepdim=True)
     directions = torch.zeros((3, num_samples, 3))
     directions[..., 0] = 1
 
@@ -48,7 +48,7 @@ def test_acc_renderer():
 
     num_samples = 10
     weights = torch.ones((3, num_samples, 1))
-    weights /= torch.sum(weights, axis=-2, keepdim=True)
+    weights /= torch.sum(weights, dim=-2, keepdim=True)
 
     acc_renderer = renderers.AccumulationRenderer()
 
@@ -61,7 +61,7 @@ def test_depth_renderer():
 
     num_samples = 10
     weights = torch.ones((3, num_samples, 1))
-    weights /= torch.sum(weights, axis=-2, keepdim=True)
+    weights /= torch.sum(weights, dim=-2, keepdim=True)
 
     frustums = Frustums.get_mock_frustum()
     frustums.starts = torch.linspace(0, 100, num_samples)[..., None]

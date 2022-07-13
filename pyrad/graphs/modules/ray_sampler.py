@@ -313,7 +313,7 @@ class PDFSampler(Sampler):
                 (ray_samples.frustums.starts[..., 1:, 0] + ray_samples.frustums.ends[..., :-1, 0]) / 2.0,
                 ray_samples.frustums.ends[..., -1:, 0],
             ],
-            axis=-1,
+            dim=-1,
         )
 
         inds = torch.searchsorted(cdf, u, side="right")
