@@ -1,5 +1,7 @@
 .. _notebooks:
 
+Components
+==========
 
 .. toctree::
     :maxdepth: 0
