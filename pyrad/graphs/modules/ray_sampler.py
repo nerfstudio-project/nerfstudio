@@ -317,8 +317,8 @@ class PDFSampler(Sampler):
         )
 
         inds = torch.searchsorted(cdf, u, side="right")
-        below = torch.clamp(inds - 1, 0, num_bins - 1)
-        above = torch.clamp(inds, 0, num_bins - 1)
+        below = torch.clamp(inds - 1, 0, existing_bins.shape[-1] - 1)
+        above = torch.clamp(inds, 0, existing_bins.shape[-1] - 1)
         cdf_g0 = torch.gather(cdf, -1, below)
         bins_g0 = torch.gather(existing_bins, -1, below)
         cdf_g1 = torch.gather(cdf, -1, above)

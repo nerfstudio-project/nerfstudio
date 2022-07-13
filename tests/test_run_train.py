@@ -47,7 +47,7 @@ def test_run_train():
         print(f"testing run for: {config_path}")
         if config_path in BLACKLIST:
             continue
-        initialize(config_path="../configs/")  # relative to test path
+        initialize(version_base="1.2", config_path="../configs/")  # relative to test path
         config = compose(config_path)
         config = set_reduced_config(config)
         main(config)

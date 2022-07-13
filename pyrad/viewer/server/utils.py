@@ -15,6 +15,8 @@
 import numpy as np
 import torch
 
+from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+
 
 def get_chunks(lst, num_chunks=None, size_of_chunk=None):
     """Returns list of n elements, constaining a sublist."""
@@ -49,3 +51,18 @@ def get_intrinsics_matrix_and_camera_to_world_h(camera_object, image_height):
     camera_to_world_h = torch.tensor(get_chunks(camera_object["matrix"], size_of_chunk=4)).T.float()
 
     return intrinsics_matrix, camera_to_world_h
+
+
+def get_camera_from_vis(vis, name="/Cameras/Main Camera", image_height=100):
+    data = vis[name].get_object()
+    if data is None:
+        return None
+    camera_object = data["object"]["object"]
+    intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+        camera_object, image_height=image_height
+    )
+
+    camera_to_world = camera_to_world_h[:3, :]
+    intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
+    camera = get_camera(intrinsics, camera_to_world)
+    return camera

@@ -205,7 +205,7 @@ cs = ConfigStore.instance()
 cs.store(name="graph_default", node=Config)
 
 
-@hydra.main(config_path="../configs", config_name="graph_default.yaml")
+@hydra.main(version_base="1.2", config_path="../configs", config_name="graph_default.yaml")
 def main(config: DictConfig):
     """Main function."""
     config = setup_config(config)  # converting to typed config

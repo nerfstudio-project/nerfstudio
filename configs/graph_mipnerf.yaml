@@ -13,3 +13,6 @@ graph:
   _target_: pyrad.graphs.mipnerf.MipNerfGraph
   num_coarse_samples: 128
   num_importance_samples: 128
+  loss_coefficients:
+    rgb_loss_coarse: 0.1
+    rgb_loss_fine: 1.0

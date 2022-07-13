@@ -17,7 +17,7 @@ def save_dataset_inputs_to_cache(
 ):
     """Save the datasets input to cache.
     TODO(ethan): use a serializable representation that's cleaner instead of pickle."""
-    with initialize(version_base=None, config_path="../configs"):
+    with initialize(version_base="1.2", config_path="../configs"):
         config = compose(config_name="default_setup.yaml", overrides=[f"data/dataset={dataset_name}"])
     for downscale_factor in downscale_factors:
         for split in splits:
