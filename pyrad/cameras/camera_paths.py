@@ -16,12 +16,15 @@
 Code for camera paths.
 """
 
+import copy
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 import torch
 from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
-from pyrad.cameras.transformations import get_interpolated_poses_many
+from pyrad.cameras.utils import get_interpolated_poses_many
+
+import pyrad.cameras.utils as camera_utils
 
 
 @dataclass
@@ -60,8 +63,59 @@ def get_interpolated_camera_path(camera_a: Camera, camera_b: Camera, steps: int)
     return CameraPath(cameras=cameras)
 
 
-def get_spiral_path(camera_a: Camera, camera_b: Camera, steps: int) -> CameraPath:
+def get_spiral_path(
+    camera: Camera,
+    steps: int = 30,
+    radius: float = None,
+    radiuses: Tuple[float] = None,
+    rots: int = 2,
+    zrate: float = 0.5,
+) -> CameraPath:
     """
-    Returns a list of camera in a sprial.
+    Returns a list of camera in a sprial trajectory.
+
+    Args:
+        camera: The camera to start the spiral from.
+        steps: The number of cameras in the generated path.
+        radius: The radius of the spiral for all xyz directions.
+        radiuses: The list of radii for the spiral in xyz directions.
+        rots: The number of rotations to apply to the camera.
+        zrate: How much to change the z position of the camera.
+
+    Returns:
+        CameraPath: A spiral camera path.
     """
-    raise NotImplementedError
+
+    assert radius is not None or radiuses is not None, "Either radius or radiuses must be specified."
+    if radius is not None and radiuses is None:
+        rad = torch.tensor([radius] * 3, device=camera.device)
+    elif radiuses is not None and radius is None:
+        rad = torch.tensor(radiuses, device=camera.device)
+    else:
+        raise ValueError("Only one of radius or radiuses must be specified.")
+
+    up = camera.camera_to_world[:3, 2]  # scene is z up
+    focal = min(camera.fx, camera.fy)
+    target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
+
+    c2wh_global = camera.get_camera_to_world_h()
+
+    local_c2whs = []
+    for theta in torch.linspace(0.0, 2.0 * torch.pi * rots, steps + 1)[:-1]:
+        center = (
+            torch.tensor([torch.cos(theta), -torch.sin(theta), -torch.sin(theta * zrate)], device=camera.device) * rad
+        )
+        lookat = center - target
+        c2w = camera_utils.viewmatrix(lookat, up, center)
+        ones = torch.tensor([0, 0, 0, 1], device=c2w.device)[None]
+        c2wh = torch.cat([c2w, ones], dim=0)
+        local_c2whs.append(c2wh)
+
+    cameras = []
+    for local_c2wh in local_c2whs:
+        cam = copy.deepcopy(camera)
+        c2wh = torch.matmul(c2wh_global, local_c2wh)
+        cam.camera_to_world = c2wh[:3, :4]
+        cameras.append(cam)
+
+    return CameraPath(cameras=cameras)

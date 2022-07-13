@@ -28,7 +28,8 @@ if USE_CUDA:
         ]
         cmdclass = {"build_ext": BuildExtension}
         setup_requires = ["pybind11>=2.5.0"]
-    except:
+    except Exception as e:
+        print(e)
         print("Failed to build the CUDA extension.")
 
 if __name__ == "__main__":

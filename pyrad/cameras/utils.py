@@ -20,6 +20,7 @@ Camera transformation helper code.
 import math
 
 import numpy as np
+import torch
 
 _EPS = np.finfo(float).eps * 4.0
 
@@ -289,3 +290,27 @@ def get_swirl_poses(pose):
         poses[i, 1, 3] += dy[i]
         poses[i, 2, 3] += dz[i]
     return poses
+
+
+def normalize(x):
+    """Returns a normalized vector."""
+    return x / torch.linalg.norm(x)
+
+
+def viewmatrix(lookat, up, pos):
+    """Returns a camera transformation matrix.
+
+    Args:
+        lookat: The direction the camera is looking.
+        up: The upward direction of the camera.
+        pos: The position of the camera.
+
+    Returns:
+        torch.Tensor: A camera transformation matrix.
+    """
+    vec2 = normalize(lookat)
+    vec1_avg = normalize(up)
+    vec0 = normalize(torch.cross(vec1_avg, vec2))
+    vec1 = normalize(torch.cross(vec2, vec0))
+    m = torch.stack([vec0, vec1, vec2, pos], 1)
+    return m
