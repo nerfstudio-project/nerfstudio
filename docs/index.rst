@@ -31,19 +31,10 @@ Contents
 
 .. toctree::
    :hidden:
-   :caption: Models
+   :caption: Guides
 
-   NeRF<models/nerf.md>
-   Mip-NeRF<models/mipnerf.md>
-   Mip-NeRF 360<models/mipnerf_360.md>
-   Instan-NGP<models/instant_ngp.md>
-   NeRF-W<models/nerf_w.md>
-   Semantic NeRF<models/semantic_nerf.md>
-
-.. toctree::
-   :hidden:
-   :caption: Component Guides
-
+   
+   models/index.rst
    notebooks/index
 
 .. toctree::
