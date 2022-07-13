@@ -219,14 +219,14 @@ class RayBundle(TensorDataclass):
         return self.flatten()[start_idx:end_idx]
 
     def get_ray_samples(
-        self, bin_starts: TensorType["num_rays", "num_samples", 1], bin_ends: TensorType["num_rays", "num_samples", 1]
+        self, bin_starts: TensorType[..., "num_samples", 1], bin_ends: TensorType[..., "num_samples", 1]
     ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction.
 
 
         Args:
-            bin_starts (TensorType["num_rays", "num_samples", 1]): Distance from origin to start of bin.
-            bin_ends (TensorType["num_rays", "num_samples", 1]): Distance from origin to end of bin.
+            bin_starts (TensorType[..., "num_samples", 1]): Distance from origin to start of bin.
+            bin_ends (TensorType[..., "num_samples", 1]): Distance from origin to end of bin.
 
         Returns:
             RaySamples: Samples projected along ray.
@@ -235,7 +235,7 @@ class RayBundle(TensorDataclass):
 
         valid_mask = torch.ones((bin_starts.shape), dtype=torch.bool, device=device)
 
-        dists = bin_ends - bin_starts  # [N_rays, N_samples, 1]
+        dists = bin_ends - bin_starts  # [..., N_samples, 1]
         deltas = dists * torch.norm(self.directions[:, :], dim=-1)[..., None, None]
 
         if is_not_none(self.camera_indices):
@@ -244,18 +244,18 @@ class RayBundle(TensorDataclass):
             camera_indices = None
 
         frustums = Frustums(
-            origins=self.origins[:, None, :],  # [N_rays, 1, 3]
-            directions=self.directions[:, None, :],  # [N_rays, 1, 3]
-            starts=bin_starts,  # [N_rays, N_samples, 1]
-            ends=bin_ends,  # [N_rays, N_samples, 1]
-            pixel_area=self.pixel_area[:, None, :],  # [N_rays, 1, 1]
+            origins=self.origins[..., None, :],  # [..., 1, 3]
+            directions=self.directions[..., None, :],  # [..., 1, 3]
+            starts=bin_starts,  # [..., N_samples, 1]
+            ends=bin_ends,  # [..., N_samples, 1]
+            pixel_area=self.pixel_area[..., None, :],  # [..., 1, 1]
         ).to(device)
 
         ray_samples = RaySamples(
             frustums=frustums,
-            camera_indices=camera_indices,  # [N_rays, 1, 1]
-            valid_mask=valid_mask,  # [N_rays, N_samples, 1]
-            deltas=deltas,  # [N_rays, N_samples, 1]
+            camera_indices=camera_indices,  # [..., 1, 1]
+            valid_mask=valid_mask,  # [..., N_samples, 1]
+            deltas=deltas,  # [..., N_samples, 1]
         )
 
         return ray_samples

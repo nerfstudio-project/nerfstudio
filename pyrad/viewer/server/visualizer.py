@@ -22,7 +22,15 @@ import numpy as np
 import umsgpack
 import zmq
 
-from pyrad.viewer.server.commands import Delete, GetObject, SetObject, SetProperty, SetTransform
+from pyrad.viewer.server.commands import (
+    Delete,
+    GetObject,
+    SetObject,
+    SetOutputOptions,
+    SetOutputType,
+    SetProperty,
+    SetTransform,
+)
 from pyrad.viewer.server.path import Path
 
 
@@ -143,6 +151,17 @@ class Viewer(object):
 
     def set_property(self, key, value):
         return self.window.send(SetProperty(key, value, self.path))
+
+    def set_output_options(self, options):
+        return self.window.send(SetOutputOptions(options, self.path))
+
+    def set_output_type(self, type):
+        data = self.window.send(SetOutputType(type, self.path))
+        data = umsgpack.unpackb(data)
+        if isinstance(data, str) and data.find("error") == 0:
+            # some error meaning that the object does not exist
+            return None
+        return data
 
     def delete(self):
         return self.window.send(Delete(self.path))

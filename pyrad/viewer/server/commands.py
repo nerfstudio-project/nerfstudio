@@ -72,6 +72,28 @@ class SetTransform:
         return {"type": "set_transform", "path": self.path.lower(), "matrix": list(self.matrix.T.flatten())}
 
 
+class SetOutputOptions:
+    __slots__ = ["output_options", "path"]
+
+    def __init__(self, output_options, path):
+        self.output_options = output_options
+        self.path = path
+
+    def lower(self):
+        return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_options)}
+
+
+class SetOutputType:
+    __slots__ = ["output_type", "path"]
+
+    def __init__(self, output_type, path):
+        self.output_type = output_type
+        self.path = path
+
+    def lower(self):
+        return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_type)}
+
+
 class Delete:
     __slots__ = ["path"]
 

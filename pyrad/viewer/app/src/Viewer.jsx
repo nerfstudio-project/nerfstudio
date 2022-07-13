@@ -97,6 +97,22 @@ export class Viewer extends Component {
     }
   }
 
+  send_output_type_over_websocket(value) {
+    /* update the output option in the python server
+                            if the user changes selection */
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_output_type";
+      let path = "Output Type";
+      let data = {
+        type: cmd,
+        path: path,
+        output_type: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
   set_object(path, object) {
     this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
     // add controls if object is a camera
@@ -161,6 +177,18 @@ export class Viewer extends Component {
     }
   }
 
+  set_output_options(object) {
+    let output_options_control = new function () {
+        this.output_options = 'default';
+    }
+    // add controls
+    this.state.gui.add(output_options_control, 'output_options', object).listen().onChange(
+      (value) => {
+        this.send_output_type_over_websocket(value);
+      }
+    )
+  }
+
   handle_command(cmd) {
     // convert binary serialization format back to JSON
     cmd = msgpack.decode(new Uint8Array(cmd));
@@ -179,6 +207,8 @@ export class Viewer extends Component {
     } else if (cmd.type === "set_property") {
       let path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
+    } else if(cmd.type == 'set_output_options') {
+      this.set_output_options(cmd.output_options);
     }
     // web rtc commands
     else if (cmd.type === "answer") {
