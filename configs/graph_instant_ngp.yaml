@@ -23,6 +23,3 @@ optimizers:
     optimizer:
       lr: 1e-2
     scheduler: null
-
-viewer:
-  enable: True

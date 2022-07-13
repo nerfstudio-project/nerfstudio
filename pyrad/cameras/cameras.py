@@ -37,6 +37,11 @@ class Camera:
         self.camera_to_world = camera_to_world
         self.camera_index = camera_index
 
+    @property
+    def device(self):
+        """Returns the device that the camera is on."""
+        return self.camera_to_world.device
+
     @abstractmethod
     def get_num_intrinsics_params(self) -> int:
         """

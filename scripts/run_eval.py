@@ -1,14 +1,19 @@
 """
 run_eval.py
 """
-import logging
+import argparse
 import os
 from typing import Tuple
+
 import hydra
+import mediapy as media
 import torch
+from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
+from pyrad.cameras.camera_paths import get_spiral_path
+from pyrad.cameras.cameras import SimplePinholeCamera
 from pyrad.data.dataloader import setup_dataset_eval, setup_dataset_train
 from pyrad.graphs.base import Graph, setup_graph
 from pyrad.utils.writer import TimeWriter
@@ -35,11 +40,18 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
         config (DictConfig): Configuration of graph to load
         graph (Graph): Graph instance of which to load weights
     """
-    load_path = os.path.join(config.load_dir, f"step-{config.load_step:09d}.ckpt")
+    assert config.load_dir is not None
+    if config.load_step is None:
+        print("Loading latest checkpoint from load_dir")
+        # NOTE: this is specific to the checkpoint name format
+        load_step = sorted([int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir)])[-1]
+    else:
+        load_step = config.load_step
+    load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")
     assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
     graph.load_graph(loaded_state)
-    logging.info("done loading checkpoint from %s", load_path)
+    print(f"done loading checkpoint from {load_path}")
 
 
 def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) -> Tuple[float, float]:
@@ -75,16 +87,73 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
     return avg_psnr, avg_rays_per_sec
 
 
-@hydra.main(config_path="../configs", config_name="graph_default.yaml")
-def main(config: DictConfig):
+def create_spiral_video(
+    config: DictConfig, local_rank: int = 0, world_size: int = 1, output_filename: str = None
+) -> None:
+    print("Creating spiral video")
+    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+    # setup graph and dataset
+    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
+    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
+    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+
+    # load checkpointed information
+    _load_checkpoint(config.trainer.resume_train, graph)
+
+    # get a trajecory
+    start_camera = dataloader_eval.get_camera(image_idx=0)
+    # TODO(ethan): replace with radius with radiuses, based on camera pose percentiles
+    # see original nerf paper code for details
+    camera_path = get_spiral_path(start_camera, steps=60, radius=0.5)
+
+    images = []
+    for camera in tqdm(camera_path.cameras):
+        camera.cx /= 4
+        camera.cy /= 4
+        camera.fx /= 4
+        camera.fy /= 4
+        camera_ray_bundle = camera.get_camera_ray_bundle().to(device)
+        camera_ray_bundle.num_rays_per_chunk = 4096
+        outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        # TODO: don't hardcode the key! this will break for some nerf Graphs
+        image = outputs["rgb"].cpu().numpy()
+        images.append(image)
+
+    seconds = 5.0
+    fps = len(images) / seconds
+    media.write_video(output_filename, images, fps=fps)
+
+
+def main():
     """Main function."""
+
+    parser = argparse.ArgumentParser(description="Run the evaluation of a model.")
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="psnr",
+        choices=["psnr", "traj"],
+        help="Specify which type of evaluation method to run.",
+    )
+    parser.add_argument("--traj", type=str, default="spiral", choices=["spiral", "interp"])
+    parser.add_argument("--output-filename", type=str, default="output.mp4")
+    parser.add_argument("--config-name", type=str, default="graph_default.yaml")
+    parser.add_argument("overrides", nargs="*", default=[])
+    args = parser.parse_args()
+
+    config_path = "../configs"
+    initialize(version_base="1.2", config_path=config_path)
+    config = compose(args.config_name, overrides=args.overrides)
+
     assert config.trainer.resume_train.load_dir, "Please specify checkpoint load path"
-    assert config.trainer.resume_train.load_step, "Please specify checkpoint step to load"
+    assert args.traj != "interp", "Camera pose interpolation trajectory isn't yet implemented."
 
-    avg_psnr, avg_rays_per_sec = run_inference(config)
-
-    print(f"Avg. PSNR: {avg_psnr:0.4f}")
-    print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
+    if args.method == "psnr":
+        avg_psnr, avg_rays_per_sec = run_inference(config)
+        print(f"Avg. PSNR: {avg_psnr:0.4f}")
+        print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
+    elif args.method == "traj":
+        create_spiral_video(config, output_filename=args.output_filename)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.utils import profiler
 from pyrad.utils.config import ViewerConfig
 from pyrad.viewer.server.visualizer import Viewer
-from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.viewer.server.utils import get_camera_from_vis, get_intrinsics_matrix_and_camera_to_world_h
 from pyrad.viewer.server.transformations import get_translation_matrix
 
 
