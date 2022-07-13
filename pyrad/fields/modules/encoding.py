@@ -18,6 +18,7 @@ Encoding functions
 
 from abc import abstractmethod
 from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -132,7 +133,7 @@ class NeRFEncoding(Encoding):
             )
 
         if self.include_input:
-            encoded_inputs = torch.cat([encoded_inputs, in_tensor], axis=-1)
+            encoded_inputs = torch.cat([encoded_inputs, in_tensor], dim=-1)
         return encoded_inputs
 
 
@@ -185,7 +186,7 @@ class RFFEncoding(Encoding):
             )
 
         if self.include_input:
-            encoded_inputs = torch.cat([encoded_inputs, in_tensor], axis=-1)
+            encoded_inputs = torch.cat([encoded_inputs, in_tensor], dim=-1)
 
         return encoded_inputs
 

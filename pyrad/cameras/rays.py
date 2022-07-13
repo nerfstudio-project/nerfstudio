@@ -117,7 +117,7 @@ class RaySamples(TensorDataclass):
         # mip-nerf version of transmittance calculation:
         transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)
         transmittance = torch.cat(
-            [torch.zeros((*transmittance.shape[:1], 1, 1)).to(densities.device), transmittance], axis=-2
+            [torch.zeros((*transmittance.shape[:1], 1, 1)).to(densities.device), transmittance], dim=-2
         )
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
 

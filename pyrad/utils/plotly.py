@@ -171,7 +171,7 @@ def get_sphere(
     x = torch.cos(theta) * torch.sin(phi)
     y = torch.cos(theta) * torch.cos(phi)
     z = torch.sin(theta)
-    pts = torch.stack((x, y, z), axis=-1)
+    pts = torch.stack((x, y, z), dim=-1)
 
     pts *= radius
     if center is not None:
@@ -220,10 +220,10 @@ def get_gaussian_ellipsiod(
     x = torch.cos(theta) * torch.sin(phi)
     y = torch.cos(theta) * torch.cos(phi)
     z = torch.sin(theta)
-    pts = torch.stack((x, y, z), axis=-1)
+    pts = torch.stack((x, y, z), dim=-1)
 
     eigenvals, eigenvecs = torch.linalg.eigh(cov)
-    idx = torch.sum(cov, axis=0).argsort()
+    idx = torch.sum(cov, dim=0).argsort()
     idx = eigenvals[idx].argsort()
     eigenvals = eigenvals[idx]
     eigenvecs = eigenvecs[:, idx]
