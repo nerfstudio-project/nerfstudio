@@ -21,6 +21,7 @@ import random
 import sys
 import threading
 import time
+from typing import List
 
 import numpy as np
 import torch
@@ -39,7 +40,7 @@ from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_
 from pyrad.viewer.server.transformations import get_translation_matrix
 
 
-class CameraChangeException(Exception):
+class IOChangeException(Exception):
     """Basic camera exception to interrupt visualizer"""
 
 
@@ -73,9 +74,12 @@ class VisualizerState:
 
         # visualizer specific variables
         self.prev_camera_matrix = None
+        self.prev_output_type = "rgb"
         self.res_upscale_factor = 1
         self.check_interrupt_vis = False
         self.check_done_render = True
+
+        self.outputs_set = False
 
     def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """initializes the scene with the datasets"""
@@ -92,7 +96,7 @@ class VisualizerState:
         if event == "line":
             if self.check_interrupt_vis and self.res_upscale_factor > 1:
                 self.res_upscale_factor = 1
-                raise CameraChangeException
+                raise IOChangeException
         return self._check_interrupt
 
     def _is_render_step(self, step: int, default_steps: int = 5) -> bool:
@@ -129,16 +133,27 @@ class VisualizerState:
         K = camera.get_intrinsics_matrix()
         set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def _async_check_camera_update(self) -> None:
+    def _async_check_io_update(self) -> None:
         """Async function to check whether camera has been updated in visualizer"""
         self.check_done_render = False
         while not self.check_done_render:
+            # check camera
             data = self.vis["/Cameras/Main Camera"].get_object()
             if data is None:
                 return
             camera_object = data["object"]["object"]
             if self.prev_camera_matrix is None or not np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
                 self.check_interrupt_vis = True
+
+            # check output type
+            data = self.vis["/Output Type"].get_object()
+            if data is None:
+                output_type = "rgb"
+            else:
+                output_type = data["output_type"]
+            if self.prev_output_type != output_type:
+                self.check_interrupt_vis = True
+
             time.sleep(0.001)
 
     @torch.no_grad()
@@ -155,6 +170,7 @@ class VisualizerState:
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
         """
+        # check and perform camera updates
         data = self.vis["/Cameras/Main Camera"].get_object()
         if data is None:
             return
@@ -165,6 +181,14 @@ class VisualizerState:
         else:
             self.prev_camera_matrix = camera_object["matrix"]
             self.res_upscale_factor = 1
+
+        # check and perform output type updates
+        data = self.vis["/Output Type"].get_object()
+        if data is None:
+            output_type = "rgb"
+        else:
+            output_type = data["output_type"]
+        self.prev_output_type = output_type
 
         image_height = min(
             self.config.min_render_image_height * self.res_upscale_factor,
@@ -181,11 +205,11 @@ class VisualizerState:
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
+        check_thread = threading.Thread(target=self._async_check_io_update)
+        render_thread = threading.Thread(target=self._async_get_visualizer_outputs, args=(graph, camera_ray_bundle))
+        check_thread.start()
+        render_thread.start()
         try:
-            check_thread = threading.Thread(target=self._async_check_camera_update)
-            render_thread = threading.Thread(target=self._async_get_visualizer_outputs, args=(graph, camera_ray_bundle))
-            check_thread.start()
-            render_thread.start()
             check_thread.join()
             render_thread.join()
         except Exception as e:  # pylint: disable=broad-except
@@ -193,9 +217,16 @@ class VisualizerState:
         graph.train()
         outputs = graph.vis_outputs
         if outputs is not None:
+            if not self.outputs_set:
+                set_output_options(self.vis, list(outputs.keys()))
+                self.outputs_set = True
             # gross hack to get the image key, depending on which keys the graph uses
-            rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
-            image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
+            # rgb_key = "rgb" if "rgb" in outputs else "rgb_fine"
+            # image = (outputs[rgb_key].cpu().numpy() * 255).astype("uint8")
+            image_output = outputs[output_type].cpu().numpy() * 255
+            if image_output.shape[-1] == 1:
+                image_output = np.tile(image_output, (1, 1, 3))
+            image = (image_output).astype("uint8")
             self.vis["/Cameras/Main Camera"].set_image(image)
 
 
@@ -204,7 +235,7 @@ def interruptable_get_outputs_for_camera_ray_bundle(graph: Graph, camera_ray_bun
     try:
         outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         return outputs
-    except CameraChangeException:
+    except IOChangeException:
         return None
     finally:
         # TODO(): find out better way to do interrupts for camera change
@@ -216,6 +247,11 @@ def get_default_vis() -> Viewer:
     zmq_url = "tcp://0.0.0.0:6000"
     viewer = Viewer(zmq_url=zmq_url)
     return viewer
+
+
+def set_output_options(vis: Viewer, output_options: List[str]):
+    """Sets the possible list of output options for user to toggle"""
+    vis["output_options"].set_output_options(output_options)
 
 
 def show_box_test(vis: Viewer):
