@@ -101,7 +101,7 @@ class TCNNInstantNGPField(Field):
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
-                "output_activation": "None",
+                "output_activation": "Sigmoid",
                 "n_neurons": hidden_dim_color,
                 "n_hidden_layers": num_layers_color - 1,
             },
@@ -131,8 +131,8 @@ class TCNNInstantNGPField(Field):
         dtype = directions_flat.dtype
         d = self.direction_encoding(directions_flat)
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        h = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(dtype)
-        rgb = torch.sigmoid(h)
+        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(dtype)
+        assert rgb.dtype is torch.float32
         return {FieldHeadNames.RGB: rgb}
 
 
