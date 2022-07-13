@@ -26,11 +26,6 @@ graph:
   num_coarse_samples: 4
   num_importance_samples: 4
 
-logging:
-  writer:
-    TensorboardWriter:
-      log_dir: "/tmp/"
-
 hydra:
   searchpath:
     - file://configs
