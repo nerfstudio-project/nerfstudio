@@ -234,12 +234,6 @@ RaySamples generate_ray_samples_uniform(
     RayBundle& ray_bundle, int num_samples, DensityGrid& grid
 ) {
     DEVICE_GUARD(ray_bundle.origins);
-    ray_bundle.check();
-    grid.check();
-    CHECK_INPUT(ray_bundle.nears)
-    CHECK_INPUT(ray_bundle.fars)
-    TORCH_CHECK(grid.num_cascades == 1);
-
     const int num_rays = ray_bundle.origins.size(0);
     const int max_samples = num_rays * num_samples;
 

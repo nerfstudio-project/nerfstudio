@@ -40,7 +40,7 @@ class RaySamplesPacked(RaySamples):
     camera_indices: TensorType["packed_samples", 1] = None
     valid_mask: TensorType["packed_samples", 1] = None
     deltas: TensorType["packed_samples", 1] = None
-    packed_indices: TensorType["num_rays", 3] = None
+    packed_indices: TensorType["num_rays", 2] = None
 
     def get_weights(self, densities: TensorType["packed_samples", 1]) -> TensorType["packed_samples", 1]:
         """Return weights based on predicted densities
