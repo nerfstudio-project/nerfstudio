@@ -15,7 +15,7 @@
 import numpy as np
 import torch
 
-from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from pyrad.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 
 
 def get_chunks(lst, num_chunks=None, size_of_chunk=None):
@@ -49,6 +49,15 @@ def get_intrinsics_matrix_and_camera_to_world_h(camera_object, image_height):
 
     # extrinsics
     camera_to_world_h = torch.tensor(get_chunks(camera_object["matrix"], size_of_chunk=4)).T.float()
+    camera_to_world_h = torch.stack(
+        [
+            camera_to_world_h[0, :],
+            camera_to_world_h[2, :],
+            camera_to_world_h[1, :],
+            camera_to_world_h[3, :],
+        ],
+        dim=0,
+    )
 
     return intrinsics_matrix, camera_to_world_h
 

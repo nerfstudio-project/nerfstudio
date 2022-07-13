@@ -24,19 +24,20 @@ import time
 from typing import List
 
 import numpy as np
-from pyrad.data.image_dataset import ImageDataset
-from pyrad.data.structs import DatasetInputs
-from pyrad.graphs.base import Graph
+import torch
 
 import pyrad.viewer.server.cameras as c
 import pyrad.viewer.server.geometry as g
 from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
 from pyrad.cameras.rays import RayBundle
+from pyrad.data.image_dataset import ImageDataset
+from pyrad.data.structs import DatasetInputs
+from pyrad.graphs.base import Graph
 from pyrad.utils import profiler
 from pyrad.utils.config import ViewerConfig
-from pyrad.viewer.server.visualizer import Viewer
-from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from pyrad.viewer.server.transformations import get_translation_matrix
+from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from pyrad.viewer.server.visualizer import Viewer
 
 
 class IOChangeException(Exception):
@@ -228,6 +229,14 @@ class VisualizerState:
         )
 
         camera_to_world = camera_to_world_h[:3, :]
+        camera_to_world = torch.stack(
+            [
+                camera_to_world[0, :],
+                camera_to_world[2, :],
+                camera_to_world[1, :],
+            ],
+            dim=0,
+        )
         intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
         camera = get_camera(intrinsics, camera_to_world)
         camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.get_device())

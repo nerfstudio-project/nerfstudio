@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import * as THREE from "three";
-import { TrackballControls } from "three/examples/jsm/controls/TrackballControls";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { GUI } from "dat.gui";
 import { split_path } from "./utils";
@@ -115,25 +115,9 @@ export class Viewer extends Component {
   }
 
   set_object(path, object) {
-    this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
-    // add controls if object is a camera
-    if (object instanceof THREE.Camera) {
-      this.state.controls_main = new TrackballControls(
-        object,
-        this.state.renderer_main.domElement
-      );
-      this.state.controls_main.rotateSpeed = 2.0;
-      this.state.controls_main.zoomSpeed = 0.3;
-      this.state.controls_main.panSpeed = 0.2;
-      this.state.controls_main.staticMoving = false; // false is default
-      this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
-      this.state.controls_main.autoRotate = false;
-      this.state.controls_main.dynamicDampingFactor = 1.0;
-      this.state.controls_main.update();
-      // this.send_camera_over_websocket();
-      // this.state.controls_main.addEventListener("change", () => {
-      //   this.send_camera_over_websocket();
-      // });
+
+    if (!(object instanceof THREE.Camera)) {
+      this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
     }
   }
 
@@ -367,7 +351,23 @@ export class Viewer extends Component {
     this.state.camera_main.position.y = -5;
     this.state.camera_main.position.z = 5;
     this.state.camera_main.up = new THREE.Vector3(0, 0, 1);
-    this.set_object(["Cameras", "Main Camera"], this.state.camera_main);
+
+    this.state.controls_main = new OrbitControls(
+      this.state.camera_main,
+      this.state.renderer_main.domElement
+    );
+    this.state.controls_main.rotateSpeed = 2.0;
+    this.state.controls_main.zoomSpeed = 0.3;
+    this.state.controls_main.panSpeed = 0.2;
+    this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
+    this.state.controls_main.autoRotate = false;
+    this.state.controls_main.enableDamping = true;
+    this.state.controls_main.dampingFactor = 1.0;
+    this.state.controls_main.update();
+
+    let path = ["Cameras", "Main Camera"];
+    this.state.scene_tree.find(path.concat(["<object>"])).set_object(this.state.camera_main);
+
 
     // Axes display
     let axes = new THREE.AxesHelper(5);
