@@ -3,7 +3,7 @@ name: Prettier
 on:
   pull_request:
     branches:
-      - main
+      - master
     types: [closed]
 
 jobs:
