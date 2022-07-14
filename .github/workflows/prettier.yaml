@@ -22,4 +22,4 @@ jobs:
         with:
           # This part is also where you can pass other options, for example:
           prettier_options: --write ./pyrad/**/*.js
-          only_changed: True
+          same_commit: True
