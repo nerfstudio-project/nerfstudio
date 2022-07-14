@@ -16,6 +16,7 @@ ignore-paths = ["^pyrad/cuda/.*$", "^tests/cuda/.*$", "^pyrad/viewer/.*$", "^tes
 disable = [
   "too-many-arguments",
   "fixme",
+  "too-many-branches",
   "too-many-locals",
   "too-many-instance-attributes",
   "duplicate-code",

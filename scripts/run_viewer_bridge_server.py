@@ -1,9 +1,11 @@
+"""View Bridge Server"""
+
 import argparse
 from pyrad.viewer.server.server import ZMQWebSocketBridge
 
 
 def main():
-
+    """Run the viewer bridge server"""
     parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
     parser.add_argument("--zmq-url", "-z", type=str, nargs="?", default=None)
     parser.add_argument("--websocket-port", "-wp", type=str, nargs="?", default=None)
