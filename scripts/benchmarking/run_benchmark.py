@@ -90,5 +90,5 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--graph", type=str, required=True, help="name of nerf graph to benchmark")
     parser.add_argument("-d", "--benchmark_date", type=str, required=True, help="timestamp of run to benchmark")
     parser.add_argument("-o", "--hydra_base_dir", type=str, default="outputs/", help="hydra base output path")
-    args = parser.parse_args()
-    main(args)
+    parsed_args = parser.parse_args()
+    main(parsed_args)

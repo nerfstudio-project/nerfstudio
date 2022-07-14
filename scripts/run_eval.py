@@ -5,7 +5,6 @@ import argparse
 import os
 from typing import Tuple
 
-import hydra
 import mediapy as media
 import torch
 from hydra import compose, initialize
@@ -13,7 +12,6 @@ from omegaconf import DictConfig
 from tqdm import tqdm
 
 from pyrad.cameras.camera_paths import get_spiral_path
-from pyrad.cameras.cameras import SimplePinholeCamera
 from pyrad.data.dataloader import setup_dataset_eval, setup_dataset_train
 from pyrad.graphs.base import Graph, setup_graph
 from pyrad.utils.writer import TimeWriter
@@ -90,6 +88,14 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
 def create_spiral_video(
     config: DictConfig, local_rank: int = 0, world_size: int = 1, output_filename: str = None
 ) -> None:
+    """Helper function to create a video of the spiral trajectory.
+
+    Args:
+        config (DictConfig): Configuration for loading the evaluation.
+        local_rank (int): Local rank of the process.
+        world_size (int): Total number of GPUs.
+        output_filename (str): Name of the output file.
+    """
     print("Creating spiral video")
     device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
     # setup graph and dataset
