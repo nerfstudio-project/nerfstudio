@@ -22,4 +22,5 @@ optimizers:
   fields:
     optimizer:
       lr: 1e-2
+      eps: 1e-4 # for float16 stability
     scheduler: null
