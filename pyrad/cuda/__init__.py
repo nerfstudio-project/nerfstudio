@@ -13,10 +13,15 @@
 # limitations under the License.
 from pyrad.cuda.backend import _C
 
-sample_uniformly_along_ray_bundle = _C.sample_uniformly_along_ray_bundle
-generate_ray_samples_uniform = _C.generate_ray_samples_uniform
-grid_sample = _C.grid_sample
+# structs
 RayBundle = _C.RayBundle
 Frustums = _C.Frustums
 RaySamples = _C.RaySamples
 DensityGrid = _C.DensityGrid
+
+# functions
+sample_uniformly_along_ray_bundle = _C.sample_uniformly_along_ray_bundle
+generate_ray_samples_uniform = _C.generate_ray_samples_uniform
+grid_sample = _C.grid_sample
+
+# grid_sampler_3d_cuda = _C.grid_sampler_3d_cuda

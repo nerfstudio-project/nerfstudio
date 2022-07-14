@@ -8,6 +8,7 @@ setuptools cannot handle files with the same name but different extensions.
 #include <cuda_runtime.h>
 #include <vector>
 #include "include/structures.cuh"
+#include "include/functions.cuh"
 
 namespace
 {
@@ -156,40 +157,53 @@ __global__ void kernel_generate_ray_samples_uniform(
 ) {
     CUDA_GET_THREAD_ID(thread_id, num_rays);
 
-    // // locate
-    // scalar_t* ray_o = ray_origins + thread_id * 3;
-    // scalar_t* ray_d = ray_directions + thread_id * 3;
-    // scalar_t area = (ray_pixel_area + thread_id)[0];
-    // scalar_t startt = (ray_nears + thread_id)[0];
-    // scalar_t endt = (ray_fars + thread_id)[0];
+    // locate
+    const scalar_t* ray_o = ray_origins + thread_id * 3;
+    const scalar_t* ray_d = ray_directions + thread_id * 3;
+    const scalar_t area = (ray_pixel_area + thread_id)[0];
+    const scalar_t startt = (ray_nears + thread_id)[0];
+    const scalar_t endt = (ray_fars + thread_id)[0];
 
-    // int camera_id;
-    // if (ray_camera_indices) {
-    //     camera_id = (ray_camera_indices + thread_id)[0];
-    // }
+    int camera_id;
+    if (ray_camera_indices) {
+        camera_id = (ray_camera_indices + thread_id)[0];
+    }
     
-    // // skip invalid ray
-    // if (ray_valid_mask) {
-    //     bool valid = (ray_valid_mask + thread_id)[0];
-    //     if (!valid) {
-    //         return;
-    //     }
-    // }
+    // skip invalid ray
+    if (ray_valid_mask) {
+        const bool valid = (ray_valid_mask + thread_id)[0];
+        if (!valid) {
+            return;
+        }
+    }
 
-    // // step size for this ray
-    // scalar_t dt = (endt - startt) / num_samples;
+    // step size for this ray
+    scalar_t dt = (endt - startt) / num_samples;
 
-    // scalar_t t = startt;
-    // int j = 0;
-    // while (t < far && j < num_samples) {
-    //     // current point
-    //     const float x = ray_o[0] + t * ray_d[0];
-    //     const float y = ray_o[1] + t * ray_d[1];
-    //     const float z = ray_o[2] + t * ray_d[2];
+    scalar_t t = startt;
+    int j = 0;
+    while (t < endt && j < num_samples) {
+        // current point
+        const float x = ray_o[0] + t * ray_d[0];
+        const float y = ray_o[1] + t * ray_d[1];
+        const float z = ray_o[2] + t * ray_d[2];
 
-    //     const float density = density_grid_at(x, y, z, grid_data)
+        scalar_t density[1];
+        grid_sample_3d<scalar_t>(
+            x, y, z, 
+            grid_data, 
+            grid_resolution, 
+            grid_resolution, 
+            grid_resolution, 
+            grid_num_cascades,
+            density
+        );
+        // weight = 
 
-    //     if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
+        // if (density > 0.0001f) {
+
+        // }
+
     //         positions_out[j * 3 + 0] = x;
     //         positions_out[j * 3 + 1] = y;
     //         positions_out[j * 3 + 2] = z;
@@ -210,7 +224,7 @@ __global__ void kernel_generate_ray_samples_uniform(
     //     }
     //     else {
     //     }
-    // }
+    }
 
     return;
 }
@@ -219,10 +233,12 @@ __global__ void kernel_generate_ray_samples_uniform(
 RaySamples generate_ray_samples_uniform(
     RayBundle& ray_bundle, int num_samples, DensityGrid& grid
 ) {
+    DEVICE_GUARD(ray_bundle.origins);
     ray_bundle.check();
     grid.check();
     CHECK_INPUT(ray_bundle.nears)
     CHECK_INPUT(ray_bundle.fars)
+    TORCH_CHECK(grid.num_cascades == 1);
 
     const int num_rays = ray_bundle.origins.size(0);
     const int max_samples = num_rays * num_samples;
@@ -291,67 +307,20 @@ __global__ void kernel_grid_sample(
     const scalar_t* positions,  // [num_samples, 3] valued in [0, 1]
     scalar_t* out  // [num_samples, c]
 ) {
-    CUDA_GET_THREAD_ID(thread_id, num_samples);
+    // CUDA_GET_THREAD_ID(thread_id, num_samples);
 
-    // locate
-    positions += thread_id * 3;
-    out += thread_id * grid_num_cascades;
-
-    // initialize output to zero
-    #pragma unroll
-    for (int feature = 0; feature < grid_num_cascades; ++feature) {
-        out[feature] = 0;
-    }
-
-    // skip the samples outside the grid
-    #pragma unroll
-    for (int dim = 0; dim < 3; ++dim) {
-        if (positions[dim] < 0 || positions[dim] > 1) {
-            printf("skip!");
-            return;
-        }
-    }
-
-    scalar_t pos[3];
-	int pos_grid[3];
-    #pragma unroll
-    for (int dim = 0; dim < 3; ++dim) {
-        // equal to `align_corners=True`
-        scalar_t tmp = positions[dim] * (grid_resolution - 1);
-        pos_grid[dim] = floorf(tmp);
-        pos[dim] = tmp - pos_grid[dim];
-    }
-
-    #pragma unroll
-    for (int idx = 0; idx < (1 << 3); ++idx) {
-        scalar_t weight = 1;
-        int pos_grid_local[3];
-
-        #pragma unroll
-        for (int dim = 0; dim < 3; ++dim) {
-            if ((idx & (1 << dim)) == 0) {
-                weight *= 1 - pos[dim];
-                pos_grid_local[dim] = pos_grid[dim];
-            } else {
-                weight *= pos[dim];
-                pos_grid_local[dim] = pos_grid[dim] + 1;
-            }
-        }
-
-        const scalar_t* val = (
-            grid_data 
-            + pos_grid_local[0] * grid_resolution * grid_resolution * grid_num_cascades
-            + pos_grid_local[1] * grid_resolution * grid_num_cascades
-            + pos_grid_local[2] * grid_num_cascades
+    CUDA_KERNEL_LOOP_TYPE(thread_id, num_samples, int) {
+        grid_sample_3d<scalar_t>(
+            positions[thread_id * 3 + 0],
+            positions[thread_id * 3 + 1],
+            positions[thread_id * 3 + 2],
+            grid_data,
+            grid_resolution, 
+            grid_resolution, 
+            grid_resolution, 
+            grid_num_cascades,
+            out + thread_id * grid_num_cascades
         );
-        
-        // printf("weight %f\n", weight);
-        // printf("pos_grid_local %d %d %d\n", pos_grid_local[0], pos_grid_local[1], pos_grid_local[2]);
-
-        #pragma unroll
-        for (int feature = 0; feature < grid_num_cascades; ++feature) {
-            out[feature] += weight * val[feature];
-        }
     }
     return;
 }
@@ -376,7 +345,7 @@ torch::Tensor grid_sample(
         grid.data.scalar_type(),
         "grid_sample",
         ([&]
-         { kernel_grid_sample<<<blocks, cuda_n_threads>>>(
+         { kernel_grid_sample<scalar_t><<<blocks, cuda_n_threads>>>(
                 num_samples,
                 grid.num_cascades,
                 grid.resolution,
