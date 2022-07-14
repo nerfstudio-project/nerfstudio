@@ -4,9 +4,10 @@ This file uses pybind to make CUDA calls.
 
 #include <torch/extension.h>
 #include <vector>
+#include <ATen/Functions.h>
+#include <ATen/NativeFunctions.h>
 #include "include/structures.cuh"
-
-// CUDA forward declarations
+#include "include/helpers.cuh"
 
 std::vector<torch::Tensor> sample_uniformly_along_ray_bundle(
     torch::Tensor origins,
@@ -22,16 +23,6 @@ RaySamples generate_ray_samples_uniform(
 
 torch::Tensor grid_sample(torch::Tensor positions, DensityGrid &grid);
 
-// std::vector<torch::Tensor> volumetric_rendering(
-//     torch::Tensor indices, torch::Tensor positions, torch::Tensor deltas, torch::Tensor ts, 
-//     torch::Tensor sigmas, torch::Tensor rgbs, torch::Tensor bkgd_rgb
-// );
-
-// std::vector<torch::Tensor> volumetric_rendering_backward(
-//     torch::Tensor accumulated_color, torch::Tensor grad_color, 
-//     torch::Tensor indices, torch::Tensor positions, torch::Tensor deltas, torch::Tensor ts, 
-//     torch::Tensor sigmas, torch::Tensor rgbs, torch::Tensor bkgd_rgb
-// );
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
@@ -71,4 +62,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("sample_uniformly_along_ray_bundle", &sample_uniformly_along_ray_bundle);
     m.def("generate_ray_samples_uniform", &generate_ray_samples_uniform);
     m.def("grid_sample", &grid_sample);
+    // m.def("grid_sampler_3d_cuda", &at::native::grid_sampler_3d_cuda);
 }
