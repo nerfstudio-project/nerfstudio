@@ -85,6 +85,7 @@ class Field(nn.Module):
                 frustums = Frustums.get_mock_frustum(device=valid_mask.device)
                 ray_samples = RaySamples(frustums)
             else:
+                # TODO(ruilongli): speedup `apply_masks` which takes 14.4% total time of this function.
                 ray_samples = ray_samples.apply_masks()
             density_masked, density_embedding_masked = self.get_density(ray_samples)
             field_outputs_masked = self.get_outputs(ray_samples, density_embedding=density_embedding_masked)
