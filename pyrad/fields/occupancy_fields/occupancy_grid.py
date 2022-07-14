@@ -137,6 +137,20 @@ class OccupancyGrid(nn.Module):
             padding_mode="zeros",
         )
         densities = densities.view(*xyzs_shape[:-1], 1)
+
+        # TODO(ruilongli): pyrad.cuda.grid_sampler is 1.5x faster, but we might want a
+        # switch to toggle between the two. Also need to figure out how to initialize
+        # pyrad.cuda.DensityGrid() in __init__()
+
+        # grid_cu = pyrad.cuda.DensityGrid()
+        # grid_cu.num_cascades = self.num_cascades
+        # grid_cu.resolution = self.resolution
+        # grid_cu.aabb = self.aabb
+        # grid_cu.data = self.occupancy_grid.permute((1, 2, 3, 0)).contiguous()
+        # positions = (xyzs.reshape(-1, 3) - self.aabb[0]) / voxel_lengths
+        # densities = pyrad.cuda.grid_sample(positions, self.grid_cu)
+        # densities = densities.view(*xyzs_shape[:-1], 1)
+
         return densities
 
     def forward(self, x):
