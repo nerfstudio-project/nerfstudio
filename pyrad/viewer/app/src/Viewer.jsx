@@ -115,7 +115,6 @@ export class Viewer extends Component {
   }
 
   set_object(path, object) {
-
     if (!(object instanceof THREE.Camera)) {
       this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
     }
@@ -164,17 +163,18 @@ export class Viewer extends Component {
 
   set_output_options(object) {
     if (this.created_controls === false) {
-      let output_options_control = new function () {
-          this.output_options = 'default';
-      }
+      let output_options_control = new (function () {
+        this.output_options = "default";
+      })();
       // add controls
-      this.state.gui.add(output_options_control, 'output_options', object).listen().onChange(
-        (value) => {
+      this.state.gui
+        .add(output_options_control, "output_options", object)
+        .listen()
+        .onChange((value) => {
           this.send_output_type_over_websocket(value);
-        }
-      )
+        });
     }
-    this.created_controls = true
+    this.created_controls = true;
   }
 
   handle_command(cmd) {
@@ -195,7 +195,7 @@ export class Viewer extends Component {
     } else if (cmd.type === "set_property") {
       let path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
-    } else if(cmd.type == 'set_output_options') {
+    } else if (cmd.type == "set_output_options") {
       this.set_output_options(cmd.output_options);
     }
     // web rtc commands
@@ -366,8 +366,9 @@ export class Viewer extends Component {
     this.state.controls_main.update();
 
     let path = ["Cameras", "Main Camera"];
-    this.state.scene_tree.find(path.concat(["<object>"])).set_object(this.state.camera_main);
-
+    this.state.scene_tree
+      .find(path.concat(["<object>"]))
+      .set_object(this.state.camera_main);
 
     // Axes display
     let axes = new THREE.AxesHelper(5);
@@ -396,8 +397,7 @@ export class Viewer extends Component {
     return (
       <div>
         <div className="WebRTCVideo">
-          <video id="WebRTCVideo-video" autoPlay playsInline muted>
-          </video>
+          <video id="WebRTCVideo-video" autoPlay playsInline muted></video>
         </div>
         <div id="canvas-container-main"> </div>
         <div id="stats-container"> </div>
