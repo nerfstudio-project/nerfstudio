@@ -19,14 +19,6 @@ jobs:
         uses: actions/setup-python@v3
         with:
           python-version: "3.8.12"
-          ref: ${{ github.head_ref }}
-          # This is important to fetch the changes to the previous commit
-          fetch-depth: 0
-      - name: Prettify JS code
-        uses: creyD/prettier_action@v4.2
-        with:
-          prettier_options: --write yarn prettier --write pyrad/**/*.js
-          same_commit: True
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
