@@ -32,3 +32,6 @@
 #define DEVICE_GUARD(_ten) \
     const at::cuda::OptionalCUDAGuard device_guard(device_of(_ten));
 #define CUDA_MAX_THREADS at::cuda::getCurrentDeviceProperties()->maxThreadsPerBlock
+#define CUDA_KERNEL_LOOP_TYPE(i, n, index_type)                         \
+  int64_t _i_n_d_e_x = blockIdx.x * blockDim.x + threadIdx.x;           \
+  for (index_type i=_i_n_d_e_x; _i_n_d_e_x < (n); _i_n_d_e_x+=blockDim.x * gridDim.x, i=_i_n_d_e_x)

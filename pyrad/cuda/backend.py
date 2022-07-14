@@ -17,15 +17,9 @@ from torch.utils.cpp_extension import load
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
-extra_cflags = ["-O3", "-std=c++14"]
-extra_cuda_cflags = [
-    "-O3",
-    "-std=c++14",
-    # Use the internal PyTorch half operations instead of the ones from the CUDA libraries.
-    "-U__CUDA_NO_HALF_OPERATORS__",
-    "-U__CUDA_NO_HALF_CONVERSIONS__",
-    "-U__CUDA_NO_HALF2_OPERATORS__",
-]
+# TODO(ruilongli): use `-O3` when test speed or release.
+extra_cflags = ["-O0", "-std=c++14"]
+extra_cuda_cflags = ["-O0", "-std=c++14"]
 sources = [
     os.path.join(PATH, "csrc", "pyrad_cuda.cpp"),
     os.path.join(PATH, "csrc", "pyrad_cuda_kernel.cu"),
