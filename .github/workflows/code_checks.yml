@@ -25,7 +25,7 @@ jobs:
       - name: Prettify JS code
         uses: creyD/prettier_action@v4.2
         with:
-          prettier_options: --write yarn prettier --write pyrad/**/*.js
+          prettier_options: --write yarn prettier --write ./pyrad/**/*.js
           same_commit: True
       - name: Install dependencies
         run: |
