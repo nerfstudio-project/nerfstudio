@@ -22,12 +22,12 @@ Contents
 
 .. toctree::
    :hidden:
-   :caption: Tutorials
+   :caption: Getting Started
 
-   tutorials/quickstart.md
-   tutorials/data_setup.rst
+   Quickstart<tutorials/quickstart_index>
+   tutorials/data_index
    tutorials/creating_graphs.md
-   tutorials/viewer.md
+   tutorials/system_overview.md
 
 .. toctree::
    :hidden:
