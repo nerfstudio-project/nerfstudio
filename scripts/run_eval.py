@@ -3,7 +3,7 @@ run_eval.py
 """
 import argparse
 import os
-from typing import Tuple
+from typing import Dict
 
 import mediapy as media
 import torch
@@ -52,7 +52,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     print(f"done loading checkpoint from {load_path}")
 
 
-def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) -> Tuple[float, float]:
+def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) -> Dict[str, float]:
     """helper function to run inference given config specifications (also used in benchmarking)
 
     Args:
@@ -74,6 +74,7 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
     # TODO(ethan): trajector specification
     avg_psnr = 0
     avg_rays_per_sec = 0
+    avg_fps = 0
     for step, (camera_ray_bundle, batch) in tqdm(enumerate(dataloader_eval)):
         with TimeWriter(writer=None, name=None, write=False) as t:
             with torch.no_grad():
@@ -82,7 +83,8 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
                 psnr = graph.log_test_image_outputs(image_idx, step, batch, outputs)
         avg_rays_per_sec = _update_avg(avg_rays_per_sec, camera_ray_bundle.origins.shape[0] / t.duration, step)
         avg_psnr = _update_avg(avg_psnr, psnr, step)
-    return avg_psnr, avg_rays_per_sec
+        avg_fps = _update_avg(avg_fps, 1 / t.duration, step)
+    return {"avg psnr": avg_psnr, "avg rays per sec": avg_rays_per_sec, "avg fps": avg_fps}
 
 
 def create_spiral_video(
@@ -155,9 +157,13 @@ def main():
     assert args.traj != "interp", "Camera pose interpolation trajectory isn't yet implemented."
 
     if args.method == "psnr":
-        avg_psnr, avg_rays_per_sec = run_inference(config)
+        stats_dict = run_inference(config)
+        avg_psnr = stats_dict["avg psnr"]
+        avg_rays_per_sec = stats_dict["avg rays per sec"]
+        avg_fps = stats_dict["avg fps"]
         print(f"Avg. PSNR: {avg_psnr:0.4f}")
         print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
+        print(f"Avg. FPS: {avg_fps:0.4f}")
     elif args.method == "traj":
         create_spiral_video(config, output_filename=args.output_filename)
 

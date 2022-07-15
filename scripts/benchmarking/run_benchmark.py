@@ -68,8 +68,9 @@ def main(args):
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
-        avg_psnr, avg_rays_per_sec = run_inference(config)
-        benchmarks[dataset] = {"avg psnr": avg_psnr, "avg rays/s": avg_rays_per_sec, "checkpoint": ckpt}
+        stats_dict = run_inference(config)
+        stats_dict["checkpoint"] = ckpt
+        benchmarks[dataset] = stats_dict
 
         # reset hydra config
         GlobalHydra.instance().clear()
