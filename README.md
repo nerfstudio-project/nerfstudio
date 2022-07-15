@@ -24,7 +24,7 @@ For more complex changes (e.g. running with your own data/ setting up a new NeRF
 
 #### 1. Installation: Setup the environment
 
-This repository is tested with CUDA 11.3. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html#linux-installers) before proceding.
+This repository is tested with CUDA 11.3. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html#linux-installers) before preceding.
 
 <details>
 <summary>Installing Conda</summary>
@@ -102,7 +102,26 @@ With support for [Hydra](https://hydra.cc/), you can run with other configuratio
 
 #### 4. Visualizing training runs
 
-If you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
+We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/tooling/logging.html).
+
+<details>
+<summary>Real-time Viewer</summary>
+
+We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/tooling/viewer.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
+
+To enable add the following to your config:
+
+```
+viewer:
+  enable: true
+```
+
+</details>
+
+<details>
+<summary>Tensorboard</summary>
+
+If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
 ```
 tensorboard --logdir outputs
@@ -112,6 +131,21 @@ export TENSORBOARD_PORT=<port>
 bash environment/run_tensorboard.sh
 ```
 
+</details>
+
+<details>
+<summary>Weights & Biases</summary>
+
+We support logging to weights and biases, to enable add the following to the config:
+
+```
+logging:
+    writer:
+        WandbWriter
+```
+
+</details>
+
 #### 5. Rendering a trajectories during inference
 
 ```
@@ -120,7 +154,7 @@ python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.
 
 #### 6. In-depth guide
 
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](#).
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/tutorials/creating_graphs.html).
 
 # Supported Features
 
@@ -136,11 +170,7 @@ If you are looking for a feature that is not currently supported, please do not 
 
 #### :metal: Benchmarking scripts
 
-#### :metal: Easily run other repos with our data
-
-#### :metal: Speed up your code with Tiny Cuda
-
-#### :metal: Support for Jupyter
+#### :metal: Speed up your code with Tiny Cuda NN
 
 # Benchmarked Model Architectures
 
