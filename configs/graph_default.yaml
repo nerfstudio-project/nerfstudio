@@ -58,8 +58,7 @@ data:
     _target_: pyrad.data.dataloader.TrainDataloader
     image_sampler:
       _target_: pyrad.data.image_sampler.CacheImageSampler
-      num_images_to_sample_from: 8
-      num_times_to_repeat_images: 100
+      num_images_to_sample_from: -1
     pixel_sampler:
       _target_: pyrad.data.pixel_sampler.PixelSampler
       num_rays_per_batch: 1024

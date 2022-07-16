@@ -44,7 +44,7 @@ class CacheImageSampler(ImageSampler):
 
     Args:
         dataset (torch.utils.data.Dataset): Dataset to sample from.
-        num_samples_to_collate (int): How many images are used to sample rays for each batch.
+        num_samples_to_collate (int, optional): How many images to sample rays for each batch. Defaults to all images.
         num_times_to_repeat_images (int): How often to collate new images. Defaults to every iteration.
         device (Union[torch.device, str]): Device to perform computation. Defaults to "cpu".
     """
@@ -52,21 +52,23 @@ class CacheImageSampler(ImageSampler):
     def __init__(
         self,
         dataset: torch.utils.data.Dataset,
-        num_images_to_sample_from: int,
+        num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = 0,
         device: Union[torch.device, str] = "cpu",
     ):
         super().__init__()
         self.dataset = dataset
-        self.num_images_to_sample_from = (
-            len(self.dataset) if num_images_to_sample_from == 0 else num_images_to_sample_from
-        )
+        self.cache_all_images = num_images_to_sample_from is -1
+        self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.num_times_to_repeat_images = num_times_to_repeat_images
         self.device = device
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
-        self.cached_collated_batch = None
         self.first_time = True
+
+        self.cached_collated_batch = None
+        if self.cache_all_images:
+            self.cached_collated_batch = self._get_collated_batch()
 
     def __getitem__(self, idx):
         return self.dataset.__getitem__(idx)
@@ -86,7 +88,9 @@ class CacheImageSampler(ImageSampler):
 
     def __iter__(self):
         while True:
-            if self.first_time or (
+            if self.cache_all_images:
+                collated_batch = self.cached_collated_batch
+            elif self.first_time or (
                 self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
             ):
                 # trigger a reset
