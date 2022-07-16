@@ -1,22 +1,23 @@
 """
 Test tensor dataclass
 """
-from dataclasses import dataclass
 import pytest
 import torch
 
-from pyrad.utils.tensor_dataclass import TensorDataclass
+from pyrad.utils.tensor_dataclass import tensordataclass
 
 
-@dataclass
-class TestNestedClass(TensorDataclass):
+# pylint: disable=no-member,not-an-iterable,too-few-public-methods
+@tensordataclass
+class TestNestedClass:
     """Dummy dataclass"""
 
     x: torch.Tensor
 
 
-@dataclass
-class TestTensorDataclass(TensorDataclass):
+# pylint: disable=no-member,not-an-iterable,too-few-public-methods
+@tensordataclass
+class TestTensorDataclass:
     """Dummy dataclass"""
 
     a: torch.Tensor
@@ -27,8 +28,8 @@ class TestTensorDataclass(TensorDataclass):
 def test_init():
     """Test that dataclass is properly initialized"""
 
-    @dataclass
-    class Dummy(TensorDataclass):
+    @tensordataclass
+    class Dummy:
         """Dummy dataclass"""
 
         dummy_vals: torch.Tensor = None

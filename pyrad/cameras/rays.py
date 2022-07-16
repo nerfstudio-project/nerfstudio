@@ -16,7 +16,6 @@
 Some ray datastructures.
 """
 import random
-from dataclasses import dataclass
 from typing import Optional
 
 import torch
@@ -24,11 +23,12 @@ from torchtyping import TensorType
 
 from pyrad.utils.math import Gaussians, conical_frustum_to_gaussian
 from pyrad.utils.misc import is_not_none
-from pyrad.utils.tensor_dataclass import TensorDataclass
+from pyrad.utils.tensor_dataclass import tensordataclass
 
 
-@dataclass
-class Frustums(TensorDataclass):
+# pylint: disable=no-member,not-an-iterable
+@tensordataclass
+class Frustums:
     """Describes region of space as a frustum.
 
     Args:
@@ -85,8 +85,9 @@ class Frustums(TensorDataclass):
         )
 
 
-@dataclass
-class RaySamples(TensorDataclass):
+# pylint: disable=no-member,not-an-iterable
+@tensordataclass
+class RaySamples:
     """Samples along a ray
 
     Args:
@@ -146,8 +147,9 @@ class RaySamples(TensorDataclass):
         return self
 
 
-@dataclass
-class RayBundle(TensorDataclass):
+# pylint: disable=no-member,not-an-iterable
+@tensordataclass
+class RayBundle:
     """A bundle of ray parameters.
 
     Args:
