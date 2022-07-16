@@ -23,6 +23,12 @@ RaySamples generate_ray_samples_uniform(
 
 torch::Tensor grid_sample(torch::Tensor positions, DensityGrid &grid);
 
+torch::Tensor unpack(
+    torch::Tensor packed_data,  // ["num_elements", D]
+    torch::Tensor packed_info,  // ["num_packs", N + 1]
+    c10::IntArrayRef output_size  // [C_1, C_2, ..., C_N, D]
+);
+
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
@@ -62,5 +68,6 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("sample_uniformly_along_ray_bundle", &sample_uniformly_along_ray_bundle);
     m.def("generate_ray_samples_uniform", &generate_ray_samples_uniform);
     m.def("grid_sample", &grid_sample);
+    m.def("unpack", &unpack);
     // m.def("grid_sampler_3d_cuda", &at::native::grid_sampler_3d_cuda);
 }

@@ -150,9 +150,29 @@ def test_iter():
         assert batch.b.shape == (4, 5)
 
 
+def test_packed():
+    """Test packed tensor dataclass"""
+    a = torch.ones((4, 2, 6, 3), device="cuda:0")
+    b = torch.ones((4, 2, 6, 2), device="cuda:0")
+    c = TestNestedClass(x=torch.ones((4, 2, 6, 5), device="cuda:0"))
+    tensor_dataclass = TestTensorDataclass(a=a, b=b, c=c)
+    assert tensor_dataclass.is_packed() is False
+
+    valid_mask = torch.rand((4, 2, 6), device="cuda:0") > 0.5
+    packed = tensor_dataclass.pack(valid_mask)
+    num_samples = packed.packed_info[-1, -2] + packed.packed_info[-1, -1]
+    assert packed.a.shape[0] == num_samples
+    assert packed.c.x.shape[0] == num_samples
+    assert packed.is_packed()
+    assert packed.c.is_packed()
+
+    packed.unpack((4, 2, 6))
+
+
 if __name__ == "__main__":
     test_init()
     test_broadcasting()
     test_tensor_ops()
     test_iter()
     test_nested_class()
+    # test_packed()

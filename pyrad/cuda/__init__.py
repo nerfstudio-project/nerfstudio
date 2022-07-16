@@ -23,5 +23,6 @@ DensityGrid = _C.DensityGrid
 sample_uniformly_along_ray_bundle = _C.sample_uniformly_along_ray_bundle
 generate_ray_samples_uniform = _C.generate_ray_samples_uniform
 grid_sample = _C.grid_sample
+unpack = _C.unpack
 
 # grid_sampler_3d_cuda = _C.grid_sampler_3d_cuda

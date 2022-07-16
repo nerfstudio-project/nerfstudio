@@ -40,7 +40,7 @@ class UniformSamplerPacked(Sampler):
         self,
         ray_bundle: RayBundle = None,
         num_samples: Optional[int] = None,
-    ) -> RaySamples:
+    ) -> RaySamples:  # in a packed version
         """Generates position samples accoring to spacing function.
 
         Args:

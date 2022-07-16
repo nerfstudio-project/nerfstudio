@@ -351,3 +351,87 @@ torch::Tensor grid_sample(
 
     return out;
 }
+
+
+
+template <typename scalar_t>
+__global__ void kernel_unpack(
+	const int num_packs,
+    const int num_features,
+    const int num_dims,  // = N
+    const c10::IntArrayRef output_size,  // [C_1, C_2, ..., C_N, D]
+    const scalar_t* packed_data,  // ["num_elements", D]
+    const int* packed_info,  // ["num_packs", N + 1]
+    scalar_t* output  // [C_1, C_2, ..., C_N, D]
+) {
+    CUDA_GET_THREAD_ID(thread_id, num_packs);
+
+    // locate
+    const int packed_info_dim = num_dims + 1;
+    packed_info += thread_id * packed_info_dim;
+
+    int offset = 1;
+    #pragma unroll
+    for (int i_dim = 0; i_dim < num_dims + 1; ++i_dim) {
+        // C_1, C_2, ... C_N, D
+        offset *= output_size[i_dim];
+    }
+    
+    int index = 0;
+    #pragma unroll
+    for (int i_dim = 0; i_dim < num_dims - 1; ++i_dim) {
+        // C_1, C_2, ... C_{N-1}
+        offset /= output_size[i_dim];
+        index += packed_info[i_dim] * offset;
+    }
+
+    int element_start = packed_info[num_dims - 1];
+    int element_count = packed_info[num_dims];
+    #pragma unroll
+    for (int i = 0; i < element_count; ++i) {
+        int data_index = (element_start + i) * num_features;
+        int output_index = index + i * num_features;
+        #pragma unroll
+        for (int j = 0; j < num_features; ++j) {
+            output[output_index + j] = packed_data[data_index + j];
+        }
+    }
+
+    return;
+}
+
+
+torch::Tensor unpack(
+    torch::Tensor packed_data,  // ["num_elements", D]
+    torch::Tensor packed_info,  // ["num_packs", N + 1]
+    c10::IntArrayRef output_size  // [C_1, C_2, ..., C_N, D]
+) {
+    DEVICE_GUARD(packed_data);
+
+    const int num_elements = packed_data.size(0);
+    const int num_features = packed_data.size(1);  // D
+    const int num_packs = packed_info.size(0);
+    const int num_dims = output_size.size() - 1;  // N
+
+    const int cuda_n_threads = std::min<int>(num_packs, CUDA_MAX_THREADS);
+    const int blocks = CUDA_N_BLOCKS_NEEDED(num_packs, cuda_n_threads);
+
+    torch::Tensor output = torch::empty(output_size, packed_data.options());
+
+    AT_DISPATCH_FLOATING_TYPES(
+        packed_data.scalar_type(),
+        "unpack",
+        ([&]
+         { kernel_unpack<scalar_t><<<blocks, cuda_n_threads>>>(
+                num_packs,
+                num_features,
+                num_dims,
+                output_size,
+                packed_data.data_ptr<scalar_t>(), 
+                packed_info.data_ptr<int>(),
+                output.data_ptr<scalar_t>()
+            ); 
+        }));
+
+    return output;
+}

@@ -119,7 +119,7 @@ def tensordataclass(cls):
                 elif is_tensordataclass(v):
                     self.__setattr__(f, v.broadcast_to(batch_shape))
 
-        self.__setattr__("_shape", batch_shape)
+        self._shape = batch_shape
 
     def __getitem__(self, indices) -> cls:
         if self.is_packed():
