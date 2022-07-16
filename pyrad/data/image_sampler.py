@@ -44,7 +44,7 @@ class CacheImageSampler(ImageSampler):
 
     Args:
         dataset (torch.utils.data.Dataset): Dataset to sample from.
-        num_samples_to_collate (int, optional): How many images to sample rays from for each batch. Defaults to all images.
+        num_samples_to_collate (int, optional): How many images to sample rays from each batch. Defaults to all images.
         num_times_to_repeat_images (int): How often to collate new images. Defaults to every iteration.
         device (Union[torch.device, str]): Device to perform computation. Defaults to "cpu".
     """
