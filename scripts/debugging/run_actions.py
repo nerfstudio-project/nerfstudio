@@ -1,5 +1,4 @@
 """Simple yaml debugger"""
-import os
 import subprocess
 import sys
 
