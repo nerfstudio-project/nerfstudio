@@ -11,8 +11,12 @@ std::vector<torch::Tensor> ray_aabb_intersect(
     const torch::Tensor aabb
 );
 
+torch::Tensor morton3D(const torch::Tensor coords);
+
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.def("packbits", &packbits);
     m.def("ray_aabb_intersect", &ray_aabb_intersect);
+    m.def("morton3D", &morton3D);
 }
