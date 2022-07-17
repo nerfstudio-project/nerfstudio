@@ -49,11 +49,31 @@ __global__ void kernel_morton3D(
     return;
 }
 
+
+template <typename index_t>
+__global__ void kernel_morton3D_invert(
+    const int N,
+    const index_t* indices,
+    index_t* coords
+){
+    CUDA_GET_THREAD_ID(thread_id, N);
+
+    // locate
+    coords += thread_id * 3;
+    indices += thread_id;
+
+    uint32_t index = static_cast<uint32_t>(indices[0]);
+    coords[0] = static_cast<index_t>(__morton3D_invert(index >> 0));
+    coords[1] = static_cast<index_t>(__morton3D_invert(index >> 1));
+    coords[2] = static_cast<index_t>(__morton3D_invert(index >> 2));
+    return;
+}
+
 /**
  * @brief Convert coords to indices
  * 
- * @param coords Shape [N, 3]
- * @return torch::Tensor Indices with shape [N]
+ * @param coords Integer coords with shape [N, 3]
+ * @return torch::Tensor Integer indices with shape [N]
  */
 torch::Tensor morton3D(const torch::Tensor coords){
     DEVICE_GUARD(coords);
@@ -78,35 +98,31 @@ torch::Tensor morton3D(const torch::Tensor coords){
     return indices;
 }
 
+/**
+ * @brief Convert indices to coords
+ * 
+ * @param indices Integer indices with shape [N]
+ * @return torch::Tensor Integer coords with shape [N, 3]
+ */
+torch::Tensor morton3D_invert(const torch::Tensor indices){
+    DEVICE_GUARD(indices);
+    const int N = indices.size(0);
 
-// __global__ void morton3D_invert_kernel(
-//     const torch::PackedTensorAccessor32<int, 1, torch::RestrictPtrTraits> indices,
-//     torch::PackedTensorAccessor32<int, 2, torch::RestrictPtrTraits> coords
-// ){
-//     const int n = threadIdx.x + blockIdx.x * blockDim.x;
-//     if (n >= coords.size(0)) return;
+    const int threads = 256;
+    const int blocks = CUDA_N_BLOCKS_NEEDED(N, threads);
 
-//     const int ind = indices[n];
-//     coords[n][0] = __morton3D_invert(ind >> 0);
-//     coords[n][1] = __morton3D_invert(ind >> 1);
-//     coords[n][2] = __morton3D_invert(ind >> 2);
-// }
+    torch::Tensor coords = torch::empty({N, 3}, indices.options());
 
+    AT_DISPATCH_INDEX_TYPES(
+        indices.scalar_type(), "morton3D_invert", 
+        ([&] {
+            kernel_morton3D_invert<index_t><<<blocks, threads>>>(
+                N,
+                indices.data_ptr<index_t>(),
+                coords.data_ptr<index_t>()
+            );
+        })
+    );
 
-// torch::Tensor morton3D_invert_cu(const torch::Tensor indices){
-//     int N = indices.size(0);
-
-//     auto coords = torch::zeros({N, 3}, indices.options());
-
-//     const int threads = 256, blocks = (N+threads-1)/threads;
-
-//     AT_DISPATCH_INTEGRAL_TYPES(indices.type(), "morton3D_invert_cu", 
-//     ([&] {
-//         morton3D_invert_kernel<<<blocks, threads>>>(
-//             indices.packed_accessor32<int, 1, torch::RestrictPtrTraits>(),
-//             coords.packed_accessor32<int, 2, torch::RestrictPtrTraits>()
-//         );
-//     }));
-
-//     return coords;
-// }
+    return coords;
+}
