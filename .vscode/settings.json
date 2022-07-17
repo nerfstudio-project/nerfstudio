@@ -88,6 +88,8 @@
     "__config": "cpp",
     "__locale": "cpp",
     "__bit_reference": "cpp",
-    "ios": "cpp"
+    "ios": "cpp",
+    "__atomic": "cpp",
+    "__node_handle": "cpp"
   }
 }

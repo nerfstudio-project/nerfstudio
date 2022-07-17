@@ -44,20 +44,14 @@ class Sampler(nn.Module):
 
     def forward(self, *args, **kwargs) -> RaySamples:
         """Generate ray samples with optional occupancy filtering"""
-        if self.is_cuda_supported():
-            return _C.generate_ray_samples_with_grid()
-        else:
-            ray_samples = self.generate_ray_samples(*args, **kwargs)
-            if self.occupancy_field is not None:
-                densities = self.occupancy_field.get_densities(ray_samples.frustums.get_positions())
-                weights = ray_samples.get_weights(densities)
+        ray_samples = self.generate_ray_samples(*args, **kwargs)
+        if self.occupancy_field is not None:
+            densities = self.occupancy_field.get_densities(ray_samples.frustums.get_positions())
+            weights = ray_samples.get_weights(densities)
 
-                valid_mask = weights >= self.weight_threshold
-                ray_samples.set_valid_mask(valid_mask)
-            return ray_samples
-
-    def is_cuda_supported(self):
-        return False
+            valid_mask = weights >= self.weight_threshold
+            ray_samples.set_valid_mask(valid_mask)
+        return ray_samples
 
 
 class SpacedSampler(Sampler):

@@ -22,6 +22,25 @@ from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
 from pyrad.graphs.modules.ray_sampler import Sampler
 
 
+class NGPSpacedSampler(Sampler):
+    """Sampler that matches Instant-NGP paper."""
+
+    def generate_ray_samples(self) -> RaySamples:
+        raise RuntimeError("For NGP we fused ray samples and occupancy check together. Please call forward() directly.")
+
+    def forward(
+        self,
+        ray_bundle: RayBundle = None,
+        num_samples: Optional[int] = None,
+    ) -> RaySamples:
+        """Generate ray samples with optional occupancy filtering"""
+        if self.training:
+            ray_samples = pyrad_cuda.ray_marching_train(ray_bundle, num_samples)
+        else:
+            ray_samples = pyrad_cuda.ray_marching_test(ray_bundle, num_samples)
+        return ray_samples
+
+
 class UniformSamplerPacked(Sampler):
     """Sample uniformly along a ray"""
 
