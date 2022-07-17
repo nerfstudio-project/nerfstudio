@@ -3,9 +3,9 @@
 
 template <typename scalar_t>
 __global__ void kernel_packbits(
-    const scalar_t* data,
     const int N,
     const float threshold,
+    const scalar_t* data,
     uint8_t* bitfield
 ){
     CUDA_GET_THREAD_ID(thread_id, N);
@@ -44,9 +44,9 @@ torch::Tensor packbits(
         data.scalar_type(), "packbits", 
         ([&] {
             kernel_packbits<scalar_t><<<blocks, threads>>>(
-                data.data_ptr<scalar_t>(),
                 N,
                 threshold,
+                data.data_ptr<scalar_t>(),
                 bitfield.data_ptr<uint8_t>()
             );
         })
