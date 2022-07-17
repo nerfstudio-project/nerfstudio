@@ -152,21 +152,57 @@ def test_iter():
 
 def test_packed():
     """Test packed tensor dataclass"""
-    a = torch.ones((4, 2, 6, 3), device="cuda:0")
-    b = torch.ones((4, 2, 6, 2), device="cuda:0")
-    c = TestNestedClass(x=torch.ones((4, 2, 6, 5), device="cuda:0"))
-    tensor_dataclass = TestTensorDataclass(a=a, b=b, c=c)
-    assert tensor_dataclass.is_packed() is False
+    # a = torch.ones((2, 2, 3, 3), device="cuda:0")
+    # b = torch.ones((2, 2, 3, 2), device="cuda:0")
+    c = TestNestedClass(x=torch.rand((800, 8000, 1, 5), device="cuda:3"))
+    # tensor_dataclass = TestTensorDataclass(a=a, b=b, c=c)
+    # assert tensor_dataclass.is_packed() is False
 
-    valid_mask = torch.rand((4, 2, 6), device="cuda:0") > 0.5
-    packed = tensor_dataclass.pack(valid_mask)
-    num_samples = packed.packed_info[-1, -2] + packed.packed_info[-1, -1]
-    assert packed.a.shape[0] == num_samples
-    assert packed.c.x.shape[0] == num_samples
-    assert packed.is_packed()
-    assert packed.c.is_packed()
+    valid_mask = torch.rand((800, 8000, 1), device="cuda:3") > 0.5
+    import tqdm
 
-    packed.unpack((4, 2, 6))
+    import pyrad.cuda as pyrad_cuda
+
+    packed_info = pyrad_cuda.pack(valid_mask)
+    packed = c.pack(valid_mask)
+    packed_data, packed_info = pyrad_cuda.pack_single_tensor(c.x, valid_mask)
+    print(c.x[valid_mask].sum())
+    print(packed_data.sum())
+
+    # torch.cuda.synchronize()
+    # for _ in tqdm.tqdm(range(1000)):
+    #     packed_info = pyrad_cuda.pack(valid_mask)
+    #     torch.cuda.synchronize()
+
+    torch.cuda.synchronize()
+    for _ in tqdm.tqdm(range(10)):
+        packed_data, packed_info = pyrad_cuda.pack_single_tensor(c.x, valid_mask)
+        _x = pyrad_cuda.unpack(packed_data, packed_info, c.x.shape)
+        torch.cuda.synchronize()
+    print(_x.sum())
+
+    # # torch.cuda.synchronize()
+    # # for _ in tqdm.tqdm(range(1000)):
+    # #     packed = c.pack(valid_mask)
+    # #     torch.cuda.synchronize()
+
+    torch.cuda.synchronize()
+    for _ in tqdm.tqdm(range(10)):
+        packed = c.x[valid_mask]
+        _x = torch.zeros_like(c.x)
+        _x[valid_mask] = packed
+        torch.cuda.synchronize()
+    print(_x.sum())
+
+    # print("_packed_info", packed._packed_info)
+    # num_samples = packed._packed_info[-1, -2] + packed._packed_info[-1, -1]
+    # assert packed.a.shape[0] == num_samples
+    # assert packed.c.x.shape[0] == num_samples
+    # assert packed.is_packed()
+    # assert packed.c.is_packed()
+
+    # unpacked = packed.unpack((4, 2, 6))
+    # print(unpacked.a[0, 0])
 
 
 if __name__ == "__main__":
@@ -175,4 +211,4 @@ if __name__ == "__main__":
     test_tensor_ops()
     test_iter()
     test_nested_class()
-    # test_packed()
+    test_packed()

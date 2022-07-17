@@ -353,13 +353,12 @@ torch::Tensor grid_sample(
 }
 
 
-
 template <typename scalar_t>
 __global__ void kernel_unpack(
 	const int num_packs,
     const int num_features,
     const int num_dims,  // = N
-    const c10::IntArrayRef output_size,  // [C_1, C_2, ..., C_N, D]
+    const int* output_size,  // = [C_1, C_2, ..., C_N, D]
     const scalar_t* packed_data,  // ["num_elements", D]
     const int* packed_info,  // ["num_packs", N + 1]
     scalar_t* output  // [C_1, C_2, ..., C_N, D]
@@ -369,12 +368,16 @@ __global__ void kernel_unpack(
     // locate
     const int packed_info_dim = num_dims + 1;
     packed_info += thread_id * packed_info_dim;
+    // printf("thread_id %d packed_info_dim %d\n", thread_id, packed_info_dim);
 
     int offset = 1;
     #pragma unroll
     for (int i_dim = 0; i_dim < num_dims + 1; ++i_dim) {
         // C_1, C_2, ... C_N, D
         offset *= output_size[i_dim];
+        // if (thread_id == 0) {
+        //     printf("i_dim %d offset %d\n", i_dim, offset);
+        // }
     }
     
     int index = 0;
@@ -383,6 +386,9 @@ __global__ void kernel_unpack(
         // C_1, C_2, ... C_{N-1}
         offset /= output_size[i_dim];
         index += packed_info[i_dim] * offset;
+        // if (thread_id == 0) {
+        //     printf("i_dim %d offset %d index %d\n", i_dim, offset, index);
+        // }
     }
 
     int element_start = packed_info[num_dims - 1];
@@ -404,19 +410,23 @@ __global__ void kernel_unpack(
 torch::Tensor unpack(
     torch::Tensor packed_data,  // ["num_elements", D]
     torch::Tensor packed_info,  // ["num_packs", N + 1]
-    c10::IntArrayRef output_size  // [C_1, C_2, ..., C_N, D]
+    at::IntArrayRef output_size  // [C_1, C_2, ..., C_N, D]
 ) {
     DEVICE_GUARD(packed_data);
+    CHECK_INPUT(packed_data);
+    CHECK_INPUT(packed_info);
 
     const int num_elements = packed_data.size(0);
     const int num_features = packed_data.size(1);  // D
     const int num_packs = packed_info.size(0);
     const int num_dims = output_size.size() - 1;  // N
+    // printf("[CUDA] %d %d %d %d\n", num_elements, num_features, num_packs, num_dims);
 
     const int cuda_n_threads = std::min<int>(num_packs, CUDA_MAX_THREADS);
     const int blocks = CUDA_N_BLOCKS_NEEDED(num_packs, cuda_n_threads);
-
-    torch::Tensor output = torch::empty(output_size, packed_data.options());
+    
+    torch::Tensor size_tensor = torch::tensor(output_size, packed_info.options());
+    torch::Tensor output = torch::zeros(output_size, packed_data.options());
 
     AT_DISPATCH_FLOATING_TYPES(
         packed_data.scalar_type(),
@@ -426,7 +436,7 @@ torch::Tensor unpack(
                 num_packs,
                 num_features,
                 num_dims,
-                output_size,
+                size_tensor.data_ptr<int>(),
                 packed_data.data_ptr<scalar_t>(), 
                 packed_info.data_ptr<int>(),
                 output.data_ptr<scalar_t>()
@@ -434,4 +444,214 @@ torch::Tensor unpack(
         }));
 
     return output;
+}
+
+
+__global__ void kernel_pack(
+	const int num_packs,
+    const int N,
+    const int packed_dim,  // = C_N
+    const int* dims,  // = [C_1, C_2, ..., C_N]
+    const bool* mask,  // [C_1, C_2, ..., C_N]
+    int* elements_counter,
+    int* packed_info  // ["num_packs", N + 1]
+) {
+    CUDA_GET_THREAD_ID(thread_id, num_packs);
+
+    // locate
+    mask += thread_id * packed_dim;
+    packed_info += thread_id * (N + 1);
+
+    // first pass to compute an accurate number of steps
+    int cnt = 0;
+    #pragma unroll
+    for (int i = 0; i < packed_dim; ++i) {
+        if (mask[i]) {
+            ++cnt;
+        }
+    }
+    if (cnt == 0) return;
+    
+    int base = atomicAdd(elements_counter, cnt);
+
+    // restore indices from `thread_id` and set it.
+    int offset = 1;
+    #pragma unroll
+    for (int i = 0; i < N - 1; ++i) {
+        offset *= dims[i];
+    }
+    int id = thread_id;
+    #pragma unroll
+    for (int i = 0; i < N - 1; ++i) {
+        offset /= dims[i];
+        int index = id / offset; // int division rounds towards zero.
+        id -= (index * offset);
+        packed_info[i] = index;
+    }
+    packed_info[N - 1] = base;
+    packed_info[N] = cnt;
+
+    return;
+}
+
+
+torch::Tensor pack(
+    torch::Tensor mask  // [C_1, C_2, ..., C_N]
+) {
+    DEVICE_GUARD(mask);
+    CHECK_INPUT(mask);
+
+    at::IntArrayRef dims = mask.sizes();
+    const int N = dims.size();
+    const int packed_dim = dims.back();
+    const int num_packs = mask.numel() / packed_dim;
+
+    const int cuda_n_threads = std::min<int>(num_packs, CUDA_MAX_THREADS);
+    const int blocks = CUDA_N_BLOCKS_NEEDED(num_packs, cuda_n_threads);
+
+    auto options = mask.options();
+
+    // input tensors
+    torch::Tensor dims_tensor = torch::tensor(dims, options.dtype(torch::kInt32));
+
+    // helper tensors
+    torch::Tensor elements_counter = torch::zeros({1}, options.dtype(torch::kInt32));
+
+    // output tensors
+    torch::Tensor packed_info = torch::zeros({num_packs, N + 1}, options.dtype(torch::kInt32));
+
+    kernel_pack<<<blocks, cuda_n_threads>>>(
+        num_packs,
+        N,
+        packed_dim,
+        dims_tensor.data_ptr<int>(),
+        mask.data_ptr<bool>(),
+        elements_counter.data_ptr<int>(),  // total samples.
+        packed_info.data_ptr<int>()
+    ); 
+    return packed_info;
+}
+
+
+template <typename scalar_t>
+__global__ void kernel_pack_single_tensor(
+	const int num_packs,
+    const int N,
+    const int packed_dim,  // = C_N
+    const int D, 
+    const int* dims,  // = [C_1, C_2, ..., C_N]
+    const bool* mask,  // [C_1, C_2, ..., C_N]
+    const scalar_t* data,  // [C_1, C_2, ..., C_N, D]
+    int* elements_counter,
+    int* packed_info,  // ["num_packs", N + 1]
+    scalar_t* packed_data  // [C_1 * C_2 *...* C_N, D]
+) {
+    CUDA_GET_THREAD_ID(thread_id, num_packs);
+
+    // locate
+    mask += thread_id * packed_dim;
+    data += thread_id * packed_dim * D;
+    packed_info += thread_id * (N + 1);
+
+    // first pass to compute an accurate number of steps
+    int cnt = 0;
+    #pragma unroll
+    for (int i = 0; i < packed_dim; ++i) {
+        if (mask[i]) {
+            ++cnt;
+        }
+    }
+    if (cnt == 0) return;
+    
+    int base = atomicAdd(elements_counter, cnt);
+
+    // restore indices from `thread_id` and set it.
+    int offset = 1;
+    #pragma unroll
+    for (int i = 0; i < N - 1; ++i) {
+        offset *= dims[i];
+    }
+    
+    int id = thread_id;
+    #pragma unroll
+    for (int i = 0; i < N - 1; ++i) {
+        offset /= dims[i];
+        int index = id / offset; // int division rounds towards zero.
+        id -= (index * offset);
+        packed_info[i] = index;
+    }
+
+    packed_info[N - 1] = base;
+    packed_info[N] = cnt;
+
+    // set data
+    packed_data += base * D;
+
+    int cnt_again = 0;
+    #pragma unroll
+    for (int i = 0; i < packed_dim; ++i) {
+        if (cnt_again >= cnt) {
+            break;
+        }
+        if (mask[i]) {
+            #pragma unroll
+            for (int j = 0; j < D; ++j) {
+                packed_data[cnt_again * D + j] = data[i * D + j];
+            }
+            ++cnt_again;
+        }
+    }
+
+    return;
+}
+
+
+std::vector<torch::Tensor> pack_single_tensor(
+    torch::Tensor data,  // [C_1, C_2, ..., C_N, D]
+    torch::Tensor mask  // [C_1, C_2, ..., C_N]
+) {
+    DEVICE_GUARD(mask);
+    CHECK_INPUT(mask);
+    CHECK_INPUT(data);
+
+    at::IntArrayRef dims = mask.sizes();
+    const int N = dims.size();
+    const int packed_dim = dims.back();
+    const int num_packs = mask.numel() / packed_dim;
+    const int D = data.size(N);
+
+    const int cuda_n_threads = std::min<int>(num_packs, CUDA_MAX_THREADS);
+    const int blocks = CUDA_N_BLOCKS_NEEDED(num_packs, cuda_n_threads);
+
+    auto options = mask.options();
+
+    // input tensors
+    torch::Tensor dims_tensor = torch::tensor(dims, options.dtype(torch::kInt32));
+
+    // helper tensors
+    torch::Tensor elements_counter = torch::zeros({1}, options.dtype(torch::kInt32));
+
+    // output tensors
+    torch::Tensor packed_data = torch::zeros({mask.numel(), D}, data.options());
+    torch::Tensor packed_info = torch::zeros({num_packs, N + 1}, options.dtype(torch::kInt32));
+
+    AT_DISPATCH_FLOATING_TYPES(
+        data.scalar_type(),
+        "pack_single_tensor",
+        ([&]
+         { kernel_pack_single_tensor<scalar_t><<<blocks, cuda_n_threads>>>(
+                num_packs,
+                N,
+                packed_dim,
+                D,
+                dims_tensor.data_ptr<int>(),
+                mask.data_ptr<bool>(),
+                data.data_ptr<scalar_t>(),
+                elements_counter.data_ptr<int>(),  // total samples.
+                packed_info.data_ptr<int>(),
+                packed_data.data_ptr<scalar_t>()
+            ); 
+        }));
+
+    return {packed_data, packed_info};
 }

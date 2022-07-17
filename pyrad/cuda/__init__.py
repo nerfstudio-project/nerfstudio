@@ -24,5 +24,7 @@ sample_uniformly_along_ray_bundle = _C.sample_uniformly_along_ray_bundle
 generate_ray_samples_uniform = _C.generate_ray_samples_uniform
 grid_sample = _C.grid_sample
 unpack = _C.unpack
+pack = _C.pack
+pack_single_tensor = _C.pack_single_tensor
 
 # grid_sampler_3d_cuda = _C.grid_sampler_3d_cuda

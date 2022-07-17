@@ -20,6 +20,8 @@ import numpy as np
 import torch
 from torchtyping import TensorType
 
+import pyrad.cuda as pyrad_cuda
+
 _IDENTIFER = "__tensordataclass__"
 
 
@@ -255,6 +257,80 @@ def tensordataclass(cls):
         """Returns whether the data are packed."""
         return self.__getattribute__("_packed_info") is not None
 
+    def pack(self, valid_mask: torch.Tensor = None) -> cls:
+        """Returns a new TensorDataclass with packed data.
+
+        Args:
+            valid_mask: a boolen mask used for packing the data. If none, it will try to use the
+                attribute with the name of `valid_mask`.
+
+        Returns:
+            TensorDataclass: A new TensorDataclass with the same data but everything is packed.
+        """
+        if self.is_packed():
+            raise RuntimeError("The TensorDataclass is already packed!")
+
+        if valid_mask is None:
+            if hasattr(self, "valid_mask"):
+                valid_mask = self.valid_mask
+            else:
+                raise RuntimeError("Please provide a `valid_mask` to pack the TensorDataclass!")
+        valid_mask = valid_mask.broadcast_to(self.shape)
+
+        def unique(x, dim=-1):
+            unique, inverse, counts = torch.unique(x, return_inverse=True, return_counts=True, dim=dim)
+            perm = torch.arange(inverse.size(dim), dtype=inverse.dtype, device=inverse.device)
+            inverse, perm = inverse.flip([dim]), perm.flip([dim])
+            indices = inverse.new_empty(unique.size(dim)).scatter_(dim, inverse, perm)
+            return unique, indices, counts
+
+        # TODO(ruilongli): code is too argly here.
+        offsets = torch.cumprod(
+            torch.tensor(self.shape[:0:-1], dtype=torch.long, device=valid_mask.device), dim=0
+        ).flip([0])
+        indices = valid_mask.nonzero()[:, :-1]
+        indices_sum = (indices * offsets).sum(dim=-1)
+        _, u_indices, counts = unique(indices_sum)
+        indices_unique = indices[u_indices]
+        counts_cum = torch.cumsum(counts, dim=-1)
+        start_indices = torch.nn.functional.pad(counts_cum[:-1], (1, 0), value=0)
+        packed_info = torch.cat([indices_unique, start_indices[:, None], counts[:, None]], dim=-1)
+
+        def _callback(x):
+            return x[valid_mask]
+
+        def _callback_dataclass(x):
+            # TODO(ruilongli): no need to calculate packed_info recursively
+            return x.pack(valid_mask)
+
+        tensor_dataclass = self.apply_fn_to_fields(
+            _callback, _callback_dataclass, _packed_info=packed_info, _shape=self.shape
+        )
+        # print(self.__class__)
+        # print(valid_mask.nonzero())
+        # print(packed_info)
+        # print("-------------")
+        return tensor_dataclass
+
+    def unpack(self, shape: Tuple[int] = None, padding_value: float = 0) -> cls:
+        """Unpack a tensordataclass into batched format."""
+        if not self.is_packed():
+            raise RuntimeError("This datatensorclass is already unpacked!")
+        if shape is None:
+            shape = self.__getattribute__("_shape")
+        packed_info = self.__getattribute__("_packed_info")
+
+        def _callback(x):
+            output_size = torch.Size(list(shape) + [x.shape[-1]])
+            out = pyrad_cuda.unpack(x, packed_info.type(torch.int), output_size)
+            return out
+
+        def _callback_dataclass(x):
+            return x.unpack(shape, padding_value=padding_value)
+
+        tensor_dataclass = self.apply_fn_to_fields(_callback, _callback_dataclass, _shape=shape, _packed_info=None)
+        return tensor_dataclass
+
     setattr(cls, _IDENTIFER, {})
     setattr(cls, "__init__", __init__)
     # all those attributes below can be overrided.
@@ -273,6 +349,8 @@ def tensordataclass(cls):
         "to",
         "apply_fn_to_fields",
         "is_packed",
+        "pack",
+        "unpack",
     ]:
         if hasattr(cls, attr_name):
             continue

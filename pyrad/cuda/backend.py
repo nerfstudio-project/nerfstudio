@@ -18,8 +18,8 @@ from torch.utils.cpp_extension import load
 PATH = os.path.dirname(os.path.abspath(__file__))
 
 # TODO(ruilongli): use `-O3` when test speed or release.
-extra_cflags = ["-O0", "-std=c++14"]
-extra_cuda_cflags = ["-O0", "-std=c++14"]
+extra_cflags = ["-O3", "-std=c++14"]
+extra_cuda_cflags = ["-O3", "-std=c++14"]
 sources = [
     os.path.join(PATH, "csrc", "pyrad_cuda.cpp"),
     os.path.join(PATH, "csrc", "pyrad_cuda_kernel.cu"),
