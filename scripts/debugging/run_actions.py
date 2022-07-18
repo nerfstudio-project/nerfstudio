@@ -7,11 +7,15 @@ import yaml
 LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
 
 
-def run_command(command):
-    """Run a command kill actions if it fails"""
+def run_command(command) -> None:
+    """Run a command kill actions if it fails
+
+    Args:
+        command (str): command to run
+    """
     ret_code = subprocess.call(command, shell=True)
     if ret_code != 0:
-        print(f"\033[31mError: `{curr_command}` failed. Exiting...\033[0m")
+        print(f"\033[31mError: `{command}` failed. Exiting...\033[0m")
         sys.exit(1)
 
 
@@ -37,7 +41,7 @@ if __name__ == "__main__":
 
     # Add checks for building documentation
     print_green("Building Documentation")
-    run_command("cd docs/; make html; cd ../")
+    run_command("cd docs/; make html SPHINXOPTS='-W;'")
 
     print("\n")
     print_green("=" * 100)

@@ -16,12 +16,3 @@ graph:
   loss_coefficients:
     rgb_loss_coarse: 0.1
     rgb_loss_fine: 1.0
-
-data:
-  # Train dataloading.
-  dataloader_train:
-    _target_: pyrad.data.dataloader.TrainDataloader
-    image_sampler:
-      _target_: pyrad.data.image_sampler.CacheImageSampler
-      num_images_to_sample_from: 0
-      num_times_to_repeat_images: -1
