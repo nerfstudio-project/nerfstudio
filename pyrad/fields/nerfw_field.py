@@ -117,6 +117,15 @@ class VanillaNerfWField(Field):
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
+        """Returns the outputs of the NeRF-W field.
+
+        Args:
+            ray_samples (RaySamples): Ray samples.
+            density_embedding (TensorType, optional): Density embedding. Defaults to None.
+
+        Returns:
+            Dict[FieldHeadNames, TensorType]: Outputs of the NeRF-W field.
+        """
         outputs = {}
         encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
         embedded_appearance = self.embedding_appearance(ray_samples.camera_indices.squeeze())

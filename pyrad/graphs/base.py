@@ -59,6 +59,11 @@ class AbstractGraph(nn.Module):
         """Returns the device that the torch parameters are on."""
         return self.device_indicator_param.device
 
+    @property
+    def device(self):
+        """Returns the device that the graph is on."""
+        return self.device_indicator_param.device
+
     @abstractmethod
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Process starting with ray indices. Turns them into rays, then performs volume rendering."""

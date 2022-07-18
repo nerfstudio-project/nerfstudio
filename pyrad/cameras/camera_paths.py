@@ -45,20 +45,24 @@ def get_interpolated_camera_path(camera_a: Camera, camera_b: Camera, steps: int)
     Returns:
         CameraPath: A camera path.
     """
-    Ka = camera_a.get_intrinsics_matrix()
-    pose_a = camera_a.get_camera_to_world_h()
-    Kb = camera_b.get_intrinsics_matrix()
-    pose_b = camera_b.get_camera_to_world_h()
+    device = camera_a.device
+    Ka = camera_a.get_intrinsics_matrix().cpu().numpy()
+    pose_a = camera_a.get_camera_to_world_h().cpu().numpy()
+    Kb = camera_b.get_intrinsics_matrix().cpu().numpy()
+    pose_b = camera_b.get_camera_to_world_h().cpu().numpy()
     poses = [pose_a, pose_b]
     Ks = [Ka, Kb]
     poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
-    # create a list of cameras
 
     cameras = []
     for pose, K in zip(poses, Ks):
-        intrinsics = get_intrinsics_from_intrinsics_matrix(K)
-        camera_to_world = torch.from_numpy(pose[:3])
-        camera = get_camera(intrinsics, camera_to_world, None)
+        intrinsics = get_intrinsics_from_intrinsics_matrix(K).to(device).float()
+        # TODO: this makes cx and cy an integer, but this code should be fixed
+        # it was added to avoid floating point errors when rescaling and the image resolution
+        # being different per rendered image in a camera path
+        intrinsics[:2] = torch.round(intrinsics[:2])
+        camera_to_world = torch.from_numpy(pose[:3]).to(device).float()
+        camera = get_camera(intrinsics, camera_to_world, camera_index=camera_a.camera_index)
         cameras.append(camera)
     return CameraPath(cameras=cameras)
 
@@ -94,7 +98,9 @@ def get_spiral_path(
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
 
+    # TODO: don't hardcode this. pass this in
     up = camera.camera_to_world[:3, 2]  # scene is z up
+    # up = camera.camera_to_world[:3, 1] # this will rotate 90 degrees
     focal = min(camera.fx, camera.fy)
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 

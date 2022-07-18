@@ -57,6 +57,9 @@ def load_instant_ngp_data(
             poses.append(np.array(frame["transform_matrix"]))
     if num_skipped_image_filenames >= 0:
         logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+    assert (
+        len(image_filenames) != 0
+    ), "All filenames were skipped. You should check the file_paths in the transforms.json file to make sure they are correct."
     poses = np.array(poses).astype(np.float32)
     poses[:3, 3] *= camera_translation_scalar
 

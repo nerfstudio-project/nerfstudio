@@ -44,13 +44,21 @@ class NerfWGraph(Graph):
         near_plane=2.0,
         far_plane=6.0,
         num_coarse_samples=64,
-        num_importance_samples=128,
+        num_importance_samples=64,
+        beta_min=0.03,
         **kwargs,
     ) -> None:
+        """_summary_
+
+        Args:
+            ...
+            beta_min (float, optional): Added to the end of the uncertainty rendering call. Defaults to 0.03.
+        """
         self.near_plane = near_plane
         self.far_plane = far_plane
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
+        self.beta_min = beta_min
         self.field_coarse = None
         self.field_fine = None
         self.num_images = len(intrinsics)
@@ -151,6 +159,7 @@ class NerfWGraph(Graph):
 
         # uncertainty
         uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
+        uncertainty += self.beta_min
 
         outputs = {
             "rgb_coarse": rgb_coarse,  # (num_rays, 3)

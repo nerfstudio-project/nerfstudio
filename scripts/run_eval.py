@@ -11,10 +11,11 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from pyrad.cameras.camera_paths import get_spiral_path
+from pyrad.cameras.camera_paths import get_interpolated_camera_path, get_spiral_path, CameraPath
 from pyrad.data.dataloader import setup_dataset_eval, setup_dataset_train
 from pyrad.graphs.base import Graph, setup_graph
 from pyrad.utils.writer import TimeWriter
+from pyrad.data.dataloader import EvalDataloader
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
@@ -52,7 +53,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     print(f"done loading checkpoint from {load_path}")
 
 
-def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) -> Dict[str, float]:
+def run_inference_from_config(config: DictConfig) -> Dict[str, float]:
     """helper function to run inference given config specifications (also used in benchmarking)
 
     Args:
@@ -61,17 +62,31 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
     Returns:
         Tuple[float, float]: returns both the avg psnr and avg rays per second
     """
-    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+    print("Running inference.")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # setup graph and dataset
     dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
     _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
     graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+    graph.eval()
 
     # load checkpointed information
     _load_checkpoint(config.trainer.resume_train, graph)
 
     # calculate average psnr across test dataset
-    # TODO(ethan): trajector specification
+    return render_stats_dict(graph, dataloader_eval)
+
+
+def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> dict:
+    """Helper function to evaluate the graph on a dataloader.
+
+    Args:
+        graph (Graph): Graph to evaluate
+        dataloader_eval (EvalDataloader): Dataloader to evaluate on
+
+    Returns:
+        dict: returns the average psnr and average rays per second
+    """
     avg_psnr = 0
     avg_rays_per_sec = 0
     avg_fps = 0
@@ -87,13 +102,13 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
     return {"avg psnr": avg_psnr, "avg rays per sec": avg_rays_per_sec, "avg fps": avg_fps}
 
 
-def create_spiral_video(
-    config: DictConfig,
-    local_rank: int = 0,
-    world_size: int = 1,
+def render_trajectory_video(
+    graph: Graph,
+    camera_path: CameraPath,
     output_filename: str = None,
     rendered_output_name: str = None,
     rendered_resolution_scaling_factor: float = 1.0,
+    num_rays_per_chunk: int = 4096,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -101,34 +116,20 @@ def create_spiral_video(
         config (DictConfig): Configuration for loading the evaluation.
         local_rank (int): Local rank of the process.
         world_size (int): Total number of GPUs.
+        index (int): Index of the image to render.
         output_filename (str): Name of the output file.
-        rendered_output_name (str): Name of the renderer output to use.
-        rendered_resolution_scaling_factor (float): Scaling factor to apply to the camera image resolution.
+        rendered_output_name (str, optional): Name of the renderer output to use.
+        rendered_resolution_scaling_factor (float): Scaling factor to apply to the camera image resolution. Defaults to 1.0.
+        num_rays_per_chunk (int): Number of rays to use per chunk. Defaults to 4096.
     """
-    print("Creating spiral video")
-    device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
-    # setup graph and dataset
-    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
-    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
-    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
-    print("done setting up graph")
-
-    # load checkpointed information
-    _load_checkpoint(config.trainer.resume_train, graph)
-    print("done loading checkpoint")
-
-    # get a trajecory
-    start_camera = dataloader_eval.get_camera(image_idx=0)
-    # TODO(ethan): replace with radius with radiuses, based on camera pose percentiles
-    # see original nerf paper code for details
-    camera_path = get_spiral_path(start_camera, steps=30, radius=0.1)
-
+    print("Creating trajectory video.")
     images = []
     for camera in tqdm(camera_path.cameras):
         camera.rescale(rendered_resolution_scaling_factor)
-        camera_ray_bundle = camera.get_camera_ray_bundle().to(device)
-        camera_ray_bundle.num_rays_per_chunk = 4096
-        outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        camera_ray_bundle = camera.get_camera_ray_bundle().to(graph.device)
+        camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
+        with torch.no_grad():
+            outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         # TODO: don't hardcode the key! this will break for some nerf Graphs
         image = outputs[rendered_output_name].cpu().numpy()
         images.append(image)
@@ -169,10 +170,18 @@ def main():
     config = compose(args.config_name, overrides=args.overrides)
 
     assert config.trainer.resume_train.load_dir, "Please specify checkpoint load path"
-    assert args.traj != "interp", "Camera pose interpolation trajectory isn't yet implemented."
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # setup graph and dataset
+    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
+    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
+    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+    graph.eval()
+    # load checkpointed information
+    _load_checkpoint(config.trainer.resume_train, graph)
 
     if args.method == "psnr":
-        stats_dict = run_inference(config)
+        stats_dict = render_stats_dict(graph, dataloader_eval)
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
         avg_fps = stats_dict["avg fps"]
@@ -180,11 +189,22 @@ def main():
         print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
     elif args.method == "traj":
-        create_spiral_video(
-            config,
+        # TODO(ethan): pass in camera information into argparse parser
+        if args.traj == "spiral":
+            camera_start = dataloader_eval.get_camera(image_idx=0)
+            # TODO(ethan): pass in the up direction of the camera
+            camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
+        elif args.traj == "interp":
+            camera_start = dataloader_eval.get_camera(image_idx=0)
+            camera_end = dataloader_eval.get_camera(image_idx=10)
+            camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
+        render_trajectory_video(
+            graph,
+            camera_path,
             output_filename=args.output_filename,
             rendered_output_name=args.rendered_output_name,
             rendered_resolution_scaling_factor=args.rendered_resolution_scaling_factor,
+            num_rays_per_chunk=config.data.dataloader_eval.num_rays_per_chunk,
         )
 
 
