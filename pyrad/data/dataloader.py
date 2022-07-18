@@ -193,7 +193,12 @@ class AbstractDataloaderV2(nn.Module):
 
 
 class AbstractCachedDataloaderV2(AbstractDataloaderV2):
-    """Subclass of the new V2 dataloader that is used for when things fit in memory"""
+    """Subclass of the new V2 dataloader that is used for when things fit in memory
+
+    Attributes:
+        camera_to_world (torch.Tensor): camera to world transformation
+        intrinsics (torch.Tensor): intrinsics matrix
+    """
 
     camera_to_world: torch.Tensor
     intrinsics: torch.Tensor
