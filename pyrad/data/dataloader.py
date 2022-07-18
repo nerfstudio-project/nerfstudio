@@ -86,23 +86,23 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
 
 
 class IterableWrapper:
-    """A helper that will allow a class to return multiple kinds of iterables.
+    """A helper that will allow an instance of a class to return multiple kinds of iterables bound to different functions of that class.
 
-    To use this, pass in the instance of the class you want to have multiple kinds of iterables for, and pass in the
-    class method that you want to be the __next__() method of the iterable. The resulting instantiated object will
+    To use this, pass in the instance of the class you want to have multiple kinds of iterables for, and pass in a
+    method belonging to that class that you want to be the __next__() method of the iterable. The resulting instantiated object will
     be an iterable that will use the passed in class method as the __next__() method."""
 
-    def __init__(self, instance: object, next: callable):
+    def __init__(self, instance: object, new_next: callable):
         """
         Args:
-            instance (type): instance class we are wrapping
-            next (callable): function that will be called instead as the __next__()
+            instance (object): instance class we are wrapping
+            new_next (callable): function that will be called instead as the __next__()
         """
         self.instance = instance
-        self.next = next
+        self.new_next = new_next
 
     def __next__(self):
-        return self.next(self.instance)
+        return self.new_next(self.instance)
 
 
 class AbstractDataloaderV2(nn.Module):
@@ -171,7 +171,7 @@ class AbstractDataloaderV2(nn.Module):
 
     def iter_eval(self) -> IterableWrapper:
         """Returns an iterator that executes the self.next_eval function"""
-        self.train_count = 0
+        self.eval_count = 0
         return IterableWrapper(self, self.next_eval)
 
     @abstractmethod
