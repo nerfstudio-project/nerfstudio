@@ -16,6 +16,7 @@
 Data loader.
 """
 
+from abc import abstractmethod
 import random
 from typing import Dict, List, Tuple, Union
 from omegaconf import ListConfig
@@ -27,7 +28,7 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.image_sampler import ImageSampler
 from pyrad.data.pixel_sampler import PixelSampler
-from pyrad.data.structs import DatasetInputs
+from pyrad.data.structs import DatasetInputs, GenericDataContainer
 from pyrad.data.utils import get_dataset_inputs_from_dataset_config
 from pyrad.utils import profiler
 from pyrad.utils.config import DataConfig
@@ -79,6 +80,101 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
         **dataset_inputs_eval.as_dict(),
     )
     return dataset_inputs_eval, dataloader_eval
+
+
+class AbstractDataloaderV2(nn.Module):
+    """Second version of the dataloader class
+
+    This version of the dataloader is designed to subsume both the train and eval dataloaders, especially since
+    this may contain learnable parameters which need to be shared across the train and test dataloaders. The idea
+    is that we have setup methods for train and eval separatley and this can be a combined train/eval if you want.
+
+
+    Train Methods:
+        setup_train: sets up for being used as train
+        iter_train: returns an iterator of the train dataloader
+        next_train: will be called on __next__() for the training iterator
+
+    Eval Methods:
+        setup_eval: sets up for being used as eval
+        iter_eval: returns an iterator of the eval dataloader
+        next_eval: will be called on __next__() for the eval iterator
+
+
+    Attributes:
+        image_sampler (ImageSampler): image sampler
+        pixel_sampler (PixelSampler): pixel sampler
+        intrinsics (TensorType): intrinsics
+        camera_to_world (TensorType): camera to world
+        ray_generator (RayBundle): ray generator
+        train_count (int): number of times train has been called
+        eval_count (int): number of times eval has been called
+    """
+
+    def __init__(
+        self, image_sampler: ImageSampler, pixel_sampler: PixelSampler, intrinsics, camera_to_world, ray_generator
+    ):
+        super().__init__()
+        self.image_sampler = image_sampler
+        self.pixel_sampler = pixel_sampler
+        self.iter_image_sampler = iter(self.image_sampler)
+        self.intrinsics = intrinsics
+        self.camera_to_world = camera_to_world
+        self.ray_generator = ray_generator
+        self.train_count = 0
+        self.eval_count = 0
+
+    def iter_train(self):
+        """Returns an iterator that executes the self.next_train function"""
+        self.train_count = 0
+
+        class DataloaderIterable:
+            """A helper class for dataloader iterables. This class's __next__ function is determined by
+            the next() function passed into the __init__ function. It will assume the dataloader passed into
+            the __init__ function is the dataloader object we want to"""
+
+            def __init__(self, dataloader: AbstractDataloaderV2, next: callable):
+                self.dataloader = dataloader
+                self.next = next
+
+            def __next__(self):
+                return self.next(self.dataloader)
+
+        return DataloaderIterable(self, self.next_train)
+
+    def iter_eval(self):
+        """Returns an iterator that executes the self.next_eval function"""
+        self.train_count = 0
+
+        class DataloaderIterable:
+            """A helper class for dataloader iterables. This class's __next__ function is determined by
+            the next() function passed into the __init__ function. It will assume the dataloader passed into
+            the __init__ function is the dataloader object we want to"""
+
+            def __init__(self, dataloader: AbstractDataloaderV2, next: callable):
+                self.dataloader = dataloader
+                self.next = next
+
+            def __next__(self):
+                return self.next(self.dataloader)
+
+        return DataloaderIterable(self, self.next_eval)
+
+    @abstractmethod
+    def setup_train(self):
+        """Sets up the dataloader for training"""
+
+    @abstractmethod
+    def setup_eval(self):
+        """Sets up the dataloader for evaluation"""
+
+    @abstractmethod
+    def next_train(self) -> GenericDataContainer:
+        """Returns the next batch of data from the train dataloader"""
+
+    @abstractmethod
+    def next_eval(self) -> GenericDataContainer:
+        """Returns the next batch of data from the eval dataloader"""
 
 
 class TrainDataloader:

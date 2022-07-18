@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import torch
+from pyrad.cameras.rays import RayBundle
 from torchtyping import TensorType
 
 
@@ -106,3 +107,19 @@ class DatasetInputs:
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
         return vars(self)
+
+
+@dataclass
+class GenericDataContainer:
+    """A container for data that is not specific to any dataset. It should be everything
+    needed by the renderer and loss calculation. Different datasets and models will probably
+    need to subclass from this differently, since different Field modules will require different
+    data.
+
+    Args:
+        rays: The rays for the image.
+        ground_truth_pixels: The ground truth pixels for the image.
+    """
+
+    rays: RayBundle
+    ground_truth_pixels: TensorType["num_pixels", 3] = None
