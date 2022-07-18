@@ -20,6 +20,7 @@ from abc import abstractmethod
 import random
 from typing import Dict, List, Tuple, Union
 from omegaconf import ListConfig
+import torch
 
 from torchtyping import TensorType
 
@@ -189,6 +190,13 @@ class AbstractDataloaderV2(nn.Module):
     @abstractmethod
     def next_eval(self) -> GenericDataContainer:
         """Returns the next batch of data from the eval dataloader"""
+
+
+class AbstractCachedDataloaderV2(AbstractDataloaderV2):
+    """Subclass of the new V2 dataloader that is used for when things fit in memory"""
+
+    camera_to_world: torch.Tensor
+    intrinsics: torch.Tensor
 
 
 class TrainDataloader:
