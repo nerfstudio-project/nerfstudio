@@ -157,8 +157,8 @@ class NGPGraph(Graph):
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
 
-        depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=combined_depth, step=step)
+        occupancy_depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
+        writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=occupancy_depth, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
