@@ -16,7 +16,7 @@
 Collection of render heads
 """
 from enum import Enum
-from typing import Optional
+from typing import Callable, Optional, Union
 
 from torch import nn
 from torchtyping import TensorType
@@ -51,7 +51,7 @@ class FieldHead(FieldModule):
         out_dim: int,
         field_head_name: FieldHeadNames,
         in_dim: Optional[int] = None,
-        activation: Optional[nn.Module] = None,
+        activation: Optional[Union[nn.Module, Callable]] = None,
     ) -> None:
 
         super().__init__()
@@ -69,10 +69,7 @@ class FieldHead(FieldModule):
         self._construct_net()
 
     def _construct_net(self):
-        layers = [nn.Linear(self.in_dim, self.out_dim)]
-        if self.activation:
-            layers.append(self.activation)
-        self.net = nn.Sequential(*layers)
+        self.net = nn.Linear(self.in_dim, self.out_dim)
 
     def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType:
         """Process network output for renderer
@@ -86,6 +83,8 @@ class FieldHead(FieldModule):
         if not self.net:
             raise SystemError("in_dim not set. Must be provided to construtor, or set_in_dim() should be called.")
         out_tensor = self.net(in_tensor)
+        if self.activation:
+            out_tensor = self.activation(out_tensor)
         return out_tensor
 
 
