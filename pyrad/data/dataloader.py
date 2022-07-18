@@ -23,7 +23,7 @@ from omegaconf import ListConfig
 
 from torchtyping import TensorType
 
-import torch.nn as nn
+from torch import nn
 
 from pyrad.cameras.cameras import Camera, get_camera
 from pyrad.cameras.rays import RayBundle
@@ -32,6 +32,7 @@ from pyrad.data.image_sampler import ImageSampler
 from pyrad.data.pixel_sampler import PixelSampler
 from pyrad.data.structs import DatasetInputs, GenericDataContainer
 from pyrad.data.utils import get_dataset_inputs_from_dataset_config
+from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
 from pyrad.utils.config import DataConfig
 from pyrad.utils.misc import get_dict_to_torch, instantiate_from_dict_config
@@ -84,6 +85,26 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
     return dataset_inputs_eval, dataloader_eval
 
 
+class IterableWrapper:
+    """A helper that will allow a class to return multiple kinds of iterables.
+
+    To use this, pass in the instance of the class you want to have multiple kinds of iterables for, and pass in the
+    class method that you want to be the __next__() method of the iterable. The resulting instantiated object will
+    be an iterable that will use the passed in class method as the __next__() method."""
+
+    def __init__(self, instance: object, next: callable):
+        """
+        Args:
+            instance (type): instance class we are wrapping
+            next (callable): function that will be called instead as the __next__()
+        """
+        self.instance = instance
+        self.next = next
+
+    def __next__(self):
+        return self.next(self.instance)
+
+
 class AbstractDataloaderV2(nn.Module):
     """Second version of the dataloader class
 
@@ -103,64 +124,55 @@ class AbstractDataloaderV2(nn.Module):
         next_eval: will be called on __next__() for the eval iterator
 
 
+    Args:
+        image_sampler (ImageSampler): image sampler
+        pixel_sampler (PixelSampler): pixel sampler
+        ray_generator (RayGenerator): ray generator
+        is_train (bool): whether this is being used for training
+        is_eval (bool): whether this is being used for evaluation
+
+
+
     Attributes:
         image_sampler (ImageSampler): image sampler
         pixel_sampler (PixelSampler): pixel sampler
-        intrinsics (TensorType): intrinsics
-        camera_to_world (TensorType): camera to world
-        ray_generator (RayBundle): ray generator
+        ray_generator (RayGenerator): ray generator
         train_count (int): number of times train has been called
         eval_count (int): number of times eval has been called
     """
 
     def __init__(
-        self, image_sampler: ImageSampler, pixel_sampler: PixelSampler, intrinsics, camera_to_world, ray_generator
+        self,
+        image_sampler: ImageSampler,
+        pixel_sampler: PixelSampler,
+        ray_generator: RayGenerator,
+        is_train: bool,
+        is_eval: bool,
     ):
         super().__init__()
         self.image_sampler = image_sampler
         self.pixel_sampler = pixel_sampler
         self.iter_image_sampler = iter(self.image_sampler)
-        self.intrinsics = intrinsics
-        self.camera_to_world = camera_to_world
         self.ray_generator = ray_generator
+        self.is_train = is_train
+        self.is_eval = is_eval
         self.train_count = 0
         self.eval_count = 0
+        assert is_train or is_eval
+        if is_train:
+            self.setup_train()
+        if is_eval:
+            self.setup_eval()
 
-    def iter_train(self):
+    def iter_train(self) -> IterableWrapper:
         """Returns an iterator that executes the self.next_train function"""
         self.train_count = 0
+        return IterableWrapper(self, self.next_train)
 
-        class DataloaderIterable:
-            """A helper class for dataloader iterables. This class's __next__ function is determined by
-            the next() function passed into the __init__ function. It will assume the dataloader passed into
-            the __init__ function is the dataloader object we want to"""
-
-            def __init__(self, dataloader: AbstractDataloaderV2, next: callable):
-                self.dataloader = dataloader
-                self.next = next
-
-            def __next__(self):
-                return self.next(self.dataloader)
-
-        return DataloaderIterable(self, self.next_train)
-
-    def iter_eval(self):
+    def iter_eval(self) -> IterableWrapper:
         """Returns an iterator that executes the self.next_eval function"""
         self.train_count = 0
-
-        class DataloaderIterable:
-            """A helper class for dataloader iterables. This class's __next__ function is determined by
-            the next() function passed into the __init__ function. It will assume the dataloader passed into
-            the __init__ function is the dataloader object we want to"""
-
-            def __init__(self, dataloader: AbstractDataloaderV2, next: callable):
-                self.dataloader = dataloader
-                self.next = next
-
-            def __next__(self):
-                return self.next(self.dataloader)
-
-        return DataloaderIterable(self, self.next_eval)
+        return IterableWrapper(self, self.next_eval)
 
     @abstractmethod
     def setup_train(self):

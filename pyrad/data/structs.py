@@ -117,8 +117,8 @@ class GenericDataContainer:
     data.
 
     Args:
-        rays: The rays for the image.
-        ground_truth_pixels: The ground truth pixels for the image.
+        rays (RayBundle): The rays for the image.
+        ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
     """
 
     rays: RayBundle
