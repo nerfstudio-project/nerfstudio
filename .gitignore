@@ -182,3 +182,4 @@ outputs*/
 node_modules/
 yarn.lock
 package.json
+scripts/colmap2nerf.py

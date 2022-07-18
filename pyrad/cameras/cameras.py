@@ -91,6 +91,18 @@ class Camera:
         """
         return
 
+    @abstractmethod
+    def rescale(self, scaling_factor: float):
+        """Rescales the camera intrinsics.
+
+        Args:
+            scaling_factor (float): Scaling factor
+
+        Returns:
+            None
+        """
+        return
+
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["image_height", "image_width", 2]:
         """
         Args:
@@ -206,6 +218,12 @@ class PinholeCamera(Camera):
         """
         return 3
 
+    def rescale(self, scaling_factor: float):
+        self.cx *= scaling_factor
+        self.cy *= scaling_factor
+        self.fx *= scaling_factor
+        self.fy *= scaling_factor
+
     @classmethod
     def generate_rays(
         cls,
@@ -287,6 +305,10 @@ class EquirectangularCamera(Camera):
 
     def get_intrinsics(self) -> torch.Tensor:
         return torch.tensor([self.height, self.width])
+
+    def rescale(self, scaling_factor: float):
+        self.height *= scaling_factor
+        self.width *= scaling_factor
 
     @classmethod
     def generate_rays(

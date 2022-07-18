@@ -88,7 +88,12 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
 
 
 def create_spiral_video(
-    config: DictConfig, local_rank: int = 0, world_size: int = 1, output_filename: str = None
+    config: DictConfig,
+    local_rank: int = 0,
+    world_size: int = 1,
+    output_filename: str = None,
+    rendered_output_name: str = None,
+    rendered_resolution_scaling_factor: float = 1.0,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -97,6 +102,8 @@ def create_spiral_video(
         local_rank (int): Local rank of the process.
         world_size (int): Total number of GPUs.
         output_filename (str): Name of the output file.
+        rendered_output_name (str): Name of the renderer output to use.
+        rendered_resolution_scaling_factor (float): Scaling factor to apply to the camera image resolution.
     """
     print("Creating spiral video")
     device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
@@ -104,27 +111,26 @@ def create_spiral_video(
     dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
     _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
     graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+    print("done setting up graph")
 
     # load checkpointed information
     _load_checkpoint(config.trainer.resume_train, graph)
+    print("done loading checkpoint")
 
     # get a trajecory
     start_camera = dataloader_eval.get_camera(image_idx=0)
     # TODO(ethan): replace with radius with radiuses, based on camera pose percentiles
     # see original nerf paper code for details
-    camera_path = get_spiral_path(start_camera, steps=60, radius=0.5)
+    camera_path = get_spiral_path(start_camera, steps=30, radius=0.1)
 
     images = []
     for camera in tqdm(camera_path.cameras):
-        camera.cx /= 4
-        camera.cy /= 4
-        camera.fx /= 4
-        camera.fy /= 4
+        camera.rescale(rendered_resolution_scaling_factor)
         camera_ray_bundle = camera.get_camera_ray_bundle().to(device)
         camera_ray_bundle.num_rays_per_chunk = 4096
         outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         # TODO: don't hardcode the key! this will break for some nerf Graphs
-        image = outputs["rgb"].cpu().numpy()
+        image = outputs[rendered_output_name].cpu().numpy()
         images.append(image)
 
     seconds = 5.0
@@ -146,6 +152,15 @@ def main():
     parser.add_argument("--traj", type=str, default="spiral", choices=["spiral", "interp"])
     parser.add_argument("--output-filename", type=str, default="output.mp4")
     parser.add_argument("--config-name", type=str, default="graph_default.yaml")
+    parser.add_argument(
+        "--rendered-output-name", type=str, default=None, help="Name of the rendered output to use from the Graph."
+    )
+    parser.add_argument(
+        "--rendered-resolution-scaling-factor",
+        type=float,
+        default=1.0,
+        help="Scaling factor to apply to the rendered camera image resolution.",
+    )
     parser.add_argument("overrides", nargs="*", default=[])
     args = parser.parse_args()
 
@@ -165,7 +180,12 @@ def main():
         print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
     elif args.method == "traj":
-        create_spiral_video(config, output_filename=args.output_filename)
+        create_spiral_video(
+            config,
+            output_filename=args.output_filename,
+            rendered_output_name=args.rendered_output_name,
+            rendered_resolution_scaling_factor=args.rendered_resolution_scaling_factor,
+        )
 
 
 if __name__ == "__main__":

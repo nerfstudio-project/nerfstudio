@@ -10,7 +10,7 @@ from omegaconf import DictConfig
 
 from scripts.run_train import main
 
-BLACKLIST = ["graph_nerfw.yaml", "graph_semantic_nerf.yaml", "graph_mipnerf_360.yaml"]
+BLACKLIST = ["graph_semantic_nerf.yaml", "graph_mipnerf_360.yaml"]
 
 
 def set_reduced_config(config: DictConfig):
