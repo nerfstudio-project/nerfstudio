@@ -23,6 +23,8 @@ from omegaconf import ListConfig
 
 from torchtyping import TensorType
 
+import torch.nn as nn
+
 from pyrad.cameras.cameras import Camera, get_camera
 from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset
