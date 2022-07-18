@@ -26,19 +26,57 @@ device = "cuda:0"
 # hit_cnt, hits_t, _ = pyrad_cuda_pl.ray_aabb_intersect(rays_o, rays_d, centers, half_sizes, 1)
 # print(hits_t)
 
-coords = torch.randint(0, 32, (2, 3), device=device)
-print("coords", coords)
+# coords = torch.randint(0, 32, (2, 3), device=device)
+# print("coords", coords)
 
-indices = pyrad_cuda.morton3D(coords.to(torch.int32))
-coords = pyrad_cuda.morton3D_invert(indices.to(torch.int32))
-print(indices, indices.dtype, coords, coords.dtype)
-indices = pyrad_cuda.morton3D(coords.to(torch.long))
-coords = pyrad_cuda.morton3D_invert(indices.to(torch.long))
-print(indices, indices.dtype, coords, coords.dtype)
+# indices = pyrad_cuda.morton3D(coords.to(torch.int32))
+# coords = pyrad_cuda.morton3D_invert(indices.to(torch.int32))
+# print(indices, indices.dtype, coords, coords.dtype)
+# indices = pyrad_cuda.morton3D(coords.to(torch.long))
+# coords = pyrad_cuda.morton3D_invert(indices.to(torch.long))
+# print(indices, indices.dtype, coords, coords.dtype)
 
-indices = pyrad_cuda_pl.morton3D(coords.to(torch.int32))
-coords = pyrad_cuda_pl.morton3D_invert(indices.to(torch.int32))
-print(indices, indices.dtype, coords, coords.dtype)
-indices = pyrad_cuda_pl.morton3D(coords.to(torch.long))
-coords = pyrad_cuda_pl.morton3D_invert(indices.to(torch.long))
-print(indices, indices.dtype, coords, coords.dtype)
+# indices = pyrad_cuda_pl.morton3D(coords.to(torch.int32))
+# coords = pyrad_cuda_pl.morton3D_invert(indices.to(torch.int32))
+# print(indices, indices.dtype, coords, coords.dtype)
+# indices = pyrad_cuda_pl.morton3D(coords.to(torch.long))
+# coords = pyrad_cuda_pl.morton3D_invert(indices.to(torch.long))
+# print(indices, indices.dtype, coords, coords.dtype)
+
+
+rays_o = torch.rand((1, 3), device=device)
+rays_d = torch.rand((1, 3), device=device)
+rays_d = torch.nn.functional.normalize(rays_d)
+aabb = torch.tensor([0.0, 0.0, 0.0, 1.0, 1.0, 1.0], device=device)
+t_min, t_max = pyrad_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
+print(t_min, t_max)
+
+cascades = 4
+grid_size = 32
+density = torch.rand((cascades * grid_size**3), device=device)
+threshold = 0.3
+bitfield = pyrad_cuda.packbits(density, threshold)
+# print("bitfield", bitfield)
+
+num_steps = 16
+max_samples = num_steps * rays_o.shape[0]
+cone_angle = 0.0  # 1.0 / 256
+packed_info, positions, dirs, deltas, ts = pyrad_cuda.raymarching_train(
+    rays_o, rays_d, t_min, t_max, cascades, grid_size, bitfield, max_samples, num_steps, cone_angle
+)
+print(positions)
+
+
+rays_o = rays_o - 0.5
+aabb = aabb - 0.5
+scale = 0.5
+noise = torch.zeros_like(rays_o[:, 0])
+centers = ((aabb[0:3] + aabb[3:6]) / 2.0).unsqueeze(0)
+half_sizes = ((aabb[3:6] - aabb[0:3]) / 2.0).unsqueeze(0)
+_, hits_t, _ = pyrad_cuda_pl.ray_aabb_intersect(rays_o, rays_d, centers, half_sizes, 1)
+print(hits_t[:, 0])
+
+rays_a, xyzs, dirs, deltas, ts, counter = pyrad_cuda_pl.raymarching_train(
+    rays_o, rays_d, hits_t[:, 0], bitfield.reshape(cascades, -1), scale, cone_angle, noise, grid_size, num_steps
+)
+print(xyzs + 0.5)

@@ -4,3 +4,4 @@ packbits = _C.packbits
 ray_aabb_intersect = _C.ray_aabb_intersect
 morton3D = _C.morton3D
 morton3D_invert = _C.morton3D_invert
+raymarching_train = _C.raymarching_train

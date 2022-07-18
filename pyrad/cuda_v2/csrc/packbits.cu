@@ -1,4 +1,4 @@
-#include "include/helper_cuda.h"
+#include "include/helpers.h"
 
 
 template <typename scalar_t>
