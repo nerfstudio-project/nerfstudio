@@ -66,6 +66,7 @@ def run_inference(config: DictConfig, local_rank: int = 0, world_size: int = 1) 
     dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
     _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
     graph = setup_graph(config.graph, dataset_inputs_train, device=device)
+    graph.eval()
 
     # load checkpointed information
     _load_checkpoint(config.trainer.resume_train, graph)

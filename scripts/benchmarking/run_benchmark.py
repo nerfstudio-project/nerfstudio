@@ -5,9 +5,11 @@ import argparse
 import json
 import logging
 import os
+from typing import Any, Dict
 
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
+import numpy as np
 from omegaconf import DictConfig
 from tqdm import tqdm
 
@@ -58,6 +60,14 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     return config
 
 
+def _calc_avg(stat_name: str, benchmark: Dict[str, Any]):
+    """helper to calculate the average across all objects in dataset"""
+    stats = []
+    for _, object_stats in benchmark.items():
+        stats.append(object_stats[stat_name])
+    return np.mean(stats)
+
+
 def main(args):
     """Main function."""
     benchmarks = {}
@@ -75,9 +85,14 @@ def main(args):
         # reset hydra config
         GlobalHydra.instance().clear()
 
+    avg_rays_per_sec = _calc_avg("avg rays per sec", benchmarks)
+    avg_fps = _calc_avg("avg fps", benchmarks)
+
     # output benchmark statistics to a json file
     benchmark_info = {
         "meta info": {"graph": args.graph, "benchmark_date": args.benchmark_date, "hydra": args.hydra_base_dir},
+        "avg rays per sec": avg_rays_per_sec,
+        "avg fps": avg_fps,
         "results": benchmarks,
     }
     json_file = os.path.join(args.hydra_base_dir, f"{args.benchmark_date}.json")
