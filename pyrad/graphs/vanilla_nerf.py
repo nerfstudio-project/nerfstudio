@@ -140,12 +140,36 @@ class NeRFGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None, metric_coeffs=None) -> Dict[str, torch.tensor]:
         image = batch["image"]
+
+        # Add losses to dict.
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
-        return loss_dict
+
+        # Aggregating losses.
+        aggregated_loss_dict = {}
+        for loss_name, loss_value in loss_dict.items():
+            if loss_name in self.loss_coefficients:
+                loss_coefficient = self.loss_coefficients[loss_name]
+            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
+        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
+
+        if metrics_dict is None:
+            return aggregated_loss_dict
+
+        # Folding in metrics.
+        for metric_name, metric_value in metrics_dict.items():
+            if metric_name in metric_coeffs:
+                aggregated_loss_dict[metric_name] = metric_coeffs[metric_name] * metric_value
+                aggregated_loss_dict["aggregated_loss"] += aggregated_loss_dict[metric_name]
+            else:
+                aggregated_loss_dict[metric_name] = metric_coeffs[metric_name]
+        return aggregated_loss_dict
+
+    def get_metrics_dict(self, outputs, batch):
+        return {}
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]

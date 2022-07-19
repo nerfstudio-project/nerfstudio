@@ -18,7 +18,7 @@ The Graph module contains all trainable parameters.
 from abc import abstractmethod
 from collections import defaultdict
 import time
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from omegaconf import DictConfig
@@ -150,9 +150,12 @@ class Graph(AbstractGraph):
         masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
-        loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
-        aggregated_loss_dict = self.get_aggregated_loss_dict(loss_dict)
-        return outputs, aggregated_loss_dict
+        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
+        metric_coeffs = {}  # TODO(alex): not sure what to do here
+        loss_metric_dict = self.get_loss_dict(
+            outputs=outputs, batch=masked_batch, metrics_dict=metrics_dict, metric_coeffs=metric_coeffs
+        )
+        return outputs, loss_metric_dict
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run the forward starting with ray indices."""
@@ -160,15 +163,19 @@ class Graph(AbstractGraph):
         return self.forward_after_ray_generator(ray_bundle, batch=batch)
 
     @abstractmethod
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
-        """Computes and returns the losses."""
+    def get_loss_dict(self, outputs, batch, metrics_dict=None, metric_coeffs=None) -> Dict[str, torch.tensor]:
+        """Computes and returns the losses / metrics dict."""
 
-    def get_aggregated_loss_dict(self, loss_dict):
+    @abstractmethod
+    def get_metrics_dict(self, outputs, batch) -> Optional[List[Dict[str, torch.tensor], Dict[str, float]]]:
+        """Compute and obtain metrics and coefficients."""
+
+    def get_aggregated_loss_dict(self, loss_dict) -> float:
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
         aggregated_loss_dict = {}
         for loss_name, loss_value in loss_dict.items():
-            assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
-            loss_coefficient = self.loss_coefficients[loss_name]
+            if loss_name in self.loss_coefficients:
+                loss_coefficient = self.loss_coefficients[loss_name]
             aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
         aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
         return aggregated_loss_dict
