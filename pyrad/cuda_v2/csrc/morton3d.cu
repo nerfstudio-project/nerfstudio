@@ -50,6 +50,7 @@ __global__ void kernel_morton3D_invert(
  */
 torch::Tensor morton3D(const torch::Tensor coords){
     DEVICE_GUARD(coords);
+    CHECK_INPUT(coords);
     const int N = coords.size(0);
 
     const int threads = 256;
@@ -79,6 +80,7 @@ torch::Tensor morton3D(const torch::Tensor coords){
  */
 torch::Tensor morton3D_invert(const torch::Tensor indices){
     DEVICE_GUARD(indices);
+    CHECK_INPUT(indices);
     const int N = indices.size(0);
 
     const int threads = 256;

@@ -61,7 +61,9 @@ inline __device__ bool density_grid_occupied_at(
         cascaded_grid_idx_at(x, y, z, mip, grid_size)
         + grid_mip_offset(mip, grid_size)
     );
-    printf("density idx %d\n", idx);
+    // if (idx >= grid_size * grid_size * grid_size * 2) {
+    //     printf("density idx %d mip %d\n", idx, mip);
+    // }
 	return density_grid_bitfield[idx/8] & (1<<(idx%8));
 }
 
@@ -152,7 +154,7 @@ __global__ void kernel_raymarching_train(
                 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
 		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size);
-        printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size));
+        // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size));
 
         if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
             ++j;
@@ -184,7 +186,7 @@ __global__ void kernel_raymarching_train(
 
 	t = startt;
 	j = 0;
-    while (t < endt && j < num_steps) {
+	while (0 <= t && t < endt && j < num_steps) {
         // current point
         const float x = ox + t * dx;
         const float y = oy + t * dy;
@@ -197,9 +199,9 @@ __global__ void kernel_raymarching_train(
             positions_out[j * 3 + 0] = x;
             positions_out[j * 3 + 1] = y;
             positions_out[j * 3 + 2] = z;
-            dirs_out[j * 3 + 0] = dx,
-            dirs_out[j * 3 + 1] = dy,
-            dirs_out[j * 3 + 2] = dz,
+            dirs_out[j * 3 + 0] = dx;
+            dirs_out[j * 3 + 1] = dy;
+            dirs_out[j * 3 + 2] = dz;
             deltas_out[j] = dt;   
             ts_out[j] = t;         
             ++j;
@@ -226,7 +228,8 @@ __global__ void kernel_raymarching_train(
  * @param cascades 
  * @param grid_size
  * @param density_bitfield Shape of [cascades * grid_size**3 // 8]
- * @param max_samples Default 1024
+ * @param max_samples
+ * @param num_steps Default 1024
  * @param cone_angle Default 0 for nerf-syn and 1/256 for large scene
  * @return std::vector<torch::Tensor> 
  */
@@ -243,6 +246,13 @@ std::vector<torch::Tensor> raymarching_train(
     const float cone_angle
 ) {
     DEVICE_GUARD(rays_o);
+
+    CHECK_INPUT(rays_o);
+    CHECK_INPUT(rays_d);
+    CHECK_INPUT(t_min);
+    CHECK_INPUT(t_max);
+    CHECK_INPUT(density_bitfield);
+    
     const int n_rays = rays_o.size(0);
 
     const int threads = 256;
@@ -257,10 +267,10 @@ std::vector<torch::Tensor> raymarching_train(
     // output samples
     torch::Tensor indices = torch::zeros(
         {n_rays, 3}, rays_o.options().dtype(torch::kInt32));  // ray_id, sample_id, num_samples
-    torch::Tensor positions = torch::empty({max_samples, 3}, rays_o.options());
-    torch::Tensor dirs = torch::empty({max_samples, 3}, rays_o.options());
-    torch::Tensor deltas = torch::empty({max_samples}, rays_o.options());
-    torch::Tensor ts = torch::empty({max_samples}, rays_o.options());
+    torch::Tensor positions = torch::zeros({max_samples, 3}, rays_o.options());
+    torch::Tensor dirs = torch::zeros({max_samples, 3}, rays_o.options());
+    torch::Tensor deltas = torch::zeros({max_samples, 1}, rays_o.options());
+    torch::Tensor ts = torch::zeros({max_samples, 1}, rays_o.options());
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         rays_o.scalar_type(),

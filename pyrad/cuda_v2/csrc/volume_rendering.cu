@@ -142,6 +142,13 @@ std::vector<torch::Tensor> volumetric_rendering(
     torch::Tensor rgbs
 ) {
     DEVICE_GUARD(indices);
+    CHECK_INPUT(indices);
+    CHECK_INPUT(positions);
+    CHECK_INPUT(deltas);
+    CHECK_INPUT(ts);
+    CHECK_INPUT(sigmas);
+    CHECK_INPUT(rgbs);
+    
     const uint32_t n_rays = indices.size(0);
 
     const int threads = 256;

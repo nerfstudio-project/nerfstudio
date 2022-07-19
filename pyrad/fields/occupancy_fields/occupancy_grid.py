@@ -37,7 +37,7 @@ def create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorT
     arrange = torch.arange(resolution, device=device)
     grid_x, grid_y, grid_z = torch.meshgrid([arrange, arrange, arrange], indexing="ij")
     coords = torch.stack([grid_x, grid_y, grid_z])  # [3, steps[0], steps[1], steps[2]]
-    coords = coords.view(3, -1).t()  # [N, 3]
+    coords = coords.reshape(3, -1).t().contiguous()  # [N, 3]
     return coords
 
 
@@ -60,11 +60,11 @@ class DensityGrid(nn.Module):
         self.resolution = resolution
         self.mean_density = 0.0
         self.update_every_num_iters = update_every_num_iters
-
-        density_grid = torch.zeros([self.num_cascades] + [self.resolution**3])
+        # TODO(ruilongli): ones init or zeros init?
+        density_grid = torch.ones([self.num_cascades] + [self.resolution**3])
         self.register_buffer("density_grid", density_grid)
 
-        density_bitfield = torch.zeros([self.num_cascades] + [self.resolution**3 // 8], dtype=torch.uint8)
+        density_bitfield = torch.zeros([self.num_cascades] + [self.resolution**3 // 8], dtype=torch.uint8).fill_(255)
         self.register_buffer("density_bitfield", density_bitfield)
 
         # Integer grid coords / indices that do not related to cascades

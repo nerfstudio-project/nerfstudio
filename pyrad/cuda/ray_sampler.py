@@ -44,14 +44,15 @@ class NGPSpacedSampler(Sampler):
     def forward(
         self,
         ray_bundle: RayBundle,
+        aabb: TensorType[2, 3],
         num_samples: Optional[int] = None,
     ) -> Tuple[RaySamples, TensorType]:
         """Generate ray samples"""
         num_samples = num_samples or self.num_samples
 
-        aabb = self.density_field.aabb.flatten()
-        rays_o = ray_bundle.origins
-        rays_d = ray_bundle.directions
+        aabb = aabb.flatten()
+        rays_o = ray_bundle.origins.contiguous()
+        rays_d = ray_bundle.directions.contiguous()
         t_min, t_max = pyrad_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
 
         if self.training:
@@ -72,6 +73,8 @@ class NGPSpacedSampler(Sampler):
             0.0,
         )
         zeros = torch.zeros_like(positions[:, :1])
+        print(rays_o.shape, max_samples_per_batch, num_samples)
+        torch.cuda.synchronize()
 
         ray_samples = RaySamples(
             frustums=Frustums(origins=positions, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),

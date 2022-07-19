@@ -89,6 +89,9 @@ std::vector<torch::Tensor> ray_aabb_intersect(
     const torch::Tensor aabb
 ) {
     DEVICE_GUARD(rays_o);
+    CHECK_INPUT(rays_o);
+    CHECK_INPUT(rays_d);
+    CHECK_INPUT(aabb);
     const int N = rays_o.size(0);
 
     const int threads = 256;

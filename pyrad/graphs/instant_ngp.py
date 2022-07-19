@@ -24,6 +24,7 @@ from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+import pyrad.cuda_v2 as pyrad_cuda
 from pyrad.cameras.rays import RayBundle
 from pyrad.cuda.ray_sampler import NGPSpacedSampler
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
@@ -87,21 +88,24 @@ class NGPGraph(Graph):
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+        # TODO
+        # 1. bkgd rgb
+        # 2. empty samples -- train test difference
+        with torch.no_grad():
+            ray_samples, packed_info = self.sampler(ray_bundle, self.field.aabb)
 
-        # uniform sampling
-        ray_samples, packed_info = self.sampler(ray_bundle)
         field_outputs = self.field.forward(ray_samples)
-        # volumetric rendering for these four fields
-        samples_rgb = field_outputs[FieldHeadNames.RGB]
-        samples_density = field_outputs[FieldHeadNames.DENSITY]
+        rgbs = field_outputs[FieldHeadNames.RGB]
+        sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-        raise NotImplementedError
-
+        accumulated_weight, accumulated_depth, accumulated_color = pyrad_cuda.VolumeRenderer.apply(
+            packed_info, ray_samples.frustums.get_positions(), ray_samples.deltas, ray_samples.ts, sigmas, rgbs
+        )
         outputs = {
-            "rgb": rgb,
-            "accumulation": accumulation,
-            "depth": depth,
-            "depth_occupancy_grid": depth_occupancy_grid,
+            "rgb": accumulated_weight,
+            "accumulation": accumulated_depth,
+            "depth": accumulated_color,
+            # "depth_occupancy_grid": depth_occupancy_grid,
         }
         return outputs
 
@@ -125,8 +129,8 @@ class NGPGraph(Graph):
         outputs["accumulation"] = combined_acc
         combined_depth = torch.cat([depth], dim=1)
         outputs["depth"] = combined_depth
-        depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        outputs["depth_occupancy_grid"] = combined_depth
+        # depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
+        # outputs["depth_occupancy_grid"] = combined_depth
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
@@ -145,8 +149,8 @@ class NGPGraph(Graph):
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
 
-        depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=combined_depth, step=step)
+        # depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
+        # writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=combined_depth, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

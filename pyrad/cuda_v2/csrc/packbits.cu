@@ -32,6 +32,8 @@ torch::Tensor packbits(
     const torch::Tensor data, const float threshold
 ) {
     DEVICE_GUARD(data);
+    CHECK_INPUT(data);
+    
     const int N = data.size(0) / 8;
 
     const int threads = 256;
