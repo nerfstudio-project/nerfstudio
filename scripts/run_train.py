@@ -116,9 +116,9 @@ def _train(local_rank: int, world_size: int, config: Config) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
-        local_rank (int): _description_
         local_rank (int): current rank of process
         world_size (int): total number of gpus available
+        config (Config): config file specifying training regimen
 
     Returns:
         Any: TODO(): determine the return type

@@ -187,22 +187,23 @@ class PinholeCamera(Camera):
         return torch.tensor([self.cx, self.cy, self.fx, self.fy])
 
     @classmethod
-    def fx_index(cls):
-        """TODO(ethan): redo this in a better way.
+    def fx_index(cls) -> int:
+        """Returns the index of the fx parameter in the intrinsics vector
+        TODO(ethan): redo this in a better way.
         Ideally we can dynamically grab the focal length parameters depending on
         Simple vs. not Simple Pinhole Model.
 
         Returns:
-            _type_: _description_
+            x focal length index
         """
         return 2
 
     @classmethod
-    def fy_index(cls):
-        """_summary_
+    def fy_index(cls) -> int:
+        """Returns the index of the fy parameter in the intrinsics vector
 
         Returns:
-            _type_: _description_
+            y focal length index
         """
         return 3
 
