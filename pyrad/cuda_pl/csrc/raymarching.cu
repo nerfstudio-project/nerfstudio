@@ -175,11 +175,11 @@ __global__ void raymarching_train_kernel(
         const int ny = clamp(0.5f*(y*mip_bound_inv+1)*grid_size, 0.0f, grid_size-1.0f);
         const int nz = clamp(0.5f*(z*mip_bound_inv+1)*grid_size, 0.0f, grid_size-1.0f);
 
-        // printf("mip %d, mip_scale %f, ix %d iy %d\n", mip, mip_bound_inv, nx, ny);
-        // printf("mip pos %d, mip dt %d, cascades %d\n", mip_from_pos(x, y, z, cascades), mip_from_dt(dt, grid_size, cascades), cascades);
+        printf("mip %d, mip_scale %f, ix %d iy %d\n", mip, mip_bound_inv, nx, ny);
+        printf("mip pos %d, mip dt %d, cascades %d\n", mip_from_pos(x, y, z, cascades), mip_from_dt(dt, grid_size, cascades), cascades);
         const uint32_t idx = mip*grid_size3 + __morton3D(nx, ny, nz);
         const bool occ = density_bitfield[idx/8] & (1<<(idx%8));
-        // printf("%f %f %d %d\n", t, dt, occ, idx);
+        printf("%f %f %d %d\n", t, dt, occ, idx);
 
         if (occ) {
             t += dt; N_samples++;

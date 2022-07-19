@@ -12,210 +12,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 from torchtyping import TensorType
 
-from pyrad.cameras.rays import RayBundle, RaySamples
-from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
+import pyrad.cuda_v2 as pyrad_cuda
+from pyrad.cameras.rays import Frustums, RayBundle, RaySamples
+from pyrad.fields.occupancy_fields.occupancy_grid import DensityGrid
 from pyrad.graphs.modules.ray_sampler import Sampler
 
 
 class NGPSpacedSampler(Sampler):
     """Sampler that matches Instant-NGP paper."""
 
-    def generate_ray_samples(self) -> RaySamples:
-        raise RuntimeError("For NGP we fused ray samples and occupancy check together. Please call forward() directly.")
-
-    def forward(
-        self,
-        ray_bundle: RayBundle = None,
-        num_samples: Optional[int] = None,
-    ) -> RaySamples:
-        """Generate ray samples with optional occupancy filtering"""
-        if self.training:
-            ray_samples = pyrad_cuda.ray_marching_train(ray_bundle, num_samples)
-        else:
-            ray_samples = pyrad_cuda.ray_marching_test(ray_bundle, num_samples)
-        return ray_samples
-
-
-class UniformSamplerPacked(Sampler):
-    """Sample uniformly along a ray"""
-
     def __init__(
         self,
         num_samples: int,
-        train_stratified=True,
-        occupancy_field: Optional[OccupancyGrid] = None,
-        weight_threshold: float = 1e-4,
+        density_field: Optional[DensityGrid] = None,
+        density_threshold: float = 1e-4,
     ) -> None:
-        super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
-        self.train_stratified = train_stratified
+        super().__init__(num_samples)
+        self.num_samples = num_samples
+        self.density_field = density_field
+        self.density_threshold = density_threshold
 
-    @torch.no_grad()
-    def generate_ray_samples(
+    def generate_ray_samples(self) -> RaySamples:
+        raise RuntimeError("For NGP we fused ray samples and occupancy check together. Please call forward() directly.")
+
+    # pylint: disable=arguments-differ
+    def forward(
         self,
-        ray_bundle: RayBundle = None,
+        ray_bundle: RayBundle,
         num_samples: Optional[int] = None,
-    ) -> RaySamples:  # in a packed version
-        """Generates position samples accoring to spacing function.
-
-        Args:
-            ray_bundle (RayBundle): Rays to generate samples for
-            num_samples (Optional[int]): Number of samples per ray
-
-        Returns:
-            RaySamples: Positions and deltas for samples along a ray
-        """
-        assert ray_bundle is not None
-        assert ray_bundle.nears is not None
-        assert ray_bundle.fars is not None
-
+    ) -> Tuple[RaySamples, TensorType]:
+        """Generate ray samples"""
         num_samples = num_samples or self.num_samples
-        num_rays = ray_bundle.origins.shape[0]
 
-        bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
+        aabb = self.density_field.aabb.flatten()
+        rays_o = ray_bundle.origins
+        rays_d = ray_bundle.directions
+        t_min, t_max = pyrad_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
 
-        s_near, s_far = [x for x in (ray_bundle.nears, ray_bundle.fars)]
-        bins = bins * s_far + (1 - bins) * s_near  # [num_rays, num_samples+1]
+        if self.training:
+            max_samples_per_batch = len(rays_o) * 16
+        else:
+            max_samples_per_batch = len(rays_o) * num_samples
 
-        if self.train_stratified and self.training:
-            t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
-            bin_centers = (bins[..., 1:] + bins[..., :-1]) / 2.0
-            bin_upper = torch.cat([bin_centers, bins[..., -1:]], -1)
-            bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
-            bins = bin_lower + (bin_upper - bin_lower) * t_rand
+        packed_info, positions, dirs, deltas, ts = pyrad_cuda.raymarching_train(
+            rays_o,
+            rays_d,
+            t_min,
+            t_max,
+            self.density_field.num_cascades,
+            self.density_field.resolution,
+            self.density_field.density_bitfield,
+            max_samples_per_batch,
+            num_samples,
+            0.0,
+        )
+        zeros = torch.zeros_like(positions[:, :1])
 
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
-
-        return ray_samples
-
-    def forward(self, *args, **kwargs) -> RaySamples:
-        """Generate ray samples with optional occupancy filtering"""
-        ray_samples = self.generate_ray_samples(*args, **kwargs)
-        if self.occupancy_field is not None:
-            densities = self.occupancy_field.get_densities(ray_samples.frustums.get_positions())
-            weights = ray_samples.get_weights(densities)
-
-            valid_mask = weights >= self.weight_threshold
-            ray_samples.set_valid_mask(valid_mask)
-        return ray_samples
-
-
-# class PDFSampler(Sampler):
-#     """Sample based on probability distribution"""
-
-#     def __init__(
-#         self,
-#         num_samples: int,
-#         train_stratified: bool = True,
-#         include_original: bool = True,
-#         occupancy_field: OccupancyGrid = None,
-#         weight_threshold: float = 1e-4,
-#         histogram_padding: float = 0.01,
-#     ) -> None:
-#         """
-#         Args:
-#             num_samples (int): Number of samples per ray
-#             train_stratified: boolean: Randomize location within each bin during training. Defaults to True
-#             include_original: Add original samples to ray. Defaults to True
-#             occupancy_field (OccupancyGrid, optional): Occupancy grid. If provides,
-#                 samples below weight_threshold as set as invalid.
-#             weight_thershold (float): Removes samples below threshold weight. Only used if occupancy field is provided.
-#             histogram_padding (float): Amount to weights prior to computing PDF. Defaults to 0.01.
-#         """
-#         super().__init__(num_samples=num_samples, occupancy_field=occupancy_field, weight_threshold=weight_threshold)
-#         self.train_stratified = train_stratified
-#         self.include_original = include_original
-#         self.histogram_padding = histogram_padding
-
-#     @torch.no_grad()
-#     def generate_ray_samples(
-#         self,
-#         ray_bundle: RayBundle = None,
-#         ray_samples: RaySamples = None,
-#         weights: TensorType[..., "num_samples", 1] = None,
-#         num_samples: Optional[int] = None,
-#         eps: float = 1e-5,
-#     ) -> RaySamples:
-#         """Generates position samples given a distribution.
-
-#         Args:
-#             ray_bundle (RayBundle): Rays to generate samples for
-#             ray_samples (RaySamples): Existing ray samples
-#             weights: (TensorType[..., "num_samples", 1]): Weights for each bin
-#             num_samples (Optional[int]): Number of samples per ray
-#             eps: float: Small value to prevent numerical issues. Defaults to 1e-5
-
-#         Returns:
-#             RaySamples: Positions and deltas for samples along a ray
-#         """
-#         num_samples = num_samples or self.num_samples
-#         num_bins = num_samples + 1
-
-#         weights = weights[..., 0] + self.histogram_padding
-
-#         # Add small offset to rays with zero weight to prevent NaNs
-#         weights_sum = torch.sum(weights, dim=-1, keepdim=True)
-#         padding = torch.relu(eps - weights_sum)
-#         weights = weights + padding / weights.shape[-1]
-#         weights_sum += padding
-
-#         pdf = weights / weights_sum
-#         cdf = torch.min(torch.ones_like(pdf), torch.cumsum(pdf, dim=-1))
-#         cdf = torch.cat([torch.zeros_like(cdf[..., :1]), cdf], dim=-1)
-
-#         if self.train_stratified and self.training:
-#             # Stratified samples between 0 and 1
-#             u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
-#             u = u.expand(size=(*cdf.shape[:-1], num_bins))
-#             u = u + torch.rand(size=(*cdf.shape[:-1], num_bins), device=cdf.device) / num_bins
-#         else:
-#             # Uniform samples between 0 and 1
-#             u = torch.linspace(0.0, 1.0, steps=num_bins, device=cdf.device)
-#             u = u.expand(size=(*cdf.shape[:-1], num_bins))
-#         u = u.contiguous()
-
-#         # Force bins to not have a gap between them. Kinda hacky, should reconsider.
-#         existing_bins = torch.cat(
-#             [
-#                 ray_samples.frustums.starts[..., :1, 0],
-#                 (ray_samples.frustums.starts[..., 1:, 0] + ray_samples.frustums.ends[..., :-1, 0]) / 2.0,
-#                 ray_samples.frustums.ends[..., -1:, 0],
-#             ],
-#             axis=-1,
-#         )
-
-#         inds = torch.searchsorted(cdf, u, side="right")
-#         below = torch.clamp(inds - 1, 0, num_bins - 1)
-#         above = torch.clamp(inds, 0, num_bins - 1)
-#         cdf_g0 = torch.gather(cdf, -1, below)
-#         bins_g0 = torch.gather(existing_bins, -1, below)
-#         cdf_g1 = torch.gather(cdf, -1, above)
-#         bins_g1 = torch.gather(existing_bins, -1, above)
-
-#         t = torch.clip(torch.nan_to_num((u - cdf_g0) / (cdf_g1 - cdf_g0), 0), 0, 1)
-#         bins = bins_g0 + t * (bins_g1 - bins_g0)
-
-#         if self.include_original:
-#             bins, _ = torch.sort(torch.cat([existing_bins, bins], -1), -1)
-
-#         # Stop gradients
-#         bins = bins.detach()
-
-#         ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
-
-#         return ray_samples
-
-#     def forward(self, *args, **kwargs) -> RaySamples:
-#         """Generate ray samples with optional occupancy filtering"""
-#         ray_samples = self.generate_ray_samples(*args, **kwargs)
-#         if self.occupancy_field is not None:
-#             densities = self.occupancy_field.get_densities(ray_samples.frustums.get_positions())
-#             weights = ray_samples.get_weights(densities)
-
-#             valid_mask = weights >= self.weight_threshold
-#             ray_samples.set_valid_mask(valid_mask)
-#         return ray_samples
+        ray_samples = RaySamples(
+            frustums=Frustums(origins=positions, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),
+            deltas=deltas,
+            ts=ts,
+        )
+        return ray_samples, packed_info

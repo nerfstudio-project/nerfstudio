@@ -29,9 +29,11 @@ inline __host__ __device__ void __swap(scalar_t &a, scalar_t &b)
     b = c;
 }
 
-inline __host__ __device__ float __sign(float x) {
-	return copysignf(1.0, x);
-}
+inline __host__ __device__ float __clamp(float f, float a, float b) { return fmaxf(a, fminf(f, b)); }
+
+inline __host__ __device__ int __clamp(int f, int a, int b) { return std::max(a, std::min(f, b)); }
+
+inline __host__ __device__ float __sign(float x) { return copysignf(1.0, x); }
 
 inline __host__ __device__ uint32_t __expand_bits(uint32_t v)
 {
@@ -59,8 +61,3 @@ inline __host__ __device__ uint32_t __morton3D_invert(uint32_t x)
 	x = (x | (x >> 16)) & 0x0000ffff;
 	return x;
 }
-
-
-inline __host__ __device__ float __clamp(float f, float a, float b) { return fmaxf(a, fminf(f, b)); }
-
-inline __host__ __device__ int __clamp(int f, int a, int b) { return std::max(a, std::min(f, b)); }

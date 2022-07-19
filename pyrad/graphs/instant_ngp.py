@@ -21,19 +21,18 @@ from typing import Dict, List
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from pyrad.fields.modules.field_heads import FieldHeadNames
+from pyrad.cameras.rays import RayBundle
+from pyrad.cuda.ray_sampler import NGPSpacedSampler
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
+from pyrad.fields.modules.field_heads import FieldHeadNames
+from pyrad.fields.occupancy_fields.occupancy_grid import DensityGrid
 from pyrad.graphs.base import Graph
 from pyrad.optimizers.loss import MSELoss
-from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
 from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
-from pyrad.utils import colors
-from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.utils import colors, visualization, writer
 from pyrad.utils.callbacks import Callback
 
 
@@ -52,8 +51,8 @@ class NGPGraph(Graph):
         self.callbacks = [
             Callback(
                 self.occupancy_grid.update_every_num_iters,
-                self.occupancy_grid.update_occupancy_grid,
-                density_fn=self.field.density_fn,
+                self.occupancy_grid.update_density_grid,
+                density_eval_func=self.field.density_fn,
             )
         ]
 
@@ -64,13 +63,10 @@ class NGPGraph(Graph):
 
     def populate_misc_modules(self):
         # occupancy grid
-        self.occupancy_grid = OccupancyGrid(aabb=self.scene_bounds.aabb)
+        self.occupancy_grid = DensityGrid(num_cascades=2)
 
         # samplers
-        self.sampler_occupancy_grid = UniformSampler(num_samples=128, occupancy_field=self.occupancy_grid)
-        # NOTE(ethan): are we sure we want the include_original flag used like this?
-        # it could be easily forgotten that it's by default True...?
-        self.sampler_pdf = PDFSampler(num_samples=128, include_original=False)
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.occupancy_grid)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -93,42 +89,13 @@ class NGPGraph(Graph):
     def get_outputs(self, ray_bundle: RayBundle):
 
         # uniform sampling
-        ray_samples_uniform = self.sampler_occupancy_grid(ray_bundle)
-        field_outputs_uniform = self.field.forward(ray_samples_uniform)
-        weights_uniform = ray_samples_uniform.get_weights(field_outputs_uniform[FieldHeadNames.DENSITY])
+        ray_samples, packed_info = self.sampler(ray_bundle)
+        field_outputs = self.field.forward(ray_samples)
+        # volumetric rendering for these four fields
+        samples_rgb = field_outputs[FieldHeadNames.RGB]
+        samples_density = field_outputs[FieldHeadNames.DENSITY]
 
-        # pdf sampling
-        ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_uniform)
-        field_outputs_pdf = self.field.forward(ray_samples_pdf)
-
-        # Hacky treatment of bins as points to allow us to merge uniform and pdf.
-        ts_uniform = (ray_samples_uniform.frustums.starts + ray_samples_uniform.frustums.ends) / 2.0
-        ts_pdf = (ray_samples_pdf.frustums.starts + ray_samples_pdf.frustums.ends) / 2.0
-        ts, indices = torch.sort(torch.cat([ts_uniform, ts_pdf], -2), -2)
-        bin_starts = ts
-        bin_ends = torch.cat([ts[..., 1:, :], ts[..., -1:, :]], dim=-2)
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bin_starts, bin_ends=bin_ends)
-
-        field_outputs = {}
-        for fo_name, _ in field_outputs_pdf.items():
-            fo_uniform = field_outputs_uniform[fo_name]
-            fo_pdf = field_outputs_pdf[fo_name]
-            fo_uniform_pdf = torch.cat([fo_uniform, fo_pdf], 1)
-            index = indices.view(fo_uniform_pdf[..., :1].shape)
-            index = index.expand(-1, -1, fo_uniform_pdf.shape[-1])  # TODO: don't hardcode this
-            field_outputs[fo_name] = torch.gather(fo_uniform_pdf, dim=1, index=index)
-
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        rgb = self.renderer_rgb(
-            rgb=field_outputs[FieldHeadNames.RGB],
-            weights=weights,
-        )
-        accumulation = self.renderer_accumulation(weights)
-        depth = self.renderer_depth(weights, ray_samples)
-
-        densities_occupancy_grid = self.occupancy_grid.get_densities(ray_samples.frustums.get_positions())
-        weights_occupancy_grid = ray_samples.get_weights(densities_occupancy_grid)
-        depth_occupancy_grid = self.renderer_depth(weights_occupancy_grid, ray_samples)
+        raise NotImplementedError
 
         outputs = {
             "rgb": rgb,

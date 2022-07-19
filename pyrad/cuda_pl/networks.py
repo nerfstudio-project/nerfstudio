@@ -22,6 +22,7 @@ class NGP(nn.Module):
         # each density grid covers [-2^(k-1), 2^(k-1)]^3 for k in [0, C-1]
         self.cascades = max(1 + int(np.ceil(np.log2(2 * scale))), 1)
         self.grid_size = 128
+        self.register_buffer("density_grid", torch.zeros(self.cascades, self.grid_size**3))
         self.register_buffer(
             "density_bitfield", torch.zeros(self.cascades * self.grid_size**3 // 8, dtype=torch.uint8)
         )

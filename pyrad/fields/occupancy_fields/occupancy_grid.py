@@ -15,13 +15,139 @@
 """
 Code to implement the density grid.
 """
+from typing import Callable, List, NoReturn, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
 
+import pyrad.cuda_v2 as pyrad_cuda
 from pyrad.utils.misc import is_not_none
+
+
+def create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
+    """Create 3D grid coordinates"""
+    arrange = torch.arange(resolution, device=device)
+    grid_x, grid_y, grid_z = torch.meshgrid([arrange, arrange, arrange], indexing="ij")
+    coords = torch.stack([grid_x, grid_y, grid_z])  # [3, steps[0], steps[1], steps[2]]
+    coords = coords.view(3, -1).t()  # [N, 3]
+    return coords
+
+
+class DensityGrid(nn.Module):
+    """Cascaded multi-res density grids.
+
+    The multi-res grids are all centerd at [0.5, 0.5, 0.5] in the world space.
+    The first grid covers regions [0., 0., 0.] ~ [1., 1., 1.] and the followings
+    grows by 2x scale each.
+    """
+
+    def __init__(
+        self,
+        num_cascades: int = 1,
+        resolution: int = 128,
+        update_every_num_iters: int = 16,
+    ) -> None:
+        super().__init__()
+        self.num_cascades = num_cascades  # the number of levels (i.e, cascades)
+        self.resolution = resolution
+        self.mean_density = 0.0
+        self.update_every_num_iters = update_every_num_iters
+
+        density_grid = torch.zeros([self.num_cascades] + [self.resolution**3])
+        self.register_buffer("density_grid", density_grid)
+
+        density_bitfield = torch.zeros([self.num_cascades] + [self.resolution**3 // 8], dtype=torch.uint8)
+        self.register_buffer("density_bitfield", density_bitfield)
+
+        # Integer grid coords / indices that do not related to cascades
+        grid_coords = create_grid_coords(resolution)
+        # TODO(ruilongli): hacky way for now. support cpu version?
+        grid_indices = pyrad_cuda.morton3D(grid_coords.to("cuda:0")).to("cpu")
+        self.register_buffer("grid_coords", grid_coords)
+        self.register_buffer("grid_indices", grid_indices)
+
+        self.warmup_steps = 0
+
+    @torch.no_grad()
+    def reset(self):
+        """Zeros out the occupancy grid."""
+        self.density_grid.zero_()
+        self.density_bitfield.zero_()
+
+    @torch.no_grad()
+    def get_all_cells(self) -> List[Tuple[TensorType["n"], TensorType["n"]]]:
+        """Returns all cells"""
+        return [(self.grid_indices, self.grid_coords)] * self.num_cascades
+
+    @torch.no_grad()
+    def sample_uniform_and_occupied_cells(self, n: int) -> List[Tuple[TensorType["n"], TensorType["n"]]]:
+        """Samples both n uniform and occupied cells (per cascade)"""
+        device = self.density_grid.device
+
+        cells = []
+        for c in range(self.num_cascades):
+            uniform_coords = torch.randint(self.resolution, (n, 3), device=device)
+            uniform_indices = pyrad_cuda.morton3D(uniform_coords)
+
+            occupied_indices = torch.nonzero(self.density_grid[c] > 0)[:, 0]
+            if n < len(occupied_indices):
+                selector = torch.randint(len(occupied_indices), (n,), device=device)
+                occupied_indices = occupied_indices[selector]
+            occupied_coords = pyrad_cuda.morton3D_invert(occupied_indices)
+
+            # concatenate
+            coords = torch.cat([uniform_coords, occupied_coords], dim=0)
+            indices = torch.cat([uniform_indices, occupied_indices], dim=0)
+            cells.append((indices, coords))
+        return cells
+
+    @torch.no_grad()
+    def update_density_grid(
+        self, density_eval_func: Callable, density_threshold: float = 1e-4, decay: float = 0.95
+    ) -> NoReturn:
+        """Update the density grid in EMA way.
+
+        Args:
+            density_eval_func: A Callable function that takes in samples (N, 3)
+                and returns densities (N, 1).
+        """
+        # create temporary grid
+        tmp_grid = -torch.ones_like(self.density_grid)
+        if self.warmup_steps < 256:
+            cells = self.get_all_cells()
+            self.warmup_steps += 1
+        else:
+            N = self.resolution**3 // 4
+            cells = self.sample_uniform_and_occupied_cells(N)
+
+        # infer sigmas
+        for mip_level in range(self.num_cascades):
+            mip_scale = 2 ** (-mip_level)
+            indices, coords = cells[mip_level]
+            # `coords` denotes the i-th cell. It's a poor naming here.
+            # the actually coordinates in world space x has mapping to
+            # the cell like this:
+            # x \in [0, 1/res] maps to 0-th cell.
+            # x \in [1 - 1/res, 1] maps to (res-1)-th cell.
+            x = (coords + torch.rand_like(coords.float())) / self.resolution
+            x = (x - 0.5) / mip_scale + 0.5
+            tmp_grid[mip_level, indices] = density_eval_func(x).squeeze(-1)
+
+        # ema update
+        valid_mask = (self.density_grid >= 0) & (tmp_grid >= 0)
+        self.density_grid[valid_mask] = torch.maximum(self.density_grid[valid_mask] * decay, tmp_grid[valid_mask])
+        mean_density = self.density_grid[self.density_grid > 0].mean().item()
+
+        # pack to bitfield
+        self.density_bitfield.data = pyrad_cuda.packbits(self.density_grid, min(mean_density, density_threshold))
+
+        # TODO: max pooling? https://github.com/NVlabs/instant-ngp/blob/master/src/testbed_nerf.cu#L578
+
+    def forward(self, x):
+        """Not implemented."""
+        raise RuntimeError("Shouldn't be called!")
 
 
 class OccupancyGrid(nn.Module):

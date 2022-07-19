@@ -61,6 +61,7 @@ inline __device__ bool density_grid_occupied_at(
         cascaded_grid_idx_at(x, y, z, mip, grid_size)
         + grid_mip_offset(mip, grid_size)
     );
+    printf("density idx %d\n", idx);
 	return density_grid_bitfield[idx/8] & (1<<(idx%8));
 }
 
@@ -151,7 +152,7 @@ __global__ void kernel_raymarching_train(
                 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
 		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size);
-        // printf("t %f \n", t);
+        printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size));
 
         if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
             ++j;
