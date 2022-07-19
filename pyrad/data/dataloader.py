@@ -16,15 +16,14 @@
 Data loader.
 """
 
-from abc import abstractmethod
 import random
+from abc import abstractmethod
 from typing import Dict, List, Tuple, Union
-from omegaconf import ListConfig
+
 import torch
-
-from torchtyping import TensorType
-
+from omegaconf import ListConfig
 from torch import nn
+from torchtyping import TensorType
 
 from pyrad.cameras.cameras import Camera, get_camera
 from pyrad.cameras.rays import RayBundle
@@ -36,7 +35,7 @@ from pyrad.data.utils import get_dataset_inputs_from_dataset_config
 from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
 from pyrad.utils.config import DataConfig
-from pyrad.utils.misc import get_dict_to_torch, instantiate_from_dict_config
+from pyrad.utils.misc import IterableWrapper, get_dict_to_torch, instantiate_from_dict_config
 
 
 @profiler.time_function
@@ -86,32 +85,20 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
     return dataset_inputs_eval, dataloader_eval
 
 
-class IterableWrapper:
-    """A helper that will allow an instance of a class to return multiple kinds of iterables bound to different functions of that class.
-
-    To use this, pass in the instance of the class you want to have multiple kinds of iterables for, and pass in a
-    method belonging to that class that you want to be the __next__() method of the iterable. The resulting instantiated object will
-    be an iterable that will use the passed in class method as the __next__() method."""
-
-    def __init__(self, instance: object, new_next: callable):
-        """
-        Args:
-            instance (object): instance class we are wrapping
-            new_next (callable): function that will be called instead as the __next__()
-        """
-        self.instance = instance
-        self.new_next = new_next
-
-    def __next__(self):
-        return self.new_next(self.instance)
-
-
 class AbstractDataloaderV2(nn.Module):
     """Second version of the dataloader class
 
     This version of the dataloader is designed to subsume both the train and eval dataloaders, especially since
     this may contain learnable parameters which need to be shared across the train and test dataloaders. The idea
     is that we have setup methods for train and eval separatley and this can be a combined train/eval if you want.
+
+    The default should be for the train and eval dataloaders to be the same, but this can be overridden. This is
+    needed when there are learned parameters either in your data itself or in the way some of the data (that we will
+    pass to the renderer / Field) was generated. In these cases, we want these parameters to be accessible by
+    both the train and eval dataloaders, hence why you would want them to be in the same dataloader.
+
+    An instance where you may want to have only the eval dataloader is if you are doing evaluation and
+    don't have the dataset used to train the model.
 
 
     Train Methods:
