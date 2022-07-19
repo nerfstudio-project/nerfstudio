@@ -63,18 +63,6 @@ class TCNNInstantNGPField(Field):
         # TODO: set this properly based on the aabb
         per_level_scale = 1.4472692012786865
 
-        self.position_encoding = tcnn.Encoding(
-            n_input_dims=3,
-            encoding_config={
-                "otype": "HashGrid",
-                "n_levels": 16,
-                "n_features_per_level": 2,
-                "log2_hashmap_size": 19,
-                "base_resolution": 16,
-                "per_level_scale": per_level_scale,
-            },
-        )
-
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
             encoding_config={
@@ -83,9 +71,17 @@ class TCNNInstantNGPField(Field):
             },
         )
 
-        self.mlp_base = tcnn.Network(
-            n_input_dims=32,
+        self.mlp_base = tcnn.NetworkWithInputEncoding(
+            n_input_dims=3,
             n_output_dims=1 + self.geo_feat_dim,
+            encoding_config={
+                "otype": "HashGrid",
+                "n_levels": 16,
+                "n_features_per_level": 2,
+                "log2_hashmap_size": 19,
+                "base_resolution": 16,
+                "per_level_scale": per_level_scale,
+            },
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
@@ -112,8 +108,7 @@ class TCNNInstantNGPField(Field):
         positions = get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         dtype = positions_flat.dtype
-        x = self.position_encoding(positions_flat)
-        h = self.mlp_base(x).view(*ray_samples.frustums.get_positions().shape[:-1], -1).to(dtype)
+        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1).to(dtype)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
