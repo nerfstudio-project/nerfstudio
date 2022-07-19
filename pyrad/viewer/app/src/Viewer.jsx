@@ -181,7 +181,7 @@ export class Viewer extends Component {
         this.output_options = "default";
       })();
       let params = {
-        switch: false
+        switch: false,
       };
       // add controls
       this.state.gui
@@ -191,12 +191,13 @@ export class Viewer extends Component {
         .onChange((value) => {
           this.send_output_type_over_websocket(value);
         });
-      this.state.gui.add(params, "switch")
+      this.state.gui
+        .add(params, "switch")
         .name("Pause Training?")
         .listen()
-        .onChange((value)=>{
+        .onChange((value) => {
           this.send_training_state_over_websocket(value);
-      });
+        });
     }
     this.created_controls = true;
   }
