@@ -107,21 +107,19 @@ def render_trajectory_video(
     camera_path: CameraPath,
     output_filename: Optional[str] = None,
     rendered_output_name: Optional[str] = None,
-    rendered_resolution_scaling_factor: Optional[float] = 1.0,
-    num_rays_per_chunk: Optional[int] = 4096,
+    rendered_resolution_scaling_factor: float = 1.0,
+    num_rays_per_chunk: int = 4096,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
     Args:
-        config (DictConfig): Configuration for loading the evaluation.
-        local_rank (int): Local rank of the process.
-        world_size (int): Total number of GPUs.
-        index (int): Index of the image to render.
-        output_filename (str): Name of the output file.
-        rendered_output_name (str, optional): Name of the renderer output to use.
-        rendered_resolution_scaling_factor (float, optional): Scaling factor to apply to the camera image resolution.
+        graph: Graph to evaluate with.
+        camera_path: Index of the image to render.
+        output_filename: Name of the output file.
+        rendered_output_name: Name of the renderer output to use.
+        rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
             Defaults to 1.0.
-        num_rays_per_chunk (int, optional): Number of rays to use per chunk. Defaults to 4096.
+        num_rays_per_chunk: Number of rays to use per chunk. Defaults to 4096.
     """
     print("Creating trajectory video.")
     images = []

@@ -218,5 +218,6 @@ class NerfWGraph(Graph):
 
         writer.put_image(name=f"img/image_idx_{image_idx}-nerfw", image=combined_image, step=step)
 
-        mask = batch["mask"].repeat(1, 1, 3)
-        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
+        if "mask" in batch:
+            mask = batch["mask"].repeat(1, 1, 3)
+            writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
