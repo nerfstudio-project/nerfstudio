@@ -3,7 +3,7 @@ run_eval.py
 """
 import argparse
 import os
-from typing import Dict
+from typing import Dict, Optional
 
 import mediapy as media
 import torch
@@ -77,7 +77,7 @@ def run_inference_from_config(config: DictConfig) -> Dict[str, float]:
     return render_stats_dict(graph, dataloader_eval)
 
 
-def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> dict:
+def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> Dict[str, float]:
     """Helper function to evaluate the graph on a dataloader.
 
     Args:
@@ -105,10 +105,10 @@ def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> dict:
 def render_trajectory_video(
     graph: Graph,
     camera_path: CameraPath,
-    output_filename: str = None,
-    rendered_output_name: str = None,
-    rendered_resolution_scaling_factor: float = 1.0,
-    num_rays_per_chunk: int = 4096,
+    output_filename: Optional[str] = None,
+    rendered_output_name: Optional[str] = None,
+    rendered_resolution_scaling_factor: Optional[float] = 1.0,
+    num_rays_per_chunk: Optional[int] = 4096,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -119,13 +119,14 @@ def render_trajectory_video(
         index (int): Index of the image to render.
         output_filename (str): Name of the output file.
         rendered_output_name (str, optional): Name of the renderer output to use.
-        rendered_resolution_scaling_factor (float): Scaling factor to apply to the camera image resolution. Defaults to 1.0.
-        num_rays_per_chunk (int): Number of rays to use per chunk. Defaults to 4096.
+        rendered_resolution_scaling_factor (float, optional): Scaling factor to apply to the camera image resolution.
+            Defaults to 1.0.
+        num_rays_per_chunk (int, optional): Number of rays to use per chunk. Defaults to 4096.
     """
     print("Creating trajectory video.")
     images = []
     for camera in tqdm(camera_path.cameras):
-        camera.rescale(rendered_resolution_scaling_factor)
+        camera.rescale_output_resolution(rendered_resolution_scaling_factor)
         camera_ray_bundle = camera.get_camera_ray_bundle().to(graph.device)
         camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
         with torch.no_grad():
@@ -139,9 +140,10 @@ def render_trajectory_video(
     media.write_video(output_filename, images, fps=fps)
 
 
-def main():
-    """Main function."""
-
+def my_func_that_returns_a_parser():
+    """Function that returns a parser, which
+    can be used with sphinx to generate documentation.
+    """
     parser = argparse.ArgumentParser(description="Run the evaluation of a model.")
     parser.add_argument(
         "--method",
@@ -163,6 +165,12 @@ def main():
         help="Scaling factor to apply to the rendered camera image resolution.",
     )
     parser.add_argument("overrides", nargs="*", default=[])
+    return parser
+
+
+def main():
+    """Main function."""
+    parser = my_func_that_returns_a_parser()
     args = parser.parse_args()
 
     config_path = "../configs"

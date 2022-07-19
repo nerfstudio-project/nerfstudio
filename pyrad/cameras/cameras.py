@@ -92,8 +92,8 @@ class Camera:
         return
 
     @abstractmethod
-    def rescale(self, scaling_factor: float):
-        """Rescales the camera intrinsics.
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        """Rescales the camera intrinsics for output resolution.
 
         Args:
             scaling_factor (float): Scaling factor
@@ -218,7 +218,7 @@ class PinholeCamera(Camera):
         """
         return 3
 
-    def rescale(self, scaling_factor: float):
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
         self.cx *= scaling_factor
         self.cy *= scaling_factor
         self.fx *= scaling_factor
@@ -306,7 +306,7 @@ class EquirectangularCamera(Camera):
     def get_intrinsics(self) -> torch.Tensor:
         return torch.tensor([self.height, self.width])
 
-    def rescale(self, scaling_factor: float):
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
         self.height *= scaling_factor
         self.width *= scaling_factor
 

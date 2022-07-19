@@ -184,3 +184,4 @@ yarn.lock
 package.json
 scripts/colmap2nerf.py
 bash/
+pyrad/ngp_pl/
