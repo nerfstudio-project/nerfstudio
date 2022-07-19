@@ -44,13 +44,24 @@ class NerfWGraph(Graph):
         near_plane=2.0,
         far_plane=6.0,
         num_coarse_samples=64,
-        num_importance_samples=128,
+        num_importance_samples=64,
+        uncertainty_min=0.03,
         **kwargs,
     ) -> None:
+        """A NeRF-W graph.
+
+        Args:
+            ...
+            uncertainty_min (float, optional): This is added to the end of the uncertainty
+                rendering operation. It's called 'beta_min' in other repos.
+                This avoids calling torch.log() on a zero value, which would be undefined.
+                Defaults to 0.03.
+        """
         self.near_plane = near_plane
         self.far_plane = far_plane
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
+        self.uncertainty_min = uncertainty_min
         self.field_coarse = None
         self.field_fine = None
         self.num_images = len(intrinsics)
@@ -151,6 +162,7 @@ class NerfWGraph(Graph):
 
         # uncertainty
         uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
+        uncertainty += self.uncertainty_min
 
         outputs = {
             "rgb_coarse": rgb_coarse,  # (num_rays, 3)
@@ -206,5 +218,6 @@ class NerfWGraph(Graph):
 
         writer.put_image(name=f"img/image_idx_{image_idx}-nerfw", image=combined_image, step=step)
 
-        mask = batch["mask"].repeat(1, 1, 3)
-        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
+        if "mask" in batch:
+            mask = batch["mask"].repeat(1, 1, 3)
+            writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
