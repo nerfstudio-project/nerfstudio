@@ -26,6 +26,12 @@ import pyrad.cuda_v2 as pyrad_cuda
 from pyrad.utils.misc import is_not_none
 
 
+def is_power_of_two(x: int):
+    """Check whether a integer is the power of two"""
+    # https://stackoverflow.com/a/57025941
+    return (x & (x - 1) == 0) and x != 0
+
+
 def create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
     """Create 3D grid coordinates"""
     arrange = torch.arange(resolution, device=device)
