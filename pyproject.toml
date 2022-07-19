@@ -11,7 +11,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore-paths = ["^pyrad/cuda/.*$", "^tests/cuda/.*$", "^pyrad/viewer/.*$", "^tests/viewer/.*$"]
+ignore-paths = ["pyrad/ngp_pl/.*$", "scripts/colmap2nerf.py", "^pyrad/cuda/.*$", "^tests/cuda/.*$", "^pyrad/viewer/.*$", "^tests/viewer/.*$"]
 
 disable = [
   "too-many-arguments",

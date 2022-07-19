@@ -41,7 +41,7 @@ class RGBRenderer(nn.Module):
     """Standard volumetic rendering.
 
     Args:
-        background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
+        background_color: Background color as RGB. Defaults to random.
     """
 
     def __init__(self, background_color: Optional[TensorType[3]] = None) -> None:
@@ -58,12 +58,12 @@ class RGBRenderer(nn.Module):
         """Composite samples along ray and render color image
 
         Args:
-            rgb (TensorType[..., "num_samples", 3]): RGB for each sample
-            weights (TensorType[..., "num_samples", 1]): Weights for each sample
-            background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
+            rgb: RGB for each sample
+            weights: Weights for each sample
+            background_color: Background color as RGB. Defaults to random.
 
         Returns:
-            TensorType[..., 3]: Outputs rgb values.
+            Outputs rgb values.
         """
         rgb = torch.sum(weights * rgb, dim=-2)
 
@@ -82,11 +82,11 @@ class RGBRenderer(nn.Module):
         """Composite samples along ray and render color image
 
         Args:
-            rgb (TensorType[..., "num_samples", 3]): RGB for each sample
-            weights (TensorType[..., "num_samples", 1]): Weights for each sample
+            rgb: RGB for each sample
+            weights: Weights for each sample
 
         Returns:
-            TensorType[..., 3]: Outputs of rgb values.
+            Outputs of rgb values.
         """
 
         rgb = self.combine_rgb(rgb, weights, background_color=self.background_color)
@@ -99,8 +99,8 @@ class SHRenderer(nn.Module):
     """Render RGB value from spherical harmonics.
 
     Args:
-        background_color (TensorType[3], optional): Background color as RGB. Defaults to random.
-        activation (Optional[nn.Module], optional): Output activation. Defaults to Sigmoid().
+        background_color: Background color as RGB. Defaults to random.
+        activation: Output activation. Defaults to Sigmoid().
     """
 
     def __init__(
@@ -119,12 +119,12 @@ class SHRenderer(nn.Module):
         """Composite samples along ray and render color image
 
         Args:
-            sh (TensorType[..., "num_samples", "coeffs"]): Spherical hamonics coefficients for each sample
-            directions: (TensorType[..., "num_samples", 3]): Sample direction
-            weights (TensorType[..., "num_samples", 1]): Weights for each sample
+            sh: Spherical hamonics coefficients for each sample
+            directions: Sample direction
+            weights: Weights for each sample
 
         Returns:
-            TensorType[..., 3]: Outputs of rgb values.
+            Outputs of rgb values.
         """
 
         sh = sh.view(*sh.shape[:-1], 3, sh.shape[-1] // 3)
@@ -154,10 +154,10 @@ class AccumulationRenderer(nn.Module):
         """Composite samples along ray and calculate accumulation.
 
         Args:
-            weights (TensorType[..., "num_samples"]): Weights for each sample
+            weights: Weights for each sample
 
         Returns:
-            TensorType: Outputs of accumulated values.
+            Outputs of accumulated values.
         """
 
         accumulation = torch.sum(weights, dim=-2)
@@ -181,11 +181,11 @@ class DepthRenderer(nn.Module):
         """Composite samples along ray and calculate disparities.
 
         Args:
-            weights (TensorType[..., "num_samples", 1]): Weights for each sample.
-            ray_samples (RaySamples): Set of ray samples.
+            weights: Weights for each sample.
+            ray_samples: Set of ray samples.
 
         Returns:
-            TensorType[..., 1]: Outputs of depth values.
+            Outputs of depth values.
         """
 
         if self.method == "expected":
@@ -207,14 +207,14 @@ class UncertaintyRenderer(nn.Module):
     def forward(
         cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples", 1]
     ) -> TensorType:
-        """_summary_
+        """Calculate uncertainty along the ray.
 
         Args:
-            betas (TensorType[..., num_samples, 1]): _description_
-            weights (TensorType[..., num_samples, 1]): _description_
+            betas: Uncertainty betas for each sample.
+            weights: Weights of each sample.
 
         Returns:
-            TensorType: _description_
+            Rendering of uncertainty.
         """
         uncertainty = torch.sum(weights * betas, dim=-2)
         return uncertainty

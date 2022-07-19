@@ -59,6 +59,11 @@ class AbstractGraph(nn.Module):
         """Returns the device that the torch parameters are on."""
         return self.device_indicator_param.device
 
+    @property
+    def device(self):
+        """Returns the device that the graph is on."""
+        return self.device_indicator_param.device
+
     @abstractmethod
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
@@ -104,6 +109,7 @@ class Graph(AbstractGraph):
         self.callbacks = None
         # variable for visualizer to fetch TODO(figure out if there is cleaner way to do this)
         self.vis_outputs = None
+        self.default_output_name = None
 
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""

@@ -13,7 +13,7 @@ import numpy as np
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from scripts.run_eval import run_inference
+from scripts.run_eval import run_inference_from_config
 
 
 OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
@@ -78,7 +78,7 @@ def main(args):
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
-        stats_dict = run_inference(config)
+        stats_dict = run_inference_from_config(config)
         stats_dict["checkpoint"] = ckpt
         benchmarks[dataset] = stats_dict
 

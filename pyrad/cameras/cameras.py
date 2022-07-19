@@ -91,6 +91,18 @@ class Camera:
         """
         return
 
+    @abstractmethod
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        """Rescales the camera intrinsics for output resolution.
+
+        Args:
+            scaling_factor (float): Scaling factor
+
+        Returns:
+            None
+        """
+        return
+
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["image_height", "image_width", 2]:
         """
         Args:
@@ -187,24 +199,31 @@ class PinholeCamera(Camera):
         return torch.tensor([self.cx, self.cy, self.fx, self.fy])
 
     @classmethod
-    def fx_index(cls):
-        """TODO(ethan): redo this in a better way.
+    def fx_index(cls) -> int:
+        """Returns the index of the fx parameter in the intrinsics vector
+        TODO(ethan): redo this in a better way.
         Ideally we can dynamically grab the focal length parameters depending on
         Simple vs. not Simple Pinhole Model.
 
         Returns:
-            _type_: _description_
+            x focal length index
         """
         return 2
 
     @classmethod
-    def fy_index(cls):
-        """_summary_
+    def fy_index(cls) -> int:
+        """Returns the index of the fy parameter in the intrinsics vector
 
         Returns:
-            _type_: _description_
+            y focal length index
         """
         return 3
+
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        self.cx *= scaling_factor
+        self.cy *= scaling_factor
+        self.fx *= scaling_factor
+        self.fy *= scaling_factor
 
     @classmethod
     def generate_rays(
@@ -287,6 +306,10 @@ class EquirectangularCamera(Camera):
 
     def get_intrinsics(self) -> torch.Tensor:
         return torch.tensor([self.height, self.width])
+
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        self.height *= scaling_factor
+        self.width *= scaling_factor
 
     @classmethod
     def generate_rays(

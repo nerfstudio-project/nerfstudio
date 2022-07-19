@@ -67,7 +67,11 @@ class Trainer:
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
 
     def setup(self, test_mode=False):
-        """Setup the Trainer by calling other setup functions."""
+        """Setup the Trainer by calling other setup functions.
+
+        Args:
+            test_mode (bool, optional): Whether to setup for testing. Defaults to False.
+        """
         self.dataset_inputs_train, self.dataloader_train = setup_dataset_train(self.config.data, device=self.device)
         _, self.dataloader_eval = setup_dataset_eval(self.config.data, test_mode=test_mode, device=self.device)
         self.graph = setup_graph(self.config.graph, self.dataset_inputs_train, device=self.device)
@@ -134,7 +138,7 @@ class Trainer:
             writer.write_out_storage()
 
     def _load_checkpoint(self) -> None:
-        """helper function to load graph and optimizer from prespecified checkpoint"""
+        """Helper function to load graph and optimizer from prespecified checkpoint"""
         load_config = self.config.trainer.resume_train
         load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
         assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
@@ -150,8 +154,8 @@ class Trainer:
         """Save the model and optimizers
 
         Args:
-            output_dir (str): directory to save the checkpoint
-            step (int): number of steps in training for given checkpoint
+            output_dir: directory to save the checkpoint
+            step: number of steps in training for given checkpoint
         """
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -170,9 +174,9 @@ class Trainer:
         """Run one iteration with a batch of inputs.
 
         Args:
-            ray_indices (TensorType["num_rays", 3]): Contains camera, row, and col indicies for target rays.
-            batch (dict): Batch of training data.
-            step (int): Current training step.
+            ray_indices: Contains camera, row, and col indicies for target rays.
+            batch: Batch of training data.
+            step: Current training step.
 
         Returns:
             Dict[str, float]: Dictionary of model losses.
@@ -193,9 +197,9 @@ class Trainer:
         """Test a specific image.
 
         Args:
-            camera_ray_bundle (RayBundle): Bundle of test rays.
-            batch (dict): Batch of data.
-            step (int): Current training step.
+            camera_ray_bundle: Bundle of test rays.
+            batch: Batch of data.
+            step: Current training step.
 
         Returns:
             float: PSNR
@@ -211,8 +215,8 @@ class Trainer:
         """Run evaluation with a given dataloader.
 
         Args:
-            dataloader (EvalDataLoader): Evaluation dataloader.
-            step (int): Current training iteration.
+            dataloader: Evaluation dataloader.
+            step: Current training iteration.
         """
         for camera_ray_bundle, batch in dataloader:
             self.test_image(camera_ray_bundle, batch, step=step)
