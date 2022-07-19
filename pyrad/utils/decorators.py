@@ -45,6 +45,18 @@ def check_profiler_enabled(func: Callable) -> Callable:
     return wrapper
 
 
+def check_visualizer_enabled(func: Callable) -> Callable:
+    """Decorator: check if visualizer is enabled"""
+
+    def wrapper(self, *args, **kwargs):
+        ret = None
+        if self.vis:
+            ret = func(self, *args, **kwargs)
+        return ret
+
+    return wrapper
+
+
 def check_main_thread(func: Callable) -> Callable:
     """Decorator: check if you are on main thread"""
 
