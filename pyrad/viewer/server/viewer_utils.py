@@ -149,8 +149,22 @@ class VisualizerState:
 
     def update_scene(self, step: int, graph: Graph) -> None:
         """updates the scene based on the graph weights"""
-        if self._is_render_step(step):
-            self._render_image_in_viewer(graph)
+        data = self.vis["/Training State"].get_object()
+
+        if data is None or not data["training_state"]:
+            # in training mode, render every few steps
+            if self._is_render_step(step):
+                self._render_image_in_viewer(graph)
+        else:
+            # in pause training mode, enter render loop with set graph
+            local_step = step
+            run_loop = data["training_state"]
+            while run_loop:
+                if self._is_render_step(local_step):
+                    self._render_image_in_viewer(graph)
+                data = self.vis["/Training State"].get_object()
+                run_loop = data["training_state"]
+                local_step += 1
 
     def check_interrupt(self, frame, event, arg):
         """raises interrupt when flag has been set and not already on lowest resolution"""

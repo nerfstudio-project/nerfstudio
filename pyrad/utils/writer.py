@@ -27,12 +27,12 @@ from typing import Dict
 import imageio
 import numpy as np
 import torch
-import wandb
 from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
-from pyrad.utils.config import LoggingConfig
 
+import wandb
+from pyrad.utils.config import LoggingConfig
 from pyrad.utils.decorators import check_main_thread, decorate_all
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)

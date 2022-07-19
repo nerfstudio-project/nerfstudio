@@ -94,6 +94,17 @@ class SetOutputType:
         return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_type)}
 
 
+class SetTrainingState:
+    __slots__ = ["training_state", "path"]
+
+    def __init__(self, training_state, path):
+        self.training_state = training_state
+        self.path = path
+
+    def lower(self):
+        return {"type": "set_training_state", "path": self.path.lower(), "training_state": self.training_state}
+
+
 class Delete:
     __slots__ = ["path"]
 

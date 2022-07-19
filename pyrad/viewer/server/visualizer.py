@@ -29,6 +29,7 @@ from pyrad.viewer.server.commands import (
     SetOutputOptions,
     SetOutputType,
     SetProperty,
+    SetTrainingState,
     SetTransform,
 )
 from pyrad.viewer.server.path import Path
@@ -157,6 +158,14 @@ class Viewer(object):
 
     def set_output_type(self, type):
         data = self.window.send(SetOutputType(type, self.path))
+        data = umsgpack.unpackb(data)
+        if isinstance(data, str) and data.find("error") == 0:
+            # some error meaning that the object does not exist
+            return None
+        return data
+
+    def set_training_state(self, type):
+        data = self.window.send(SetTrainingState(type, self.path))
         data = umsgpack.unpackb(data)
         if isinstance(data, str) and data.find("error") == 0:
             # some error meaning that the object does not exist
