@@ -25,6 +25,7 @@ from typing import List
 
 import numpy as np
 import torch
+from pyrad.utils.decorators import check_visualizer_enabled, decorate_all
 
 import pyrad.viewer.server.cameras as c
 import pyrad.viewer.server.geometry as g
@@ -107,6 +108,7 @@ class CheckThread(threading.Thread):
                 camera_object["matrix"], self.state.prev_camera_matrix
             ):
                 self.state.check_interrupt_vis = True
+                self.state.prev_camera_matrix = camera_object["matrix"]
 
             # check output type
             data = self.state.vis["/Output Type"].get_object()
@@ -119,6 +121,7 @@ class CheckThread(threading.Thread):
             time.sleep(0.001)
 
 
+@decorate_all([check_visualizer_enabled])
 class VisualizerState:
     """Class to hold state for visualizer variables"""
 
@@ -144,13 +147,26 @@ class VisualizerState:
 
     def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """initializes the scene with the datasets"""
-        if self.vis:
-            self._draw_scene_in_viewer(image_dataset, dataset_inputs)
+        self._draw_scene_in_viewer(image_dataset, dataset_inputs)
 
     def update_scene(self, step: int, graph: Graph) -> None:
         """updates the scene based on the graph weights"""
-        if self._is_render_step(step):
-            self._render_image_in_viewer(graph)
+        data = self.vis["/Training State"].get_object()
+
+        if data is None or not data["training_state"]:
+            # in training mode, render every few steps
+            if self._is_render_step(step):
+                self._render_image_in_viewer(graph)
+        else:
+            # in pause training mode, enter render loop with set graph
+            local_step = step
+            run_loop = data["training_state"]
+            while run_loop:
+                if self._is_render_step(local_step):
+                    self._render_image_in_viewer(graph)
+                data = self.vis["/Training State"].get_object()
+                run_loop = data["training_state"]
+                local_step += 1
 
     def check_interrupt(self, frame, event, arg):
         """raises interrupt when flag has been set and not already on lowest resolution"""
@@ -162,7 +178,7 @@ class VisualizerState:
 
     def _is_render_step(self, step: int, default_steps: int = 5) -> bool:
         """dynamically calculate when to render grapic based on resolution of image"""
-        if self.vis and step != 0:
+        if step != 0:
             if self.res_upscale_factor == 1:
                 return True
             steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)

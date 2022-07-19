@@ -98,6 +98,20 @@ export class Viewer extends Component {
     }
   }
 
+  send_training_state_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_training_state";
+      let path = "Training State";
+      let data = {
+        type: cmd,
+        path: path,
+        training_state: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
   send_output_type_over_websocket(value) {
     /* update the output option in the python server
                             if the user changes selection */
@@ -166,13 +180,23 @@ export class Viewer extends Component {
       let output_options_control = new (function () {
         this.output_options = "default";
       })();
+      let params = {
+        switch: false
+      };
       // add controls
       this.state.gui
         .add(output_options_control, "output_options", object)
+        .name("Output Options")
         .listen()
         .onChange((value) => {
           this.send_output_type_over_websocket(value);
         });
+      this.state.gui.add(params, "switch")
+        .name("Pause Training?")
+        .listen()
+        .onChange((value)=>{
+          this.send_training_state_over_websocket(value);
+      });
     }
     this.created_controls = true;
   }

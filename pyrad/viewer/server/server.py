@@ -42,6 +42,7 @@ WEBSOCKET_COMMANDS = [
     "set_object",
     "set_output_options",
     "set_output_type",
+    "set_training_state",
     "get_object",
     "set_property",
     "delete",
@@ -106,6 +107,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         elif type_ == "set_output_options":
             find_node(self.bridge.tree, path).object = data
         elif type_ == "set_output_type":
+            find_node(self.bridge.tree, path).object = data
+        elif type_ == "set_training_state":
             find_node(self.bridge.tree, path).object = data
         elif type_ == "offer":
             offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
@@ -192,6 +195,8 @@ class ZMQWebSocketBridge(object):
             elif cmd == "set_output_options":
                 find_node(self.tree, path).object = data
             elif cmd == "set_output_type":
+                find_node(self.tree, path).object = data
+            elif cmd == "set_training_state":
                 find_node(self.tree, path).object = data
             elif cmd == "get_object":
                 data = find_node(self.tree, path).object
