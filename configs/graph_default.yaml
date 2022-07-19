@@ -30,6 +30,7 @@ trainer:
   steps_per_save: 1000
   steps_per_test: 1000
   max_num_iterations: 1000000
+  mixed_precision: False
   resume_train:
     load_dir: # pretrained model directory
     load_step: # pretrained model's step number

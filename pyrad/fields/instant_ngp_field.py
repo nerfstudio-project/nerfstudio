@@ -107,14 +107,12 @@ class TCNNInstantNGPField(Field):
         """Computes and returns the densities."""
         positions = get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
-        dtype = positions_flat.dtype
-        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1).to(dtype)
+        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
-        assert density_before_activation.dtype is torch.float32
         density = trunc_exp(density_before_activation)
         return density, base_mlp_out
 
@@ -123,11 +121,9 @@ class TCNNInstantNGPField(Field):
         # tcnn requires directions in the range [0,1]
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
-        dtype = directions_flat.dtype
         d = self.direction_encoding(directions_flat)
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(dtype)
-        assert rgb.dtype is torch.float32
+        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1)
         return {FieldHeadNames.RGB: rgb}
 
 
