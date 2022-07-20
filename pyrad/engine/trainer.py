@@ -22,6 +22,7 @@ from typing import Dict
 
 import torch
 import torch.distributed as dist
+from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
@@ -52,6 +53,10 @@ class Trainer:
         self.local_rank = local_rank
         self.world_size = world_size
         self.device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
+        self.mixed_precision = self.config.trainer.mixed_precision
+        if self.device == "cpu":
+            self.mixed_precision = False
+            logging.warning("Mixed precision is disabled for CPU training.")
         # dataset variables
         self.dataset_inputs_train = None
         self.dataloader_train = None
@@ -65,6 +70,8 @@ class Trainer:
         profiler.setup_profiler(config.logging)
         # visualizer variable
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
+
+        self.grad_scaler = GradScaler(enabled=self.mixed_precision)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
@@ -147,6 +154,7 @@ class Trainer:
         # load the checkpoints for graph and optimizer
         self.graph.load_graph(loaded_state)
         self.optimizers.load_optimizers(loaded_state)
+        self.grad_scaler.load_state_dict(loaded_state["scaler"])
         logging.info("done loading checkpoint from %s", load_path)
 
     @check_main_thread
@@ -165,6 +173,7 @@ class Trainer:
                 "step": step,
                 "model": self.graph.module.state_dict() if hasattr(self.graph, "module") else self.graph.state_dict(),
                 "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
+                "scalers": self.grad_scaler.state_dict(),
             },
             ckpt_path,
         )
@@ -181,11 +190,14 @@ class Trainer:
         Returns:
             Dict[str, float]: Dictionary of model losses.
         """
-        _, loss_dict = self.graph.forward(ray_indices, batch=batch)
-        loss = loss_dict["aggregated_loss"]
         self.optimizers.zero_grad_all()
-        loss.backward()
-        self.optimizers.optimizer_step_all()
+        with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
+            _, loss_dict = self.graph.forward(ray_indices, batch=batch)
+            loss = loss_dict["aggregated_loss"]
+        self.grad_scaler.scale(loss).backward()
+        self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+        self.grad_scaler.update()
+
         self.optimizers.scheduler_step_all(step)
         if self.graph.callbacks:
             for func_ in self.graph.callbacks:
