@@ -103,6 +103,4 @@ optimizers:
 viewer:
   enable: False
   zmq_url: tcp://127.0.0.1:6000
-  min_render_image_height: 100
-  max_render_image_height: 1000
   num_rays_per_chunk: 4096

@@ -104,7 +104,7 @@ class CheckThread(threading.Thread):
             data = self.state.vis["/Cameras/Main Camera"].get_object()
             if data is not None:
                 camera_object = data["object"]["object"]
-                if self.state.prev_camera_matrix is None or not np.array_equal(
+                if self.state.prev_camera_matrix is None or not np.allclose(
                     camera_object["matrix"], self.state.prev_camera_matrix
                 ):
                     is_interrupt = True
@@ -242,7 +242,7 @@ class VisualizerState:
             return
         camera_object = data["object"]["object"]
         # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
-        if self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
+        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
             self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
         else:
             self.prev_camera_matrix = camera_object["matrix"]
