@@ -31,4 +31,4 @@ optimizers:
     scheduler: null
 
 trainer:
-  mixed_precision: false # Stabilizes training when using tcnn
+  mixed_precision: true # Stabilizes training when using tcnn

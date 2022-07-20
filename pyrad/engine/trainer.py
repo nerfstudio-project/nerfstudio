@@ -54,6 +54,9 @@ class Trainer:
         self.world_size = world_size
         self.device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
         self.mixed_precision = self.config.trainer.mixed_precision
+        if self.device == "cpu":
+            self.mixed_precision = False
+            logging.warning("Mixed precision is disabled for CPU training.")
         # dataset variables
         self.dataset_inputs_train = None
         self.dataloader_train = None
