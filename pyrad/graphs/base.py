@@ -18,7 +18,7 @@ The Graph module contains all trainable parameters.
 from abc import abstractmethod
 from collections import defaultdict
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 import torch
 from omegaconf import DictConfig
@@ -168,9 +168,9 @@ class Graph(AbstractGraph):
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Computes and returns the losses dict."""
 
+    @abstractmethod
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Compute and obtain metrics and coefficients."""
-        return {}
 
     def get_aggregated_loss_dict(self, loss_dict) -> float:
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
