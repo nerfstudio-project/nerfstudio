@@ -51,11 +51,13 @@ class DensityGrid(nn.Module):
 
     def __init__(
         self,
+        center: float = 0.5,
         num_cascades: int = 1,
         resolution: int = 128,
         update_every_num_iters: int = 16,
     ) -> None:
         super().__init__()
+        self.center = center
         self.num_cascades = num_cascades  # the number of levels (i.e, cascades)
         self.resolution = resolution
         self.mean_density = 0.0
@@ -138,7 +140,7 @@ class DensityGrid(nn.Module):
             # x \in [0, 1/res] maps to 0-th cell.
             # x \in [1 - 1/res, 1] maps to (res-1)-th cell.
             x = (coords + torch.rand_like(coords.float())) / self.resolution
-            x = (x - 0.5) / mip_scale + 0.5
+            x = (x - 0.5) / mip_scale + self.center
             tmp_grid[mip_level, indices] = density_eval_func(x).squeeze(-1)
 
         # ema update

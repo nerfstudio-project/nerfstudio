@@ -16,16 +16,16 @@ inline __device__ float calc_dt(float t, float cone_angle, float dt_min, float d
 	return __clamp(t * cone_angle, dt_min, dt_max);
 }
 
-inline __device__ int mip_from_pos(float x, float y, float z, uint32_t cascades) {
-    float maxval = fmaxf(fmaxf(fabsf(x - 0.5f), fabsf(y - 0.5f)), fabsf(z - 0.5f));
+inline __device__ int mip_from_pos(float x, float y, float z, uint32_t cascades, float center) {
+    float maxval = fmaxf(fmaxf(fabsf(x - center), fabsf(y - center)), fabsf(z - center));
 	int exponent; frexpf(maxval, &exponent);
 	return min(cascades-1, max(0, exponent+1));
 }
 
 inline __device__ int mip_from_dt(
-    float x, float y, float z, uint32_t cascades, float dt, int grid_size
+    float x, float y, float z, uint32_t cascades, float dt, int grid_size, float center
 ) {
-	int mip = mip_from_pos(x, y, z, cascades);
+	int mip = mip_from_pos(x, y, z, cascades, center);
 	dt *= 2 * grid_size;
 	if (dt<1.f) return mip; // exponent would be zero
 	int exponent; frexpf(dt, &exponent);
@@ -37,13 +37,14 @@ inline __device__ uint32_t grid_mip_offset(uint32_t mip, int grid_size) {
 }
 
 inline __device__ uint32_t cascaded_grid_idx_at(
-    float x, float y, float z, uint32_t mip, int grid_size
+    float x, float y, float z, uint32_t mip, int grid_size, float center
 ) {
 	float mip_scale = scalbnf(1.0f, -mip);
-    int ix = (int)((mip_scale * (x - 0.5f) + 0.5f) * grid_size);
-    int iy = (int)((mip_scale * (y - 0.5f) + 0.5f) * grid_size);
-    int iz = (int)((mip_scale * (z - 0.5f) + 0.5f) * grid_size);
-    // printf("mip %d, mip_scale %f, ix %d iy %d\n", mip, mip_scale, ix, iy);
+    int ix = (int)((mip_scale * (x - center) + 0.5f) * grid_size);
+    int iy = (int)((mip_scale * (y - center) + 0.5f) * grid_size);
+    int iz = (int)((mip_scale * (z - center) + 0.5f) * grid_size);
+    // printf("[input] x %f, y %f, z %f, mip %d, grid_size %d, center %f\n", x, y, z, mip, grid_size, center);
+    // printf("[output] mip_scale %f, ix %d iy %d, iz %d\n", mip_scale, ix, iy, iz);
 	uint32_t idx = __morton3D(
 		__clamp(ix, 0, grid_size-1),
 		__clamp(iy, 0, grid_size-1),
@@ -55,10 +56,10 @@ inline __device__ uint32_t cascaded_grid_idx_at(
 inline __device__ bool density_grid_occupied_at(
     float x, float y, float z, 
     const uint8_t* density_grid_bitfield,
-    uint32_t mip, int grid_size
+    uint32_t mip, int grid_size, float center
 ) {
 	uint32_t idx = (
-        cascaded_grid_idx_at(x, y, z, mip, grid_size)
+        cascaded_grid_idx_at(x, y, z, mip, grid_size, center)
         + grid_mip_offset(mip, grid_size)
     );
     // if (idx >= 3 * grid_size * grid_size * grid_size) {
@@ -109,6 +110,7 @@ __global__ void kernel_raymarching_train(
     const scalar_t* t_min,
     const scalar_t* t_max, 
     // density grid
+    const float center,
     const int cascades,
     const int grid_size,
     const uint8_t* density_bitfield,
@@ -153,11 +155,11 @@ __global__ void kernel_raymarching_train(
         const float z = oz + t * dz;
                 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size);
-        // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size));
+		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center);
+        // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center));
 
-        // if (true) {
-        if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
+        if (true) {
+        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center)) {
             ++j;
 			t += dt;
 		}
@@ -194,10 +196,10 @@ __global__ void kernel_raymarching_train(
         const float z = oz + t * dz;
 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size);
+		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center);
 
-        // if (true) {
-        if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
+        if (true) {
+        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center)) {
             positions_out[j * 3 + 0] = x;
             positions_out[j * 3 + 1] = y;
             positions_out[j * 3 + 2] = z;
@@ -240,6 +242,7 @@ std::vector<torch::Tensor> raymarching_train(
     const torch::Tensor rays_d, 
     const torch::Tensor t_min, 
     const torch::Tensor t_max,
+    const float center,
     const int cascades,
     const int grid_size,
     const torch::Tensor density_bitfield, 
@@ -286,6 +289,7 @@ std::vector<torch::Tensor> raymarching_train(
                 t_min.data_ptr<scalar_t>(),
                 t_max.data_ptr<scalar_t>(),
                 // density grid
+                center,
                 cascades,
                 grid_size,
                 density_bitfield.data_ptr<uint8_t>(),

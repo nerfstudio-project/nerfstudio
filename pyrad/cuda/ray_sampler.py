@@ -56,6 +56,9 @@ class NGPSpacedSampler(Sampler):
         t_min, t_max = pyrad_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
 
         if self.training:
+            # TODO(ruilongli): * 16 is for original impl.
+            # needs to deal with loss because not all rays will
+            # be processed.
             max_samples_per_batch = len(rays_o) * 16
         else:
             max_samples_per_batch = len(rays_o) * num_samples
@@ -65,6 +68,7 @@ class NGPSpacedSampler(Sampler):
             rays_d,
             t_min,
             t_max,
+            self.density_field.center,
             self.density_field.num_cascades,
             self.density_field.resolution,
             self.density_field.density_bitfield,
@@ -72,6 +76,12 @@ class NGPSpacedSampler(Sampler):
             num_samples,
             0.0,
         )
+        total_samples = max(packed_info[:, -1].sum(), 1)
+        positions = positions[:total_samples]
+        dirs = dirs[:total_samples]
+        deltas = deltas[:total_samples]
+        ts = ts[:total_samples]
+
         zeros = torch.zeros_like(positions[:, :1])
         # TODO(ruilongli): check why this fails at cascades=2
         # print(rays_o.shape, max_samples_per_batch, num_samples)

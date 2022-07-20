@@ -168,18 +168,21 @@ __global__ void raymarching_train_kernel(
         // NOTE(ruilongli): I think this is a bug here.
         // the original code is `scalbnf`. Seems like bound?
         const float mip_bound = fminf(1<<mip, scale);
-        const float mip_bound_inv = 1.0f/mip_bound;
+        const float mip_bound_inv = 0.5f/mip_bound;
 
         // round down to nearest grid position
-        const int nx = clamp(0.5f*(x*mip_bound_inv+1)*grid_size, 0.0f, grid_size-1.0f);
-        const int ny = clamp(0.5f*(y*mip_bound_inv+1)*grid_size, 0.0f, grid_size-1.0f);
-        const int nz = clamp(0.5f*(z*mip_bound_inv+1)*grid_size, 0.0f, grid_size-1.0f);
+        const int nx = clamp((x*mip_bound_inv+0.5f)*grid_size, 0.0f, grid_size-1.0f);
+        const int ny = clamp((y*mip_bound_inv+0.5f)*grid_size, 0.0f, grid_size-1.0f);
+        const int nz = clamp((z*mip_bound_inv+0.5f)*grid_size, 0.0f, grid_size-1.0f);
 
-        printf("mip %d, mip_scale %f, ix %d iy %d\n", mip, mip_bound_inv, nx, ny);
-        printf("mip pos %d, mip dt %d, cascades %d\n", mip_from_pos(x, y, z, cascades), mip_from_dt(dt, grid_size, cascades), cascades);
+        // printf("[input] x %f, y %f, z %f, mip %d, grid_size %d, center %f\n", x, y, z, mip, grid_size, .0f);
+        // printf("[output] mip_scale %f, ix %d iy %d, iz %d\n", mip_bound_inv, nx, ny, nz);
+
+        // printf("mip %d, mip_scale %f, ix %d iy %d\n", mip, mip_bound_inv, nx, ny);
+        // printf("mip pos %d, mip dt %d, cascades %d\n", mip_from_pos(x, y, z, cascades), mip_from_dt(dt, grid_size, cascades), cascades);
         const uint32_t idx = mip*grid_size3 + __morton3D(nx, ny, nz);
         const bool occ = density_bitfield[idx/8] & (1<<(idx%8));
-        printf("%f %f %d %d\n", t, dt, occ, idx);
+        // printf("%f %f %d %d\n", t, dt, occ, idx);
 
         if (occ) {
             t += dt; N_samples++;

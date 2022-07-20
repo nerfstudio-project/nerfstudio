@@ -124,7 +124,7 @@ __global__ void composite_train_bw_kernel(
             dL_drgb[ray_idx][1]*(rgbs[s][1]*T-(G-g)) + 
             dL_drgb[ray_idx][2]*(rgbs[s][2]*T-(B-b)) + 
             dL_dopacity[ray_idx]*(1-O) + 
-            dL_ddepth[ray_idx]*(t*T-(D-d))  // TODO: bug?
+            dL_ddepth[ray_idx]*(ts[s]*T-(D-d))  // NOTE(ruilongli): bug fixed
         );
 
         if (T <= T_threshold) break; // ray has enough opacity

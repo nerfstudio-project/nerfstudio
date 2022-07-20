@@ -20,6 +20,7 @@ std::vector<torch::Tensor> raymarching_train(
     const torch::Tensor rays_d, 
     const torch::Tensor t_min, 
     const torch::Tensor t_max,
+    const float center,
     const int cascades,
     const int grid_size,
     const torch::Tensor density_bitfield, 

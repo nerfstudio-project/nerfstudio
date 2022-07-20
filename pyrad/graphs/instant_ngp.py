@@ -66,10 +66,10 @@ class NGPGraph(Graph):
 
     def populate_misc_modules(self):
         # occupancy grid
-        self.occupancy_grid = DensityGrid(num_cascades=3)
+        self.occupancy_grid = DensityGrid(center=0.0, num_cascades=3)
 
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.occupancy_grid)
+        self.sampler = NGPSpacedSampler(num_samples=256, density_field=self.occupancy_grid)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -89,6 +89,7 @@ class NGPGraph(Graph):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
+    @torch.cuda.amp.autocast()
     def get_outputs(self, ray_bundle: RayBundle):
         # TODO
         # 2. empty samples -- train test difference
@@ -99,13 +100,23 @@ class NGPGraph(Graph):
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-        accumulated_weight, accumulated_depth, accumulated_color = pyrad_cuda.VolumeRenderer.apply(
+        accumulated_weight, accumulated_depth, accumulated_color, mask = pyrad_cuda.VolumeRenderer.apply(
             packed_info, ray_samples.frustums.get_positions(), ray_samples.deltas, ray_samples.ts, sigmas, rgbs
         )
+        # print("accumulated_color", accumulated_color.abs().max())
+        # print("ray_samples.deltas", ray_samples.deltas.unique())
+        # print("get_positions", ray_samples.frustums.get_positions().abs().max())
+        # print("accumulated_weight", accumulated_weight.min(), accumulated_weight.max(), accumulated_weight.shape)
+        # print("accumulated_depth", accumulated_depth.min(), accumulated_depth.max(), accumulated_depth.shape)
+        # if self.field.position_encoding.params.grad is not None:
+        # exit()
+        accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
+
         outputs = {
-            "rgb": accumulated_weight,
-            "accumulation": accumulated_depth,
-            "depth": accumulated_color,
+            "rgb": accumulated_color,
+            "accumulation": accumulated_weight,
+            "depth": accumulated_depth,
+            "mask": mask,  # the ray we skipped during sampler
             # "depth_occupancy_grid": depth_occupancy_grid,
         }
         return outputs
@@ -113,7 +124,8 @@ class NGPGraph(Graph):
     def get_loss_dict(self, outputs, batch):
         device = self.get_device()
         image = batch["image"].to(device)
-        rgb_loss = self.rgb_loss(image, outputs["rgb"])
+        mask = outputs["mask"]
+        rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 

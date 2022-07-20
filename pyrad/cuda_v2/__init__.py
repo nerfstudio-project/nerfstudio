@@ -19,7 +19,7 @@ class VolumeRenderer(torch.autograd.Function):
     @staticmethod
     @custom_fwd(cast_inputs=torch.float32)
     def forward(ctx, packed_info, positions, deltas, ts, sigmas, rgbs):
-        accumulated_weight, accumulated_depth, accumulated_color = volumetric_rendering(
+        accumulated_weight, accumulated_depth, accumulated_color, mask = volumetric_rendering(
             packed_info, positions, deltas, ts, sigmas, rgbs
         )
         ctx.save_for_backward(
@@ -32,11 +32,11 @@ class VolumeRenderer(torch.autograd.Function):
             sigmas,
             rgbs,
         )
-        return accumulated_weight, accumulated_depth, accumulated_color
+        return accumulated_weight, accumulated_depth, accumulated_color, mask
 
     @staticmethod
     @custom_bwd
-    def backward(ctx, grad_weight, grad_depth, grad_color):
+    def backward(ctx, grad_weight, grad_depth, grad_color, _grad_mask):
         (
             accumulated_weight,
             accumulated_depth,
@@ -60,6 +60,46 @@ class VolumeRenderer(torch.autograd.Function):
             sigmas,
             rgbs,
         )
+        # grad_sigmas *= 1e4
+        # grad_rgbs *= 1e4
+        # print(
+        #     "backward input",
+        #     grad_color.min(),
+        #     grad_color.max(),
+        #     "backward output",
+        #     grad_sigmas.min(),
+        #     grad_sigmas.max(),
+        #     grad_rgbs.min(),
+        #     grad_rgbs.max(),
+        # )
+        # if grad_sigmas.isnan().any():
+        #     print(
+        #         "input",
+        #         accumulated_weight.min(),
+        #         accumulated_weight.max(),
+        #         accumulated_depth.min(),
+        #         accumulated_depth.max(),
+        #         accumulated_color.min(),
+        #         accumulated_color.max(),
+        #         grad_weight.min(),
+        #         grad_weight.max(),
+        #         grad_depth.min(),
+        #         grad_depth.max(),
+        #         grad_color.min(),
+        #         grad_color.max(),
+        #         packed_info.min(),
+        #         packed_info.max(),
+        #         deltas.min(),
+        #         deltas.max(),
+        #         ts.min(),
+        #         ts.max(),
+        #         sigmas.min(),
+        #         sigmas.max(),
+        #         rgbs.min(),
+        #         rgbs.max(),
+        #     )
+
+        #     exit()
         # print(grad_weight.mean(), grad_depth.mean(), grad_color.mean())
         # print(grad_sigmas.shape, grad_rgbs.shape, grad_sigmas.mean(), grad_rgbs.mean())
         # grad_sigmas = torch.zeros_like(sigmas)

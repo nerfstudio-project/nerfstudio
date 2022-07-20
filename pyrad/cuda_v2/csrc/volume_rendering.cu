@@ -13,7 +13,8 @@ __global__ void volumetric_rendering_kernel(
     // should be all-zero initialized
     scalar_t* accumulated_weight,  // output
     scalar_t* accumulated_depth,  // output
-    scalar_t* accumulated_color  // output
+    scalar_t* accumulated_color,  // output
+    bool* mask  // output
 ) {
     CUDA_GET_THREAD_ID(thread_id, n_rays);
 
@@ -32,6 +33,7 @@ __global__ void volumetric_rendering_kernel(
     accumulated_weight += i;
     accumulated_depth += i;
     accumulated_color += i * 3;
+    mask += i;
     
     // accumulated rendering
     scalar_t T = 1.f;
@@ -50,6 +52,7 @@ __global__ void volumetric_rendering_kernel(
         accumulated_color[2] += weight * rgbs[j * 3 + 2];
 		T *= (1.f - alpha);
 	}
+    mask[0] = true;
 }
 
 
@@ -91,17 +94,14 @@ __global__ void volumetric_rendering_backward_kernel(
     accumulated_color += i * 3;
     
     grad_weight += i;
-    grad_color += i;
+    grad_depth += i;
     grad_color += i * 3;
     
     // backward of accumulated rendering
     scalar_t T = 1.f;
 	scalar_t EPSILON = 1e-4f;
 	int j = 0;
-    scalar_t r = 0, g = 0, b = 0, ws = 0, d = 0;
-    const scalar_t r_accum = accumulated_color[0];
-    const scalar_t g_accum = accumulated_color[1];
-    const scalar_t b_accum = accumulated_color[2];
+    scalar_t r = 0, g = 0, b = 0, d = 0;
     for (; j < numsteps; ++j) {
 		if (T < EPSILON) {
 			break;
@@ -114,7 +114,7 @@ __global__ void volumetric_rendering_backward_kernel(
         g += weight * rgbs[j * 3 + 1];
         b += weight * rgbs[j * 3 + 2];
         d += weight * ts[j];
-        ws += weight;
+        // ws += weight;
 
 		T *= (1.f - alpha);
 
@@ -123,9 +123,9 @@ __global__ void volumetric_rendering_backward_kernel(
         grad_rgbs[j * 3 + 2] = grad_color[2] * weight;
 
         grad_sigmas[j] = deltas[j] * (
-            grad_color[0] * (T * rgbs[j * 3 + 0] - (r_accum - r)) +
-            grad_color[1] * (T * rgbs[j * 3 + 1] - (g_accum - g)) +
-            grad_color[2] * (T * rgbs[j * 3 + 2] - (b_accum - b)) +
+            grad_color[0] * (T * rgbs[j * 3 + 0] - (accumulated_color[0] - r)) +
+            grad_color[1] * (T * rgbs[j * 3 + 1] - (accumulated_color[1] - g)) +
+            grad_color[2] * (T * rgbs[j * 3 + 2] - (accumulated_color[2] - b)) +
             grad_weight[0] * (1.f - accumulated_weight[0]) +
             grad_depth[0] * (ts[j] * T - (accumulated_depth[0] - d))
         );
@@ -158,6 +158,8 @@ std::vector<torch::Tensor> volumetric_rendering(
     torch::Tensor accumulated_weight = torch::zeros({n_rays, 1}, sigmas.options()); 
     torch::Tensor accumulated_depth = torch::zeros({n_rays, 1}, sigmas.options()); 
     torch::Tensor accumulated_color = torch::zeros({n_rays, 3}, sigmas.options()); 
+    // The rays that are not skipped during sampling.
+    torch::Tensor mask = torch::zeros({n_rays}, sigmas.options().dtype(torch::kBool)); 
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         sigmas.scalar_type(),
@@ -173,11 +175,12 @@ std::vector<torch::Tensor> volumetric_rendering(
                 rgbs.data_ptr<scalar_t>(),
                 accumulated_weight.data_ptr<scalar_t>(),
                 accumulated_depth.data_ptr<scalar_t>(),
-                accumulated_color.data_ptr<scalar_t>()
+                accumulated_color.data_ptr<scalar_t>(),
+                mask.data_ptr<bool>()
             ); 
         }));
 
-    return {accumulated_weight, accumulated_depth, accumulated_color};
+    return {accumulated_weight, accumulated_depth, accumulated_color, mask};
 }
 
 
