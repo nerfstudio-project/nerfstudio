@@ -176,6 +176,9 @@ class SemanticNerfGraph(NeRFGraph):
         }
         return loss_dict
 
+    def get_metrics_dict(self, outputs, batch):
+        return {}
+
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         super().log_test_image_outputs(image_idx, step, batch, outputs)
         semantic_logits = outputs["semantic_fine"]

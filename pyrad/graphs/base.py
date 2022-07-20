@@ -186,16 +186,6 @@ class Graph(AbstractGraph):
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Compute and obtain metrics and coefficients."""
 
-    def get_aggregated_loss_dict(self, loss_dict) -> float:
-        """Computes the aggregated loss from the loss_dict and the coefficients specified."""
-        aggregated_loss_dict = {}
-        for loss_name, loss_value in loss_dict.items():
-            if loss_name in self.loss_coefficients:
-                loss_coefficient = self.loss_coefficients[loss_name]
-            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
-        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
-        return aggregated_loss_dict
-
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
         """Takes in camera parameters and computes the output of the graph."""
