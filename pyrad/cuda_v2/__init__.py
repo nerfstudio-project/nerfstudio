@@ -19,7 +19,6 @@ class VolumeRenderer(torch.autograd.Function):
     @staticmethod
     @custom_fwd(cast_inputs=torch.float32)
     def forward(ctx, packed_info, positions, deltas, ts, sigmas, rgbs):
-        print(sigmas.shape, rgbs.shape)
         accumulated_weight, accumulated_depth, accumulated_color = volumetric_rendering(
             packed_info, positions, deltas, ts, sigmas, rgbs
         )

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from pyrad.cameras.rays import Frustums, RayBundle, RaySamples
 
 """
 Implementation of Instant NGP.
@@ -35,6 +36,7 @@ from pyrad.optimizers.loss import MSELoss
 from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.utils import colors, visualization, writer
 from pyrad.utils.callbacks import Callback
+from pyrad.utils.misc import is_not_none
 
 
 class NGPGraph(Graph):
@@ -64,7 +66,7 @@ class NGPGraph(Graph):
 
     def populate_misc_modules(self):
         # occupancy grid
-        self.occupancy_grid = DensityGrid(num_cascades=2)
+        self.occupancy_grid = DensityGrid(num_cascades=3)
 
         # samplers
         self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.occupancy_grid)
@@ -89,10 +91,9 @@ class NGPGraph(Graph):
 
     def get_outputs(self, ray_bundle: RayBundle):
         # TODO
-        # 1. bkgd rgb
         # 2. empty samples -- train test difference
-        with torch.no_grad():
-            ray_samples, packed_info = self.sampler(ray_bundle, self.field.aabb)
+        # 3. "depth_occupancy_grid"
+        ray_samples, packed_info = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]

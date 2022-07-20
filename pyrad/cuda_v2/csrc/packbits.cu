@@ -24,7 +24,7 @@ __global__ void kernel_packbits(
 /**
  * @brief Pack data into bits based on threshold.
  * 
- * @param data: Tensor with shape [N * 8]
+ * @param data: Tensor with shape [... * 8]
  * @param threshold:
  * @return Tensor: bitfield that has shape of [N]
  */
@@ -34,7 +34,7 @@ torch::Tensor packbits(
     DEVICE_GUARD(data);
     CHECK_INPUT(data);
     
-    const int N = data.size(0) / 8;
+    const int N = data.numel() / 8;
 
     const int threads = 256;
     const int blocks = CUDA_N_BLOCKS_NEEDED(N, threads);

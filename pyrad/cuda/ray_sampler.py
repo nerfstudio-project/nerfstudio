@@ -73,8 +73,9 @@ class NGPSpacedSampler(Sampler):
             0.0,
         )
         zeros = torch.zeros_like(positions[:, :1])
-        print(rays_o.shape, max_samples_per_batch, num_samples)
-        torch.cuda.synchronize()
+        # TODO(ruilongli): check why this fails at cascades=2
+        # print(rays_o.shape, max_samples_per_batch, num_samples)
+        # torch.cuda.synchronize()
 
         ray_samples = RaySamples(
             frustums=Frustums(origins=positions, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),

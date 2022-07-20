@@ -60,11 +60,11 @@ class DensityGrid(nn.Module):
         self.resolution = resolution
         self.mean_density = 0.0
         self.update_every_num_iters = update_every_num_iters
-        # TODO(ruilongli): ones init or zeros init?
-        density_grid = torch.ones([self.num_cascades] + [self.resolution**3])
+
+        density_grid = torch.zeros([self.num_cascades] + [self.resolution**3])
         self.register_buffer("density_grid", density_grid)
 
-        density_bitfield = torch.zeros([self.num_cascades] + [self.resolution**3 // 8], dtype=torch.uint8).fill_(255)
+        density_bitfield = torch.zeros([self.num_cascades * self.resolution**3 // 8], dtype=torch.uint8)
         self.register_buffer("density_bitfield", density_bitfield)
 
         # Integer grid coords / indices that do not related to cascades

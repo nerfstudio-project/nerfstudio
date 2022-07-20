@@ -61,7 +61,7 @@ inline __device__ bool density_grid_occupied_at(
         cascaded_grid_idx_at(x, y, z, mip, grid_size)
         + grid_mip_offset(mip, grid_size)
     );
-    // if (idx >= grid_size * grid_size * grid_size * 2) {
+    // if (idx >= 3 * grid_size * grid_size * grid_size) {
     //     printf("density idx %d mip %d\n", idx, mip);
     // }
 	return density_grid_bitfield[idx/8] & (1<<(idx%8));
@@ -145,7 +145,7 @@ __global__ void kernel_raymarching_train(
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
     float dt_min = min_step_size(num_steps);
     float dt_max = max_step_size(num_steps, cascades, grid_size);    
-
+    // printf("startt %f endt %f num_steps %d\n", startt, endt, num_steps);
 	while (0 <= t && t < endt && j < num_steps) {
         // current point
         const float x = ox + t * dx;
@@ -156,6 +156,7 @@ __global__ void kernel_raymarching_train(
 		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size);
         // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size));
 
+        // if (true) {
         if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
             ++j;
 			t += dt;
@@ -195,6 +196,7 @@ __global__ void kernel_raymarching_train(
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
 		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size);
 
+        // if (true) {
         if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size)) {
             positions_out[j * 3 + 0] = x;
             positions_out[j * 3 + 1] = y;
