@@ -108,6 +108,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             find_node(self.bridge.tree, path).object = data
         elif type_ == "set_output_type":
             find_node(self.bridge.tree, path).object = data
+        elif type_ == "set_max_resolution":
+            find_node(self.bridge.tree, path).object = data
+        elif type_ == "set_min_resolution":
+            find_node(self.bridge.tree, path).object = data
         elif type_ == "set_training_state":
             find_node(self.bridge.tree, path).object = data
         elif type_ == "offer":
@@ -195,6 +199,10 @@ class ZMQWebSocketBridge(object):
             elif cmd == "set_output_options":
                 find_node(self.tree, path).object = data
             elif cmd == "set_output_type":
+                find_node(self.tree, path).object = data
+            elif cmd == "set_max_resolution":
+                find_node(self.tree, path).object = data
+            elif cmd == "set_min_resolution":
                 find_node(self.tree, path).object = data
             elif cmd == "set_training_state":
                 find_node(self.tree, path).object = data

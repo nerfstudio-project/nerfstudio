@@ -98,17 +98,17 @@ class CheckThread(threading.Thread):
 
     def run(self):
         self.state.check_done_render = False
+        is_interrupt = False
         while not self.state.check_done_render:
             # check camera
             data = self.state.vis["/Cameras/Main Camera"].get_object()
-            if data is None:
-                return
-            camera_object = data["object"]["object"]
-            if self.state.prev_camera_matrix is None or not np.array_equal(
-                camera_object["matrix"], self.state.prev_camera_matrix
-            ):
-                self.state.check_interrupt_vis = True
-                self.state.prev_camera_matrix = camera_object["matrix"]
+            if data is not None:
+                camera_object = data["object"]["object"]
+                if self.state.prev_camera_matrix is None or not np.allclose(
+                    camera_object["matrix"], self.state.prev_camera_matrix
+                ):
+                    is_interrupt = True
+                    self.state.prev_camera_matrix = camera_object["matrix"]
 
             # check output type
             data = self.state.vis["/Output Type"].get_object()
@@ -117,7 +117,25 @@ class CheckThread(threading.Thread):
             else:
                 output_type = data["output_type"]
             if self.state.prev_output_type != output_type:
-                self.state.check_interrupt_vis = True
+                is_interrupt = True
+
+            # check max render
+            data = self.state.vis["/Max Resolution"].get_object()
+            if data is not None:
+                max_resolution = int(data["max_resolution"])
+                if self.state.max_resolution != max_resolution:
+                    is_interrupt = True
+                    self.state.max_resolution = max_resolution
+
+            # check min render
+            data = self.state.vis["/Min Resolution"].get_object()
+            if data is not None:
+                min_resolution = int(data["min_resolution"])
+                if self.state.min_resolution != min_resolution:
+                    is_interrupt = True
+                    self.state.min_resolution = min_resolution
+
+            self.state.check_interrupt_vis = is_interrupt
             time.sleep(0.001)
 
 
@@ -139,6 +157,8 @@ class VisualizerState:
         # visualizer specific variables
         self.prev_camera_matrix = None
         self.prev_output_type = "default"
+        self.min_resolution = 50
+        self.max_resolution = 1000
         self.res_upscale_factor = 1
         self.check_interrupt_vis = False
         self.check_done_render = True
@@ -232,7 +252,7 @@ class VisualizerState:
             return
         camera_object = data["object"]["object"]
         # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
-        if self.prev_camera_matrix is not None and np.array_equal(camera_object["matrix"], self.prev_camera_matrix):
+        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
             self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
         else:
             self.prev_camera_matrix = camera_object["matrix"]
@@ -246,9 +266,18 @@ class VisualizerState:
             output_type = data["output_type"]
         self.prev_output_type = output_type
 
+        # check and perform min/max update
+        data = self.vis["/Max Resolution"].get_object()
+        if data is not None:
+            self.max_resolution = int(data["max_resolution"])
+
+        data = self.vis["/Min Resolution"].get_object()
+        if data is not None:
+            self.min_resolution = int(data["min_resolution"])
+
         image_height = min(
-            self.config.min_render_image_height * self.res_upscale_factor,
-            self.config.max_render_image_height,
+            self.min_resolution * self.res_upscale_factor,
+            self.max_resolution,
         )
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
             camera_object, image_height=image_height
