@@ -5,13 +5,15 @@ import argparse
 import json
 import logging
 import os
+from typing import Any, Dict
 
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
+import numpy as np
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from scripts.run_eval import run_inference
+from scripts.run_eval import run_inference_from_config
 
 
 OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
@@ -53,9 +55,17 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     """
     basename = os.listdir(hydra_dir)[0]
     hydra_dir = f"{hydra_dir}/{basename}"
-    initialize(config_path=os.path.join("../../", hydra_dir, ".hydra/"))
+    initialize(version_base="1.2", config_path=os.path.join("../../", hydra_dir, ".hydra/"))
     config = compose("config.yaml")
     return config
+
+
+def _calc_avg(stat_name: str, benchmark: Dict[str, Any]):
+    """helper to calculate the average across all objects in dataset"""
+    stats = []
+    for _, object_stats in benchmark.items():
+        stats.append(object_stats[stat_name])
+    return np.mean(stats)
 
 
 def main(args):
@@ -68,15 +78,21 @@ def main(args):
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
-        avg_psnr, avg_rays_per_sec = run_inference(config)
-        benchmarks[dataset] = {"avg psnr": avg_psnr, "avg rays/s": avg_rays_per_sec, "checkpoint": ckpt}
+        stats_dict = run_inference_from_config(config)
+        stats_dict["checkpoint"] = ckpt
+        benchmarks[dataset] = stats_dict
 
         # reset hydra config
         GlobalHydra.instance().clear()
 
+    avg_rays_per_sec = _calc_avg("avg rays per sec", benchmarks)
+    avg_fps = _calc_avg("avg fps", benchmarks)
+
     # output benchmark statistics to a json file
     benchmark_info = {
         "meta info": {"graph": args.graph, "benchmark_date": args.benchmark_date, "hydra": args.hydra_base_dir},
+        "avg rays per sec": avg_rays_per_sec,
+        "avg fps": avg_fps,
         "results": benchmarks,
     }
     json_file = os.path.join(args.hydra_base_dir, f"{args.benchmark_date}.json")
@@ -90,5 +106,5 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--graph", type=str, required=True, help="name of nerf graph to benchmark")
     parser.add_argument("-d", "--benchmark_date", type=str, required=True, help="timestamp of run to benchmark")
     parser.add_argument("-o", "--hydra_base_dir", type=str, default="outputs/", help="hydra base output path")
-    args = parser.parse_args()
-    main(args)
+    parsed_args = parser.parse_args()
+    main(parsed_args)

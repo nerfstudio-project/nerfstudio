@@ -1,4 +1,4 @@
-# Deploying a new NeRF graph
+# Developing a Custom Model
 
 In this quick tour, we will walk you through the core of training and building any NeRFs with pyrad.
 
@@ -11,21 +11,22 @@ If you are looking to implemnet a new NeRF method or extend an existing one, you
 All NeRF graph definitions can be found in `graphs/`. The graph encapsulates all the modules in the NeRF method- from the MLP's to the samplers to the losses and optimizers. All graphs are composed of modules and fields.
 
 ### Modules
+
 We can decompose all graphs into respective modules. For instance, we have {ref}`optimizers` which contains modules related to the loss, {ref}`renderers` which contains all rendering modules, {`graph/modules/`}, which includes samplers and ray generators. Additionally, we have {ref}`field_modules`, which will be discussed below.
 In general, modules can be thought of as individual component parts of the graph that can be swapped in/out. We provide most of the standard modules, but if you are creating a new NeRF graph, you may have to define new modules.
 
-
 ### Fields
 
-{ref}`fields` represents the "space", aka. the radiance field of the NeRF. Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`). 
+{ref}`fields` represents the "space", aka. the radiance field of the NeRF. Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`).
 
-All fields are composed of modules continained within the `fields/` directory (e.g. `fields/modules/` or `fields/occupancy_fields/`). We can think of field modules as modules that actually define or interact with the field. 
+All fields are composed of modules continained within the `fields/` directory (e.g. `fields/modules/` or `fields/occupancy_fields/`). We can think of field modules as modules that actually define or interact with the field.
 
 To build a NeRF field, we therefore follow these steps:
+
 1. define any relevant field modules
 2. create a new class that extends the {ref}`fields` base class and use these field modules to compose the full field
 3. implement the abstract functions `get_density()` and `get_outputs()`.
-   
+
 ```python
 class NeRFField(Field):
     """NeRF Field"""
@@ -36,7 +37,7 @@ class NeRFField(Field):
         super().__init__()
 
         # In the init method, we are instantiating all relevant field modules
-        self.position_encoding = position_encoding 
+        self.position_encoding = position_encoding
         self.direction_encoding = direction_encoding
 
         self.mlp_base = MLP(
@@ -62,9 +63,9 @@ class NeRFField(Field):
 
 ### Putting it together
 
-Now that we've gone over what modules and fields are, we are ready to create the graph! 
+Now that we've gone over what modules and fields are, we are ready to create the graph!
 
-To implement the vanilla NeRF, we create a new class that inherits the abstract Graph class. Similar to composing a new field, we can pull from all pre-defined fields and modules and use them to compose a new Graph. 
+To implement the vanilla NeRF, we create a new class that inherits the abstract Graph class. Similar to composing a new field, we can pull from all pre-defined fields and modules and use them to compose a new Graph.
 We will then need to define the following abstract methods as seen in the skeleton code below. See also `graphs/vanilla_nerf.py` for the full implementation.
 
 ```python
@@ -105,7 +106,6 @@ class NeRFGraph(Graph):
         """
 ```
 
-
 ## Creating the config
 
 Now that you have the graph and dataset all set up, you'll need to create the config that you pass into our run train routine. Our config system is powered by [Hydra](https://hydra.cc/). All Hydra and machine related arguments are stored in `configs/default_setup.yaml`, as well as the defaults list.
@@ -131,7 +131,7 @@ data:
   # <insert any dataset related overrides here>
 
 graph:
-   _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
+  _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
   # <insert any graph related overrides here>
 
 optimizers:

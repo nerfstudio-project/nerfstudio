@@ -15,6 +15,7 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
+
 import torch
 from torchtyping import TensorType
 
@@ -117,7 +118,7 @@ def compute_3d_gaussian(
 
     dir_outer_product = directions[..., :, None] * directions[..., None, :]
     eye = torch.eye(directions.shape[-1], device=directions.device)
-    dir_mag_sq = torch.clamp(torch.sum(directions**2, axis=-1, keepdim=True), min=1e-10)
+    dir_mag_sq = torch.clamp(torch.sum(directions**2, dim=-1, keepdim=True), min=1e-10)
     null_outer_product = eye - directions[..., :, None] * (directions / dir_mag_sq)[..., None, :]
     dir_cov_diag = dir_variance[..., None] * dir_outer_product[..., :, :]
     radius_cov_diag = radius_variance[..., None] * null_outer_product[..., :, :]

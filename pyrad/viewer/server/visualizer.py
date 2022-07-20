@@ -22,11 +22,18 @@ import numpy as np
 import umsgpack
 import zmq
 
-from pyrad.viewer.server.commands import Delete, GetObject, SetObject, SetProperty, SetTransform
+from pyrad.viewer.server.commands import (
+    Delete,
+    GetObject,
+    SetObject,
+    SetOutputOptions,
+    SetProperty,
+    SetTransform,
+)
 from pyrad.viewer.server.path import Path
 
 
-class ViewerWindow(object):
+class ViewerWindow:
     context = zmq.Context()
 
     def __init__(self, zmq_url):
@@ -74,7 +81,7 @@ class ViewerWindow(object):
         signal.alarm(timeout_in_sec)
         try:
             logging.info("Sending ping to the viewer Bridge Server...")
-            response = self.send_ping()
+            _ = self.send_ping()
             logging.info("Successfully connected.")
             signal.alarm(0)  # cancel the alarm
         except Exception as e:
@@ -82,17 +89,16 @@ class ViewerWindow(object):
             sys.exit()
 
 
-class Viewer(object):
-    """Visualizer class for connecting to the bridge server."""
+class Viewer:
+    """Visualizer class for connecting to the bridge server.
+
+    Args:
+        zmq_url (str, optional): _description_. Defaults to None.
+        window (ViewerWindow, optional): _description_. Defaults to None.
+        timeout (str, optional): _description_. Defaults to None.
+    """
 
     def __init__(self, zmq_url: str = None, window: ViewerWindow = None):
-        """_summary_
-
-        Args:
-            zmq_url (str, optional): _description_. Defaults to None.
-            window (ViewerWindow, optional): _description_. Defaults to None.
-            timeout (str, optional): _description_. Defaults to None.
-        """
         if zmq_url is None and window is None:
             raise ValueError("Must specify either zmq_url or window.")
         if window is None:
@@ -112,6 +118,14 @@ class Viewer(object):
         return Viewer.view_into(self.window, self.path.append(path))
 
     def set_object(self, geometry, material=None):
+        """Set the object at the current path
+        Args:
+            geometry (_type_): _description_
+            material (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+        """
         return self.window.send(SetObject(geometry, material, self.path))
 
     def get_object(self):
@@ -138,14 +152,21 @@ class Viewer(object):
         return self.window.client.recv()
 
     def set_transform(self, matrix=np.eye(4)):
+        """Set the transform"""
         assert matrix.shape == (4, 4)
         return self.window.send(SetTransform(matrix, self.path))
 
     def set_property(self, key, value):
+        """Set the property"""
         return self.window.send(SetProperty(key, value, self.path))
 
+    def set_output_options(self, options):
+        """Set the output options"""
+        return self.window.send(SetOutputOptions(options, self.path))
+
     def delete(self):
+        """Delete the contents of the window"""
         return self.window.send(Delete(self.path))
 
     def __repr__(self):
-        return "<Viewer using: {window} at path: {path}>".format(window=self.window, path=self.path)
+        return f"<Viewer using: {self.window} at path: {self.path}>"

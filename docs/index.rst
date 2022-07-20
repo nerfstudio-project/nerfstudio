@@ -22,31 +22,33 @@ Contents
 
 .. toctree::
    :hidden:
-   :caption: Tutorials
+   :caption: Getting Started
 
-   tutorials/quickstart.md
-   tutorials/data_setup.rst
+   Quickstart<tutorials/quickstart_index>
+   tutorials/data_index
    tutorials/creating_graphs.md
-   Contributing <tutorials/contributing.md>
-   tutorials/viewer.md
+   tutorials/system_overview.md
+
+.. toctree::
+   :hidden:
+   :caption: Guides
+
+   
+   models/index.rst
+   notebooks/index
 
 .. toctree::
    :hidden:
    :caption: Tooling
 
    tooling/index
-
+   
 .. toctree::
    :hidden:
    :caption: Reference
 
-   notebooks/index
-   
-.. toctree::
-   :hidden:
-   :caption: API
-
-   reference/index
+   Contributing<reference/contributing.md>
+   reference/api/index
 
 
 

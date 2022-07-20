@@ -22,7 +22,7 @@ from omegaconf import ListConfig
 
 from torchtyping import TensorType
 
-from pyrad.cameras.cameras import get_camera
+from pyrad.cameras.cameras import Camera, get_camera
 from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.image_sampler import ImageSampler
@@ -116,11 +116,16 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
         self.device = device
         self.kwargs = kwargs
 
-    def get_data_from_image_idx(self, image_idx) -> Tuple[RayBundle, Dict]:
-        """Returns the data for a specific image index."""
+    def get_camera(self, image_idx) -> Camera:
+        """Get camera for the given image index"""
         intrinsics = self.intrinsics[image_idx].to(self.device)
         camera_to_world = self.camera_to_world[image_idx].to(self.device)
         camera = get_camera(intrinsics, camera_to_world, camera_index=image_idx)
+        return camera
+
+    def get_data_from_image_idx(self, image_idx) -> Tuple[RayBundle, Dict]:
+        """Returns the data for a specific image index."""
+        camera = self.get_camera(image_idx)
         ray_bundle = camera.get_camera_ray_bundle(device=self.device)
         ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
         batch = self.image_dataset[image_idx]

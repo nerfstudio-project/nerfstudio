@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import * as THREE from "three";
-import { TrackballControls } from "three/examples/jsm/controls/TrackballControls";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from "three/examples/jsm/libs/stats.module.js";
 import { GUI } from "dat.gui";
 import { split_path } from "./utils";
@@ -43,6 +43,7 @@ export class Viewer extends Component {
       viewport_width: null,
       viewport_height: null,
     };
+    this.created_controls = false;
     this.update = this.update.bind(this);
     this.set_object = this.set_object.bind(this);
     this.handle_command = this.handle_command.bind(this);
@@ -97,26 +98,67 @@ export class Viewer extends Component {
     }
   }
 
+  send_training_state_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_training_state";
+      let path = "Training State";
+      let data = {
+        type: cmd,
+        path: path,
+        training_state: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
+  send_output_type_over_websocket(value) {
+    /* update the output option in the python server
+                            if the user changes selection */
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_output_type";
+      let path = "Output Type";
+      let data = {
+        type: cmd,
+        path: path,
+        output_type: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
+  send_min_resolution_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_min_resolution";
+      let path = "Min Resolution";
+      let data = {
+        type: cmd,
+        path: path,
+        min_resolution: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
+  send_max_resolution_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_max_resolution";
+      let path = "Max Resolution";
+      let data = {
+        type: cmd,
+        path: path,
+        max_resolution: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
   set_object(path, object) {
-    this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
-    // add controls if object is a camera
-    if (object instanceof THREE.Camera) {
-      this.state.controls_main = new TrackballControls(
-        object,
-        this.state.renderer_main.domElement
-      );
-      this.state.controls_main.rotateSpeed = 2.0;
-      this.state.controls_main.zoomSpeed = 0.3;
-      this.state.controls_main.panSpeed = 0.2;
-      this.state.controls_main.staticMoving = false; // false is default
-      this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
-      this.state.controls_main.autoRotate = false;
-      this.state.controls_main.dynamicDampingFactor = 1.0;
-      this.state.controls_main.update();
-      // this.send_camera_over_websocket();
-      // this.state.controls_main.addEventListener("change", () => {
-      //   this.send_camera_over_websocket();
-      // });
+    if (!(object instanceof THREE.Camera)) {
+      this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
     }
   }
 
@@ -161,6 +203,57 @@ export class Viewer extends Component {
     }
   }
 
+  // TODO(evonne): eventually change name to setup backend functions
+  set_output_options(object) {
+    if (this.created_controls === false) {
+      let output_options_control = new (function () {
+        this.output_options = "default";
+      })();
+      // add output options
+      this.state.gui
+        .add(output_options_control, "output_options", object)
+        .name("Output Options")
+        .listen()
+        .onChange((value) => {
+          this.send_output_type_over_websocket(value);
+        });
+      // add pause training switch
+      let switch_params = {
+        switch: false,
+      };
+      this.state.gui
+        .add(switch_params, "switch")
+        .name("Pause Training?")
+        .listen()
+        .onChange((value) => {
+          this.send_training_state_over_websocket(value);
+        });
+      // add min resolution
+      let min_slider_params = {
+        value: 50,
+      };
+      this.state.gui
+        .add(min_slider_params, "value", 25, 100)
+        .name("Min Resolution")
+        .listen()
+        .onFinishChange((value) => {
+          this.send_min_resolution_over_websocket(value);
+        });
+      // add max resolution
+      let max_slider_params = {
+        value: 1000,
+      };
+      this.state.gui
+        .add(max_slider_params, "value", 800, 2000)
+        .name("Max Resolution")
+        .listen()
+        .onFinishChange((value) => {
+          this.send_max_resolution_over_websocket(value);
+        });
+    }
+    this.created_controls = true;
+  }
+
   handle_command(cmd) {
     // convert binary serialization format back to JSON
     cmd = msgpack.decode(new Uint8Array(cmd));
@@ -179,6 +272,8 @@ export class Viewer extends Component {
     } else if (cmd.type === "set_property") {
       let path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
+    } else if (cmd.type == "set_output_options") {
+      this.set_output_options(cmd.output_options);
     }
     // web rtc commands
     else if (cmd.type === "answer") {
@@ -333,7 +428,24 @@ export class Viewer extends Component {
     this.state.camera_main.position.y = -5;
     this.state.camera_main.position.z = 5;
     this.state.camera_main.up = new THREE.Vector3(0, 0, 1);
-    this.set_object(["Cameras", "Main Camera"], this.state.camera_main);
+
+    this.state.controls_main = new OrbitControls(
+      this.state.camera_main,
+      this.state.renderer_main.domElement
+    );
+    this.state.controls_main.rotateSpeed = 2.0;
+    this.state.controls_main.zoomSpeed = 0.3;
+    this.state.controls_main.panSpeed = 0.2;
+    this.state.controls_main.target.set(0, 0, 0); // focus point of the controls
+    this.state.controls_main.autoRotate = false;
+    this.state.controls_main.enableDamping = true;
+    this.state.controls_main.dampingFactor = 1.0;
+    this.state.controls_main.update();
+
+    let path = ["Cameras", "Main Camera"];
+    this.state.scene_tree
+      .find(path.concat(["<object>"]))
+      .set_object(this.state.camera_main);
 
     // Axes display
     let axes = new THREE.AxesHelper(5);
@@ -362,8 +474,7 @@ export class Viewer extends Component {
     return (
       <div>
         <div className="WebRTCVideo">
-          <video id="WebRTCVideo-video" autoPlay playsInline muted>
-          </video>
+          <video id="WebRTCVideo-video" autoPlay playsInline muted></video>
         </div>
         <div id="canvas-container-main"> </div>
         <div id="stats-container"> </div>

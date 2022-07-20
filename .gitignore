@@ -162,6 +162,8 @@ cython_debug/
 # Experiments and outputs
 runs/
 outputs/
+# tensorboard log files
+events.out.*
 
 # Data
 data
@@ -177,3 +179,9 @@ temp*
 external/
 __MACOSX/
 outputs*/
+node_modules/
+yarn.lock
+package.json
+scripts/colmap2nerf.py
+bash/
+pyrad/ngp_pl/

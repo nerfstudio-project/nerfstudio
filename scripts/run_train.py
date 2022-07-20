@@ -93,13 +93,13 @@ def _distributed_worker(
         logger.error("Process group URL: %s", dist_url)
         raise e
 
-    assert comms._LOCAL_PROCESS_GROUP is None
+    assert comms._LOCAL_PROCESS_GROUP is None  # pylint: disable=protected-access
     num_machines = world_size // num_gpus_per_machine
     for i in range(num_machines):
         ranks_on_i = list(range(i * num_gpus_per_machine, (i + 1) * num_gpus_per_machine))
         pg = dist.new_group(ranks_on_i)
         if i == machine_rank:
-            comms._LOCAL_PROCESS_GROUP = pg
+            comms._LOCAL_PROCESS_GROUP = pg  # pylint: disable=protected-access
 
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
@@ -116,9 +116,9 @@ def _train(local_rank: int, world_size: int, config: Config) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
-        local_rank (int): _description_
         local_rank (int): current rank of process
         world_size (int): total number of gpus available
+        config (Config): config file specifying training regimen
 
     Returns:
         Any: TODO(): determine the return type
@@ -205,7 +205,7 @@ cs = ConfigStore.instance()
 cs.store(name="graph_default", node=Config)
 
 
-@hydra.main(config_path="../configs", config_name="graph_default.yaml")
+@hydra.main(version_base="1.2", config_path="../configs", config_name="graph_default.yaml")
 def main(config: DictConfig):
     """Main function."""
     config = setup_config(config)  # converting to typed config
@@ -229,4 +229,4 @@ def main(config: DictConfig):
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter

@@ -37,6 +37,11 @@ class Camera:
         self.camera_to_world = camera_to_world
         self.camera_index = camera_index
 
+    @property
+    def device(self):
+        """Returns the device that the camera is on."""
+        return self.camera_to_world.device
+
     @abstractmethod
     def get_num_intrinsics_params(self) -> int:
         """
@@ -83,6 +88,18 @@ class Camera:
         """
         Returns:
             int: Image width
+        """
+        return
+
+    @abstractmethod
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        """Rescales the camera intrinsics for output resolution.
+
+        Args:
+            scaling_factor (float): Scaling factor
+
+        Returns:
+            None
         """
         return
 
@@ -182,24 +199,31 @@ class PinholeCamera(Camera):
         return torch.tensor([self.cx, self.cy, self.fx, self.fy])
 
     @classmethod
-    def fx_index(cls):
-        """TODO(ethan): redo this in a better way.
+    def fx_index(cls) -> int:
+        """Returns the index of the fx parameter in the intrinsics vector
+        TODO(ethan): redo this in a better way.
         Ideally we can dynamically grab the focal length parameters depending on
         Simple vs. not Simple Pinhole Model.
 
         Returns:
-            _type_: _description_
+            x focal length index
         """
         return 2
 
     @classmethod
-    def fy_index(cls):
-        """_summary_
+    def fy_index(cls) -> int:
+        """Returns the index of the fy parameter in the intrinsics vector
 
         Returns:
-            _type_: _description_
+            y focal length index
         """
         return 3
+
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        self.cx *= scaling_factor
+        self.cy *= scaling_factor
+        self.fx *= scaling_factor
+        self.fy *= scaling_factor
 
     @classmethod
     def generate_rays(
@@ -282,6 +306,10 @@ class EquirectangularCamera(Camera):
 
     def get_intrinsics(self) -> torch.Tensor:
         return torch.tensor([self.height, self.width])
+
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        self.height *= scaling_factor
+        self.width *= scaling_factor
 
     @classmethod
     def generate_rays(
