@@ -142,6 +142,8 @@ class VisualizerState:
         self.res_upscale_factor = 1
         self.check_interrupt_vis = False
         self.check_done_render = True
+        self.last_render_time = time.time()
+        self.min_wait_time = 5.0
 
         self.outputs_set = False
 
@@ -182,8 +184,16 @@ class VisualizerState:
             if self.res_upscale_factor == 1:
                 return True
             steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
-            return step % steps_per_render_image == 0
-        return False
+            steps_condition = step % steps_per_render_image == 0
+            if steps_condition:
+                if self.res_upscale_factor > 3:
+                    if time.time() - self.last_render_time >= self.min_wait_time:
+                        self.last_render_time = time.time()
+                        return True  # if higher res, and minimum wait time achieved
+                    return False  # if higher res, and minimum wait time NOT achieved
+                self.last_render_time = time.time()
+                return True  # if not higher res, but steps met
+        return False  # if init
 
     def _draw_scene_in_viewer(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """Draw some images and the scene aabb in the viewer."""
