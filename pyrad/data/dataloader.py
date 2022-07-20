@@ -88,17 +88,19 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
 class AbstractDataloaderV2(nn.Module):
     """Second version of the dataloader class
 
-    This version of the dataloader is designed to subsume both the train and eval dataloaders, especially since
-    this may contain learnable parameters which need to be shared across the train and test dataloaders. The idea
-    is that we have setup methods for train and eval separatley and this can be a combined train/eval if you want.
+    This version of the dataloader is designed to subsume both the train and eval dataloaders,
+    especially since this may contain learnable parameters which need to be shared across the train
+    and test dataloaders. The idea is that we have setup methods for train and eval separatley and
+    this can be a combined train/eval if you want.
 
-    The default should be for the train and eval dataloaders to be the same, but this can be overridden. This is
-    needed when there are learned parameters either in your data itself or in the way some of the data (that we will
-    pass to the renderer / Field) was generated. In these cases, we want these parameters to be accessible by
-    both the train and eval dataloaders, hence why you would want them to be in the same dataloader.
+    The default should be for the train and eval dataloaders to be the same, but this can be
+    overridden. This is needed when there are learned parameters either in your data itself or in
+    the way some of the data (that we will pass to the renderer / Field) was generated. In these
+    cases, we want these parameters to be accessible by both the train and eval dataloaders, hence
+    why you would want them to be in the same dataloader.
 
-    An instance where you may want to have only the eval dataloader is if you are doing evaluation and
-    don't have the dataset used to train the model.
+    An instance where you may want to have only the eval dataloader is if you are doing evaluation
+    and don't have the dataset used to train the model.
 
 
     Train Methods:
@@ -189,6 +191,23 @@ class AbstractCachedDataloaderV2(AbstractDataloaderV2):
 
     camera_to_world: torch.Tensor
     intrinsics: torch.Tensor
+
+    # These abstract methods are only copied over to appease the linter
+    @abstractmethod
+    def setup_train(self):
+        """Sets up the dataloader for training"""
+
+    @abstractmethod
+    def setup_eval(self):
+        """Sets up the dataloader for evaluation"""
+
+    @abstractmethod
+    def next_train(self) -> GenericDataContainer:
+        """Returns the next batch of data from the train dataloader"""
+
+    @abstractmethod
+    def next_eval(self) -> GenericDataContainer:
+        """Returns the next batch of data from the eval dataloader"""
 
 
 class TrainDataloader:

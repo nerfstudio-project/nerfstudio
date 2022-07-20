@@ -20,8 +20,9 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import torch
-from pyrad.cameras.rays import RayBundle
 from torchtyping import TensorType
+
+from pyrad.cameras.rays import RayBundle
 
 
 @dataclass
