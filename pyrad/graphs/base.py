@@ -151,11 +151,13 @@ class Graph(AbstractGraph):
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
-        metric_coeffs = {}  # TODO(alex): not sure what to do here
-        loss_metric_dict = self.get_loss_dict(
-            outputs=outputs, batch=masked_batch, metrics_dict=metrics_dict, metric_coeffs=metric_coeffs
-        )
-        return outputs, loss_metric_dict
+        loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
+
+        # scaling losses by coefficients.
+        for loss_name in loss_dict.keys():
+            if loss_name in self.loss_coefficients:
+                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
+        return outputs, loss_dict, metrics_dict
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run the forward starting with ray indices."""
@@ -163,12 +165,12 @@ class Graph(AbstractGraph):
         return self.forward_after_ray_generator(ray_bundle, batch=batch)
 
     @abstractmethod
-    def get_loss_dict(self, outputs, batch, metrics_dict=None, metric_coeffs=None) -> Dict[str, torch.tensor]:
-        """Computes and returns the losses / metrics dict."""
+    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+        """Computes and returns the losses dict."""
 
-    @abstractmethod
-    def get_metrics_dict(self, outputs, batch) -> Optional[List[Dict[str, torch.tensor], Dict[str, float]]]:
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Compute and obtain metrics and coefficients."""
+        return {}
 
     def get_aggregated_loss_dict(self, loss_dict) -> float:
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
