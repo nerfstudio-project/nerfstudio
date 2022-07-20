@@ -1,8 +1,8 @@
 """Simple yaml debugger"""
 import subprocess
 import sys
-from typing import Optional
 
+import dcargs
 import yaml
 
 LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
@@ -13,6 +13,7 @@ def run_command(command: str, continue_on_fail: bool = False) -> None:
 
     Args:
         command: command to run
+        continue_on_fail: whether to continue running commands if the current one fails. Defaults to False.
     """
     ret_code = subprocess.call(command, shell=True)
     if not continue_on_fail and ret_code != 0:
@@ -20,11 +21,11 @@ def run_command(command: str, continue_on_fail: bool = False) -> None:
         sys.exit(1)
 
 
-def main(continue_on_fail: Optional[bool] = False):
+def main(continue_on_fail: bool = False):
     """Run the github actions locally.
 
     Args:
-        continue_on_fail: Whether to continue running actions commands if the current one fails. Defaults to False.
+        continue_on_fail: Whether to continue running actions commands if the current one fails
     """
     with open(".github/workflows/code_checks.yml", "rb") as f:
         my_dict = yaml.safe_load(f)
@@ -56,4 +57,4 @@ def main(continue_on_fail: Optional[bool] = False):
 
 
 if __name__ == "__main__":
-    main(continue_on_fail=False)
+    dcargs.cli(main)
