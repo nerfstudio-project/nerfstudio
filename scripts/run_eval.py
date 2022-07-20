@@ -1,21 +1,21 @@
 """
 run_eval.py
 """
-import argparse
+import enum
 import os
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
+import dcargs
 import mediapy as media
 import torch
 from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from pyrad.cameras.camera_paths import get_interpolated_camera_path, get_spiral_path, CameraPath
-from pyrad.data.dataloader import setup_dataset_eval, setup_dataset_train
+from pyrad.cameras.camera_paths import CameraPath, get_interpolated_camera_path, get_spiral_path
+from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
 from pyrad.graphs.base import Graph, setup_graph
 from pyrad.utils.writer import TimeWriter
-from pyrad.data.dataloader import EvalDataloader
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
@@ -138,44 +138,52 @@ def render_trajectory_video(
     media.write_video(output_filename, images, fps=fps)
 
 
-def my_func_that_returns_a_parser():
-    """Function that returns a parser, which
-    can be used with sphinx to generate documentation.
+class MethodType(enum.Enum):
+    """Enum for the method type."""
+
+    PSNR = enum.auto()
+    TRAJ = enum.auto()
+
+
+class TrajectoryType(enum.Enum):
+    """Enum for the trajectory type."""
+
+    SPIRAL = enum.auto()
+    INTERP = enum.auto()
+
+
+def main(
+    config_name: str,
+    checkpoint_dir: str,
+    rendered_output_name: str,
+    method: MethodType = MethodType.PSNR,
+    traj: TrajectoryType = TrajectoryType.SPIRAL,
+    output_filename: str = "output.mp4",
+    rendered_resolution_scaling_factor: float = 1.0,
+    config_overrides: Optional[List[str]] = None,
+):
+    """Evaluate trained model. This evaluation can either render a trajectory or compute the eval psnr.
+
+    Args:
+        config_name: Name of the config file to use.
+        checkpoint_dir: Directory to load the checkpoint from.
+        rendered_output_name: Name of the renderer output to use.
+        method: Method to use for evaluation. PSNR computes metrics, TRAJ renders a trajectory.
+        traj: Trajectory to render.
+        output_filename: Name of the output file.
+        rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
+            Defaults to 1.0.
+        config_overrides: List of strings to override config values.
     """
-    parser = argparse.ArgumentParser(description="Run the evaluation of a model.")
-    parser.add_argument(
-        "--method",
-        type=str,
-        default="psnr",
-        choices=["psnr", "traj"],
-        help="Specify which type of evaluation method to run.",
-    )
-    parser.add_argument("--traj", type=str, default="spiral", choices=["spiral", "interp"])
-    parser.add_argument("--output-filename", type=str, default="output.mp4")
-    parser.add_argument("--config-name", type=str, default="graph_default.yaml")
-    parser.add_argument(
-        "--rendered-output-name", type=str, default=None, help="Name of the rendered output to use from the Graph."
-    )
-    parser.add_argument(
-        "--rendered-resolution-scaling-factor",
-        type=float,
-        default=1.0,
-        help="Scaling factor to apply to the rendered camera image resolution.",
-    )
-    parser.add_argument("overrides", nargs="*", default=[])
-    return parser
-
-
-def main():
-    """Main function."""
-    parser = my_func_that_returns_a_parser()
-    args = parser.parse_args()
+    # parser = my_func_that_returns_a_parser()
+    # args = parser.parse_args()
 
     config_path = "../configs"
     initialize(version_base="1.2", config_path=config_path)
-    config = compose(args.config_name, overrides=args.overrides)
+    config_overrides = config_overrides or []
+    config = compose(config_name, overrides=config_overrides)
 
-    assert config.trainer.resume_train.load_dir, "Please specify checkpoint load path"
+    config.trainer.resume_train.load_dir = checkpoint_dir
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # setup graph and dataset
@@ -186,7 +194,7 @@ def main():
     # load checkpointed information
     _load_checkpoint(config.trainer.resume_train, graph)
 
-    if args.method == "psnr":
+    if method == MethodType.PSNR:
         stats_dict = render_stats_dict(graph, dataloader_eval)
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
@@ -194,25 +202,25 @@ def main():
         print(f"Avg. PSNR: {avg_psnr:0.4f}")
         print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
-    elif args.method == "traj":
+    elif method == MethodType.TRAJ:
         # TODO(ethan): pass in camera information into argparse parser
-        if args.traj == "spiral":
+        if traj == TrajectoryType.SPIRAL:
             camera_start = dataloader_eval.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-        elif args.traj == "interp":
+        elif traj == TrajectoryType.INTERP:
             camera_start = dataloader_eval.get_camera(image_idx=0)
             camera_end = dataloader_eval.get_camera(image_idx=10)
             camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
         render_trajectory_video(
             graph,
             camera_path,
-            output_filename=args.output_filename,
-            rendered_output_name=args.rendered_output_name,
-            rendered_resolution_scaling_factor=args.rendered_resolution_scaling_factor,
+            output_filename=output_filename,
+            rendered_output_name=rendered_output_name,
+            rendered_resolution_scaling_factor=rendered_resolution_scaling_factor,
             num_rays_per_chunk=config.data.dataloader_eval.num_rays_per_chunk,
         )
 
 
 if __name__ == "__main__":
-    main()
+    dcargs.cli(main)
