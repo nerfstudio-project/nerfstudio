@@ -128,6 +128,34 @@ export class Viewer extends Component {
     }
   }
 
+  send_min_resolution_over_websocket(value){
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_min_resolution";
+      let path = "Min Resolution";
+      let data = {
+        type: cmd,
+        path: path,
+        min_resolution: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
+  send_max_resolution_over_websocket(value){
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_max_resolution";
+      let path = "Max Resolution";
+      let data = {
+        type: cmd,
+        path: path,
+        max_resolution: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
   set_object(path, object) {
     if (!(object instanceof THREE.Camera)) {
       this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
@@ -175,15 +203,13 @@ export class Viewer extends Component {
     }
   }
 
+  // TODO(evonne): eventually change name to setup backend functions
   set_output_options(object) {
     if (this.created_controls === false) {
       let output_options_control = new (function () {
         this.output_options = "default";
       })();
-      let params = {
-        switch: false,
-      };
-      // add controls
+      // add output options
       this.state.gui
         .add(output_options_control, "output_options", object)
         .name("Output Options")
@@ -191,13 +217,39 @@ export class Viewer extends Component {
         .onChange((value) => {
           this.send_output_type_over_websocket(value);
         });
+      // add pause training switch
+      let switch_params = {
+        switch: false,
+      };
       this.state.gui
-        .add(params, "switch")
+        .add(switch_params, "switch")
         .name("Pause Training?")
         .listen()
         .onChange((value) => {
           this.send_training_state_over_websocket(value);
         });
+      // add min resolution
+      let min_slider_params = {
+        value: 50
+      }
+      this.state.gui
+        .add(min_slider_params, "value", 25, 100)
+        .name("Min Resolution")
+        .listen()
+        .onFinishChange((value) => {
+          this.send_min_resolution_over_websocket(value);
+      })
+      // add max resolution
+      let max_slider_params = {
+        value: 1000
+      }
+      this.state.gui
+        .add(max_slider_params, "value", 800, 2000)
+        .name("Max Resolution")
+        .listen()
+        .onFinishChange((value) => {
+          this.send_max_resolution_over_websocket(value);
+      })
     }
     this.created_controls = true;
   }
