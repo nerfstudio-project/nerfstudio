@@ -72,8 +72,6 @@ class DensityGrid(nn.Module):
         self.register_buffer("grid_coords", grid_coords)
         self.register_buffer("grid_indices", grid_indices)
 
-        self.warmup_steps = 0
-
     @torch.no_grad()
     def reset(self):
         """Zeros out the occupancy grid."""
@@ -109,7 +107,11 @@ class DensityGrid(nn.Module):
 
     @torch.no_grad()
     def update_density_grid(
-        self, density_eval_func: Callable, density_threshold: float = 1e-4, decay: float = 0.95
+        self,
+        density_eval_func: Callable,
+        step: int,
+        density_threshold: float = 2,  # 0.01 / (SQRT3 / 1024 * 3)
+        decay: float = 0.95,
     ) -> NoReturn:
         """Update the density grid in EMA way.
 
@@ -119,9 +121,8 @@ class DensityGrid(nn.Module):
         """
         # create temporary grid
         tmp_grid = -torch.ones_like(self.density_grid)
-        if self.warmup_steps < 256:
+        if step < 256:
             cells = self.get_all_cells()
-            self.warmup_steps += 1
         else:
             N = self.resolution**3 // 4
             cells = self.sample_uniform_and_occupied_cells(N)
@@ -142,10 +143,20 @@ class DensityGrid(nn.Module):
         # ema update
         valid_mask = (self.density_grid >= 0) & (tmp_grid >= 0)
         self.density_grid[valid_mask] = torch.maximum(self.density_grid[valid_mask] * decay, tmp_grid[valid_mask])
-        mean_density = self.density_grid[self.density_grid > 0].mean().item()
+        mean_density = self.density_grid.mean().item()
 
         # pack to bitfield
         self.density_bitfield.data = pyrad_cuda.packbits(self.density_grid, min(mean_density, density_threshold))
+
+        # print(
+        #     "** update_density_grid",
+        #     "mean_density",
+        #     mean_density,
+        #     "density_threshold",
+        #     density_threshold,
+        #     "bitfields",
+        #     (self.density_grid > min(mean_density, density_threshold)).float().mean().data,
+        # )
 
         # TODO: max pooling? https://github.com/NVlabs/instant-ngp/blob/master/src/testbed_nerf.cu#L578
 

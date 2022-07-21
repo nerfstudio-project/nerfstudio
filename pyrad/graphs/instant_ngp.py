@@ -70,7 +70,7 @@ class NGPGraph(Graph):
         self.occupancy_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
 
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=256, density_field=self.occupancy_grid)
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.occupancy_grid)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -95,7 +95,7 @@ class NGPGraph(Graph):
         # TODO
         # 2. empty samples -- train test difference
         # 3. "depth_occupancy_grid"
-        ray_samples, packed_info = self.sampler(ray_bundle, self.field.aabb)
+        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
         # print("total samples", packed_info[:, -1].sum(), "dt", ray_samples.deltas.unique())
 
         field_outputs = self.field.forward(ray_samples)
@@ -105,6 +105,7 @@ class NGPGraph(Graph):
         accumulated_weight, accumulated_depth, accumulated_color, mask = pyrad_cuda.VolumeRenderer.apply(
             packed_info, ray_samples.frustums.get_positions(), ray_samples.deltas, ray_samples.ts, sigmas, rgbs
         )
+        accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
 
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
         # print("color", accumulated_color.sum())
@@ -112,7 +113,7 @@ class NGPGraph(Graph):
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
-            # "mask": mask,  # the ray we skipped during sampler
+            "mask": mask,  # the ray we skipped during sampler
             # "depth_occupancy_grid": depth_occupancy_grid,
         }
         # _ = self._get_outputs(ray_bundle)

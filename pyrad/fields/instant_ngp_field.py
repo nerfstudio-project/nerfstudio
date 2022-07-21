@@ -63,18 +63,6 @@ class TCNNInstantNGPField(Field):
         # TODO: set this properly based on the aabb
         per_level_scale = 1.4472692012786865
 
-        self.position_encoding = tcnn.Encoding(
-            n_input_dims=3,
-            encoding_config={
-                "otype": "HashGrid",
-                "n_levels": 16,
-                "n_features_per_level": 2,
-                "log2_hashmap_size": 19,
-                "base_resolution": 16,
-                "per_level_scale": per_level_scale,
-            },
-        )
-
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
             encoding_config={
@@ -83,9 +71,17 @@ class TCNNInstantNGPField(Field):
             },
         )
 
-        self.mlp_base = tcnn.Network(
-            n_input_dims=32,
+        self.mlp_base = tcnn.NetworkWithInputEncoding(
+            n_input_dims=3,
             n_output_dims=1 + self.geo_feat_dim,
+            encoding_config={
+                "otype": "HashGrid",
+                "n_levels": 16,
+                "n_features_per_level": 2,
+                "log2_hashmap_size": 19,
+                "base_resolution": 16,
+                "per_level_scale": per_level_scale,
+            },
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
@@ -94,6 +90,7 @@ class TCNNInstantNGPField(Field):
                 "n_hidden_layers": num_layers - 1,
             },
         )
+
         self.mlp_head = tcnn.Network(
             n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim,
             n_output_dims=3,
@@ -108,28 +105,25 @@ class TCNNInstantNGPField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        positions = ray_samples.frustums.get_positions()
-        positions = get_normalized_positions(positions, self.aabb)
-        x = self.position_encoding(positions.view(-1, 3))
-        h = self.mlp_base(x).view(*positions.shape[:-1], -1).to(positions)
+        positions = get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions_flat = positions.view(-1, 3)
+        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
-        assert density_before_activation.dtype is torch.float32
-        density = trunc_exp(density_before_activation)
+        density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding=None):
         # TODO: add valid_mask masking!
         # tcnn requires directions in the range [0,1]
         directions = get_normalized_directions(ray_samples.frustums.directions)
-        d = self.direction_encoding(directions.view(-1, 3))
+        directions_flat = directions.view(-1, 3)
+        d = self.direction_encoding(directions_flat)
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        h = self.mlp_head(h).view(*directions.shape[:-1], -1).to(directions)
-        # rgb = torch.sigmoid(h)
-        rgb = h
+        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
 

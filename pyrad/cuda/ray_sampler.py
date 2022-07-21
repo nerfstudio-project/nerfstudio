@@ -72,6 +72,7 @@ class NGPSpacedSampler(Sampler):
             self.density_field.center,
             self.density_field.num_cascades,
             self.density_field.resolution,
+            # torch.zeros_like(self.density_field.density_bitfield).fill_(255),
             self.density_field.density_bitfield,
             max_samples_per_batch,
             num_samples,
@@ -92,4 +93,4 @@ class NGPSpacedSampler(Sampler):
             deltas=deltas,
             ts=ts,
         )
-        return ray_samples, packed_info
+        return ray_samples, packed_info, t_min, t_max

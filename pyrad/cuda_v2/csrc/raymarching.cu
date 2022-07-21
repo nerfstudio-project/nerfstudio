@@ -73,7 +73,7 @@ inline __device__ float distance_to_next_voxel(
     float x, float y, float z, 
     float dir_x, float dir_y, float dir_z, 
     float idir_x, float idir_y, float idir_z,
-    uint32_t res
+    float res
 ) { // dda like step
 	x, y, z = res * x, res * y, res * z;
 	float tx = (floorf(x + 0.5f + 0.5f * __sign(dir_x)) - x) * idir_x;
@@ -89,7 +89,7 @@ inline __device__ float advance_to_next_voxel(
     float x, float y, float z, 
     float dir_x, float dir_y, float dir_z, 
     float idir_x, float idir_y, float idir_z,
-    uint32_t res, float dt_min) {
+    float res, float dt_min) {
 	// Regular stepping (may be slower but matches non-empty space)
 	float t_target = t + distance_to_next_voxel(
         x, y, z, dir_x, dir_y, dir_z, idir_x, idir_y, idir_z, res
@@ -161,13 +161,13 @@ __global__ void kernel_raymarching_train(
 		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center, grid_base_scale);
         // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center));
 
-        if (true) {
-        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
+        // if (true) {
+        if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
             ++j;
 			t += dt;
 		}
         else {
-			uint32_t res = grid_size >> mip;
+			float res = (grid_size >> mip) * grid_base_scale;
 			t = advance_to_next_voxel(
                 t, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
             );
@@ -183,6 +183,7 @@ __global__ void kernel_raymarching_train(
     positions_out += base * 3;
     dirs_out += base * 3;
     deltas_out += base;
+    ts_out += base;
 
     uint32_t ray_idx = atomicAdd(rays_counter, 1);
 
@@ -201,8 +202,8 @@ __global__ void kernel_raymarching_train(
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
 		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center, grid_base_scale);
 
-        if (true) {
-        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
+        // if (true) {
+        if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
             positions_out[j * 3 + 0] = x;
             positions_out[j * 3 + 1] = y;
             positions_out[j * 3 + 2] = z;
@@ -215,7 +216,7 @@ __global__ void kernel_raymarching_train(
 			t += dt;
 		}
         else {
-			uint32_t res = grid_size >> mip;
+			float res = (grid_size >> mip) * grid_base_scale;
 			t = advance_to_next_voxel(
                 t, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
             );

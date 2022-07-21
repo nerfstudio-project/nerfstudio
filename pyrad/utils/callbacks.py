@@ -43,4 +43,4 @@ class Callback:
             step (int): current iteration step
         """
         if step % self.update_every_num_iters == 0:
-            self.func(*self.args, **self.kwargs)
+            self.func(*self.args, **self.kwargs, step=step)

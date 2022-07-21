@@ -181,14 +181,10 @@ class Trainer:
         loss = loss_dict["aggregated_loss"]
         self.optimizers.zero_grad_all()
         loss.backward()
-        print(
-            "loss",
-            loss.data,
-            "params grad",
-            self.graph.field.position_encoding.params.grad.abs().mean().data,
-            "params",
-            self.graph.field.position_encoding.params.abs().mean().data,
-        )
+        # print(
+        #     "loss",
+        #     loss.data,
+        # )
         self.optimizers.optimizer_step_all()
         self.optimizers.scheduler_step_all(step)
         if self.graph.callbacks:
