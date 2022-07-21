@@ -17,7 +17,7 @@ from abc import abstractmethod
 
 import base64
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterable, List, Tuple
 import uuid
 
 if sys.version_info >= (3, 0):
@@ -230,7 +230,7 @@ class GenericMaterial(Material):
         wireframe: bool = False,
         wireframe_linewidth: float = 1.0,
         vertex_colors: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.color = color
@@ -244,7 +244,7 @@ class GenericMaterial(Material):
         self.wireframe_linewidth = wireframe_linewidth
         self.vertex_colors = vertex_colors
         self.properties = kwargs
-        self._type = None
+        self._type = self._type
 
     def lower(self, object_data):
         # Three.js allows a material to have an opacity which is != 1,
@@ -331,7 +331,9 @@ class PngImage(Image):
 
 
 class GenericTexture(Texture):
-    def __init__(self, properties):
+    """Generic texture class"""
+
+    def __init__(self, properties: Iterable):
         super().__init__()
         self.properties = properties
 
@@ -345,8 +347,20 @@ class GenericTexture(Texture):
 
 
 class ImageTexture(Texture):
-    def __init__(self, image, wrap=[1001, 1001], repeat=[1, 1], **kwargs):
+    """Image Texture class
+
+    Args:
+        image (bytearray): image represented as byte array
+        wrap (List[int], optional): wrap format. Defaults to None.
+        repeat (List[int], optional): repeat format. Defaults to None.
+    """
+
+    def __init__(self, image: bytearray, wrap: List[int] = None, repeat: List[int] = None, **kwargs):
         super().__init__()
+        if wrap is None:
+            wrap = [1001, 1001]
+        if repeat is None:
+            repeat = [1, 1]
         self.image = image
         self.wrap = wrap
         self.repeat = repeat
@@ -364,12 +378,20 @@ class ImageTexture(Texture):
 
 
 class Object(SceneElement):
-    def __init__(self, geometry, material=MeshPhongMaterial()):
+    """Object element within scene
+
+    Args:
+        geometry (Geometry): geometry of the object
+        material (GenericMaterial, optional): material composition of object. Defaults to MeshPhongMaterial().
+    """
+
+    def __init__(self, geometry: Geometry, material: GenericMaterial = MeshPhongMaterial()):
         super().__init__()
         self.geometry = geometry
         self.material = material
+        self._type = self._type
 
-    def lower(self):
+    def lower(self, object_data):
         data = {
             "metadata": {
                 "version": 4.5,
@@ -391,11 +413,24 @@ class Object(SceneElement):
 
 
 class Mesh(Object):
+    """Mesh class"""
+
     _type = "Mesh"
 
 
 class OrthographicCamera(SceneElement):
-    def __init__(self, left, right, top, bottom, near, far, zoom=1):
+    """Orthographic camera class
+    Args:
+        left (float): left bounds
+        right (float): right bounds
+        top (float): top bounds
+        bottom (float): bottom bounds
+        near (float): near plane
+        far (float): far plane
+        zoom (int, optional): zoom param. Defaults to 1.
+    """
+
+    def __init__(self, left: float, right: float, top: float, bottom: float, near: float, far: float, zoom: int = 1):
         super(OrthographicCamera, self).__init__()
         self.left = left
         self.right = right
@@ -405,7 +440,7 @@ class OrthographicCamera(SceneElement):
         self.far = far
         self.zoom = zoom
 
-    def lower(self):
+    def lower(self, object_data):
         data = {
             "object": {
                 "uuid": self.uuid,
@@ -427,10 +462,8 @@ class PerspectiveCamera(SceneElement):
     The PerspectiveCamera is the default camera used by the pyrad viewer. See
     https://threejs.org/docs/#api/en/cameras/PerspectiveCamera for more
     information.
-    """
 
-    def __init__(self, fov=50, aspect=1, near=0.1, far=2000, zoom=1, filmGauge=35, filmOffset=0, focus=10):
-        """
+    Args:
         fov   : Camera frustum vertical field of view, from bottom to top of view, in degrees. Default is 50.
         aspect: Camera frustum aspect ratio, usually the canvas width / canvas height. Default is 1 (square canvas).
         near  : Camera frustum near plane. Default is 0.1. The valid range is greater than 0 and less than the current
@@ -438,31 +471,43 @@ class PerspectiveCamera(SceneElement):
                 PerspectiveCamera's near plane.
         far   : Camera frustum far plane. Default is 2000.
         zoom  : Gets or sets the zoom factor of the camera. Default is 1.
-        filmGauge: Film size used for the larger axis. Default is 35 (millimeters). This parameter does not influence
+        film_gauge: Film size used for the larger axis. Default is 35 (millimeters). This parameter does not influence
                    the projection matrix unless .filmOffset is set to a nonzero value.
-        filmOffset: Horizontal off-center offset in the same unit as .filmGauge. Default is 0.
+        film_offset: Horizontal off-center offset in the same unit as .filmGauge. Default is 0.
         focus: Object distance used for stereoscopy and depth-of-field effects. This parameter does not influence
                the projection matrix unless a StereoCamera is being used. Default is 10.
-        """
+    """
+
+    def __init__(
+        self,
+        fov: float = 50,
+        aspect: float = 1,
+        near: float = 0.1,
+        far: float = 2000,
+        zoom: int = 1,
+        film_gauge: float = 35,
+        film_offset: float = 0,
+        focus: float = 10,
+    ):
         super(PerspectiveCamera, self).__init__()
         self.fov = fov
         self.aspect = aspect
         self.far = far
         self.near = near
         self.zoom = zoom
-        self.filmGauge = filmGauge
-        self.filmOffset = filmOffset
+        self.film_gauge = film_gauge
+        self.film_offset = film_offset
         self.focus = focus
 
-    def lower(self):
+    def lower(self, object_data):
         data = {
             "object": {
                 "uuid": self.uuid,
                 "type": "PerspectiveCamera",
                 "aspect": self.aspect,
                 "far": self.far,
-                "filmGauge": self.filmGauge,
-                "filmOffset": self.filmOffset,
+                "filmGauge": self.film_gauge,
+                "filmOffset": self.film_offset,
                 "focus": self.focus,
                 "fov": self.fov,
                 "near": self.near,
@@ -472,28 +517,47 @@ class PerspectiveCamera(SceneElement):
         return data
 
 
-def item_size(array):
+def item_size(array: np.ndarray) -> int:
+    """Returns the size of the 1 or 2d numpy array
+
+    Args:
+        array (np.ndarray): np array for which to get the size of
+
+    Raises:
+        ValueError: if n dimensions is not == 1 or 2
+
+    Returns:
+        int: size of np array
+    """
     if array.ndim == 1:
         return 1
-    elif array.ndim == 2:
+    if array.ndim == 2:
         return array.shape[0]
-    else:
-        raise ValueError(
-            "I can only pack 1- or 2-dimensional numpy arrays, but this one has {:d} dimensions".format(array.ndim)
-        )
+    raise ValueError(f"I can only pack 1- or 2-dimensional numpy arrays, but this one has {array.ndim:d} dimensions")
 
 
-def threejs_type(dtype):
+def threejs_type(dtype: type) -> Tuple[str, hex]:
+    """Converts the np type to 3js type
+
+    Args:
+        dtype (type): np type
+
+    Raises:
+        ValueError: if unsupported datatype
+
+    Returns:
+        Tuple[str, hex]: str name and hex of equivalent 3js type
+    """
     if dtype == np.uint8:
         return "Uint8Array", 0x12
-    elif dtype == np.int32:
+    if dtype == np.int32:
         return "Int32Array", 0x15
-    elif dtype == np.uint32:
+    if dtype == np.uint32:
         return "Uint32Array", 0x16
-    elif dtype == np.float32:
+    if dtype == np.float32:
         return "Float32Array", 0x17
-    else:
-        raise ValueError("Unsupported datatype: " + str(dtype))
+
+    raise ValueError("Unsupported datatype: " + str(dtype))
 
 
 def pack_numpy_array(x):
