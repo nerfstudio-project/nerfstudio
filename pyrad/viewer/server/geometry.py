@@ -220,7 +220,7 @@ class GenericMaterial(Material):
 
     def __init__(
         self,
-        color: hex = 0xFFFFFF,
+        color: int = 0xFFFFFF,
         reflectivity: float = 0.5,
         map: Optional[Texture] = None,  # pylint: disable=redefined-builtin
         side: int = 2,
@@ -533,7 +533,7 @@ def item_size(array: np.ndarray) -> int:
     raise ValueError(f"I can only pack 1- or 2-dimensional numpy arrays, but this one has {array.ndim:d} dimensions")
 
 
-def threejs_type(dtype: type) -> Tuple[str, hex]:
+def threejs_type(dtype: type) -> Tuple[str, int]:
     """Converts the np type to 3js type, returns str name and hex of equivalent 3js type
 
     Args:
@@ -592,17 +592,15 @@ def data_from_stream(stream: BinaryIO) -> str:
     return data
 
 
-## TODO(start below)
-
-
 class MeshGeometry(Geometry):
     """Basic mesh geometry class
 
     Args:
-        stream: the stream in which data is being sent over
+        contents: the stream of contents representing the mesh
+        mesh_format: specification of mesh format
     """
 
-    def __init__(self, contents, mesh_format):
+    def __init__(self, contents: bytearray, mesh_format: str):
         super().__init__()
         self.contents = contents
         self.mesh_format = mesh_format
@@ -612,39 +610,82 @@ class MeshGeometry(Geometry):
 
 
 class ObjMeshGeometry(MeshGeometry):
-    def __init__(self, contents):
+    """Basic mesh geometry class
+
+    Args:
+        contents: the stream of contents representing the mesh
+    """
+
+    def __init__(self, contents: bytearray):
         super().__init__(contents, "obj")
 
     @staticmethod
-    def from_file(fname):
-        with open(fname, "r") as f:
+    def from_file(fname: str) -> MeshGeometry:
+        """Reading mesh geometry from file. Returns mesh geometry object
+
+        Args:
+            fname: file name to read from
+        """
+        with open(fname, "r", encoding="utf8") as f:
             return MeshGeometry(f.read(), "obj")
 
     @staticmethod
-    def from_stream(f):
+    def from_stream(f: BinaryIO) -> MeshGeometry:
+        """Reads mesh geometry from io stream. Returns mesh geometry object
+
+        Args:
+            f: binary io stream to read from
+        """
         return MeshGeometry(data_from_stream(f), "obj")
 
 
 class DaeMeshGeometry(MeshGeometry):
-    def __init__(self, contents):
+    """Basic DAE mesh geometry class
+
+    Args:
+        contents: the stream of contents representing the mesh
+    """
+
+    def __init__(self, contents: bytearray):
         super().__init__(contents, "dae")
 
     @staticmethod
-    def from_file(fname):
-        with open(fname, "r") as f:
+    def from_file(fname: str) -> MeshGeometry:
+        """Reading mesh geometry from file. Returns mesh geometry object
+
+        Args:
+            fname: file name to read from
+        """
+        with open(fname, "r", encoding="utf8") as f:
             return MeshGeometry(f.read(), "dae")
 
     @staticmethod
-    def from_stream(f):
+    def from_stream(f: BinaryIO) -> MeshGeometry:
+        """Reads mesh geometry from io stream. Returns mesh geometry object
+
+        Args:
+            f: binary io stream to read from
+        """
         return MeshGeometry(data_from_stream(f), "dae")
 
 
 class StlMeshGeometry(MeshGeometry):
-    def __init__(self, contents):
+    """Basic STL mesh geometry class
+
+    Args:
+        contents: the stream of contents representing the mesh
+    """
+
+    def __init__(self, contents: bytearray):
         super().__init__(contents, "stl")
 
     @staticmethod
-    def from_file(fname):
+    def from_file(fname: str) -> MeshGeometry:
+        """Reading mesh geometry from file. Returns mesh geometry object
+
+        Args:
+            fname: file name to read from
+        """
         with open(fname, "rb") as f:
             arr = np.frombuffer(f.read(), dtype=np.uint8)
             _, extcode = threejs_type(np.uint8)
@@ -652,14 +693,19 @@ class StlMeshGeometry(MeshGeometry):
             return MeshGeometry(encoded, "stl")
 
     @staticmethod
-    def from_stream(f):
+    def from_stream(f: BinaryIO) -> MeshGeometry:
+        """Reads mesh geometry from io stream. Returns mesh geometry object
+
+        Args:
+            f: binary io stream to read from
+        """
         if sys.version_info >= (3, 0):
             if isinstance(f, BytesIO):
                 arr = np.frombuffer(f.read(), dtype=np.uint8)
             elif isinstance(f, StringIO):
                 arr = np.frombuffer(bytes(f.read(), "utf-8"), dtype=np.uint8)
             else:
-                raise ValueError("Stream must be instance of StringIO or BytesIO, not {}".format(type(f)))
+                raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(f)}")
         else:
             arr = np.frombuffer(f.read(), dtype=np.uint8)
         _, extcode = threejs_type(np.uint8)
@@ -668,11 +714,22 @@ class StlMeshGeometry(MeshGeometry):
 
 
 class PlyMeshGeometry(MeshGeometry):
-    def __init__(self, contents):
+    """Basic PLY mesh geometry class
+
+    Args:
+        contents: the stream of contents representing the mesh
+    """
+
+    def __init__(self, contents: bytearray):
         super().__init__(contents, "ply")
 
     @staticmethod
-    def from_file(fname):
+    def from_file(fname: str) -> MeshGeometry:
+        """Reading mesh geometry from file. Returns mesh geometry object
+
+        Args:
+            fname: file name to read from
+        """
         with open(fname, "rb") as f:
             arr = np.frombuffer(f.read(), dtype=np.uint8)
             _, extcode = threejs_type(np.uint8)
@@ -680,14 +737,19 @@ class PlyMeshGeometry(MeshGeometry):
             return MeshGeometry(encoded, "ply")
 
     @staticmethod
-    def from_stream(f):
+    def from_stream(f: BinaryIO) -> MeshGeometry:
+        """Reads mesh geometry from io stream. Returns mesh geometry object
+
+        Args:
+            f: binary io stream to read from
+        """
         if sys.version_info >= (3, 0):
             if isinstance(f, BytesIO):
                 arr = np.frombuffer(f.read(), dtype=np.uint8)
             elif isinstance(f, StringIO):
                 arr = np.frombuffer(bytes(f.read(), "utf-8"), dtype=np.uint8)
             else:
-                raise ValueError("Stream must be instance of StringIO or BytesIO, not {}".format(type(f)))
+                raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(f)}")
         else:
             arr = np.frombuffer(f.read(), dtype=np.uint8)
         _, extcode = threejs_type(np.uint8)
@@ -717,7 +779,7 @@ class TriangularMeshGeometry(Geometry):
 
     __slots__ = ["vertices", "faces"]
 
-    def __init__(self, vertices, faces):
+    def __init__(self, vertices: np.ndarray, faces: np.ndarray):
         super().__init__()
 
         vertices = np.asarray(vertices, dtype=np.float32)
@@ -727,7 +789,7 @@ class TriangularMeshGeometry(Geometry):
         self.vertices = vertices
         self.faces = faces
 
-    def lower(self, object_data):
+    def lower(self, object_data) -> Dict[str, Any]:
         return {
             "uuid": self.uuid,
             "type": "BufferGeometry",
@@ -739,12 +801,19 @@ class TriangularMeshGeometry(Geometry):
 
 
 class PointsGeometry(Geometry):
-    def __init__(self, position, color=None):
+    """Points Geometry class
+
+    Args:
+        position: position of the point to draw
+        color: color to render the point
+    """
+
+    def __init__(self, position: np.ndarray, color: Optional[np.ndarray] = None):
         super().__init__()
         self.position = position
         self.color = color
 
-    def lower(self, object_data):
+    def lower(self, object_data) -> Dict[str, Any]:
         attrs = {"position": pack_numpy_array(self.position)}
         if self.color is not None:
             attrs["color"] = pack_numpy_array(self.color)
@@ -752,49 +821,74 @@ class PointsGeometry(Geometry):
 
 
 class PointsMaterial(Material):
-    def __init__(self, size=0.001, color=0xFFFFFF, sizeAttenuation=True):
+    """Points Material class
+
+    Args:
+        size: size of point to render
+        color: color to render the point
+        sizeAttenuation: whether to attenuate size
+    """
+
+    def __init__(self, size: float = 0.001, color: int = 0xFFFFFF, size_attenuation: bool = True):
         super().__init__()
         self.size = size
         self.color = color
-        self.sizeAttenuation = sizeAttenuation
+        self.size_attenuation = size_attenuation
 
-    def lower(self, object_data):
+    def lower(self, object_data) -> Dict[str, Any]:
         return {
             "uuid": self.uuid,
             "type": "PointsMaterial",
             "color": self.color,
             "size": self.size,
-            "sizeAttenuation": bool(self.sizeAttenuation),
+            "sizeAttenuation": bool(self.size_attenuation),
             "vertexColors": 2,
         }
 
 
 class Points(Object):
+    """Points object class"""
+
     _type = "Points"
 
 
-def PointCloud(position, color, **kwargs):
+def PointCloud(position: np.ndarray, color: np.ndarray, **kwargs) -> Points:  # pylint: disable=invalid-name
+    """Creates a point cloud with the specified position of points
+
+    Args:
+        position: position of points
+        color: color to render point cloud
+    """
     return Points(PointsGeometry(position, color), PointsMaterial(**kwargs))
 
 
 class Line(Object):
+    """Line class"""
+
     _type = "Line"
 
 
 class LineSegments(Object):
+    """Line Segment class"""
+
     _type = "LineSegments"
 
 
 class LineLoop(Object):
+    """Line Loop class"""
+
     _type = "LineLoop"
 
 
-def triad(scale=1.0):
+def triad(scale: float = 1.0) -> LineSegments:
     """
     A visual representation of the origin of a coordinate system, drawn as three
     lines in red, green, and blue along the x, y, and z axes. The `scale` parameter
     controls the length of the three lines.
     Returns an `Object` which can be passed to `set_object()`
+
+    Args:
+        scale: scale size of triad
     """
     return LineSegments(
         PointsGeometry(
@@ -809,12 +903,15 @@ def triad(scale=1.0):
     )
 
 
-def camera(scale=1.0):
+def camera(scale: float=1.0) -> LineSegments:
     """
     A visual representation of the origin of a coordinate system, drawn as three
     lines in red, green, and blue along the x, y, and z axes. The `scale` parameter
     controls the length of the three lines.
     Returns an `Object` which can be passed to `set_object()`
+
+    Args:
+        scale: scale size of camera
     """
     return LineSegments(
         PointsGeometry(

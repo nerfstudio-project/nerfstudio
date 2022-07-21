@@ -65,8 +65,8 @@ def get_camera_wireframe(scale: float = 0.3, f: int = 4, w: int = 1.5, h: int = 
 
 
 def get_plane_pts(
-    focal_length: Tuple[float] = (1.0, 1.0),
-    image_size: Tuple[int] = (10, 10),
+    focal_length: Tuple[float, float] = (1.0, 1.0),
+    image_size: Tuple[int, int] = (10, 10),
     camera_scale: int = 1,
     scale_factor: float = 1 / 4,
 ) -> np.ndarray:
