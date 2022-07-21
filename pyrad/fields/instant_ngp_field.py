@@ -128,7 +128,8 @@ class TCNNInstantNGPField(Field):
         d = self.direction_encoding(directions.view(-1, 3))
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
         h = self.mlp_head(h).view(*directions.shape[:-1], -1).to(directions)
-        rgb = torch.sigmoid(h)
+        # rgb = torch.sigmoid(h)
+        rgb = h
         return {FieldHeadNames.RGB: rgb}
 
 

@@ -56,7 +56,7 @@ print(t_min, t_max)
 cascades = 3
 grid_size = 32
 density = torch.rand((cascades * grid_size**3), device=device)
-threshold = 0.3
+threshold = 0.0
 bitfield = pyrad_cuda.packbits(density, threshold)
 # print("bitfield", bitfield)
 
@@ -98,7 +98,7 @@ print(positions)
 # print(grad_rgbs)
 
 
-scale = (aabb[3:6] - aabb[0:3]).max() / 2.0
+scale = 0.5  # (aabb[3:6] - aabb[0:3]).max() / 2.0
 noise = torch.zeros_like(rays_o[:, 0])
 centers = ((aabb[0:3] + aabb[3:6]) / 2.0).unsqueeze(0)
 half_sizes = ((aabb[3:6] - aabb[0:3]) / 2.0).unsqueeze(0)

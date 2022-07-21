@@ -17,7 +17,7 @@ __global__ void composite_train_fw_kernel(
     if (n >= opacity.size(0)) return;
 
     const int ray_idx = rays_a[n][0], start_idx = rays_a[n][1], N_samples = rays_a[n][2];
-    if (N_samples==0 || start_idx+N_samples>=sigmas.size(0)) return; // no hit
+    if (N_samples==0 || start_idx+N_samples>sigmas.size(0)) return; // no hit
 
     // front to back compositing
     int samples = 0; scalar_t T = 1.0f;
@@ -96,7 +96,7 @@ __global__ void composite_train_bw_kernel(
     if (n >= opacity.size(0)) return;
 
     const int ray_idx = rays_a[n][0], start_idx = rays_a[n][1], N_samples = rays_a[n][2];
-    if (N_samples==0 || start_idx+N_samples>=sigmas.size(0)) return; // no hit
+    if (N_samples==0 || start_idx+N_samples>sigmas.size(0)) return; // no hit
         
     // front to back compositing
     int samples = 0;

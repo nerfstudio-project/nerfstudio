@@ -82,13 +82,13 @@ class RayMarcher(torch.autograd.Function):
     def forward(ctx, rays_o, rays_d, hits_t, density_bitfield, scale, exp_step_factor, grid_size, max_samples):
 
         # noise to perturb the first sample of each ray
-        noise = torch.rand_like(rays_o[:, 0])
+        noise = torch.zeros_like(rays_o[:, 0])
 
         rays_a, xyzs, dirs, deltas, ts, counter = vren.raymarching_train(
             rays_o, rays_d, hits_t, density_bitfield, scale, exp_step_factor, noise, grid_size, max_samples
         )
 
-        total_samples = counter[0]  # total samples for all rays
+        total_samples = max(counter[0], 1)  # total samples for all rays
         # remove redundant output
         xyzs = xyzs[:total_samples]
         dirs = dirs[:total_samples]

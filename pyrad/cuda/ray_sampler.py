@@ -59,7 +59,7 @@ class NGPSpacedSampler(Sampler):
             # TODO(ruilongli): * 16 is for original impl.
             # needs to deal with loss because not all rays will
             # be processed.
-            max_samples_per_batch = len(rays_o) * 16
+            max_samples_per_batch = len(rays_o) * num_samples
         else:
             max_samples_per_batch = len(rays_o) * num_samples
 
@@ -71,7 +71,8 @@ class NGPSpacedSampler(Sampler):
             self.density_field.center,
             self.density_field.num_cascades,
             self.density_field.resolution,
-            self.density_field.density_bitfield,
+            torch.zeros_like(self.density_field.density_bitfield).fill_(255),
+            # self.density_field.density_bitfield,
             max_samples_per_batch,
             num_samples,
             0.0,

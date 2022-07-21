@@ -184,7 +184,8 @@ __global__ void raymarching_train_kernel(
         const bool occ = density_bitfield[idx/8] & (1<<(idx%8));
         // printf("%f %f %d %d\n", t, dt, occ, idx);
 
-        if (occ) {
+        // if (occ) {
+        if (true) {
             t += dt; N_samples++;
         } else { // skip until the next voxel
             // calculate the distance to the next voxel
@@ -208,7 +209,7 @@ __global__ void raymarching_train_kernel(
     rays_a[ray_count][0] = r;
     rays_a[ray_count][1] = start_idx; rays_a[ray_count][2] = N_samples;
 
-    if (N_samples==0 || start_idx+N_samples>=xyzs.size(0)) return;
+    if (N_samples==0 || start_idx+N_samples>xyzs.size(0)) return;
 
     t = t1; int samples = 0;
 
@@ -230,9 +231,9 @@ __global__ void raymarching_train_kernel(
 
         const uint32_t idx = mip*grid_size3 + __morton3D(nx, ny, nz);
         const bool occ = density_bitfield[idx/8] & (1<<(idx%8));
-        // printf("%f %f %d\n", t, dt, occ);
 
-        if (occ) {
+        // if (occ) {
+        if (true) {
             const int s = start_idx + samples;
             xyzs[s][0] = x; xyzs[s][1] = y; xyzs[s][2] = z;
             dirs[s][0] = dx; dirs[s][1] = dy; dirs[s][2] = dz;

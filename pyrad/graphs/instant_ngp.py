@@ -28,12 +28,15 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import pyrad.cuda_v2 as pyrad_cuda
 from pyrad.cameras.rays import RayBundle
 from pyrad.cuda.ray_sampler import NGPSpacedSampler
+from pyrad.cuda_pl.custom_functions import (RayAABBIntersector, RayMarcher,
+                                            VolumeRenderer)
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
 from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.occupancy_fields.occupancy_grid import DensityGrid
 from pyrad.graphs.base import Graph
 from pyrad.optimizers.loss import MSELoss
-from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
+from pyrad.renderers.renderers import (AccumulationRenderer, DepthRenderer,
+                                       RGBRenderer)
 from pyrad.utils import colors, visualization, writer
 from pyrad.utils.callbacks import Callback
 from pyrad.utils.misc import is_not_none
@@ -103,29 +106,68 @@ class NGPGraph(Graph):
         accumulated_weight, accumulated_depth, accumulated_color, mask = pyrad_cuda.VolumeRenderer.apply(
             packed_info, ray_samples.frustums.get_positions(), ray_samples.deltas, ray_samples.ts, sigmas, rgbs
         )
-        # print("accumulated_color", accumulated_color.abs().max())
-        # print("ray_samples.deltas", ray_samples.deltas.unique())
-        # print("get_positions", ray_samples.frustums.get_positions().abs().max())
-        # print("accumulated_weight", accumulated_weight.min(), accumulated_weight.max(), accumulated_weight.shape)
-        # print("accumulated_depth", accumulated_depth.min(), accumulated_depth.max(), accumulated_depth.shape)
-        # if self.field.position_encoding.params.grad is not None:
-        # exit()
-        accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
 
+        accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
         outputs = {
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
-            "mask": mask,  # the ray we skipped during sampler
+            # "mask": mask,  # the ray we skipped during sampler
             # "depth_occupancy_grid": depth_occupancy_grid,
+        }
+        return outputs
+
+    @torch.cuda.amp.autocast()
+    def _get_outputs(self, ray_bundle: RayBundle):
+
+        aabb = self.field.aabb.flatten()
+        rays_o = ray_bundle.origins.contiguous()
+        rays_d = ray_bundle.directions.contiguous()
+
+        center = ((aabb[0:3] + aabb[3:6]) / 2.0).unsqueeze(0)
+        half_size = ((aabb[3:6] - aabb[0:3]) / 2.0).unsqueeze(0)
+        _, hits_t, _ = RayAABBIntersector.apply(rays_o, rays_d, center, half_size, 1)
+
+        rays_a, xyzs, dirs, deltas, ts = RayMarcher.apply(
+            rays_o,
+            rays_d,
+            hits_t[:, 0],
+            torch.zeros_like(self.occupancy_grid.density_bitfield).reshape(3, -1).fill_(255),
+            0.5,  # 0.5
+            0.0,
+            128,
+            256,
+        )
+
+        zeros = torch.zeros_like(xyzs[:, :1])
+        ray_samples = RaySamples(
+            frustums=Frustums(origins=xyzs, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),
+            deltas=deltas,
+            ts=ts,
+        )
+
+        field_outputs = self.field.forward(ray_samples)
+        rgbs = field_outputs[FieldHeadNames.RGB]
+        sigmas = field_outputs[FieldHeadNames.DENSITY]
+
+        rgb_bg = torch.ones(3, device=rays_o.device)  # TODO: infer env map from network
+        opacity, depth, rgb = VolumeRenderer.apply(sigmas[:, 0], rgbs.contiguous(), deltas, ts, rays_a, 1e-4)
+        rgb = rgb + rgb_bg * (1.0 - opacity[:, None])
+        outputs = {
+            "rgb": rgb,
+            "accumulation": opacity,
+            "depth": depth,
         }
         return outputs
 
     def get_loss_dict(self, outputs, batch):
         device = self.get_device()
         image = batch["image"].to(device)
-        mask = outputs["mask"]
-        rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
+        if "mask" in outputs:
+            mask = outputs["mask"]
+            rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
+        else:
+            rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 
