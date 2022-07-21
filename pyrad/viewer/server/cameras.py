@@ -14,7 +14,7 @@
 
 """Logic to render Camera objects in the Viewer"""
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 
@@ -23,12 +23,12 @@ from .geometry import LineBasicMaterial, LineSegments, PointsGeometry
 
 
 class ImagePlane(g.Mesh):
-    """_summary_
+    """Returns an image rendered within a specified plane
 
     Args:
-        image (np.ndarray): image to be displayed
-        height (int, optional): height of image. Defaults to 1.
-        width (int, optional): width of image. Defaults to 1.
+        image: image to be displayed
+        height: height of image. Defaults to 1.
+        width: width of image. Defaults to 1.
     """
 
     def __init__(self, image: np.ndarray, height: int = 1, width: int = 1):
@@ -46,10 +46,10 @@ def get_camera_wireframe(scale: float = 0.3, f: int = 4, w: int = 1.5, h: int = 
     At https://github.com/hangg7/mvs_visual/blob/275d382a824733a3187a8e3147be184dd6f14795/mvs_visual.py#L54.
 
     Args:
-        scale (float): scale of rendering
-        f (focal length): this is the focal length
-        w (int): width
-        h (int): height
+        scale: scale of rendering
+        f: this is the focal length
+        w: width
+        h: height
 
     Returns:
         np.ndarray: stack of points corresponding to wireframe of camera
@@ -73,13 +73,10 @@ def get_plane_pts(
     """Returns points on the image plane given camera intrinsics
 
     Args:
-        focal_length (Tuple[float], optional): focal length of camera. Defaults to (1.0, 1.0).
-        image_size (Tuple[int], optional): height and width of image. Defaults to (10, 10).
-        camera_scale (int, optional): camera intrinsics scale. Defaults to 1.
-        scale_factor (float, optional): image scale. Defaults to 1/4.
-
-    Returns:
-        np.ndarray: stack of points corresponding to the image plane
+        focal_length: focal length of camera. Defaults to (1.0, 1.0).
+        image_size: height and width of image. Defaults to (10, 10).
+        camera_scale: camera intrinsics scale. Defaults to 1.
+        scale_factor: image scale. Defaults to 1/4.
     """
     Z = -(focal_length[0] + focal_length[1]) / 2 * camera_scale
     X0, Y0, X1, Y1 = (
@@ -109,22 +106,19 @@ def get_plane_pts(
 
 def frustum(
     scale: float = 1.0,
-    color: List[float] = None,
+    color: Optional[List[float]] = None,
     focal_length: int = 4,
     width: float = 1.5,
     height: int = 2,
 ) -> LineSegments:
-    """Draws the camera frustums
+    """Draws the camera frustums, returning line segments representing the frustums
 
     Args:
-        scale (float, optional): scale of the rendering. Defaults to 1.0.
-        color (List[float], optional): color of lines. Defaults to [0, 0, 0].
-        focal_length (int, optional): focal length of camera. Defaults to 4.
-        width (float, optional): width of wireframe. Defaults to 1.5.
-        height (int, optional): height of wireframe. Defaults to 2.
-
-    Returns:
-        LineSegments: the lines corresponding to the camera frustums
+        scale: scale of the rendering. Defaults to 1.0.
+        color: color of lines. Defaults to [0, 0, 0].
+        focal_length: focal length of camera. Defaults to 4.
+        width: width of wireframe. Defaults to 1.5.
+        height: height of wireframe. Defaults to 2.
     """
     # color - color of lines using R, G, B. default is black
     if color is None:

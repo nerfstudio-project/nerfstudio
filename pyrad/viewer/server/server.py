@@ -17,7 +17,7 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import tornado.gen
 import tornado.ioloop
@@ -56,9 +56,9 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = M
     """finds and attempts to connect to a port
 
     Args:
-        func (Callable): function used on connecting to port
-        default_port (int): the default port
-        max_attempts (int, optional): max number of attempts to try connection. Defaults to MAX_ATTEMPTS.
+        func: function used on connecting to port
+        default_port: the default port
+        max_attempts: max number of attempts to try connection. Defaults to MAX_ATTEMPTS.
     """
     for i in range(max_attempts):
         port = default_port + i
@@ -78,9 +78,9 @@ def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) 
     """sets the codec preferences on a connection between sender and reciever
 
     Args:
-        pc (RTCPeerConnection): _description_
-        sender (RTCRtpSender): _description_
-        forced_codec (str): _description_
+        pc: _description_
+        sender: _description_
+        forced_codec: _description_
     """
     kind = forced_codec.split("/")[0]
     codecs = RTCRtpSender.getCapabilities(kind).codecs
@@ -109,7 +109,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         """On reception of message, parses the message and calls the appropriate function based on the type of command
 
         Args:
-            message (bytearray): byte message to parse
+            message: byte message to parse
         """
         data = message
         m = umsgpack.unpackb(message)
@@ -165,14 +165,14 @@ class ZMQWebSocketBridge:
     """ZMQ web socket bridge class
 
     Args:
-        zmq_url (str, optional): _description_. Defaults to None.
-        host (str, optional): _description_. Defaults to "127.0.0.1".
-        websocket_port (int, optional): _description_. Defaults to None.
+        zmq_url: zmq url to connect to. Defaults to None.
+        host: host of server. Defaults to "127.0.0.1".
+        websocket_port: websocket port to connect to. Defaults to None.
     """
 
     context = zmq.Context()
 
-    def __init__(self, zmq_url: str = None, host: str = "127.0.0.1", websocket_port: int = None):
+    def __init__(self, zmq_url: Optional[str] = None, host: str = "127.0.0.1", websocket_port: Optional[int] = None):
         self.host = host
         self.websocket_pool = set()
         self.app = self.make_app()
@@ -211,7 +211,7 @@ class ZMQWebSocketBridge:
         """Switch function that places commands in tree based on websocket command
 
         Args:
-            frames (List[bytes]): the list containing command + object to be placed in tree
+            frames: the list containing command + object to be placed in tree
         """
         cmd = frames[0].decode("utf-8")
         print(cmd)
@@ -268,13 +268,21 @@ class ZMQWebSocketBridge:
         return
 
     def forward_to_websockets(self, frames: List[bytes]):
-        """Forward a zmq message to all websockets."""
+        """Forward a zmq message to all websockets.
+
+        Args:
+            frames: byte messages to be sent over
+        """
         _, _, data = frames  # cmd, path, data
         for websocket in self.websocket_pool:
             websocket.write_message(data, binary=True)
 
     def setup_zmq(self, url: str):
-        """Setup a zmq socket and connect it to the given url."""
+        """Setup a zmq socket and connect it to the given url.
+
+        Args:
+            url: point of connection
+        """
         zmq_socket = self.context.socket(zmq.REP)  # pylint: disable=no-member
         zmq_socket.bind(url)
         zmq_stream = ZMQStream(zmq_socket)
@@ -285,7 +293,7 @@ class ZMQWebSocketBridge:
         """Sends entire tree of information over the specified websocket
 
         Args:
-            websocket (WebSocketHandler): websocket to send information over
+            websocket: websocket to send information over
         """
         for node in walk(self.tree):
             if node.object is not None:

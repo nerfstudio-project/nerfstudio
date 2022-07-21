@@ -17,7 +17,7 @@ from abc import abstractmethod
 
 import base64
 import sys
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, BinaryIO, Dict, Iterable, List, Optional, Tuple
 import uuid
 
 if sys.version_info >= (3, 0):
@@ -43,13 +43,10 @@ class SceneElement:
         return np.identity(4)
 
     def lower(self, object_data: Dict[str, Any]) -> Dict[str, Any]:  # pylint: disable=no-self-use
-        """Formatting contents of object dictionary
+        """Formatting contents of object dictionary, returns a dictionary of formatted content
 
         Args:
-            object_data (Dict[str, Any]): object being sent via websocket
-
-        Returns:
-            str: formatted object data dictionary
+            object_data: object being sent via websocket
         """
         return object_data
 
@@ -60,13 +57,10 @@ class ReferenceSceneElement(SceneElement):
     field = None
 
     def lower_in_object(self, object_data: Dict[str, Any]) -> str:
-        """formatting contents of object dictionary
+        """formatting contents of object dictionary, returns a dictionary of formatted content
 
         Args:
-            object_data (Dict[str, Any]): object being sent via websocket
-
-        Returns:
-            str: formatted object data dictionary
+            object_data: object being sent via websocket
         """
         object_data.setdefault(self.field, []).append(self.lower(object_data))
         return self.uuid
@@ -100,7 +94,7 @@ class Box(Geometry):
     """Box object
 
     Args:
-        lengths (List[float]): length of side of box
+        lengths: length of side of box
     """
 
     def __init__(self, lengths: List[float]):
@@ -121,7 +115,7 @@ class Sphere(Geometry):
     """Sphere object
 
     Args:
-        radius (float): radius of sphere
+        radius: radius of sphere
     """
 
     def __init__(self, radius: float):
@@ -144,7 +138,7 @@ class Ellipsoid(Sphere):
     transformation applied to distort it into the ellipsoidal shape
 
     Args:
-        radii (List[float]): the radii of epllipsoid
+        radii: the radii of epllipsoid
     """
 
     def __init__(self, radii: List[float]):
@@ -159,7 +153,7 @@ class PlaneGeometry(Geometry):
     """Plane Class
 
     Args:
-        lengths (List[float]): the height and width of plane
+        lengths: the height and width of plane
     """
 
     def __init__(self, lengths: List[float]):
@@ -175,13 +169,19 @@ class Cylinder(Geometry):
     rotational symmetry is aligned with the y-axis.
 
     Args:
-        height (int): _description_
-        radius (float, optional): _description_. Defaults to 1.0.
-        radius_top (float, optional): _description_. Defaults to None.
-        radius_bottom (float, optional): _description_. Defaults to None.
+        height: height of cylinder
+        radius: radius for both top and bottom if top/bottom not given. Defaults to 1.0.
+        radius_top: radius of top. Defaults to None.
+        radius_bottom: radius of bottom. Defaults to None.
     """
 
-    def __init__(self, height: int, radius: float = 1.0, radius_top: float = None, radius_bottom: float = None):
+    def __init__(
+        self,
+        height: int,
+        radius: float = 1.0,
+        radius_top: Optional[float] = None,
+        radius_bottom: Optional[float] = None,
+    ):
         super().__init__()
         if radius_top is not None and radius_bottom is not None:
             self.radius_top = radius_top
@@ -207,24 +207,24 @@ class GenericMaterial(Material):
     """Generic Material base class
 
     Args:
-       color (hex, optional): color of material. Defaults to 0xFFFFFF.
-       reflectivity (float, optional): reflectivity index. Defaults to 0.5.
-       map (_type_, optional): texture map of object. Defaults to None.
-       transparent (bool, optional): transparency value. Defaults to None.
-       opacity (float, optional): opacity value. Defaults to 1.0.
-       linewidth (float, optional): width of lines. Defaults to 1.0.
-       wireframe (bool, optional): whether to render wireframe around object. Defaults to False.
-       wireframe_linewidth (float, optional): width of wireframe lines. Defaults to 1.0.
-       vertex_colors (bool, optional): whether to render vertex colors. Defaults to False.
+       color: color of material. Defaults to 0xFFFFFF.
+       reflectivity: reflectivity index. Defaults to 0.5.
+       map: texture map of object. Defaults to None.
+       transparent: transparency value. Defaults to None.
+       opacity: opacity value. Defaults to 1.0.
+       linewidth: width of lines. Defaults to 1.0.
+       wireframe: whether to render wireframe around object. Defaults to False.
+       wireframe_linewidth: width of wireframe lines. Defaults to 1.0.
+       vertex_colors: whether to render vertex colors. Defaults to False.
     """
 
     def __init__(
         self,
         color: hex = 0xFFFFFF,
         reflectivity: float = 0.5,
-        map=None,  # pylint: disable=redefined-builtin
+        map: Optional[Texture] = None,  # pylint: disable=redefined-builtin
         side: int = 2,
-        transparent: bool = None,
+        transparent: Optional[bool] = None,
         opacity: float = 1.0,
         linewidth: float = 1.0,
         wireframe: bool = False,
@@ -318,7 +318,7 @@ class PngImage(Image):
         """Read in png image from file
 
         Args:
-            fname (str): file name to read image from
+            fname: file name to read image from
         """
         with open(fname, "rb") as f:
             return PngImage(f.read())
@@ -350,9 +350,9 @@ class ImageTexture(Texture):
     """Image Texture class
 
     Args:
-        image (bytearray): image represented as byte array
-        wrap (List[int], optional): wrap format. Defaults to None.
-        repeat (List[int], optional): repeat format. Defaults to None.
+        image: image represented as byte array
+        wrap: wrap format. Defaults to None.
+        repeat: repeat format. Defaults to None.
     """
 
     def __init__(self, image: bytearray, wrap: List[int] = None, repeat: List[int] = None, **kwargs):
@@ -381,8 +381,8 @@ class Object(SceneElement):
     """Object element within scene
 
     Args:
-        geometry (Geometry): geometry of the object
-        material (GenericMaterial, optional): material composition of object. Defaults to MeshPhongMaterial().
+        geometry: geometry of the object
+        material: material composition of object. Defaults to MeshPhongMaterial().
     """
 
     def __init__(self, geometry: Geometry, material: GenericMaterial = MeshPhongMaterial()):
@@ -421,13 +421,13 @@ class Mesh(Object):
 class OrthographicCamera(SceneElement):
     """Orthographic camera class
     Args:
-        left (float): left bounds
-        right (float): right bounds
-        top (float): top bounds
-        bottom (float): bottom bounds
-        near (float): near plane
-        far (float): far plane
-        zoom (int, optional): zoom param. Defaults to 1.
+        left: left bounds
+        right: right bounds
+        top: top bounds
+        bottom: bottom bounds
+        near: near plane
+        far: far plane
+        zoom: zoom param. Defaults to 1.
     """
 
     def __init__(self, left: float, right: float, top: float, bottom: float, near: float, far: float, zoom: int = 1):
@@ -521,13 +521,10 @@ def item_size(array: np.ndarray) -> int:
     """Returns the size of the 1 or 2d numpy array
 
     Args:
-        array (np.ndarray): np array for which to get the size of
+        array: np array for which to get the size of
 
     Raises:
         ValueError: if n dimensions is not == 1 or 2
-
-    Returns:
-        int: size of np array
     """
     if array.ndim == 1:
         return 1
@@ -537,16 +534,13 @@ def item_size(array: np.ndarray) -> int:
 
 
 def threejs_type(dtype: type) -> Tuple[str, hex]:
-    """Converts the np type to 3js type
+    """Converts the np type to 3js type, returns str name and hex of equivalent 3js type
 
     Args:
-        dtype (type): np type
+        dtype: np type
 
     Raises:
         ValueError: if unsupported datatype
-
-    Returns:
-        Tuple[str, hex]: str name and hex of equivalent 3js type
     """
     if dtype == np.uint8:
         return "Uint8Array", 0x12
@@ -560,7 +554,12 @@ def threejs_type(dtype: type) -> Tuple[str, hex]:
     raise ValueError("Unsupported datatype: " + str(dtype))
 
 
-def pack_numpy_array(x):
+def pack_numpy_array(x: np.ndarray) -> Dict[str, Any]:
+    """convert numpy array to byte-based message with context, returns serialized message
+
+    Args:
+        x: array to pack into message format
+    """
     if x.dtype == np.float64:
         x = x.astype(np.float32)
     typename, extcode = threejs_type(x.dtype)
@@ -572,20 +571,37 @@ def pack_numpy_array(x):
     }
 
 
-def data_from_stream(stream):
+def data_from_stream(stream: BinaryIO) -> str:
+    """Read in data from some binary io stream and returns the serialized stream
+
+    Args:
+        stream: the stream in which data is being sent over
+
+    Raises:
+        ValueError: invalid stream type
+    """
     if sys.version_info >= (3, 0):
         if isinstance(stream, BytesIO):
             data = stream.read().decode(encoding="utf-8")
         elif isinstance(stream, StringIO):
             data = stream.read()
         else:
-            raise ValueError("Stream must be instance of StringIO or BytesIO, not {}".format(type(stream)))
+            raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(stream)}")
     else:
         data = stream.read()
     return data
 
 
+## TODO(start below)
+
+
 class MeshGeometry(Geometry):
+    """Basic mesh geometry class
+
+    Args:
+        stream: the stream in which data is being sent over
+    """
+
     def __init__(self, contents, mesh_format):
         super().__init__()
         self.contents = contents
