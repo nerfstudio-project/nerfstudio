@@ -13,55 +13,97 @@
 # limitations under the License.
 
 from __future__ import absolute_import, division, print_function
+from abc import abstractmethod
 
-import sys
 import base64
+import sys
+from typing import Any, Dict, List
 import uuid
 
 if sys.version_info >= (3, 0):
     unicode = str
-    from io import StringIO, BytesIO
+    from io import BytesIO, StringIO
 else:
     from StringIO import StringIO
 
     BytesIO = StringIO
 
-import umsgpack
 import numpy as np
+import umsgpack
 
 
-class SceneElement(object):
+class SceneElement:
+    """Base class for objects in the scene"""
+
     def __init__(self):
         self.uuid = unicode(uuid.uuid1())
 
-    def intrinsic_transform(self):
+    def intrinsic_transform(self):  # pylint: disable=no-self-use
+        """function for intrinsic transformation"""
         return np.identity(4)
+
+    def lower(self, object_data: Dict[str, Any]) -> Dict[str, Any]:  # pylint: disable=no-self-use
+        """Formatting contents of object dictionary
+
+        Args:
+            object_data (Dict[str, Any]): object being sent via websocket
+
+        Returns:
+            str: formatted object data dictionary
+        """
+        return object_data
 
 
 class ReferenceSceneElement(SceneElement):
-    def lower_in_object(self, object_data):
+    """Generic scene element class"""
+
+    field = None
+
+    def lower_in_object(self, object_data: Dict[str, Any]) -> str:
+        """formatting contents of object dictionary
+
+        Args:
+            object_data (Dict[str, Any]): object being sent via websocket
+
+        Returns:
+            str: formatted object data dictionary
+        """
         object_data.setdefault(self.field, []).append(self.lower(object_data))
         return self.uuid
 
 
 class Geometry(ReferenceSceneElement):
+    """Geometry class"""
+
     field = "geometries"
 
 
 class Material(ReferenceSceneElement):
+    """Material class"""
+
     field = "materials"
 
 
 class Texture(ReferenceSceneElement):
+    """Texture class"""
+
     field = "textures"
 
 
 class Image(ReferenceSceneElement):
+    """Image class"""
+
     field = "images"
 
 
 class Box(Geometry):
-    def __init__(self, lengths):
+    """Box object
+
+    Args:
+        lengths (List[float]): length of side of box
+    """
+
+    def __init__(self, lengths: List[float]):
         super().__init__()
         self.lengths = lengths
 
@@ -76,7 +118,13 @@ class Box(Geometry):
 
 
 class Sphere(Geometry):
-    def __init__(self, radius):
+    """Sphere object
+
+    Args:
+        radius (float): radius of sphere
+    """
+
+    def __init__(self, radius: float):
         super().__init__()
         self.radius = radius
 
@@ -94,9 +142,12 @@ class Ellipsoid(Sphere):
     """
     An Ellipsoid is treated as a Sphere of unit radius, with an affine
     transformation applied to distort it into the ellipsoidal shape
+
+    Args:
+        radii (List[float]): the radii of epllipsoid
     """
 
-    def __init__(self, radii):
+    def __init__(self, radii: List[float]):
         super().__init__(1.0)
         self.radii = radii
 
@@ -105,7 +156,13 @@ class Ellipsoid(Sphere):
 
 
 class PlaneGeometry(Geometry):
-    def __init__(self, lengths):
+    """Plane Class
+
+    Args:
+        lengths (List[float]): the height and width of plane
+    """
+
+    def __init__(self, lengths: List[float]):
         super().__init__()
         self.lengths = lengths
 
@@ -113,48 +170,66 @@ class PlaneGeometry(Geometry):
         return {"uuid": self.uuid, "type": "PlaneGeometry", "width": self.lengths[0], "height": self.lengths[1]}
 
 
-"""
-A cylinder of the given height and radius. By Three.js convention, the axis of
-rotational symmetry is aligned with the y-axis.
-"""
-
-
 class Cylinder(Geometry):
-    def __init__(self, height, radius=1.0, radiusTop=None, radiusBottom=None):
+    """A cylinder of the given height and radius. By Three.js convention, the axis of
+    rotational symmetry is aligned with the y-axis.
+
+    Args:
+        height (int): _description_
+        radius (float, optional): _description_. Defaults to 1.0.
+        radius_top (float, optional): _description_. Defaults to None.
+        radius_bottom (float, optional): _description_. Defaults to None.
+    """
+
+    def __init__(self, height: int, radius: float = 1.0, radius_top: float = None, radius_bottom: float = None):
         super().__init__()
-        if radiusTop is not None and radiusBottom is not None:
-            self.radiusTop = radiusTop
-            self.radiusBottom = radiusBottom
+        if radius_top is not None and radius_bottom is not None:
+            self.radius_top = radius_top
+            self.radius_bottom = radius_bottom
         else:
-            self.radiusTop = radius
-            self.radiusBottom = radius
+            self.radius_top = radius
+            self.radius_bottom = radius
         self.height = height
-        self.radialSegments = 50
+        self.radial_segments = 50
 
     def lower(self, object_data):
         return {
             "uuid": self.uuid,
             "type": "CylinderGeometry",
-            "radiusTop": self.radiusTop,
-            "radiusBottom": self.radiusBottom,
+            "radiusTop": self.radius_top,
+            "radiusBottom": self.radius_bottom,
             "height": self.height,
-            "radialSegments": self.radialSegments,
+            "radialSegments": self.radial_segments,
         }
 
 
 class GenericMaterial(Material):
+    """Generic Material base class
+
+    Args:
+       color (hex, optional): color of material. Defaults to 0xFFFFFF.
+       reflectivity (float, optional): reflectivity index. Defaults to 0.5.
+       map (_type_, optional): texture map of object. Defaults to None.
+       transparent (bool, optional): transparency value. Defaults to None.
+       opacity (float, optional): opacity value. Defaults to 1.0.
+       linewidth (float, optional): width of lines. Defaults to 1.0.
+       wireframe (bool, optional): whether to render wireframe around object. Defaults to False.
+       wireframe_linewidth (float, optional): width of wireframe lines. Defaults to 1.0.
+       vertex_colors (bool, optional): whether to render vertex colors. Defaults to False.
+    """
+
     def __init__(
         self,
-        color=0xFFFFFF,
-        reflectivity=0.5,
-        map=None,
-        side=2,
-        transparent=None,
-        opacity=1.0,
-        linewidth=1.0,
-        wireframe=False,
-        wireframeLinewidth=1.0,
-        vertexColors=False,
+        color: hex = 0xFFFFFF,
+        reflectivity: float = 0.5,
+        map=None,  # pylint: disable=redefined-builtin
+        side: int = 2,
+        transparent: bool = None,
+        opacity: float = 1.0,
+        linewidth: float = 1.0,
+        wireframe: bool = False,
+        wireframe_linewidth: float = 1.0,
+        vertex_colors: bool = False,
         **kwargs
     ):
         super().__init__()
@@ -166,9 +241,10 @@ class GenericMaterial(Material):
         self.opacity = opacity
         self.linewidth = linewidth
         self.wireframe = wireframe
-        self.wireframeLinewidth = wireframeLinewidth
-        self.vertexColors = vertexColors
+        self.wireframe_linewidth = wireframe_linewidth
+        self.vertex_colors = vertex_colors
         self.properties = kwargs
+        self._type = None
 
     def lower(self, object_data):
         # Three.js allows a material to have an opacity which is != 1,
@@ -191,8 +267,8 @@ class GenericMaterial(Material):
             "opacity": self.opacity,
             "linewidth": self.linewidth,
             "wireframe": bool(self.wireframe),
-            "wireframeLinewidth": self.wireframeLinewidth,
-            "vertexColors": (2 if self.vertexColors else 0),  # three.js wants an enum
+            "wireframeLinewidth": self.wireframe_linewidth,
+            "vertexColors": (2 if self.vertex_colors else 0),  # three.js wants an enum
         }
         data.update(self.properties)
         if self.map is not None:
@@ -201,32 +277,49 @@ class GenericMaterial(Material):
 
 
 class MeshBasicMaterial(GenericMaterial):
+    """Basic material mesh class"""
+
     _type = "MeshBasicMaterial"
 
 
 class MeshPhongMaterial(GenericMaterial):
+    """Phong material mesh class"""
+
     _type = "MeshPhongMaterial"
 
 
 class MeshLambertMaterial(GenericMaterial):
+    """Lambert material mesh class"""
+
     _type = "MeshLambertMaterial"
 
 
 class MeshToonMaterial(GenericMaterial):
+    """Toon material mesh class"""
+
     _type = "MeshToonMaterial"
 
 
 class LineBasicMaterial(GenericMaterial):
+    """Basic Line Material class"""
+
     _type = "LineBasicMaterial"
 
 
 class PngImage(Image):
+    """Png Image"""
+
     def __init__(self, data):
         super().__init__()
         self.data = data
 
     @staticmethod
-    def from_file(fname):
+    def from_file(fname: str):
+        """Read in png image from file
+
+        Args:
+            fname (str): file name to read image from
+        """
         with open(fname, "rb") as f:
             return PngImage(f.read())
 
