@@ -3,7 +3,6 @@ Test the fields
 """
 import torch
 
-from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.instant_ngp_field import TCNNInstantNGPField
 from pyrad.cameras.rays import Frustums, RaySamples
 
@@ -36,13 +35,7 @@ def test_tcnn_instant_ngp_field():
         pixel_area=torch.ones((*directions.shape[:-1], 1), device=device),
     )
     ray_samples = RaySamples(frustums=frustums)
-    field_outputs = field.forward(ray_samples)
-
-    positions_dtype = positions.dtype
-    field_outputs_density_dtype = field_outputs[FieldHeadNames.DENSITY].dtype
-    assert (
-        positions_dtype == field_outputs_density_dtype
-    ), f"The input and output dtypes do not match: {positions_dtype} vs. {field_outputs_density_dtype}"
+    field.forward(ray_samples)
 
 
 if __name__ == "__main__":

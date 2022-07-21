@@ -15,10 +15,12 @@
 """Tensor dataclass"""
 
 import dataclasses
-from typing import Tuple, Union
+from typing import Callable, NoReturn, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
+
+TensorDataclassT = TypeVar("TensorDataclassT", bound="TensorDataclass")
 
 
 class TensorDataclass:
@@ -78,7 +80,7 @@ class TensorDataclass:
 
         self.__setattr__("_shape", batch_shape)
 
-    def __getitem__(self, indices) -> "TensorDataclass":
+    def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
         if isinstance(indices, torch.Tensor):
             return self._apply_fn_to_fields(lambda x: x[indices])
         if isinstance(indices, (int, slice)):
@@ -87,7 +89,7 @@ class TensorDataclass:
         dataclass_fn = lambda x: x[indices]
         return self._apply_fn_to_fields(tensor_fn, dataclass_fn)
 
-    def __setitem__(self, indices, value) -> "TensorDataclass":
+    def __setitem__(self, indices, value) -> NoReturn:
         raise RuntimeError("Index assignment is not supported for TensorDataclass")
 
     def __len__(self) -> int:
@@ -102,7 +104,7 @@ class TensorDataclass:
         return True
 
     @property
-    def shape(self) -> tuple:
+    def shape(self) -> Tuple[int, ...]:
         """Returns the batch shape of the tensor dataclass."""
         return self._shape
 
@@ -118,11 +120,11 @@ class TensorDataclass:
         """Returns the number of dimensions of the tensor dataclass."""
         return len(self._shape)
 
-    def reshape(self, shape: Tuple[int, ...]) -> "TensorDataclass":
+    def reshape(self: TensorDataclassT, shape: Tuple[int, ...]) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but with a new shape.
 
         Args:
-            shape (Tuple[int]): The new shape of the tensor dataclass.
+            shape (Tuple[int, ...]): The new shape of the tensor dataclass.
 
         Returns:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
@@ -133,7 +135,7 @@ class TensorDataclass:
         dataclass_fn = lambda x: x.reshape(shape)
         return self._apply_fn_to_fields(tensor_fn, dataclass_fn)
 
-    def flatten(self) -> "TensorDataclass":
+    def flatten(self: TensorDataclassT) -> TensorDataclassT:
         """Returns a new TensorDataclass with flattened batch dimensions
 
         Returns:
@@ -141,18 +143,18 @@ class TensorDataclass:
         """
         return self.reshape((-1,))
 
-    def broadcast_to(self, shape: Union[torch.Size, Tuple[int]]) -> "TensorDataclass":
+    def broadcast_to(self: TensorDataclassT, shape: Union[torch.Size, Tuple[int, ...]]) -> TensorDataclassT:
         """Returns a new TensorDataclass broadcast to new shape.
 
         Args:
-            shape (Tuple[int]): The new shape of the tensor dataclass.
+            shape (Tuple[int, ...]): The new shape of the tensor dataclass.
 
         Returns:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
         """
         return self._apply_fn_to_fields(lambda x: x.broadcast_to((*shape, x.shape[-1])))
 
-    def to(self, device) -> "TensorDataclass":
+    def to(self: TensorDataclassT, device) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but on the specified device.
 
         Args:
@@ -163,12 +165,14 @@ class TensorDataclass:
         """
         return self._apply_fn_to_fields(lambda x: x.to(device))
 
-    def _apply_fn_to_fields(self, fn: callable, dataclass_fn: callable = None) -> "TensorDataclass":
+    def _apply_fn_to_fields(
+        self: TensorDataclassT, fn: Callable, dataclass_fn: Optional[Callable] = None
+    ) -> TensorDataclassT:
         """Applies a function to all fields of the tensor dataclass.
 
         Args:
-            fn (callable): The function to apply to tensor fields.
-            dataclass_fn (callable): The function to apply to TensorDataclass fields. Else use fn.
+            fn (Callable): The function to apply to tensor fields.
+            dataclass_fn (Optional[Callable]): The function to apply to TensorDataclass fields. Else use fn.
 
         Returns:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
