@@ -13,30 +13,29 @@
 # limitations under the License.
 
 from __future__ import absolute_import, division, print_function
-from abc import abstractmethod
 
 import base64
 import sys
-from typing import Any, BinaryIO, Dict, Iterable, List, Optional, Tuple
 import uuid
+from typing import Any, BinaryIO, Dict, Iterable, List, Optional, Tuple
+
+import numpy as np
+import umsgpack
 
 if sys.version_info >= (3, 0):
-    unicode = str
+    UNICODE = str
     from io import BytesIO, StringIO
 else:
     from StringIO import StringIO
 
     BytesIO = StringIO
 
-import numpy as np
-import umsgpack
-
 
 class SceneElement:
     """Base class for objects in the scene"""
 
     def __init__(self):
-        self.uuid = unicode(uuid.uuid1())
+        self.uuid = UNICODE(uuid.uuid1())
 
     def intrinsic_transform(self):  # pylint: disable=no-self-use
         """function for intrinsic transformation"""
@@ -326,7 +325,7 @@ class PngImage(Image):
     def lower(self, object_data):
         return {
             "uuid": self.uuid,
-            "url": unicode("data:image/png;base64," + base64.b64encode(self.data).decode("ascii")),
+            "url": UNICODE("data:image/png;base64," + base64.b64encode(self.data).decode("ascii")),
         }
 
 
@@ -903,7 +902,7 @@ def triad(scale: float = 1.0) -> LineSegments:
     )
 
 
-def camera(scale: float=1.0) -> LineSegments:
+def camera(scale: float = 1.0) -> LineSegments:
     """
     A visual representation of the origin of a coordinate system, drawn as three
     lines in red, green, and blue along the x, y, and z axes. The `scale` parameter
