@@ -13,19 +13,20 @@ inline __device__ float max_step_size(uint32_t num_steps, uint32_t cascades, uin
 // Perform fixed-size stepping in unit-cube scenes (like original NeRF) and exponential
 // stepping in larger scenes. 
 inline __device__ float calc_dt(float t, float cone_angle, float dt_min, float dt_max) {
+    // TODO(ruilongli): scene_scale related to cone_angle?
 	return __clamp(t * cone_angle, dt_min, dt_max);
 }
 
-inline __device__ int mip_from_pos(float x, float y, float z, uint32_t cascades, float center) {
-    float maxval = fmaxf(fmaxf(fabsf(x - center), fabsf(y - center)), fabsf(z - center));
+inline __device__ int mip_from_pos(float x, float y, float z, uint32_t cascades, float center, float grid_base_scale) {
+    float maxval = fmaxf(fmaxf(fabsf(x - center), fabsf(y - center)), fabsf(z - center)) / grid_base_scale;
 	int exponent; frexpf(maxval, &exponent);
 	return min(cascades-1, max(0, exponent+1));
 }
 
 inline __device__ int mip_from_dt(
-    float x, float y, float z, uint32_t cascades, float dt, int grid_size, float center
+    float x, float y, float z, uint32_t cascades, float dt, int grid_size, float center, float grid_base_scale
 ) {
-	int mip = mip_from_pos(x, y, z, cascades, center);
+	int mip = mip_from_pos(x, y, z, cascades, center, grid_base_scale);
 	dt *= 2 * grid_size;
 	if (dt<1.f) return mip; // exponent would be zero
 	int exponent; frexpf(dt, &exponent);
@@ -37,9 +38,9 @@ inline __device__ uint32_t grid_mip_offset(uint32_t mip, int grid_size) {
 }
 
 inline __device__ uint32_t cascaded_grid_idx_at(
-    float x, float y, float z, uint32_t mip, int grid_size, float center
+    float x, float y, float z, uint32_t mip, int grid_size, float center, float grid_base_scale
 ) {
-	float mip_scale = scalbnf(1.0f, -mip);
+	float mip_scale = scalbnf(1.0f, -mip) / grid_base_scale;
     int ix = (int)((mip_scale * (x - center) + 0.5f) * grid_size);
     int iy = (int)((mip_scale * (y - center) + 0.5f) * grid_size);
     int iz = (int)((mip_scale * (z - center) + 0.5f) * grid_size);
@@ -56,10 +57,10 @@ inline __device__ uint32_t cascaded_grid_idx_at(
 inline __device__ bool density_grid_occupied_at(
     float x, float y, float z, 
     const uint8_t* density_grid_bitfield,
-    uint32_t mip, int grid_size, float center
+    uint32_t mip, int grid_size, float center, float grid_base_scale
 ) {
 	uint32_t idx = (
-        cascaded_grid_idx_at(x, y, z, mip, grid_size, center)
+        cascaded_grid_idx_at(x, y, z, mip, grid_size, center, grid_base_scale)
         + grid_mip_offset(mip, grid_size)
     );
     // if (idx >= 3 * grid_size * grid_size * grid_size) {
@@ -113,11 +114,13 @@ __global__ void kernel_raymarching_train(
     const float center,
     const int cascades,
     const int grid_size,
+    const float grid_base_scale,
     const uint8_t* density_bitfield,
     // sampling
     const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
     const int num_steps,  // default 1024
     const int max_samples,
+    const float step_size_scale,
     int* numsteps_counter,
     int* rays_counter,  // total rays.
     int* indices_out,  // output ray & point indices.
@@ -145,8 +148,8 @@ __global__ void kernel_raymarching_train(
 
     // TODO(ruilongli): perturb `startt` as in ngp_pl?
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
-    float dt_min = min_step_size(num_steps);
-    float dt_max = max_step_size(num_steps, cascades, grid_size);    
+    float dt_min = min_step_size(num_steps) * step_size_scale;
+    float dt_max = max_step_size(num_steps, cascades, grid_size) * grid_base_scale;    
     // printf("startt %f endt %f num_steps %d\n", startt, endt, num_steps);
 	while (0 <= t && t < endt && j < num_steps) {
         // current point
@@ -155,11 +158,11 @@ __global__ void kernel_raymarching_train(
         const float z = oz + t * dz;
                 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center);
+		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center, grid_base_scale);
         // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center));
 
         if (true) {
-        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center)) {
+        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
             ++j;
 			t += dt;
 		}
@@ -196,10 +199,10 @@ __global__ void kernel_raymarching_train(
         const float z = oz + t * dz;
 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center);
+		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center, grid_base_scale);
 
         if (true) {
-        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center)) {
+        // if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
             positions_out[j * 3 + 0] = x;
             positions_out[j * 3 + 1] = y;
             positions_out[j * 3 + 2] = z;
@@ -248,7 +251,9 @@ std::vector<torch::Tensor> raymarching_train(
     const torch::Tensor density_bitfield, 
     const int max_samples,
     const int num_steps,
-    const float cone_angle
+    const float cone_angle,
+    const float step_size_scale, // scale up step size 
+    const float grid_base_scale
 ) {
     DEVICE_GUARD(rays_o);
 
@@ -292,11 +297,13 @@ std::vector<torch::Tensor> raymarching_train(
                 center,
                 cascades,
                 grid_size,
+                grid_base_scale,
                 density_bitfield.data_ptr<uint8_t>(),
                 // sampling
                 cone_angle,
                 num_steps,
                 max_samples,
+                step_size_scale,
                 numsteps_counter.data_ptr<int>(),  // total samples.
                 rays_counter.data_ptr<int>(),  // total rays.
                 indices.data_ptr<int>(),  // output ray indices.

@@ -28,15 +28,13 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import pyrad.cuda_v2 as pyrad_cuda
 from pyrad.cameras.rays import RayBundle
 from pyrad.cuda.ray_sampler import NGPSpacedSampler
-from pyrad.cuda_pl.custom_functions import (RayAABBIntersector, RayMarcher,
-                                            VolumeRenderer)
+from pyrad.cuda_pl.custom_functions import RayAABBIntersector, RayMarcher, VolumeRenderer
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
 from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.occupancy_fields.occupancy_grid import DensityGrid
 from pyrad.graphs.base import Graph
 from pyrad.optimizers.loss import MSELoss
-from pyrad.renderers.renderers import (AccumulationRenderer, DepthRenderer,
-                                       RGBRenderer)
+from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.utils import colors, visualization, writer
 from pyrad.utils.callbacks import Callback
 from pyrad.utils.misc import is_not_none
@@ -69,7 +67,7 @@ class NGPGraph(Graph):
 
     def populate_misc_modules(self):
         # occupancy grid
-        self.occupancy_grid = DensityGrid(center=0.0, num_cascades=3)
+        self.occupancy_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
 
         # samplers
         self.sampler = NGPSpacedSampler(num_samples=256, density_field=self.occupancy_grid)
@@ -98,6 +96,7 @@ class NGPGraph(Graph):
         # 2. empty samples -- train test difference
         # 3. "depth_occupancy_grid"
         ray_samples, packed_info = self.sampler(ray_bundle, self.field.aabb)
+        # print("total samples", packed_info[:, -1].sum(), "dt", ray_samples.deltas.unique())
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
@@ -108,6 +107,7 @@ class NGPGraph(Graph):
         )
 
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
+        # print("color", accumulated_color.sum())
         outputs = {
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
@@ -115,6 +115,8 @@ class NGPGraph(Graph):
             # "mask": mask,  # the ray we skipped during sampler
             # "depth_occupancy_grid": depth_occupancy_grid,
         }
+        # _ = self._get_outputs(ray_bundle)
+        # exit()
         return outputs
 
     @torch.cuda.amp.autocast()
@@ -132,12 +134,13 @@ class NGPGraph(Graph):
             rays_o,
             rays_d,
             hits_t[:, 0],
-            torch.zeros_like(self.occupancy_grid.density_bitfield).reshape(3, -1).fill_(255),
-            0.5,  # 0.5
+            torch.zeros_like(self.occupancy_grid.density_bitfield).reshape(1, -1).fill_(255),
+            1.5,  # base scale
             0.0,
             128,
             256,
         )
+        # print("total samples", rays_a[:, -1].sum(), "dt", deltas.unique())
 
         zeros = torch.zeros_like(xyzs[:, :1])
         ray_samples = RaySamples(
@@ -153,6 +156,7 @@ class NGPGraph(Graph):
         rgb_bg = torch.ones(3, device=rays_o.device)  # TODO: infer env map from network
         opacity, depth, rgb = VolumeRenderer.apply(sigmas[:, 0], rgbs.contiguous(), deltas, ts, rays_a, 1e-4)
         rgb = rgb + rgb_bg * (1.0 - opacity[:, None])
+        # print("color", rgb.sum())
         outputs = {
             "rgb": rgb,
             "accumulation": opacity,

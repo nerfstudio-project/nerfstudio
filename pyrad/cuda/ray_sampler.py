@@ -54,6 +54,7 @@ class NGPSpacedSampler(Sampler):
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
         t_min, t_max = pyrad_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
+        scene_scale = (aabb[3:6] - aabb[0:3]).max()
 
         if self.training:
             # TODO(ruilongli): * 16 is for original impl.
@@ -71,11 +72,12 @@ class NGPSpacedSampler(Sampler):
             self.density_field.center,
             self.density_field.num_cascades,
             self.density_field.resolution,
-            torch.zeros_like(self.density_field.density_bitfield).fill_(255),
-            # self.density_field.density_bitfield,
+            self.density_field.density_bitfield,
             max_samples_per_batch,
             num_samples,
             0.0,
+            scene_scale,
+            self.density_field.base_scale,
         )
         total_samples = max(packed_info[:, -1].sum(), 1)
         positions = positions[:total_samples]
@@ -84,9 +86,6 @@ class NGPSpacedSampler(Sampler):
         ts = ts[:total_samples]
 
         zeros = torch.zeros_like(positions[:, :1])
-        # TODO(ruilongli): check why this fails at cascades=2
-        # print(rays_o.shape, max_samples_per_batch, num_samples)
-        # torch.cuda.synchronize()
 
         ray_samples = RaySamples(
             frustums=Frustums(origins=positions, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),

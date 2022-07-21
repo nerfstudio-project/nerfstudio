@@ -26,7 +26,9 @@ std::vector<torch::Tensor> raymarching_train(
     const torch::Tensor density_bitfield, 
     const int max_samples,
     const int num_steps,
-    const float cone_angle
+    const float cone_angle,
+    const float step_size_scale, 
+    const float grid_base_scale
 );
 
 std::vector<torch::Tensor> volumetric_rendering(

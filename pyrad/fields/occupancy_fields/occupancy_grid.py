@@ -26,12 +26,6 @@ import pyrad.cuda_v2 as pyrad_cuda
 from pyrad.utils.misc import is_not_none
 
 
-def is_power_of_two(x: int):
-    """Check whether a integer is the power of two"""
-    # https://stackoverflow.com/a/57025941
-    return (x & (x - 1) == 0) and x != 0
-
-
 def create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
     """Create 3D grid coordinates"""
     arrange = torch.arange(resolution, device=device)
@@ -52,12 +46,14 @@ class DensityGrid(nn.Module):
     def __init__(
         self,
         center: float = 0.5,
+        base_scale: float = 1.0,  # base level scale
         num_cascades: int = 1,
         resolution: int = 128,
         update_every_num_iters: int = 16,
     ) -> None:
         super().__init__()
         self.center = center
+        self.base_scale = base_scale
         self.num_cascades = num_cascades  # the number of levels (i.e, cascades)
         self.resolution = resolution
         self.mean_density = 0.0
@@ -132,7 +128,7 @@ class DensityGrid(nn.Module):
 
         # infer sigmas
         for mip_level in range(self.num_cascades):
-            mip_scale = 2 ** (-mip_level)
+            mip_scale = 2 ** (-mip_level) / self.base_scale
             indices, coords = cells[mip_level]
             # `coords` denotes the i-th cell. It's a poor naming here.
             # the actually coordinates in world space x has mapping to
