@@ -200,7 +200,7 @@ def main(
         avg_rays_per_sec = stats_dict["avg rays per sec"]
         avg_fps = stats_dict["avg fps"]
         print(f"Avg. PSNR: {avg_psnr:0.4f}")
-        print(f"Avg. Rays per sec: {avg_rays_per_sec:0.4f}")
+        print(f"Avg. Rays / Sec: {avg_rays_per_sec:.2e}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
     elif method == MethodType.TRAJ:
         # TODO(ethan): pass in camera information into argparse parser
