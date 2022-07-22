@@ -94,12 +94,14 @@ class RaySamples(TensorDataclass):
         camera_indices (TensorType[..., 1]): Camera index.
         valid_mask (TensorType[..., 1]): Rays that are valid.
         deltas (TensorType[..., 1]): "width" of each sample.
+        ts (TensorType[..., 1]): sample-camera distance of each sample.
     """
 
     frustums: Frustums
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
+    ts: TensorType[..., 1] = None
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities

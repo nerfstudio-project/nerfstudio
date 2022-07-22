@@ -76,7 +76,7 @@ class Graph(AbstractGraph):
         intrinsics (torch.Tensor): Camera intrinsics.
         camera_to_world (torch.Tensor): Camera to world transformation.
         loss_coefficients (DictConfig): Loss specific weights.
-        steps_per_occupancy_grid_update (int): How often to update occupancy grid.
+        steps_per_density_grid_update (int): How often to update density grid.
         scene_bounds (SceneBounds): Bounds of target scene.
         collider_config (DictConfig): Configuration of scene collider.
     """
@@ -86,19 +86,19 @@ class Graph(AbstractGraph):
         intrinsics: torch.Tensor = None,
         camera_to_world: torch.Tensor = None,
         loss_coefficients: DictConfig = None,
-        steps_per_occupancy_grid_update: int = 16,
+        steps_per_density_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
         collider_config: DictConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
-        assert is_not_none(scene_bounds), "scene_bounds is needed to use the occupancy grid"
+        assert is_not_none(scene_bounds), "scene_bounds is needed to use the density grid"
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
         self.collider_config = collider_config
         self.loss_coefficients = loss_coefficients
-        self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
+        self.steps_per_density_grid_update = steps_per_density_grid_update
         self.kwargs = kwargs
         self.collider = None
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)

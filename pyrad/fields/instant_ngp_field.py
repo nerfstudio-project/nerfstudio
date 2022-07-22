@@ -22,11 +22,11 @@ from typing import Tuple
 import torch
 from torch.nn.parameter import Parameter
 
+from pyrad.cameras.rays import RaySamples
+from pyrad.fields.base import Field
 from pyrad.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from pyrad.fields.modules.field_heads import FieldHeadNames
-from pyrad.fields.base import Field
 from pyrad.fields.nerf_field import NeRFField
-from pyrad.cameras.rays import RaySamples
 from pyrad.utils.activations import trunc_exp
 
 try:
@@ -113,7 +113,7 @@ class TCNNInstantNGPField(Field):
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation)
+        density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding=None):
@@ -123,7 +123,7 @@ class TCNNInstantNGPField(Field):
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
         h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1)
+        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
 
