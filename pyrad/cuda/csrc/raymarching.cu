@@ -1,4 +1,4 @@
-#include "include/helpers.h"
+#include "include/helpers_cuda.h"
 
 
 inline __device__ float min_step_size(uint32_t num_steps) { 

@@ -1,4 +1,4 @@
-#include "include/helpers.h"
+#include "include/helpers_cuda.h"
 
 
 torch::Tensor packbits(
