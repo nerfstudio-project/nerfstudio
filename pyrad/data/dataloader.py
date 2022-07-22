@@ -17,8 +17,7 @@ Data loader.
 """
 
 import random
-from typing import Dict, List, Optional, Tuple, Union
-from omegaconf import ListConfig
+from typing import Dict, Optional, Tuple
 
 from torchtyping import TensorType
 
