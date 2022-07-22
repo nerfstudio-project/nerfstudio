@@ -21,6 +21,7 @@ PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 def cuda_toolkit_available():
+    """Check if the nvcc is avaiable on the machine."""
     # https://github.com/idiap/fast-transformers/blob/master/setup.py
     try:
         call(["nvcc"], stdout=DEVNULL, stderr=DEVNULL)
@@ -30,17 +31,17 @@ def cuda_toolkit_available():
 
 
 if cuda_toolkit_available():
-    extra_cflags = ["-O2"]
-    extra_cuda_cflags = ["-O2"]
-    sources = glob.glob(os.path.join(PATH, "csrc/*.cpp")) + glob.glob(os.path.join(PATH, "csrc/*.cu"))
-
-    _C = load(
-        name="pyrad_cuda",
-        sources=sources,
-        extra_cflags=extra_cflags,
-        extra_cuda_cflags=extra_cuda_cflags,
-    )
+    sources = glob.glob(os.path.join(PATH, "csrc/*.cu"))
 else:
-    _C = None
+    sources = glob.glob(os.path.join(PATH, "csrc/*.cpp"))
+
+extra_cflags = ["-O2"]
+extra_cuda_cflags = ["-O2"]
+_C = load(
+    name="pyrad_extension",
+    sources=sources,
+    extra_cflags=extra_cflags,
+    extra_cuda_cflags=extra_cuda_cflags,
+)
 
 __all__ = ["_C"]
