@@ -11,20 +11,67 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""CUDA Functions"""
+import torch
+from torch.cuda.amp import custom_bwd, custom_fwd
+
 from pyrad.cuda.backend import _C
 
-# structs
-RayBundle = _C.RayBundle
-Frustums = _C.Frustums
-RaySamples = _C.RaySamples
-DensityGrid = _C.DensityGrid
+packbits = _C.packbits
+ray_aabb_intersect = _C.ray_aabb_intersect
+morton3D = _C.morton3D
+morton3D_invert = _C.morton3D_invert
+raymarching = _C.raymarching
+volumetric_rendering_forward = _C.volumetric_rendering_forward
+volumetric_rendering_backward = _C.volumetric_rendering_backward
 
-# functions
-sample_uniformly_along_ray_bundle = _C.sample_uniformly_along_ray_bundle
-generate_ray_samples_uniform = _C.generate_ray_samples_uniform
-grid_sample = _C.grid_sample
-unpack = _C.unpack
-pack = _C.pack
-pack_single_tensor = _C.pack_single_tensor
+# pylint: disable=abstract-method,arguments-differ
+class VolumeRenderer(torch.autograd.Function):
+    """CUDA Volumetirc Renderer"""
 
-# grid_sampler_3d_cuda = _C.grid_sampler_3d_cuda
+    @staticmethod
+    @custom_fwd(cast_inputs=torch.float32)
+    def forward(ctx, packed_info, positions, deltas, ts, sigmas, rgbs):
+        accumulated_weight, accumulated_depth, accumulated_color, mask = volumetric_rendering_forward(
+            packed_info, positions, deltas, ts, sigmas, rgbs
+        )
+        ctx.save_for_backward(
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            packed_info,
+            deltas,
+            ts,
+            sigmas,
+            rgbs,
+        )
+        return accumulated_weight, accumulated_depth, accumulated_color, mask
+
+    @staticmethod
+    @custom_bwd
+    def backward(ctx, grad_weight, grad_depth, grad_color, _grad_mask):
+        (
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            packed_info,
+            deltas,
+            ts,
+            sigmas,
+            rgbs,
+        ) = ctx.saved_tensors
+        grad_sigmas, grad_rgbs = volumetric_rendering_backward(
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            grad_weight,
+            grad_depth,
+            grad_color,
+            packed_info,
+            deltas,
+            ts,
+            sigmas,
+            rgbs,
+        )
+        return None, None, None, None, grad_sigmas, grad_rgbs

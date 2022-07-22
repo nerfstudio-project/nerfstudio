@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from pyrad.cameras.rays import Frustums, RayBundle, RaySamples
 
 """
 Implementation of Instant NGP.
@@ -25,19 +24,16 @@ from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-import pyrad.cuda_v2 as pyrad_cuda
+import pyrad.cuda as pyrad_cuda
 from pyrad.cameras.rays import RayBundle
-from pyrad.cuda.ray_sampler import NGPSpacedSampler
-from pyrad.cuda_pl.custom_functions import RayAABBIntersector, RayMarcher, VolumeRenderer
+from pyrad.fields.density_fields.density_grid import DensityGrid
 from pyrad.fields.instant_ngp_field import field_implementation_to_class
 from pyrad.fields.modules.field_heads import FieldHeadNames
-from pyrad.fields.occupancy_fields.occupancy_grid import DensityGrid
 from pyrad.graphs.base import Graph
+from pyrad.graphs.modules.ray_sampler import NGPSpacedSampler
 from pyrad.optimizers.loss import MSELoss
-from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.utils import colors, visualization, writer
 from pyrad.utils.callbacks import Callback
-from pyrad.utils.misc import is_not_none
 
 
 class NGPGraph(Graph):
@@ -54,8 +50,8 @@ class NGPGraph(Graph):
         """defining callbacks to run after every training iteration"""
         self.callbacks = [
             Callback(
-                self.occupancy_grid.update_every_num_iters,
-                self.occupancy_grid.update_density_grid,
+                self.density_grid.update_every_num_iters,
+                self.density_grid.update_density_grid,
                 density_eval_func=self.field.density_fn,
             )
         ]
@@ -66,16 +62,11 @@ class NGPGraph(Graph):
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
-        # occupancy grid
-        self.occupancy_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
+        # density grid
+        self.density_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
 
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.occupancy_grid)
-
-        # renderers
-        self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
-        self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer()
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_grid)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -92,11 +83,10 @@ class NGPGraph(Graph):
 
     @torch.cuda.amp.autocast()
     def get_outputs(self, ray_bundle: RayBundle):
-        # TODO
-        # 2. empty samples -- train test difference
-        # 3. "depth_occupancy_grid"
+        # TODO(ruilongli)
+        # - train test difference
+        # - visualize "depth_density_grid"
         ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
-        # print("total samples", packed_info[:, -1].sum(), "dt", ray_samples.deltas.unique())
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
@@ -106,62 +96,14 @@ class NGPGraph(Graph):
             packed_info, ray_samples.frustums.get_positions(), ray_samples.deltas, ray_samples.ts, sigmas, rgbs
         )
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
-
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
-        # print("color", accumulated_color.sum())
+
         outputs = {
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
             "mask": mask,  # the ray we skipped during sampler
-            # "depth_occupancy_grid": depth_occupancy_grid,
-        }
-        # _ = self._get_outputs(ray_bundle)
-        # exit()
-        return outputs
-
-    @torch.cuda.amp.autocast()
-    def _get_outputs(self, ray_bundle: RayBundle):
-
-        aabb = self.field.aabb.flatten()
-        rays_o = ray_bundle.origins.contiguous()
-        rays_d = ray_bundle.directions.contiguous()
-
-        center = ((aabb[0:3] + aabb[3:6]) / 2.0).unsqueeze(0)
-        half_size = ((aabb[3:6] - aabb[0:3]) / 2.0).unsqueeze(0)
-        _, hits_t, _ = RayAABBIntersector.apply(rays_o, rays_d, center, half_size, 1)
-
-        rays_a, xyzs, dirs, deltas, ts = RayMarcher.apply(
-            rays_o,
-            rays_d,
-            hits_t[:, 0],
-            torch.zeros_like(self.occupancy_grid.density_bitfield).reshape(1, -1).fill_(255),
-            1.5,  # base scale
-            0.0,
-            128,
-            256,
-        )
-        # print("total samples", rays_a[:, -1].sum(), "dt", deltas.unique())
-
-        zeros = torch.zeros_like(xyzs[:, :1])
-        ray_samples = RaySamples(
-            frustums=Frustums(origins=xyzs, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),
-            deltas=deltas,
-            ts=ts,
-        )
-
-        field_outputs = self.field.forward(ray_samples)
-        rgbs = field_outputs[FieldHeadNames.RGB]
-        sigmas = field_outputs[FieldHeadNames.DENSITY]
-
-        rgb_bg = torch.ones(3, device=rays_o.device)  # TODO: infer env map from network
-        opacity, depth, rgb = VolumeRenderer.apply(sigmas[:, 0], rgbs.contiguous(), deltas, ts, rays_a, 1e-4)
-        rgb = rgb + rgb_bg * (1.0 - opacity[:, None])
-        # print("color", rgb.sum())
-        outputs = {
-            "rgb": rgb,
-            "accumulation": opacity,
-            "depth": depth,
+            # "depth_density_grid": depth_density_grid,
         }
         return outputs
 
@@ -189,8 +131,8 @@ class NGPGraph(Graph):
         outputs["accumulation"] = combined_acc
         combined_depth = torch.cat([depth], dim=1)
         outputs["depth"] = combined_depth
-        # depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        # outputs["depth_occupancy_grid"] = combined_depth
+        # depth = visualization.apply_depth_colormap(outputs["depth_density_grid"])
+        # outputs["depth_density_grid"] = combined_depth
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
@@ -209,8 +151,8 @@ class NGPGraph(Graph):
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
 
-        # depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        # writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=combined_depth, step=step)
+        # depth = visualization.apply_depth_colormap(outputs["depth_density_grid"])
+        # writer.put_image(name=f"depth_density_grid/image_idx_{image_idx}", image=combined_depth, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

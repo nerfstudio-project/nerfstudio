@@ -66,32 +66,32 @@ __global__ void kernel_ray_aabb_intersect(
     
     _ray_aabb_intersect<scalar_t>(rays_o, rays_d, aabb, t_min, t_max);
     
-    // The near distance prevents learning of camera-specific fudge 
-    // right in front of the camera.
     scalar_t zero = static_cast<scalar_t>(0.f);
     *t_min = *t_min > zero ? *t_min : zero;
-
     return;
 }
 
 /**
  * @brief Ray AABB Test
  * 
- * @param rays_o Ray origins. Tensor with shape [N, 3]
- * @param rays_d Ray directions. Tensor with shape [N, 3]
- * @param aabb_min AABB min. Tensor with shape [3]
- * @param aabb_max AABB max. Tensor with shape [3]
- * @return std::vector<torch::Tensor> t_min and t_max with shape [N]
+ * @param rays_o Ray origins. Tensor with shape [N, 3].
+ * @param rays_d Normalized ray directions. Tensor with shape [N, 3].
+ * @param aabb Scene AABB [xmin, ymin, zmin, xmax, ymax, zmax]. Tensor with shape [6].
+ * @return std::vector<torch::Tensor> 
+ *  Ray AABB intersection {t_min, t_max} with shape [N] respectively. Note the t_min is 
+ *  clipped to minimum zero. 
  */
 std::vector<torch::Tensor> ray_aabb_intersect(
-    const torch::Tensor rays_o,
-    const torch::Tensor rays_d,
-    const torch::Tensor aabb
+    const torch::Tensor rays_o, const torch::Tensor rays_d, const torch::Tensor aabb
 ) {
     DEVICE_GUARD(rays_o);
     CHECK_INPUT(rays_o);
     CHECK_INPUT(rays_d);
     CHECK_INPUT(aabb);
+    TORCH_CHECK(rays_o.ndimension() == 2 & rays_o.size(1) == 3)
+    TORCH_CHECK(rays_d.ndimension() == 2 & rays_d.size(1) == 3)
+    TORCH_CHECK(aabb.ndimension() == 1 & aabb.size(0) == 6)
+    
     const int N = rays_o.size(0);
 
     const int threads = 256;

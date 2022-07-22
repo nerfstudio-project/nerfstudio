@@ -11,20 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import glob
 import os
 
 from torch.utils.cpp_extension import load
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
-# TODO(ruilongli): use `-O3` when test speed or release.
-extra_cflags = ["-O3", "-std=c++14"]
-extra_cuda_cflags = ["-O3", "-std=c++14"]
-sources = [
-    os.path.join(PATH, "csrc", "pyrad_cuda.cpp"),
-    os.path.join(PATH, "csrc", "pyrad_cuda_kernel.cu"),
-]
+extra_cflags = ["-O2"]
+extra_cuda_cflags = ["-O2"]
+sources = glob.glob(os.path.join(PATH, "csrc/*.cpp")) + glob.glob(os.path.join(PATH, "csrc/*.cu"))
 
-_C = load(name="pyrad_cuda", sources=sources, extra_cflags=extra_cflags, extra_cuda_cflags=extra_cuda_cflags)
+_C = load(
+    name="pyrad_cuda",
+    sources=sources,
+    extra_cflags=extra_cflags,
+    extra_cuda_cflags=extra_cuda_cflags,
+)
 
 __all__ = ["_C"]

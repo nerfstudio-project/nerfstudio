@@ -22,9 +22,9 @@ __global__ void kernel_packbits(
 }
 
 /**
- * @brief Pack data into bits based on threshold.
+ * @brief Pack data into uint8 bits based on threshold.
  * 
- * @param data: Tensor with shape [... * 8]
+ * @param data: Tensor with any shape. Total elements must be N * 8.
  * @param threshold:
  * @return Tensor: bitfield that has shape of [N]
  */
@@ -33,7 +33,8 @@ torch::Tensor packbits(
 ) {
     DEVICE_GUARD(data);
     CHECK_INPUT(data);
-    
+    TORCH_CHECK(data.numel() % 8 == 0)
+
     const int N = data.numel() / 8;
 
     const int threads = 256;

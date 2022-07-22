@@ -1,84 +1,69 @@
-/*
-This file uses pybind to make CUDA calls.
-*/
+#include "include/helpers.h"
 
-#include <torch/extension.h>
-#include <vector>
-#include <ATen/Functions.h>
-#include <ATen/NativeFunctions.h>
-#include "include/structures.cuh"
-#include "include/helpers.cuh"
 
-std::vector<torch::Tensor> sample_uniformly_along_ray_bundle(
-    torch::Tensor origins,
-    torch::Tensor directions,
-    torch::Tensor nears,
-    torch::Tensor fars,
-    torch::Tensor offsets,
-    int max_num_samples);
-
-RaySamples generate_ray_samples_uniform(
-    RayBundle &ray_bundle, int num_samples, DensityGrid &grid
+torch::Tensor packbits(
+    const torch::Tensor data, const float threshold
 );
 
-torch::Tensor grid_sample(torch::Tensor positions, DensityGrid &grid);
-
-torch::Tensor unpack(
-    torch::Tensor packed_data,  // ["num_elements", D]
-    torch::Tensor packed_info,  // ["num_packs", N + 1]
-    at::IntArrayRef output_size  // [C_1, C_2, ..., C_N, D]
+std::vector<torch::Tensor> ray_aabb_intersect(
+    const torch::Tensor rays_o,
+    const torch::Tensor rays_d,
+    const torch::Tensor aabb
 );
 
-torch::Tensor pack(
-    torch::Tensor mask  // [C_1, C_2, ..., C_N]
+torch::Tensor morton3D(const torch::Tensor coords);
+
+torch::Tensor morton3D_invert(const torch::Tensor indices);
+
+std::vector<torch::Tensor> raymarching(
+    // rays
+    const torch::Tensor rays_o, 
+    const torch::Tensor rays_d, 
+    const torch::Tensor t_min, 
+    const torch::Tensor t_max,
+    // density grid
+    const float grid_center,
+    const float grid_scale,
+    const int grid_cascades,
+    const int grid_size,
+    const torch::Tensor grid_bitfield, 
+    // sampling args
+    const int max_total_samples,
+    const int num_steps,
+    const float cone_angle,
+    const float step_scale
 );
 
-std::vector<torch::Tensor> pack_single_tensor(
-    torch::Tensor data,  // [C_1, C_2, ..., C_N, D]
-    torch::Tensor mask  // [C_1, C_2, ..., C_N]
+std::vector<torch::Tensor> volumetric_rendering_forward(
+    torch::Tensor indices, 
+    torch::Tensor positions, 
+    torch::Tensor deltas, 
+    torch::Tensor ts, 
+    torch::Tensor sigmas, 
+    torch::Tensor rgbs
 );
 
+std::vector<torch::Tensor> volumetric_rendering_backward(
+    torch::Tensor accumulated_weight, 
+    torch::Tensor accumulated_depth, 
+    torch::Tensor accumulated_color, 
+    torch::Tensor grad_weight, 
+    torch::Tensor grad_depth, 
+    torch::Tensor grad_color, 
+    torch::Tensor indices, 
+    torch::Tensor deltas, 
+    torch::Tensor ts, 
+    torch::Tensor sigmas, 
+    torch::Tensor rgbs
+);
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
-    py::class_<RayBundle>(m, "RayBundle")
-        .def(py::init<>())
-        .def_readwrite("origins", &RayBundle::origins)
-        .def_readwrite("directions", &RayBundle::directions)
-        .def_readwrite("pixel_area", &RayBundle::pixel_area)
-        .def_readwrite("camera_indices", &RayBundle::camera_indices)
-        .def_readwrite("nears", &RayBundle::nears)
-        .def_readwrite("fars", &RayBundle::fars)
-        .def_readwrite("valid_mask", &RayBundle::valid_mask)
-        .def_readwrite("num_rays_per_chunk", &RayBundle::num_rays_per_chunk);
-
-    py::class_<Frustums>(m, "Frustums")
-        .def(py::init<>())
-        .def_readwrite("origins", &Frustums::origins)
-        .def_readwrite("directions", &Frustums::directions)
-        .def_readwrite("starts", &Frustums::starts)
-        .def_readwrite("ends", &Frustums::ends)
-        .def_readwrite("pixel_area", &Frustums::pixel_area);
-
-    py::class_<RaySamples>(m, "RaySamples")
-        .def(py::init<>())
-        .def_readwrite("frustums", &RaySamples::frustums)
-        .def_readwrite("packed_indices", &RaySamples::packed_indices)
-        .def_readwrite("camera_indices", &RaySamples::camera_indices)
-        .def_readwrite("deltas", &RaySamples::deltas);
-
-    py::class_<DensityGrid>(m, "DensityGrid")
-        .def(py::init<>())
-        .def_readwrite("num_cascades", &DensityGrid::num_cascades)
-        .def_readwrite("resolution", &DensityGrid::resolution)
-        .def_readwrite("aabb", &DensityGrid::aabb)
-        .def_readwrite("data", &DensityGrid::data);
-
-    m.def("sample_uniformly_along_ray_bundle", &sample_uniformly_along_ray_bundle);
-    m.def("generate_ray_samples_uniform", &generate_ray_samples_uniform);
-    m.def("grid_sample", &grid_sample);
-    m.def("unpack", &unpack);
-    m.def("pack", &pack);
-    m.def("pack_single_tensor", &pack_single_tensor);
-    // m.def("grid_sampler_3d_cuda", &at::native::grid_sampler_3d_cuda);
+    m.def("packbits", &packbits);
+    m.def("ray_aabb_intersect", &ray_aabb_intersect);
+    m.def("morton3D", &morton3D);
+    m.def("morton3D_invert", &morton3D_invert);
+    m.def("raymarching", &raymarching);
+    m.def("volumetric_rendering_forward", &volumetric_rendering_forward);
+    m.def("volumetric_rendering_backward", &volumetric_rendering_backward);
 }

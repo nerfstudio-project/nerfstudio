@@ -2,9 +2,9 @@
 
 
 template <typename scalar_t>
-__global__ void volumetric_rendering_kernel(
+__global__ void volumetric_rendering_forward_kernel(
     const uint32_t n_rays,
-    const int* indices,  // input ray & point indices.
+    const int* packed_info,  // input ray & point indices.
     const scalar_t* positions,  // input samples
     const scalar_t* deltas,  // input delta t
     const scalar_t* ts,  // input t
@@ -19,9 +19,9 @@ __global__ void volumetric_rendering_kernel(
     CUDA_GET_THREAD_ID(thread_id, n_rays);
 
     // locate
-    const int i = indices[thread_id * 3 + 0];  // ray idx in {rays_o, rays_d}
-    const int base = indices[thread_id * 3 + 1];  // point idx start.
-    const int numsteps = indices[thread_id * 3 + 2];  // point idx shift.
+    const int i = packed_info[thread_id * 3 + 0];  // ray idx in {rays_o, rays_d}
+    const int base = packed_info[thread_id * 3 + 1];  // point idx start.
+    const int numsteps = packed_info[thread_id * 3 + 2];  // point idx shift.
     if (numsteps == 0) return;
 
     positions += base * 3;
@@ -59,7 +59,7 @@ __global__ void volumetric_rendering_kernel(
 template <typename scalar_t>
 __global__ void volumetric_rendering_backward_kernel(
     const uint32_t n_rays,
-    const int* indices,  // input ray & point indices.
+    const int* packed_info,  // input ray & point indices.
     const scalar_t* deltas,  // input delta t
     const scalar_t* ts,  // input t
     const scalar_t* sigmas,  // input density after activation
@@ -76,9 +76,9 @@ __global__ void volumetric_rendering_backward_kernel(
     CUDA_GET_THREAD_ID(thread_id, n_rays);
 
     // locate
-    const int i = indices[thread_id * 3 + 0];  // ray idx in {rays_o, rays_d}
-    const int base = indices[thread_id * 3 + 1];  // point idx start.
-    const int numsteps = indices[thread_id * 3 + 2];  // point idx shift.
+    const int i = packed_info[thread_id * 3 + 0];  // ray idx in {rays_o, rays_d}
+    const int base = packed_info[thread_id * 3 + 1];  // point idx start.
+    const int numsteps = packed_info[thread_id * 3 + 2];  // point idx shift.
     if (numsteps == 0) return;
 
     deltas += base;
@@ -132,24 +132,50 @@ __global__ void volumetric_rendering_backward_kernel(
 	}
 }
 
-
-std::vector<torch::Tensor> volumetric_rendering(
-    torch::Tensor indices, 
+/**
+ * @brief Volumetric Rendering: Accumulating samples in the forward pass.
+ *  The inputs, excepct for `sigmas` and `rgbs`, are the outputs of our
+ *  cuda ray marching function in `raymarching.cu`
+ * 
+ * @param packed_info Stores how to index the ray samples from the returned values.
+ *  Shape of [n_rays, 3]. First value is the ray index. Second value is the sample 
+ *  start index in the results for this ray. Third value is the number of samples for
+ *  this ray. Note for rays that have zero samples, we simply skip them so the `packed_info`
+ *  has some zero padding in the end.
+ * @param positions Positions of the samples. [total_samples, 3]
+ * @param deltas Ray marching step size between this sample and the next. [total_samples, 1]
+ * @param ts Ray marching t at those sample locations. [total_samples, 1]
+ * @param sigmas Densities at those samples. [total_samples, 1]
+ * @param rgbs RGBs at those samples. [total_samples, 3]
+ * @return std::vector<torch::Tensor> 
+ * - accumulated_weight: Ray opacity. [n_rays, 1]
+ * - accumulated_depth: Ray depth. [n_rays, 1]
+ * - accumulated_color: Ray color. [n_rays, 3]
+ * - mask: Boolen value store if this ray has valid samples from packed_info. [n_rays]
+ */
+std::vector<torch::Tensor> volumetric_rendering_forward(
+    torch::Tensor packed_info, 
     torch::Tensor positions, 
     torch::Tensor deltas, 
     torch::Tensor ts, 
     torch::Tensor sigmas, 
     torch::Tensor rgbs
 ) {
-    DEVICE_GUARD(indices);
-    CHECK_INPUT(indices);
+    DEVICE_GUARD(packed_info);
+    CHECK_INPUT(packed_info);
     CHECK_INPUT(positions);
     CHECK_INPUT(deltas);
     CHECK_INPUT(ts);
     CHECK_INPUT(sigmas);
     CHECK_INPUT(rgbs);
-    
-    const uint32_t n_rays = indices.size(0);
+    TORCH_CHECK(packed_info.ndimension() == 2 & packed_info.size(1) == 3);
+    TORCH_CHECK(positions.ndimension() == 2 & positions.size(1) == 3);
+    TORCH_CHECK(deltas.ndimension() == 2 & deltas.size(1) == 1);
+    TORCH_CHECK(ts.ndimension() == 2 & ts.size(1) == 1);
+    TORCH_CHECK(sigmas.ndimension() == 2 & sigmas.size(1) == 1);
+    TORCH_CHECK(rgbs.ndimension() == 2 & rgbs.size(1) == 3);
+
+    const uint32_t n_rays = packed_info.size(0);
 
     const int threads = 256;
     const int blocks = CUDA_N_BLOCKS_NEEDED(n_rays, threads);
@@ -163,11 +189,11 @@ std::vector<torch::Tensor> volumetric_rendering(
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         sigmas.scalar_type(),
-        "volumetric_rendering",
+        "volumetric_rendering_forward",
         ([&]
-         { volumetric_rendering_kernel<scalar_t><<<blocks, threads>>>(
+         { volumetric_rendering_forward_kernel<scalar_t><<<blocks, threads>>>(
                 n_rays,
-                indices.data_ptr<int>(), 
+                packed_info.data_ptr<int>(), 
                 positions.data_ptr<scalar_t>(),
                 deltas.data_ptr<scalar_t>(),
                 ts.data_ptr<scalar_t>(),
@@ -184,6 +210,10 @@ std::vector<torch::Tensor> volumetric_rendering(
 }
 
 
+
+/**
+ * @brief Volumetric Rendering: Accumulating samples in the backward pass.
+ */
 std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor accumulated_weight, 
     torch::Tensor accumulated_depth, 
@@ -191,14 +221,14 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor grad_weight, 
     torch::Tensor grad_depth, 
     torch::Tensor grad_color, 
-    torch::Tensor indices, 
+    torch::Tensor packed_info, 
     torch::Tensor deltas, 
     torch::Tensor ts, 
     torch::Tensor sigmas, 
     torch::Tensor rgbs
 ) {
-    DEVICE_GUARD(indices);
-    const uint32_t n_rays = indices.size(0);
+    DEVICE_GUARD(packed_info);
+    const uint32_t n_rays = packed_info.size(0);
 
     const int threads = 256;
     const int blocks = CUDA_N_BLOCKS_NEEDED(n_rays, threads);
@@ -213,7 +243,7 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
         ([&]
          { volumetric_rendering_backward_kernel<scalar_t><<<blocks, threads>>>(
                 n_rays,
-                indices.data_ptr<int>(), 
+                packed_info.data_ptr<int>(), 
                 deltas.data_ptr<scalar_t>(),
                 ts.data_ptr<scalar_t>(),
                 sigmas.data_ptr<scalar_t>(),

@@ -6,8 +6,9 @@ inline __device__ float min_step_size(uint32_t num_steps) {
 }
 
 // Maximum step size is the width of the coarsest gridsize cell.
-inline __device__ float max_step_size(uint32_t num_steps, uint32_t cascades, uint32_t grid_size) { 
-    return __SQRT3() * (1 << (cascades-1)) / grid_size; 
+inline __device__ float max_step_size(uint32_t grid_cascades, uint32_t grid_size) { 
+    // Note(ruilongli): use mip=0 step size?
+    return __SQRT3() * (1 << (grid_cascades-1)) / grid_size; 
 }
 
 // Perform fixed-size stepping in unit-cube scenes (like original NeRF) and exponential
@@ -17,20 +18,20 @@ inline __device__ float calc_dt(float t, float cone_angle, float dt_min, float d
 	return __clamp(t * cone_angle, dt_min, dt_max);
 }
 
-inline __device__ int mip_from_pos(float x, float y, float z, uint32_t cascades, float center, float grid_base_scale) {
-    float maxval = fmaxf(fmaxf(fabsf(x - center), fabsf(y - center)), fabsf(z - center)) / grid_base_scale;
+inline __device__ int mip_from_pos(float x, float y, float z, uint32_t grid_cascades, float grid_center, float grid_scale) {
+    float maxval = fmaxf(fmaxf(fabsf(x - grid_center), fabsf(y - grid_center)), fabsf(z - grid_center)) / grid_scale;
 	int exponent; frexpf(maxval, &exponent);
-	return min(cascades-1, max(0, exponent+1));
+	return min(grid_cascades-1, max(0, exponent+1));
 }
 
 inline __device__ int mip_from_dt(
-    float x, float y, float z, uint32_t cascades, float dt, int grid_size, float center, float grid_base_scale
+    float x, float y, float z, uint32_t grid_cascades, float dt, int grid_size, float grid_center, float grid_scale
 ) {
-	int mip = mip_from_pos(x, y, z, cascades, center, grid_base_scale);
+	int mip = mip_from_pos(x, y, z, grid_cascades, grid_center, grid_scale);
 	dt *= 2 * grid_size;
 	if (dt<1.f) return mip; // exponent would be zero
 	int exponent; frexpf(dt, &exponent);
-	return min(cascades-1, max(exponent, mip));
+	return min(grid_cascades-1, max(exponent, mip));
 }
 
 inline __device__ uint32_t grid_mip_offset(uint32_t mip, int grid_size) {
@@ -38,13 +39,13 @@ inline __device__ uint32_t grid_mip_offset(uint32_t mip, int grid_size) {
 }
 
 inline __device__ uint32_t cascaded_grid_idx_at(
-    float x, float y, float z, uint32_t mip, int grid_size, float center, float grid_base_scale
+    float x, float y, float z, uint32_t mip, int grid_size, float grid_center, float grid_scale
 ) {
-	float mip_scale = scalbnf(1.0f, -mip) / grid_base_scale;
-    int ix = (int)((mip_scale * (x - center) + 0.5f) * grid_size);
-    int iy = (int)((mip_scale * (y - center) + 0.5f) * grid_size);
-    int iz = (int)((mip_scale * (z - center) + 0.5f) * grid_size);
-    // printf("[input] x %f, y %f, z %f, mip %d, grid_size %d, center %f\n", x, y, z, mip, grid_size, center);
+	float mip_scale = scalbnf(1.0f, -mip) / grid_scale;
+    int ix = (int)((mip_scale * (x - grid_center) + 0.5f) * grid_size);
+    int iy = (int)((mip_scale * (y - grid_center) + 0.5f) * grid_size);
+    int iz = (int)((mip_scale * (z - grid_center) + 0.5f) * grid_size);
+    // printf("[input] x %f, y %f, z %f, mip %d, grid_size %d, grid_center %f\n", x, y, z, mip, grid_size, grid_center);
     // printf("[output] mip_scale %f, ix %d iy %d, iz %d\n", mip_scale, ix, iy, iz);
 	uint32_t idx = __morton3D(
 		__clamp(ix, 0, grid_size-1),
@@ -54,19 +55,16 @@ inline __device__ uint32_t cascaded_grid_idx_at(
 	return idx;
 }
 
-inline __device__ bool density_grid_occupied_at(
+inline __device__ bool grid_occupied_at(
     float x, float y, float z, 
-    const uint8_t* density_grid_bitfield,
-    uint32_t mip, int grid_size, float center, float grid_base_scale
+    const uint8_t* grid_bitfield,
+    uint32_t mip, int grid_size, float grid_center, float grid_scale
 ) {
 	uint32_t idx = (
-        cascaded_grid_idx_at(x, y, z, mip, grid_size, center, grid_base_scale)
+        cascaded_grid_idx_at(x, y, z, mip, grid_size, grid_center, grid_scale)
         + grid_mip_offset(mip, grid_size)
     );
-    // if (idx >= 3 * grid_size * grid_size * grid_size) {
-    //     printf("density idx %d mip %d\n", idx, mip);
-    // }
-	return density_grid_bitfield[idx/8] & (1<<(idx%8));
+	return grid_bitfield[idx/8] & (1<<(idx%8));
 }
 
 inline __device__ float distance_to_next_voxel(
@@ -75,6 +73,7 @@ inline __device__ float distance_to_next_voxel(
     float idir_x, float idir_y, float idir_z,
     float res
 ) { // dda like step
+    // TODO: warning: expression has no effect?
 	x, y, z = res * x, res * y, res * z;
 	float tx = (floorf(x + 0.5f + 0.5f * __sign(dir_x)) - x) * idir_x;
 	float ty = (floorf(y + 0.5f + 0.5f * __sign(dir_y)) - y) * idir_y;
@@ -94,14 +93,12 @@ inline __device__ float advance_to_next_voxel(
 	float t_target = t + distance_to_next_voxel(
         x, y, z, dir_x, dir_y, dir_z, idir_x, idir_y, idir_z, res
     );
-    // printf("advance_to_next_voxel dt_min %f t_target %f \n", dt_min, t_target);
 	do {
 		t += dt_min;
 	} while (t < t_target);
 	return t;
 }
 
-// The scene should be bounded in [0, 1].
 template <typename scalar_t>
 __global__ void kernel_raymarching_train(
     // rays info
@@ -111,19 +108,19 @@ __global__ void kernel_raymarching_train(
     const scalar_t* t_min,
     const scalar_t* t_max, 
     // density grid
-    const float center,
-    const int cascades,
+    const float grid_center,
+    const float grid_scale,
+    const int grid_cascades,
     const int grid_size,
-    const float grid_base_scale,
-    const uint8_t* density_bitfield,
+    const uint8_t* grid_bitfield,
     // sampling
-    const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
+    const int max_total_samples,
     const int num_steps,  // default 1024
-    const int max_samples,
-    const float step_size_scale,
+    const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
+    const float step_scale,
     int* numsteps_counter,
     int* rays_counter,  // total rays.
-    int* indices_out,  // output ray & point indices.
+    int* packed_info_out,  // output ray & point packed_info.
     scalar_t* positions_out,  // output samples
     scalar_t* dirs_out,  // output dirs
     scalar_t* deltas_out,  // output delta t
@@ -148,9 +145,8 @@ __global__ void kernel_raymarching_train(
 
     // TODO(ruilongli): perturb `startt` as in ngp_pl?
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
-    float dt_min = min_step_size(num_steps) * step_size_scale;
-    float dt_max = max_step_size(num_steps, cascades, grid_size) * grid_base_scale;    
-    // printf("startt %f endt %f num_steps %d\n", startt, endt, num_steps);
+    float dt_min = min_step_size(num_steps) * step_scale;
+    float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;    
 	while (0 <= t && t < endt && j < num_steps) {
         // current point
         const float x = ox + t * dx;
@@ -158,16 +154,14 @@ __global__ void kernel_raymarching_train(
         const float z = oz + t * dz;
                 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center, grid_base_scale);
-        // printf("t %f mip %d occ %d\n", t, mip, density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center));
+		uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
 
-        // if (true) {
-        if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
+        if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
             ++j;
 			t += dt;
 		}
         else {
-			float res = (grid_size >> mip) * grid_base_scale;
+			float res = (grid_size >> mip) * grid_scale;
 			t = advance_to_next_voxel(
                 t, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
             );
@@ -177,7 +171,7 @@ __global__ void kernel_raymarching_train(
 
     uint32_t numsteps = j;
 	uint32_t base = atomicAdd(numsteps_counter, numsteps);
-    if (base + numsteps > max_samples) return;
+    if (base + numsteps > max_total_samples) return;
 	
     // locate
     positions_out += base * 3;
@@ -187,9 +181,9 @@ __global__ void kernel_raymarching_train(
 
     uint32_t ray_idx = atomicAdd(rays_counter, 1);
 
-	indices_out[ray_idx * 3 + 0] = i;  // ray idx in {rays_o, rays_d}
-    indices_out[ray_idx * 3 + 1] = base;  // point idx start.
-    indices_out[ray_idx * 3 + 2] = numsteps;  // point idx shift.
+	packed_info_out[ray_idx * 3 + 0] = i;  // ray idx in {rays_o, rays_d}
+    packed_info_out[ray_idx * 3 + 1] = base;  // point idx start.
+    packed_info_out[ray_idx * 3 + 2] = numsteps;  // point idx shift.
 
 	t = startt;
 	j = 0;
@@ -200,10 +194,9 @@ __global__ void kernel_raymarching_train(
         const float z = oz + t * dz;
 
         float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, cascades, dt, grid_size, center, grid_base_scale);
+		uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
 
-        // if (true) {
-        if (density_grid_occupied_at(x, y, z, density_bitfield, mip, grid_size, center, grid_base_scale)) {
+        if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
             positions_out[j * 3 + 0] = x;
             positions_out[j * 3 + 1] = y;
             positions_out[j * 3 + 2] = z;
@@ -216,7 +209,7 @@ __global__ void kernel_raymarching_train(
 			t += dt;
 		}
         else {
-			float res = (grid_size >> mip) * grid_base_scale;
+			float res = (grid_size >> mip) * grid_scale;
 			t = advance_to_next_voxel(
                 t, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
             );
@@ -227,34 +220,49 @@ __global__ void kernel_raymarching_train(
 }
 
 /**
- * @brief Sample points by ray marching during training.
+ * @brief Sample points by ray marching.
  * 
- * @param rays_o Shape of [n_rays, 3]
- * @param rays_d Shape of [n_rays, 3]
- * @param t_min Shape of [n_rays]
- * @param t_max Shape of [n_rays]
- * @param cascades 
- * @param grid_size
- * @param density_bitfield Shape of [cascades * grid_size**3 // 8]
- * @param max_samples
- * @param num_steps Default 1024
- * @param cone_angle Default 0 for nerf-syn and 1/256 for large scene
+ * @param rays_o Ray origins Shape of [n_rays, 3].
+ * @param rays_d Normalized ray directions. Shape of [n_rays, 3].
+ * @param t_min Near planes of rays. Shape of [n_rays].
+ * @param t_max Far planes of rays. Shape of [n_rays].
+ * @param grid_center Density grid center. TODO: support 3-dims.
+ * @param grid_scale Density grid base level scale. TODO: support 3-dims.
+ * @param grid_cascades Density grid levels.
+ * @param grid_size Density grid resolution.
+ * @param grid_bitfield Density grid uint8 bit field.
+ * @param max_total_samples Maximum total number of samples in this batch.
+ * @param num_steps Used to define the minimal step size: SQRT3() / num_steps.
+ * @param cone_angle 0. for nerf-synthetic and 1./256 for real scenes.
+ * @param step_scale Scale up the step size by this much. Usually equals to scene scale.
  * @return std::vector<torch::Tensor> 
+ * - packed_info: Stores how to index the ray samples from the returned values.
+ *  Shape of [n_rays, 3]. First value is the ray index. Second value is the sample 
+ *  start index in the results for this ray. Third value is the number of samples for
+ *  this ray. Note for rays that have zero samples, we simply skip them so the `packed_info`
+ *  has some zero padding in the end.
+ * - positions: Positions of the samples. [max_total_samples, 3]
+ * - dirs: Directions at those sample locations. [max_total_samples, 3]
+ * - deltas: Ray marching step size between this sample and the next. [max_total_samples, 1]
+ * - ts: Ray marching t at those sample locations. [max_total_samples, 1]
  */
-std::vector<torch::Tensor> raymarching_train(
+std::vector<torch::Tensor> raymarching(
+    // rays
     const torch::Tensor rays_o, 
     const torch::Tensor rays_d, 
     const torch::Tensor t_min, 
     const torch::Tensor t_max,
-    const float center,
-    const int cascades,
+    // density grid
+    const float grid_center,
+    const float grid_scale,
+    const int grid_cascades,
     const int grid_size,
-    const torch::Tensor density_bitfield, 
-    const int max_samples,
+    const torch::Tensor grid_bitfield, 
+    // sampling args
+    const int max_total_samples,
     const int num_steps,
     const float cone_angle,
-    const float step_size_scale, // scale up step size 
-    const float grid_base_scale
+    const float step_scale
 ) {
     DEVICE_GUARD(rays_o);
 
@@ -262,7 +270,7 @@ std::vector<torch::Tensor> raymarching_train(
     CHECK_INPUT(rays_d);
     CHECK_INPUT(t_min);
     CHECK_INPUT(t_max);
-    CHECK_INPUT(density_bitfield);
+    CHECK_INPUT(grid_bitfield);
     
     const int n_rays = rays_o.size(0);
 
@@ -276,38 +284,38 @@ std::vector<torch::Tensor> raymarching_train(
         {1}, rays_o.options().dtype(torch::kInt32));
 
     // output samples
-    torch::Tensor indices = torch::zeros(
+    torch::Tensor packed_info = torch::zeros(
         {n_rays, 3}, rays_o.options().dtype(torch::kInt32));  // ray_id, sample_id, num_samples
-    torch::Tensor positions = torch::zeros({max_samples, 3}, rays_o.options());
-    torch::Tensor dirs = torch::zeros({max_samples, 3}, rays_o.options());
-    torch::Tensor deltas = torch::zeros({max_samples, 1}, rays_o.options());
-    torch::Tensor ts = torch::zeros({max_samples, 1}, rays_o.options());
+    torch::Tensor positions = torch::zeros({max_total_samples, 3}, rays_o.options());
+    torch::Tensor dirs = torch::zeros({max_total_samples, 3}, rays_o.options());
+    torch::Tensor deltas = torch::zeros({max_total_samples, 1}, rays_o.options());
+    torch::Tensor ts = torch::zeros({max_total_samples, 1}, rays_o.options());
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         rays_o.scalar_type(),
         "raymarching_train",
         ([&]
          { kernel_raymarching_train<scalar_t><<<blocks, threads>>>(
-                // rays info
+                // rays
                 n_rays,
                 rays_o.data_ptr<scalar_t>(),
                 rays_d.data_ptr<scalar_t>(),
                 t_min.data_ptr<scalar_t>(),
                 t_max.data_ptr<scalar_t>(),
                 // density grid
-                center,
-                cascades,
+                grid_center,
+                grid_scale,
+                grid_cascades,
                 grid_size,
-                grid_base_scale,
-                density_bitfield.data_ptr<uint8_t>(),
-                // sampling
-                cone_angle,
+                grid_bitfield.data_ptr<uint8_t>(),
+                // sampling args
+                max_total_samples,
                 num_steps,
-                max_samples,
-                step_size_scale,
+                cone_angle,
+                step_scale,
                 numsteps_counter.data_ptr<int>(),  // total samples.
                 rays_counter.data_ptr<int>(),  // total rays.
-                indices.data_ptr<int>(),  // output ray indices.
+                packed_info.data_ptr<int>(),  // output ray packed_info.
                 positions.data_ptr<scalar_t>(),  // output samples
                 dirs.data_ptr<scalar_t>(),  // output dirs
                 deltas.data_ptr<scalar_t>(),  // output delta t
@@ -315,5 +323,5 @@ std::vector<torch::Tensor> raymarching_train(
             ); 
         }));
 
-    return {indices, positions, dirs, deltas, ts};
+    return {packed_info, positions, dirs, deltas, ts};
 }
