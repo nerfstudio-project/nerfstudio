@@ -21,7 +21,7 @@ import random
 import sys
 import threading
 import time
-from typing import List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -60,7 +60,13 @@ class SetTrace:
 
 
 class RenderThread(threading.Thread):
-    """Thread that does all the rendering calls while listening for interrupts"""
+    """Thread that does all the rendering calls while listening for interrupts
+
+    Args:
+        state: current visualizer state object
+        graph: current checkpoint of model
+        camera_ray_bundle: input rays to pass through the graph to render out
+    """
 
     def __init__(self, state: "VisualizerState", graph: Graph, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
@@ -70,6 +76,10 @@ class RenderThread(threading.Thread):
         self.exc = None
 
     def run(self):
+        """run function that renders out images given the current graph and ray bundles.
+        Interlaced with a trace function that checks to see if any I/O changes were registered.
+        Exits and continues program if IOChangeException thrown.
+        """
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
@@ -90,13 +100,20 @@ class RenderThread(threading.Thread):
 
 
 class CheckThread(threading.Thread):
-    """Thread the constantly checks for io changes and sets a flag indicating interrupt"""
+    """Thread the constantly checks for io changes and sets a flag indicating interrupt
+
+    Args:
+        state: current visualizer state object
+    """
 
     def __init__(self, state):
         threading.Thread.__init__(self)
         self.state = state
 
     def run(self):
+        """Run function that checks to see if any of the existing state has changed (e.g. camera pose/output type/resolutions).
+        Sets the visualizer state flag to true to signal to render thread that an interrupt was registered.
+        """
         self.state.check_done_render = False
         while not self.state.check_done_render:
             # check camera
@@ -138,7 +155,11 @@ class CheckThread(threading.Thread):
 
 @decorate_all([check_visualizer_enabled])
 class VisualizerState:
-    """Class to hold state for visualizer variables"""
+    """Class to hold state for visualizer variables
+
+    Args:
+        config: viewer setup configuration
+    """
 
     def __init__(self, config: ViewerConfig):
         self.config = config
@@ -165,11 +186,42 @@ class VisualizerState:
         self.outputs_set = False
 
     def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
-        """initializes the scene with the datasets"""
-        self._draw_scene_in_viewer(image_dataset, dataset_inputs)
+        """Draw some images and the scene aabb in the viewer.
+
+        Args:
+            image_dataset: dataset to render in the scene
+            dataset_inputs: inputs to the image dataset and ray generator
+        """
+        indices = random.sample(range(len(image_dataset)), k=10)
+        for idx in indices:
+            image = image_dataset[idx]["image"]
+            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
+            pose = camera.get_camera_to_world().double().numpy()
+            K = camera.get_intrinsics_matrix().double().numpy()
+            draw_camera_frustum(
+                self.vis,
+                image=(image.double().numpy() * 255.0),
+                pose=pose,
+                K=K,
+                height=1.0,
+                name=f"image_dataset/{idx:06d}",
+                displayed_focal_length=0.5,
+                realistic=False,
+            )
+        aabb = dataset_inputs.scene_bounds.aabb
+        draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
+
+        # set the main camera intrinsics to one from the dataset
+        K = camera.get_intrinsics_matrix()
+        set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
     def update_scene(self, step: int, graph: Graph) -> None:
-        """updates the scene based on the graph weights"""
+        """updates the scene based on the graph weights
+
+        Args:
+            step: iteration step of training
+            graph: the current checkpoint of the model
+        """
         data = self.vis["/Training State"].get_object()
 
         if data is None or not data["training_state"]:
@@ -187,8 +239,10 @@ class VisualizerState:
                 run_loop = data["training_state"]
                 local_step += 1
 
-    def check_interrupt(self, frame, event, arg):
-        """raises interrupt when flag has been set and not already on lowest resolution"""
+    def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
+        """Raises interrupt when flag has been set and not already on lowest resolution.
+        Used in conjunction with SetTrace.
+        """
         if event == "line":
             if self.check_interrupt_vis and self.res_upscale_factor > 1:
                 self.res_upscale_factor = 1
@@ -212,30 +266,21 @@ class VisualizerState:
                 return True  # if not higher res, but steps met
         return False  # if init
 
-    def _draw_scene_in_viewer(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
-        """Draw some images and the scene aabb in the viewer."""
-        indices = random.sample(range(len(image_dataset)), k=10)
-        for idx in indices:
-            image = image_dataset[idx]["image"]
-            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
-            pose = camera.get_camera_to_world().double().numpy()
-            K = camera.get_intrinsics_matrix().double().numpy()
-            draw_camera_frustum(
-                self.vis,
-                image=(image.double().numpy() * 255.0),
-                pose=pose,
-                K=K,
-                height=1.0,
-                name=f"image_dataset/{idx:06d}",
-                displayed_focal_length=0.5,
-                realistic=False,
-            )
-        aabb = dataset_inputs.scene_bounds.aabb
-        draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
+    def _send_output_to_viewer(self, outputs: Dict[str, Any]):
+        """Chooses the correct output and sends it to the viewer
 
-        # set the main camera intrinsics to one from the dataset
-        K = camera.get_intrinsics_matrix()
-        set_persp_intrinsics_matrix(self.vis, K.double().numpy())
+        Args:
+            outputs: the dictionary of outputs to choose from, from the graph
+        """
+        if not self.outputs_set:
+            set_output_options(self.vis, list(outputs.keys()))
+            self.outputs_set = True
+        # gross hack to get the image key, depending on which keys the graph uses
+        if output_type == "default":
+            output_type = "rgb" if "rgb" in outputs else "rgb_fine"
+        image_output = outputs[output_type].cpu().numpy() * 255
+        image = (image_output).astype("uint8")
+        self.vis["/Cameras/Main Camera"].set_image(image)
 
     @profiler.time_function
     def _render_image_in_viewer(self, graph: Graph) -> None:
@@ -309,15 +354,7 @@ class VisualizerState:
         graph.train()
         outputs = graph.vis_outputs
         if outputs is not None:
-            if not self.outputs_set:
-                set_output_options(self.vis, list(outputs.keys()))
-                self.outputs_set = True
-            # gross hack to get the image key, depending on which keys the graph uses
-            if output_type == "default":
-                output_type = "rgb" if "rgb" in outputs else "rgb_fine"
-            image_output = outputs[output_type].cpu().numpy() * 255
-            image = (image_output).astype("uint8")
-            self.vis["/Cameras/Main Camera"].set_image(image)
+            self._send_output_to_viewer(outputs)
 
 
 def get_default_vis() -> Viewer:
@@ -328,17 +365,33 @@ def get_default_vis() -> Viewer:
 
 
 def set_output_options(vis: Viewer, output_options: List[str]):
-    """Sets the possible list of output options for user to toggle"""
+    """Sets the possible list of output options for user to toggle
+
+    Args:
+        vis: current Viewer
+        output_options: list of possible output types to select from
+    """
     vis["output_options"].set_output_options(output_options)
 
 
 def show_box_test(vis: Viewer):
-    """Simple test to draw a box and make sure everything is working."""
+    """Simple test to draw a box and make sure everything is working.
+
+    Args:
+        vis: current Viewer
+    """
     vis["box"].set_object(g.Box([1.0, 1.0, 1.0]), material=g.MeshPhongMaterial(color=0xFF0000))
 
 
-def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color=None):
-    """Show the PLY file in the 3D viewer. Specify the full filename as input."""
+def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color: Optional[int] = None):
+    """Show the PLY file in the 3D viewer. Specify the full filename as input.
+
+    Args:
+        vis: current Viewer
+        ply_path: path to ply to load in
+        name: reference name within viewer storage
+        color: color to render the ply in
+    """
     assert ply_path.endswith(".ply")
     if color:
         material = g.MeshPhongMaterial(color=color)
@@ -347,8 +400,15 @@ def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color=None):
     vis[name].set_object(g.PlyMeshGeometry.from_file(ply_path), material)
 
 
-def show_obj(vis: Viewer, obj_path: str, name: str = "obj", color=None):
-    """Show the PLY file in the 3D viewer. Specify the full filename as input."""
+def show_obj(vis: Viewer, obj_path: str, name: str = "obj", color: Optional[int] = None):
+    """Show the PLY file in the 3D viewer. Specify the full filename as input.
+
+    Args:
+        vis: current Viewer
+        obj_path: path to obj to load in
+        name: reference name within viewer storage
+        color: color to render the obj in
+    """
     assert obj_path.endswith(".obj")
     if color:
         material = g.MeshPhongMaterial(color=color)
@@ -359,16 +419,28 @@ def show_obj(vis: Viewer, obj_path: str, name: str = "obj", color=None):
 
 def draw_camera_frustum(
     vis: Viewer,
-    image=np.random.rand(100, 100, 3) * 255.0,
-    pose=get_translation_matrix([0, 0, 0]),
-    K=None,
-    name="0000000",
-    displayed_focal_length=None,
-    shift_forward=None,
-    height=None,
-    realistic=True,
+    image: np.ndarray = np.random.rand(100, 100, 3) * 255.0,
+    pose: np.ndarray = get_translation_matrix([0, 0, 0]),
+    K: Optional[np.ndarray] = None,
+    name: str = "0000000",
+    displayed_focal_length: Optional[float] = None,
+    shift_forward: Optional[float] = None,
+    height: Optional[float] = None,
+    realistic: bool = True,
 ):
-    """Draw the camera in the scene."""
+    """Draw the camera in the scene.
+
+    Args:
+        vis: current Viewer
+        image: image associated with the current camera
+        pose: pose of the camera
+        K: camera matrix
+        name: reference name within viewer storage
+        displayed_focal_length: the focal length to be displayed
+        shift_forward: how much to shift the drawn camera forward
+        height: height of the associated image plane
+        realistic: whether to render the image plane at the "realistic" focal length
+    """
 
     assert K[0, 0] == K[1, 1]
     focal_length = K[0, 0]
@@ -405,11 +477,12 @@ def draw_camera_frustum(
     g_image_plane = c.ImagePlane(image, width=width, height=height)
     vis[name + "/image_plane"].set_object(g_image_plane)
     if realistic:
-        vis[name + "/image_plane"].set_transform(get_translation_matrix([0, 0, -displayed_focal_length]))
+        assert displayed_focal_length is not None, "Need to set displayed focal length"
+        vis[name + "/image_plane"].set_transform(get_translation_matrix([0, 0, -1.0 * displayed_focal_length]))
 
     if shift_forward:
         matrix = get_translation_matrix([0, 0, displayed_focal_length])
-        matrix2 = get_translation_matrix([0, 0, -shift_forward])
+        matrix2 = get_translation_matrix([0, 0, -1.0 * shift_forward])
         vis[name + "/frustum"].set_transform(matrix2 @ matrix)
         vis[name + "/image_plane"].set_transform(matrix2)
 

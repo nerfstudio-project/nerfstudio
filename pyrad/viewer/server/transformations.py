@@ -17,12 +17,21 @@ Some helpful functions for creating geometric transformations.
 """
 
 import math
+from typing import List, Optional
 
 import numpy as np
 
 
-def get_unit_vector(data, axis=None, out=None):
-    """Return ndarray normalized by length, i.e. Euclidean norm, along axis."""
+def get_unit_vector(
+    data: List[float], axis: Optional[List[float]] = None, out: Optional[List[float]] = None
+) -> Optional[np.ndarray]:
+    """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
+
+    Args:
+        data: direction in which we want to calculate the unit vector for
+        axis: the axis along which to get the unit vector
+        out: buffer in which we write the unit vector out to (if not returning)
+    """
     if out is None:
         data = np.array(data, dtype=np.float64, copy=True)
         if data.ndim == 1:
@@ -39,17 +48,28 @@ def get_unit_vector(data, axis=None, out=None):
     data /= length
     if out is None:
         return data
+    return None
 
 
-def get_translation_matrix(direction):
-    """Return matrix to translate by direction vector."""
+def get_translation_matrix(direction: List[float]) -> np.ndarray:
+    """Return matrix to translate by direction vector.
+
+    Args:
+        direction: specifying direction of translation
+    """
     M = np.identity(4)
     M[:3, 3] = direction[:3]
     return M
 
 
-def get_rotation_matrix(angle, direction, point=None):
-    """Return matrix to rotate about axis defined by point and direction."""
+def get_rotation_matrix(angle: float, direction: List[float], point: Optional[List[float]] = None) -> np.ndarray:
+    """Return matrix to rotate about axis defined by point and direction.
+
+    Args:
+        angle: angle of rotation
+        direction: specifying axis of rotation
+        point: if specified, rotation not around origin
+    """
     sina = math.sin(angle)
     cosa = math.cos(angle)
     direction = get_unit_vector(direction[:3])

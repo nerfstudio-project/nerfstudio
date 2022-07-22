@@ -41,6 +41,7 @@ def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     step = os.path.splitext(latest_ckpt)[0].split("-")[-1]
     config.resume_train.load_dir = model_dir
     config.resume_train.load_step = int(step)
+    config.data.dataloader_eval.image_indices = None
     return os.path.join(model_dir, latest_ckpt)
 
 

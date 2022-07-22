@@ -14,6 +14,8 @@
 
 from pyrad.viewer.server.state.node import Node
 
+from typing import List
+
 
 class SceneNode(Node):
     __slots__ = ["object", "transform", "properties"]
