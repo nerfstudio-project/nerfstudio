@@ -1,24 +1,31 @@
 #pragma once
 
+#ifdef __CUDACC__
+#define CUDA_HOSTDEV __host__ __device__
+#else
+#define CUDA_HOSTDEV
+#endif
+
 #include <torch/extension.h>
 
-inline constexpr __host__ __device__ float __SQRT3() { return 1.73205080757f; }
+
+inline constexpr CUDA_HOSTDEV float __SQRT3() { return 1.73205080757f; }
 
 template <typename scalar_t>
-inline __host__ __device__ void __swap(scalar_t &a, scalar_t &b)
+inline CUDA_HOSTDEV void __swap(scalar_t &a, scalar_t &b)
 {
     scalar_t c = a;
     a = b;
     b = c;
 }
 
-inline __host__ __device__ float __clamp(float f, float a, float b) { return fmaxf(a, fminf(f, b)); }
+inline CUDA_HOSTDEV float __clamp(float f, float a, float b) { return fmaxf(a, fminf(f, b)); }
 
-inline __host__ __device__ int __clamp(int f, int a, int b) { return std::max(a, std::min(f, b)); }
+inline CUDA_HOSTDEV int __clamp(int f, int a, int b) { return std::max(a, std::min(f, b)); }
 
-inline __host__ __device__ float __sign(float x) { return copysignf(1.0, x); }
+inline CUDA_HOSTDEV float __sign(float x) { return copysignf(1.0, x); }
 
-inline __host__ __device__ uint32_t __expand_bits(uint32_t v)
+inline CUDA_HOSTDEV uint32_t __expand_bits(uint32_t v)
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
@@ -27,7 +34,7 @@ inline __host__ __device__ uint32_t __expand_bits(uint32_t v)
     return v;
 }
 
-inline __host__ __device__ uint32_t __morton3D(uint32_t x, uint32_t y, uint32_t z)
+inline CUDA_HOSTDEV uint32_t __morton3D(uint32_t x, uint32_t y, uint32_t z)
 {
     uint32_t xx = __expand_bits(x);
     uint32_t yy = __expand_bits(y);
@@ -35,7 +42,7 @@ inline __host__ __device__ uint32_t __morton3D(uint32_t x, uint32_t y, uint32_t 
     return xx | (yy << 1) | (zz << 2);
 }
 
-inline __host__ __device__ uint32_t __morton3D_invert(uint32_t x)
+inline CUDA_HOSTDEV uint32_t __morton3D_invert(uint32_t x)
 {
 	x = x & 0x49249249;
 	x = (x | (x >> 2)) & 0xc30c30c3;
