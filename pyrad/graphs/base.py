@@ -184,6 +184,7 @@ class Graph(AbstractGraph):
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Compute and obtain metrics and coefficients."""
+        # pylint: disable=unused-argument
         return {}
 
     @torch.no_grad()
