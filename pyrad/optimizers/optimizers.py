@@ -21,6 +21,7 @@ from typing import Any, Dict, List
 import numpy as np
 from hydra.utils import instantiate
 from omegaconf import DictConfig
+from torch.cuda.amp import GradScaler
 from torch.nn import Parameter
 from torch.optim.lr_scheduler import LambdaLR
 
@@ -115,7 +116,16 @@ class Optimizers:
         for _, optimizer in self.optimizers.items():
             optimizer.zero_grad()
 
-    def optimizer_step_all(self) -> None:
+    def optimizer_scaler_step_all(self, grad_scaler: GradScaler) -> None:
+        """Take an optimizer step using a grad scaler.
+
+        Args:
+            grad_scaler: GradScaler to use
+        """
+        for _, optimizer in self.optimizers.items():
+            grad_scaler.step(optimizer)
+
+    def optimizer_step_all(self):
         """Run step for all optimizers."""
         for _, optimizer in self.optimizers.items():
             # note that they key is the parameter name

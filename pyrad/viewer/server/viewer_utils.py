@@ -98,7 +98,6 @@ class CheckThread(threading.Thread):
 
     def run(self):
         self.state.check_done_render = False
-        is_interrupt = False
         while not self.state.check_done_render:
             # check camera
             data = self.state.vis["/Cameras/Main Camera"].get_object()
@@ -107,8 +106,8 @@ class CheckThread(threading.Thread):
                 if self.state.prev_camera_matrix is None or not np.allclose(
                     camera_object["matrix"], self.state.prev_camera_matrix
                 ):
-                    is_interrupt = True
-                    self.state.prev_camera_matrix = camera_object["matrix"]
+                    self.state.check_interrupt_vis = True
+                    return
 
             # check output type
             data = self.state.vis["/Output Type"].get_object()
@@ -117,26 +116,24 @@ class CheckThread(threading.Thread):
             else:
                 output_type = data["output_type"]
             if self.state.prev_output_type != output_type:
-                is_interrupt = True
+                self.state.check_interrupt_vis = True
+                return
 
             # check max render
             data = self.state.vis["/Max Resolution"].get_object()
             if data is not None:
                 max_resolution = int(data["max_resolution"])
                 if self.state.max_resolution != max_resolution:
-                    is_interrupt = True
-                    self.state.max_resolution = max_resolution
+                    self.state.check_interrupt_vis = True
+                    return
 
             # check min render
             data = self.state.vis["/Min Resolution"].get_object()
             if data is not None:
                 min_resolution = int(data["min_resolution"])
                 if self.state.min_resolution != min_resolution:
-                    is_interrupt = True
-                    self.state.min_resolution = min_resolution
-
-            self.state.check_interrupt_vis = is_interrupt
-            time.sleep(0.001)
+                    self.state.check_interrupt_vis = True
+                    return
 
 
 @decorate_all([check_visualizer_enabled])
@@ -163,7 +160,7 @@ class VisualizerState:
         self.check_interrupt_vis = False
         self.check_done_render = True
         self.last_render_time = time.time()
-        self.min_wait_time = 5.0
+        self.min_wait_time = 0.5  # 1.0 is on high side and will cause lag
 
         self.outputs_set = False
 
@@ -198,12 +195,12 @@ class VisualizerState:
                 raise IOChangeException
         return self.check_interrupt
 
-    def _is_render_step(self, step: int, default_steps: int = 5) -> bool:
+    def _is_render_step(self, step: int, default_steps: int = 2, max_steps: int = 10) -> bool:
         """dynamically calculate when to render grapic based on resolution of image"""
         if step != 0:
             if self.res_upscale_factor == 1:
                 return True
-            steps_per_render_image = min(default_steps * self.res_upscale_factor, 100)
+            steps_per_render_image = min(default_steps * self.res_upscale_factor, max_steps)
             steps_condition = step % steps_per_render_image == 0
             if steps_condition:
                 if self.res_upscale_factor > 3:
@@ -305,10 +302,6 @@ class VisualizerState:
 
         try:
             render_thread.join()
-        except Exception:  # pylint: disable=broad-except
-            pass
-
-        try:
             check_thread.join()
         except Exception:  # pylint: disable=broad-except
             pass

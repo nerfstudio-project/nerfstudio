@@ -56,6 +56,7 @@ class TrainerConfig:
     steps_per_save: int = MISSING
     steps_per_test: int = MISSING
     max_num_iterations: int = MISSING
+    mixed_precision: bool = MISSING
     resume_train: ResumeTrainConfig = MISSING
 
 
