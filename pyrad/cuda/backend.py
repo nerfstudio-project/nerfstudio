@@ -13,20 +13,34 @@
 # limitations under the License.
 import glob
 import os
+from subprocess import DEVNULL, call
 
 from torch.utils.cpp_extension import load
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
-extra_cflags = ["-O2"]
-extra_cuda_cflags = ["-O2"]
-sources = glob.glob(os.path.join(PATH, "csrc/*.cpp")) + glob.glob(os.path.join(PATH, "csrc/*.cu"))
 
-_C = load(
-    name="pyrad_cuda",
-    sources=sources,
-    extra_cflags=extra_cflags,
-    extra_cuda_cflags=extra_cuda_cflags,
-)
+def cuda_toolkit_available():
+    # https://github.com/idiap/fast-transformers/blob/master/setup.py
+    try:
+        call(["nvcc"], stdout=DEVNULL, stderr=DEVNULL)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+if cuda_toolkit_available():
+    extra_cflags = ["-O2"]
+    extra_cuda_cflags = ["-O2"]
+    sources = glob.glob(os.path.join(PATH, "csrc/*.cpp")) + glob.glob(os.path.join(PATH, "csrc/*.cu"))
+
+    _C = load(
+        name="pyrad_cuda",
+        sources=sources,
+        extra_cflags=extra_cflags,
+        extra_cuda_cflags=extra_cuda_cflags,
+    )
+else:
+    _C = None
 
 __all__ = ["_C"]
