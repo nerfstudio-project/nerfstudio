@@ -93,6 +93,30 @@ class GetObject:
 
 
 @dataclass
+class SetProperty:
+    """Set property command class"""
+
+    __slots__ = ["path", "key", "value"]
+
+    key: str
+    value: list
+    path: str
+
+    def lower(self):
+        """creates properly formatted json setting property
+
+        Returns:
+            Dict[str, Any]: json in proper format
+        """
+        return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}
+
+
+@dataclass
+class GetProperty:
+    """Get property command class"""
+
+
+@dataclass
 class SetTransform:
     """Set transform command class"""
 
@@ -111,8 +135,15 @@ class SetTransform:
 
 
 @dataclass
+class GetTransform:
+    """Get transform command class"""
+
+
+@dataclass
 class SetOutputOptions:
     """Set output options command class"""
+
+    # TODO(ethan): remove this and replace with a Widget
 
     __slots__ = ["output_options", "path"]
 
@@ -143,22 +174,3 @@ class Delete:
             Dict[str, Any]: json in proper format
         """
         return {"type": "delete", "path": self.path.lower()}
-
-
-@dataclass
-class SetProperty:
-    """Set property command class"""
-
-    __slots__ = ["path", "key", "value"]
-
-    key: str
-    value: list
-    path: str
-
-    def lower(self):
-        """creates properly formatted json setting property
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
-        return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}

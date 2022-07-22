@@ -30,7 +30,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
-from pyrad.viewer.server.tree import SceneTree, find_node, walk
+from pyrad.viewer.server.state.scene_node import SceneTree, find_node, walk
 from pyrad.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
