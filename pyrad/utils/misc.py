@@ -23,6 +23,7 @@ from typing import Any, Dict
 
 import torch
 from omegaconf import DictConfig
+from math import floor, log
 
 
 class DotDict(dict):
@@ -90,3 +91,11 @@ def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
     encoded = json.dumps(dictionary, sort_keys=True).encode()
     dhash.update(encoded)
     return dhash.hexdigest()
+
+
+def human_format(num):
+    """Format a number in a more human readable way"""
+    units = ["", "K", "M", "B", "T", "P"]
+    k = 1000.0
+    magnitude = int(floor(log(num, k)))
+    return "%.2f %s" % (num / k**magnitude, units[magnitude])
