@@ -53,7 +53,7 @@ WEBRTC_COMMANDS = ["set_image"]
 
 
 def find_available_port(func: Callable, default_port: int, max_attempts: int = MAX_ATTEMPTS, **kwargs) -> None:
-    """finds and attempts to connect to a port
+    """Finds and attempts to connect to a port
 
     Args:
         func: function used on connecting to port
@@ -75,12 +75,12 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = M
 
 
 def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
-    """sets the codec preferences on a connection between sender and reciever
+    """Sets the codec preferences on a connection between sender and reciever
 
     Args:
-        pc: _description_
-        sender: _description_
-        forced_codec: _description_
+        pc: peer connection point
+        sender: sender that will send to connection point
+        forced_codec: codec to set
     """
     kind = forced_codec.split("/")[0]
     codecs = RTCRtpSender.getCapabilities(kind).codecs

@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Functions for traversing server bridge tree nodes (storage)
+"""
+
 from __future__ import absolute_import, division, print_function
 
 from collections import defaultdict
+from typing import List
 
 
 class TreeNode(defaultdict):
+    """Tree Node object"""
+
     __slots__ = ["object", "transform", "properties", "animation"]
 
     def __init__(self, *args, **kwargs):
@@ -31,14 +38,25 @@ class TreeNode(defaultdict):
 SceneTree = lambda: TreeNode(SceneTree)
 
 
-def walk(tree):
+def walk(tree: TreeNode) -> None:
+    """Walk the entire tree and return the values
+
+    Args:
+        tree: the root of the tree to start search
+    """
     yield tree
     for v in tree.values():
         for t in walk(v):  # could use `yield from` if we didn't need python2
             yield t
 
 
-def find_node(tree, path):
+def find_node(tree: TreeNode, path: List[str]) -> TreeNode:
+    """Find the node associated with the path
+
+    Args:
+        tree: the root of the tree to start search
+        path: the path we are searching for
+    """
     if len(path) == 0:
         return tree
     else:

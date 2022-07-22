@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Geometry to render meshes, textures, etc.
+"""
+
 from __future__ import absolute_import, division, print_function
 
 import base64
