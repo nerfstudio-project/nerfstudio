@@ -60,8 +60,12 @@ pip install -e .
 # Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
 python setup.py develop
 
-# Install tiny-cuda-nn (tcnn) to use with the graph_instant_ngp.yaml config
+# Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+
+git clone https://github.com/NVIDIA/apex
+cd apex
+pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./
 
 # Run the test cases
 pytest tests

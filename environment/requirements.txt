@@ -3,6 +3,7 @@ aiortc
 av
 black[jupyter]==22.3.0
 dcargs
+ninja
 functorch==0.1.1
 h5py>=2.9.0
 hydra-colorlog==1.2.0
