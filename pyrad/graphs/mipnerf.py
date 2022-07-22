@@ -138,9 +138,6 @@ class MipNerfGraph(Graph):
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
         return loss_dict
 
-    def get_metrics_dict(self, outputs, batch):
-        return {}
-
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
         rgb_coarse = outputs["rgb_coarse"]

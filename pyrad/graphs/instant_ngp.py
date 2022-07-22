@@ -124,9 +124,6 @@ class NGPGraph(Graph):
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 
-    def get_metrics_dict(self, outputs, batch):
-        return {}
-
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
         """Do preprocessing to make images valid"""
         # TODO: make log_test_image_outputs use this directly

@@ -182,9 +182,9 @@ class Graph(AbstractGraph):
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Computes and returns the losses dict."""
 
-    @abstractmethod
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         """Compute and obtain metrics and coefficients."""
+        return {}
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
