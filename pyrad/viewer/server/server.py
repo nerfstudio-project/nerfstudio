@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Server bridge to faciliate interactions between python backend and javascript front end"""
+
 from __future__ import absolute_import, division, print_function
 
 import sys
+from typing import Callable, List, Optional
 
-import numpy as np
 import tornado.gen
 import tornado.ioloop
 import tornado.web
@@ -50,50 +52,65 @@ WEBSOCKET_COMMANDS = [
 WEBRTC_COMMANDS = ["set_image"]
 
 
-def find_available_port(func, default_port, max_attempts=MAX_ATTEMPTS, **kwargs):
+def find_available_port(func: Callable, default_port: int, max_attempts: int = MAX_ATTEMPTS, **kwargs) -> None:
+    """Finds and attempts to connect to a port
+
+    Args:
+        func: function used on connecting to port
+        default_port: the default port
+        max_attempts: max number of attempts to try connection. Defaults to MAX_ATTEMPTS.
+    """
     for i in range(max_attempts):
         port = default_port + i
         try:
             return func(port, **kwargs), port
         except (OSError, zmq.error.ZMQError):
-            print("Port: {:d} in use, trying another...".format(port), file=sys.stderr)
+            print(f"Port: {port:d} in use, trying another...", file=sys.stderr)
         except Exception as e:
             print(type(e))
             raise
-    else:
-        raise (
-            Exception(
-                "Could not find an available port in the range: [{:d}, {:d})".format(
-                    default_port, max_attempts + default_port
-                )
-            )
-        )
+    raise (
+        Exception(f"Could not find an available port in the range: [{default_port:d}, {max_attempts + default_port:d})")
+    )
 
 
-def force_codec(pc, sender, forced_codec):
+def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
+    """Sets the codec preferences on a connection between sender and reciever
+
+    Args:
+        pc: peer connection point
+        sender: sender that will send to connection point
+        forced_codec: codec to set
+    """
     kind = forced_codec.split("/")[0]
     codecs = RTCRtpSender.getCapabilities(kind).codecs
     transceiver = next(t for t in pc.getTransceivers() if t.sender == sender)
     transceiver.setCodecPreferences([codec for codec in codecs if codec.mimeType == forced_codec])
 
 
-class WebSocketHandler(tornado.websocket.WebSocketHandler):
+class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=abstract-method
     """Tornado websocket handler for receiving and sending commands from/to the viewer."""
 
     def __init__(self, *args, **kwargs):
         self.bridge = kwargs.pop("bridge")
-        super(WebSocketHandler, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def check_origin(self, origin):
         """This disables CORS."""
         return True
 
-    def open(self):
+    def open(self, *args: str, **kwargs: str):
+        """open websocket bridge"""
         self.bridge.websocket_pool.add(self)
         print("opened:", self, file=sys.stderr)
         self.bridge.send_scene(self)
 
-    async def on_message(self, message):
+    async def on_message(self, message: bytearray):  # pylint: disable=invalid-overridden-method
+        """On reception of message, parses the message and calls the appropriate function based on the type of command
+
+        Args:
+            message: byte message to parse
+        """
         data = message
         m = umsgpack.unpackb(message)
         type_ = m["type"]
@@ -122,7 +139,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
             video = SingleFrameStreamTrack()
             self.bridge.video_tracks.add(video)
-            video_sender = pc.addTrack(video)
+            _ = pc.addTrack(video)
+            # TODO(eventually do something with the codec)
+            # video_sender = pc.addTrack(video)
             # force_codec(pc, video_sender, video_codec)
 
             await pc.setRemoteDescription(offer)
@@ -142,10 +161,18 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print("closed:", self, file=sys.stderr)
 
 
-class ZMQWebSocketBridge(object):
+class ZMQWebSocketBridge:
+    """ZMQ web socket bridge class
+
+    Args:
+        zmq_url: zmq url to connect to. Defaults to None.
+        host: host of server. Defaults to "127.0.0.1".
+        websocket_port: websocket port to connect to. Defaults to None.
+    """
+
     context = zmq.Context()
 
-    def __init__(self, zmq_url=None, host="127.0.0.1", websocket_port=None):
+    def __init__(self, zmq_url: Optional[str] = None, host: str = "127.0.0.1", websocket_port: Optional[int] = None):
         self.host = host
         self.websocket_pool = set()
         self.app = self.make_app()
@@ -156,7 +183,7 @@ class ZMQWebSocketBridge(object):
         if zmq_url is None:
 
             def f(port):
-                return self.setup_zmq("{:s}://{:s}:{:d}".format(DEFAULT_ZMQ_METHOD, self.host, port))
+                return self.setup_zmq(f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{port:d}")
 
             (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(f, DEFAULT_ZMQ_PORT)
         else:
@@ -180,7 +207,12 @@ class ZMQWebSocketBridge(object):
         """Create a tornado application for the websocket server."""
         return tornado.web.Application([(r"/", WebSocketHandler, {"bridge": self})])
 
-    def handle_zmq(self, frames):
+    def handle_zmq(self, frames: List[bytes]):
+        """Switch function that places commands in tree based on websocket command
+
+        Args:
+            frames: the list containing command + object to be placed in tree
+        """
         cmd = frames[0].decode("utf-8")
         print(cmd)
         if len(frames) != 3:
@@ -235,21 +267,34 @@ class ZMQWebSocketBridge(object):
         self.zmq_socket.send(b"ok")
         return
 
-    def forward_to_websockets(self, frames):
-        """Forward a zmq message to all websockets."""
+    def forward_to_websockets(self, frames: List[bytes]):
+        """Forward a zmq message to all websockets.
+
+        Args:
+            frames: byte messages to be sent over
+        """
         _, _, data = frames  # cmd, path, data
         for websocket in self.websocket_pool:
             websocket.write_message(data, binary=True)
 
-    def setup_zmq(self, url):
-        """Setup a zmq socket and connect it to the given url."""
-        zmq_socket = self.context.socket(zmq.REP)
+    def setup_zmq(self, url: str):
+        """Setup a zmq socket and connect it to the given url.
+
+        Args:
+            url: point of connection
+        """
+        zmq_socket = self.context.socket(zmq.REP)  # pylint: disable=no-member
         zmq_socket.bind(url)
         zmq_stream = ZMQStream(zmq_socket)
         zmq_stream.on_recv(self.handle_zmq)
         return zmq_socket, zmq_stream, url
 
-    def send_scene(self, websocket):
+    def send_scene(self, websocket: WebSocketHandler):
+        """Sends entire tree of information over the specified websocket
+
+        Args:
+            websocket: websocket to send information over
+        """
         for node in walk(self.tree):
             if node.object is not None:
                 websocket.write_message(node.object, binary=True)
@@ -259,6 +304,7 @@ class ZMQWebSocketBridge(object):
                 websocket.write_message(node.transform, binary=True)
 
     def run(self):
+        """starts and runs the websocket bridge"""
         self.ioloop.start()
 
 

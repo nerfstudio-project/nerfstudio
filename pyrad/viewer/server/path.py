@@ -12,21 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Path class
+"""
+
 from __future__ import absolute_import, division, print_function
 
 import sys
+from typing import Tuple
 
 if sys.version_info >= (3, 0):
-    unicode = str
+    UNICODE = str
 
 
-class Path(object):
+class Path:
+    """Path class
+
+    Args:
+        entries: component parts of the path
+    """
+
     __slots__ = ["entries"]
 
-    def __init__(self, entries=tuple()):
+    def __init__(self, entries: Tuple = tuple()):
         self.entries = entries
 
-    def append(self, other):
+    def append(self, other: str) -> "Path":
+        """Methodthat appends a new component and returns new Path
+
+        Args:
+            other: _description_
+        """
         new_path = self.entries
         for element in other.split("/"):
             if len(element) == 0:
@@ -36,7 +51,8 @@ class Path(object):
         return Path(new_path)
 
     def lower(self):
-        return unicode("/" + "/".join(self.entries))
+        """Convert path object to serializable format"""
+        return UNICODE("/" + "/".join(self.entries))
 
     def __hash__(self):
         return hash(self.entries)

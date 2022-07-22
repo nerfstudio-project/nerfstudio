@@ -12,17 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .geometry import SceneElement, Geometry, Object, LineSegments, PointsGeometry, LineBasicMaterial
+"""Logic to render Camera objects in the Viewer"""
 
-# import geometry as g
-from . import geometry as g
-import numpy as np
+from typing import List, Optional, Tuple
 import cv2
+import numpy as np
+
+from . import geometry as g
+from .geometry import LineBasicMaterial, LineSegments, PointsGeometry
 
 
 class ImagePlane(g.Mesh):
-    def __init__(self, image, height=1, width=1):
-        """TODO(ethan): decide how to deal with the height and width"""
+    """Returns an image rendered within a specified plane
+
+    Args:
+        image: image to be displayed
+        height: height of image. Defaults to 1.
+        width: width of image. Defaults to 1.
+    """
+
+    def __init__(self, image: np.ndarray, height: int = 1, width: int = 1):
+        # TODO(ethan): decide how to deal with the height and width
         self.image = image
         geometry = g.PlaneGeometry([width, height])
         material = g.MeshBasicMaterial(
@@ -31,12 +41,18 @@ class ImagePlane(g.Mesh):
         super().__init__(geometry, material)
 
 
-def get_camera_wireframe(scale: float = 0.3, f=4, w=1.5, h=2):
-    """
-    Returns a wireframe of a 3D line-plot of a camera symbol.
+def get_camera_wireframe(scale: float = 0.3, f: int = 4, w: int = 1.5, h: int = 2) -> np.ndarray:
+    """Returns a wireframe of a 3D line-plot of a camera symbol.
     At https://github.com/hangg7/mvs_visual/blob/275d382a824733a3187a8e3147be184dd6f14795/mvs_visual.py#L54.
+
     Args:
-        f (focal length): this is the focal length
+        scale: scale of rendering
+        f: this is the focal length
+        w: width
+        h: height
+
+    Returns:
+        np.ndarray: stack of points corresponding to wireframe of camera
     """
     ul = np.array([-w, h, -f])
     ur = np.array([w, h, -f])
@@ -44,11 +60,24 @@ def get_camera_wireframe(scale: float = 0.3, f=4, w=1.5, h=2):
     lr = np.array([w, -h, -f])
     C = np.zeros(3)
     camera_points = [C, ul, C, ur, C, ll, C, lr, C]
-    lines = np.stack([x for x in camera_points]) * scale
+    lines = np.stack(camera_points) * scale
     return lines
 
 
-def get_plane_pts(focal_length=(1.0, 1.0), image_size=(10, 10), camera_scale=1, scale_factor=1 / 4):
+def get_plane_pts(
+    focal_length: Tuple[float, float] = (1.0, 1.0),
+    image_size: Tuple[int, int] = (10, 10),
+    camera_scale: int = 1,
+    scale_factor: float = 1 / 4,
+) -> np.ndarray:
+    """Returns points on the image plane given camera intrinsics
+
+    Args:
+        focal_length: focal length of camera. Defaults to (1.0, 1.0).
+        image_size: height and width of image. Defaults to (10, 10).
+        camera_scale: camera intrinsics scale. Defaults to 1.
+        scale_factor: image scale. Defaults to 1/4.
+    """
     Z = -(focal_length[0] + focal_length[1]) / 2 * camera_scale
     X0, Y0, X1, Y1 = (
         -image_size[0] / 2 * camera_scale,
@@ -61,7 +90,7 @@ def get_plane_pts(focal_length=(1.0, 1.0), image_size=(10, 10), camera_scale=1, 
     W, H = X1 - X0, Y0 - Y1
     w, h = image_size
     ratio = min(w / W, h / H)
-    oW, oH = w / ratio, h / ratio
+    oW, oH = w / ratio, h / ratio  # pylint: disable=invalid-name
 
     X0, Y0, X1, Y1 = -oW / 2, oH / 2, oW / 2, -oH / 2
     wsteps, hsteps = int(w * scale_factor), int(h * scale_factor)
@@ -75,10 +104,27 @@ def get_plane_pts(focal_length=(1.0, 1.0), image_size=(10, 10), camera_scale=1, 
     return plane_pts
 
 
-def frustum(scale=1.0, color=[0, 0, 0], focal_length=4, width=1.5, height=2):
-    """TODO(ethan): make the scale adjustable depending on the camera size
-    color - color of lines using R, G, B. default is black
+def frustum(
+    scale: float = 1.0,
+    color: Optional[List[float]] = None,
+    focal_length: int = 4,
+    width: float = 1.5,
+    height: int = 2,
+) -> LineSegments:
+    """Draws the camera frustums, returning line segments representing the frustums
+
+    Args:
+        scale: scale of the rendering. Defaults to 1.0.
+        color: color of lines. Defaults to [0, 0, 0].
+        focal_length: focal length of camera. Defaults to 4.
+        width: width of wireframe. Defaults to 1.5.
+        height: height of wireframe. Defaults to 2.
     """
+    # color - color of lines using R, G, B. default is black
+    if color is None:
+        color = [0, 0, 0]
+
+    # TODO(ethan): make the scale adjustable depending on the camera size
     # print("linewidth")
     camera_wireframe_lines = get_camera_wireframe(scale=scale, f=focal_length, w=width / 2.0, h=height / 2.0)
     N = len(camera_wireframe_lines)

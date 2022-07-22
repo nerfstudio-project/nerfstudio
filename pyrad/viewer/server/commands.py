@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Commands callable from WebSocket Server bridge
+"""
+
 
 from dataclasses import dataclass
 from typing import Any, Dict, List
@@ -33,9 +36,9 @@ class SetObject:  # pylint: disable=too-few-public-methods
     """Set object command class: Instantiates and sets the object according to object type
 
     Args:
-        geometry_or_object (_type_): object to be set
-        material (_type_, optional): material to be set. Defaults to None.
-        path (str): path of object in tree. Defaults to None.
+        geometry_or_object: object to be set
+        material: material to be set. Defaults to None.
+        path: path of object in tree. Defaults to None.
 
     Raises:
         ValueError: error if material is not set for object
@@ -63,11 +66,7 @@ class SetObject:  # pylint: disable=too-few-public-methods
             self.path = Path()
 
     def lower(self) -> Dict[str, Any]:
-        """creates properly formatted json
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
+        """creates properly formatted json"""
         return {"type": "set_object", "object": self.object.lower(), "path": self.path.lower()}
 
 
@@ -76,7 +75,7 @@ class GetObject:
     """Get object command class
 
     Args:
-        path (str): path of object in tree. Defaults to None.
+        path: path of object in tree. Defaults to None.
     """
 
     __slots__ = ["path"]
@@ -84,11 +83,7 @@ class GetObject:
     path: str
 
     def lower(self) -> Dict[str, Any]:
-        """creates properly formatted json with object
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
+        """creates properly formatted json with object"""
         return {"type": "get_object", "path": self.path.lower()}
 
 
@@ -101,12 +96,8 @@ class SetTransform:
     matrix: np.ndarray
     path: str
 
-    def lower(self):
-        """creates properly formatted json with transform matrix
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json with transform matrix"""
         return {"type": "set_transform", "path": self.path.lower(), "matrix": list(self.matrix.T.flatten())}
 
 
@@ -119,12 +110,8 @@ class SetOutputOptions:
     output_options: List[str]
     path: str
 
-    def lower(self):
-        """creates properly formatted json with list of possible output options
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json with list of possible output options"""
         return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_options)}
 
 
@@ -136,12 +123,8 @@ class Delete:
 
     path: str
 
-    def lower(self):
-        """creates properly formatted json updating tree
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json updating tree"""
         return {"type": "delete", "path": self.path.lower()}
 
 
@@ -155,10 +138,6 @@ class SetProperty:
     value: list
     path: str
 
-    def lower(self):
-        """creates properly formatted json setting property
-
-        Returns:
-            Dict[str, Any]: json in proper format
-        """
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json setting property"""
         return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}
