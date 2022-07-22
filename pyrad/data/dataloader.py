@@ -17,7 +17,8 @@ Data loader.
 """
 
 import random
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
+from omegaconf import ListConfig
 
 from torchtyping import TensorType
 
@@ -141,7 +142,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         intrinsics,
         camera_to_world,
         num_rays_per_chunk: int,
-        image_indices: Optional[Tuple[int]] = None,
+        image_indices: Optional[Union[List[int], ListConfig]] = None,
         device="cpu",
         **kwargs,
     ):
