@@ -184,6 +184,7 @@ def main(
     config = compose(config_name, overrides=config_overrides)
 
     config.trainer.resume_train.load_dir = checkpoint_dir
+    config.data.dataloader_eval.image_indices = None
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # setup graph and dataset

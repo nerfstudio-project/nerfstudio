@@ -17,7 +17,6 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-import time
 from typing import Any, Dict, List, Union
 
 import torch
@@ -202,10 +201,8 @@ class Graph(AbstractGraph):
             outputs = self.forward_after_ray_generator(ray_bundle)
             for output_name, output in outputs.items():
                 outputs_lists[output_name].append(output)
-            time.sleep(0.001)  # visualizer allow thread to switch off
         for output_name, outputs_list in outputs_lists.items():
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
-            time.sleep(0.001)  # visualizer allow thread to switch off
         self.vis_outputs = outputs
         return outputs
 
