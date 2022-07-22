@@ -29,3 +29,6 @@ optimizers:
       lr: 1e-2
       eps: 1e-7 # need to investigate further for float16 stability
     scheduler: null
+
+trainer:
+  mixed_precision: true # Stabilizes training when using tcnn
