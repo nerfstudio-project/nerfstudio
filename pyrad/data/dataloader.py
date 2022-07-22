@@ -148,7 +148,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
     ):
         """
         Args:
-            image_dataset: ImageDataset to load data from    
+            image_dataset: ImageDataset to load data from
             image_indices: List of image indices to load data from. If None, then use all images.
         """
         super().__init__(image_dataset, intrinsics, camera_to_world, num_rays_per_chunk, device, **kwargs)
@@ -156,8 +156,6 @@ class FixedIndicesEvalDataloader(EvalDataloader):
             self.image_indices = list(range(len(image_dataset)))
         else:
             self.image_indices = image_indices
-        print(self.image_indices)
-        import sys; sys.exit()
         self.num_rays_per_chunk = num_rays_per_chunk
         self.count = 0
 
