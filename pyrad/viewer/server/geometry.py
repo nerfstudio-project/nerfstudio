@@ -393,7 +393,8 @@ class Object(SceneElement):
         self.material = material
         self._type = self._type
 
-    def lower(self, object_data):
+    # pylint: arguments-differ
+    def lower(self):
         data = {
             "metadata": {
                 "version": 4.5,
