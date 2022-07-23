@@ -13,13 +13,21 @@ export function PanelConfig() {
 
 export function RenderControls() {
   const [outputOptions, setOutputOptions] = React.useState([]);
+  const [paused, setPaused] = React.useState(false);
+
+  const toggle = () => {
+    setPaused((current) => !current);
+  };
+
   const [controls, setControls] = useControls(
     "Render Options",
     () => ({
-      pause_training: {
-        label: "Pause Training?",
-        value: false,
-      },
+      "Resume Training": button(toggle, {
+        disabled: !paused,
+      }),
+      "Pause Training": button(toggle, {
+        disabled: paused,
+      }),
       output_options: {
         label: "Output Render",
         options: outputOptions,
@@ -53,8 +61,8 @@ export function RenderControls() {
         "1024px": () => setControls({ max_resolution: 1024 }),
       }),
     }),
-    [outputOptions]
+    [outputOptions, paused]
   );
 
-  return [controls, setControls, setOutputOptions];
+  return [controls, paused, setControls, setOutputOptions];
 }
