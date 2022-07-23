@@ -116,11 +116,11 @@ class Trainer:
                     ray_indices, batch = next(iter_dataloader_train)
 
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
-                    loss_dict = self.train_iteration(ray_indices, batch, step)
+                    loss_metric_dict = self.train_iteration(ray_indices, batch, step)
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=ray_indices.shape[0] / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
-                    writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_dict, step=step)
+                    writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_metric_dict, step=step)
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
                 if step % self.config.trainer.steps_per_test == 0:
@@ -188,12 +188,12 @@ class Trainer:
             step: Current training step.
 
         Returns:
-            Dict[str, float]: Dictionary of model losses.
+            Dict[str, float]: Dictionary of model losses and metrics.
         """
         self.optimizers.zero_grad_all()
         with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
-            _, loss_dict = self.graph.forward(ray_indices, batch=batch)
-            loss = loss_dict["aggregated_loss"]
+            _, loss_dict, metrics_dict = self.graph.forward(ray_indices, batch=batch)
+            loss = sum(loss_dict.values())
         self.grad_scaler.scale(loss).backward()
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
@@ -202,6 +202,10 @@ class Trainer:
         if self.graph.callbacks:
             for func_ in self.graph.callbacks:
                 func_.after_step(step)
+
+        # Merging loss and metrics dict into a single output.
+        loss_dict["loss"] = loss
+        loss_dict.update(metrics_dict)
         return loss_dict
 
     @profiler.time_function
