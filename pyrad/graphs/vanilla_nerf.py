@@ -140,14 +140,22 @@ class NeRFGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
 
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
 
-        loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        metrics_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        return metrics_dict
+
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+        loss_dict = {}
+        # scaling metrics by coefficients to create the losses
+        for metric_name in metrics_dict.keys():
+            if metric_name in self.loss_coefficients:
+                loss_dict[metric_name] = metrics_dict[metric_name] * self.loss_coefficients[loss_name]
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
