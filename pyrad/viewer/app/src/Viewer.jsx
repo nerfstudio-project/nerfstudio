@@ -422,8 +422,8 @@ export class ViewerState extends Component {
 
   componentDidUpdate(prevProps, prevState) {
     // Pause training
-    if (prevProps.pause_training !== this.props.pause_training) {
-      this.send_training_state_over_websocket(this.props.pause_training);
+    if (prevProps.paused !== this.props.paused) {
+      this.send_training_state_over_websocket(this.props.paused);
     }
 
     // Choose render type
