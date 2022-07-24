@@ -19,10 +19,15 @@ import json
 import logging
 import os
 import pickle
+from typing import Any, Tuple, Optional
 
 
 def load_from_json(filename: str):
-    """Load a dictionary from a JSON filename."""
+    """Load a dictionary from a JSON filename.
+
+    Args:
+        filename: The filename to load from.
+    """
     assert filename.endswith(".json")
     with open(filename, "r", encoding="UTF-8") as file:
         return json.load(file)
@@ -32,8 +37,8 @@ def write_to_json(filename: str, content: dict):
     """Write data to a JSON file.
 
     Args:
-        filename (str): The filename to write to.
-        content (dict): The dictionary data to write.
+        filename: The filename to write to.
+        content: The dictionary data to write.
     """
     assert filename.endswith(".json")
     with open(filename, "w", encoding="UTF-8") as file:
@@ -41,30 +46,39 @@ def write_to_json(filename: str, content: dict):
 
 
 def load_from_pkl(filename: str):
-    """Load from a pickle file."""
+    """Load from a pickle file.
+
+    Args:
+        filename: The filename to load from.
+    """
     assert filename.endswith(".pkl")
     with open(filename, "rb") as f:
         return pickle.load(f)
 
 
-def write_to_pkl(filename: str, content):
-    "Write to a pickle file."
+def write_to_pkl(filename: str, content: Any):
+    """Write to a pickle file.
+
+    Args:
+        filename (str): The filename to write to.
+        content (Any): The data to write.
+    """
     assert filename.endswith(".pkl")
     with open(filename, "wb") as f:
         pickle.dump(content, f)
 
 
-def get_git_root(path, dirs=(".git",), default=None):
-    """_summary_
-    "https://stackoverflow.com/questions/22081209/find-the-root-of-the-git-repository-where-the-file-lives
+def get_git_root(path: str, dirs: Tuple[str] = (".git",), default=None) -> Optional[str]:
+    """Find the root of the git repository.
+    'https://stackoverflow.com/questions/22081209/find-the-root-of-the-git-repository-where-the-file-lives'
 
     Args:
-        path (_type_): _description_
-        dirs (tuple, optional): _description_. Defaults to (".git",).
-        default (_type_, optional): _description_. Defaults to None.
+        path: The path to start from.
+        dirs: The directories to look for. Defaults to (".git",).
+        default: The default value to return if no git root is found.
 
     Returns:
-        _type_: _description_
+        The root of the git repository. Returns None if not found.
     """
     prev, test = None, os.path.abspath(path)
     while prev != test:
@@ -74,9 +88,12 @@ def get_git_root(path, dirs=(".git",), default=None):
     return default
 
 
-def get_project_root(path):
+def get_project_root(path: str):
     """Return the project root directory from an environment variable.
     # TODO: handle this better and report user error
+
+    Args:
+        path: The path to start from.
     """
     project_root = os.getenv("PROJECT_ROOT")
     if project_root is None:
@@ -103,9 +120,12 @@ def get_absolute_path(path, proj_root_func=get_project_root):
     return absolute_path
 
 
-def make_dir(filename_or_folder):
+def make_dir(filename_or_folder: str) -> str:
     """Make the directory for either the filename or folder.
     Note that filename_or_folder currently needs to end in / for it to be recognized as a folder.
+
+    Args:
+        filename_or_folder (str): The filename or folder to make.
     """
     if filename_or_folder[-1] != "/" and filename_or_folder.find(".") < 0:
         folder = os.path.dirname(filename_or_folder + "/")

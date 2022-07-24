@@ -21,6 +21,7 @@ import json
 from pydoc import locate
 from typing import Any, Callable, Dict
 
+from math import floor, log
 import torch
 from omegaconf import DictConfig
 
@@ -117,3 +118,11 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
 
     def __next__(self):
         return self.new_next(self.instance)
+
+
+def human_format(num):
+    """Format a number in a more human readable way"""
+    units = ["", "K", "M", "B", "T", "P"]
+    k = 1000.0
+    magnitude = int(floor(log(num, k)))
+    return f"{(num / k**magnitude):.2f} {units[magnitude]}"

@@ -42,30 +42,30 @@ def color_str(color):
 
 
 def get_line_segments_from_lines(
-    lines,
-    color=color_str((1, 0, 0)),
-    marker_color=color_str((1, 0, 0)),
-    colors=None,
-    draw_marker=True,
-    draw_line=True,
-    marker_size=4,
-    line_width=10,
-):
+    lines: TensorType["num_rays", 2, 3],
+    color: str = color_str((1, 0, 0)),
+    marker_color: str = color_str((1, 0, 0)),
+    colors: List[str] = None,
+    draw_marker: bool = True,
+    draw_line: bool = True,
+    marker_size: float = 4,
+    line_width: float = 10,
+) -> go.Scatter3d:
     """Returns a list of Scatter3D objects for creating lines with plotly.
     # TODO(ethan): make this function more efficient instead of having a list of objects.
 
     Args:
-        lines (_type_): list of [np.array(2, 3), ...], line is defined by a (2, 3) array
-        color (_type_, optional): _description_. Defaults to color_str((1, 0, 0)).
-        marker_color (_type_, optional): _description_. Defaults to color_str((1, 0, 0)).
-        colors (_type_, optional): _description_. Defaults to None.
-        draw_marker (bool, optional): _description_. Defaults to True.
-        draw_line (bool, optional): _description_. Defaults to True.
-        marker_size (int, optional): _description_. Defaults to 4.
-        line_width (int, optional): _description_. Defaults to 10.
+        lines: Tensor of lines.
+        color: Color of the lines. Defaults to red.
+        marker_color: Color of the markers. Defaults to red.
+        colors: List of colors for each line. Defaults to None.
+        draw_marker: Whether to draw markers. Defaults to True.
+        draw_line: Whether to draw lines. Defaults to True.
+        marker_size: Size of the markers. Defaults to 4.
+        line_width: Width of the lines. Defaults to 10.
 
     Returns:
-        _type_: _description_
+        Scatter3D object on lines.
     """
     data = []
     for idx, line in enumerate(lines):
@@ -92,8 +92,16 @@ def get_line_segments_from_lines(
     return data
 
 
-def visualize_dataset(camera_origins, ray_bundle: RayBundle):
-    """Visualize a dataset with plotly using our cameras and generated rays."""
+def visualize_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:
+    """Visualize a dataset with plotly using our cameras and generated rays.
+
+    Args:
+        camera_origins: Tensor of camera origins.
+        ray_bundle: Ray bundle.
+
+    Returns:
+        plotly figure.
+    """
 
     skip = 1
     size = 8
@@ -136,11 +144,11 @@ def get_random_color(colormap: List[str] = None, idx: int = None) -> str:
     """Get a random color from a colormap.
 
     Args:
-        colormap (List[str], optional): List of colors. Defaults to Plotly colors.
-        idx (int, optional): Index of color to return. Defaults to None.
+        colormap: List of colors. Defaults to Plotly colors.
+        idx: Index of color to return. Defaults to None.
 
     Returns:
-        str: random color string
+        random color string
     """
     if colormap is None:
         colormap = ex.colors.qualitative.Plotly
@@ -155,14 +163,14 @@ def get_sphere(
     """Returns a sphere object for plotting with plotly.
 
     Args:
-        radius (float): radius of sphere.
-        center (TensorType[3], optional): center of sphere. Defaults to origin.
-        color (str, optional): color of sphere. Defaults to "black".
-        opacity (float, optional): opacity of sphere. Defaults to 1.0.
-        resolution (int, optional): resolution of sphere. Defaults to 32.
+        radius: radius of sphere.
+        center: center of sphere. Defaults to origin.
+        color: color of sphere. Defaults to "black".
+        opacity: opacity of sphere. Defaults to 1.0.
+        resolution: resolution of sphere. Defaults to 32.
 
     Returns:
-        go.Mesh3d: sphere object.
+        sphere object.
     """
     phi = torch.linspace(0, 2 * torch.pi, resolution)
     theta = torch.linspace(-torch.pi / 2, torch.pi / 2, resolution)
@@ -201,16 +209,16 @@ def get_gaussian_ellipsiod(
     """Get a plotly ellipsoid for a Gaussian.
 
     Args:
-        mean (TensorType[3]): mean of the Gaussian.
-        cov: (TesnorType[3]): covariance of the Gaussian.
-        n_std (int, optional): Standard devation to visualize. Defaults to 2 (95% confidence).
-        color (str, optional): Color of the ellipsoid. Defaults to None.
-        opacity (float, optional): Opacity of the ellipsoid. Defaults to 0.5.
-        resolution (int, optional): Resolution of the ellipsoid. Defaults to 20.
-        name (str, optional): Name of the ellipsoid. Defaults to "ellipse".
+        mean: mean of the Gaussian.
+        cov: covariance of the Gaussian.
+        n_std: Standard devation to visualize. Defaults to 2 (95% confidence).
+        color: Color of the ellipsoid. Defaults to None.
+        opacity: Opacity of the ellipsoid. Defaults to 0.5.
+        resolution: Resolution of the ellipsoid. Defaults to 20.
+        name: Name of the ellipsoid. Defaults to "ellipse".
 
     Returns:
-        go.Mesh3d: ellipsoid object.
+        ellipsoid object.
     """
 
     phi = torch.linspace(0, 2 * torch.pi, resolution)
@@ -257,10 +265,10 @@ def get_gaussian_ellipsoids_list(
         gaussians (Gaussians): Gaussians to visualize.
         opacity (float, optional): Opacity of the mesh. Defaults to 0.3.
         color (str, optional): Color of the mesh. Defaults to "random".
-        resolution (int, optional): Resolution of the mesh. Defaults to 20.
+        resolution: Resolution of the mesh. Defaults to 20.
 
     Returns:
-        List[go.Mesh3d]: List of plotly meshes
+        List of plotly meshes
     """
     data = []
 
@@ -297,13 +305,13 @@ def get_frustum_mesh(
     """Get a plotly mesh for a single frustum.
 
     Args:
-        frustum (Frustum): Single frustum
-        opacity (float, optional): Opacity of the mesh. Defaults to 0.3.
-        color (str, optional): Color of the mesh. Defaults to "#DC203C".
-        resolution (int, optional): Resolution of the mesh. Defaults to 20.
+        frustum: Single frustum
+        opacity: Opacity of the mesh. Defaults to 0.3.
+        color: Color of the mesh. Defaults to "#DC203C".
+        resolution: Resolution of the mesh. Defaults to 20.
 
     Returns:
-        go.Mesh3d: Plotly mesh
+        Plotly mesh
     """
 
     if frustum.ndim > 1:
@@ -348,13 +356,13 @@ def get_frustums_mesh_list(
     """Get a list of plotly meshes for a list of frustums.
 
     Args:
-        frustums (Frustum): List of frustums
-        opacity (float, optional): Opacity of the mesh. Defaults to 0.3.
-        color (str, optional): Color of the mesh. Defaults to "random".
-        resolution (int, optional): Resolution of the mesh. Defaults to 20.
+        frustums: List of frustums
+        opacity: Opacity of the mesh. Defaults to 0.3.
+        color: Color of the mesh. Defaults to "random".
+        resolution: Resolution of the mesh. Defaults to 20.
 
     Returns:
-        List[go.Mesh3d]: List of plotly meshes
+        List of plotly meshes
     """
     data = []
     for i, frustum in enumerate(frustums.flatten()):
@@ -372,13 +380,13 @@ def get_frustum_points(
     """Get a set plotly points for frustums centers.
 
     Args:
-        frustum (Frustum): Frustums to visualize.
-        opacity (float, optional): Opacity of the points. Defaults to 0.3.
-        color (str, optional): Color of the poinst. Defaults to "forestgreen".
-        size (float, optional): Size of points. Defaults to 10.
+        frustum: Frustums to visualize.
+        opacity: Opacity of the points. Defaults to 0.3.
+        color: Color of the poinst. Defaults to "forestgreen".
+        size: Size of points. Defaults to 10.
 
     Returns:
-        go.Scatter3d: Plotly points
+        Plotly points
     """
 
     frustum = frustum.flatten()
@@ -404,13 +412,13 @@ def get_ray_bundle_lines(
     """Get a plotly line for a ray bundle.
 
     Args:
-        ray_bundle (RayBundle): Ray bundle
-        length (float, optional): Length of the line. Defaults to 1.0.
-        color (str, optional): Color of the line.
-        width (float, optional): Width of the line. Defaults to 1.
+        ray_bundle: Ray bundle
+        length: Length of the line. Defaults to 1.0.
+        color: Color of the line.
+        width: Width of the line. Defaults to 1.
 
     Returns:
-        go.Scatter3d: Plotly lines
+        Plotly lines
     """
 
     origins = ray_bundle.origins.view(-1, 3)

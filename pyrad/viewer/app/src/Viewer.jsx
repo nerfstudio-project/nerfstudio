@@ -31,7 +31,7 @@ function findCameraObjectUnderObject3D(object) {
 
 var msgpack = require("msgpack-lite");
 
-export class Viewer extends Component {
+export class ViewerState extends Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -43,11 +43,11 @@ export class Viewer extends Component {
       viewport_width: null,
       viewport_height: null,
     };
-    this.created_controls = false;
     this.update = this.update.bind(this);
     this.set_object = this.set_object.bind(this);
     this.handle_command = this.handle_command.bind(this);
     this.threejs_ref = React.createRef();
+    this.props = props;
   }
 
   handleResize() {
@@ -98,6 +98,20 @@ export class Viewer extends Component {
     }
   }
 
+  send_training_state_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_training_state";
+      let path = "Training State";
+      let data = {
+        type: cmd,
+        path: path,
+        training_state: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
   send_output_type_over_websocket(value) {
     /* update the output option in the python server
                             if the user changes selection */
@@ -108,6 +122,34 @@ export class Viewer extends Component {
         type: cmd,
         path: path,
         output_type: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
+  send_min_resolution_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_min_resolution";
+      let path = "Min Resolution";
+      let data = {
+        type: cmd,
+        path: path,
+        min_resolution: value,
+      };
+      let message = msgpack.encode(data);
+      this.state.websocket.send(message);
+    }
+  }
+
+  send_max_resolution_over_websocket(value) {
+    if (this.state.websocket.readyState === WebSocket.OPEN) {
+      let cmd = "set_max_resolution";
+      let path = "Max Resolution";
+      let data = {
+        type: cmd,
+        path: path,
+        max_resolution: value,
       };
       let message = msgpack.encode(data);
       this.state.websocket.send(message);
@@ -161,22 +203,6 @@ export class Viewer extends Component {
     }
   }
 
-  set_output_options(object) {
-    if (this.created_controls === false) {
-      let output_options_control = new (function () {
-        this.output_options = "default";
-      })();
-      // add controls
-      this.state.gui
-        .add(output_options_control, "output_options", object)
-        .listen()
-        .onChange((value) => {
-          this.send_output_type_over_websocket(value);
-        });
-    }
-    this.created_controls = true;
-  }
-
   handle_command(cmd) {
     // convert binary serialization format back to JSON
     cmd = msgpack.decode(new Uint8Array(cmd));
@@ -196,7 +222,8 @@ export class Viewer extends Component {
       let path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
     } else if (cmd.type == "set_output_options") {
-      this.set_output_options(cmd.output_options);
+      this.props.setOutputOptions(cmd.output_options);
+      this.props.setControls({ output_options: 1 });
     }
     // web rtc commands
     else if (cmd.type === "answer") {
@@ -391,6 +418,33 @@ export class Viewer extends Component {
     domElement_stats.append(stats.dom);
 
     this.update();
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    // Pause training
+    if (prevProps.paused !== this.props.paused) {
+      this.send_training_state_over_websocket(this.props.paused);
+    }
+
+    // Choose render type
+    if (prevProps.output_options !== this.props.output_options) {
+      console.log(this.props.output_options);
+      this.send_output_type_over_websocket(this.props.output_options);
+    }
+
+    // Set minimum render resolution
+    if (prevProps.min_resolution !== this.props.min_resolution) {
+      this.send_min_resolution_over_websocket(
+        this.props.min_resolution.slice(0, -2)
+      );
+    }
+
+    // Set maximum render resolution
+    if (prevProps.max_resolution !== this.props.max_resolution) {
+      this.send_max_resolution_over_websocket(
+        this.props.max_resolution.slice(0, -2)
+      );
+    }
   }
 
   render() {

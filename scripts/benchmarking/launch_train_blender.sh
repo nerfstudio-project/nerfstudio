@@ -46,6 +46,7 @@ for dataset in ${DATASETS[@]}; do
            trainer.model_dir=pyrad_models/ \
            trainer.steps_per_save=25000 \
            trainer.max_num_iterations=2000000 \
+           viewer.enable=False \
            logging.enable_profiler=False &
     echo "Launched ${METHOD} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
 done

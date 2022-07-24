@@ -30,6 +30,7 @@ trainer:
   steps_per_save: 1000
   steps_per_test: 1000
   max_num_iterations: 1000000
+  mixed_precision: False
   resume_train:
     load_dir: # pretrained model directory
     load_step: # pretrained model's step number
@@ -103,6 +104,4 @@ optimizers:
 viewer:
   enable: False
   zmq_url: tcp://127.0.0.1:6000
-  min_render_image_height: 100
-  max_render_image_height: 1000
   num_rays_per_chunk: 4096

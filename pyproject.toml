@@ -1,6 +1,21 @@
 [build-system]
-requires = ["setuptools>=42"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "nerfactory"
+version = "0.0.0"
+description = "All-in-one repository for state-of-the-art NeRFs"
+readme = "README.md"
+license = { text="Apache 2.0"}
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python",
+]
+
+[project.urls]
+"Documentation" = "https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/?badge=latest"
 
 # black
 [tool.black]
@@ -11,7 +26,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore-paths = ["^pyrad/cuda/.*$", "^tests/cuda/.*$", "^pyrad/viewer/.*$", "^tests/viewer/.*$"]
+ignore-paths = ["pyrad/ngp_pl/.*$", "scripts/colmap2nerf.py", "^pyrad/cuda/.*$", "^tests/cuda/.*$", "^pyrad/viewer/.*$", "^tests/viewer/.*$"]
 
 disable = [
   "too-many-arguments",

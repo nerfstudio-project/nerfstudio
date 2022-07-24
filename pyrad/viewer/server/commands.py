@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Commands callable from WebSocket Server bridge
+"""
 
+
+from dataclasses import dataclass
+from typing import Any, Dict, List
+
+import numpy as np
 from pyrad.viewer.server.geometry import (
     Mesh,
     MeshPhongMaterial,
@@ -25,13 +32,24 @@ from pyrad.viewer.server.geometry import (
 from pyrad.viewer.server.path import Path
 
 
-class SetObject:
+class SetObject:  # pylint: disable=too-few-public-methods
+    """Set object command class: Instantiates and sets the object according to object type
+
+    Args:
+        geometry_or_object: object to be set
+        material: material to be set. Defaults to None.
+        path: path of object in tree. Defaults to None.
+
+    Raises:
+        ValueError: error if material is not set for object
+    """
+
     __slots__ = ["object", "path"]
 
     def __init__(self, geometry_or_object, material=None, path=None):
         if isinstance(geometry_or_object, Object):
             if material is not None:
-                raise (ValueError("Please supply either an Object OR a Geometry and a Material"))
+                raise ValueError("Please supply either an Object OR a Geometry and a Material")
             self.object = geometry_or_object
         elif isinstance(geometry_or_object, (OrthographicCamera, PerspectiveCamera)):
             self.object = geometry_or_object
@@ -47,70 +65,79 @@ class SetObject:
         else:
             self.path = Path()
 
-    def lower(self):
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json"""
         return {"type": "set_object", "object": self.object.lower(), "path": self.path.lower()}
 
 
+@dataclass
 class GetObject:
+    """Get object command class
+
+    Args:
+        path: path of object in tree. Defaults to None.
+    """
+
     __slots__ = ["path"]
 
-    def __init__(self, path):
-        self.path = path
+    path: str
 
-    def lower(self):
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json with object"""
         return {"type": "get_object", "path": self.path.lower()}
 
 
+@dataclass
 class SetTransform:
+    """Set transform command class"""
+
     __slots__ = ["matrix", "path"]
 
-    def __init__(self, matrix, path):
-        self.matrix = matrix
-        self.path = path
+    matrix: np.ndarray
+    path: str
 
-    def lower(self):
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json with transform matrix"""
         return {"type": "set_transform", "path": self.path.lower(), "matrix": list(self.matrix.T.flatten())}
 
 
+@dataclass
 class SetOutputOptions:
+    """Set output options command class"""
+
     __slots__ = ["output_options", "path"]
 
-    def __init__(self, output_options, path):
-        self.output_options = output_options
-        self.path = path
+    output_options: List[str]
+    path: str
 
-    def lower(self):
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json with list of possible output options"""
         return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_options)}
 
 
-class SetOutputType:
-    __slots__ = ["output_type", "path"]
-
-    def __init__(self, output_type, path):
-        self.output_type = output_type
-        self.path = path
-
-    def lower(self):
-        return {"type": "set_output_options", "path": self.path.lower(), "output_options": list(self.output_type)}
-
-
+@dataclass
 class Delete:
+    """Delete current state command class"""
+
     __slots__ = ["path"]
 
-    def __init__(self, path):
-        self.path = path
+    path: str
 
-    def lower(self):
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json updating tree"""
         return {"type": "delete", "path": self.path.lower()}
 
 
+@dataclass
 class SetProperty:
+    """Set property command class"""
+
     __slots__ = ["path", "key", "value"]
 
-    def __init__(self, key, value, path):
-        self.key = key
-        self.value = value
-        self.path = path
+    key: str
+    value: list
+    path: str
 
-    def lower(self):
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json setting property"""
         return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}

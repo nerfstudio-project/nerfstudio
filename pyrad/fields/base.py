@@ -91,14 +91,14 @@ class Field(nn.Module):
             field_outputs = {}
             for k, value in field_outputs_masked.items():
                 zeros = torch.zeros(
-                    *valid_mask.shape[:-1], value.shape[-1], dtype=torch.float32, device=valid_mask.device
+                    *valid_mask.shape[:-1], value.shape[-1], dtype=value.dtype, device=valid_mask.device
                 )
                 if valid_mask.any():
                     zeros[valid_mask[..., 0]] = value
                 else:
                     zeros[0, :] = value
                 field_outputs[k] = zeros
-            density = torch.zeros(valid_mask.shape, dtype=torch.float32, device=valid_mask.device)
+            density = torch.zeros(valid_mask.shape, dtype=density_masked.dtype, device=valid_mask.device)
             if valid_mask.any():
                 density[valid_mask[..., 0]] = density_masked
         else:

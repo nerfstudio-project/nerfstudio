@@ -5,13 +5,15 @@ import argparse
 import json
 import logging
 import os
+from typing import Any, Dict
 
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
+import numpy as np
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from scripts.run_eval import run_inference
+from scripts.run_eval import run_inference_from_config
 
 
 OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
@@ -39,6 +41,7 @@ def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     step = os.path.splitext(latest_ckpt)[0].split("-")[-1]
     config.resume_train.load_dir = model_dir
     config.resume_train.load_step = int(step)
+    config.data.dataloader_eval.image_indices = None
     return os.path.join(model_dir, latest_ckpt)
 
 
@@ -58,6 +61,14 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     return config
 
 
+def _calc_avg(stat_name: str, benchmark: Dict[str, Any]):
+    """helper to calculate the average across all objects in dataset"""
+    stats = []
+    for _, object_stats in benchmark.items():
+        stats.append(object_stats[stat_name])
+    return np.mean(stats)
+
+
 def main(args):
     """Main function."""
     benchmarks = {}
@@ -68,16 +79,21 @@ def main(args):
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
-        stats_dict = run_inference(config)
+        stats_dict = run_inference_from_config(config)
         stats_dict["checkpoint"] = ckpt
         benchmarks[dataset] = stats_dict
 
         # reset hydra config
         GlobalHydra.instance().clear()
 
+    avg_rays_per_sec = _calc_avg("avg rays per sec", benchmarks)
+    avg_fps = _calc_avg("avg fps", benchmarks)
+
     # output benchmark statistics to a json file
     benchmark_info = {
         "meta info": {"graph": args.graph, "benchmark_date": args.benchmark_date, "hydra": args.hydra_base_dir},
+        "avg rays per sec": avg_rays_per_sec,
+        "avg fps": avg_fps,
         "results": benchmarks,
     }
     json_file = os.path.join(args.hydra_base_dir, f"{args.benchmark_date}.json")

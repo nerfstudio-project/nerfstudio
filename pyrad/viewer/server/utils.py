@@ -12,14 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Generic utility functions
+"""
+
+from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
-from pyrad.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
+from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from pyrad.viewer.server.visualizer import Viewer
 
 
-def get_chunks(lst, num_chunks=None, size_of_chunk=None):
-    """Returns list of n elements, constaining a sublist."""
+def get_chunks(
+    lst: List[float], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None
+) -> List[List[float]]:
+    """Returns list of n elements, constaining a sublist.
+
+    Args:
+        lst: List to be chunked up
+        num_chunks: number of chunks to split list into
+        size_of_chunk: size of each chunk
+    """
     if num_chunks:
         assert not size_of_chunk
         size = len(lst) // num_chunks
@@ -32,7 +45,9 @@ def get_chunks(lst, num_chunks=None, size_of_chunk=None):
     return chunks
 
 
-def get_intrinsics_matrix_and_camera_to_world_h(camera_object, image_height):
+def get_intrinsics_matrix_and_camera_to_world_h(
+    camera_object: Dict[str, Any], image_height: int
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns the camera intrinsics matrix and the camera to world homogeneous matrix.
     Args:
         camera_object: a Camera object.
@@ -62,7 +77,14 @@ def get_intrinsics_matrix_and_camera_to_world_h(camera_object, image_height):
     return intrinsics_matrix, camera_to_world_h
 
 
-def get_camera_from_vis(vis, name="/Cameras/Main Camera", image_height=100):
+def get_camera_from_vis(vis: Viewer, name: str = "/Cameras/Main Camera", image_height: int = 100) -> Camera:
+    """Caculates the specified camera object's parameters (extrinsics/intrinsics); returns associated Camera Object.
+
+    Args:
+        vis: viewer object
+        name: name of camera to calculate for. Defaults to "/Cameras/Main Camera".
+        image_height: height of image. Defaults to 100.
+    """
     data = vis[name].get_object()
     if data is None:
         return None

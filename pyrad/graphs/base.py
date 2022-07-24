@@ -17,7 +17,6 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-import time
 from typing import Any, Dict, List, Union
 
 import torch
@@ -57,6 +56,11 @@ class AbstractGraph(nn.Module):
 
     def get_device(self):
         """Returns the device that the torch parameters are on."""
+        return self.device_indicator_param.device
+
+    @property
+    def device(self):
+        """Returns the device that the graph is on."""
         return self.device_indicator_param.device
 
     @abstractmethod
@@ -104,6 +108,7 @@ class Graph(AbstractGraph):
         self.callbacks = None
         # variable for visualizer to fetch TODO(figure out if there is cleaner way to do this)
         self.vis_outputs = None
+        self.default_output_name = None
 
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
@@ -158,9 +163,14 @@ class Graph(AbstractGraph):
         masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
+        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
         loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
-        aggregated_loss_dict = self.get_aggregated_loss_dict(loss_dict)
-        return outputs, aggregated_loss_dict
+
+        # scaling losses by coefficients.
+        for loss_name in loss_dict.keys():
+            if loss_name in self.loss_coefficients:
+                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
+        return outputs, loss_dict, metrics_dict
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run the forward starting with ray indices."""
@@ -169,17 +179,13 @@ class Graph(AbstractGraph):
 
     @abstractmethod
     def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
-        """Computes and returns the losses."""
+        """Computes and returns the losses dict."""
 
-    def get_aggregated_loss_dict(self, loss_dict):
-        """Computes the aggregated loss from the loss_dict and the coefficients specified."""
-        aggregated_loss_dict = {}
-        for loss_name, loss_value in loss_dict.items():
-            assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
-            loss_coefficient = self.loss_coefficients[loss_name]
-            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
-        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
-        return aggregated_loss_dict
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+        """Compute and obtain metrics and coefficients."""
+        # pylint: disable=unused-argument
+        # pylint: disable=no-self-use
+        return {}
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
@@ -196,10 +202,8 @@ class Graph(AbstractGraph):
             outputs = self.forward_after_ray_generator(ray_bundle)
             for output_name, output in outputs.items():
                 outputs_lists[output_name].append(output)
-            time.sleep(0.001)  # visualizer allow thread to switch off
         for output_name, outputs_list in outputs_lists.items():
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
-            time.sleep(0.001)  # visualizer allow thread to switch off
         self.vis_outputs = outputs
         return outputs
 

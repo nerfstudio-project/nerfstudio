@@ -91,7 +91,7 @@ class ImageDataset(torch.utils.data.Dataset):
     def get_image(self, image_idx: int):
         """Returns a 3 channel image."""
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
-        if self.alpha_color is not None:
+        if self.alpha_color is not None and image.shape[-1] == 4:
             assert image.shape[-1] == 4
             image = image[:, :, :3] * image[:, :, -1:] + self.alpha_color * (1.0 - image[:, :, -1:])
         else:
