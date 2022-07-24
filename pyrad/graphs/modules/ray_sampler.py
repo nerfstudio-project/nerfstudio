@@ -380,7 +380,7 @@ class NGPSpacedSampler(Sampler):
         else:
             max_samples_per_batch = len(rays_o) * num_samples
 
-        packed_info, positions, dirs, deltas, ts = pyrad_cuda.raymarching(
+        packed_info, origins, dirs, starts, ends = pyrad_cuda.raymarching(
             # rays
             rays_o,
             rays_d,
@@ -399,16 +399,14 @@ class NGPSpacedSampler(Sampler):
             scene_scale,
         )
         total_samples = max(packed_info[:, -1].sum(), 1)
-        positions = positions[:total_samples]
+        origins = origins[:total_samples]
         dirs = dirs[:total_samples]
-        deltas = deltas[:total_samples]
-        ts = ts[:total_samples]
+        starts = starts[:total_samples]
+        ends = ends[:total_samples]
 
-        zeros = torch.zeros_like(positions[:, :1])
+        zeros = torch.zeros_like(origins[:, :1])
 
         ray_samples = RaySamples(
-            frustums=Frustums(origins=positions, directions=dirs, starts=zeros, ends=zeros, pixel_area=zeros),
-            deltas=deltas,
-            ts=ts,
+            frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
         )
         return ray_samples, packed_info, t_min, t_max

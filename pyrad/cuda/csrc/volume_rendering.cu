@@ -5,9 +5,8 @@ template <typename scalar_t>
 __global__ void volumetric_rendering_forward_kernel(
     const uint32_t n_rays,
     const int* packed_info,  // input ray & point indices.
-    const scalar_t* positions,  // input samples
-    const scalar_t* deltas,  // input delta t
-    const scalar_t* ts,  // input t
+    const scalar_t* starts,  // input start t
+    const scalar_t* ends,  // input end t
     const scalar_t* sigmas,  // input density after activation
     const scalar_t* rgbs,  // input rgb after activation 
     // should be all-zero initialized
@@ -24,9 +23,8 @@ __global__ void volumetric_rendering_forward_kernel(
     const int numsteps = packed_info[thread_id * 3 + 2];  // point idx shift.
     if (numsteps == 0) return;
 
-    positions += base * 3;
-    deltas += base;
-    ts += base;
+    starts += base;
+    ends += base;
     sigmas += base;
     rgbs += base * 3;
 
@@ -43,10 +41,13 @@ __global__ void volumetric_rendering_forward_kernel(
 		if (T < EPSILON) {
 			break;
 		}
-		const scalar_t alpha = 1.f - __expf(-sigmas[j] * deltas[j]);
+        const scalar_t delta = ends[j] - starts[j];
+        const scalar_t t = (ends[j] + starts[j]) * 0.5f;
+
+		const scalar_t alpha = 1.f - __expf(-sigmas[j] * delta);
 		const scalar_t weight = alpha * T;
 		accumulated_weight[0] += weight;
-        accumulated_depth[0] += weight * ts[j];
+        accumulated_depth[0] += weight * t;
         accumulated_color[0] += weight * rgbs[j * 3 + 0];
         accumulated_color[1] += weight * rgbs[j * 3 + 1];
         accumulated_color[2] += weight * rgbs[j * 3 + 2];
@@ -60,8 +61,8 @@ template <typename scalar_t>
 __global__ void volumetric_rendering_backward_kernel(
     const uint32_t n_rays,
     const int* packed_info,  // input ray & point indices.
-    const scalar_t* deltas,  // input delta t
-    const scalar_t* ts,  // input t
+    const scalar_t* starts,  // input start t
+    const scalar_t* ends,  // input end t
     const scalar_t* sigmas,  // input density after activation
     const scalar_t* rgbs,  // input rgb after activation 
     const scalar_t* accumulated_weight,  // forward output
@@ -81,8 +82,8 @@ __global__ void volumetric_rendering_backward_kernel(
     const int numsteps = packed_info[thread_id * 3 + 2];  // point idx shift.
     if (numsteps == 0) return;
 
-    deltas += base;
-    ts += base;
+    starts += base;
+    ends += base;
     sigmas += base;
     rgbs += base * 3;
 
@@ -106,15 +107,16 @@ __global__ void volumetric_rendering_backward_kernel(
 		if (T < EPSILON) {
 			break;
 		}
+        const scalar_t delta = ends[j] - starts[j];
+        const scalar_t t = (ends[j] + starts[j]) * 0.5f;
 
-		const scalar_t alpha = 1.f - __expf(-sigmas[j] * deltas[j]);
+		const scalar_t alpha = 1.f - __expf(-sigmas[j] * delta);
 		const scalar_t weight = alpha * T;
 
         r += weight * rgbs[j * 3 + 0];
         g += weight * rgbs[j * 3 + 1];
         b += weight * rgbs[j * 3 + 2];
-        d += weight * ts[j];
-        // ws += weight;
+        d += weight * t;
 
 		T *= (1.f - alpha);
 
@@ -122,12 +124,12 @@ __global__ void volumetric_rendering_backward_kernel(
         grad_rgbs[j * 3 + 1] = grad_color[1] * weight;
         grad_rgbs[j * 3 + 2] = grad_color[2] * weight;
 
-        grad_sigmas[j] = deltas[j] * (
+        grad_sigmas[j] = delta * (
             grad_color[0] * (T * rgbs[j * 3 + 0] - (accumulated_color[0] - r)) +
             grad_color[1] * (T * rgbs[j * 3 + 1] - (accumulated_color[1] - g)) +
             grad_color[2] * (T * rgbs[j * 3 + 2] - (accumulated_color[2] - b)) +
             grad_weight[0] * (1.f - accumulated_weight[0]) +
-            grad_depth[0] * (ts[j] * T - (accumulated_depth[0] - d))
+            grad_depth[0] * (t * T - (accumulated_depth[0] - d))
         );
 	}
 }
@@ -142,9 +144,8 @@ __global__ void volumetric_rendering_backward_kernel(
  *  start index in the results for this ray. Third value is the number of samples for
  *  this ray. Note for rays that have zero samples, we simply skip them so the `packed_info`
  *  has some zero padding in the end.
- * @param positions Positions of the samples. [total_samples, 3]
- * @param deltas Ray marching step size between this sample and the next. [total_samples, 1]
- * @param ts Ray marching t at those sample locations. [total_samples, 1]
+ * @param starts: Where the frustum-shape sample starts along a ray. [total_samples, 1]
+ * @param ends: Where the frustum-shape sample ends along a ray. [total_samples, 1]
  * @param sigmas Densities at those samples. [total_samples, 1]
  * @param rgbs RGBs at those samples. [total_samples, 3]
  * @return std::vector<torch::Tensor> 
@@ -155,23 +156,20 @@ __global__ void volumetric_rendering_backward_kernel(
  */
 std::vector<torch::Tensor> volumetric_rendering_forward(
     torch::Tensor packed_info, 
-    torch::Tensor positions, 
-    torch::Tensor deltas, 
-    torch::Tensor ts, 
+    torch::Tensor starts, 
+    torch::Tensor ends, 
     torch::Tensor sigmas, 
     torch::Tensor rgbs
 ) {
     DEVICE_GUARD(packed_info);
     CHECK_INPUT(packed_info);
-    CHECK_INPUT(positions);
-    CHECK_INPUT(deltas);
-    CHECK_INPUT(ts);
+    CHECK_INPUT(starts);
+    CHECK_INPUT(ends);
     CHECK_INPUT(sigmas);
     CHECK_INPUT(rgbs);
     TORCH_CHECK(packed_info.ndimension() == 2 & packed_info.size(1) == 3);
-    TORCH_CHECK(positions.ndimension() == 2 & positions.size(1) == 3);
-    TORCH_CHECK(deltas.ndimension() == 2 & deltas.size(1) == 1);
-    TORCH_CHECK(ts.ndimension() == 2 & ts.size(1) == 1);
+    TORCH_CHECK(starts.ndimension() == 2 & starts.size(1) == 1);
+    TORCH_CHECK(ends.ndimension() == 2 & ends.size(1) == 1);
     TORCH_CHECK(sigmas.ndimension() == 2 & sigmas.size(1) == 1);
     TORCH_CHECK(rgbs.ndimension() == 2 & rgbs.size(1) == 3);
 
@@ -194,9 +192,8 @@ std::vector<torch::Tensor> volumetric_rendering_forward(
          { volumetric_rendering_forward_kernel<scalar_t><<<blocks, threads>>>(
                 n_rays,
                 packed_info.data_ptr<int>(), 
-                positions.data_ptr<scalar_t>(),
-                deltas.data_ptr<scalar_t>(),
-                ts.data_ptr<scalar_t>(),
+                starts.data_ptr<scalar_t>(),
+                ends.data_ptr<scalar_t>(),
                 sigmas.data_ptr<scalar_t>(),
                 rgbs.data_ptr<scalar_t>(),
                 accumulated_weight.data_ptr<scalar_t>(),
@@ -222,8 +219,8 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor grad_depth, 
     torch::Tensor grad_color, 
     torch::Tensor packed_info, 
-    torch::Tensor deltas, 
-    torch::Tensor ts, 
+    torch::Tensor starts, 
+    torch::Tensor ends, 
     torch::Tensor sigmas, 
     torch::Tensor rgbs
 ) {
@@ -244,8 +241,8 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
          { volumetric_rendering_backward_kernel<scalar_t><<<blocks, threads>>>(
                 n_rays,
                 packed_info.data_ptr<int>(), 
-                deltas.data_ptr<scalar_t>(),
-                ts.data_ptr<scalar_t>(),
+                starts.data_ptr<scalar_t>(),
+                ends.data_ptr<scalar_t>(),
                 sigmas.data_ptr<scalar_t>(),
                 rgbs.data_ptr<scalar_t>(),
                 accumulated_weight.data_ptr<scalar_t>(),

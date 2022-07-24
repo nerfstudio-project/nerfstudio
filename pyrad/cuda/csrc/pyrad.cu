@@ -35,10 +35,9 @@ std::vector<torch::Tensor> raymarching(
 );
 
 std::vector<torch::Tensor> volumetric_rendering_forward(
-    torch::Tensor indices, 
-    torch::Tensor positions, 
-    torch::Tensor deltas, 
-    torch::Tensor ts, 
+    torch::Tensor packed_info, 
+    torch::Tensor starts, 
+    torch::Tensor ends, 
     torch::Tensor sigmas, 
     torch::Tensor rgbs
 );
@@ -50,9 +49,9 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor grad_weight, 
     torch::Tensor grad_depth, 
     torch::Tensor grad_color, 
-    torch::Tensor indices, 
-    torch::Tensor deltas, 
-    torch::Tensor ts, 
+    torch::Tensor packed_info, 
+    torch::Tensor starts, 
+    torch::Tensor ends, 
     torch::Tensor sigmas, 
     torch::Tensor rgbs
 );

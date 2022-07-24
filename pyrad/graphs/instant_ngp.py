@@ -93,7 +93,7 @@ class NGPGraph(Graph):
         sigmas = field_outputs[FieldHeadNames.DENSITY]
 
         accumulated_weight, accumulated_depth, accumulated_color, mask = pyrad_cuda.VolumeRenderer.apply(
-            packed_info, ray_samples.frustums.get_positions(), ray_samples.deltas, ray_samples.ts, sigmas, rgbs
+            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs
         )
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)

@@ -101,7 +101,6 @@ class RaySamples(TensorDataclass):
     camera_indices: TensorType[..., 1] = None
     valid_mask: TensorType[..., 1] = None
     deltas: TensorType[..., 1] = None
-    ts: TensorType[..., 1] = None
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities

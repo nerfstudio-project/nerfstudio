@@ -32,17 +32,18 @@ class VolumeRenderer(torch.autograd.Function):
 
     @staticmethod
     @custom_fwd(cast_inputs=torch.float32)
-    def forward(ctx, packed_info, positions, deltas, ts, sigmas, rgbs):
+    def forward(ctx, packed_info, starts, ends, sigmas, rgbs):
         accumulated_weight, accumulated_depth, accumulated_color, mask = volumetric_rendering_forward(
-            packed_info, positions, deltas, ts, sigmas, rgbs
+            packed_info, starts, ends, sigmas, rgbs
         )
+        # TODO(ruilongli): accelerate for torch.no_grad()?
         ctx.save_for_backward(
             accumulated_weight,
             accumulated_depth,
             accumulated_color,
             packed_info,
-            deltas,
-            ts,
+            starts,
+            ends,
             sigmas,
             rgbs,
         )
@@ -56,8 +57,8 @@ class VolumeRenderer(torch.autograd.Function):
             accumulated_depth,
             accumulated_color,
             packed_info,
-            deltas,
-            ts,
+            starts,
+            ends,
             sigmas,
             rgbs,
         ) = ctx.saved_tensors
@@ -69,9 +70,10 @@ class VolumeRenderer(torch.autograd.Function):
             grad_depth,
             grad_color,
             packed_info,
-            deltas,
-            ts,
+            starts,
+            ends,
             sigmas,
             rgbs,
         )
-        return None, None, None, None, grad_sigmas, grad_rgbs
+        # corresponds to the input argument list of forward()
+        return None, None, None, grad_sigmas, grad_rgbs

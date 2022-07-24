@@ -100,7 +100,7 @@ inline __device__ float advance_to_next_voxel(
 }
 
 template <typename scalar_t>
-__global__ void kernel_raymarching_train(
+__global__ void kernel_raymarching(
     // rays info
     const uint32_t n_rays,
     const scalar_t* rays_o,
@@ -119,12 +119,12 @@ __global__ void kernel_raymarching_train(
     const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
     const float step_scale,
     int* numsteps_counter,
-    int* rays_counter,  // total rays.
-    int* packed_info_out,  // output ray & point packed_info.
-    scalar_t* positions_out,  // output samples
-    scalar_t* dirs_out,  // output dirs
-    scalar_t* deltas_out,  // output delta t
-    scalar_t* ts_out  // output t
+    int* rays_counter,
+    int* packed_info_out,
+    scalar_t* origins_out,
+    scalar_t* dirs_out,
+    scalar_t* starts_out,
+    scalar_t* ends_out 
 ) {
     CUDA_GET_THREAD_ID(i, n_rays);
 
@@ -137,34 +137,44 @@ __global__ void kernel_raymarching_train(
     const float ox = rays_o[0], oy = rays_o[1], oz = rays_o[2];
     const float dx = rays_d[0], dy = rays_d[1], dz = rays_d[2];
     const float rdx = 1 / dx, rdy = 1 / dy, rdz = 1 / dz;
-    const float startt = t_min[0], endt = t_max[0];
+    const float near = t_min[0], far = t_max[0];
 
-    // first pass to compute an accurate number of steps
-	uint32_t j = 0;
-	float t = startt;
-
-    // TODO(ruilongli): perturb `startt` as in ngp_pl?
+    // TODO(ruilongli): perturb `near` as in ngp_pl?
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
     float dt_min = min_step_size(num_steps) * step_scale;
     float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;    
-	while (0 <= t && t < endt && j < num_steps) {
-        // current point
-        const float x = ox + t * dx;
-        const float y = oy + t * dy;
-        const float z = oz + t * dz;
-                
-        float dt = calc_dt(t, cone_angle, dt_min, dt_max);
-		uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
+	
+    // first pass to compute an accurate number of steps
+	uint32_t j = 0;
+	float t0 = near;
+    float dt = calc_dt(t0, cone_angle, dt_min, dt_max);
+    float t1 = t0 + dt;
+    float t_mid = (t0 + t1) * 0.5f;
 
+    while (t_mid < far && j < num_steps) {
+        // current center
+        const float x = ox + t_mid * dx;
+        const float y = oy + t_mid * dy;
+        const float z = oz + t_mid * dz;
+		uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
+        
         if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
             ++j;
-			t += dt;
+            // march to next sample
+			t0 = t1;
+            dt = calc_dt(t0, cone_angle, dt_min, dt_max);
+            t1 = t0 + dt;
+            t_mid = (t0 + t1) * 0.5f;
 		}
         else {
+            // march to next sample
 			float res = (grid_size >> mip) * grid_scale;
-			t = advance_to_next_voxel(
-                t, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
+			t_mid = advance_to_next_voxel(
+                t_mid, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
             );
+            dt = calc_dt(t_mid, cone_angle, dt_min, dt_max);
+            t0 = t_mid - dt * 0.5f;
+            t1 = t_mid + dt * 0.5f;
 		}
 	}
     if (j == 0) return;
@@ -174,10 +184,10 @@ __global__ void kernel_raymarching_train(
     if (base + numsteps > max_total_samples) return;
 	
     // locate
-    positions_out += base * 3;
+    origins_out += base * 3;
     dirs_out += base * 3;
-    deltas_out += base;
-    ts_out += base;
+    starts_out += base;
+    ends_out += base;
 
     uint32_t ray_idx = atomicAdd(rays_counter, 1);
 
@@ -185,37 +195,47 @@ __global__ void kernel_raymarching_train(
     packed_info_out[ray_idx * 3 + 1] = base;  // point idx start.
     packed_info_out[ray_idx * 3 + 2] = numsteps;  // point idx shift.
 
-	t = startt;
-	j = 0;
-	while (0 <= t && t < endt && j < num_steps) {
-        // current point
-        const float x = ox + t * dx;
-        const float y = oy + t * dy;
-        const float z = oz + t * dz;
+    // Second round
+    j = 0;
+	t0 = near;
+    dt = calc_dt(t0, cone_angle, dt_min, dt_max);
+    t1 = t0 + dt;
+    t_mid = (t0 + t1) / 2.;
 
-        float dt = calc_dt(t, cone_angle, dt_min, dt_max);
+    while (t_mid < far && j < num_steps) {
+        // current center
+        const float x = ox + t_mid * dx;
+        const float y = oy + t_mid * dy;
+        const float z = oz + t_mid * dz;
 		uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
-
+        
         if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
-            positions_out[j * 3 + 0] = x;
-            positions_out[j * 3 + 1] = y;
-            positions_out[j * 3 + 2] = z;
+            origins_out[j * 3 + 0] = ox;
+            origins_out[j * 3 + 1] = oy;
+            origins_out[j * 3 + 2] = oz;
             dirs_out[j * 3 + 0] = dx;
             dirs_out[j * 3 + 1] = dy;
             dirs_out[j * 3 + 2] = dz;
-            deltas_out[j] = dt;   
-            ts_out[j] = t;         
+            starts_out[j] = t0;   
+            ends_out[j] = t1;     
             ++j;
-			t += dt;
+            // march to next sample
+			t0 = t1;
+            dt = calc_dt(t0, cone_angle, dt_min, dt_max);
+            t1 = t0 + dt;
+            t_mid = (t0 + t1) * 0.5f;
 		}
         else {
+            // march to next sample
 			float res = (grid_size >> mip) * grid_scale;
-			t = advance_to_next_voxel(
-                t, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
+			t_mid = advance_to_next_voxel(
+                t_mid, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
             );
+            dt = calc_dt(t_mid, cone_angle, dt_min, dt_max);
+            t0 = t_mid - dt * 0.5f;
+            t1 = t_mid + dt * 0.5f;
 		}
 	}
-
     return;
 }
 
@@ -241,10 +261,10 @@ __global__ void kernel_raymarching_train(
  *  start index in the results for this ray. Third value is the number of samples for
  *  this ray. Note for rays that have zero samples, we simply skip them so the `packed_info`
  *  has some zero padding in the end.
- * - positions: Positions of the samples. [max_total_samples, 3]
- * - dirs: Directions at those sample locations. [max_total_samples, 3]
- * - deltas: Ray marching step size between this sample and the next. [max_total_samples, 1]
- * - ts: Ray marching t at those sample locations. [max_total_samples, 1]
+ * - origins: Ray origins for those samples. [max_total_samples, 3]
+ * - dirs: Ray directions for those samples. [max_total_samples, 3]
+ * - starts: Where the frustum-shape sample starts along a ray. [max_total_samples, 1]
+ * - ends: Where the frustum-shape sample ends along a ray. [max_total_samples, 1]
  */
 std::vector<torch::Tensor> raymarching(
     // rays
@@ -286,16 +306,16 @@ std::vector<torch::Tensor> raymarching(
     // output samples
     torch::Tensor packed_info = torch::zeros(
         {n_rays, 3}, rays_o.options().dtype(torch::kInt32));  // ray_id, sample_id, num_samples
-    torch::Tensor positions = torch::zeros({max_total_samples, 3}, rays_o.options());
+    torch::Tensor origins = torch::zeros({max_total_samples, 3}, rays_o.options());
     torch::Tensor dirs = torch::zeros({max_total_samples, 3}, rays_o.options());
-    torch::Tensor deltas = torch::zeros({max_total_samples, 1}, rays_o.options());
-    torch::Tensor ts = torch::zeros({max_total_samples, 1}, rays_o.options());
+    torch::Tensor starts = torch::zeros({max_total_samples, 1}, rays_o.options());
+    torch::Tensor ends = torch::zeros({max_total_samples, 1}, rays_o.options());
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         rays_o.scalar_type(),
         "raymarching_train",
         ([&]
-         { kernel_raymarching_train<scalar_t><<<blocks, threads>>>(
+         { kernel_raymarching<scalar_t><<<blocks, threads>>>(
                 // rays
                 n_rays,
                 rays_o.data_ptr<scalar_t>(),
@@ -315,13 +335,13 @@ std::vector<torch::Tensor> raymarching(
                 step_scale,
                 numsteps_counter.data_ptr<int>(),  // total samples.
                 rays_counter.data_ptr<int>(),  // total rays.
-                packed_info.data_ptr<int>(),  // output ray packed_info.
-                positions.data_ptr<scalar_t>(),  // output samples
-                dirs.data_ptr<scalar_t>(),  // output dirs
-                deltas.data_ptr<scalar_t>(),  // output delta t
-                ts.data_ptr<scalar_t>()  // output t
+                packed_info.data_ptr<int>(), 
+                origins.data_ptr<scalar_t>(),
+                dirs.data_ptr<scalar_t>(), 
+                starts.data_ptr<scalar_t>(),
+                ends.data_ptr<scalar_t>()
             ); 
         }));
 
-    return {packed_info, positions, dirs, deltas, ts};
+    return {packed_info, origins, dirs, starts, ends};
 }
