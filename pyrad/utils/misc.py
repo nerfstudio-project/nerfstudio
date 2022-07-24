@@ -21,9 +21,9 @@ import json
 from pydoc import locate
 from typing import Any, Dict
 
+from math import floor, log
 import torch
 from omegaconf import DictConfig
-from math import floor, log
 
 
 class DotDict(dict):
@@ -98,4 +98,4 @@ def human_format(num):
     units = ["", "K", "M", "B", "T", "P"]
     k = 1000.0
     magnitude = int(floor(log(num, k)))
-    return "%.2f %s" % (num / k**magnitude, units[magnitude])
+    return f"{(num / k**magnitude):.2f} {units[magnitude]}"
