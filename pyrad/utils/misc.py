@@ -19,7 +19,7 @@ Miscellaneous helper code.
 import hashlib
 import json
 from pydoc import locate
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 import torch
 from omegaconf import DictConfig
@@ -111,7 +111,7 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
         new_next (callable): function that will be called instead as the __next__()
     """
 
-    def __init__(self, instance: object, new_next: callable):
+    def __init__(self, instance: object, new_next: Callable):
         self.instance = instance
         self.new_next = new_next
 
