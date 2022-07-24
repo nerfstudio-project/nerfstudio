@@ -24,11 +24,19 @@ from torchtyping import TensorType
 import pyrad.cuda as pyrad_cuda
 
 
-def create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
-    """Create 3D grid coordinates"""
+def _create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
+    """Create 3D grid coordinates
+
+    Args:
+        resolution (int): The 3D resolution of the grid.
+        device (torch.device): Which device you want the returned tensor to live int.
+
+    Returns:
+        TensorType["n_coords", 3]: All grid coordinates with shape [res * res * res, 3]
+    """
     arrange = torch.arange(resolution, device=device)
     grid_x, grid_y, grid_z = torch.meshgrid([arrange, arrange, arrange], indexing="ij")
-    coords = torch.stack([grid_x, grid_y, grid_z])  # [3, steps[0], steps[1], steps[2]]
+    coords = torch.stack([grid_x, grid_y, grid_z])  # [3, res, res, res]
     coords = coords.reshape(3, -1).t().contiguous()  # [N, 3]
     return coords
 
@@ -39,12 +47,21 @@ class DensityGrid(nn.Module):
     The multi-res grids are all centerd at [center, center, center] in the world space.
     The first grid covers regions (center - base_scale / 2, center + base_scale / 2)
     and the followings grows by 2x scale each.
+
+    TODO(ruilongli): support `center` and `base_scale` with 3-dim.
+
+    Args:
+        center (float, optional): Center of all the grids in the world space. Defaults to 0.
+        base_scale (float, optional): Center of the scale of the base level grid. Defaults to 1.
+        num_cascades (int, optional): Number of the cascaded multi-res levels. Defaults to 1.
+        resolution (int, optional): Resolution of the grid. Defaults to 128.
+        update_every_num_iters (int, optional): How frequently to update the grid values. Defaults to 16.
     """
 
     def __init__(
         self,
         center: float = 0.0,
-        base_scale: float = 1.0,  # base level scale
+        base_scale: float = 1.0,
         num_cascades: int = 1,
         resolution: int = 128,
         update_every_num_iters: int = 16,
@@ -63,26 +80,33 @@ class DensityGrid(nn.Module):
         self.register_buffer("density_bitfield", density_bitfield)
 
         # Integer grid coords / indices that do not related to cascades
-        grid_coords = create_grid_coords(resolution)
+        grid_coords = _create_grid_coords(resolution)
         # TODO(ruilongli): hacky way for now. support cpu version of morton3D?
         grid_indices = pyrad_cuda.morton3D(grid_coords.to("cuda:0")).to("cpu")
         self.register_buffer("grid_coords", grid_coords)
         self.register_buffer("grid_indices", grid_indices)
 
     @torch.no_grad()
-    def reset(self):
-        """Zeros out the density grid."""
-        self.density_grid.zero_()
-        self.density_bitfield.zero_()
+    def get_all_cells(self) -> List[Tuple[TensorType["n_cells"], TensorType["n_cells", 3]]]:
+        """Returns all cells of the grid.
 
-    @torch.no_grad()
-    def get_all_cells(self) -> List[Tuple[TensorType["n"], TensorType["n"]]]:
-        """Returns all cells"""
+        Returns:
+            List[Tuple[TensorType["n_cells"], TensorType["n_cells", 3]]]: All grid indices and grid
+            coordinates of all cascade levels.
+        """
         return [(self.grid_indices, self.grid_coords)] * self.num_cascades
 
     @torch.no_grad()
-    def sample_uniform_and_occupied_cells(self, n: int) -> List[Tuple[TensorType["n"], TensorType["n"]]]:
-        """Samples both n uniform and occupied cells (per cascade)"""
+    def sample_uniform_and_occupied_cells(self, n: int) -> List[Tuple[TensorType["n"], TensorType["n", 3]]]:
+        """Samples both n uniform and occupied cells (per cascade)
+
+        Args:
+            n: Number of cells to be sampled.
+
+        Returns:
+            List[Tuple[TensorType["n"], TensorType["n", 3]]]: Sampled grid indices and grid
+            coordinates of all cascade levels.
+        """
         device = self.density_grid.device
 
         cells = []
@@ -113,8 +137,15 @@ class DensityGrid(nn.Module):
         """Update the density grid in EMA way.
 
         Args:
-            density_eval_func: A Callable function that takes in samples (N, 3)
-                and returns densities (N, 1).
+            density_eval_func (Callable): A Callable function that takes in sample positions (N, 3) and
+                returns densities (N, 1).
+            step (int): The current training step. Instant-NGP has a warmup stage where all cells are updated.
+                After certain amount of steps (256), it speeds up by only update sampled cells.
+            density_threshold (float): The threshold to prune cells. Recommand to calculate it using this rule:
+                `weight_threshold / dt`. For example for Instant-NGP on Lego, the minimum step size `dt` is
+                `3` (scale of the scene) * `sqrt(3)` / `1024` (number of samples). And if we want to the weight
+                threshold to be `0.01`, we will get `0.01 / (3 * sqrt(3) / 1024) ~= 2.` for density threshold.
+            decay (float): EMA decay for density updating.
         """
         # create temporary grid
         tmp_grid = -torch.ones_like(self.density_grid)
@@ -155,26 +186,8 @@ class DensityGrid(nn.Module):
         Returns:
             TensorType[..., 1]: Density values
         """
-        # TODO(ruilongli): pass in the t along the ray as well as the xyz, so that we
-        # can decide mip-level as in NGP.
+        # TODO(ruilongli) pass in RaySamples because we need dt to decide mip level.
         raise NotImplementedError("We haven't implement the logic of querying densities from cascaded grid.")
-        # density_grid = self.density_grid.reshape(
-        #     1, self.num_cascades, self.resolution, self.resolution, self.resolution
-        # )  # shape (1, num_cascades, X_res, Y_res, Z_res)
-        # xyzs_shape = xyzs.shape
-        # xyzs_reshaped = xyzs.view(1, -1, 1, 1, 3)
-        # voxel_lengths = self.aabb[1] - self.aabb[0]
-        # xyzs_reshaped_normalized = ((xyzs_reshaped - self.aabb[0]) / voxel_lengths) * 2.0 - 1.0
-        # densities = F.grid_sample(
-        #     density_grid.permute(
-        #         0, 1, 4, 3, 2
-        #     ),  # (xyz to zyx) for grid sample useage because the xyzs have xyz ordering
-        #     xyzs_reshaped_normalized,
-        #     align_corners=True,
-        #     padding_mode="zeros",
-        # )
-        # densities = densities.view(*xyzs_shape[:-1], 1)
-        # return densities
 
     def forward(self, x):
         """Not implemented."""

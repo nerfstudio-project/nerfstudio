@@ -102,8 +102,7 @@ class NGPGraph(Graph):
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
-            "mask": mask,  # the ray we skipped during sampler
-            # "depth_density_grid": depth_density_grid,
+            "mask": mask,  # the rays we skipped from sampler
         }
         return outputs
 
@@ -131,8 +130,6 @@ class NGPGraph(Graph):
         outputs["accumulation"] = combined_acc
         combined_depth = torch.cat([depth], dim=1)
         outputs["depth"] = combined_depth
-        # depth = visualization.apply_depth_colormap(outputs["depth_density_grid"])
-        # outputs["depth_density_grid"] = combined_depth
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
@@ -150,9 +147,6 @@ class NGPGraph(Graph):
         writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
-
-        # depth = visualization.apply_depth_colormap(outputs["depth_density_grid"])
-        # writer.put_image(name=f"depth_density_grid/image_idx_{image_idx}", image=combined_depth, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
