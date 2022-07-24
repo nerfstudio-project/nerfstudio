@@ -85,8 +85,8 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
     return dataset_inputs_eval, dataloader_eval
 
 
-class AbstractDataloaderV2(nn.Module):
-    """Second version of the dataloader class
+class AbstractDataloader(nn.Module):
+    """Second version of the dataloader class (V2)
 
     This version of the dataloader is designed to subsume both the train and eval dataloaders,
     especially since this may contain learnable parameters which need to be shared across the train
@@ -118,8 +118,8 @@ class AbstractDataloaderV2(nn.Module):
         image_sampler (ImageSampler): image sampler
         pixel_sampler (PixelSampler): pixel sampler
         ray_generator (RayGenerator): ray generator
-        is_train (bool): whether this is being used for training
-        is_eval (bool): whether this is being used for evaluation
+        use_train (bool): whether this is being used for training
+        use_eval (bool): whether this is being used for evaluation
 
 
 
@@ -136,22 +136,22 @@ class AbstractDataloaderV2(nn.Module):
         image_sampler: ImageSampler,
         pixel_sampler: PixelSampler,
         ray_generator: RayGenerator,
-        is_train: bool,
-        is_eval: bool,
+        use_train: bool,
+        use_eval: bool,
     ):
         super().__init__()
         self.image_sampler = image_sampler
         self.pixel_sampler = pixel_sampler
         self.iter_image_sampler = iter(self.image_sampler)
         self.ray_generator = ray_generator
-        self.is_train = is_train
-        self.is_eval = is_eval
+        self.use_train = use_train
+        self.use_eval = use_eval
         self.train_count = 0
         self.eval_count = 0
-        assert is_train or is_eval
-        if is_train:
+        assert use_train or use_eval
+        if use_train:
             self.setup_train()
-        if is_eval:
+        if use_eval:
             self.setup_eval()
 
     def iter_train(self) -> IterableWrapper:
@@ -181,8 +181,9 @@ class AbstractDataloaderV2(nn.Module):
         """Returns the next batch of data from the eval dataloader"""
 
 
-class AbstractCachedDataloaderV2(AbstractDataloaderV2):
-    """Subclass of the new V2 dataloader that is used for when things fit in memory
+class AbstractCachedDataloaderV2(AbstractDataloader):
+    """Subclass of the new V2 dataloader that is used for when things fit in memory,
+    and will be cached in the dataloader itself.
 
     Attributes:
         camera_to_world (torch.Tensor): camera to world transformation

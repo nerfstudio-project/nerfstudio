@@ -111,7 +111,7 @@ class DatasetInputs:
 
 
 @dataclass
-class GenericDataContainer:
+class BaseDataContainer:
     """A container for data that is not specific to any dataset. It should be everything
     needed by the renderer and loss calculation. Different datasets and models will probably
     need to subclass from this differently, since different Field modules will require different
@@ -122,5 +122,6 @@ class GenericDataContainer:
         ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
     """
 
-    rays: RayBundle
-    ground_truth_pixels: TensorType["num_pixels", 3] = None
+    rays: RayBundle  # Raybundle and the cameras will be merged into one thing in a later PR
+    cameras: torch.tensor
+    ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None
