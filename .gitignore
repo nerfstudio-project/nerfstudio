@@ -180,8 +180,6 @@ external/
 __MACOSX/
 outputs*/
 node_modules/
-yarn.lock
-package.json
 scripts/colmap2nerf.py
 bash/
 nerfactory/ngp_pl/
