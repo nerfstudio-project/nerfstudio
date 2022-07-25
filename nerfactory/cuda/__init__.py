@@ -77,7 +77,7 @@ class VolumeRenderer(torch.autograd.Function):
             rgbs,
         )
         # corresponds to the input argument list of forward()
-        return None, None, None, None, grad_sigmas, grad_rgbs
+        return None, None, None, grad_sigmas, grad_rgbs
 
 
 def unpackbits(x: torch.Tensor) -> torch.Tensor:

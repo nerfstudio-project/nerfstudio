@@ -56,6 +56,18 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor rgbs
 ) {};
 
+std::vector<torch::Tensor> occupancy_query(
+    // samples
+    const torch::Tensor positions, 
+    const torch::Tensor deltas, 
+    // density grid
+    const float grid_center,
+    const float grid_scale,
+    const int grid_cascades,
+    const int grid_size,
+    const torch::Tensor grid_bitfield
+) {};
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
     m.def("packbits", &packbits);
@@ -65,4 +77,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
     m.def("raymarching", &raymarching);
     m.def("volumetric_rendering_forward", &volumetric_rendering_forward);
     m.def("volumetric_rendering_backward", &volumetric_rendering_backward);
+    m.def("occupancy_query", &occupancy_query);
 }
