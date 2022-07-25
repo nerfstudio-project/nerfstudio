@@ -34,6 +34,7 @@ from torchtyping import TensorType
 import wandb
 from pyrad.utils.config import LoggingConfig
 from pyrad.utils.decorators import check_main_thread, decorate_all
+from pyrad.utils.misc import human_format
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 EVENT_WRITERS = []
@@ -49,7 +50,7 @@ class EventName(enum.Enum):
     ITER_TRAIN_TIME = "Train Iter (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
     ETA = "ETA (time)"
-    RAYS_PER_SEC = "Rays Per Sec"
+    RAYS_PER_SEC = "Rays / Sec"
     CURR_TEST_PSNR = "Test PSNR"
 
 
@@ -370,6 +371,8 @@ class LocalWriter(Writer):
             if name in self.stats_to_track:
                 if "(time)" in name:
                     v = _format_time(v)
+                elif "Rays" in name:
+                    v = human_format(v)
                 else:
                     v = f"{v:0.4f}"
                 curr_mssg += f"{v:<20} "
