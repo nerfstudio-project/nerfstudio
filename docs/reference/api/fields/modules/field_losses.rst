@@ -3,6 +3,6 @@
 Field Losses
 ===================
 
-.. automodule:: pyrad.fields.modules.field_losses
+.. automodule:: nerfactory.fields.modules.field_losses
    :members:
    :show-inheritance:

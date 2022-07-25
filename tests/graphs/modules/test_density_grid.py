@@ -4,7 +4,7 @@ Code to test the density grid.
 
 # import torch
 
-# from pyrad.fields.density_fields.density_grid import DensityGrid
+# from nerfactory.fields.density_fields.density_grid import DensityGrid
 
 
 def test_density_grid():

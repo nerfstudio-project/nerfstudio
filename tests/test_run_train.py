@@ -20,7 +20,7 @@ def set_reduced_config(config: DictConfig):
     # reduce dataset factors; set dataset to test
     # switch to using the vanilla ImageDataset class
     config.data.image_dataset_train._target_ = (  # pylint: disable=protected-access
-        "pyrad.data.image_dataset.ImageDataset"
+        "nerfactory.data.image_dataset.ImageDataset"
     )
     config.data.dataset_inputs_train.data_directory = "tests/data/lego_test"
     config.data.dataset_inputs_train.dataset_format = "blender"
@@ -28,7 +28,7 @@ def set_reduced_config(config: DictConfig):
     config.data.dataloader_train.image_sampler.num_images_to_sample_from = 1
     config.data.dataloader_train.pixel_sampler.num_rays_per_batch = 4
     config.data.image_dataset_eval._target_ = (  # pylint: disable=protected-access
-        "pyrad.data.image_dataset.ImageDataset"
+        "nerfactory.data.image_dataset.ImageDataset"
     )
     config.data.dataset_inputs_eval.data_directory = "tests/data/lego_test"
     config.data.dataset_inputs_eval.dataset_format = "blender"

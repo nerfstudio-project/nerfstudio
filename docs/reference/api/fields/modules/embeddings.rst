@@ -3,6 +3,6 @@
 Embeddings
 ===================
 
-.. automodule:: pyrad.fields.modules.embedding
+.. automodule:: nerfactory.fields.modules.embedding
    :members:
    :show-inheritance:

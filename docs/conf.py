@@ -18,9 +18,9 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "pyRad"
-copyright = "2022, pyRad Team"
-author = "pyRad Team"
+project = "nerfactory"
+copyright = "2022, nerfactory Team"
+author = "nerfactory Team"
 
 # The full version, including alpha/beta/rc tags
 release = "0.0.0"
@@ -78,7 +78,7 @@ myst_enable_extensions = ["colon_fence"]
 # a list of builtin themes.
 #
 html_theme = "furo"
-html_title = "pyRad"
+html_title = "nerfactory"
 
 autosectionlabel_prefix_document = True
 

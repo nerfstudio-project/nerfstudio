@@ -3,6 +3,6 @@
 Visualization
 ----------------
 
-.. automodule:: pyrad.utils.visualization
+.. automodule:: nerfactory.utils.visualization
    :members:
    :show-inheritance:

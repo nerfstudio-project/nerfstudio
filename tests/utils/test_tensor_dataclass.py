@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import pytest
 import torch
 
-from pyrad.utils.tensor_dataclass import TensorDataclass
+from nerfactory.utils.tensor_dataclass import TensorDataclass
 
 
 @dataclass

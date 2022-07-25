@@ -12,11 +12,11 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from pyrad.cameras.camera_paths import CameraPath, get_interpolated_camera_path, get_spiral_path
-from pyrad.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
-from pyrad.graphs.base import Graph, setup_graph
-from pyrad.utils.misc import human_format
-from pyrad.utils.writer import TimeWriter
+from nerfactory.cameras.camera_paths import CameraPath, get_interpolated_camera_path, get_spiral_path
+from nerfactory.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
+from nerfactory.graphs.base import Graph, setup_graph
+from nerfactory.utils.misc import human_format
+from nerfactory.utils.writer import TimeWriter
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:

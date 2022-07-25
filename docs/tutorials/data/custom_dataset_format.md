@@ -1,13 +1,12 @@
-
 # Custom dataset formats
 
-We've implemented many common datasets inside the `pyrad/format/<dataset_format>.py` files. If you have a posed image dataset that does not match these existing formats can create a custom dataset format.
+We've implemented many common datasets inside the `nerfactory/format/<dataset_format>.py` files. If you have a posed image dataset that does not match these existing formats can create a custom dataset format.
 
-1. Create a function `pyrad/format/<dataset_format>.py` and implements a function called `load_<dataset_format>_data` returns a `DatasetInputs` object.
+1. Create a function `nerfactory/format/<dataset_format>.py` and implements a function called `load_<dataset_format>_data` returns a `DatasetInputs` object.
 
 ```python
 # The DatasetInputs dataclass that is passed around to create datasets and initialize the graphs.
-# See `pyrad/data/structs.py` for the code.
+# See `nerfactory/data/structs.py` for the code.
 @dataclass
 class DatasetInputs:
     """Dataset inputs are used to initialize datasets and the NeRF graph."""
@@ -24,7 +23,7 @@ class DatasetInputs:
     alpha_color: Optional[TensorType[3]] = None
 
 # The method signature for the `instant_ngp` dataset format.
-# See `pyrad/data/format/instant_ngp.py` for the code.
+# See `nerfactory/data/format/instant_ngp.py` for the code.
 def load_instant_ngp_data(
     basedir: str,
     downscale_factor: int = 1,
@@ -33,13 +32,12 @@ def load_instant_ngp_data(
     """Returns a DatasetInputs struct."""
 ```
 
-
-2. Add a new case to `get_dataset_inputs()` in `pyrad/data/utils.py` for the new dataset.
+2. Add a new case to `get_dataset_inputs()` in `nerfactory/data/utils.py` for the new dataset.
 
 ```python
 # The method signature for get_dataset_inputs.
 # Notice that the parameters match the yaml config parameters above.
-# See `pyrad/data/utils.py` for the code.
+# See `nerfactory/data/utils.py` for the code.
 def get_dataset_inputs(
     data_directory: str,
     dataset_format: str,

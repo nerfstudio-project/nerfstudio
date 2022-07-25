@@ -18,7 +18,7 @@ done
 
 check_failed=false
 added_headers=false
-for i in $(find pyrad/ -name '*.py');
+for i in $(find nerfactory/ -name '*.py');
 do
   if ! grep -q Copyright $i
   then
