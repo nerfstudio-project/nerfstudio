@@ -405,7 +405,6 @@ class NGPSpacedSampler(Sampler):
             scene_scale,
         )
         total_samples = max(packed_info[:, -1].sum(), 1)
-        packed_info = packed_info[:total_samples]
         origins = origins[:total_samples]
         dirs = dirs[:total_samples]
         starts = starts[:total_samples]
