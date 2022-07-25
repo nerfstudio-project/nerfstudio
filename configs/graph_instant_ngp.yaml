@@ -15,9 +15,9 @@ viewer:
   num_rays_per_chunk: 16384
 
 graph:
-  _target_: pyrad.graphs.instant_ngp.NGPGraph
+  _target_: nerfactory.graphs.instant_ngp.NGPGraph
   collider_config:
-    _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+    _target_: nerfactory.graphs.modules.scene_colliders.AABBBoxCollider
   field_implementation: tcnn # torch, tcnn, ...
   loss_coefficients: # loss coefficients
     rgb_loss: 1.0
@@ -26,8 +26,14 @@ graph:
 optimizers:
   fields:
     optimizer:
-      lr: 1e-2
-      eps: 1e-7 # need to investigate further for float16 stability
+      lr: 3e-3
+      eps: 1e-15 # NGP prefers small eps
+    # Note: If you want slightly faster coverange, you can use the following optimizer instead, which
+    # requires to install apex following https://github.com/NVIDIA/apex#linux
+    # optimizer:
+    #   _target_: apex.optimizers.FusedAdam
+    #   lr: 3e-3
+    #   eps: 1e-15
     scheduler: null
 
 trainer:

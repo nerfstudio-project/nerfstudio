@@ -3,6 +3,6 @@
 MLP
 ===================
 
-.. automodule:: pyrad.fields.modules.mlp
+.. automodule:: nerfactory.fields.modules.mlp
    :members:
    :show-inheritance:

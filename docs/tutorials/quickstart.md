@@ -21,24 +21,24 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 Create the python environment
 
 ```bash
-conda create --name pyrad python=3.8.13
-conda activate pyrad
+conda create --name nerfactory python=3.8.13
+conda activate nerfactory
 ```
 
 Clone the repo
 
 ```bash
-git clone git@github.com:plenoptix/pyrad.git
+git clone git@github.com:plenoptix/nerfactory.git
 ```
 
 Install dependencies
 
 ```bash
-cd pyrad
+cd nerfactory
 pip install -r environment/requirements.txt
 ```
 
-Install pyrad as a library
+Install nerfactory as a library
 
 ```bash
 pip install -e .
@@ -61,7 +61,7 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](data/creating_dataset.md).
 
 ```
-|─ pyrad/
+|─ nerfactory/
    ├─ data/
    |  ├─ blender/
    |     ├─ fern/
