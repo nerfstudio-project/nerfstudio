@@ -22,7 +22,6 @@ from typing import Dict, List, Optional, Tuple, Union
 from omegaconf import ListConfig
 
 import torch
-from omegaconf import ListConfig
 from torch import nn
 from torchtyping import TensorType
 
