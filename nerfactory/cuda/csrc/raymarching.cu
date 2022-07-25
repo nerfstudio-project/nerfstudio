@@ -41,6 +41,7 @@ inline __device__ uint32_t grid_mip_offset(uint32_t mip, int grid_size) {
 inline __device__ uint32_t cascaded_grid_idx_at(
     float x, float y, float z, uint32_t mip, int grid_size, float grid_center, float grid_scale
 ) {
+    // TODO(ruilongli): if the x, y, z is outside the aabb, it will be clipped into aabb!!! We should just return false
 	float mip_scale = scalbnf(1.0f, -mip) / grid_scale;
     int ix = (int)((mip_scale * (x - grid_center) + 0.5f) * grid_size);
     int iy = (int)((mip_scale * (y - grid_center) + 0.5f) * grid_size);
@@ -239,6 +240,56 @@ __global__ void kernel_raymarching(
     return;
 }
 
+
+template <typename scalar_t>
+__global__ void kernel_occupancy_query(
+    // samples info
+    const uint32_t n_samples,
+    const scalar_t* positions, 
+    const scalar_t* deltas, 
+    // density grid
+    const float grid_center,
+    const float grid_scale,
+    const int grid_cascades,
+    const int grid_size,
+    const uint8_t* grid_bitfield,
+    // outputs
+    int32_t* mip_levels, // output mip level
+    int32_t* indices,  // output indices
+    bool* occupancies  // output occupancy
+) {
+    CUDA_GET_THREAD_ID(i, n_samples);
+
+    // locate
+    positions += i * 3;
+    deltas += i;
+    mip_levels += i;
+    indices += i;
+    occupancies += i;
+
+    // current point
+    const float x = positions[0];
+    const float y = positions[1];
+    const float z = positions[2];
+    const float dt = deltas[0];
+    
+    int32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
+    mip_levels[0] = mip;
+    
+    int32_t idx = (
+        cascaded_grid_idx_at(x, y, z, mip, grid_size, grid_center, grid_scale)
+        + grid_mip_offset(mip, grid_size)
+    );
+    indices[0] = idx;
+
+    if (grid_bitfield) {
+    	bool occ = grid_bitfield[idx/8] & (1<<(idx%8));
+        occupancies[0] = occ;
+    }
+    return;
+}
+
+
 /**
  * @brief Sample points by ray marching.
  * 
@@ -345,3 +396,57 @@ std::vector<torch::Tensor> raymarching(
 
     return {packed_info, origins, dirs, starts, ends};
 }
+
+
+std::vector<torch::Tensor> occupancy_query(
+    // samples
+    const torch::Tensor positions, 
+    const torch::Tensor deltas, 
+    // density grid
+    const float grid_center,
+    const float grid_scale,
+    const int grid_cascades,
+    const int grid_size,
+    const torch::Tensor grid_bitfield
+) {
+    DEVICE_GUARD(positions);
+
+    CHECK_INPUT(positions);
+    CHECK_INPUT(deltas);
+    CHECK_INPUT(grid_bitfield);
+    
+    const int n_samples = positions.size(0);
+
+    const int threads = 256;
+    const int blocks = CUDA_N_BLOCKS_NEEDED(n_samples, threads);
+
+    // outputs
+    torch::Tensor mip_levels = torch::empty({n_samples}, positions.options().dtype(torch::kInt32));
+    torch::Tensor indices = torch::empty({n_samples}, positions.options().dtype(torch::kInt32));
+    torch::Tensor occupancies = torch::empty({n_samples}, positions.options().dtype(torch::kBool));
+
+    AT_DISPATCH_FLOATING_TYPES_AND_HALF(
+        positions.scalar_type(),
+        "occupancy_query",
+        ([&]
+         { kernel_occupancy_query<scalar_t><<<blocks, threads>>>(
+                // samples
+                n_samples,
+                positions.data_ptr<scalar_t>(),
+                deltas.data_ptr<scalar_t>(),
+                // density grid
+                grid_center,
+                grid_scale,
+                grid_cascades,
+                grid_size,
+                grid_bitfield.data_ptr<uint8_t>(),
+                // outputs
+                mip_levels.data_ptr<int32_t>(),
+                indices.data_ptr<int32_t>(),
+                occupancies.data_ptr<bool>()
+            ); 
+        }));
+
+    return {mip_levels, indices, occupancies};
+}
+

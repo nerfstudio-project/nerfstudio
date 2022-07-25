@@ -22,6 +22,7 @@ from torch import nn
 from torchtyping import TensorType
 
 import nerfactory.cuda as nerfactory_cuda
+from nerfactory.cameras.rays import RaySamples
 
 
 def _create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
@@ -85,6 +86,9 @@ class DensityGrid(nn.Module):
         grid_indices = nerfactory_cuda.morton3D(grid_coords.to("cuda:0")).to("cpu")
         self.register_buffer("grid_coords", grid_coords)
         self.register_buffer("grid_indices", grid_indices)
+
+        mean_density = torch.zeros((1,))
+        self.register_buffer("mean_density", mean_density)
 
     @torch.no_grad()
     def get_all_cells(self) -> List[Tuple[TensorType["n_cells"], TensorType["n_cells", 3]]]:
@@ -171,23 +175,39 @@ class DensityGrid(nn.Module):
         # ema update
         valid_mask = (self.density_grid >= 0) & (tmp_grid >= 0)
         self.density_grid[valid_mask] = torch.maximum(self.density_grid[valid_mask] * decay, tmp_grid[valid_mask])
-        mean_density = self.density_grid.mean().item()
+        self.mean_density.data = self.density_grid.mean()
 
         # pack to bitfield
-        self.density_bitfield.data = nerfactory_cuda.packbits(self.density_grid, min(mean_density, density_threshold))
+        self.density_bitfield.data = nerfactory_cuda.packbits(
+            self.density_grid, min(self.mean_density.item(), density_threshold)
+        )
 
         # TODO(ruilongli): max pooling? https://github.com/NVlabs/instant-ngp/blob/master/src/testbed_nerf.cu#L578
 
     @torch.no_grad()
-    def get_densities(self, xyzs: TensorType[..., 3]) -> TensorType[..., 1]:
-        """Trilinear interpolation to get the density values.
+    def get_densities(self, ray_samples: RaySamples) -> TensorType[..., 1]:
+        """Get the density values stored in the density grid.
         Args:
-            xyzs (TensorType[..., 3]): 3D querry coordinate
+            ray_samples RaySamples: ray samples
         Returns:
             TensorType[..., 1]: Density values
         """
-        # TODO(ruilongli) pass in RaySamples because we need dt to decide mip level.
-        raise NotImplementedError("We haven't implement the logic of querying densities from cascaded grid.")
+        positions = ray_samples.frustums.get_positions()
+        deltas = ray_samples.frustums.ends - ray_samples.frustums.starts
+
+        _mip_levels, indices, _occupancies = nerfactory_cuda.occupancy_query(
+            positions.reshape(-1, 3),
+            deltas.reshape(-1),
+            self.center,
+            self.base_scale,
+            self.num_cascades,
+            self.resolution,
+            self.density_bitfield,
+        )
+
+        densities = self.density_grid.reshape(-1)[indices.long()]
+        densities = densities.view(*positions.shape[:-1], 1)
+        return densities
 
     def forward(self, x):
         """Not implemented."""
