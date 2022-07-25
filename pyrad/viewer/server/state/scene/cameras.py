@@ -59,7 +59,7 @@ def get_camera_wireframe(scale: float = 0.3, f: int = 4, w: int = 1.5, h: int = 
     ll = np.array([-w, -h, -f])
     lr = np.array([w, -h, -f])
     C = np.zeros(3)
-    camera_points = [C, ul, C, ur, C, ll, C, lr, C]
+    camera_points = [C, ul, C, ur, C, ll, C, lr, C, ul, ur, ul, lr, ur, lr, ll, ll, ul]
     lines = np.stack(camera_points) * scale
     return lines
 
@@ -131,6 +131,6 @@ def frustum(
     colors = np.array([color for _ in range(N)])
     line_segments = LineSegments(
         PointsGeometry(position=camera_wireframe_lines.astype(np.float32).T, color=colors.astype(np.float32).T),
-        LineBasicMaterial(vertexColors=True, linewidth=10.0),
+        LineBasicMaterial(vertexColors=True),
     )
     return line_segments

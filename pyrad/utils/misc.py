@@ -21,6 +21,7 @@ import json
 from pydoc import locate
 from typing import Any, Dict
 
+from math import floor, log
 import torch
 from omegaconf import DictConfig
 
@@ -90,3 +91,11 @@ def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
     encoded = json.dumps(dictionary, sort_keys=True).encode()
     dhash.update(encoded)
     return dhash.hexdigest()
+
+
+def human_format(num):
+    """Format a number in a more human readable way"""
+    units = ["", "K", "M", "B", "T", "P"]
+    k = 1000.0
+    magnitude = int(floor(log(num, k)))
+    return f"{(num / k**magnitude):.2f} {units[magnitude]}"

@@ -6,16 +6,18 @@ import { ViewerState } from "./Viewer";
 import { PanelConfig, RenderControls } from "./controlPanel";
 
 function App() {
-  let [controls, setControls, setOutputOptions] = RenderControls();
+  let [controls, paused, setControls, setOutputOptions] = RenderControls();
 
   console.log(controls);
   return (
     <div>
       <ViewerState
         {...controls}
+        paused={paused}
         setControls={setControls}
         setOutputOptions={setOutputOptions}
       />
+      <button id="demo">Button 1</button>
       <PanelConfig />
     </div>
   );
