@@ -76,7 +76,7 @@ def main(args):
         hydra_dir = f"{args.hydra_base_dir}/blender_{dataset}_{args.benchmark_date}/{args.graph}/"
         config = _load_hydra_config(hydra_dir)
         config.data.dataloader_eval.image_indices = None
-        
+
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
