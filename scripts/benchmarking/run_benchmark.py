@@ -41,7 +41,6 @@ def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     step = os.path.splitext(latest_ckpt)[0].split("-")[-1]
     config.resume_train.load_dir = model_dir
     config.resume_train.load_step = int(step)
-    config.data.dataloader_eval.image_indices = None
     return os.path.join(model_dir, latest_ckpt)
 
 
@@ -76,6 +75,8 @@ def main(args):
         # set up trainer, config, and checkpoint loading
         hydra_dir = f"{args.hydra_base_dir}/blender_{dataset}_{args.benchmark_date}/{args.graph}/"
         config = _load_hydra_config(hydra_dir)
+        config.data.dataloader_eval.image_indices = None
+        
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation
