@@ -21,11 +21,11 @@ trainer:
   steps_per_test: 200
 
 graph:
-  _target_: pyrad.graphs.mipnerf_360.MipNerf360Graph
+  _target_: nerfactory.graphs.mipnerf_360.MipNerf360Graph
   num_coarse_samples: 128
   num_importance_samples: 128
   collider_config:
-    _target_: pyrad.graphs.modules.scene_colliders.NearFarCollider
+    _target_: nerfactory.graphs.modules.scene_colliders.NearFarCollider
     near_plane: 0.5
     far_plane: 20.0
   loss_coefficients:

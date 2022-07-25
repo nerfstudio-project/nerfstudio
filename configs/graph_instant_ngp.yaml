@@ -15,9 +15,9 @@ viewer:
   num_rays_per_chunk: 16384
 
 graph:
-  _target_: pyrad.graphs.instant_ngp.NGPGraph
+  _target_: nerfactory.graphs.instant_ngp.NGPGraph
   collider_config:
-    _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+    _target_: nerfactory.graphs.modules.scene_colliders.AABBBoxCollider
   field_implementation: tcnn # torch, tcnn, ...
   loss_coefficients: # loss coefficients
     rgb_loss: 1.0

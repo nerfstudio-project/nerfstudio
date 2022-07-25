@@ -3,6 +3,6 @@
 Viewer
 ============
 
-.. automodule:: pyrad.viewer
+.. automodule:: nerfactory.viewer
    :members:
    :show-inheritance:

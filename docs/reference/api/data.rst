@@ -6,34 +6,34 @@ Data
 Image Dataset
 ----------------
 
-.. automodule:: pyrad.data.image_dataset
+.. automodule:: nerfactory.data.image_dataset
    :members:
    :show-inheritance:
 
 Image Sampler
 ----------------
 
-.. automodule:: pyrad.data.image_sampler
+.. automodule:: nerfactory.data.image_sampler
    :members:
    :show-inheritance:
 
 Pixel Sampler
 ----------------
 
-.. automodule:: pyrad.data.pixel_sampler
+.. automodule:: nerfactory.data.pixel_sampler
    :members:
    :show-inheritance:
 
 Structures
 ----------------
 
-.. automodule:: pyrad.data.structs
+.. automodule:: nerfactory.data.structs
    :members:
    :show-inheritance:
 
 Utils
 ----------------
 
-.. automodule:: pyrad.data.utils
+.. automodule:: nerfactory.data.utils
    :members:
    :show-inheritance:

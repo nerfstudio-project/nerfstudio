@@ -1,6 +1,6 @@
 # Developing a Custom Model
 
-In this quick tour, we will walk you through the core of training and building any NeRFs with pyrad.
+In this quick tour, we will walk you through the core of training and building any NeRFs with nerfactory.
 
 The entry point for training starts at `scripts/run_train.py`, which spawns instances of our `Trainer()` class (in `engine/trainer.py`). The `Trainer()` is responsible for setting up the datasets and NeRF graph depending on the config specified. It will then run the usual train/val routine for a config-specified number of iterations. If you are planning on using our codebase to build a new NeRF method or to use an existing implementation, we've abstracted away the training routine in these two files and chances are you will not need to think of them again.
 
@@ -131,7 +131,7 @@ data:
   # <insert any dataset related overrides here>
 
 graph:
-  _target_: pyrad.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
+  _target_: nerfactory.graph.vanilla_nerf.NeRFGraph # set the target to the graph you defined
   # <insert any graph related overrides here>
 
 optimizers:
@@ -146,6 +146,6 @@ Once you have the config properly set up, you can begin training! To begin the t
 python scripts/run_train.py --config-name vanilla_nerf
 ```
 
-And now you have a brand-new NeRF in training! For testing and visualizing, simply refer to steps 4-5 in the [quickstart guide](https://github.com/plenoptix/pyrad#quickstart).
+And now you have a brand-new NeRF in training! For testing and visualizing, simply refer to steps 4-5 in the [quickstart guide](https://github.com/plenoptix/nerfactory#quickstart).
 
 To help you get started, we also provide additional training tools such as profiling, logging, and debugging. Please refer to our [features guide](../tooling/index.rst).

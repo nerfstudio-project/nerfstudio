@@ -54,14 +54,14 @@ data:
     downscale_factor: 1
     alpha_color: white
   image_dataset_train:
-    _target_: pyrad.data.image_dataset.ImageDataset
+    _target_: nerfactory.data.image_dataset.ImageDataset
   dataloader_train:
-    _target_: pyrad.data.dataloader.TrainDataloader
+    _target_: nerfactory.data.dataloader.TrainDataloader
     image_sampler:
-      _target_: pyrad.data.image_sampler.CacheImageSampler
+      _target_: nerfactory.data.image_sampler.CacheImageSampler
       num_images_to_sample_from: -1
     pixel_sampler:
-      _target_: pyrad.data.pixel_sampler.PixelSampler
+      _target_: nerfactory.data.pixel_sampler.PixelSampler
       num_rays_per_batch: 1024
   # Eval dataloading.
   dataset_inputs_eval:
@@ -70,19 +70,19 @@ data:
     downscale_factor: 1 # NOTE: this might be the only value that changes
     alpha_color: white
   image_dataset_eval:
-    _target_: pyrad.data.image_dataset.ImageDataset
+    _target_: nerfactory.data.image_dataset.ImageDataset
   dataloader_eval:
-    _target_: pyrad.data.dataloader.FixedIndicesEvalDataloader
+    _target_: nerfactory.data.dataloader.FixedIndicesEvalDataloader
     image_indices: [0] # which images to evaluate on
     num_rays_per_chunk: 4096
   # dataloader_eval:
-  #   _target_: pyrad.data.dataloader.RandIndicesEvalDataloader
+  #   _target_: nerfactory.data.dataloader.RandIndicesEvalDataloader
   #   num_rays_per_chunk: 4096
 
 graph:
-  _target_: pyrad.graphs.vanilla_nerf.NeRFGraph
+  _target_: nerfactory.graphs.vanilla_nerf.NeRFGraph
   collider_config:
-    _target_: pyrad.graphs.modules.scene_colliders.NearFarCollider
+    _target_: nerfactory.graphs.modules.scene_colliders.NearFarCollider
     near_plane: 2.0
     far_plane: 6.0
   num_coarse_samples: 64
@@ -97,7 +97,7 @@ optimizers:
       _target_: torch.optim.RAdam
       lr: 0.0005
     scheduler:
-      _target_: pyrad.optimizers.optimizers.ExponentialDecaySchedule
+      _target_: nerfactory.optimizers.optimizers.ExponentialDecaySchedule
       lr_final: 0.000005
       max_steps: 1000000
 

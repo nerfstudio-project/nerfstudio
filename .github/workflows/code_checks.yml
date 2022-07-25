@@ -28,10 +28,10 @@ jobs:
         run: |
           ./scripts/licensing/license_headers.sh --check
       - name: Run Black
-        run: black pyrad/ scripts/ notebooks/ --check
+        run: black nerfactory/ scripts/ notebooks/ --check
       - name: Python Pylint
         run: |
-          pylint pyrad tests scripts
+          pylint nerfactory tests scripts
       - name: Test with pytest
         run: |
           pytest
