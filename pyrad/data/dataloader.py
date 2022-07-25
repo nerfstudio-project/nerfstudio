@@ -31,7 +31,7 @@ from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset
 from pyrad.data.image_sampler import ImageSampler
 from pyrad.data.pixel_sampler import PixelSampler
-from pyrad.data.structs import DatasetInputs, GenericDataContainer
+from pyrad.data.structs import DatasetInputs, BaseDataContainer
 from pyrad.data.utils import get_dataset_inputs_from_dataset_config
 from pyrad.graphs.modules.ray_generator import RayGenerator
 from pyrad.utils import profiler
@@ -174,17 +174,17 @@ class AbstractDataloader(nn.Module):
         """Sets up the dataloader for evaluation"""
 
     @abstractmethod
-    def next_train(self) -> GenericDataContainer:
+    def next_train(self) -> BaseDataContainer:
         """Returns the next batch of data from the train dataloader"""
 
     @abstractmethod
-    def next_eval(self) -> GenericDataContainer:
+    def next_eval(self) -> BaseDataContainer:
         """Returns the next batch of data from the eval dataloader"""
 
 
-class AbstractCachedDataloaderV2(AbstractDataloader):
+class AbstractStoredDataloader(AbstractDataloader):
     """Subclass of the new V2 dataloader that is used for when things fit in memory,
-    and will be cached in the dataloader itself.
+    and will be stored in the dataloader itself.
 
     Attributes:
         camera_to_world (torch.Tensor): camera to world transformation
@@ -204,11 +204,11 @@ class AbstractCachedDataloaderV2(AbstractDataloader):
         """Sets up the dataloader for evaluation"""
 
     @abstractmethod
-    def next_train(self) -> GenericDataContainer:
+    def next_train(self) -> BaseDataContainer:
         """Returns the next batch of data from the train dataloader"""
 
     @abstractmethod
-    def next_eval(self) -> GenericDataContainer:
+    def next_eval(self) -> BaseDataContainer:
         """Returns the next batch of data from the eval dataloader"""
 
 
