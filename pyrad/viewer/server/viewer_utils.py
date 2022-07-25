@@ -27,8 +27,8 @@ import numpy as np
 import torch
 from pyrad.utils.decorators import check_visualizer_enabled, decorate_all
 
-import pyrad.viewer.server.cameras as c
-import pyrad.viewer.server.geometry as g
+import pyrad.viewer.server.state.scene.cameras as c
+import pyrad.viewer.server.state.scene.geometry as g
 from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
 from pyrad.cameras.rays import RayBundle
 from pyrad.data.image_dataset import ImageDataset

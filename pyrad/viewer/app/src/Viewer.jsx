@@ -1,17 +1,16 @@
-import React, { Component } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import Stats from "three/examples/jsm/libs/stats.module.js";
-import { GUI } from "dat.gui";
-import { split_path } from "./utils";
-import { SceneNode } from "./SceneNode";
-import { ExtensibleObjectLoader } from "./ExtensibleObjectLoader";
+import React, { Component } from 'react';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { GUI } from 'dat.gui';
+import { split_path } from './utils';
+import { SceneNode } from './SceneNode';
+import { ExtensibleObjectLoader } from './ExtensibleObjectLoader';
 
 function websocket_endpoint_from_url(url) {
-  let endpoint = url.split("?").pop();
-  if (endpoint == "") {
-    let message =
-      "Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051";
+  const endpoint = url.split('?').pop();
+  if (endpoint == '') {
+    const message = 'Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051';
     window.alert(message);
     return null;
   }
@@ -23,13 +22,13 @@ function findCameraObjectUnderObject3D(object) {
   if (object instanceof THREE.Camera) {
     return object;
   }
-  for (let name of Object.keys(object.children)) {
+  for (const name of Object.keys(object.children)) {
     return findCameraObjectUnderObject3D(object.children[name]);
   }
   return null;
 }
 
-var msgpack = require("msgpack-lite");
+const msgpack = require('msgpack-lite');
 
 export class ViewerState extends Component {
   constructor(props) {
@@ -53,20 +52,19 @@ export class ViewerState extends Component {
   handleResize() {
     this.state.viewport_width = this.getViewportWidth();
     this.state.viewport_height = this.getViewportHeight();
-    this.state.camera_main.aspect =
-      this.state.viewport_width / this.state.viewport_height;
+    this.state.camera_main.aspect = this.state.viewport_width / this.state.viewport_height;
     this.state.camera_main.updateProjectionMatrix();
     this.state.renderer_main.setSize(
       this.state.viewport_width,
-      this.state.viewport_height
+      this.state.viewport_height,
     );
   }
 
   update() {
     requestAnimationFrame(this.update);
     this.handleResize();
-    let camera_main = findCameraObjectUnderObject3D(
-      this.state.scene_tree.find(["Cameras", "Main Camera"]).object
+    const camera_main = findCameraObjectUnderObject3D(
+      this.state.scene_tree.find(['Cameras', 'Main Camera']).object,
     );
     camera_main.updateProjectionMatrix();
     if (this.state.controls_main != null) {
@@ -82,32 +80,32 @@ export class ViewerState extends Component {
     // console.log("send_camera_over_websocket");
     if (this.state.websocket.readyState === WebSocket.OPEN) {
       // update the camera information in the python server
-      let camera_main = findCameraObjectUnderObject3D(
-        this.state.scene_tree.find(["Cameras", "Main Camera"]).object
+      const camera_main = findCameraObjectUnderObject3D(
+        this.state.scene_tree.find(['Cameras', 'Main Camera']).object,
       );
       // console.log(camera_main.toJSON());
-      let cmd = "set_object";
-      let path = "Cameras/Main Camera";
-      let data = {
+      const cmd = 'set_object';
+      const path = 'Cameras/Main Camera';
+      const data = {
         type: cmd,
-        path: path,
+        path,
         object: camera_main.toJSON(),
       };
-      let message = msgpack.encode(data);
+      const message = msgpack.encode(data);
       this.state.websocket.send(message);
     }
   }
 
   send_training_state_over_websocket(value) {
     if (this.state.websocket.readyState === WebSocket.OPEN) {
-      let cmd = "set_training_state";
-      let path = "Training State";
-      let data = {
+      const cmd = 'set_training_state';
+      const path = 'Training State';
+      const data = {
         type: cmd,
-        path: path,
+        path,
         training_state: value,
       };
-      let message = msgpack.encode(data);
+      const message = msgpack.encode(data);
       this.state.websocket.send(message);
     }
   }
@@ -116,62 +114,62 @@ export class ViewerState extends Component {
     /* update the output option in the python server
                             if the user changes selection */
     if (this.state.websocket.readyState === WebSocket.OPEN) {
-      let cmd = "set_output_type";
-      let path = "Output Type";
-      let data = {
+      const cmd = 'set_output_type';
+      const path = 'Output Type';
+      const data = {
         type: cmd,
-        path: path,
+        path,
         output_type: value,
       };
-      let message = msgpack.encode(data);
+      const message = msgpack.encode(data);
       this.state.websocket.send(message);
     }
   }
 
   send_min_resolution_over_websocket(value) {
     if (this.state.websocket.readyState === WebSocket.OPEN) {
-      let cmd = "set_min_resolution";
-      let path = "Min Resolution";
-      let data = {
+      const cmd = 'set_min_resolution';
+      const path = 'Min Resolution';
+      const data = {
         type: cmd,
-        path: path,
+        path,
         min_resolution: value,
       };
-      let message = msgpack.encode(data);
+      const message = msgpack.encode(data);
       this.state.websocket.send(message);
     }
   }
 
   send_max_resolution_over_websocket(value) {
     if (this.state.websocket.readyState === WebSocket.OPEN) {
-      let cmd = "set_max_resolution";
-      let path = "Max Resolution";
-      let data = {
+      const cmd = 'set_max_resolution';
+      const path = 'Max Resolution';
+      const data = {
         type: cmd,
-        path: path,
+        path,
         max_resolution: value,
       };
-      let message = msgpack.encode(data);
+      const message = msgpack.encode(data);
       this.state.websocket.send(message);
     }
   }
 
   set_object(path, object) {
     if (!(object instanceof THREE.Camera)) {
-      this.state.scene_tree.find(path.concat(["<object>"])).set_object(object);
+      this.state.scene_tree.find(path.concat(['<object>'])).set_object(object);
     }
   }
 
   set_object_from_json(path, object_json) {
-    let loader = new ExtensibleObjectLoader();
+    const loader = new ExtensibleObjectLoader();
     loader.parse(object_json, (obj) => {
       if (
-        obj.geometry !== undefined &&
-        obj.geometry.type === "BufferGeometry"
+        obj.geometry !== undefined
+        && obj.geometry.type === 'BufferGeometry'
       ) {
         if (
-          obj.geometry.attributes.normal === undefined ||
-          obj.geometry.attributes.normal.count === 0
+          obj.geometry.attributes.normal === undefined
+          || obj.geometry.attributes.normal.count === 0
         ) {
           obj.geometry.computeVertexNormals();
         }
@@ -188,7 +186,7 @@ export class ViewerState extends Component {
 
   delete_path(path) {
     if (path.length === 0) {
-      console.error("Deleting the entire scene is not implemented.");
+      console.error('Deleting the entire scene is not implemented.');
     } else {
       this.state.scene_tree.delete(path);
     }
@@ -197,7 +195,7 @@ export class ViewerState extends Component {
   set_property(path, property, value) {
     this.state.scene_tree.find(path).set_property(property, value);
     // TODO(ethan): handle this issue
-    if (path[0] === "Background") {
+    if (path[0] === 'Background') {
       // The background is not an Object3d, so needs a little help.
       this.state.scene_tree.find(path).on_update();
     }
@@ -209,25 +207,25 @@ export class ViewerState extends Component {
     // console.log(cmd);
 
     // three js scene commands
-    if (cmd.type === "set_object") {
-      let path = split_path(cmd.path);
+    if (cmd.type === 'set_object') {
+      const path = split_path(cmd.path);
       this.set_object_from_json(path, cmd.object);
-    } else if (cmd.type === "set_transform") {
-      let path = split_path(cmd.path);
+    } else if (cmd.type === 'set_transform') {
+      const path = split_path(cmd.path);
       this.set_transform(path, cmd.matrix);
-    } else if (cmd.type === "delete") {
-      let path = split_path(cmd.path);
+    } else if (cmd.type === 'delete') {
+      const path = split_path(cmd.path);
       this.delete_path(path);
-    } else if (cmd.type === "set_property") {
-      let path = split_path(cmd.path);
+    } else if (cmd.type === 'set_property') {
+      const path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
-    } else if (cmd.type == "set_output_options") {
+    } else if (cmd.type == 'set_output_options') {
       this.props.setOutputOptions(cmd.output_options);
       this.props.setControls({ output_options: 1 });
     }
     // web rtc commands
-    else if (cmd.type === "answer") {
-      let answer = cmd.data;
+    else if (cmd.type === 'answer') {
+      const answer = cmd.data;
       this.state.pc.setRemoteDescription(answer);
     }
 
@@ -244,99 +242,96 @@ export class ViewerState extends Component {
   }
 
   setupWebRTC() {
-    console.log("setting up WebRTC");
+    console.log('setting up WebRTC');
     // The iceServers config comes from the following URL:
     // https://www.metered.ca/tools/openrelay/
     this.state.pc = new RTCPeerConnection({
       iceServers: [
         {
-          urls: "stun:openrelay.metered.ca:80",
+          urls: 'stun:openrelay.metered.ca:80',
         },
         {
-          urls: "turn:openrelay.metered.ca:80",
-          username: "openrelayproject",
-          credential: "openrelayproject",
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
         },
         {
-          urls: "turn:openrelay.metered.ca:443",
-          username: "openrelayproject",
-          credential: "openrelayproject",
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
         },
         {
-          urls: "turn:openrelay.metered.ca:443?transport=tcp",
-          username: "openrelayproject",
-          credential: "openrelayproject",
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
         },
       ],
     });
 
     // connect video
-    this.state.pc.addEventListener("track", function (evt) {
-      if (evt.track.kind == "video") {
-        console.log("setting event stream");
-        document.getElementById("WebRTCVideo-video").srcObject = evt.streams[0];
+    this.state.pc.addEventListener('track', (evt) => {
+      if (evt.track.kind == 'video') {
+        console.log('setting event stream');
+        document.getElementById('WebRTCVideo-video').srcObject = evt.streams[0];
       }
     });
-    this.state.pc.addTransceiver("video", { direction: "recvonly" });
+    this.state.pc.addTransceiver('video', { direction: 'recvonly' });
 
     this.state.pc
       .createOffer()
-      .then((offer) => {
-        return this.state.pc.setLocalDescription(offer);
-      })
-      .then(() => {
+      .then((offer) => this.state.pc.setLocalDescription(offer))
+      .then(() =>
         // wait for ICE gathering to complete
-        return new Promise((resolve) => {
-          if (this.state.pc.iceGatheringState === "complete") {
+        new Promise((resolve) => {
+          if (this.state.pc.iceGatheringState === 'complete') {
             resolve();
           } else {
             var checkState = () => {
-              if (this.state.pc.iceGatheringState === "complete") {
+              if (this.state.pc.iceGatheringState === 'complete') {
                 this.state.pc.removeEventListener(
-                  "icegatheringstatechange",
-                  checkState
+                  'icegatheringstatechange',
+                  checkState,
                 );
                 resolve();
               }
             };
             this.state.pc.addEventListener(
-              "icegatheringstatechange",
-              checkState
+              'icegatheringstatechange',
+              checkState,
             );
           }
-        });
-      })
+        }))
       .then(() => {
-        var offer = this.state.pc.localDescription;
-        console.log("sending the offer");
-        let cmd = "offer";
-        let path = "";
-        let data = {
+        const offer = this.state.pc.localDescription;
+        console.log('sending the offer');
+        const cmd = 'offer';
+        const path = '';
+        const data = {
           type: cmd,
-          path: path,
+          path,
           data: {
             sdp: offer.sdp,
             type: offer.type,
           },
         };
-        let message = msgpack.encode(data);
+        const message = msgpack.encode(data);
         this.state.websocket.send(message);
       });
   }
 
   componentDidMount() {
     // Open the websocket
-    let endpoint = websocket_endpoint_from_url(window.location.href);
-    this.state.websocket = new WebSocket("ws://" + endpoint + "/");
+    const endpoint = websocket_endpoint_from_url(window.location.href);
+    this.state.websocket = new WebSocket(`ws://${endpoint}/`);
     this.state.websocket.onopen = () => {
-      console.log("websocket connected");
+      console.log('websocket connected');
       this.setupWebRTC();
     };
-    this.state.websocket.binaryType = "arraybuffer";
+    this.state.websocket.binaryType = 'arraybuffer';
     // 'command' for updates to Viewer
     this.state.websocket.onmessage = (cmd) => this.handle_command(cmd.data);
     this.state.websocket.onclose = function (evt) {
-      console.log("onclose:", evt);
+      console.log('onclose:', evt);
     };
 
     // Get size of screen
@@ -348,7 +343,7 @@ export class ViewerState extends Component {
 
     // GUI
     this.state.gui = new GUI();
-    let scene_folder = this.state.gui.addFolder("Scene");
+    const scene_folder = this.state.gui.addFolder('Scene');
     scene_folder.open();
     this.state.scene_tree = new SceneNode(this.state.scene, scene_folder);
 
@@ -360,11 +355,11 @@ export class ViewerState extends Component {
     this.state.renderer_main.setPixelRatio(window.devicePixelRatio);
     this.state.renderer_main.setSize(
       this.state.viewport_width,
-      this.state.viewport_height
+      this.state.viewport_height,
     );
-    this.state.renderer_main.domElement.style.border = "1px solid black";
+    this.state.renderer_main.domElement.style.border = '1px solid black';
 
-    let domElement = document.getElementById("canvas-container-main");
+    const domElement = document.getElementById('canvas-container-main');
     domElement.append(this.state.renderer_main.domElement);
 
     // Camera main
@@ -372,7 +367,7 @@ export class ViewerState extends Component {
       120,
       this.state.viewport_width / this.state.viewport_height,
       0.01,
-      100
+      100,
     );
     this.state.camera_main.position.x = 5;
     this.state.camera_main.position.y = -5;
@@ -381,7 +376,7 @@ export class ViewerState extends Component {
 
     this.state.controls_main = new OrbitControls(
       this.state.camera_main,
-      this.state.renderer_main.domElement
+      this.state.renderer_main.domElement,
     );
     this.state.controls_main.rotateSpeed = 2.0;
     this.state.controls_main.zoomSpeed = 0.3;
@@ -392,29 +387,29 @@ export class ViewerState extends Component {
     this.state.controls_main.dampingFactor = 1.0;
     this.state.controls_main.update();
 
-    let path = ["Cameras", "Main Camera"];
+    const path = ['Cameras', 'Main Camera'];
     this.state.scene_tree
-      .find(path.concat(["<object>"]))
+      .find(path.concat(['<object>']))
       .set_object(this.state.camera_main);
 
     // Axes display
-    let axes = new THREE.AxesHelper(5);
-    this.set_object(["Axes"], axes);
+    const axes = new THREE.AxesHelper(5);
+    this.set_object(['Axes'], axes);
 
     // Grid
-    let grid = new THREE.GridHelper(20, 20);
+    const grid = new THREE.GridHelper(20, 20);
     grid.rotateX(Math.PI / 2); // now on xy plane
-    this.set_object(["Grid"], grid);
+    this.set_object(['Grid'], grid);
 
     // Lights
-    let color = 0xffffff;
-    let intensity = 1;
-    let light = new THREE.AmbientLight(color, intensity);
-    this.set_object(["Light"], light);
+    const color = 0xffffff;
+    const intensity = 1;
+    const light = new THREE.AmbientLight(color, intensity);
+    this.set_object(['Light'], light);
 
     // Stats
-    var stats = new Stats();
-    let domElement_stats = document.getElementById("canvas-container-main");
+    const stats = new Stats();
+    const domElement_stats = document.getElementById('canvas-container-main');
     domElement_stats.append(stats.dom);
 
     this.update();
@@ -435,14 +430,14 @@ export class ViewerState extends Component {
     // Set minimum render resolution
     if (prevProps.min_resolution !== this.props.min_resolution) {
       this.send_min_resolution_over_websocket(
-        this.props.min_resolution.slice(0, -2)
+        this.props.min_resolution.slice(0, -2),
       );
     }
 
     // Set maximum render resolution
     if (prevProps.max_resolution !== this.props.max_resolution) {
       this.send_max_resolution_over_websocket(
-        this.props.max_resolution.slice(0, -2)
+        this.props.max_resolution.slice(0, -2),
       );
     }
   }
@@ -451,7 +446,7 @@ export class ViewerState extends Component {
     return (
       <div>
         <div className="WebRTCVideo">
-          <video id="WebRTCVideo-video" autoPlay playsInline muted></video>
+          <video id="WebRTCVideo-video" autoPlay playsInline muted />
         </div>
         <div id="canvas-container-main"> </div>
         <div id="stats-container"> </div>

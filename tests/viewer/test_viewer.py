@@ -11,7 +11,7 @@ import numpy as np
 import umsgpack
 from tqdm import tqdm
 
-import pyrad.viewer.server.geometry as g
+import pyrad.viewer.server.state.scene.geometry as g
 from pyrad.cameras.camera_paths import InterpolatedCameraPath
 from pyrad.cameras.cameras import get_camera
 from pyrad.data.utils import get_dataset_inputs

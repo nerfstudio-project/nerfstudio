@@ -32,6 +32,13 @@ from pyrad.viewer.server.state.scene.geometry import (
 from pyrad.viewer.server.path import Path
 
 
+class SceneCommand:
+    def lower(self):
+        dict_ = self.lower()
+        assert "tree" not in dict_
+        dict_["tree"] = "scene"
+
+
 class SetObject:  # pylint: disable=too-few-public-methods
     """Set object command class: Instantiates and sets the object according to object type
 
@@ -103,6 +110,13 @@ class SetProperty:
 
 
 @dataclass
+class GetProperty:
+    """Get property command class"""
+
+    # TODO(ethan): implement this
+
+
+@dataclass
 class SetTransform:
     """Set transform command class"""
 
@@ -122,11 +136,17 @@ class GetTransform:
 
 
 @dataclass
+class GetTransform:
+    """Get transform command class"""
+
+    # TODO(ethan): implement this
+
+
+@dataclass
 class SetOutputOptions:
     """Set output options command class"""
 
     # TODO(ethan): remove this and replace with a Widget
-
     __slots__ = ["output_options", "path"]
 
     output_options: List[str]

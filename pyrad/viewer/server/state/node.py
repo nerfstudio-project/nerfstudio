@@ -12,7 +12,7 @@ class Node(defaultdict):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(Node, *args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 def get_tree(node_class: Callable) -> Callable:
@@ -24,10 +24,14 @@ def get_tree(node_class: Callable) -> Callable:
     """
     assert isinstance(node_class(), Node)
     tree = lambda: node_class(tree)
-    return tree
+    return tree()
 
 
 def walk(tree):
+    """Walk the entire tree and return the values
+    Args:
+        tree: the root of the tree to start search
+    """
     yield tree
     for v in tree.values():
         for t in walk(v):  # could use `yield from` if we didn't need python2

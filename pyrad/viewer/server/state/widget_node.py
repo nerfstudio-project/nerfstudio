@@ -46,6 +46,8 @@ class Number(Widget):
 class Slider(Widget):
     """TODO"""
 
-class Color(Widget):
+class ColorPicker(Widget):
     """TODO"""
 
+class Color(Widget):
+    """TODO"""

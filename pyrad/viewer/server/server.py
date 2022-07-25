@@ -32,7 +32,8 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
-from pyrad.viewer.server.state.scene_node import SceneTree, find_node, walk
+from pyrad.viewer.server.state.scene_node import SceneNode
+from pyrad.viewer.server.state.node import get_tree, walk, find_node
 from pyrad.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
@@ -117,20 +118,20 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         path = list(filter(lambda x: len(x) > 0, m["path"].split("/")))
 
         if type_ == "set_transform":
-            find_node(self.bridge.tree, path).transform = data
+            find_node(self.bridge.scene_tree, path).transform = data
         elif type_ == "set_object":
-            find_node(self.bridge.tree, path).object = data
-            find_node(self.bridge.tree, path).properties = []
+            find_node(self.bridge.scene_tree, path).object = data
+            find_node(self.bridge.scene_tree, path).properties = []
         elif type_ == "set_output_options":
-            find_node(self.bridge.tree, path).object = data
+            find_node(self.bridge.scene_tree, path).object = data
         elif type_ == "set_output_type":
-            find_node(self.bridge.tree, path).object = data
+            find_node(self.bridge.scene_tree, path).object = data
         elif type_ == "set_max_resolution":
-            find_node(self.bridge.tree, path).object = data
+            find_node(self.bridge.scene_tree, path).object = data
         elif type_ == "set_min_resolution":
-            find_node(self.bridge.tree, path).object = data
+            find_node(self.bridge.scene_tree, path).object = data
         elif type_ == "set_training_state":
-            find_node(self.bridge.tree, path).object = data
+            find_node(self.bridge.scene_tree, path).object = data
         elif type_ == "offer":
             offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
 
@@ -197,7 +198,7 @@ class ZMQWebSocketBridge:
             self.app.listen(websocket_port, **listen_kwargs)
             self.websocket_port = websocket_port
 
-        self.tree = SceneTree()
+        self.scene_tree = get_tree(SceneNode)
 
     def __str__(self) -> str:
         class_name = self.__class__.__name__
@@ -214,7 +215,7 @@ class ZMQWebSocketBridge:
             frames: the list containing command + object to be placed in tree
         """
         cmd = frames[0].decode("utf-8")
-        print(cmd)
+        # print(cmd)
         if len(frames) != 3:
             self.zmq_socket.send(b"error: expected 3 frames")
             return
@@ -224,36 +225,36 @@ class ZMQWebSocketBridge:
             if cmd != "get_object":
                 self.forward_to_websockets(frames)
             if cmd == "set_transform":
-                find_node(self.tree, path).transform = data
+                find_node(self.scene_tree, path).transform = data
             elif cmd == "set_object":
-                find_node(self.tree, path).object = data
-                find_node(self.tree, path).properties = []
+                find_node(self.scene_tree, path).object = data
+                find_node(self.scene_tree, path).properties = []
             elif cmd == "set_output_options":
-                find_node(self.tree, path).object = data
+                find_node(self.scene_tree, path).object = data
             elif cmd == "set_output_type":
-                find_node(self.tree, path).object = data
+                find_node(self.scene_tree, path).object = data
             elif cmd == "set_max_resolution":
-                find_node(self.tree, path).object = data
+                find_node(self.scene_tree, path).object = data
             elif cmd == "set_min_resolution":
-                find_node(self.tree, path).object = data
+                find_node(self.scene_tree, path).object = data
             elif cmd == "set_training_state":
-                find_node(self.tree, path).object = data
+                find_node(self.scene_tree, path).object = data
             elif cmd == "get_object":
-                data = find_node(self.tree, path).object
+                data = find_node(self.scene_tree, path).object
                 if isinstance(data, type(None)):
                     data = umsgpack.packb("error: object not found")
                 self.zmq_socket.send(data)
                 return
             elif cmd == "set_property":
-                find_node(self.tree, path).properties.append(data)
+                find_node(self.scene_tree, path).properties.append(data)
             elif cmd == "delete":
                 if len(path) > 0:
-                    parent = find_node(self.tree, path[:-1])
+                    parent = find_node(self.scene_tree, path[:-1])
                     child = path[-1]
                     if child in parent:
                         del parent[child]
                 else:
-                    self.tree = SceneTree()
+                    self.scene_tree = get_tree(SceneNode)
         elif cmd in WEBRTC_COMMANDS:
             if cmd == "set_image":
                 image = msgpack.unpackb(
@@ -295,7 +296,7 @@ class ZMQWebSocketBridge:
         Args:
             websocket: websocket to send information over
         """
-        for node in walk(self.tree):
+        for node in walk(self.scene_tree):
             if node.object is not None:
                 websocket.write_message(node.object, binary=True)
             for p in node.properties:

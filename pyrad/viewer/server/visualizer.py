@@ -33,8 +33,7 @@ from pyrad.viewer.server.state.scene.commands import (
 )
 
 # for the widgets
-from pyrad.viewer.server.state.widgets.commands import SetWidget
-
+from pyrad.viewer.server.state.widget.commands import SetWidget
 from pyrad.viewer.server.path import Path
 
 

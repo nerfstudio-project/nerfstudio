@@ -4,6 +4,7 @@ import "./index.css";
 import * as serviceWorker from "./serviceWorker";
 import { ViewerState } from "./Viewer";
 import { PanelConfig, RenderControls } from "./controlPanel";
+import { Provider } from 'react-redux'
 
 function App() {
   let [controls, paused, setControls, setOutputOptions] = RenderControls();
@@ -24,6 +25,7 @@ function App() {
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
+
 root.render(<App />);
 
 // If you want your app to work offline and load faster, you can change
