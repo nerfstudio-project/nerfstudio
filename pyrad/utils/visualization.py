@@ -15,6 +15,7 @@
 """ Helper functions for visualizing outputs """
 
 from typing import Optional
+
 import torch
 from matplotlib import cm
 from torchtyping import TensorType

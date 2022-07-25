@@ -21,19 +21,18 @@ from typing import Dict, List
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-from pyrad.fields.modules.field_heads import FieldHeadNames
-from pyrad.fields.instant_ngp_field import field_implementation_to_class
-from pyrad.graphs.base import Graph
-from pyrad.optimizers.loss import MSELoss
-from pyrad.fields.occupancy_fields.occupancy_grid import OccupancyGrid
-from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from pyrad.graphs.modules.ray_sampler import UniformSampler
-from pyrad.utils import colors
+import pyrad.cuda as pyrad_cuda
 from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.fields.density_fields.density_grid import DensityGrid
+from pyrad.fields.instant_ngp_field import field_implementation_to_class
+from pyrad.fields.modules.field_heads import FieldHeadNames
+from pyrad.graphs.base import Graph
+from pyrad.graphs.modules.ray_sampler import NGPSpacedSampler
+from pyrad.optimizers.loss import MSELoss
+from pyrad.utils import colors, visualization, writer
 from pyrad.utils.callbacks import Callback
 
 
@@ -51,9 +50,9 @@ class NGPGraph(Graph):
         """defining callbacks to run after every training iteration"""
         self.callbacks = [
             Callback(
-                self.occupancy_grid.update_every_num_iters,
-                self.occupancy_grid.update_occupancy_grid,
-                density_fn=self.field.density_fn,
+                self.density_grid.update_every_num_iters,
+                self.density_grid.update_density_grid,
+                density_eval_func=self.field.density_fn,
             )
         ]
 
@@ -63,19 +62,11 @@ class NGPGraph(Graph):
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
-        # occupancy grid
-        self.occupancy_grid = OccupancyGrid(aabb=self.scene_bounds.aabb)
+        # density grid
+        self.density_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
 
         # samplers
-        self.sampler_occupancy_grid = UniformSampler(num_samples=128)
-
-        # TODO stabalize occupancy grid.
-        # self.sampler_occupancy_grid = UniformSampler(num_samples=128, occupancy_field=self.occupancy_grid)
-
-        # renderers
-        self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
-        self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer()
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_grid)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -90,37 +81,39 @@ class NGPGraph(Graph):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
+    @torch.cuda.amp.autocast()
     def get_outputs(self, ray_bundle: RayBundle):
+        # TODO(ruilongli)
+        # - train test difference
+        # - visualize "depth_density_grid"
+        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
-        # uniform sampling
-        ray_samples = self.sampler_occupancy_grid(ray_bundle)
         field_outputs = self.field.forward(ray_samples)
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        rgbs = field_outputs[FieldHeadNames.RGB]
+        sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        rgb = self.renderer_rgb(
-            rgb=field_outputs[FieldHeadNames.RGB],
-            weights=weights,
+        accumulated_weight, accumulated_depth, accumulated_color, mask = pyrad_cuda.VolumeRenderer.apply(
+            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs
         )
-        accumulation = self.renderer_accumulation(weights)
-        depth = self.renderer_depth(weights, ray_samples)
-
-        densities_occupancy_grid = self.occupancy_grid.get_densities(ray_samples.frustums.get_positions())
-        weights_occupancy_grid = ray_samples.get_weights(densities_occupancy_grid)
-        depth_occupancy_grid = self.renderer_depth(weights_occupancy_grid, ray_samples)
+        accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
+        accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
 
         outputs = {
-            "rgb": rgb,
-            "accumulation": accumulation,
-            "depth": depth,
-            "depth_occupancy_grid": depth_occupancy_grid,
+            "rgb": accumulated_color,
+            "accumulation": accumulated_weight,
+            "depth": accumulated_depth,
+            "mask": mask,  # the rays we skipped from sampler
         }
         return outputs
 
     def get_loss_dict(self, outputs, batch):
         device = self.get_device()
         image = batch["image"].to(device)
-        rgb_loss = self.rgb_loss(image, outputs["rgb"])
+        if "mask" in outputs:
+            mask = outputs["mask"]
+            rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
+        else:
+            rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 
@@ -137,8 +130,6 @@ class NGPGraph(Graph):
         outputs["accumulation"] = combined_acc
         combined_depth = torch.cat([depth], dim=1)
         outputs["depth"] = combined_depth
-        depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        outputs["depth_occupancy_grid"] = combined_depth
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
@@ -156,9 +147,6 @@ class NGPGraph(Graph):
         writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
-
-        occupancy_depth = visualization.apply_depth_colormap(outputs["depth_occupancy_grid"])
-        writer.put_image(name=f"depth_occupancy_grid/image_idx_{image_idx}", image=occupancy_depth, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

@@ -19,12 +19,12 @@ Base class for the graphs.
 from abc import abstractmethod
 from typing import Dict, Optional, Tuple
 
-from torch import nn
 import torch
+from torch import nn
 from torchtyping import TensorType
-from pyrad.fields.modules.field_heads import FieldHeadNames
 
 from pyrad.cameras.rays import Frustums, RaySamples
+from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.utils.misc import is_not_none
 
 
@@ -32,7 +32,7 @@ class Field(nn.Module):
     """Base class for fields."""
 
     def density_fn(self, positions):
-        """Returns only the density. Used primarily with the occupancy grid."""
+        """Returns only the density. Used primarily with the density grid."""
         # Need to figure out a better way to descibe positions with a ray.
         ray_samples = RaySamples(
             frustums=Frustums(

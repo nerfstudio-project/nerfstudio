@@ -19,7 +19,7 @@ In general, modules can be thought of as individual component parts of the graph
 
 {ref}`fields` represents the "space", aka. the radiance field of the NeRF. Here, we define the field as the part of the network that takes in point samples and any other conditioning, and outputs any of the `FieldHeadNames` (`nerf/field_modules/field_heads.py`).
 
-All fields are composed of modules continained within the `fields/` directory (e.g. `fields/modules/` or `fields/occupancy_fields/`). We can think of field modules as modules that actually define or interact with the field.
+All fields are composed of modules continained within the `fields/` directory (e.g. `fields/modules/` or `fields/density_fields/`). We can think of field modules as modules that actually define or interact with the field.
 
 To build a NeRF field, we therefore follow these steps:
 

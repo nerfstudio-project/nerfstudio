@@ -2,6 +2,7 @@
 Test tensor dataclass
 """
 from dataclasses import dataclass
+
 import pytest
 import torch
 

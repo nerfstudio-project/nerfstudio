@@ -94,6 +94,7 @@ class RaySamples(TensorDataclass):
         camera_indices (TensorType[..., 1]): Camera index.
         valid_mask (TensorType[..., 1]): Rays that are valid.
         deltas (TensorType[..., 1]): "width" of each sample.
+        ts (TensorType[..., 1]): sample-camera distance of each sample.
     """
 
     frustums: Frustums
