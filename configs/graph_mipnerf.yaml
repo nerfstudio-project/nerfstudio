@@ -10,7 +10,7 @@ method_name: mipnerf
 # rgb = sigmoid(x)               rgb = (1 + 2e) / (1 + exp(-x)) -e
 
 graph:
-  _target_: pyrad.graphs.mipnerf.MipNerfGraph
+  _target_: nerfactory.graphs.mipnerf.MipNerfGraph
   num_coarse_samples: 128
   num_importance_samples: 128
   loss_coefficients:

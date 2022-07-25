@@ -3,6 +3,6 @@
 Renderers
 ============
 
-.. automodule:: pyrad.renderers.renderers
+.. automodule:: nerfactory.renderers.renderers
    :members:
    :show-inheritance:

@@ -11,13 +11,13 @@ import numpy as np
 import umsgpack
 from tqdm import tqdm
 
-import pyrad.viewer.server.geometry as g
-from pyrad.cameras.camera_paths import InterpolatedCameraPath
-from pyrad.cameras.cameras import get_camera
-from pyrad.data.utils import get_dataset_inputs
-from pyrad.utils.io import get_absolute_path
-from pyrad.viewer.server.viewer_utils import get_default_vis, set_camera
-from pyrad.viewer.server.transformations import get_rotation_matrix, get_translation_matrix
+import nerfactory.viewer.server.geometry as g
+from nerfactory.cameras.camera_paths import InterpolatedCameraPath
+from nerfactory.cameras.cameras import get_camera
+from nerfactory.data.utils import get_dataset_inputs
+from nerfactory.utils.io import get_absolute_path
+from nerfactory.viewer.server.viewer_utils import get_default_vis, set_camera
+from nerfactory.viewer.server.transformations import get_rotation_matrix, get_translation_matrix
 
 
 def test_drawing():

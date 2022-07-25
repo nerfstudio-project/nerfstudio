@@ -4,7 +4,7 @@ Test the ray classes.
 
 import pytest
 import torch
-from pyrad.cameras.rays import Frustums
+from nerfactory.cameras.rays import Frustums
 
 
 def test_frustum_get_position():

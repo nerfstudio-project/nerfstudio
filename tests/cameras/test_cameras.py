@@ -4,8 +4,8 @@ Test the camera classes.
 
 import torch
 
-from pyrad.cameras.cameras import EquirectangularCamera, PinholeCamera
-from pyrad.cameras.rays import RayBundle
+from nerfactory.cameras.cameras import EquirectangularCamera, PinholeCamera
+from nerfactory.cameras.rays import RayBundle
 
 
 def test_pinhole_camera():

@@ -3,6 +3,6 @@
 Math
 ============
 
-.. automodule:: pyrad.utils.math
+.. automodule:: nerfactory.utils.math
    :members:
    :show-inheritance:
