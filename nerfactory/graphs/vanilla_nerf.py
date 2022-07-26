@@ -33,11 +33,7 @@ from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.base import Graph
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.renderers.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-)
+from nerfactory.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from nerfactory.utils import colors, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
