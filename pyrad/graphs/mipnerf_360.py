@@ -36,7 +36,7 @@ from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.utils import colors
 from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.utils import visualization, writer, misc
 
 
 class MipNerf360Graph(Graph):
@@ -140,16 +140,25 @@ class MipNerf360Graph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
-        loss_dict = {
+        metrics_dict = {
             "rgb_loss_coarse": rgb_loss_coarse,
             "rgb_loss_fine": rgb_loss_fine,
+        }
+        return metrics_dict
+
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+
+        loss_dict = {
             "ray_loss_coarse": torch.mean(outputs["ray_loss_coarse"]),
             "ray_loss_fine": torch.mean(outputs["ray_loss_fine"]),
         }
+        loss_dict.update(metrics_dict)
+
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):

@@ -31,7 +31,7 @@ from pyrad.fields.nerf_field import NeRFField
 from pyrad.graphs.vanilla_nerf import NeRFGraph
 from pyrad.renderers.renderers import SemanticRenderer
 from pyrad.cameras.rays import RaySamples, RayBundle
-from pyrad.utils import writer
+from pyrad.utils import writer, misc
 
 
 class SemanticNerfField(Field):
@@ -162,7 +162,7 @@ class SemanticNerfGraph(NeRFGraph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
@@ -174,6 +174,7 @@ class SemanticNerfGraph(NeRFGraph):
             "rgb_loss_fine": rgb_loss_fine,
             "semantic_loss_fine": semantic_loss_fine,
         }
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):

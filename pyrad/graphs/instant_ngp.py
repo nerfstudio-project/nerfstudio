@@ -33,7 +33,7 @@ from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRe
 from pyrad.graphs.modules.ray_sampler import UniformSampler
 from pyrad.utils import colors
 from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.utils import visualization, writer, misc
 from pyrad.utils.callbacks import Callback
 
 
@@ -117,11 +117,12 @@ class NGPGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         device = self.get_device()
         image = batch["image"].to(device)
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use

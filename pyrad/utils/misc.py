@@ -90,3 +90,11 @@ def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
     encoded = json.dumps(dictionary, sort_keys=True).encode()
     dhash.update(encoded)
     return dhash.hexdigest()
+
+
+def scale_dict(dictionary: Dict[Any, Any], coefficients: DictConfig) -> Dict[Any, Any]:
+    """Scale a dictionary in-place given a coefficients dictionary."""
+    for key in dictionary:
+        if key in coefficients:
+            dictionary[key] *= coefficients[key]
+    return dictionary

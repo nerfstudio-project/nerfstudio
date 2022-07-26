@@ -34,7 +34,7 @@ from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
 from pyrad.utils import colors
 from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.utils import visualization, writer, misc
 
 
 class MipNerfGraph(Graph):
@@ -131,11 +131,12 @@ class MipNerfGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):

@@ -31,7 +31,7 @@ from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer, UncertaintyRenderer
 from pyrad.utils import colors
 from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
+from pyrad.utils import visualization, writer, misc
 
 
 class NerfWGraph(Graph):
@@ -176,7 +176,7 @@ class NerfWGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
         rgb_coarse = outputs["rgb_coarse"]
@@ -194,6 +194,7 @@ class NerfWGraph(Graph):
             "uncertainty_loss": uncertainty_loss,
             "density_loss": density_loss,
         }
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
