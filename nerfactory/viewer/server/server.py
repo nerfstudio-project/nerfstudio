@@ -19,12 +19,12 @@ from __future__ import absolute_import, division, print_function
 import sys
 from typing import Callable, List, Optional
 
+import msgpack
+import msgpack_numpy
 import tornado.gen
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
-import msgpack
-import msgpack_numpy
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop

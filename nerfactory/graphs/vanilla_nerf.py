@@ -22,19 +22,22 @@ from typing import Dict, List
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.base import Graph
-from nerfactory.optimizers.loss import MSELoss
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from nerfactory.utils import colors
-from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils import visualization, writer
+from nerfactory.optimizers.loss import MSELoss
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfactory.utils import colors, visualization, writer
 
 
 class NeRFGraph(Graph):

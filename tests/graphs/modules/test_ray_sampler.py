@@ -2,6 +2,8 @@
 Test samplers
 """
 import torch
+
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.graphs.modules.ray_sampler import (
     LinearDisparitySampler,
     LogSampler,
@@ -9,8 +11,6 @@ from nerfactory.graphs.modules.ray_sampler import (
     SqrtSampler,
     UniformSampler,
 )
-
-from nerfactory.cameras.rays import RayBundle
 from nerfactory.graphs.modules.scene_colliders import NearFarCollider
 
 

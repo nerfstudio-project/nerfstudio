@@ -18,10 +18,10 @@ Miscellaneous helper code.
 
 import hashlib
 import json
+from math import floor, log
 from pydoc import locate
 from typing import Any, Callable, Dict
 
-from math import floor, log
 import torch
 from omegaconf import DictConfig
 

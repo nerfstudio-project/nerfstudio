@@ -18,20 +18,24 @@ NeRF-W (NeRF in the wild) implementation.
 
 import torch
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.nerfw_field import VanillaNerfWField
 from nerfactory.graphs.base import Graph
-from nerfactory.optimizers.loss import MSELoss
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer, UncertaintyRenderer
-from nerfactory.utils import colors
-from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils import visualization, writer
+from nerfactory.optimizers.loss import MSELoss
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+    UncertaintyRenderer,
+)
+from nerfactory.utils import colors, visualization, writer
 
 
 class NerfWGraph(Graph):
