@@ -48,6 +48,8 @@ class NeRFGraph(Graph):
         far_plane (float, optional): Where to stop sampling points. Defaults to a distance of 6,
         num_coarse_samples (int, optional): Number of samples in coarse field evaluation. Defaults to 64,
         num_importance_samples(int, optional): Number of samples in fine field evaluation. Defaults to 64,
+        enable_density_field (bool): Whether to create a density field to filter samples.
+        density_field_config (DictConfig): Configuration of density field.
     """
 
     def __init__(
