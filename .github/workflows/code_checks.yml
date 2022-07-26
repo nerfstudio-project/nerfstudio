@@ -27,6 +27,8 @@ jobs:
       - name: Run license checks
         run: |
           ./scripts/licensing/license_headers.sh --check
+      - name: Run isort
+        run: isort . --profile black --check
       - name: Run Black
         run: black nerfactory/ scripts/ notebooks/ --check
       - name: Python Pylint
