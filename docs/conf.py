@@ -35,13 +35,11 @@ extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinxemoji.sphinxemoji",
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
-    "nbsphinx",
     "sphinx_design",
     "sphinx.ext.mathjax",
 ]
@@ -69,7 +67,7 @@ html_js_files = [
 # -- MYST configs -----------------------------------------------------------
 
 # To enable admonitions:
-myst_enable_extensions = ["colon_fence"]
+myst_enable_extensions = ["amsmath", "colon_fence", "dollarmath", "html_image"]
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -112,3 +110,8 @@ napoleon_use_rtype = True
 napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
+
+# -- MYSTNB -----------------------------------------------------------------
+
+suppress_warnings = ["mystnb.unknown_mime_type", "myst.header"]
+nb_execution_mode = "off"
