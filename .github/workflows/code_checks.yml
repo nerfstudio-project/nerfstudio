@@ -27,6 +27,9 @@ jobs:
       - name: Run license checks
         run: |
           ./scripts/licensing/license_headers.sh --check
+      - name: Check notebook cell metadata
+        run: |
+          ./scripts/docs/add_nb_tags.sh --check
       - name: Run Black
         run: black nerfactory/ scripts/ notebooks/ --check
       - name: Python Pylint
