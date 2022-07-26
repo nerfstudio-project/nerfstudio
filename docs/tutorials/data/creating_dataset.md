@@ -1,14 +1,15 @@
 # Using custom data
 
-Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into an existing format. Specifically we need to know the camera poses for each image. [COLMAP](https://github.com/colmap/colmap) is a standard tool for extracting poses. It is possible to use other methods like [SLAM](https://en.wikipedia.org/wiki/Simultaneous_localization_and_mapping) or hardware recorded poses. We intend to add documentation for these other methods in the future. 
+Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into an existing format. Specifically we need to know the camera poses for each image. [COLMAP](https://github.com/colmap/colmap) is a standard tool for extracting poses. It is possible to use other methods like [SLAM](https://en.wikipedia.org/wiki/Simultaneous_localization_and_mapping) or hardware recorded poses. We intend to add documentation for these other methods in the future.
 
 #### Recover poses using COLMAP
+
 :::{admonition} Notes
 :class: warning
 
-+ This method assumes the images were captured with a standard _pinhole-like_ camera. 360° captures will not work.
-+ COLMAP is notoriously finicky. Try your best to capture overlapping, non-blurry images.
-:::
+- This method assumes the images were captured with a standard _pinhole-like_ camera. 360° captures will not work.
+- COLMAP is notoriously finicky. Try your best to capture overlapping, non-blurry images.
+  :::
 
 These instructions will recover poses for your own images using [COLMAP](https://github.com/colmap/colmap) and save the data in the `instant_ngp` format.
 
@@ -18,10 +19,10 @@ For example, maybe we have a video named `bear.mp4`. We can use the commands des
 
 ```bash
 # Navigate to the repo.
-cd /path/to/pyrad
+cd /path/to/nerfactory
 
 # Setup the environment variables.
-PYRAD_DIR=`pwd`
+nerfactory_DIR=`pwd`
 DATASET_FORMAT=instant_ngp
 DATASET_NAME=bear
 
@@ -30,7 +31,7 @@ mkdir data/$DATASET_FORMAT/$DATASET_NAME
 cd data/$DATASET_FORMAT/$DATASET_NAME
 
 # Run the COLMAP script.
-python $PYRAD_DIR/scripts/colmap2nerf.py \
+python $nerfactory_DIR/scripts/colmap2nerf.py \
     --video_in /path/to/bear.mp4 \
     --video_fps 2 \
     --run_colmap \
@@ -38,8 +39,10 @@ python $PYRAD_DIR/scripts/colmap2nerf.py \
 ```
 
 In the config set:
+
 ```yaml
-...
-    data_directory: data/instant_ngp/bear
-    dataset_format: instant_ngp
+
+---
+data_directory: data/instant_ngp/bear
+dataset_format: instant_ngp
 ```

@@ -18,9 +18,9 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = "pyRad"
-copyright = "2022, pyRad Team"
-author = "pyRad Team"
+project = "nerfactory"
+copyright = "2022, nerfactory Team"
+author = "nerfactory Team"
 
 # The full version, including alpha/beta/rc tags
 release = "0.0.0"
@@ -35,13 +35,11 @@ extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinxemoji.sphinxemoji",
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
-    "nbsphinx",
     "sphinx_design",
     "sphinx.ext.mathjax",
 ]
@@ -69,7 +67,7 @@ html_js_files = [
 # -- MYST configs -----------------------------------------------------------
 
 # To enable admonitions:
-myst_enable_extensions = ["colon_fence"]
+myst_enable_extensions = ["amsmath", "colon_fence", "dollarmath", "html_image"]
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -78,7 +76,7 @@ myst_enable_extensions = ["colon_fence"]
 # a list of builtin themes.
 #
 html_theme = "furo"
-html_title = "pyRad"
+html_title = "nerfactory"
 
 autosectionlabel_prefix_document = True
 
@@ -112,3 +110,8 @@ napoleon_use_rtype = True
 napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
+
+# -- MYSTNB -----------------------------------------------------------------
+
+suppress_warnings = ["mystnb.unknown_mime_type", "myst.header"]
+nb_execution_mode = "off"

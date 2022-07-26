@@ -7,9 +7,9 @@ Script to process different dataset types into our format.
 from typing import List
 from hydra import compose, initialize
 
-from pyrad.data.utils import get_dataset_inputs
-from pyrad.utils.io import get_absolute_path, make_dir, write_to_pkl
-from pyrad.utils.misc import get_hash_str_from_dict
+from nerfactory.data.utils import get_dataset_inputs
+from nerfactory.utils.io import get_absolute_path, make_dir, write_to_pkl
+from nerfactory.utils.misc import get_hash_str_from_dict
 
 
 def save_dataset_inputs_to_cache(

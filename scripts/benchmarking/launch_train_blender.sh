@@ -43,7 +43,7 @@ for dataset in ${DATASETS[@]}; do
            data.dataset_inputs_train.data_directory=data/blender/${dataset} \
            data.dataset_inputs_eval.data_directory=data/blender/${dataset} \
            experiment_name=blender_${dataset}_${tag} \
-           trainer.model_dir=pyrad_models/ \
+           trainer.model_dir=nerfactory_models/ \
            trainer.steps_per_save=25000 \
            trainer.max_num_iterations=2000000 \
            viewer.enable=False \

@@ -1,13 +1,13 @@
-<h1 align="center"> pyRad🤘 </h1>
+<h1 align="center"> nerfactory🤘 </h1>
 
 <p align="center"> The all-in-one repo for NeRFs </p>
 
 <p align="center"> 
-    <a href="https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/?badge=latest">
-        <img alt="Documentation Status" src="https://readthedocs.com/projects/plenoptix-pyrad/badge/?version=latest">
+    <a href="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest">
+        <img alt="Documentation Status" src="https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest">
     </a>
     <!-- TODO: add license and have it point to that -->
-    <a href="https://github.com/plenoptix/pyrad/blob/master/LICENSE">
+    <a href="https://github.com/plenoptix/nerfactory/blob/master/LICENSE">
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
     </a> 
     <!-- TODO: add version number badge -->
@@ -20,7 +20,7 @@
 # Quickstart
 
 The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene.
-For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please see our [docs](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
+For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please see our [docs](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
 
 #### 1. Installation: Setup the environment
 
@@ -44,23 +44,23 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 
 ```
 # Create the python environment
-conda create --name pyrad python=3.8.13
-conda activate pyrad
+conda create --name nerfactory python=3.8.13
+conda activate nerfactory
 
 # Clone the repo
-git clone git@github.com:plenoptix/pyrad.git
+git clone git@github.com:plenoptix/nerfactory.git
 
 # Install dependencies
-cd pyrad
+cd nerfactory
 pip install -r environment/requirements.txt
 
-# Install pyrad as a library
+# Install nerfactory as a library
 pip install -e .
 
 # Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
 python setup.py develop
 
-# Install tiny-cuda-nn (tcnn) to use with the graph_instant_ngp.yaml config
+# Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
 # Run the test cases
@@ -72,7 +72,7 @@ pytest tests
 Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](docs/tutorials/data_setup.rst).
 
 ```
-|─ pyrad/
+|─ nerfactory/
    ├─ data/
    |  ├─ blender/
    |     ├─ fern/
@@ -102,12 +102,12 @@ With support for [Hydra](https://hydra.cc/), you can run with other configuratio
 
 #### 4. Visualizing training runs
 
-We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/tooling/logging.html).
+We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/logging.html).
 
 <details>
 <summary>Real-time Viewer</summary>
 
-We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/tooling/viewer.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
+We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/viewer.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
 
 To enable add the following to your config:
 
@@ -154,7 +154,7 @@ python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.
 
 #### 6. In-depth guide
 
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-pyrad.readthedocs-hosted.com/en/latest/tutorials/creating_graphs.html).
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/creating_graphs.html).
 
 # Supported Features
 

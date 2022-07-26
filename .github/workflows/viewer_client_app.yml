@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./pyrad/viewer/app
+        working-directory: ./nerfactory/viewer/app
     steps:
       - name: Checkout code
         uses: actions/checkout@master
@@ -35,7 +35,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: production-files
-          path: ./pyrad/viewer/app/build
+          path: ./nerfactory/viewer/app/build
 
   deploy:
     name: Deploy
@@ -48,10 +48,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: production-files
-          path: ./pyrad/viewer/app/build
+          path: ./nerfactory/viewer/app/build
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./pyrad/viewer/app/build
+          publish_dir: ./nerfactory/viewer/app/build

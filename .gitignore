@@ -168,7 +168,7 @@ events.out.*
 # Data
 data
 data_*/
-!pyrad/data
+!nerfactory/data
 !configs/data
 !docs/tutorials/data
 
@@ -180,8 +180,6 @@ external/
 __MACOSX/
 outputs*/
 node_modules/
-yarn.lock
-package.json
 scripts/colmap2nerf.py
 bash/
-pyrad/ngp_pl/
+nerfactory/ngp_pl/
