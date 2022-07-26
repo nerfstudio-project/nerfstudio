@@ -12,7 +12,6 @@ const WebSocketContext = createContext(null);
 export { WebSocketContext };
 
 function getWebsocketEndpointFromUrl(url: string) {
-  console.log("i'm here");
   const splitUrl = url.split('?');
   if (splitUrl.length !== 2) {
     window.alert("There should be exactly one '?' in the url.");
@@ -29,11 +28,6 @@ function getWebsocketEndpointFromUrl(url: string) {
 }
 
 export default function WebSocketContextFunction({ children }) {
-  // const websocketState = useSelector((state) => state.websocketState);
-  // const [isWebsocketConnected, setIsWebsocketConnected] = React.useState(
-  //   websocketState.isConnected,
-  // );
-
   const dispatch = useDispatch();
 
   let socket;
@@ -44,7 +38,7 @@ export default function WebSocketContextFunction({ children }) {
 
   const sendMessage = (roomId, message) => {
     const payload = {
-      roomId: roomId,
+      roomId,
       data: message,
     };
     socket.emit('event://send-message', JSON.stringify(payload));
@@ -55,6 +49,7 @@ export default function WebSocketContextFunction({ children }) {
 
   const connect = () => {
     socket = new WebSocket(`ws://${websocketEndpoint}/`);
+    socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
         type: 'websocketState/setIsConnected',
@@ -63,20 +58,12 @@ export default function WebSocketContextFunction({ children }) {
       console.log('websocket connected');
     };
 
-    socket.onmessage = (e) => {
-      console.log('Message:', e.data);
-    };
-
     socket.onclose = (e) => {
-      console.log('on close');
+      // when closed, the websocket will try to reconnect every second
       dispatch({
         type: 'websocketState/setIsConnected',
         boolean: false,
       });
-      console.log(
-        'Socket is closed. Reconnect will be attempted in 1 second.',
-        e.reason,
-      );
       setTimeout(() => {
         connect();
       }, 1000);
@@ -95,15 +82,10 @@ export default function WebSocketContextFunction({ children }) {
   if (!socket) {
     connect();
     ws = {
-      socket: socket,
+      socket,
       sendMessage,
     };
   }
-
-  // // Similar to componentDidMount and componentDidUpdate:
-  // useEffect(() => {
-  //   console.log('calling use effect');
-  // }, []);
 
   return (
     <WebSocketContext.Provider value={ws}>{children}</WebSocketContext.Provider>

@@ -7,7 +7,7 @@ import App from './App';
 import { Provider } from 'react-redux';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import WebRtcProvider from './modules/WebRtc/WebRtc';
+import WebRtcProvider from './modules/WebRtcWindow/WebRtcWindow';
 import WebSocketProvider from './modules/WebSocket/WebSocket';
 import store from './store';
 
@@ -16,11 +16,8 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>
     <WebSocketProvider>
-      {/* uses the websocket to establish the webrtc connection */}
-      <WebRtcProvider>
-        <Alert />
-        <App />
-      </WebRtcProvider>
+      <Alert />
+      <App />
     </WebSocketProvider>
   </Provider>,
 );

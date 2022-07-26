@@ -1,22 +1,19 @@
 import { ConfigPanel, RenderControls } from './modules/ConfigPanel/ConfigPanel';
 
+import Alert from './modules/Alert/Alert';
 import React from 'react';
-import ViewerState from './modules/Viewer/Viewer';
-import Alert from "./modules/Alert/Alert";
+import SetupScene from './modules/Scene/Scene';
+import ViewerWindow from './modules/ViewerWindow/ViewerWindow';
 
 export default function App() {
+  let [scene] = SetupScene();
   const [controls, setControls] = RenderControls();
   console.log(controls);
   return (
     <div className="App">
-      <ViewerState
-        {...controls}
-        // paused={paused}
-        setControls={setControls}
-        // setOutputOptions={setOutputOptions}
-      />
-      <button id="demo">Button 1</button>
       <ConfigPanel />
+      <ViewerWindow scene={scene} />
+      {/* <ViewerWindow scene={scene} /> */}
     </div>
   );
 }
