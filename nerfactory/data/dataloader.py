@@ -17,21 +17,26 @@ Data loader.
 """
 
 import random
+from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 from omegaconf import ListConfig
 
+import torch
+from torch import nn
 from torchtyping import TensorType
+
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.image_sampler import ImageSampler
 from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import DatasetInputs
+from nerfactory.data.structs import DatasetInputs, BaseDataContainer
 from nerfactory.data.utils import get_dataset_inputs_from_dataset_config
+from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import DataConfig
-from nerfactory.utils.misc import get_dict_to_torch, instantiate_from_dict_config
+from nerfactory.utils.misc import IterableWrapper, get_dict_to_torch, instantiate_from_dict_config
 
 
 @profiler.time_function
@@ -79,6 +84,132 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
         **dataset_inputs_eval.as_dict(),
     )
     return dataset_inputs_eval, dataloader_eval
+
+
+class AbstractDataloader(nn.Module):
+    """Second version of the dataloader class (V2)
+
+    This version of the dataloader is designed to subsume both the train and eval dataloaders,
+    especially since this may contain learnable parameters which need to be shared across the train
+    and test dataloaders. The idea is that we have setup methods for train and eval separatley and
+    this can be a combined train/eval if you want.
+
+    The default should be for the train and eval dataloaders to be the same, but this can be
+    overridden. This is needed when there are learned parameters either in your data itself or in
+    the way some of the data (that we will pass to the renderer / Field) was generated. In these
+    cases, we want these parameters to be accessible by both the train and eval dataloaders, hence
+    why you would want them to be in the same dataloader.
+
+    An instance where you may want to have only the eval dataloader is if you are doing evaluation
+    and don't have the dataset used to train the model.
+
+
+    Train Methods:
+        setup_train: sets up for being used as train
+        iter_train: returns an iterator of the train dataloader
+        next_train: will be called on __next__() for the training iterator
+
+    Eval Methods:
+        setup_eval: sets up for being used as eval
+        iter_eval: returns an iterator of the eval dataloader
+        next_eval: will be called on __next__() for the eval iterator
+
+
+    Args:
+        image_sampler (ImageSampler): image sampler
+        pixel_sampler (PixelSampler): pixel sampler
+        ray_generator (RayGenerator): ray generator
+        use_train (bool): whether this is being used for training
+        use_eval (bool): whether this is being used for evaluation
+
+
+
+    Attributes:
+        image_sampler (ImageSampler): image sampler
+        pixel_sampler (PixelSampler): pixel sampler
+        ray_generator (RayGenerator): ray generator
+        train_count (int): number of times train has been called
+        eval_count (int): number of times eval has been called
+    """
+
+    def __init__(
+        self,
+        image_sampler: ImageSampler,
+        pixel_sampler: PixelSampler,
+        ray_generator: RayGenerator,
+        use_train: bool,
+        use_eval: bool,
+    ):
+        super().__init__()
+        self.image_sampler = image_sampler
+        self.pixel_sampler = pixel_sampler
+        self.iter_image_sampler = iter(self.image_sampler)
+        self.ray_generator = ray_generator
+        self.use_train = use_train
+        self.use_eval = use_eval
+        self.train_count = 0
+        self.eval_count = 0
+        assert use_train or use_eval
+        if use_train:
+            self.setup_train()
+        if use_eval:
+            self.setup_eval()
+
+    def iter_train(self) -> IterableWrapper:
+        """Returns an iterator that executes the self.next_train function"""
+        self.train_count = 0
+        return IterableWrapper(self, self.next_train)
+
+    def iter_eval(self) -> IterableWrapper:
+        """Returns an iterator that executes the self.next_eval function"""
+        self.eval_count = 0
+        return IterableWrapper(self, self.next_eval)
+
+    @abstractmethod
+    def setup_train(self):
+        """Sets up the dataloader for training"""
+
+    @abstractmethod
+    def setup_eval(self):
+        """Sets up the dataloader for evaluation"""
+
+    @abstractmethod
+    def next_train(self) -> BaseDataContainer:
+        """Returns the next batch of data from the train dataloader"""
+
+    @abstractmethod
+    def next_eval(self) -> BaseDataContainer:
+        """Returns the next batch of data from the eval dataloader"""
+
+
+class AbstractStoredDataloader(AbstractDataloader):
+    """Subclass of the new V2 dataloader that is used for when things fit in memory,
+    and will be stored in the dataloader itself.
+
+    Attributes:
+        camera_to_world (torch.Tensor): camera to world transformation
+        intrinsics (torch.Tensor): intrinsics matrix
+    """
+
+    camera_to_world: torch.Tensor
+    intrinsics: torch.Tensor
+
+    # These abstract methods are only copied over to appease the linter
+    @abstractmethod
+    def setup_train(self):
+        """Sets up the dataloader for training"""
+
+    @abstractmethod
+    def setup_eval(self):
+        """Sets up the dataloader for evaluation"""
+
+    @abstractmethod
+    def next_train(self) -> BaseDataContainer:
+        """Returns the next batch of data from the train dataloader"""
+
+    @abstractmethod
+    def next_eval(self) -> BaseDataContainer:
+        """Returns the next batch of data from the eval dataloader"""
 
 
 class TrainDataloader:

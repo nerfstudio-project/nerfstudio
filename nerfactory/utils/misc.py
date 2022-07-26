@@ -19,7 +19,7 @@ Miscellaneous helper code.
 import hashlib
 import json
 from pydoc import locate
-from typing import Any, Dict
+from typing import Any, Callable, Dict
 
 from math import floor, log
 import torch
@@ -91,6 +91,33 @@ def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
     encoded = json.dumps(dictionary, sort_keys=True).encode()
     dhash.update(encoded)
     return dhash.hexdigest()
+
+
+class IterableWrapper:  # pylint: disable=too-few-public-methods
+    """A helper that will allow an instance of a class to return multiple kinds of iterables bound
+    to different functions of that class.
+
+    To use this, pass in the instance of the class you want to have multiple kinds of iterables for,
+    and pass in a method belonging to that class that you want to be the __next__() method of the
+    iterable. The resulting instantiated object will be an iterable that will use the passed in
+    class method as the __next__() method.
+
+    Args:
+        instance (object): instance class we are wrapping
+        new_next (callable): function that will be called instead as the __next__()
+
+
+    Attributes:
+        instance (object): instance class we are wrapping
+        new_next (callable): function that will be called instead as the __next__()
+    """
+
+    def __init__(self, instance: object, new_next: Callable):
+        self.instance = instance
+        self.new_next = new_next
+
+    def __next__(self):
+        return self.new_next(self.instance)
 
 
 def human_format(num):

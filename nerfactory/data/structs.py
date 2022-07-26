@@ -22,6 +22,8 @@ from typing import List, Optional
 import torch
 from torchtyping import TensorType
 
+from nerfactory.cameras.rays import RayBundle
+
 
 @dataclass
 class PointCloud:
@@ -106,3 +108,20 @@ class DatasetInputs:
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
         return vars(self)
+
+
+@dataclass
+class BaseDataContainer:
+    """A container for data that is not specific to any dataset. It should be everything
+    needed by the renderer and loss calculation. Different datasets and models will probably
+    need to subclass from this differently, since different Field modules will require different
+    data.
+
+    Args:
+        rays (RayBundle): The rays for the image.
+        ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
+    """
+
+    rays: RayBundle  # Raybundle and the cameras will be merged into one thing in a later PR
+    cameras: torch.tensor
+    ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None
