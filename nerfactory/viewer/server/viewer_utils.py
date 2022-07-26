@@ -25,17 +25,21 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 
 import nerfactory.viewer.server.cameras as c
 import nerfactory.viewer.server.geometry as g
-from nerfactory.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from nerfactory.cameras.cameras import (
+    Camera,
+    get_camera,
+    get_intrinsics_from_intrinsics_matrix,
+)
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.structs import DatasetInputs
 from nerfactory.graphs.base import Graph
 from nerfactory.utils import profiler
 from nerfactory.utils.config import ViewerConfig
+from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.viewer.server.transformations import get_translation_matrix
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer

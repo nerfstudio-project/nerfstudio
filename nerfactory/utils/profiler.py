@@ -21,7 +21,11 @@ from typing import Callable
 
 from nerfactory.utils import comms
 from nerfactory.utils.config import LoggingConfig
-from nerfactory.utils.decorators import check_main_thread, check_profiler_enabled, decorate_all
+from nerfactory.utils.decorators import (
+    check_main_thread,
+    check_profiler_enabled,
+    decorate_all,
+)
 
 PROFILER = []
 

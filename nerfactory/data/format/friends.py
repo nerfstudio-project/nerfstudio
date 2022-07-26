@@ -21,7 +21,11 @@ import os
 import numpy as np
 import torch
 
-from nerfactory.data.colmap_utils import read_cameras_binary, read_images_binary, read_pointsTD_binary
+from nerfactory.data.colmap_utils import (
+    read_cameras_binary,
+    read_images_binary,
+    read_pointsTD_binary,
+)
 from nerfactory.data.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
 from nerfactory.utils import profiler
 from nerfactory.utils.io import load_from_json

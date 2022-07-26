@@ -19,6 +19,7 @@ Code for embeddings.
 
 import torch
 from torchtyping import TensorType
+
 from nerfactory.fields.modules.base import FieldModule
 
 

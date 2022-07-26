@@ -5,7 +5,7 @@ import sys
 import dcargs
 import yaml
 
-LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
+LOCAL_TESTS = ["Run license checks", "Run isort", "Run Black", "Python Pylint", "Test with pytest"]
 
 
 def run_command(command: str, continue_on_fail: bool = False) -> None:
@@ -47,6 +47,8 @@ def main(continue_on_fail: bool = False):
             print(f"Skipping {step}")
 
     # Add checks for building documentation
+    print_green("Adding notebook documentation metadata")
+    run_command("python scripts/docs/add_nb_tags.py")
     print_green("Building Documentation")
     run_command("cd docs/; make html SPHINXOPTS='-W;'")
 

@@ -16,10 +16,15 @@
 """
 
 from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import torch
 
-from nerfactory.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from nerfactory.cameras.cameras import (
+    Camera,
+    get_camera,
+    get_intrinsics_from_intrinsics_matrix,
+)
 from nerfactory.viewer.server.visualizer import Viewer
 
 

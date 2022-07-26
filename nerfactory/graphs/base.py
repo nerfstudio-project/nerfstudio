@@ -31,7 +31,11 @@ from nerfactory.data.structs import DatasetInputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import GraphConfig
-from nerfactory.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
+from nerfactory.utils.misc import (
+    get_masked_dict,
+    instantiate_from_dict_config,
+    is_not_none,
+)
 
 
 @profiler.time_function
