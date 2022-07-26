@@ -32,8 +32,8 @@ from typing import Optional
 import torch
 from torch import nn
 from torchtyping import TensorType
-from nerfactory.cameras.rays import RaySamples
 
+from nerfactory.cameras.rays import RaySamples
 from nerfactory.utils.math import components_from_spherical_harmonics
 
 

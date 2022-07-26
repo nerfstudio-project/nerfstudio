@@ -21,16 +21,21 @@ from typing import Dict, Optional, Tuple
 import torch
 from torch import nn
 from torchtyping import TensorType
-from nerfactory.data.structs import Semantics
 
-from nerfactory.fields.modules.encoding import Encoding, Identity, NeRFEncoding
-from nerfactory.fields.modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead, SemanticFieldHead
-from nerfactory.fields.modules.mlp import MLP
+from nerfactory.cameras.rays import RayBundle, RaySamples
+from nerfactory.data.structs import Semantics
 from nerfactory.fields.base import Field
+from nerfactory.fields.modules.encoding import Encoding, Identity, NeRFEncoding
+from nerfactory.fields.modules.field_heads import (
+    DensityFieldHead,
+    FieldHeadNames,
+    RGBFieldHead,
+    SemanticFieldHead,
+)
+from nerfactory.fields.modules.mlp import MLP
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.vanilla_nerf import NeRFGraph
 from nerfactory.renderers.renderers import SemanticRenderer
-from nerfactory.cameras.rays import RaySamples, RayBundle
 from nerfactory.utils import writer
 
 

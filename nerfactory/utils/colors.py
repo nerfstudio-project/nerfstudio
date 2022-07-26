@@ -14,8 +14,9 @@
 
 """Common Colors"""
 from typing import Union
-from omegaconf import ListConfig
+
 import torch
+from omegaconf import ListConfig
 from torchtyping import TensorType
 
 WHITE = torch.tensor([1.0, 1.0, 1.0])

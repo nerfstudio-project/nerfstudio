@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import numpy as np
+
 from nerfactory.viewer.server.geometry import (
     Mesh,
     MeshPhongMaterial,

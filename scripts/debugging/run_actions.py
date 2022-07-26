@@ -5,7 +5,7 @@ import sys
 import dcargs
 import yaml
 
-LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
+LOCAL_TESTS = ["Run license checks", "Run isort", "Run Black", "Python Pylint", "Test with pytest"]
 
 
 def run_command(command: str, continue_on_fail: bool = False) -> None:

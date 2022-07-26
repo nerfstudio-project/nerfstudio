@@ -9,7 +9,10 @@
   },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python"
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
   },
   "editor.formatOnSave": true,
   "python.envFile": "${workspaceFolder}/.env",

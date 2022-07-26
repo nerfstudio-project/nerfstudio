@@ -7,14 +7,13 @@ import logging
 import os
 from typing import Any, Dict
 
+import numpy as np
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
-import numpy as np
 from omegaconf import DictConfig
 from tqdm import tqdm
 
 from scripts.run_eval import run_inference_from_config
-
 
 OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
 

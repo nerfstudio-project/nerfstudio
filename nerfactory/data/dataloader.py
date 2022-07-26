@@ -19,24 +19,27 @@ Data loader.
 import random
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
-from omegaconf import ListConfig
 
 import torch
+from omegaconf import ListConfig
 from torch import nn
 from torchtyping import TensorType
-
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.image_sampler import ImageSampler
 from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import DatasetInputs, BaseDataContainer
+from nerfactory.data.structs import BaseDataContainer, DatasetInputs
 from nerfactory.data.utils import get_dataset_inputs_from_dataset_config
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import DataConfig
-from nerfactory.utils.misc import IterableWrapper, get_dict_to_torch, instantiate_from_dict_config
+from nerfactory.utils.misc import (
+    IterableWrapper,
+    get_dict_to_torch,
+    instantiate_from_dict_config,
+)
 
 
 @profiler.time_function
