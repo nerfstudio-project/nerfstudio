@@ -1,6 +1,6 @@
 import { Leva, button, buttonGroup, useControls } from 'leva';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import React, { useState, useEffect } from 'react';
 
 export function ConfigPanel() {
   const params = { titleBar: false };
@@ -13,6 +13,14 @@ export function ConfigPanel() {
 }
 
 export function RenderControls() {
+  // connection status indicators
+  const isWebsocketConnected = useSelector(
+    (state) => state.websocketState.isConnected,
+  );
+  const isWebrtcConnected = useSelector(
+    (state) => state.webrtcState.isConnected,
+  );
+
   const renderingState = useSelector((state) => state.renderingState);
   const [isTraining, setIsTraining] = React.useState(renderingState.isTraining);
   const [outputOptions, setOutputOptions] = React.useState(
@@ -26,6 +34,10 @@ export function RenderControls() {
   const [controls, setControls] = useControls(
     'Render Options',
     () => ({
+      // isConnected
+      'WebSocket Connected': button(toggleIsTraining, {
+        disabled: !isWebsocketConnected,
+      }),
       // isTraining
       'Resume Training': button(toggleIsTraining, {
         disabled: !isTraining,
@@ -68,13 +80,14 @@ export function RenderControls() {
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
     }),
-    [outputOptions, isTraining],
+    [isWebsocketConnected, isTraining, outputOptions],
   );
 
   // Similar to componentDidMount and componentDidUpdate:
   useEffect(() => {
     setOutputOptions(['hello', 'world']);
     // setControls({ output_options: 1 });
+    // setIsWebsocketConnected(true);
   }, []);
 
   // setOutputOptions(arr => ["hello", "world"]);

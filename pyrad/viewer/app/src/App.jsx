@@ -1,10 +1,8 @@
-import {
-  ConfigPanel,
-  RenderControls,
-} from './components/ConfigPanel/ConfigPanel';
+import { ConfigPanel, RenderControls } from './modules/ConfigPanel/ConfigPanel';
 
 import React from 'react';
-import { ViewerState } from './components/Viewer/Viewer';
+import ViewerState from './modules/Viewer/Viewer';
+import Alert from "./modules/Alert/Alert";
 
 export default function App() {
   const [controls, setControls] = RenderControls();

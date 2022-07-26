@@ -2,22 +2,25 @@ import './index.css';
 
 import * as serviceWorker from './serviceWorker';
 
+import Alert from './modules/Alert/Alert';
 import App from './App';
 import { Provider } from 'react-redux';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import WebRtcProvider from './modules/WebRtc/WebRtc';
+import WebSocketProvider from './modules/WebSocket/WebSocket';
 import store from './store';
-// TODO(ethan): figure out the naming here and what default means
-import WebSocketProvider from './WebSocket';
 
-console.log(store.getState());
-
+// console.log(store.getState());
 const root = ReactDOM.createRoot(document.getElementById('root'));
-
 root.render(
   <Provider store={store}>
     <WebSocketProvider>
-      <App />
+      {/* uses the websocket to establish the webrtc connection */}
+      <WebRtcProvider>
+        <Alert />
+        <App />
+      </WebRtcProvider>
     </WebSocketProvider>
   </Provider>,
 );
