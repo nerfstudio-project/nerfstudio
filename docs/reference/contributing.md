@@ -54,12 +54,20 @@ conda install -c conda-forge pandoc
 Run the following to build the documentation:
 
 ```bash
-cd docs
-make clean
-make html
+python scripts/docs/build_docs.py
 ```
 
 Rerun `make html` when documentation changes are made, `make clean` is necissary if the documentation structure changes.
+
+### Notebooks
+
+We support jupyter notbooks in our documentation. To improve the readability, the following custom tags can be added to the top of each code cell to hide or collapse the code.
+
+| Tag           | Effect                                               |
+| ------------- | ---------------------------------------------------- |
+| # HIDDEN      | Hide code block and output                           |
+| # COLLAPSED   | Collapse the code in a dropdown but show the restuls |
+| # OUTPUT_ONLY | Only show the cell's output                          |
 
 ### Auto build
 

@@ -19,6 +19,7 @@ def run_command(command: str, continue_on_fail: bool = False) -> None:
     if not continue_on_fail and ret_code != 0:
         print(f"\033[31mError: `{command}` failed. Exiting...\033[0m")
         sys.exit(1)
+    return ret_code == 0
 
 
 def main(continue_on_fail: bool = False):
@@ -32,6 +33,8 @@ def main(continue_on_fail: bool = False):
     steps = my_dict["jobs"]["build"]["steps"]
 
     print_green = lambda x: print(f"\033[32m{x}\033[0m")
+    print_red = lambda x: print(f"\033[31m{x}\033[0m")
+    success = True
 
     for step in steps:
         if "name" in step and step["name"] in LOCAL_TESTS:
@@ -41,21 +44,27 @@ def main(continue_on_fail: bool = False):
 
             print("*" * 100)
             print_green(f"Running: {curr_command}")
-            run_command(curr_command, continue_on_fail=continue_on_fail)
+            success = success and run_command(curr_command, continue_on_fail=continue_on_fail)
         else:
             print("*" * 100)
             print(f"Skipping {step}")
 
     # Add checks for building documentation
     print_green("Adding notebook documentation metadata")
-    run_command("python scripts/docs/add_nb_tags.py")
+    success = success and run_command("python scripts/docs/add_nb_tags.py")
     print_green("Building Documentation")
-    run_command("cd docs/; make html SPHINXOPTS='-W;'")
+    success = success and run_command("cd docs/; make html SPHINXOPTS='-W;'")
 
-    print("\n")
-    print_green("=" * 100)
-    print_green("ALL CHECKS PASSED")
-    print_green("=" * 100)
+    if success:
+        print("\n")
+        print_green("=" * 100)
+        print_green("ALL CHECKS PASSED")
+        print_green("=" * 100)
+    else:
+        print("\n")
+        print_red("=" * 100)
+        print_red("ERRORS FOUND")
+        print_red("=" * 100)
 
 
 if __name__ == "__main__":

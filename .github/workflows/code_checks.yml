@@ -27,10 +27,13 @@ jobs:
       - name: Run license checks
         run: |
           ./scripts/licensing/license_headers.sh --check
+      - name: Check notebook cell metadata
+        run: |
+          python ./scripts/docs/add_nb_tags.py --check
       - name: Run isort
         run: isort . --profile black --check
       - name: Run Black
-        run: black nerfactory/ scripts/ notebooks/ --check
+        run: black nerfactory/ scripts/ notebooks/ docs/ --check
       - name: Python Pylint
         run: |
           pylint nerfactory tests scripts

@@ -24,6 +24,7 @@ import torch
 from plotly import express as ex
 from torchtyping import TensorType
 
+from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import Frustums, RayBundle
 from nerfactory.utils.math import Gaussians
 
@@ -435,3 +436,57 @@ def get_ray_bundle_lines(
         name="Ray Bundle",
         line=dict(color=color, width=width),
     )
+
+
+def vis_camera_rays(camera: Camera) -> go.Figure:
+    """Visualize camera rays.
+
+    Args:
+        camera: Camera to visualize.
+
+    Returns:
+        Plotly lines
+    """
+
+    coords = camera.get_image_coords()
+    coords[..., 0] /= camera.get_image_height()
+    coords[..., 1] /= camera.get_image_width()
+    coords = torch.cat([coords, torch.ones((*coords.shape[:-1], 1))], dim=-1)
+
+    ray_bundle = camera.get_camera_ray_bundle()
+
+    origins = ray_bundle.origins.view(-1, 3)
+    directions = ray_bundle.directions.view(-1, 3)
+    coords = coords.view(-1, 3)
+
+    lines = torch.empty((origins.shape[0] * 2, 3))
+    lines[0::2] = origins
+    lines[1::2] = origins + directions
+
+    colors = torch.empty((coords.shape[0] * 2, 3))
+    colors[0::2] = coords
+    colors[1::2] = coords
+
+    fig = go.Figure(
+        data=go.Scatter3d(
+            x=lines[:, 0],
+            y=lines[:, 2],
+            z=lines[:, 1],
+            marker=dict(
+                size=4,
+                color=colors,
+            ),
+            line=dict(color="lightblue", width=1),
+        )
+    )
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(title="x", showspikes=False),
+            yaxis=dict(title="z", showspikes=False),
+            zaxis=dict(title="y", showspikes=False),
+        ),
+        margin=dict(r=0, b=10, l=0, t=10),
+        hovermode=False,
+    )
+
+    return fig

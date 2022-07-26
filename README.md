@@ -2,15 +2,16 @@
 
 <p align="center"> The all-in-one repo for NeRFs </p>
 
-<p align="center"> 
-    <a href="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest">
-        <img alt="Documentation Status" src="https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest">
+<p align="center">
+    <a href='https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest'>
+        <img src='https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest&token=2c5ba6bdd52600523fa8a8513170ae7170fd927a8c9dfbcf7c03af7ede551f96' alt='Documentation Status' />
     </a>
     <!-- TODO: add license and have it point to that -->
     <a href="https://github.com/plenoptix/nerfactory/blob/master/LICENSE">
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
-    </a> 
+    </a>
     <!-- TODO: add version number badge -->
+    <a href="https://badge.fury.io/py/nerfactory"><img src="https://badge.fury.io/py/nerfactory.svg" alt="PyPI version" height="18"></a>
 </p>
 
 - [Quickstart](#quickstart)
