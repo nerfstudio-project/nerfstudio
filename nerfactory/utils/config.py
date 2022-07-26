@@ -16,7 +16,8 @@
 
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
-from omegaconf import DictConfig, MISSING
+
+from omegaconf import MISSING, DictConfig
 
 
 @dataclass
@@ -102,6 +103,8 @@ class GraphConfig:
     loss_coefficients: Dict[str, Any] = MISSING
     # additional optional parameters here
     field_implementation: Optional[str] = "torch"
+    enable_density_field: Optional[bool] = False
+    density_field_config: Dict[str, Any] = MISSING
 
 
 @dataclass

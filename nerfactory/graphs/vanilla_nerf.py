@@ -20,21 +20,22 @@ Implementation of vanilla nerf.
 from typing import Dict, List
 
 import torch
+from omegaconf import DictConfig
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.base import Graph
-from nerfactory.optimizers.loss import MSELoss
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from nerfactory.utils import colors
-from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils import visualization, writer
+from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils.callbacks import Callback
 
 
 class NeRFGraph(Graph):
@@ -57,6 +58,8 @@ class NeRFGraph(Graph):
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
         num_importance_samples: int = 128,
+        enable_density_field: bool = False,
+        density_field_config: DictConfig = None,
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
@@ -65,7 +68,25 @@ class NeRFGraph(Graph):
         self.num_importance_samples = num_importance_samples
         self.field_coarse = None
         self.field_fine = None
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(
+            intrinsics=intrinsics,
+            camera_to_world=camera_to_world,
+            enable_density_field=enable_density_field,
+            density_field_config=density_field_config,
+            **kwargs,
+        )
+
+    def register_callbacks(self) -> None:
+        """defining callbacks to run after every training iteration"""
+        self.callbacks = []
+        if self.density_field is not None:
+            self.callbacks += [
+                Callback(
+                    self.density_field.update_every_num_iters,
+                    self.density_field.update_density_grid,
+                    density_eval_func=self.field_coarse.density_fn,
+                )
+            ]
 
     def populate_fields(self):
         """Set the fields."""
@@ -82,8 +103,8 @@ class NeRFGraph(Graph):
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)
+        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, density_field=self.density_field)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
