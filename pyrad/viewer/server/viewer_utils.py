@@ -276,9 +276,9 @@ class VisualizerState:
             set_output_options(self.vis, list(outputs.keys()))
             self.outputs_set = True
         # gross hack to get the image key, depending on which keys the graph uses
-        if output_type == "default":
-            output_type = "rgb" if "rgb" in outputs else "rgb_fine"
-        image_output = outputs[output_type].cpu().numpy() * 255
+        if self.prev_output_type == "default":
+            self.prev_output_type = "rgb" if "rgb" in outputs else "rgb_fine"
+        image_output = outputs[self.prev_output_type].cpu().numpy() * 255
         image = (image_output).astype("uint8")
         self.vis["/Cameras/Main Camera"].set_image(image)
 
@@ -526,6 +526,27 @@ def set_camera(vis, camera: Camera):
 def draw_aabb(vis, aabb, name="aabb"):
     """Draw the axis-aligned bounding box."""
     lengths = aabb[1] - aabb[0]
-    vis[name].set_object(g.Box(lengths.tolist()), material=g.MeshPhongMaterial(color=0xFF0000, opacity=0.1))
+
+    w = 1
+    aaa = np.array([w, w, w])
+    aab = np.array([w, w, -w])
+    aba = np.array([w, -w, w])
+    baa = np.array([-w, w, w])
+    abb = np.array([w, -w, -w])
+    bba = np.array([-w, -w, w])
+    bab = np.array([-w, w, -w])
+    bbb = np.array([-w, -w, -w])
+    camera_points = [aaa, aab, aaa, aba, aab, abb, aba, abb]
+    camera_points.extend([baa, bab, baa, bba, bab, bbb, bba, bbb])
+    camera_points.extend([aaa, baa, aab, bab, aba, bba, abb, bbb])
+    lines = np.stack(camera_points)
+
+    lines = lines * np.array(lengths) / 2.0
+
+    line_segments = g.LineSegments(
+        g.PointsGeometry(position=lines.astype(np.float32).T),
+        g.LineBasicMaterial(vertexColors=True),
+    )
+    vis[name].set_object(line_segments)
     center = aabb[0] + lengths / 2.0
     vis[name].set_transform(get_translation_matrix(center.tolist()))
