@@ -244,49 +244,6 @@ export default function SetupScene(props) {
   sceneFolder.open();
   state.scene_tree = new SceneNode(state.scene, sceneFolder);
 
-  // Renderer main
-  //   state.renderer_main = new THREE.WebGLRenderer({
-  //     antialias: true,
-  //     alpha: true,
-  //   });
-  //   state.renderer_main.setPixelRatio(window.devicePixelRatio);
-  //   state.renderer_main.setSize(state.viewport_width, state.viewport_height);
-  //   state.renderer_main.domElement.style.border = '1px solid black';
-
-  //   const domElement = document.getElementById('canvas-container-main');
-  //   domElement.append(state.renderer_main.domElement);
-
-  // Camera main
-  //   state.camera_main = new THREE.PerspectiveCamera(
-  //     120,
-  //     state.viewport_width / state.viewport_height,
-  //     0.01,
-  //     100,
-  //   );
-  //   state.camera_main.position.x = 5;
-  //   state.camera_main.position.y = -5;
-  //   state.camera_main.position.z = 5;
-  //   state.camera_main.up = new THREE.Vector3(0, 0, 1);
-
-  // TODO(ethan): change this to OrbitalControls
-  //   state.controls_main = new TrackballControls(
-  //     state.camera_main,
-  //     state.renderer_main.domElement,
-  //   );
-  //   state.controls_main.rotateSpeed = 2.0;
-  //   state.controls_main.zoomSpeed = 0.3;
-  //   state.controls_main.panSpeed = 0.2;
-  //   state.controls_main.target.set(0, 0, 0); // focus point of the controls
-  //   state.controls_main.autoRotate = false;
-  //   state.controls_main.enableDamping = true;
-  //   state.controls_main.dampingFactor = 1.0;
-  //   state.controls_main.update();
-
-  //   const path = ['Cameras', 'Main Camera'];
-  //   state.scene_tree
-  //     .find(path.concat(['<object>']))
-  //     .set_object(state.camera_main);
-
   // Axes display
   const axes = new THREE.AxesHelper(5);
   set_object(['Axes'], axes);

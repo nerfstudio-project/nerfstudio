@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import React, { useEffect, useRef } from 'react';
 
-import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 
 export default function ViewerWindow(props) {
@@ -21,7 +21,7 @@ export default function ViewerWindow(props) {
   let viewportWidth = getViewportWidth();
   let viewportHeight = getViewportHeight();
 
-  let camera = new THREE.PerspectiveCamera(
+  const camera = new THREE.PerspectiveCamera(
     120,
     viewportWidth / viewportHeight,
     0.01,
@@ -56,12 +56,15 @@ export default function ViewerWindow(props) {
     renderer.render(scene, camera);
   };
 
+  // TODO(ethan): add code to send over the camera information when it changes...
+  // and vice versa...?
+
   // similar to componentDidMount
   useEffect(() => {
     myRef.current.append(renderer.domElement);
 
     // add controls
-    controls_main = new TrackballControls(camera, renderer.domElement);
+    controls_main = new OrbitControls(camera, renderer.domElement);
     controls_main.rotateSpeed = 2.0;
     controls_main.zoomSpeed = 0.3;
     controls_main.panSpeed = 0.2;

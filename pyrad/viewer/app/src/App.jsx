@@ -8,12 +8,10 @@ import ViewerWindow from './modules/ViewerWindow/ViewerWindow';
 export default function App() {
   let [scene] = SetupScene();
   const [controls, setControls] = RenderControls();
-  console.log(controls);
   return (
     <div className="App">
       <ConfigPanel />
       <ViewerWindow scene={scene} />
-      {/* <ViewerWindow scene={scene} /> */}
     </div>
   );
 }
