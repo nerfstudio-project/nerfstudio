@@ -1,16 +1,22 @@
-import React, { Component } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Stats from 'three/examples/jsm/libs/stats.module.js';
+
+import React, { Component } from 'react';
+
+import { ExtensibleObjectLoader } from '../../ExtensibleObjectLoader';
 import { GUI } from 'dat.gui';
-import { split_path } from './utils';
-import { SceneNode } from './SceneNode';
-import { ExtensibleObjectLoader } from './ExtensibleObjectLoader';
+import { SceneNode } from '../../SceneNode';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
+import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls';
+import { split_path } from '../../utils';
+
+import { Leva, button, buttonGroup, useControls } from 'leva';
+import { useDispatch, useSelector } from 'react-redux';
 
 function websocket_endpoint_from_url(url) {
   const endpoint = url.split('?').pop();
   if (endpoint == '') {
-    const message = 'Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051';
+    const message =
+      'Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051';
     window.alert(message);
     return null;
   }
@@ -47,12 +53,22 @@ export class ViewerState extends Component {
     this.handle_command = this.handle_command.bind(this);
     this.threejs_ref = React.createRef();
     this.props = props;
+
+    // const renderingState = useSelector((state) => state.renderingState);
+    // const [isTraining, setIsTraining] = React.useState(
+    //   renderingState.isTraining,
+    // );
+    // const [outputOptions, setOutputOptions] = React.useState(
+    //   renderingState.output_options,
+    // );
+    // this.setOutputOptions = setOutputOptions;
   }
 
   handleResize() {
     this.state.viewport_width = this.getViewportWidth();
     this.state.viewport_height = this.getViewportHeight();
-    this.state.camera_main.aspect = this.state.viewport_width / this.state.viewport_height;
+    this.state.camera_main.aspect =
+      this.state.viewport_width / this.state.viewport_height;
     this.state.camera_main.updateProjectionMatrix();
     this.state.renderer_main.setSize(
       this.state.viewport_width,
@@ -164,12 +180,12 @@ export class ViewerState extends Component {
     const loader = new ExtensibleObjectLoader();
     loader.parse(object_json, (obj) => {
       if (
-        obj.geometry !== undefined
-        && obj.geometry.type === 'BufferGeometry'
+        obj.geometry !== undefined &&
+        obj.geometry.type === 'BufferGeometry'
       ) {
         if (
-          obj.geometry.attributes.normal === undefined
-          || obj.geometry.attributes.normal.count === 0
+          obj.geometry.attributes.normal === undefined ||
+          obj.geometry.attributes.normal.count === 0
         ) {
           obj.geometry.computeVertexNormals();
         }
@@ -220,8 +236,8 @@ export class ViewerState extends Component {
       const path = split_path(cmd.path);
       this.set_property(path, cmd.property, cmd.value);
     } else if (cmd.type == 'set_output_options') {
-      this.props.setOutputOptions(cmd.output_options);
-      this.props.setControls({ output_options: 1 });
+      // this.setOutputOptions(cmd.output_options);
+      // this.props.setControls({ output_options: 1 });
     }
     // web rtc commands
     else if (cmd.type === 'answer') {
@@ -280,27 +296,29 @@ export class ViewerState extends Component {
     this.state.pc
       .createOffer()
       .then((offer) => this.state.pc.setLocalDescription(offer))
-      .then(() =>
-        // wait for ICE gathering to complete
-        new Promise((resolve) => {
-          if (this.state.pc.iceGatheringState === 'complete') {
-            resolve();
-          } else {
-            var checkState = () => {
-              if (this.state.pc.iceGatheringState === 'complete') {
-                this.state.pc.removeEventListener(
-                  'icegatheringstatechange',
-                  checkState,
-                );
-                resolve();
-              }
-            };
-            this.state.pc.addEventListener(
-              'icegatheringstatechange',
-              checkState,
-            );
-          }
-        }))
+      .then(
+        () =>
+          // wait for ICE gathering to complete
+          new Promise((resolve) => {
+            if (this.state.pc.iceGatheringState === 'complete') {
+              resolve();
+            } else {
+              var checkState = () => {
+                if (this.state.pc.iceGatheringState === 'complete') {
+                  this.state.pc.removeEventListener(
+                    'icegatheringstatechange',
+                    checkState,
+                  );
+                  resolve();
+                }
+              };
+              this.state.pc.addEventListener(
+                'icegatheringstatechange',
+                checkState,
+              );
+            }
+          }),
+      )
       .then(() => {
         const offer = this.state.pc.localDescription;
         console.log('sending the offer');
@@ -374,7 +392,7 @@ export class ViewerState extends Component {
     this.state.camera_main.position.z = 5;
     this.state.camera_main.up = new THREE.Vector3(0, 0, 1);
 
-    this.state.controls_main = new OrbitControls(
+    this.state.controls_main = new TrackballControls(
       this.state.camera_main,
       this.state.renderer_main.domElement,
     );
