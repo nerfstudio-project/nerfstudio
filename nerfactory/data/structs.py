@@ -22,7 +22,7 @@ from typing import List, Optional
 import torch
 from torchtyping import TensorType
 
-from pyrad.cameras.rays import RayBundle
+from nerfactory.cameras.rays import RayBundle
 
 
 @dataclass
