@@ -67,7 +67,7 @@ html_js_files = [
 # -- MYST configs -----------------------------------------------------------
 
 # To enable admonitions:
-myst_enable_extensions = ["amsmath", "colon_fence", "dollarmath", "html_image"]
+myst_enable_extensions = ["amsmath", "colon_fence", "deflist", "dollarmath", "html_image"]
 
 
 # -- Options for HTML output -------------------------------------------------
