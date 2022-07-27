@@ -28,8 +28,9 @@ std::vector<torch::Tensor> raymarching(
     const int grid_size,
     const torch::Tensor grid_bitfield, 
     // sampling args
+    const int marching_steps,
     const int max_total_samples,
-    const int num_steps,
+    const int max_ray_samples,
     const float cone_angle,
     const float step_scale
 );
