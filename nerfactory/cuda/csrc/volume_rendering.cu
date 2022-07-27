@@ -35,24 +35,24 @@ __global__ void volumetric_rendering_forward_kernel(
     
     // accumulated rendering
     scalar_t T = 1.f;
-	scalar_t EPSILON = 1e-4f;
-	int j = 0;
+    scalar_t EPSILON = 1e-4f;
+    int j = 0;
     for (; j < numsteps; ++j) {
-		if (T < EPSILON) {
-			break;
-		}
+        if (T < EPSILON) {
+            break;
+        }
         const scalar_t delta = ends[j] - starts[j];
         const scalar_t t = (ends[j] + starts[j]) * 0.5f;
 
-		const scalar_t alpha = 1.f - __expf(-sigmas[j] * delta);
-		const scalar_t weight = alpha * T;
-		accumulated_weight[0] += weight;
+        const scalar_t alpha = 1.f - __expf(-sigmas[j] * delta);
+        const scalar_t weight = alpha * T;
+        accumulated_weight[0] += weight;
         accumulated_depth[0] += weight * t;
         accumulated_color[0] += weight * rgbs[j * 3 + 0];
         accumulated_color[1] += weight * rgbs[j * 3 + 1];
         accumulated_color[2] += weight * rgbs[j * 3 + 2];
-		T *= (1.f - alpha);
-	}
+        T *= (1.f - alpha);
+    }
     mask[0] = true;
 }
 
@@ -100,25 +100,25 @@ __global__ void volumetric_rendering_backward_kernel(
     
     // backward of accumulated rendering
     scalar_t T = 1.f;
-	scalar_t EPSILON = 1e-4f;
-	int j = 0;
+    scalar_t EPSILON = 1e-4f;
+    int j = 0;
     scalar_t r = 0, g = 0, b = 0, d = 0;
     for (; j < numsteps; ++j) {
-		if (T < EPSILON) {
-			break;
-		}
+        if (T < EPSILON) {
+            break;
+        }
         const scalar_t delta = ends[j] - starts[j];
         const scalar_t t = (ends[j] + starts[j]) * 0.5f;
 
-		const scalar_t alpha = 1.f - __expf(-sigmas[j] * delta);
-		const scalar_t weight = alpha * T;
+        const scalar_t alpha = 1.f - __expf(-sigmas[j] * delta);
+        const scalar_t weight = alpha * T;
 
         r += weight * rgbs[j * 3 + 0];
         g += weight * rgbs[j * 3 + 1];
         b += weight * rgbs[j * 3 + 2];
         d += weight * t;
 
-		T *= (1.f - alpha);
+        T *= (1.f - alpha);
 
         grad_rgbs[j * 3 + 0] = grad_color[0] * weight;
         grad_rgbs[j * 3 + 1] = grad_color[1] * weight;
@@ -131,7 +131,7 @@ __global__ void volumetric_rendering_backward_kernel(
             grad_weight[0] * (1.f - accumulated_weight[0]) +
             grad_depth[0] * (t * T - (accumulated_depth[0] - d))
         );
-	}
+    }
 }
 
 /**

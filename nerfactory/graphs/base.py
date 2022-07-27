@@ -80,9 +80,10 @@ class Graph(AbstractGraph):
         intrinsics (torch.Tensor): Camera intrinsics.
         camera_to_world (torch.Tensor): Camera to world transformation.
         loss_coefficients (DictConfig): Loss specific weights.
-        steps_per_density_grid_update (int): How often to update density grid.
         scene_bounds (SceneBounds): Bounds of target scene.
         collider_config (DictConfig): Configuration of scene collider.
+        enable_density_field (bool): Whether to create a density field to filter samples.
+        density_field_config (DictConfig): Configuration of density field.
     """
 
     def __init__(
@@ -90,9 +91,10 @@ class Graph(AbstractGraph):
         intrinsics: torch.Tensor = None,
         camera_to_world: torch.Tensor = None,
         loss_coefficients: DictConfig = None,
-        steps_per_density_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
         collider_config: DictConfig = None,
+        enable_density_field: bool = False,
+        density_field_config: DictConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -102,10 +104,13 @@ class Graph(AbstractGraph):
         self.scene_bounds = scene_bounds
         self.collider_config = collider_config
         self.loss_coefficients = loss_coefficients
-        self.steps_per_density_grid_update = steps_per_density_grid_update
+        self.enable_density_field = enable_density_field
+        self.density_field_config = density_field_config
+        self.density_field = None
         self.kwargs = kwargs
         self.collider = None
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
+        self.populate_density_field()
         self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
@@ -117,6 +122,11 @@ class Graph(AbstractGraph):
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
         self.callbacks = []
+
+    def populate_density_field(self):
+        """Set the scene density field to use."""
+        if self.enable_density_field:
+            self.density_field = instantiate_from_dict_config(self.density_field_config)
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""

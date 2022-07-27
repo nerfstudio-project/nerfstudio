@@ -90,6 +90,15 @@ graph:
   loss_coefficients:
     rgb_loss_coarse: 1.0
     rgb_loss_fine: 1.0
+  enable_density_field: false
+  density_field_config:
+    # Please see the docstr for DensityGrid on how to set those arguments.
+    _target_: nerfactory.fields.density_fields.density_grid.DensityGrid
+    center: 0.0  # simply set it as the center of the scene bbox
+    base_scale: 3.0  # simply set it as the scale of the scene bbox
+    num_cascades: 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+    resolution: 128
+    update_every_num_iters: 16
 
 optimizers:
   fields:
