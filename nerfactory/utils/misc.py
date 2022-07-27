@@ -129,7 +129,15 @@ def human_format(num):
 
 
 def scale_dict(dictionary: Dict[Any, Any], coefficients: DictConfig) -> Dict[Any, Any]:
-    """Scale a dictionary in-place given a coefficients dictionary."""
+    """Scale a dictionary in-place given a coefficients dictionary.
+
+    Args:
+        dictionary: input dict to be scaled.
+        coefficients: scalar dict config for holding coefficients.
+
+    Returns:
+        Input dict scaled by coefficients.
+    """
     for key in dictionary:
         if key in coefficients:
             dictionary[key] *= coefficients[key]

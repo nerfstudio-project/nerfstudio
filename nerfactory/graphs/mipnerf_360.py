@@ -140,24 +140,16 @@ class MipNerf360Graph(Graph):
         }
         return outputs
 
-    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
-        metrics_dict = {
+        loss_dict = {
             "rgb_loss_coarse": rgb_loss_coarse,
             "rgb_loss_fine": rgb_loss_fine,
-        }
-        return metrics_dict
-
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
-
-        loss_dict = {
             "ray_loss_coarse": torch.mean(outputs["ray_loss_coarse"]),
             "ray_loss_fine": torch.mean(outputs["ray_loss_fine"]),
         }
-        loss_dict.update(metrics_dict)
-
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
