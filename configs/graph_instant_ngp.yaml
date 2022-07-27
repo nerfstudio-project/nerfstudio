@@ -21,7 +21,8 @@ graph:
   field_implementation: tcnn # torch, tcnn, ...
   loss_coefficients: # loss coefficients
     rgb_loss: 1.0
-
+  enable_collider: false
+  
 # optimizer options for network
 optimizers:
   fields:
