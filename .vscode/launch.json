@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Launch Chrome against localhost",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:4000",
+            "webRoot": "${workspaceFolder}/pyrad/viewer/app"
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

@@ -1,0 +1,107 @@
+import './ViewerWindow.css';
+
+import * as THREE from 'three';
+
+import React, { useContext, useEffect, useRef } from 'react';
+
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+import { WebSocketContext } from '../WebSocket/WebSocket';
+const msgpack = require('msgpack-lite');
+
+// manages a camera and the web rtc stream...
+export default function ViewerWindow(props) {
+  const scene = props.scene;
+  let cameraControls = null;
+  const myRef = useRef(null);
+  let websocket = useContext(WebSocketContext).socket;
+
+  const getViewportWidth = () => {
+    return window.innerWidth - (window.innerWidth % 2);
+  };
+
+  const getViewportHeight = () => {
+    return window.innerHeight;
+  };
+
+  let viewportWidth = getViewportWidth();
+  let viewportHeight = getViewportHeight();
+
+  const camera = new THREE.PerspectiveCamera(
+    120,
+    viewportWidth / viewportHeight,
+    0.01,
+    100,
+  );
+  camera.position.x = 5;
+  camera.position.y = -5;
+  camera.position.z = 5;
+  camera.up = new THREE.Vector3(0, 0, 1);
+
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+  });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(viewportWidth, viewportHeight);
+  renderer.domElement.style.border = '1px solid black';
+
+  const handleResize = () => {
+    viewportWidth = getViewportWidth();
+    viewportHeight = getViewportHeight();
+    camera.aspect = viewportWidth / viewportHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewportWidth, viewportHeight);
+  };
+
+  const update = () => {
+    handleResize();
+    camera.updateProjectionMatrix();
+    cameraControls.update();
+    requestAnimationFrame(update);
+    renderer.render(scene, camera);
+    sendCamera();
+  };
+
+  // TODO(ethan): add code to send over the camera information when it changes...
+  // and vice versa...?
+
+  const sendCamera = () => {
+    // update the camera information in the python server
+    if (websocket.readyState === WebSocket.OPEN) {
+      const cmd = 'set_object';
+      const path = 'Cameras/Main Camera';
+      const data = {
+        type: cmd,
+        path,
+        object: camera.toJSON(),
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  // similar to componentDidMount
+  useEffect(() => {
+    myRef.current.append(renderer.domElement);
+    // add camera controls
+    cameraControls = new OrbitControls(camera, renderer.domElement);
+    cameraControls.rotateSpeed = 2.0;
+    cameraControls.zoomSpeed = 0.3;
+    cameraControls.panSpeed = 0.2;
+    cameraControls.target.set(0, 0, 0); // focus point of the controls
+    cameraControls.autoRotate = false;
+    cameraControls.enableDamping = true;
+    cameraControls.dampingFactor = 1.0;
+    cameraControls.update();
+    update();
+  }, []);
+
+  return (
+    <div>
+      {/* the webrtc viewer needs to know the camera pose */}
+      <WebRtcWindow />
+      <div className="canvas-container-main" ref={myRef} />
+    </div>
+  );
+}

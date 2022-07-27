@@ -22,7 +22,8 @@ import numpy as np
 import umsgpack
 import zmq
 
-from nerfactory.viewer.server.commands import (
+# for the scene
+from pyrad.viewer.server.state.scene.commands import (
     Delete,
     GetObject,
     SetObject,
@@ -30,7 +31,10 @@ from nerfactory.viewer.server.commands import (
     SetProperty,
     SetTransform,
 )
-from nerfactory.viewer.server.path import Path
+
+# for the widgets
+from pyrad.viewer.server.state.widget.commands import SetWidget
+from pyrad.viewer.server.path import Path
 
 
 class ViewerWindow:
@@ -105,7 +109,7 @@ class Viewer:
             self.window = ViewerWindow(zmq_url=zmq_url)
         else:
             self.window = window
-        self.path = Path(("nerfactory",))
+        self.path = Path(("pyrad",))
 
     @staticmethod
     def view_into(window: ViewerWindow, path: Path):
@@ -166,7 +170,17 @@ class Viewer:
 
     def delete(self):
         """Delete the contents of the window"""
+        # TODO(ethan): needs to check if a scene or widget object
         return self.window.send(Delete(self.path))
+
+    #### functions related to the widgets ####
+    def set_widget(self, widget):
+        """Set the widget"""
+        return self.window.send(SetWidget(widget=widget, path=self.path))
+
+    def get_widget(self):
+        # TODO(ethan): returns the information associated with the widget
+        raise NotImplementedError()
 
     def __repr__(self):
         return f"<Viewer using: {self.window} at path: {self.path}>"

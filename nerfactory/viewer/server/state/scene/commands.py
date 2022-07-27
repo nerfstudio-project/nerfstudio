@@ -20,8 +20,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import numpy as np
-
-from nerfactory.viewer.server.geometry import (
+from pyrad.viewer.server.state.scene.geometry import (
     Mesh,
     MeshPhongMaterial,
     Object,
@@ -30,7 +29,14 @@ from nerfactory.viewer.server.geometry import (
     Points,
     PointsMaterial,
 )
-from nerfactory.viewer.server.path import Path
+from pyrad.viewer.server.path import Path
+
+
+class SceneCommand:
+    def lower(self):
+        dict_ = self.lower()
+        assert "tree" not in dict_
+        dict_["tree"] = "scene"
 
 
 class SetObject:  # pylint: disable=too-few-public-methods
@@ -89,6 +95,28 @@ class GetObject:
 
 
 @dataclass
+class SetProperty:
+    """Set property command class"""
+
+    __slots__ = ["path", "key", "value"]
+
+    key: str
+    value: list
+    path: str
+
+    def lower(self) -> Dict[str, Any]:
+        """creates properly formatted json setting property"""
+        return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}
+
+
+@dataclass
+class GetProperty:
+    """Get property command class"""
+
+    # TODO(ethan): implement this
+
+
+@dataclass
 class SetTransform:
     """Set transform command class"""
 
@@ -103,9 +131,22 @@ class SetTransform:
 
 
 @dataclass
+class GetTransform:
+    """Get transform command class"""
+
+
+@dataclass
+class GetTransform:
+    """Get transform command class"""
+
+    # TODO(ethan): implement this
+
+
+@dataclass
 class SetOutputOptions:
     """Set output options command class"""
 
+    # TODO(ethan): remove this and replace with a Widget
     __slots__ = ["output_options", "path"]
 
     output_options: List[str]
@@ -127,18 +168,3 @@ class Delete:
     def lower(self) -> Dict[str, Any]:
         """creates properly formatted json updating tree"""
         return {"type": "delete", "path": self.path.lower()}
-
-
-@dataclass
-class SetProperty:
-    """Set property command class"""
-
-    __slots__ = ["path", "key", "value"]
-
-    key: str
-    value: list
-    path: str
-
-    def lower(self) -> Dict[str, Any]:
-        """creates properly formatted json setting property"""
-        return {"type": "set_property", "path": self.path.lower(), "property": self.key.lower(), "value": self.value}

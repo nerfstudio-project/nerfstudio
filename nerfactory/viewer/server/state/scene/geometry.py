@@ -462,7 +462,7 @@ class OrthographicCamera(SceneElement):
 
 class PerspectiveCamera(SceneElement):
     """
-    The PerspectiveCamera is the default camera used by the nerfactory viewer. See
+    The PerspectiveCamera is the default camera used by the pyrad viewer. See
     https://threejs.org/docs/#api/en/cameras/PerspectiveCamera for more
     information.
 
