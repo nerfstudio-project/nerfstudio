@@ -26,7 +26,6 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.graphs.base import Graph
@@ -48,10 +47,11 @@ class NGPGraph(Graph):
 
     def register_callbacks(self) -> None:
         """defining callbacks to run after every training iteration"""
+        assert self.density_field is not None
         self.callbacks = [
             Callback(
-                self.density_grid.update_every_num_iters,
-                self.density_grid.update_density_grid,
+                self.density_field.update_every_num_iters,
+                self.density_field.update_density_grid,
                 density_eval_func=self.field.density_fn,
             )
         ]
@@ -62,11 +62,8 @@ class NGPGraph(Graph):
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
-        # density grid
-        self.density_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
-
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_grid)
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_field)
 
         # losses
         self.rgb_loss = MSELoss()
