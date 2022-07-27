@@ -9,6 +9,7 @@ __global__ void volumetric_rendering_forward_kernel(
     const scalar_t* ends,  // input end t
     const scalar_t* sigmas,  // input density after activation
     const scalar_t* rgbs,  // input rgb after activation 
+    const scalar_t* opacities,  // input opacities for each ray
     // should be all-zero initialized
     scalar_t* accumulated_weight,  // output
     scalar_t* accumulated_depth,  // output
@@ -32,9 +33,10 @@ __global__ void volumetric_rendering_forward_kernel(
     accumulated_depth += i;
     accumulated_color += i * 3;
     mask += i;
-    
+    opacities += i;
+
     // accumulated rendering
-    scalar_t T = 1.f;
+    scalar_t T = 1.f - opacities[0];
     scalar_t EPSILON = 1e-4f;
     int j = 0;
     for (; j < numsteps; ++j) {
@@ -65,6 +67,7 @@ __global__ void volumetric_rendering_backward_kernel(
     const scalar_t* ends,  // input end t
     const scalar_t* sigmas,  // input density after activation
     const scalar_t* rgbs,  // input rgb after activation 
+    const scalar_t* opacities,  // input opacities for each ray
     const scalar_t* accumulated_weight,  // forward output
     const scalar_t* accumulated_depth,  // forward output
     const scalar_t* accumulated_color,  // forward output
@@ -93,13 +96,14 @@ __global__ void volumetric_rendering_backward_kernel(
     accumulated_weight += i;
     accumulated_depth += i;
     accumulated_color += i * 3;
+    opacities += i;
     
     grad_weight += i;
     grad_depth += i;
     grad_color += i * 3;
     
     // backward of accumulated rendering
-    scalar_t T = 1.f;
+    scalar_t T = 1.f - opacities[0];
     scalar_t EPSILON = 1e-4f;
     int j = 0;
     scalar_t r = 0, g = 0, b = 0, d = 0;
@@ -148,6 +152,7 @@ __global__ void volumetric_rendering_backward_kernel(
  * @param ends: Where the frustum-shape sample ends along a ray. [total_samples, 1]
  * @param sigmas Densities at those samples. [total_samples, 1]
  * @param rgbs RGBs at those samples. [total_samples, 3]
+ * @param opacities Opacities that the rays already have. Zero for training but non-zero for eval. [total_samples, 1]
  * @return std::vector<torch::Tensor> 
  * - accumulated_weight: Ray opacity. [n_rays, 1]
  * - accumulated_depth: Ray depth. [n_rays, 1]
@@ -159,7 +164,8 @@ std::vector<torch::Tensor> volumetric_rendering_forward(
     torch::Tensor starts, 
     torch::Tensor ends, 
     torch::Tensor sigmas, 
-    torch::Tensor rgbs
+    torch::Tensor rgbs,
+    torch::Tensor opacities
 ) {
     DEVICE_GUARD(packed_info);
     CHECK_INPUT(packed_info);
@@ -167,11 +173,13 @@ std::vector<torch::Tensor> volumetric_rendering_forward(
     CHECK_INPUT(ends);
     CHECK_INPUT(sigmas);
     CHECK_INPUT(rgbs);
+    CHECK_INPUT(opacities);
     TORCH_CHECK(packed_info.ndimension() == 2 & packed_info.size(1) == 3);
     TORCH_CHECK(starts.ndimension() == 2 & starts.size(1) == 1);
     TORCH_CHECK(ends.ndimension() == 2 & ends.size(1) == 1);
     TORCH_CHECK(sigmas.ndimension() == 2 & sigmas.size(1) == 1);
     TORCH_CHECK(rgbs.ndimension() == 2 & rgbs.size(1) == 3);
+    TORCH_CHECK(opacities.ndimension() == 2 & opacities.size(1) == 1);
 
     const uint32_t n_rays = packed_info.size(0);
 
@@ -196,6 +204,7 @@ std::vector<torch::Tensor> volumetric_rendering_forward(
                 ends.data_ptr<scalar_t>(),
                 sigmas.data_ptr<scalar_t>(),
                 rgbs.data_ptr<scalar_t>(),
+                opacities.data_ptr<scalar_t>(),
                 accumulated_weight.data_ptr<scalar_t>(),
                 accumulated_depth.data_ptr<scalar_t>(),
                 accumulated_color.data_ptr<scalar_t>(),
@@ -222,7 +231,8 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor starts, 
     torch::Tensor ends, 
     torch::Tensor sigmas, 
-    torch::Tensor rgbs
+    torch::Tensor rgbs,
+    torch::Tensor opacities
 ) {
     DEVICE_GUARD(packed_info);
     const uint32_t n_rays = packed_info.size(0);
@@ -245,6 +255,7 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
                 ends.data_ptr<scalar_t>(),
                 sigmas.data_ptr<scalar_t>(),
                 rgbs.data_ptr<scalar_t>(),
+                opacities.data_ptr<scalar_t>(),
                 accumulated_weight.data_ptr<scalar_t>(),
                 accumulated_depth.data_ptr<scalar_t>(),
                 accumulated_color.data_ptr<scalar_t>(),
