@@ -172,22 +172,24 @@ class Graph(AbstractGraph):
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
-            masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-            # during training, keep only the rays that intersect the scene. discard the rest
-            masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         else:
             # NOTE(ruilongli): we don't need collider for ngp
-            intersected_ray_bundle = masked_intersected_ray_bundle = ray_bundle
-            masked_batch = batch
+            intersected_ray_bundle = ray_bundle
+            valid_mask = None
 
         if batch is None:
             # during inference, keep all rays
             outputs = self.get_outputs(intersected_ray_bundle)
             return outputs
 
-        outputs = self.get_outputs(masked_intersected_ray_bundle)
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
-        loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
+        if valid_mask is not None:
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+            # during training, keep only the rays that intersect the scene. discard the rest
+            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+
+        outputs = self.get_outputs(intersected_ray_bundle)
+        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
+        loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
 
         # scaling losses by coefficients.
         for loss_name in loss_dict.keys():
