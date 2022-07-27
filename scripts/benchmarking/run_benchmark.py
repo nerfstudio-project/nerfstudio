@@ -52,7 +52,7 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     Returns:
         DictConfig: returns the loaded hydra dictionary config
     """
-    basename = os.listdir(hydra_dir)[0]
+    basename = sorted(os.listdir(hydra_dir))[-1]
     hydra_dir = f"{hydra_dir}/{basename}"
     initialize(version_base="1.2", config_path=os.path.join("../../", hydra_dir, ".hydra/"))
     config = compose("config.yaml")
