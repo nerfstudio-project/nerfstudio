@@ -38,7 +38,7 @@ from nerfactory.renderers.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
 
@@ -167,7 +167,8 @@ class NeRFGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+        # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
 
@@ -175,6 +176,7 @@ class NeRFGraph(Graph):
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
 
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):

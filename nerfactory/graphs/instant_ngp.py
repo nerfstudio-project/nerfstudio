@@ -32,7 +32,7 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.graphs.base import Graph
 from nerfactory.graphs.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
 
@@ -106,7 +106,7 @@ class NGPGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         device = self.get_device()
         image = batch["image"].to(device)
         if "mask" in outputs:
@@ -115,6 +115,7 @@ class NGPGraph(Graph):
         else:
             rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use

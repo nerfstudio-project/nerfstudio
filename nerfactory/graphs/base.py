@@ -186,12 +186,9 @@ class Graph(AbstractGraph):
         masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
         outputs = self.get_outputs(masked_intersected_ray_bundle)
         metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
-        loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
-
-        # scaling losses by coefficients.
-        for loss_name in loss_dict.keys():
-            if loss_name in self.loss_coefficients:
-                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
+        loss_dict = self.get_loss_dict(
+            outputs=outputs, batch=masked_batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
+        )
         return outputs, loss_dict, metrics_dict
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
@@ -199,15 +196,15 @@ class Graph(AbstractGraph):
         ray_bundle = self.ray_generator.forward(ray_indices)
         return self.forward_after_ray_generator(ray_bundle, batch=batch)
 
-    @abstractmethod
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
-        """Computes and returns the losses dict."""
-
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
-        """Compute and obtain metrics and coefficients."""
+        """Compute and returns metrics."""
         # pylint: disable=unused-argument
         # pylint: disable=no-self-use
         return {}
+
+    @abstractmethod
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+        """Computes and returns the losses dict."""
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):

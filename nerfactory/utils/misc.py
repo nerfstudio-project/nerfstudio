@@ -126,3 +126,19 @@ def human_format(num):
     k = 1000.0
     magnitude = int(floor(log(num, k)))
     return f"{(num / k**magnitude):.2f} {units[magnitude]}"
+
+
+def scale_dict(dictionary: Dict[Any, Any], coefficients: DictConfig) -> Dict[Any, Any]:
+    """Scale a dictionary in-place given a coefficients dictionary.
+
+    Args:
+        dictionary: input dict to be scaled.
+        coefficients: scalar dict config for holding coefficients.
+
+    Returns:
+        Input dict scaled by coefficients.
+    """
+    for key in dictionary:
+        if key in coefficients:
+            dictionary[key] *= coefficients[key]
+    return dictionary

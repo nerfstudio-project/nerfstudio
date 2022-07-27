@@ -39,7 +39,7 @@ from nerfactory.renderers.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils import colors, misc, visualization, writer
 
 
 class MipNerf360Graph(Graph):
@@ -143,7 +143,7 @@ class MipNerf360Graph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
@@ -153,6 +153,7 @@ class MipNerf360Graph(Graph):
             "ray_loss_coarse": torch.mean(outputs["ray_loss_coarse"]),
             "ray_loss_fine": torch.mean(outputs["ray_loss_fine"]),
         }
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
