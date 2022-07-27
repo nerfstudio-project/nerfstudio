@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { WebSocketContext } from '../WebSocket/WebSocket';
@@ -18,6 +12,8 @@ export default function WebRtcWindow() {
   const websocket = useContext(WebSocketContext).socket;
   const pcRef = useRef(null);
   const localVideoRef = useRef(null);
+
+  const dispatch = useDispatch();
 
   const getRTCPeerConnection = () => {
     const pc = new RTCPeerConnection({
@@ -44,11 +40,30 @@ export default function WebRtcWindow() {
     });
     // connect video
     pc.addEventListener('track', (evt) => {
+      dispatch({
+        type: 'webrtcState/setIsConnected',
+        boolean: true,
+      });
       if (evt.track.kind === 'video') {
         [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
       }
     });
     pc.addTransceiver('video', { direction: 'recvonly' });
+
+    // for updating the status of the peer connection
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'connected') {
+        dispatch({
+          type: 'webrtcState/setIsConnected',
+          boolean: true,
+        });
+      } else if (pc.iceConnectionState === 'disconnected') {
+        dispatch({
+          type: 'webrtcState/setIsConnected',
+          boolean: false,
+        });
+      }
+    };
     return pc;
   };
 
@@ -103,6 +118,7 @@ export default function WebRtcWindow() {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.type === 'answer') {
+        console.log('received an answer');
         const answer = cmd.data;
         pcRef.current.setRemoteDescription(answer);
       }
@@ -118,7 +134,7 @@ export default function WebRtcWindow() {
   return (
     <div className="WebRTCVideo">
       <video
-        id="WebRTCVideo-video"
+        className="WebRTCVideo-video"
         autoPlay
         playsInline
         muted

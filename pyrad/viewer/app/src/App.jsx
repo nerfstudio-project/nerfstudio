@@ -1,16 +1,23 @@
-import { ConfigPanel, RenderControls } from './modules/ConfigPanel/ConfigPanel';
+import './App.css';
+
+import {
+  ConfigPanel,
+  MyComponent,
+  RenderControls,
+} from './modules/ConfigPanel/ConfigPanel';
+import React, { useEffect, useState } from 'react';
 
 import Alert from './modules/Alert/Alert';
-import React from 'react';
 import SetupScene from './modules/Scene/Scene';
 import ViewerWindow from './modules/ViewerWindow/ViewerWindow';
 
 export default function App() {
-  let [scene] = SetupScene();
-  const [controls, setControls] = RenderControls();
+  console.log('app');
+  const scene = SetupScene();
+
   return (
     <div className="App">
-      <ConfigPanel />
+      <RenderControls />
       <ViewerWindow scene={scene} />
     </div>
   );

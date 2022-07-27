@@ -31,12 +31,18 @@ export function RenderControls() {
     setIsTraining((current) => !current);
   };
 
-  const [controls, setControls] = useControls(
-    'Render Options',
+  const { controls } = useControls(
+    'Rendering State',
     () => ({
-      // isConnected
-      'WebSocket Connected': button(toggleIsTraining, {
+      // WebSocket isConnected
+      // button does nothing except be an indicator
+      'WebSocket Connected': button(() => {}, {
         disabled: !isWebsocketConnected,
+      }),
+      // webRTC isConnected
+      // button does nothing except be an indicator
+      'WebRTC Connected': button(() => {}, {
+        disabled: !isWebrtcConnected,
       }),
       // isTraining
       'Resume Training': button(toggleIsTraining, {
@@ -80,17 +86,13 @@ export function RenderControls() {
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
     }),
-    [isWebsocketConnected, isTraining, outputOptions],
+    [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions],
   );
 
-  // Similar to componentDidMount and componentDidUpdate:
-  useEffect(() => {
-    setOutputOptions(['hello', 'world']);
-    // setControls({ output_options: 1 });
-    // setIsWebsocketConnected(true);
-  }, []);
+  return controls;
+}
 
-  // setOutputOptions(arr => ["hello", "world"]);
-  // setOutputOptions( arr => [...arr, `${arr.length}`]);
-  return [controls, setControls];
+export function MyComponent() {
+  const { myValue } = useControls({ myValue: 10 });
+  return myValue;
 }

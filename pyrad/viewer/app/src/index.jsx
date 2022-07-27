@@ -1,15 +1,12 @@
-import './index.css';
-
 import * as serviceWorker from './serviceWorker';
 
-import Alert from './modules/Alert/Alert';
 import App from './App';
 import { Provider } from 'react-redux';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import WebRtcProvider from './modules/WebRtcWindow/WebRtcWindow';
 import WebSocketProvider from './modules/WebSocket/WebSocket';
 import store from './store';
+import Alert from './modules/Alert/Alert';
 
 // console.log(store.getState());
 const root = ReactDOM.createRoot(document.getElementById('root'));

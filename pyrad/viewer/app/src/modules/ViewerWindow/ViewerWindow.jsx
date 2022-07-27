@@ -1,14 +1,20 @@
+import './ViewerWindow.css';
+
 import * as THREE from 'three';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+import { WebSocketContext } from '../WebSocket/WebSocket';
+const msgpack = require('msgpack-lite');
 
+// manages a camera and the web rtc stream...
 export default function ViewerWindow(props) {
   const scene = props.scene;
-  let controls_main = null;
+  let cameraControls = null;
   const myRef = useRef(null);
+  let websocket = useContext(WebSocketContext).socket;
 
   const getViewportWidth = () => {
     return window.innerWidth - (window.innerWidth % 2);
@@ -51,28 +57,43 @@ export default function ViewerWindow(props) {
   const update = () => {
     handleResize();
     camera.updateProjectionMatrix();
-    controls_main.update();
+    cameraControls.update();
     requestAnimationFrame(update);
     renderer.render(scene, camera);
+    sendCamera();
   };
 
   // TODO(ethan): add code to send over the camera information when it changes...
   // and vice versa...?
 
+  const sendCamera = () => {
+    // update the camera information in the python server
+    if (websocket.readyState === WebSocket.OPEN) {
+      const cmd = 'set_object';
+      const path = 'Cameras/Main Camera';
+      const data = {
+        type: cmd,
+        path,
+        object: camera.toJSON(),
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
   // similar to componentDidMount
   useEffect(() => {
     myRef.current.append(renderer.domElement);
-
-    // add controls
-    controls_main = new OrbitControls(camera, renderer.domElement);
-    controls_main.rotateSpeed = 2.0;
-    controls_main.zoomSpeed = 0.3;
-    controls_main.panSpeed = 0.2;
-    controls_main.target.set(0, 0, 0); // focus point of the controls
-    controls_main.autoRotate = false;
-    controls_main.enableDamping = true;
-    controls_main.dampingFactor = 1.0;
-    controls_main.update();
+    // add camera controls
+    cameraControls = new OrbitControls(camera, renderer.domElement);
+    cameraControls.rotateSpeed = 2.0;
+    cameraControls.zoomSpeed = 0.3;
+    cameraControls.panSpeed = 0.2;
+    cameraControls.target.set(0, 0, 0); // focus point of the controls
+    cameraControls.autoRotate = false;
+    cameraControls.enableDamping = true;
+    cameraControls.dampingFactor = 1.0;
+    cameraControls.update();
     update();
   }, []);
 
