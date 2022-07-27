@@ -1,8 +1,8 @@
 #include "include/helpers_cuda.h"
 
 
-inline __device__ float min_step_size(uint32_t num_steps) { 
-    return __SQRT3() / num_steps; 
+inline __device__ float min_step_size(uint32_t max_ray_samples) { 
+    return __SQRT3() / max_ray_samples; 
 }
 
 // Maximum step size is the width of the coarsest gridsize cell.
@@ -100,6 +100,10 @@ inline __device__ float advance_to_next_voxel(
     return t;
 }
 
+
+// Two modes: 
+// 1. "vertically" marching: a portion of rays march maximum steps. (during training)
+// 2. "horizontally" marching: all rays march together for certain steps. (during inference)
 template <typename scalar_t>
 __global__ void kernel_raymarching(
     // rays info
@@ -115,11 +119,12 @@ __global__ void kernel_raymarching(
     const int grid_size,
     const uint8_t* grid_bitfield,
     // sampling
+    const int marching_steps, // used only for inference. -1 means disable it.
     const int max_total_samples,
-    const int num_steps,  // default 1024
+    const int max_ray_samples,  // default 1024
     const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
     const float step_scale,
-    int* numsteps_counter,
+    int* steps_counter,
     int* rays_counter,
     int* packed_info_out,
     scalar_t* origins_out,
@@ -142,59 +147,64 @@ __global__ void kernel_raymarching(
 
     // TODO(ruilongli): perturb `near` as in ngp_pl?
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
-    float dt_min = min_step_size(num_steps) * step_scale;
+    float dt_min = min_step_size(max_ray_samples) * step_scale;
     float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;    
-    
-    // first pass to compute an accurate number of steps
-    uint32_t j = 0;
-    float t0 = near;
-    float dt = calc_dt(t0, cone_angle, dt_min, dt_max);
-    float t1 = t0 + dt;
-    float t_mid = (t0 + t1) * 0.5f;
+	
+    uint32_t ray_idx, base, marching_samples;
+    uint32_t j;
+    float t0, dt, t1, t_mid;
+    if (marching_steps < 0) {
+        // first pass to compute an accurate number of steps
+        j = 0;
+        t0 = near;
+        dt = calc_dt(t0, cone_angle, dt_min, dt_max);
+        t1 = t0 + dt;
+        t_mid = (t0 + t1) * 0.5f;
 
-    while (t_mid < far && j < num_steps) {
-        // current center
-        const float x = ox + t_mid * dx;
-        const float y = oy + t_mid * dy;
-        const float z = oz + t_mid * dz;
-        uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
-        
-        if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
-            ++j;
-            // march to next sample
-            t0 = t1;
-            dt = calc_dt(t0, cone_angle, dt_min, dt_max);
-            t1 = t0 + dt;
-            t_mid = (t0 + t1) * 0.5f;
+        while (t_mid < far && j < max_ray_samples) {
+            // current center
+            const float x = ox + t_mid * dx;
+            const float y = oy + t_mid * dy;
+            const float z = oz + t_mid * dz;
+            uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
+            
+            if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
+                ++j;
+                // march to next sample
+                t0 = t1;
+                dt = calc_dt(t0, cone_angle, dt_min, dt_max);
+                t1 = t0 + dt;
+                t_mid = (t0 + t1) * 0.5f;
+            }
+            else {
+                // march to next sample
+                float res = (grid_size >> mip) * grid_scale;
+                t_mid = advance_to_next_voxel(
+                    t_mid, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
+                );
+                dt = calc_dt(t_mid, cone_angle, dt_min, dt_max);
+                t0 = t_mid - dt * 0.5f;
+                t1 = t_mid + dt * 0.5f;
+            }
         }
-        else {
-            // march to next sample
-            float res = (grid_size >> mip) * grid_scale;
-            t_mid = advance_to_next_voxel(
-                t_mid, x, y, z, dx, dy, dz, rdx, rdy, rdz, res, dt_min
-            );
-            dt = calc_dt(t_mid, cone_angle, dt_min, dt_max);
-            t0 = t_mid - dt * 0.5f;
-            t1 = t_mid + dt * 0.5f;
-        }
+        if (j == 0) return;
+
+        marching_samples = j;
+        base = atomicAdd(steps_counter, marching_samples);
+        if (base + marching_samples > max_total_samples) return;
+        ray_idx = atomicAdd(rays_counter, 1);
+
+    } else {
+        marching_samples = marching_steps;
+        base = i * marching_steps;
+        ray_idx = i;
     }
-    if (j == 0) return;
 
-    uint32_t numsteps = j;
-    uint32_t base = atomicAdd(numsteps_counter, numsteps);
-    if (base + numsteps > max_total_samples) return;
-    
     // locate
     origins_out += base * 3;
     dirs_out += base * 3;
     starts_out += base;
     ends_out += base;
-
-    uint32_t ray_idx = atomicAdd(rays_counter, 1);
-
-    packed_info_out[ray_idx * 3 + 0] = i;  // ray idx in {rays_o, rays_d}
-    packed_info_out[ray_idx * 3 + 1] = base;  // point idx start.
-    packed_info_out[ray_idx * 3 + 2] = numsteps;  // point idx shift.
 
     // Second round
     j = 0;
@@ -203,7 +213,7 @@ __global__ void kernel_raymarching(
     t1 = t0 + dt;
     t_mid = (t0 + t1) / 2.;
 
-    while (t_mid < far && j < num_steps) {
+    while (t_mid < far && j < marching_samples) {
         // current center
         const float x = ox + t_mid * dx;
         const float y = oy + t_mid * dy;
@@ -235,8 +245,13 @@ __global__ void kernel_raymarching(
             dt = calc_dt(t_mid, cone_angle, dt_min, dt_max);
             t0 = t_mid - dt * 0.5f;
             t1 = t_mid + dt * 0.5f;
-        }
-    }
+		}
+	}
+
+    packed_info_out[ray_idx * 3 + 0] = i;  // ray idx in {rays_o, rays_d}
+    packed_info_out[ray_idx * 3 + 1] = base;  // point idx start.
+    packed_info_out[ray_idx * 3 + 2] = j;  // point idx shift (actual marching samples).
+
     return;
 }
 
@@ -302,8 +317,9 @@ __global__ void kernel_occupancy_query(
  * @param grid_cascades Density grid levels.
  * @param grid_size Density grid resolution.
  * @param grid_bitfield Density grid uint8 bit field.
+ * @param marching_steps Marching steps during inference.
  * @param max_total_samples Maximum total number of samples in this batch.
- * @param num_steps Used to define the minimal step size: SQRT3() / num_steps.
+ * @param max_ray_samples Used to define the minimal step size: SQRT3() / max_ray_samples.
  * @param cone_angle 0. for nerf-synthetic and 1./256 for real scenes.
  * @param step_scale Scale up the step size by this much. Usually equals to scene scale.
  * @return std::vector<torch::Tensor> 
@@ -330,8 +346,9 @@ std::vector<torch::Tensor> raymarching(
     const int grid_size,
     const torch::Tensor grid_bitfield, 
     // sampling args
+    const int marching_steps,
     const int max_total_samples,
-    const int num_steps,
+    const int max_ray_samples,
     const float cone_angle,
     const float step_scale
 ) {
@@ -349,18 +366,20 @@ std::vector<torch::Tensor> raymarching(
     const int blocks = CUDA_N_BLOCKS_NEEDED(n_rays, threads);
 
     // helper counter
-    torch::Tensor numsteps_counter = torch::zeros(
+    torch::Tensor steps_counter = torch::zeros(
         {1}, rays_o.options().dtype(torch::kInt32));
     torch::Tensor rays_counter = torch::zeros(
         {1}, rays_o.options().dtype(torch::kInt32));
 
+    int output_total_samples = marching_steps < 0 ? max_total_samples : marching_steps * n_rays;
+
     // output samples
     torch::Tensor packed_info = torch::zeros(
         {n_rays, 3}, rays_o.options().dtype(torch::kInt32));  // ray_id, sample_id, num_samples
-    torch::Tensor origins = torch::zeros({max_total_samples, 3}, rays_o.options());
-    torch::Tensor dirs = torch::zeros({max_total_samples, 3}, rays_o.options());
-    torch::Tensor starts = torch::zeros({max_total_samples, 1}, rays_o.options());
-    torch::Tensor ends = torch::zeros({max_total_samples, 1}, rays_o.options());
+    torch::Tensor origins = torch::zeros({output_total_samples, 3}, rays_o.options());
+    torch::Tensor dirs = torch::zeros({output_total_samples, 3}, rays_o.options());
+    torch::Tensor starts = torch::zeros({output_total_samples, 1}, rays_o.options());
+    torch::Tensor ends = torch::zeros({output_total_samples, 1}, rays_o.options());
 
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         rays_o.scalar_type(),
@@ -380,11 +399,12 @@ std::vector<torch::Tensor> raymarching(
                 grid_size,
                 grid_bitfield.data_ptr<uint8_t>(),
                 // sampling args
+                marching_steps, // used only for inference. -1 means disable it.
                 max_total_samples,
-                num_steps,
+                max_ray_samples,
                 cone_angle,
                 step_scale,
-                numsteps_counter.data_ptr<int>(),  // total samples.
+                steps_counter.data_ptr<int>(),  // total samples.
                 rays_counter.data_ptr<int>(),  // total rays.
                 packed_info.data_ptr<int>(), 
                 origins.data_ptr<scalar_t>(),
