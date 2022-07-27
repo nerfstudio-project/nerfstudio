@@ -32,7 +32,7 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.graphs.base import Graph
 from nerfactory.graphs.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import colors, visualization, writer, misc
+from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
 
