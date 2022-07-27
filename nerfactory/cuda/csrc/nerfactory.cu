@@ -40,7 +40,8 @@ std::vector<torch::Tensor> volumetric_rendering_forward(
     torch::Tensor starts, 
     torch::Tensor ends, 
     torch::Tensor sigmas, 
-    torch::Tensor rgbs
+    torch::Tensor rgbs,
+    torch::Tensor opacities
 );
 
 std::vector<torch::Tensor> volumetric_rendering_backward(
@@ -54,7 +55,8 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor starts, 
     torch::Tensor ends, 
     torch::Tensor sigmas, 
-    torch::Tensor rgbs
+    torch::Tensor rgbs,
+    torch::Tensor opacities
 );
 
 std::vector<torch::Tensor> occupancy_query(
