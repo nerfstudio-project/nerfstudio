@@ -387,8 +387,8 @@ class NGPSpacedSampler(Sampler):
         if t_min is None or t_max is None:
             # TODO(ruilongli): this clipping here is stupid. Try to avoid that.
             t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
-            t_min = torch.minimum(t_min, ray_bundle.nears.squeeze(-1))
-            t_max = torch.minimum(t_max, ray_bundle.fars.squeeze(-1))
+            t_min = torch.clamp(t_min, max=1e10)
+            t_max = torch.clamp(t_max, max=1e10)
 
         # sampling arguments
         if self.training:

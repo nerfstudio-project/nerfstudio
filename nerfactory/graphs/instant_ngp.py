@@ -156,7 +156,7 @@ class NGPGraph(Graph):
                 # all samples for this ray have been drawn
                 alive_ray_mask[packed_info[:, 2] < num_samples] = False
 
-                # this ray has coverged
+                # this ray has converged
                 alive_ray_mask[accumulated_weight[:, 0] > 1.0 - 1e-4] = False
 
                 # march forward and skip those are not alive
