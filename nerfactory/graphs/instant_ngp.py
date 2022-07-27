@@ -100,7 +100,12 @@ class NGPGraph(Graph):
             accumulated_color,
             alive_ray_mask,
         ) = nerfactory_cuda.VolumeRenderer.apply(
-            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs, opacities
+            packed_info,
+            ray_samples.frustums.starts,
+            ray_samples.frustums.ends,
+            sigmas.contiguous(),
+            rgbs.contiguous(),
+            opacities,
         )
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
