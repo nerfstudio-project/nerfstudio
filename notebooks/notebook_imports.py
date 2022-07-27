@@ -2,11 +2,11 @@
 import imageio
 import mediapy as media
 
-# ipython stuff
-from IPython import get_ipython
-
 # plotly stuff
 import plotly.graph_objects as go
+
+# ipython stuff
+from IPython import get_ipython
 
 
 def setup_ipynb():

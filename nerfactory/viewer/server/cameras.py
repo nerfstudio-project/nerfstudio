@@ -15,6 +15,7 @@
 """Logic to render Camera objects in the Viewer"""
 
 from typing import List, Optional, Tuple
+
 import cv2
 import numpy as np
 

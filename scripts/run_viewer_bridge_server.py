@@ -1,6 +1,7 @@
 """View Bridge Server"""
 
 import argparse
+
 from nerfactory.viewer.server.server import ZMQWebSocketBridge
 
 

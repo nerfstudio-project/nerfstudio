@@ -25,6 +25,7 @@ morton3D_invert = _C.morton3D_invert
 raymarching = _C.raymarching
 volumetric_rendering_forward = _C.volumetric_rendering_forward
 volumetric_rendering_backward = _C.volumetric_rendering_backward
+occupancy_query = _C.occupancy_query
 
 # pylint: disable=abstract-method,arguments-differ
 class VolumeRenderer(torch.autograd.Function):
@@ -77,3 +78,18 @@ class VolumeRenderer(torch.autograd.Function):
         )
         # corresponds to the input argument list of forward()
         return None, None, None, grad_sigmas, grad_rgbs
+
+
+def unpackbits(x: torch.Tensor) -> torch.Tensor:
+    """Unpack uint8 bits back to a boolen mask.
+
+    Args:
+        x: uint8 bit tensor with shape [N]
+
+    Returns:
+        unpacked boolen tensor with shape [N * 8]
+    """
+    assert x.dtype == torch.uint8 and x.dim() == 1
+    bits = x.element_size() * 8
+    mask = 2 ** torch.arange(bits - 1, -1, -1).to(x)
+    return x.unsqueeze(-1).bitwise_and(mask).ne(0).flip(-1).bool().reshape(-1)

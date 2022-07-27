@@ -32,7 +32,7 @@ class Sampler(nn.Module):
     """Generate Samples"""
 
     def __init__(
-        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 1e-4
+        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 0.01
     ) -> None:
         super().__init__()
         self.num_samples = num_samples
@@ -47,11 +47,11 @@ class Sampler(nn.Module):
         """Generate ray samples with optional density filtering"""
         ray_samples = self.generate_ray_samples(*args, **kwargs)
         if self.density_field is not None:
-            densities = self.density_field.get_densities(ray_samples.frustums.get_positions())
-            weights = ray_samples.get_weights(densities)
-
-            valid_mask = weights >= self.weight_threshold
-            ray_samples.set_valid_mask(valid_mask)
+            densities = self.density_field.get_densities(ray_samples)
+            deltas = torch.clamp(ray_samples.frustums.ends - ray_samples.frustums.starts, min=1e-10)
+            density_threshold = torch.clamp(self.weight_threshold / deltas, max=self.density_field.mean_density)
+            valid_mask = densities > density_threshold
+            ray_samples.set_valid_mask(valid_mask & ray_samples.valid_mask)
         return ray_samples
 
 
@@ -65,7 +65,7 @@ class SpacedSampler(Sampler):
         spacing_fn_inv: Callable,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-4,
+        weight_threshold: float = 1e-2,
     ) -> None:
         """
         Args:
@@ -129,7 +129,7 @@ class UniformSampler(SpacedSampler):
         num_samples: int,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-4,
+        weight_threshold: float = 1e-2,
     ) -> None:
         """
         Args:
@@ -157,7 +157,7 @@ class LinearDisparitySampler(SpacedSampler):
         num_samples: int,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-4,
+        weight_threshold: float = 1e-2,
     ) -> None:
         """
         Args:
@@ -185,7 +185,7 @@ class SqrtSampler(SpacedSampler):
         num_samples: int,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-4,
+        weight_threshold: float = 1e-2,
     ) -> None:
         """
         Args:
@@ -213,7 +213,7 @@ class LogSampler(SpacedSampler):
         num_samples: int,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-4,
+        weight_threshold: float = 1e-2,
     ) -> None:
         """
         Args:
@@ -242,7 +242,7 @@ class PDFSampler(Sampler):
         train_stratified: bool = True,
         include_original: bool = True,
         density_field: DensityGrid = None,
-        weight_threshold: float = 1e-4,
+        weight_threshold: float = 1e-2,
         histogram_padding: float = 0.01,
     ) -> None:
         """

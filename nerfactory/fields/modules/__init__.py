@@ -13,6 +13,6 @@
 # limitations under the License.
 
 """init field modules"""
+from .base import FieldModule
 from .encoding import Encoding, ScalingAndOffset
 from .mlp import MLP
-from .base import FieldModule

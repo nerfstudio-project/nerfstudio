@@ -17,8 +17,9 @@ Ray generator.
 """
 from torch import nn
 from torchtyping import TensorType
-from nerfactory.cameras.rays import RayBundle
+
 from nerfactory.cameras.cameras import get_camera_model
+from nerfactory.cameras.rays import RayBundle
 
 
 class RayGenerator(nn.Module):
