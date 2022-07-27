@@ -78,6 +78,7 @@ class RenderThread(threading.Thread):
         self.graph = graph
         self.camera_ray_bundle = camera_ray_bundle
         self.exc = None
+        self.vis_outputs = None
 
     def run(self):
         """run function that renders out images given the current graph and ray bundles.
@@ -93,6 +94,7 @@ class RenderThread(threading.Thread):
 
         if outputs:
             self.graph.process_outputs_as_images(outputs)
+            self.vis_outputs = outputs
 
         self.state.check_done_render = True
         self.state.check_interrupt_vis = False
@@ -356,7 +358,7 @@ class VisualizerState:
             pass
 
         graph.train()
-        outputs = graph.vis_outputs
+        outputs = render_thread.vis_outputs
         if outputs is not None:
             self._send_output_to_viewer(outputs)
 
