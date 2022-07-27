@@ -171,24 +171,32 @@ class Graph(AbstractGraph):
         """Run forward starting with a ray bundle."""
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)
+            valid_mask = intersected_ray_bundle.valid_mask[..., 0]
         else:
             # NOTE(ruilongli): we don't need collider for ngp
             intersected_ray_bundle = ray_bundle
+            valid_mask = None
 
         if batch is None:
             # during inference, keep all rays
             outputs = self.get_outputs(intersected_ray_bundle)
             return outputs
 
-        # during training, keep only the rays that intersect the scene. discard the rest
-        valid_mask = intersected_ray_bundle.valid_mask[..., 0]
-        masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-        masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
-        outputs = self.get_outputs(masked_intersected_ray_bundle)
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
+        if valid_mask is not None:
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+            # during training, keep only the rays that intersect the scene. discard the rest
+            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+
+        outputs = self.get_outputs(intersected_ray_bundle)
+        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
         loss_dict = self.get_loss_dict(
-            outputs=outputs, batch=masked_batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
+            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
         )
+
+        # scaling losses by coefficients.
+        for loss_name in loss_dict.keys():
+            if loss_name in self.loss_coefficients:
+                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
     def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
