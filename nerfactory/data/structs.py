@@ -125,3 +125,18 @@ class BaseDataContainer:
     rays: RayBundle  # Raybundle and the cameras will be merged into one thing in a later PR
     cameras: torch.tensor
     ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None
+
+
+@dataclass
+class BaseModelOutputs:
+    """A container for outputs from the model.
+
+    This will be passed into the loss function along with the base data container. It should be
+    subclassed for when your model outputs different things.
+
+    Args:
+        rays (RayBundle): The rays for the image.
+        ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
+    """
+
+    rendered_pixels: Optional[TensorType["num_pixels", 3]] = None
