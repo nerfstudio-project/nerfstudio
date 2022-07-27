@@ -25,15 +25,8 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
 
 from pyrad.fields.modules.encoding import TensorVMEncoding, TensorCPEncoding
-from pyrad.fields.modules.field_heads import FieldHeadNames
 from pyrad.fields.nerf_field import NeRFField
 from pyrad.graphs.vanilla_nerf import NeRFGraph
-from pyrad.optimizers.loss import MSELoss
-from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
-from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from pyrad.utils import colors
-from pyrad.cameras.rays import RayBundle
-from pyrad.utils import visualization, writer
 
 
 class TensoRFGraph(NeRFGraph):
