@@ -112,7 +112,7 @@ class NGPGraph(Graph):
             accumulated_weight = torch.zeros((num_rays, 1), device=device)
             accumulated_depth = torch.zeros((num_rays, 1), device=device)
             accumulated_color = torch.zeros((num_rays, 3), device=device)
-            alive_ray_mask = torch.ones((num_rays), device=device, dtype=torch.bool)  # the ray we keeped from sampler
+            alive_ray_mask = torch.ones((num_rays), device=device, dtype=torch.bool)  # the ray we kept from sampler
 
             t_min, t_max = None, None
             t_marching = None
@@ -170,7 +170,7 @@ class NGPGraph(Graph):
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
-            "alive_ray_mask": alive_ray_mask,  # the rays we keeped from sampler
+            "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
 
