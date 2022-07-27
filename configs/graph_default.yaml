@@ -81,6 +81,7 @@ data:
 
 graph:
   _target_: nerfactory.graphs.vanilla_nerf.NeRFGraph
+  enable_collider: True
   collider_config:
     _target_: nerfactory.graphs.modules.scene_colliders.NearFarCollider
     near_plane: 2.0
