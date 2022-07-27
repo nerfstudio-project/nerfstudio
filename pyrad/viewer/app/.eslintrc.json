@@ -4,8 +4,10 @@
         "es2021": true
     },
     "extends": [
+        "eslint:recommended",
         "plugin:react/recommended",
-        "airbnb"
+        "airbnb",
+        "prettier"
     ],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
@@ -20,5 +22,6 @@
         "@typescript-eslint"
     ],
     "rules": {
+        "arrow-body-style": "off"
     }
 }
