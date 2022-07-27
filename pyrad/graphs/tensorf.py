@@ -14,5 +14,41 @@
 
 """
 TensorRF implementation.
-TODO:
 """
+
+from typing import Dict, List
+
+import torch
+from torch.nn import Parameter
+from torchmetrics import PeakSignalNoiseRatio
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchmetrics.functional import structural_similarity_index_measure
+
+from pyrad.fields.modules.encoding import TensorVMEncoding, TensorCPEncoding
+from pyrad.fields.modules.field_heads import FieldHeadNames
+from pyrad.fields.nerf_field import NeRFField
+from pyrad.graphs.vanilla_nerf import NeRFGraph
+from pyrad.optimizers.loss import MSELoss
+from pyrad.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from pyrad.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
+from pyrad.utils import colors
+from pyrad.cameras.rays import RayBundle
+from pyrad.utils import visualization, writer
+
+
+class TensoRFGraph(NeRFGraph):
+    """
+    TensoRF Graph
+    """
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def populate_fields(self):
+        """Set the fields."""
+
+        position_encoding = TensorVMEncoding(resolution=512, num_components=24)
+        direction_encoding = TensorVMEncoding(resolution=64, num_components=16)
+
+        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+        self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
