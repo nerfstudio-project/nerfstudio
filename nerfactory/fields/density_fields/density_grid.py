@@ -45,38 +45,34 @@ def _create_grid_coords(resolution: int, device: torch.device = "cpu") -> Tensor
 class DensityGrid(nn.Module):
     """Cascaded multi-res density grids.
 
-        The DensityGrid contains multi-level (`num_cascades`) grids from finest (0) to the coarsest (num_cascades-1).
-        All levels of grid have the same `resolution` but cover different regions in the space. The finest grid is the
-        smallest one, which has scale of `base_scale` and centered at `center`. Every next level of grid grows by 2x
-        on the scale but all shares the same center.
+    The DensityGrid contains multi-level (`num_cascades`) grids from finest (0) to the coarsest (num_cascades-1).
+    All levels of grid have the same `resolution` but cover different regions in the space. The finest grid is the
+    smallest one, which has scale of `base_scale` and centered at `center`. Every next level of grid grows by 2x
+    on the scale but all shares the same center.
 
-        For example:
-        - `center=0`, `base_scale=3`, `num_cascades=1` would create one grid (lvl=0) covers [-1.5, -1.5, -1.5, 1.5, 1.5, 1.5].
-        - `center=0`, `base_scale=3`, `num_cascades=2` would create one grid (lvl=0) covers [-1.5, -1.5, -1.5, 1.5, 1.5, 1.5],
-        and one more grid (lvl=1) covers [-3, -3, -3, 3, 3, 3].
+    For example:
+    - `center=0`, `base_scale=3`, `num_cascades=1` would create one grid (lvl=0) covers [-1.5, -1.5, -1.5, 1.5, 1.5, 1.5].
+    - `center=0`, `base_scale=3`, `num_cascades=2` would create one grid (lvl=0) covers [-1.5, -1.5, -1.5, 1.5, 1.5, 1.5],
+    and one more grid (lvl=1) covers [-3, -3, -3, 3, 3, 3].
 
-        Normally you can simply set the `center` to the scene center, and `base_scale` to be the scene scale, and use
-        `num_cascades=1` to create a single level density grid that covers the scene.
+    Normally you can simply set the `center` to the scene center, and `base_scale` to be the scene scale, and use
+    `num_cascades=1` to create a single level density grid that covers the scene.
 
-        If, for example, you cares more about the central region of the scene and want to have more fine-grained density
-        grid at central region, you can set the `base_scale` to be the scale of the central region that you care. And adjust
-    <<<<<<< HEAD
-        `num_cascades` so that the coarsest level grid covers your entire scene. You should follow this rule so that the
-    =======
-        `num_cascades` so that the coarset level grid covers your entire scene. You should follow this rule so that the
-    >>>>>>> add docstr for DensityGrid arguments; fix spacing in cuda files
-        multi-level grids can cover your scene:
+    If, for example, you cares more about the central region of the scene and want to have more fine-grained density
+    grid at central region, you can set the `base_scale` to be the scale of the central region that you care. And adjust
+    `num_cascades` so that the coarsest level grid covers your entire scene. You should follow this rule so that the
+    multi-level grids can cover your scene:
 
-        scene_scale <= base_scale * 2 ** (num_cascades - 1)
+    scene_scale <= base_scale * 2 ** (num_cascades - 1)
 
-        TODO(ruilongli): support `center` and `base_scale` with 3-dim.
+    TODO(ruilongli): support `center` and `base_scale` with 3-dim.
 
-        Args:
-            center (float, optional): Center of all the grids in the world space. Defaults to 0.
-            base_scale (float, optional): Center of the scale of the base level grid. Defaults to 1.
-            num_cascades (int, optional): Number of the cascaded multi-res levels. Defaults to 1.
-            resolution (int, optional): Resolution of the grid. Defaults to 128.
-            update_every_num_iters (int, optional): How frequently to update the grid values. Defaults to 16.
+    Args:
+        center (float, optional): Center of all the grids in the world space. Defaults to 0.
+        base_scale (float, optional): Center of the scale of the base level grid. Defaults to 1.
+        num_cascades (int, optional): Number of the cascaded multi-res levels. Defaults to 1.
+        resolution (int, optional): Resolution of the grid. Defaults to 128.
+        update_every_num_iters (int, optional): How frequently to update the grid values. Defaults to 16.
     """
 
     def __init__(
