@@ -97,6 +97,7 @@ class GraphConfig:
     """Configuration for graph instantiation"""
 
     _target_: str = MISSING
+    enable_collider: Optional[bool] = True
     collider_config: Dict[str, Any] = MISSING
     num_coarse_samples: int = MISSING
     num_importance_samples: int = MISSING

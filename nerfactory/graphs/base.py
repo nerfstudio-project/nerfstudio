@@ -81,6 +81,7 @@ class Graph(AbstractGraph):
         camera_to_world (torch.Tensor): Camera to world transformation.
         loss_coefficients (DictConfig): Loss specific weights.
         scene_bounds (SceneBounds): Bounds of target scene.
+        enable_collider (bool): Whether to create a scene collider to filter rays.
         collider_config (DictConfig): Configuration of scene collider.
         enable_density_field (bool): Whether to create a density field to filter samples.
         density_field_config (DictConfig): Configuration of density field.
@@ -92,6 +93,7 @@ class Graph(AbstractGraph):
         camera_to_world: torch.Tensor = None,
         loss_coefficients: DictConfig = None,
         scene_bounds: SceneBounds = None,
+        enable_collider: bool = True,
         collider_config: DictConfig = None,
         enable_density_field: bool = False,
         density_field_config: DictConfig = None,
@@ -102,6 +104,7 @@ class Graph(AbstractGraph):
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
+        self.enable_collider = enable_collider
         self.collider_config = collider_config
         self.loss_coefficients = loss_coefficients
         self.enable_density_field = enable_density_field
@@ -130,7 +133,8 @@ class Graph(AbstractGraph):
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
-        self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
+        if self.enable_collider:
+            self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_misc_modules(self):
@@ -165,7 +169,11 @@ class Graph(AbstractGraph):
 
     def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run forward starting with a ray bundle."""
-        intersected_ray_bundle = self.collider(ray_bundle)
+        if self.collider is not None:
+            intersected_ray_bundle = self.collider(ray_bundle)
+        else:
+            # NOTE(ruilongli): we don't need collider for ngp
+            intersected_ray_bundle = ray_bundle
 
         if batch is None:
             # during inference, keep all rays
