@@ -8,7 +8,7 @@ data:
     pixel_sampler:
       num_rays_per_batch: 8192 # for training
   dataloader_eval:
-    num_rays_per_chunk: 8192 # for evaluation
+    num_rays_per_chunk: 1000000000 # all rays for evaluation
 
 viewer:
   enable: true
@@ -16,12 +16,11 @@ viewer:
 
 graph:
   _target_: nerfactory.graphs.instant_ngp.NGPGraph
-  collider_config:
-    _target_: nerfactory.graphs.modules.scene_colliders.AABBBoxCollider
+  enable_density_field: true
+  enable_collider: false
   field_implementation: tcnn # torch, tcnn, ...
   loss_coefficients: # loss coefficients
     rgb_loss: 1.0
-  enable_collider: false
   
 # optimizer options for network
 optimizers:
