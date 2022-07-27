@@ -45,8 +45,8 @@ def _create_grid_coords(resolution: int, device: torch.device = "cpu") -> Tensor
 class DensityGrid(nn.Module):
     """Cascaded multi-res density grids.
 
-    The DensityGrid contains multi-level (`num_cascades`) grids from fineset (0) to the coarset (num_cascades-1).
-    All levels of grid has the same `resolution` but covers different regions in the space. The finest grid is the
+    The DensityGrid contains multi-level (`num_cascades`) grids from finest (0) to the coarsest (num_cascades-1).
+    All levels of grid have the same `resolution` but cover different regions in the space. The finest grid is the
     smallest one, which has scale of `base_scale` and centered at `center`. Every next level of grid grows by 2x
     on the scale but all shares the same center.
 
@@ -60,7 +60,7 @@ class DensityGrid(nn.Module):
 
     If, for example, you cares more about the central region of the scene and want to have more fine-grained density
     grid at central region, you can set the `base_scale` to be the scale of the central region that you care. And adjust
-    `num_cascades` so that the coarset level grid covers your entire scene. You should follow this rule so that the
+    `num_cascades` so that the coarsest level grid covers your entire scene. You should follow this rule so that the
     multi-level grids can cover your scene:
 
     scene_scale <= base_scale * 2 ** (num_cascades - 1)
