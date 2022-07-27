@@ -189,7 +189,9 @@ class Graph(AbstractGraph):
 
         outputs = self.get_outputs(intersected_ray_bundle)
         metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
-        loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
+        loss_dict = self.get_loss_dict(
+            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
+        )
 
         # scaling losses by coefficients.
         for loss_name in loss_dict.keys():
