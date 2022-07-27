@@ -390,14 +390,10 @@ class NGPSpacedSampler(Sampler):
             t_min = torch.clamp(t_min, max=1e10)
             t_max = torch.clamp(t_max, max=1e10)
 
-        # sampling arguments
-        if self.training:
-            # TODO(ruilongli): * 16 is for original impl for training. Need to run
-            # some profiling test with this choice.
-            marching_steps = -1
-            max_samples_per_batch = len(rays_o) * num_samples
-        else:
-            max_samples_per_batch = len(rays_o) * marching_steps
+        marching_steps = -1  # disable marching mode for now
+        # TODO(ruilongli): * 16 is for original impl for training. Need to run
+        # some profiling test with this choice.
+        max_samples_per_batch = len(rays_o) * num_samples
 
         # marching
         packed_info, origins, dirs, starts, ends = nerfactory_cuda.raymarching(
@@ -421,20 +417,15 @@ class NGPSpacedSampler(Sampler):
         )
 
         # squeeze valid samples
-        if self.training:
-            total_samples = max(packed_info[:, -1].sum(), 1)
-            origins = origins[:total_samples]
-            dirs = dirs[:total_samples]
-            starts = starts[:total_samples]
-            ends = ends[:total_samples]
-            valid_mask = None
-        else:
-            valid_mask = (dirs != 0.0).any(dim=-1, keepdim=True)
+        total_samples = max(packed_info[:, -1].sum(), 1)
+        origins = origins[:total_samples]
+        dirs = dirs[:total_samples]
+        starts = starts[:total_samples]
+        ends = ends[:total_samples]
 
         # return samples
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
             frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
-            valid_mask=valid_mask,
         )
         return ray_samples, packed_info, t_min, t_max

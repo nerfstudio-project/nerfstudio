@@ -86,82 +86,24 @@ class NGPGraph(Graph):
         num_rays = len(ray_bundle)
         device = ray_bundle.origins.device
 
-        if self.training:
-            ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
+        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
-            field_outputs = self.field.forward(ray_samples)
-            rgbs = field_outputs[FieldHeadNames.RGB]
-            sigmas = field_outputs[FieldHeadNames.DENSITY]
+        field_outputs = self.field.forward(ray_samples)
+        rgbs = field_outputs[FieldHeadNames.RGB]
+        sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-            opacities = torch.zeros((num_rays, 1), device=device)
-            (
-                accumulated_weight,
-                accumulated_depth,
-                accumulated_color,
-                alive_ray_mask,
-            ) = nerfactory_cuda.VolumeRenderer.apply(
-                packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs, opacities
-            )
-            accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
-            accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
-
-        else:
-            accumulated_weight = torch.zeros((num_rays, 1), device=device)
-            accumulated_depth = torch.zeros((num_rays, 1), device=device)
-            accumulated_color = torch.zeros((num_rays, 3), device=device)
-            alive_ray_mask = torch.ones((num_rays), device=device, dtype=torch.bool)  # the ray we kept from sampler
-
-            t_min, t_max = None, None
-            t_marching = None
-            samples = 0
-            while samples < self.sampler.num_samples:
-                num_alive = alive_ray_mask.sum().item()
-                if num_alive == 0:
-                    break
-
-                min_samples = 1
-                num_samples = max(min(num_rays // num_alive, 64), min_samples)
-                samples += num_samples
-
-                ray_samples, packed_info, t_marching, t_max = self.sampler(
-                    ray_bundle, self.field.aabb, marching_steps=num_samples, t_min=t_marching, t_max=t_max
-                )
-                if t_min is None:
-                    t_min = t_marching
-
-                field_outputs = self.field.forward(ray_samples)
-                rgbs = field_outputs[FieldHeadNames.RGB]
-                sigmas = field_outputs[FieldHeadNames.DENSITY]
-
-                (
-                    _accumulated_weight,
-                    _accumulated_depth,
-                    _accumulated_color,
-                    _,
-                ) = nerfactory_cuda.VolumeRenderer.apply(
-                    packed_info,
-                    ray_samples.frustums.starts,
-                    ray_samples.frustums.ends,
-                    sigmas,
-                    rgbs,
-                    accumulated_weight,
-                )
-                accumulated_weight += _accumulated_weight
-                accumulated_depth += _accumulated_depth
-                accumulated_color += _accumulated_color
-
-                # all samples for this ray have been drawn
-                alive_ray_mask[packed_info[:, 2] < num_samples] = False
-
-                # this ray has converged
-                alive_ray_mask[accumulated_weight[:, 0] > 1.0 - 1e-4] = False
-
-                # march forward and skip those are not alive
-                t_marching = ray_samples.frustums.ends.reshape(num_rays, num_samples).max(dim=-1).values
-                t_marching[~alive_ray_mask] = 1e10
-
-            accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
-            accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
+        # accumulate all the rays start from zero opacity
+        opacities = torch.zeros((num_rays, 1), device=device)
+        (
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            alive_ray_mask,
+        ) = nerfactory_cuda.VolumeRenderer.apply(
+            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs, opacities
+        )
+        accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
+        accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
 
         outputs = {
             "rgb": accumulated_color,

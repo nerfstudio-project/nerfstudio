@@ -8,7 +8,7 @@ data:
     pixel_sampler:
       num_rays_per_batch: 8192 # for training
   dataloader_eval:
-    num_rays_per_chunk: 1000000000 # all rays for evaluation
+    num_rays_per_chunk: 8192 # all rays for evaluation
 
 viewer:
   enable: true
