@@ -17,6 +17,7 @@ Camera Models
 """
 from abc import abstractmethod
 from typing import Optional, Type
+import base64
 
 import torch
 from torch.nn.functional import normalize
@@ -31,8 +32,8 @@ class Camera:
 
     def __init__(
         self,
-        camera_to_world: Optional[TensorType[3, 4]] = torch.eye(4)[:3],
-        camera_index: int = None,
+        camera_to_world: TensorType[3, 4] = torch.eye(4)[:3],
+        camera_index: Optional[int] = None
     ) -> None:
         self.camera_to_world = camera_to_world
         self.camera_index = camera_index
@@ -46,7 +47,7 @@ class Camera:
     def get_num_intrinsics_params(self) -> int:
         """
         Returns:
-            int: number of optimizable intrinsic parameters
+            number of optimizable intrinsic parameters
         """
         return
 
@@ -54,21 +55,21 @@ class Camera:
     def get_intrinsics(self) -> torch.Tensor:
         """
         Returns:
-            torch.Tensor: Intrinsics matrix
+            Intrinsics matrix
         """
         return
 
     def get_camera_to_world(self) -> TensorType[3, 4]:
         """
         Returns:
-            TensorType[3, 4]: Camera to world transformation
+            Camera to world transformation
         """
         return self.camera_to_world
 
     def get_camera_to_world_h(self) -> TensorType[4, 4]:
         """
         Returns:
-            TensorType[4, 4]: Camera to world transformation with homogeneous coordinates
+            Camera to world transformation with homogeneous coordinates
         """
         c2w = self.camera_to_world
         ones = torch.tensor([0, 0, 0, 1], device=c2w.device)[None]
@@ -79,7 +80,7 @@ class Camera:
     def get_image_height(self) -> int:
         """
         Returns:
-            int: Image height
+            Image height
         """
         return
 
@@ -87,7 +88,7 @@ class Camera:
     def get_image_width(self) -> int:
         """
         Returns:
-            int: Image width
+            Image width
         """
         return
 
@@ -96,7 +97,7 @@ class Camera:
         """Rescales the camera intrinsics for output resolution.
 
         Args:
-            scaling_factor (float): Scaling factor
+            scaling_factor: Scaling factor
 
         Returns:
             None
@@ -166,10 +167,9 @@ class PinholeCamera(Camera):
         cy: float,
         fx: float,
         fy: float,
-        camera_to_world: Optional[TensorType[3, 4]] = torch.eye(4)[:3],
-        camera_index: int = None,
+        **kwargs
     ):
-        super().__init__(camera_to_world, camera_index)
+        super().__init__(**kwargs)
         self.cx = cx
         self.cy = cy
         self.fx = fx
@@ -219,6 +219,26 @@ class PinholeCamera(Camera):
         """
         return 3
 
+    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+        json_ = {
+            "type": "PinholeCamera",
+            "cx": cx,
+            "cy": cy,
+            "fx": fx,
+            "fy": fy,
+            "camera_to_world": camera_to_world.tolist(),
+            "camera_index": camera_index
+        }
+        if image:
+            # move image to cpu if not already
+            # TODO: move to numpy
+            data = cv2.imencode(".png", image[:, :, ::-1])[1].tobytes()
+            json["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
+
+    @staticmethod
+    def from_json(json_: dict) -> Camera:
+        raise NotImplementedError
+
     def rescale_output_resolution(self, scaling_factor: float) -> None:
         self.cx *= scaling_factor
         self.cy *= scaling_factor
@@ -267,10 +287,9 @@ class SimplePinholeCamera(PinholeCamera):
         cx: float,
         cy: float,
         f: float,
-        camera_to_world: Optional[TensorType[3, 4]] = torch.eye(4)[:3],
-        camera_index: int = None,
+        **kwargs
     ):
-        super().__init__(cx, cy, f, f, camera_to_world, camera_index)
+        super().__init__(cx, cy, f, f, **kwargs)
 
     @classmethod
     def fx_index(cls):
@@ -288,10 +307,9 @@ class EquirectangularCamera(Camera):
         self,
         height: int,
         width: int,
-        camera_to_world: Optional[TensorType[3, 4]] = torch.eye(4)[:3],
-        camera_index: int = None,
+        **kwargs
     ):
-        super().__init__(camera_to_world, camera_index)
+        super().__init__(**kwargs)
         self.height = height
         self.width = width
 
@@ -376,6 +394,8 @@ def get_intrinsics_from_intrinsics_matrix(intrinsics_matrix: TensorType[3, 3]):
 
 
 def get_camera_model(num_intrinsics_params: int) -> Type[Camera]:
+    # TODO: we should specify the type in the dataloading pipeline instead of relying on number of intrinsics
+    # to make the choice
     """Returns the camera model given the specified number of intrinsics parameters.
 
     Args:

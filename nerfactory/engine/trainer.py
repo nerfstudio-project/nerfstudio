@@ -44,7 +44,7 @@ logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
 class Trainer:
-    """Training class
+    """Trainer class
 
     Args:
         config (Config): The configuration object.
@@ -95,7 +95,7 @@ class Trainer:
             self.graph = DDP(self.graph, device_ids=[self.local_rank])
             dist.barrier(device_ids=[self.local_rank])
 
-        self.graph.register_callbacks()
+        self.callbacks = self.graph.get_training_callbacks()
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.Tensor]) -> torch.Tensor:
@@ -203,9 +203,8 @@ class Trainer:
         self.grad_scaler.update()
 
         self.optimizers.scheduler_step_all(step)
-        if self.graph.callbacks:
-            for func_ in self.graph.callbacks:
-                func_.after_step(step)
+        for callback in self.callbacks:
+            callback.after_step(step)
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss

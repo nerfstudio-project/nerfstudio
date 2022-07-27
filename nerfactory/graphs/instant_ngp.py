@@ -37,21 +37,24 @@ from nerfactory.utils.callbacks import Callback
 
 
 class NGPGraph(Graph):
+    """Instant NGP graph
 
-    """Instant NGP graph"""
+    Args:
+        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
+        kwargs: additional params to pass up to the parent class Graph
+    """
 
-    def __init__(self, field_implementation="torch", intrinsics=None, camera_to_world=None, **kwargs) -> None:
+    def __init__(self, field_implementation="torch", **kwargs) -> None:
         assert field_implementation in field_implementation_to_class
         self.field_implementation = field_implementation
         self.field = None
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(**kwargs)
 
-    def register_callbacks(self) -> None:
-        """defining callbacks to run after every training iteration"""
-        self.callbacks = [
+    def get_training_callbacks(self) -> List[Callback]:
+        return = [
             Callback(
-                self.density_grid.update_every_num_iters,
-                self.density_grid.update_density_grid,
+                update_every_num_iters=self.density_grid.update_every_num_iters,
+                func=self.density_grid.update_density_grid,
                 density_eval_func=self.field.density_fn,
             )
         ]
@@ -175,7 +178,7 @@ class NGPGraph(Graph):
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
-        device = self.get_device()
+        device = self.device
         image = batch["image"].to(device)
         if "alive_ray_mask" in outputs:
             mask = outputs["alive_ray_mask"]

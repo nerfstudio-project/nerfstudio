@@ -198,6 +198,14 @@ class VisualizerState:
             image_dataset: dataset to render in the scene
             dataset_inputs: inputs to the image dataset and ray generator
         """
+
+
+        # ------ cameras ------
+        # TODO(ethan): send over the camera information...
+        vis["sceneState/cameras/0"].set_state({
+            camera.to_json()
+        })
+
         indices = random.sample(range(len(image_dataset)), k=10)
         for idx in indices:
             image = image_dataset[idx]["image"]
@@ -214,12 +222,22 @@ class VisualizerState:
                 displayed_focal_length=0.5,
                 realistic=False,
             )
+
+
+        # ------ scene bounds -------
+
         aabb = dataset_inputs.scene_bounds.aabb
+        # TODO(ethan): remove this command and replace with json serialization
         draw_aabb(self.vis, aabb, name="dataset_inputs_train/scene_bounds/aabb")
+        vis["sceneState/boundingBox"].set_state({
+            dataset_inputs.scene_bounds.to_json()
+        })
+        # set_state, append_state, add_key
 
         # set the main camera intrinsics to one from the dataset
         K = camera.get_intrinsics_matrix()
         set_persp_intrinsics_matrix(self.vis, K.double().numpy())
+
 
     def update_scene(self, step: int, graph: Graph) -> None:
         """updates the scene based on the graph weights
@@ -342,7 +360,7 @@ class VisualizerState:
         )
         intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
         camera = get_camera(intrinsics, camera_to_world)
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.get_device())
+        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.device)
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()

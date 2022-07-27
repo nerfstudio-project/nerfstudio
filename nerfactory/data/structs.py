@@ -49,8 +49,10 @@ class Semantics:
 class SceneBounds:
     """Data to represent the scene bounds.
 
-    aabb: axis-aligned bounding box
-        aabb[0] is the minimum (x,y,z) point. aabb[1] is the maximum (x,y,z) point.
+    Attributes:
+        aabb: axis-aligned bounding box.
+            aabb[0] is the minimum (x,y,z) point.
+            aabb[1] is the maximum (x,y,z) point.
     """
 
     aabb: TensorType[2, 3] = None
@@ -70,6 +72,34 @@ class SceneBounds:
         """Returns a new box that has been shifted and rescaled to be centered
         about the origin."""
         return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
+
+    @classmethod
+    def get_normalized_positions(positions: TensorType[..., 3], aabb: TensorType[2, 3]):
+        """Return normalized positions in range [0, 1] based on the aabb axis-aligned bounding box.
+        
+        Args:
+            positions: the xyz positions
+            aabb: the axis-aligned bounding box
+
+        Returns:
+            positions that are normalized into the range [0, 1].
+        """
+        aabb_lengths = aabb[1] - aabb[0]
+        positions = (positions - aabb[0]) / aabb_lengths
+        return positions
+
+    def to_json(self):
+        return {
+            "type": "aabb",
+            "min_point": aabb[0].tolist(),
+            "max_point": aabb[1].tolist()
+        }
+
+    @staticmethod
+    def from_json(json_):
+        assert json_["type"] == "aabb"
+        aabb = torch.tensor([json_[0], json_[1]])
+        return SceneBounds(aabb=aabb)
 
 
 @dataclass

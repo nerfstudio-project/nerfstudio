@@ -82,17 +82,17 @@ class NeRFGraph(Graph):
             **kwargs,
         )
 
-    def register_callbacks(self) -> None:
-        """defining callbacks to run after every training iteration"""
-        self.callbacks = []
+    def get_training_callbacks(self) -> None:
+        callbacks = []
         if self.density_field is not None:
-            self.callbacks += [
+            callbacks = [
                 Callback(
-                    self.density_field.update_every_num_iters,
-                    self.density_field.update_density_grid,
+                    update_every_num_iters=self.density_field.update_every_num_iters,
+                    func=self.density_field.update_density_grid,
                     density_eval_func=self.field_coarse.density_fn,
                 )
             ]
+        return callbacks
 
     def populate_fields(self):
         """Set the fields."""
