@@ -30,6 +30,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import DatasetInputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import GraphConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
@@ -43,7 +44,7 @@ def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str)
     """Setup the graph. The dataset inputs should be set with the training data.
 
     Args:
-        dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+        dataset_inputs: The inputs which will be used to define the camera parameters.
     """
     graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
     graph.to(device)
@@ -58,10 +59,6 @@ class AbstractGraph(nn.Module):
         # to keep track of which device the nn.Module is on
         self.device_indicator_param = nn.Parameter(torch.empty(0))
 
-    def get_device(self):
-        """Returns the device that the torch parameters are on."""
-        return self.device_indicator_param.device
-
     @property
     def device(self):
         """Returns the device that the graph is on."""
@@ -73,18 +70,19 @@ class AbstractGraph(nn.Module):
 
 
 class Graph(AbstractGraph):
-    """Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
+    """Graph class
+    Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
 
     Args:
-        intrinsics (torch.Tensor): Camera intrinsics.
-        camera_to_world (torch.Tensor): Camera to world transformation.
-        loss_coefficients (DictConfig): Loss specific weights.
-        scene_bounds (SceneBounds): Bounds of target scene.
-        enable_collider (bool): Whether to create a scene collider to filter rays.
-        collider_config (DictConfig): Configuration of scene collider.
-        enable_density_field (bool): Whether to create a density field to filter samples.
-        density_field_config (DictConfig): Configuration of density field.
+        intrinsics: Camera intrinsics.
+        camera_to_world: Camera to world transformation.
+        loss_coefficients: Loss specific weights.
+        scene_bounds: Bounds of target scene.
+        enable_collider: Whether to create a scene collider to filter rays.
+        collider_config: Configuration of scene collider.
+        enable_density_field: Whether to create a density field to filter samples.
+        density_field_config: Configuration of density field.
     """
 
     def __init__(
@@ -119,9 +117,9 @@ class Graph(AbstractGraph):
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
 
-    def register_callbacks(self):  # pylint:disable=no-self-use
-        """Option to register callback for training functions"""
-        self.callbacks = []
+    def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
+        """Returns a list of callbacks that run functions at the specified training iterations."""
+        return []
 
     def populate_density_field(self):
         """Set the scene density field to use."""
@@ -142,7 +140,7 @@ class Graph(AbstractGraph):
         """Obtain the parameter groups for the optimizers
 
         Returns:
-            Dict[str, List[Parameter]]: Mapping of different parameter groups
+            Mapping of different parameter groups
         """
 
     @abstractmethod
@@ -150,10 +148,10 @@ class Graph(AbstractGraph):
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
-            ray_bundle (RayBundle): Input bundle of rays.
+            ray_bundle: Input bundle of rays.
 
         Returns:
-            dict: Outputs of graph. (ie. rendered colors)
+            Outputs of graph. (ie. rendered colors)
         """
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
@@ -232,7 +230,7 @@ class Graph(AbstractGraph):
 
     def get_outputs_for_camera(self, camera: Camera):
         """Get the graph outputs for a Camera."""
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.get_device())
+        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
     @abstractmethod

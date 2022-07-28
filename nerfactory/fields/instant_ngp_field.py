@@ -23,6 +23,7 @@ import torch
 from torch.nn.parameter import Parameter
 
 from nerfactory.cameras.rays import RaySamples
+from nerfactory.data.structs import SceneBounds
 from nerfactory.fields.base import Field
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
@@ -34,13 +35,6 @@ try:
 except ImportError:
     # tinycudann module doesn't exist
     pass
-
-
-def get_normalized_positions(positions, aabb):
-    """Return normalized positions in range [0, 1] based on the aabb axis-aligned bounding box."""
-    aabb_lengths = aabb[1] - aabb[0]
-    positions = (positions - aabb[0]) / aabb_lengths
-    return positions
 
 
 def get_normalized_directions(directions):
@@ -105,7 +99,7 @@ class TCNNInstantNGPField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        positions = get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
@@ -156,7 +150,7 @@ class TorchInstantNGPField(NeRFField):
 
     def get_density(self, ray_samples: RaySamples):
         normalized_ray_samples = ray_samples
-        normalized_ray_samples.positions = get_normalized_positions(
+        normalized_ray_samples.positions = SceneBounds.get_normalized_positions(
             normalized_ray_samples.frustums.get_positions(), self.aabb
         )
         return super().get_density(normalized_ray_samples)

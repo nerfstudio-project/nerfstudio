@@ -14,6 +14,11 @@
 
 """
 Visualization code for plotly.
+The function use prefix conventions in the following way:
+    - 'get_*' functions (e.g., 'get_camera_frustums')
+        return data that can be ploted with plotly
+    - 'vis_*' functions (e.g., 'vis_camera_rays')
+        return 'go.Figure' objects which are the plots. Go Figure! :')
 """
 
 from typing import List, Union
@@ -93,7 +98,7 @@ def get_line_segments_from_lines(
     return data
 
 
-def visualize_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:
+def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:
     """Visualize a dataset with plotly using our cameras and generated rays.
 
     Args:
@@ -490,3 +495,18 @@ def vis_camera_rays(camera: Camera) -> go.Figure:
     )
 
     return fig
+
+
+def get_camera_frustums(cameras: List[Camera]):
+    """Returns the camera frustums for the cameras that we are using.
+
+    Args:
+        cameras: The cameras that we want to plot.
+
+    Returns:
+        A plotly scatter that can be plotted.
+    """
+    for camera in cameras:
+        json_ = camera.to_json()
+        print(json_)
+    raise NotImplementedError

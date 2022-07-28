@@ -35,6 +35,7 @@ disable = [
   "too-many-locals",
   "too-many-instance-attributes",
   "duplicate-code",
+  "unnecessary-ellipsis",
 ]
 
 #pytest

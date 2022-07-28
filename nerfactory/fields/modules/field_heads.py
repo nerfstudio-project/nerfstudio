@@ -40,10 +40,10 @@ class FieldHead(FieldModule):
     """Base field output
 
     Args:
-        out_dim (int): output dimension for renderer
-        field_head_name (FieldHeadNames): Field type
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        out_dim: output dimension for renderer
+        field_head_name: Field type
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(
@@ -71,14 +71,14 @@ class FieldHead(FieldModule):
     def _construct_net(self):
         self.net = nn.Linear(self.in_dim, self.out_dim)
 
-    def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType:
+    def forward(self, in_tensor: TensorType["bs":..., "in_dim"]) -> TensorType["bs":..., "out_dim"]:
         """Process network output for renderer
 
         Args:
-            in_tensor (TensorType[..., "in_dim]): Network input
+            in_tensor: Network input
 
         Returns:
-            TensorType[..., "out_dim"]: Render head output
+            Render head output
         """
         if not self.net:
             raise SystemError("in_dim not set. Must be provided to construtor, or set_in_dim() should be called.")
@@ -92,8 +92,8 @@ class DensityFieldHead(FieldHead):
     """Density output
 
     Args:
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
@@ -104,8 +104,8 @@ class RGBFieldHead(FieldHead):
     """RGB output
 
     Args:
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
@@ -116,10 +116,10 @@ class SHFieldHead(FieldHead):
     """Spherical harmonics output
 
     Args:
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        levels (int, optional): Number of spherical harmonics layers. Defaults to 3.
-        channels (int, optional): Number of channels. Defaults to 3 (ie RGB).
-        activation (Optional[nn.Module], optional): Output activation. Defaults to None.
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        levels: Number of spherical harmonics layers. Defaults to 3.
+        channels: Number of channels. Defaults to 3 (ie RGB).
+        activation: Output activation. Defaults to None.
     """
 
     def __init__(
@@ -134,8 +134,8 @@ class UncertaintyFieldHead(FieldHead):
     """Uncertainty output
 
     Args:
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
@@ -146,8 +146,8 @@ class TransientRGBFieldHead(FieldHead):
     """Transient RGB output
 
     Args:
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Sigmoid()) -> None:
@@ -158,8 +158,8 @@ class TransientDensityFieldHead(FieldHead):
     """Transient density output
 
     Args:
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(self, in_dim: Optional[int] = None, activation: Optional[nn.Module] = nn.Softplus()) -> None:
@@ -172,9 +172,9 @@ class SemanticFieldHead(FieldHead):
     """Semantic stuff output
 
     Args:
-        num_classes (int): Number of semantic classes
-        in_dim (int, optional): input dimension. If not defined in constructor, it must be set later.
-        activation (Optional[nn.Module]): output head activation
+        num_classes: Number of semantic classes
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
     """
 
     def __init__(self, num_classes: int, in_dim: Optional[int] = None) -> None:

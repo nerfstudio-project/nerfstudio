@@ -13,16 +13,26 @@
 # limitations under the License.
 
 """
-Callback functions for training iterations
+Callback code used for training iterations
 """
 
 from typing import Callable
 
 
 class Callback:
-    """Callback Object"""
+    """Callback class used during training.
+    The function 'func' with 'args' and 'kwargs' will be called every 'update_every_num_iters' training iterations,
+    including at iteration 0.
+
+    Args:
+        update_every_num_iters: How often to call the function `func`.
+        func: The function that will be called.
+        args: args for the function 'func'.
+        kwargs: kwargs for the function 'func'.
+    """
 
     def __init__(self, update_every_num_iters: int, func: Callable, *args, **kwargs):
+        # TODO(ethan): how do we type args and kwargs?
         self.update_every_num_iters = update_every_num_iters
         self.func = func
         self.args = args

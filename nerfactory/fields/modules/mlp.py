@@ -28,12 +28,12 @@ class MLP(FieldModule):
     """Multilayer perceptron
 
     Args:
-        in_dim (int): Input layer dimension
-        num_layers (int): Number of network layers
-        layer_width (int): Width of each MLP layer
-        out_dim (int, optional): Ouput layer dimension. Defaults to layer_width
-        activation (Optional[nn.Module], optional): intermediate layer activation function. Defaults to nn.ReLU.
-        out_activation (Optional[nn.Module], optional): output activation function. Defaults to None.
+        in_dim: Input layer dimension
+        num_layers: Number of network layers
+        layer_width: Width of each MLP layer
+        out_dim: Ouput layer dimension. Defaults to layer_width
+        activation: intermediate layer activation function. Defaults to nn.ReLU.
+        out_activation: output activation function. Defaults to None.
     """
 
     def __init__(
@@ -76,14 +76,14 @@ class MLP(FieldModule):
             layers.append(nn.Linear(self.layer_width, self.out_dim))
         self.layers = nn.ModuleList(layers)
 
-    def forward(self, in_tensor: TensorType[..., "in_dim"]) -> TensorType[..., "out_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "in_dim"]) -> TensorType["bs":..., "out_dim"]:
         """Process input with a multilayer perceptron.
 
         Args:
-            in_tensor (TensorType[..., "in_dim]): Network input
+            in_tensor: Network input
 
         Returns:
-            TensorType[..., "out_dim"]: MLP network output
+            MLP network output
         """
         x = in_tensor
         for i, layer in enumerate(self.layers):
