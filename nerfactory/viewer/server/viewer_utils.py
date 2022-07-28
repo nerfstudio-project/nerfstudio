@@ -342,7 +342,7 @@ class VisualizerState:
         )
         intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
         camera = get_camera(intrinsics, camera_to_world)
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.get_device())
+        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.device)
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()

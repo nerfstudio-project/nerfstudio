@@ -30,6 +30,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import DatasetInputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import GraphConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
@@ -58,10 +59,6 @@ class AbstractGraph(nn.Module):
         # to keep track of which device the nn.Module is on
         self.device_indicator_param = nn.Parameter(torch.empty(0))
 
-    def get_device(self):
-        """Returns the device that the torch parameters are on."""
-        return self.device_indicator_param.device
-
     @property
     def device(self):
         """Returns the device that the graph is on."""
@@ -73,7 +70,8 @@ class AbstractGraph(nn.Module):
 
 
 class Graph(AbstractGraph):
-    """Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
+    """Graph class
+    Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
 
     Args:
@@ -122,9 +120,9 @@ class Graph(AbstractGraph):
         self.vis_outputs = None
         self.default_output_name = None
 
-    def register_callbacks(self):  # pylint:disable=no-self-use
-        """Option to register callback for training functions"""
-        self.callbacks = []
+    def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
+        """Returns a list of callbacks that run functions at the specified training iterations."""
+        return []
 
     def populate_density_field(self):
         """Set the scene density field to use."""
@@ -235,7 +233,7 @@ class Graph(AbstractGraph):
 
     def get_outputs_for_camera(self, camera: Camera):
         """Get the graph outputs for a Camera."""
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.get_device())
+        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
     @abstractmethod

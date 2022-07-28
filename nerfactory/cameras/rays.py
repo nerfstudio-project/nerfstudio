@@ -98,9 +98,9 @@ class RaySamples(TensorDataclass):
     """
 
     frustums: Frustums
-    camera_indices: TensorType["bs":..., 1] = None
-    valid_mask: TensorType["bs":..., 1] = None
-    deltas: TensorType["bs":..., 1] = None
+    camera_indices: Optional[TensorType["bs":..., 1]] = None
+    valid_mask: Optional[TensorType["bs":..., 1]] = None
+    deltas: Optional[TensorType["bs":..., 1]] = None
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities
@@ -115,6 +115,7 @@ class RaySamples(TensorDataclass):
         delta_density = self.deltas * densities
         alphas = 1 - torch.exp(-delta_density)
 
+        # TODO: put both versions of the transmittance calculation somewhere
         # mip-nerf version of transmittance calculation:
         transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)
         transmittance = torch.cat(
@@ -169,17 +170,6 @@ class RayBundle(TensorDataclass):
     fars: Optional[TensorType["num_rays", 1]] = None
     valid_mask: Optional[TensorType["num_rays", 1, bool]] = None
     num_rays_per_chunk: int = None
-
-    def move_to_device(self, device: torch.device) -> None:
-        """Move bundle data to a device.
-
-        Args:
-            device (torch.device): Device to move tensors to.
-        """
-        self.origins = self.origins.to(device)
-        self.directions = self.directions.to(device)
-        if is_not_none(self.camera_indices):
-            self.camera_indices = self.camera_indices.to(device)
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.

@@ -30,10 +30,10 @@ def _create_grid_coords(resolution: int, device: torch.device = "cpu") -> Tensor
 
     Args:
         resolution (int): The 3D resolution of the grid.
-        device (torch.device): Which device you want the returned tensor to live int.
+        device (torch.device): Which device you want the returned tensor to live on.
 
     Returns:
-        TensorType["n_coords", 3]: All grid coordinates with shape [res * res * res, 3]
+        TensorType["n_coords", 3]: All grid coordinates with shape [res * res * res, 3].
     """
     arrange = torch.arange(resolution, device=device)
     grid_x, grid_y, grid_z = torch.meshgrid([arrange, arrange, arrange], indexing="ij")
@@ -51,9 +51,9 @@ class DensityGrid(nn.Module):
     on the scale but all shares the same center.
 
     For example:
-    - `center=0`, `base_scale=3`, `num_cascades=1` would create one grid (lvl=0) covers [-1.5, -1.5, -1.5, 1.5, 1.5, 1.5].
-    - `center=0`, `base_scale=3`, `num_cascades=2` would create one grid (lvl=0) covers [-1.5, -1.5, -1.5, 1.5, 1.5, 1.5],
-    and one more grid (lvl=1) covers [-3, -3, -3, 3, 3, 3].
+    - `center=0`, `base_scale=3`, `num_cascades=1` would create one grid (lvl=0) covers the aabb [[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]].
+    - `center=0`, `base_scale=3`, `num_cascades=2` would create one grid (lvl=0) covers the aabb [[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]],
+    and one more grid (lvl=1) covers the aabb [[-3, -3, -3], [3, 3, 3]].
 
     Normally you can simply set the `center` to the scene center, and `base_scale` to be the scene scale, and use
     `num_cascades=1` to create a single level density grid that covers the scene.
@@ -68,11 +68,11 @@ class DensityGrid(nn.Module):
     TODO(ruilongli): support `center` and `base_scale` with 3-dim.
 
     Args:
-        center (float, optional): Center of all the grids in the world space. Defaults to 0.
-        base_scale (float, optional): Center of the scale of the base level grid. Defaults to 1.
-        num_cascades (int, optional): Number of the cascaded multi-res levels. Defaults to 1.
-        resolution (int, optional): Resolution of the grid. Defaults to 128.
-        update_every_num_iters (int, optional): How frequently to update the grid values. Defaults to 16.
+        center (float): Center of all the grids in the world space. Defaults to 0.
+        base_scale (float): Center of the scale of the base level grid. Defaults to 1.
+        num_cascades (int): Number of the cascaded multi-res levels. Defaults to 1.
+        resolution (int): Resolution of the grid. Defaults to 128.
+        update_every_num_iters (int): How frequently to update the grid values. Defaults to 16.
     """
 
     def __init__(
@@ -157,11 +157,11 @@ class DensityGrid(nn.Module):
         """Update the density grid in EMA way.
 
         Args:
-            density_eval_func (Callable): A Callable function that takes in sample positions (N, 3) and
+            density_eval_func: A Callable function that takes in sample positions (N, 3) and
                 returns densities (N, 1).
-            step (int): The current training step. Instant-NGP has a warmup stage where all cells are updated.
+            step: The current training step. Instant-NGP has a warmup stage where all cells are updated.
                 After certain amount of steps (256), it speeds up by only update sampled cells.
-            density_threshold (float): The threshold to prune cells. Recommand to calculate it using this rule:
+            density_threshold (float): The threshold to prune cells. Recommended to calculate it using this rule:
                 `weight_threshold / dt`. For example for Instant-NGP on Lego, the minimum step size `dt` is
                 `3` (scale of the scene) * `sqrt(3)` / `1024` (number of samples). And if we want to the weight
                 threshold to be `0.01`, we will get `0.01 / (3 * sqrt(3) / 1024) ~= 2.` for density threshold.

@@ -51,6 +51,7 @@ __global__ void kernel_morton3D_invert(
 torch::Tensor morton3D(const torch::Tensor coords){
     DEVICE_GUARD(coords);
     CHECK_INPUT(coords);
+    // NOTE(ethan): why & and not &&?
     TORCH_CHECK(coords.ndimension() == 2 & coords.size(1) == 3)
 
     const int N = coords.size(0);
@@ -75,7 +76,7 @@ torch::Tensor morton3D(const torch::Tensor coords){
 }
 
 /**
- * @brief Convert 3D indices to coords in z-order
+ * @brief Convert indices in z-order to 3D coords
  * 
  * @param indices Integer indices with shape [N]
  * @return torch::Tensor Integer coords with shape [N, 3]
