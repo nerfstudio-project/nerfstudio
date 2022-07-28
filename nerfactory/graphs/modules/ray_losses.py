@@ -20,7 +20,9 @@ from torchtyping import TensorType
 from nerfactory.cameras.rays import RaySamples
 
 
-def distortion_loss(ray_samples: RaySamples, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., 1]:
+def distortion_loss(
+    ray_samples: RaySamples, densities: TensorType["bs":..., "num_samples", 1]
+) -> TensorType["bs":..., 1]:
     """Ray baserd distortion loss proposed in MipNeRF-360.
 
     .. math::
@@ -32,11 +34,11 @@ def distortion_loss(ray_samples: RaySamples, densities: TensorType[..., "num_sam
     is the weight at location :math:`u` between bin locations :math:`s_i` and :math:`s_{i+1}`.
 
     Args:
-        ray_samples (RaySamples): Ray samples to compute loss over
-        densities (TensorType[..., "num_samples", 1]): Predicted sample densities
+        ray_samples: Ray samples to compute loss over
+        densities: Predicted sample densities
 
     Returns:
-        TensorType[..., 1]: Distortion Loss.
+        Distortion Loss.
     """
 
     # Compute the weight at each sample location

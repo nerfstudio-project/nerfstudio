@@ -69,13 +69,12 @@ class SpacedSampler(Sampler):
     ) -> None:
         """
         Args:
-            num_samples (int): Number of samples per ray
-            spacing_fn (Callable): Function that dictates sample spacing (ie `lambda x : x` is uniform).
-            spacing_fn_inv (Callable): The inverse of spacing_fn.
-            train_stratified (bool): Use stratified sampling during training. Defults to True
-            density_field (DensityGrid, optional): Density grid. If provides,
-                samples below weight_threshold as set as invalid.
-            weight_threshold (float): Removes samples below threshold weight. Only used if density field is provided.
+            num_samples: Number of samples per ray
+            spacing_fn: Function that dictates sample spacing (ie `lambda x : x` is uniform).
+            spacing_fn_inv: The inverse of spacing_fn.
+            train_stratified: Use stratified sampling during training. Defults to True
+            density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+            weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
         """
         super().__init__(num_samples=num_samples, density_field=density_field, weight_threshold=weight_threshold)
         self.train_stratified = train_stratified
@@ -91,11 +90,11 @@ class SpacedSampler(Sampler):
         """Generates position samples accoring to spacing function.
 
         Args:
-            ray_bundle (RayBundle): Rays to generate samples for
-            num_samples (Optional[int]): Number of samples per ray
+            ray_bundle: Rays to generate samples for
+            num_samples: Number of samples per ray
 
         Returns:
-            RaySamples: Positions and deltas for samples along a ray
+            Positions and deltas for samples along a ray
         """
         assert ray_bundle is not None
         assert ray_bundle.nears is not None
@@ -133,11 +132,10 @@ class UniformSampler(SpacedSampler):
     ) -> None:
         """
         Args:
-            num_samples (int): Number of samples per ray
-            train_stratified (bool): Use stratified sampling during training. Defults to True
-            density_field (DensityGrid, optional): Density grid. If provides,
-                samples below weight_threshold as set as invalid.
-            weight_threshold (float): Removes samples below threshold weight. Only used if density field is provided.
+            num_samples: Number of samples per ray
+            train_stratified: Use stratified sampling during training. Defults to True
+            density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+            weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
         """
         super().__init__(
             num_samples=num_samples,
@@ -161,11 +159,10 @@ class LinearDisparitySampler(SpacedSampler):
     ) -> None:
         """
         Args:
-            num_samples (int): Number of samples per ray
-            train_stratified (bool): Use stratified sampling during training. Defults to True
-            density_field (DensityGrid, optional): Density grid. If provides,
-                samples below weight_threshold as set as invalid.
-            weight_threshold (float): Removes samples below threshold weight. Only used if density field is provided.
+            num_samples: Number of samples per ray
+            train_stratified: Use stratified sampling during training. Defults to True
+            density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+            weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
         """
         super().__init__(
             num_samples=num_samples,
@@ -189,11 +186,10 @@ class SqrtSampler(SpacedSampler):
     ) -> None:
         """
         Args:
-            num_samples (int): Number of samples per ray
-            train_stratified (bool): Use stratified sampling during training. Defults to True
-            density_field (DensityGrid, optional): Density grid. If provides,
-                samples below weight_threshold as set as invalid.
-            weight_threshold (float): Removes samples below threshold weight. Only used if density field is provided.
+            num_samples: Number of samples per ray
+            train_stratified: Use stratified sampling during training. Defults to True
+            density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+            weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
         """
         super().__init__(
             num_samples=num_samples,
@@ -217,11 +213,10 @@ class LogSampler(SpacedSampler):
     ) -> None:
         """
         Args:
-            num_samples (int): Number of samples per ray
-            train_stratified (bool): Use stratified sampling during training. Defults to True
-            density_field (DensityGrid, optional): Density grid. If provides,
-                samples below weight_threshold as set as invalid.
-            weight_threshold (float): Removes samples below threshold weight. Only used if density field is provided.
+            num_samples: Number of samples per ray
+            train_stratified: Use stratified sampling during training. Defults to True
+            density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+            weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
         """
         super().__init__(
             num_samples=num_samples,
@@ -247,13 +242,12 @@ class PDFSampler(Sampler):
     ) -> None:
         """
         Args:
-            num_samples (int): Number of samples per ray
-            train_stratified: boolean: Randomize location within each bin during training. Defaults to True
+            num_samples: Number of samples per ray
+            train_stratified: Randomize location within each bin during training. Defaults to True
             include_original: Add original samples to ray. Defaults to True
-            density_field (DensityGrid, optional): Density grid. If provides,
-                samples below weight_threshold as set as invalid.
-            weight_threshold (float): Removes samples below threshold weight. Only used if density field is provided.
-            histogram_padding (float): Amount to weights prior to computing PDF. Defaults to 0.01.
+            density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+            weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
+            histogram_padding: Amount to weights prior to computing PDF. Defaults to 0.01.
         """
         super().__init__(num_samples=num_samples, density_field=density_field, weight_threshold=weight_threshold)
         self.train_stratified = train_stratified
@@ -272,14 +266,14 @@ class PDFSampler(Sampler):
         """Generates position samples given a distribution.
 
         Args:
-            ray_bundle (RayBundle): Rays to generate samples for
-            ray_samples (RaySamples): Existing ray samples
-            weights: (TensorType[..., "num_samples", 1]): Weights for each bin
-            num_samples (Optional[int]): Number of samples per ray
-            eps: float: Small value to prevent numerical issues. Defaults to 1e-5
+            ray_bundle: Rays to generate samples for
+            ray_samples: Existing ray samples
+            weights: Weights for each bin
+            num_samples: Number of samples per ray
+            eps: Small value to prevent numerical issues. Defaults to 1e-5
 
         Returns:
-            RaySamples: Positions and deltas for samples along a ray
+            Positions and deltas for samples along a ray
         """
         num_samples = num_samples or self.num_samples
         num_bins = num_samples + 1
@@ -367,12 +361,11 @@ class NGPSpacedSampler(Sampler):
         TODO(ruilongli): maybe move aabb test to the collision detector?
 
         Args:
-            ray_bundle (RayBundle): Rays to generate samples for
-            aabb (TensorType[2, 3]): Bounding box of the scene.
-            num_samples (Optional[int]): Number of samples per ray
+            ray_bundle: Rays to generate samples for
+            aabb: Bounding box of the scene.
+            num_samples: Number of samples per ray
 
         Returns:
-            Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples"], TensorType["total_samples"]]:
             First return is ray samples in a packed way where only the valid samples are kept.
             Second return contains all the information to recover packed samples into unpacked mode for rendering.
             The last two returns are t_min and t_max from ray-aabb test.

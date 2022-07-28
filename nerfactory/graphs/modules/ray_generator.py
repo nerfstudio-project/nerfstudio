@@ -27,9 +27,8 @@ class RayGenerator(nn.Module):
     This class will store the intrinsics and extrinsics parameters of the cameras.
 
     Args:
-        intrinsics (TensorType[&quot;num_cameras&quot;, &quot;num_intrinsics_params&quot;]):
-            The intrinsics parameters.
-        camera_to_world (TensorType[&quot;num_cameras&quot;, 3, 4]): Camera to world transformation matrix.
+        intrinsics: The intrinsics parameters.
+        camera_to_world: Camera to world transformation matrix.
     """
 
     def __init__(
@@ -54,7 +53,7 @@ class RayGenerator(nn.Module):
         """Index into the cameras to generate the rays.
 
         Args:
-            ray_indices (TensorType["num_rays", 3]): Contains camera, row, and col indicies for target rays.
+            ray_indices: Contains camera, row, and col indicies for target rays.
         """
         c = ray_indices[:, 0]  # camera indices
         y = ray_indices[:, 1]  # row indices
