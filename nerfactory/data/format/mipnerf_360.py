@@ -22,9 +22,10 @@ import imageio
 import numpy as np
 import torch
 
-from nerfactory.data.structs import DatasetInputs
+from nerfactory.data.structs import DatasetInputs, SceneBounds
 
 
+# pylint: disable=too-many-statements
 def load_mipnerf_360_data(
     basedir: str,
     downscale_factor: int = 1,
@@ -89,6 +90,22 @@ def load_mipnerf_360_data(
     # Reorder pose to match our convention
     poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
 
+    # Center poses and rotate. (Compute up from average of all poses)
+    poses_orig = poses.copy()
+    bottom = np.reshape([0, 0, 0, 1.0], [1, 4])
+    center = poses[:, :3, 3].mean(0)
+    vec2 = poses[:, :3, 2].sum(0) / np.linalg.norm(poses[:, :3, 2].sum(0))
+    up = poses[:, :3, 1].sum(0)
+    vec0 = np.cross(up, vec2) / np.linalg.norm(np.cross(up, vec2))
+    vec1 = np.cross(vec2, vec0) / np.linalg.norm(np.cross(vec2, vec0))
+    c2w = np.stack([vec0, vec1, vec2, center], -1)  # [3, 4]
+    c2w = np.concatenate([c2w[:3, :4], bottom], -2)  # [4, 4]
+    bottom = np.tile(np.reshape(bottom, [1, 1, 4]), [poses.shape[0], 1, 1])  # [BS, 1, 4]
+    poses = np.concatenate([poses[:, :3, :4], bottom], -2)  # [BS, 4, 4]
+    poses = np.linalg.inv(c2w) @ poses
+    poses_orig[:, :3, :4] = poses[:, :3, :4]
+    poses = poses_orig
+
     # Scale factor used in mipnerf
     if auto_scale:
         scale_factor = 1 / (np.min(bounds) * 0.75)
@@ -108,11 +125,15 @@ def load_mipnerf_360_data(
     intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
     intrinsics *= torch.tensor([cx, cy, focal_length])
 
+    # TODO: Bounds should be set from config
+    scene_bounds = SceneBounds(aabb=torch.tensor([[-4, -4, -4], [4, 4, 4]], dtype=torch.float32))
+
     dataset_inputs = DatasetInputs(
         image_filenames=image_filenames,
         downscale_factor=1,
         intrinsics=intrinsics,
         camera_to_world=camera_to_world,
+        scene_bounds=scene_bounds,
     )
 
     return dataset_inputs
