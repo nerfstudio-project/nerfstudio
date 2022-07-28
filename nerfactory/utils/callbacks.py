@@ -23,7 +23,7 @@ class Callback:
     """Callback class used during training.
     The function 'func' with 'args' and 'kwargs' will be called every 'update_every_num_iters' training iterations,
     including at iteration 0.
-    
+
     Args:
         update_every_num_iters (int): How often to call the function `func`.
         func (Callable): The function that will be called.

@@ -23,12 +23,12 @@ import torch
 from torch.nn.parameter import Parameter
 
 from nerfactory.cameras.rays import RaySamples
+from nerfactory.data.structs import SceneBounds
 from nerfactory.fields.base import Field
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.utils.activations import trunc_exp
-from nerfactory.data.structs import SceneBounds
 
 try:
     import tinycudann as tcnn

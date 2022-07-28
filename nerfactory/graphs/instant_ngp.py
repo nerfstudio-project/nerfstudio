@@ -51,7 +51,7 @@ class NGPGraph(Graph):
         super().__init__(**kwargs)
 
     def get_training_callbacks(self) -> List[Callback]:
-        return = [
+        return [
             Callback(
                 update_every_num_iters=self.density_grid.update_every_num_iters,
                 func=self.density_grid.update_density_grid,

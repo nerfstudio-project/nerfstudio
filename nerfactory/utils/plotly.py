@@ -496,6 +496,7 @@ def vis_camera_rays(camera: Camera) -> go.Figure:
 
     return fig
 
+
 def get_camera_frustums(cameras: List[Camera]):
     """Returns the camera frustums for the cameras that we are using.
 
@@ -507,4 +508,5 @@ def get_camera_frustums(cameras: List[Camera]):
     """
     for camera in cameras:
         json_ = camera.to_json()
-        
+        print(json_)
+    raise NotImplementedError

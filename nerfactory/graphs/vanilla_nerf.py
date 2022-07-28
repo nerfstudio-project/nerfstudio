@@ -82,7 +82,7 @@ class NeRFGraph(Graph):
             **kwargs,
         )
 
-    def get_training_callbacks(self) -> None:
+    def get_training_callbacks(self) -> List[Callback]:
         callbacks = []
         if self.density_field is not None:
             callbacks = [
@@ -92,7 +92,7 @@ class NeRFGraph(Graph):
                     density_eval_func=self.field_coarse.density_fn,
                 )
             ]
-        return callbacks
+        return callbacks  # type: ignore
 
     def populate_fields(self):
         """Set the fields."""

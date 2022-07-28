@@ -74,8 +74,9 @@ class Trainer:
         profiler.setup_profiler(config.logging)
         # visualizer variable
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
-
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
+        # training callbacks
+        self.callbacks = None
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.

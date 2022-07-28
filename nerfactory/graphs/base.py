@@ -30,6 +30,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import DatasetInputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import GraphConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
@@ -119,7 +120,7 @@ class Graph(AbstractGraph):
         self.vis_outputs = None
         self.default_output_name = None
 
-    def get_training_callbacks(self) -> List[Callback]:
+    def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
 
