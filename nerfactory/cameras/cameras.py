@@ -173,7 +173,6 @@ class Camera:
         """
         raise NotImplementedError
 
-    @abstractmethod
     @staticmethod
     def from_json(json_: Dict) -> "Camera":  # pylint:disable=no-self-use
         """Converts a json dictionary to the camera object.
