@@ -26,7 +26,6 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.graphs.base import Graph
@@ -48,10 +47,11 @@ class NGPGraph(Graph):
 
     def register_callbacks(self) -> None:
         """defining callbacks to run after every training iteration"""
+        assert self.density_field is not None
         self.callbacks = [
             Callback(
-                self.density_grid.update_every_num_iters,
-                self.density_grid.update_density_grid,
+                self.density_field.update_every_num_iters,
+                self.density_field.update_density_grid,
                 density_eval_func=self.field.density_fn,
             )
         ]
@@ -62,11 +62,8 @@ class NGPGraph(Graph):
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
-        # density grid
-        self.density_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
-
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_grid)
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_field)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -86,14 +83,29 @@ class NGPGraph(Graph):
         # TODO(ruilongli)
         # - train test difference
         # - visualize "depth_density_grid"
+        num_rays = len(ray_bundle)
+        device = ray_bundle.origins.device
+
         ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-        accumulated_weight, accumulated_depth, accumulated_color, mask = nerfactory_cuda.VolumeRenderer.apply(
-            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs
+        # accumulate all the rays start from zero opacity
+        opacities = torch.zeros((num_rays, 1), device=device)
+        (
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            alive_ray_mask,
+        ) = nerfactory_cuda.VolumeRenderer.apply(
+            packed_info,
+            ray_samples.frustums.starts,
+            ray_samples.frustums.ends,
+            sigmas.contiguous(),
+            rgbs.contiguous(),
+            opacities,
         )
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
@@ -102,15 +114,15 @@ class NGPGraph(Graph):
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
-            "mask": mask,  # the rays we skipped from sampler
+            "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         device = self.get_device()
         image = batch["image"].to(device)
-        if "mask" in outputs:
-            mask = outputs["mask"]
+        if "alive_ray_mask" in outputs:
+            mask = outputs["alive_ray_mask"]
             rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
         else:
             rgb_loss = self.rgb_loss(image, outputs["rgb"])

@@ -28,8 +28,9 @@ std::vector<torch::Tensor> raymarching(
     const int grid_size,
     const torch::Tensor grid_bitfield, 
     // sampling args
+    const int marching_steps,
     const int max_total_samples,
-    const int num_steps,
+    const int max_ray_samples,
     const float cone_angle,
     const float step_scale
 );
@@ -39,7 +40,8 @@ std::vector<torch::Tensor> volumetric_rendering_forward(
     torch::Tensor starts, 
     torch::Tensor ends, 
     torch::Tensor sigmas, 
-    torch::Tensor rgbs
+    torch::Tensor rgbs,
+    torch::Tensor opacities
 );
 
 std::vector<torch::Tensor> volumetric_rendering_backward(
@@ -53,7 +55,8 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor starts, 
     torch::Tensor ends, 
     torch::Tensor sigmas, 
-    torch::Tensor rgbs
+    torch::Tensor rgbs,
+    torch::Tensor opacities
 );
 
 std::vector<torch::Tensor> occupancy_query(

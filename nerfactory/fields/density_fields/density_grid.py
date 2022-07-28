@@ -103,7 +103,7 @@ class DensityGrid(nn.Module):
         self.register_buffer("grid_coords", grid_coords)
         self.register_buffer("grid_indices", grid_indices)
 
-        mean_density = torch.zeros((1,))
+        mean_density = torch.zeros(())
         self.register_buffer("mean_density", mean_density)
 
     @torch.no_grad()

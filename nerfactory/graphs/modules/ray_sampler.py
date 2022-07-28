@@ -357,6 +357,9 @@ class NGPSpacedSampler(Sampler):
         ray_bundle: RayBundle,
         aabb: TensorType[2, 3],
         num_samples: Optional[int] = None,
+        marching_steps: Optional[int] = 128,
+        t_min: Optional[TensorType["num_rays"]] = None,
+        t_max: Optional[TensorType["num_rays"]] = None,
     ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples"], TensorType["total_samples"]]:
         """Generate ray samples in a bounding box.
 
@@ -379,13 +382,20 @@ class NGPSpacedSampler(Sampler):
         aabb = aabb.flatten()
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
-        t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
         scene_scale = (aabb[3:6] - aabb[0:3]).max()
 
+        if t_min is None or t_max is None:
+            # TODO(ruilongli): this clipping here is stupid. Try to avoid that.
+            t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
+            t_min = torch.clamp(t_min, max=1e10)
+            t_max = torch.clamp(t_max, max=1e10)
+
+        marching_steps = -1  # disable marching mode for now
         # TODO(ruilongli): * 16 is for original impl for training. Need to run
         # some profiling test with this choice.
         max_samples_per_batch = len(rays_o) * num_samples
 
+        # marching
         packed_info, origins, dirs, starts, ends = nerfactory_cuda.raymarching(
             # rays
             rays_o,
@@ -399,19 +409,22 @@ class NGPSpacedSampler(Sampler):
             self.density_field.resolution,
             self.density_field.density_bitfield,
             # sampling args
+            marching_steps,
             max_samples_per_batch,
             num_samples,
             0.0,
             scene_scale,
         )
+
+        # squeeze valid samples
         total_samples = max(packed_info[:, -1].sum(), 1)
         origins = origins[:total_samples]
         dirs = dirs[:total_samples]
         starts = starts[:total_samples]
         ends = ends[:total_samples]
 
+        # return samples
         zeros = torch.zeros_like(origins[:, :1])
-
         ray_samples = RaySamples(
             frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
         )
