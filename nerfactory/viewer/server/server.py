@@ -17,7 +17,7 @@
 from __future__ import absolute_import, division, print_function
 
 import sys
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import msgpack
 import msgpack_numpy
@@ -32,25 +32,14 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
-from nerfactory.viewer.server.state.node import find_node, get_tree, walk
-from nerfactory.viewer.server.state.scene_node import SceneNode
+from nerfactory.viewer.server.state.node import find_node, get_tree
+from nerfactory.viewer.server.state.state_node import Node, StateNode
 from nerfactory.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"
 DEFAULT_ZMQ_PORT = 6000
 DEFAULT_WEBSOCKET_PORT = 8051
-WEBSOCKET_COMMANDS = [
-    "set_transform",
-    "set_object",
-    "set_output_options",
-    "set_output_type",
-    "set_training_state",
-    "get_object",
-    "set_property",
-    "delete",
-]
-WEBRTC_COMMANDS = ["set_image"]
 
 
 def find_available_port(func: Callable, default_port: int, max_attempts: int = MAX_ATTEMPTS, **kwargs) -> None:
@@ -107,7 +96,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         self.bridge.send_scene(self)
 
     async def on_message(self, message: bytearray):  # pylint: disable=invalid-overridden-method
-        """On reception of message, parses the message and calls the appropriate function based on the type of command
+        """On reception of message from the websocket,
+        parses the message and calls the appropriate function based on the type of command
 
         Args:
             message: byte message to parse
@@ -117,22 +107,23 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         type_ = m["type"]
         path = list(filter(lambda x: len(x) > 0, m["path"].split("/")))
 
-        if type_ == "set_transform":
-            find_node(self.bridge.scene_tree, path).transform = data
-        elif type_ == "set_object":
-            find_node(self.bridge.scene_tree, path).object = data
-            find_node(self.bridge.scene_tree, path).properties = []
-        elif type_ == "set_output_options":
-            find_node(self.bridge.scene_tree, path).object = data
-        elif type_ == "set_output_type":
-            find_node(self.bridge.scene_tree, path).object = data
-        elif type_ == "set_max_resolution":
-            find_node(self.bridge.scene_tree, path).object = data
-        elif type_ == "set_min_resolution":
-            find_node(self.bridge.scene_tree, path).object = data
-        elif type_ == "set_training_state":
-            find_node(self.bridge.scene_tree, path).object = data
+        if type_ == "write":
+            # writes the data and dispatches update
+            print(path)
+            print(m["data"])
+            find_node(self.bridge.state_tree, path).data = m["data"]
+            # TODO: dispatch an update message to all websockets!
+            # self.bridge.forward_to_websockets(frames)
+        elif type_ == "read":
+            # reads and returns the data
+            data = find_node(self.bridge.state_tree, path).data
+            self.write_message(data, binary=True)
+        elif type_ == "delete":
+            find_node(self.bridge.state_tree, path).data = None
+            # TODO: dispatch an update message to all websockets!
+            # self.bridge.forward_to_websockets(frames)
         elif type_ == "offer":
+            # returns the description to for WebRTC to the specific websocket connection
             offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
 
             pc = RTCPeerConnection()
@@ -141,7 +132,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
             video = SingleFrameStreamTrack()
             self.bridge.video_tracks.add(video)
             _ = pc.addTrack(video)
-            # TODO(eventually do something with the codec)
+            # TODO: do something with the codec
             # video_sender = pc.addTrack(video)
             # force_codec(pc, video_sender, video_codec)
 
@@ -153,6 +144,14 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
                 "type": "answer",
                 "path": "",
                 "data": {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type},
+            }
+            data = umsgpack.packb(cmd_data)
+            self.write_message(data, binary=True)
+        else:
+            cmd_data = {
+                "type": "error",
+                "path": "",
+                "data": {"error": "Unknown command type: " + type_},
             }
             data = umsgpack.packb(cmd_data)
             self.write_message(data, binary=True)
@@ -198,7 +197,7 @@ class ZMQWebSocketBridge:
             self.app.listen(websocket_port, **listen_kwargs)
             self.websocket_port = websocket_port
 
-        self.scene_tree = get_tree(SceneNode)
+        self.state_tree = get_tree(StateNode)
 
     def __str__(self) -> str:
         class_name = self.__class__.__name__
@@ -221,52 +220,36 @@ class ZMQWebSocketBridge:
             return
         path = list(filter(lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
         data = frames[2]
-        if cmd in WEBSOCKET_COMMANDS:
-            if cmd != "get_object":
-                self.forward_to_websockets(frames)
-            if cmd == "set_transform":
-                find_node(self.scene_tree, path).transform = data
-            elif cmd == "set_object":
-                find_node(self.scene_tree, path).object = data
-                find_node(self.scene_tree, path).properties = []
-            elif cmd == "set_output_options":
-                find_node(self.scene_tree, path).object = data
-            elif cmd == "set_output_type":
-                find_node(self.scene_tree, path).object = data
-            elif cmd == "set_max_resolution":
-                find_node(self.scene_tree, path).object = data
-            elif cmd == "set_min_resolution":
-                find_node(self.scene_tree, path).object = data
-            elif cmd == "set_training_state":
-                find_node(self.scene_tree, path).object = data
-            elif cmd == "get_object":
-                data = find_node(self.scene_tree, path).object
-                if isinstance(data, type(None)):
-                    data = umsgpack.packb("error: object not found")
-                self.zmq_socket.send(data)
-                return
-            elif cmd == "set_property":
-                find_node(self.scene_tree, path).properties.append(data)
-            elif cmd == "delete":
-                if len(path) > 0:
-                    parent = find_node(self.scene_tree, path[:-1])
-                    child = path[-1]
-                    if child in parent:
-                        del parent[child]
-                else:
-                    self.scene_tree = get_tree(SceneNode)
-        elif cmd in WEBRTC_COMMANDS:
-            if cmd == "set_image":
-                image = msgpack.unpackb(
-                    data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
-                )
-                for video_track in self.video_tracks:
-                    video_track.put_frame(image)
-        else:
-            self.zmq_socket.send(b"error: unknown command")
+
+        if cmd == "write":
+            # TODO: use state_tree name
+            unpacked_data = umsgpack.unpackb(data)
+            find_node(self.state_tree, path).data = unpacked_data["data"]
+            self.forward_to_websockets(frames)
+            self.zmq_socket.send(umsgpack.packb(b"ok"))
             return
-        self.zmq_socket.send(b"ok")
-        return
+        elif cmd == "read":
+            # walk the node from the specified to get the full state dictionary
+            # TODO(ethan): handle the "data" key...
+            read_data = find_node(self.state_tree, path).data
+            self.zmq_socket.send(umsgpack.packb(read_data))
+            return
+        elif cmd == "delete":
+            self.forward_to_websockets(frames)
+            self.zmq_socket.send(umsgpack.packb(b"ok"))
+            return
+        elif cmd == "set_image":
+            image = msgpack.unpackb(
+                data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
+            )
+            for video_track in self.video_tracks:
+                video_track.put_frame(image)
+            self.zmq_socket.send(umsgpack.packb(b"ok"))
+            return
+        else:
+            self.zmq_socket.send(umsgpack.packb(b"error: unknown command"))
+            return
+        assert False, "should not reach this point"
 
     def forward_to_websockets(self, frames: List[bytes]):
         """Forward a zmq message to all websockets.
@@ -296,13 +279,19 @@ class ZMQWebSocketBridge:
         Args:
             websocket: websocket to send information over
         """
-        for node in walk(self.scene_tree):
-            if node.object is not None:
-                websocket.write_message(node.object, binary=True)
-            for p in node.properties:
-                websocket.write_message(p, binary=True)
-            if node.transform is not None:
-                websocket.write_message(node.transform, binary=True)
+        print("sending scene")
+        # def send_state_dict(path: str, node: Node):
+        #     for k, v in node.items():
+        #         newpath = path + "/" + k
+        #         if v.data is None:
+        #             send_state_dict(newpath, v)
+        #         else:
+        #             command = {"type": "write", "path": newpath, "data": v.data}
+        #             print(command)
+        #             websocket.write_message(umsgpack.packb(command), binary=True)
+        
+        # node = find_node(self.state_tree, "/")
+        # send_state_dict("", node)
 
     def run(self):
         """starts and runs the websocket bridge"""

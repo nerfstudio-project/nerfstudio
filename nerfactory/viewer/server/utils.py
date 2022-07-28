@@ -80,25 +80,3 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     )
 
     return intrinsics_matrix, camera_to_world_h
-
-
-def get_camera_from_vis(vis: Viewer, name: str = "/Cameras/Main Camera", image_height: int = 100) -> Camera:
-    """Caculates the specified camera object's parameters (extrinsics/intrinsics); returns associated Camera Object.
-
-    Args:
-        vis: viewer object
-        name: name of camera to calculate for. Defaults to "/Cameras/Main Camera".
-        image_height: height of image. Defaults to 100.
-    """
-    data = vis[name].get_object()
-    if data is None:
-        return None
-    camera_object = data["object"]["object"]
-    intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-        camera_object, image_height=image_height
-    )
-
-    camera_to_world = camera_to_world_h[:3, :]
-    intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
-    camera = get_camera(intrinsics, camera_to_world)
-    return camera

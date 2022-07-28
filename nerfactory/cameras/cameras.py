@@ -17,9 +17,10 @@ Camera Models
 """
 import base64
 from abc import abstractmethod
-from typing import Dict, Optional, Type
+from typing import Dict, Optional, Type, Tuple
 
 import cv2
+import numpy as np
 import torch
 from torch.nn.functional import normalize
 from torchtyping import TensorType
@@ -166,7 +167,7 @@ class Camera:
         """Converts the camera to a json dictionary.
 
         Args:
-            image: An image that is encoded to a base64 string. Defaults to None.
+            image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
 
         Returns:
             A JSON representation of the camera
@@ -296,7 +297,7 @@ class PinholeCamera(Camera):
 
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
-    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None, resize_shape: Optional[Tuple[int, int]] = None) -> Dict:
         json_ = {
             "type": "PinholeCamera",
             "cx": self.cx,
@@ -306,10 +307,11 @@ class PinholeCamera(Camera):
             "camera_to_world": self.camera_to_world.tolist(),
             "camera_index": self.camera_index,
         }
-        if image:
-            # move image to cpu if not already
-            # TODO: move to numpy
-            data = cv2.imencode(".png", image[:, :, ::-1])[1].tobytes()
+        if is_not_none(image):
+            image_uint8 = (image * 255).detach().cpu().numpy().astype(np.uint8)
+            if resize_shape:
+                image_uint8 = cv2.resize(image_uint8, resize_shape)
+            data = cv2.imencode(".png", image_uint8)[1].tobytes()
             json_["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 
@@ -346,13 +348,6 @@ class SimplePinholeCamera(PinholeCamera):
     @classmethod
     def fy_index(cls):
         return 2
-
-    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
-        raise NotImplementedError
-
-    @staticmethod
-    def from_json(json_: Dict) -> "SimplePinholeCamera":  # pylint:disable=no-self-use
-        raise NotImplementedError
 
 
 class EquirectangularCamera(Camera):

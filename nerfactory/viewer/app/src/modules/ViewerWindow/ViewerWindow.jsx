@@ -69,12 +69,12 @@ export default function ViewerWindow(props) {
   const sendCamera = () => {
     // update the camera information in the python server
     if (websocket.readyState === WebSocket.OPEN) {
-      const cmd = 'set_object';
-      const path = 'Cameras/Main Camera';
+      const cmd = 'write';
+      const path = 'renderingState/camera';
       const data = {
         type: cmd,
         path,
-        object: camera.toJSON(),
+        data: camera.toJSON(),
       };
       const message = msgpack.encode(data);
       websocket.send(message);

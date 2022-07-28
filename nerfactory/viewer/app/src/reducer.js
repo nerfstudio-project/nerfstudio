@@ -18,15 +18,17 @@ const initialState = {
   },
   // the rendering state
   renderingState: {
+    camera: null,
     isTraining: false,
     output_options: ['temp', 'temp3'], // populated by the possible Graph outputs
     output_choice: null, // the selected output
-    min_resolution: 100,
-    max_resolution: 500,
+    minResolution: 100,
+    maxResolution: 500,
   },
   // the scene state
   sceneState: {
-    cameras: [],
+    box: null,
+    cameras: {},
   },
   // ------------------------------------------------------------------------
   // which of the state keys to synchronize with the bridge server
