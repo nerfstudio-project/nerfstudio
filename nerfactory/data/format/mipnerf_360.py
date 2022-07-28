@@ -25,6 +25,7 @@ import torch
 from nerfactory.data.structs import DatasetInputs, SceneBounds
 
 
+# pylint: disable=too-many-statements
 def load_mipnerf_360_data(
     basedir: str,
     downscale_factor: int = 1,
