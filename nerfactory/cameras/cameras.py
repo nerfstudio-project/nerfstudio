@@ -29,7 +29,12 @@ from nerfactory.utils.misc import is_not_none
 
 
 class Camera:
-    """Base Camera. Intended to be subclassed"""
+    """Base Camera. Intended to be subclassed.
+
+    Args:
+        camera_to_world: Camera to world transformation
+        camera_index: Camera index
+    """
 
     def __init__(
         self, camera_to_world: TensorType[3, 4] = torch.eye(4)[:3], camera_index: Optional[int] = None
@@ -156,12 +161,54 @@ class Camera:
             ray_bundle.set_camera_indices(camera_index=self.camera_index)
         return ray_bundle
 
+    @abstractmethod
+    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+        """Converts the camera to a json dictionary.
+
+        Args:
+            image: An image that is encoded to a base64 string. Defaults to None.
+
+        Returns:
+            A JSON representation of the camera
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    @staticmethod
+    def from_json(json_: Dict) -> "Camera":  # pylint:disable=no-self-use
+        """Converts a json dictionary to the camera object.
+
+        Args:
+            json_: The json dictionary.
+
+        Returns:
+            The camera object instantiated from the json dictionary.
+        """
+        raise NotImplementedError
+
 
 class PinholeCamera(Camera):
-    """Pinhole camera model."""
+    """Pinhole camera model.
 
-    def __init__(self, cx: float, cy: float, fx: float, fy: float, **kwargs):
-        super().__init__(**kwargs)
+    Args:
+        fx: Focal length in x direction
+        fy: Focal length in y direction
+        cx: Principal point in x direction
+        cy: Principal point in y direction
+        camera_to_world: Camera to world transformation
+        camera_index: Camera index. Defaults to None.
+    """
+
+    def __init__(
+        self,
+        cx: float,
+        cy: float,
+        fx: float,
+        fy: float,
+        camera_to_world: TensorType[3, 4] = torch.eye(4)[:3],
+        camera_index: Optional[int] = None,
+    ):
+        super().__init__(camera_to_world=camera_to_world, camera_index=camera_index)
         self.cx = cx
         self.cy = cy
         self.fx = fx
@@ -211,29 +258,6 @@ class PinholeCamera(Camera):
         """
         return 3
 
-    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
-        """Returns a json object from the Python object."""
-        json_ = {
-            "type": "PinholeCamera",
-            "cx": self.cx,
-            "cy": self.cy,
-            "fx": self.fx,
-            "fy": self.fy,
-            "camera_to_world": self.camera_to_world.tolist(),
-            "camera_index": self.camera_index,
-        }
-        if image:
-            # move image to cpu if not already
-            # TODO: move to numpy
-            data = cv2.imencode(".png", image[:, :, ::-1])[1].tobytes()
-            json_["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
-        return json_
-
-    @staticmethod
-    def from_json(json_: Dict) -> "PinholeCamera":  # pylint:disable=no-self-use
-        """Returns the Python object from a json object."""
-        raise NotImplementedError
-
     def rescale_output_resolution(self, scaling_factor: float) -> None:
         self.cx *= scaling_factor
         self.cy *= scaling_factor
@@ -273,12 +297,48 @@ class PinholeCamera(Camera):
 
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
+    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+        json_ = {
+            "type": "PinholeCamera",
+            "cx": self.cx,
+            "cy": self.cy,
+            "fx": self.fx,
+            "fy": self.fy,
+            "camera_to_world": self.camera_to_world.tolist(),
+            "camera_index": self.camera_index,
+        }
+        if image:
+            # move image to cpu if not already
+            # TODO: move to numpy
+            data = cv2.imencode(".png", image[:, :, ::-1])[1].tobytes()
+            json_["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
+        return json_
+
+    @staticmethod
+    def from_json(json_: Dict) -> "PinholeCamera":  # pylint:disable=no-self-use
+        raise NotImplementedError
+
 
 class SimplePinholeCamera(PinholeCamera):
-    """Simple Pinhole Camera model."""
+    """Simple Pinhole Camera model.
 
-    def __init__(self, cx: float, cy: float, f: float, **kwargs):
-        super().__init__(cx, cy, f, f, **kwargs)
+    Args:
+        cx: Principal point x direction
+        cy: Principal point y direction
+        f: Focal length
+        camera_to_world: Camera to world transformation matrix
+        camera_index: Camera index. Defaults to None.
+    """
+
+    def __init__(
+        self,
+        cx: float,
+        cy: float,
+        f: float,
+        camera_to_world: TensorType[3, 4] = torch.eye(4)[:3],
+        camera_index: Optional[int] = None,
+    ):
+        super().__init__(cx, cy, f, f, camera_to_world=camera_to_world, camera_index=camera_index)
 
     @classmethod
     def fx_index(cls):
@@ -289,20 +349,31 @@ class SimplePinholeCamera(PinholeCamera):
         return 2
 
     def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
-        """Returns a json object from the Python object."""
         raise NotImplementedError
 
     @staticmethod
     def from_json(json_: Dict) -> "SimplePinholeCamera":  # pylint:disable=no-self-use
-        """Returns the Python object from a json object."""
         raise NotImplementedError
 
 
 class EquirectangularCamera(Camera):
-    """Equirectangular (360 degree) camera model."""
+    """Equirectangular (360 degree) camera model.
 
-    def __init__(self, height: int, width: int, **kwargs):
-        super().__init__(**kwargs)
+    Args:
+        height: Height of the image
+        width: Width of the image
+        camera_to_world: Camera to world transformation matrix
+        camera_index: Camera index. Defaults to None.
+    """
+
+    def __init__(
+        self,
+        height: int,
+        width: int,
+        camera_to_world: TensorType[3, 4] = torch.eye(4)[:3],
+        camera_index: Optional[int] = None,
+    ):
+        super().__init__(camera_to_world=camera_to_world, camera_index=camera_index)
         self.height = height
         self.width = width
 
@@ -371,6 +442,13 @@ class EquirectangularCamera(Camera):
         dy = torch.sqrt(torch.sum((diry_max - diry_min) ** 2, dim=-1))
         pixel_area = dx * dy
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
+
+    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+        raise NotImplementedError
+
+    @staticmethod
+    def from_json(json_: Dict) -> "SimplePinholeCamera":  # pylint:disable=no-self-use
+        raise NotImplementedError
 
 
 def get_intrinsics_from_intrinsics_matrix(intrinsics_matrix: TensorType[3, 3]):

@@ -27,7 +27,7 @@ from nerfactory.cameras.rays import RayBundle
 
 @dataclass
 class PointCloud:
-    """_summary_"""
+    """Dataclass for a point cloud."""
 
     xyz: TensorType["num_points", 3] = None
     rgb: TensorType["num_points", 3] = None
@@ -35,7 +35,7 @@ class PointCloud:
 
 @dataclass
 class Semantics:
-    """_summary_"""
+    """Dataclass for semantic labels."""
 
     stuff_classes: Optional[List[str]] = None
     stuff_colors: Optional[List[str]] = None
@@ -93,8 +93,8 @@ class SceneBounds:
         return {"type": "aabb", "min_point": self.aabb[0].tolist(), "max_point": self.aabb[1].tolist()}
 
     @staticmethod
-    def from_json(json_) -> "SceneBounds":
-        """Returns the Python object from a json object."""
+    def from_json(json_: Dict) -> "SceneBounds":
+        """Returns the an instance of SceneBounds from a json dictionary."""
         assert json_["type"] == "aabb"
         aabb = torch.tensor([json_[0], json_[1]])
         return SceneBounds(aabb=aabb)

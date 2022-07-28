@@ -53,8 +53,8 @@ class NGPGraph(Graph):
         assert self.density_field is not None
         return [
             Callback(
-                update_every_num_iters=self.density_grid.update_every_num_iters,
-                func=self.density_grid.update_density_grid,
+                update_every_num_iters=self.density_field.update_every_num_iters,
+                func=self.density_field.update_density_grid,
                 density_eval_func=self.field.density_fn,
             )
         ]

@@ -25,8 +25,8 @@ class Callback:
     including at iteration 0.
 
     Args:
-        update_every_num_iters (int): How often to call the function `func`.
-        func (Callable): The function that will be called.
+        update_every_num_iters: How often to call the function `func`.
+        func: The function that will be called.
         args: args for the function 'func'.
         kwargs: kwargs for the function 'func'.
     """
