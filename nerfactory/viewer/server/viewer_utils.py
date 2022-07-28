@@ -65,6 +65,7 @@ class SetTrace:
 
 class RenderThread(threading.Thread):
     """Thread that does all the rendering calls while listening for interrupts
+
     Args:
         state: current visualizer state object
         graph: current checkpoint of model
@@ -106,6 +107,7 @@ class RenderThread(threading.Thread):
 
 class CheckThread(threading.Thread):
     """Thread the constantly checks for io changes and sets a flag indicating interrupt
+
     Args:
         state: current visualizer state object
     """
@@ -160,6 +162,7 @@ class CheckThread(threading.Thread):
 @decorate_all([check_visualizer_enabled])
 class VisualizerState:
     """Class to hold state for visualizer variables
+
     Args:
         config: viewer setup configuration
     """
@@ -190,6 +193,7 @@ class VisualizerState:
 
     def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
         """Draw some images and the scene aabb in the viewer.
+
         Args:
             image_dataset: dataset to render in the scene
             dataset_inputs: inputs to the image dataset and ray generator
@@ -219,6 +223,7 @@ class VisualizerState:
 
     def update_scene(self, step: int, graph: Graph) -> None:
         """updates the scene based on the graph weights
+
         Args:
             step: iteration step of training
             graph: the current checkpoint of the model
@@ -269,6 +274,7 @@ class VisualizerState:
 
     def _send_output_to_viewer(self, outputs: Dict[str, Any]):
         """Chooses the correct output and sends it to the viewer
+
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
         """
@@ -366,6 +372,7 @@ def get_default_vis() -> Viewer:
 
 def set_output_options(vis: Viewer, output_options: List[str]):
     """Sets the possible list of output options for user to toggle
+
     Args:
         vis: current Viewer
         output_options: list of possible output types to select from
@@ -375,6 +382,7 @@ def set_output_options(vis: Viewer, output_options: List[str]):
 
 def show_box_test(vis: Viewer):
     """Simple test to draw a box and make sure everything is working.
+
     Args:
         vis: current Viewer
     """
@@ -383,6 +391,7 @@ def show_box_test(vis: Viewer):
 
 def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color: Optional[int] = None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input.
+
     Args:
         vis: current Viewer
         ply_path: path to ply to load in
@@ -399,6 +408,7 @@ def show_ply(vis: Viewer, ply_path: str, name: str = "ply", color: Optional[int]
 
 def show_obj(vis: Viewer, obj_path: str, name: str = "obj", color: Optional[int] = None):
     """Show the PLY file in the 3D viewer. Specify the full filename as input.
+
     Args:
         vis: current Viewer
         obj_path: path to obj to load in
@@ -425,6 +435,7 @@ def draw_camera_frustum(
     realistic: bool = True,
 ):
     """Draw the camera in the scene.
+
     Args:
         vis: current Viewer
         image: image associated with the current camera
