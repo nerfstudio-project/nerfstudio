@@ -134,15 +134,12 @@ class NGPGraph(Graph):
         """Do preprocessing to make images valid"""
         # TODO: make log_test_image_outputs use this directly
         # TODO: implement across all the different graph implementations
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        outputs["accumulation"] = visualization.apply_colormap(outputs["accumulation"])
+        outputs["depth"] = visualization.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
-        combined_acc = torch.cat([acc], dim=1)
-        outputs["accumulation"] = combined_acc
-        combined_depth = torch.cat([depth], dim=1)
-        outputs["depth"] = combined_depth
+        outputs["alive_ray_mask"] = visualization.apply_boolean_colormap(outputs["alive_ray_mask"])
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
