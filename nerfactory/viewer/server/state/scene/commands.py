@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import numpy as np
+
+from nerfactory.viewer.server.path import Path
 from nerfactory.viewer.server.state.scene.geometry import (
     Mesh,
     MeshPhongMaterial,
@@ -29,7 +31,6 @@ from nerfactory.viewer.server.state.scene.geometry import (
     Points,
     PointsMaterial,
 )
-from nerfactory.viewer.server.path import Path
 
 
 class SceneCommand:

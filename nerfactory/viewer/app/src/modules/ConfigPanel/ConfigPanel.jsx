@@ -89,10 +89,10 @@ export function RenderControls() {
     [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions],
   );
 
-  return controls;
-}
-
-export function MyComponent() {
-  const { myValue } = useControls({ myValue: 10 });
-  return myValue;
+  return (
+    <div style={{ position: "relative", width: 250, top: 60 }}>
+      {/* <Leva fill oneLineLabels titleBar={false} /> */}
+      {/* {controls} */}
+    </div>
+  );
 }

@@ -22,6 +22,8 @@ import numpy as np
 import umsgpack
 import zmq
 
+from nerfactory.viewer.server.path import Path
+
 # for the scene
 from nerfactory.viewer.server.state.scene.commands import (
     Delete,
@@ -34,7 +36,6 @@ from nerfactory.viewer.server.state.scene.commands import (
 
 # for the widgets
 from nerfactory.viewer.server.state.widget.commands import SetWidget
-from nerfactory.viewer.server.path import Path
 
 
 class ViewerWindow:

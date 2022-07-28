@@ -19,12 +19,12 @@ from __future__ import absolute_import, division, print_function
 import sys
 from typing import Callable, List, Optional
 
+import msgpack
+import msgpack_numpy
 import tornado.gen
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
-import msgpack
-import msgpack_numpy
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
@@ -32,8 +32,8 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
+from nerfactory.viewer.server.state.node import find_node, get_tree, walk
 from nerfactory.viewer.server.state.scene_node import SceneNode
-from nerfactory.viewer.server.state.node import get_tree, walk, find_node
 from nerfactory.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
