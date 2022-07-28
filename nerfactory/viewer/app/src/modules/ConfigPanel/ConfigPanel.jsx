@@ -31,7 +31,7 @@ export function RenderControls() {
     setIsTraining((current) => !current);
   };
 
-  const { controls } = useControls(
+  const { controls, setControls } = useControls(
     'Rendering State',
     () => ({
       // WebSocket isConnected
@@ -89,10 +89,12 @@ export function RenderControls() {
     [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions],
   );
 
-  return (
-    <div style={{ position: "relative", width: 250, top: 60 }}>
-      {/* <Leva fill oneLineLabels titleBar={false} /> */}
-      {/* {controls} */}
-    </div>
-  );
+  // TODO(ethan): figure out how to style Leva
+  // return (
+  //   <div style={{ position: "relative", width: 250, top: 60 }}>
+  //     <Leva fill oneLineLabels titleBar={false} />
+  //     {/* {controls} */}
+  //   </div>
+
+  return controls;
 }

@@ -118,9 +118,6 @@ class Graph(AbstractGraph):
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
-        # variable for visualizer to fetch TODO(figure out if there is cleaner way to do this)
-        self.vis_outputs = None
-        self.default_output_name = None
 
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
