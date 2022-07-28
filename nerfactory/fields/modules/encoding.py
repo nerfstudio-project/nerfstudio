@@ -33,7 +33,7 @@ class Encoding(FieldModule):
     """Encode an input tensor. Intended to be subclassed
 
     Args:
-        in_dim (int): Input dimension of tensor
+        in_dim: Input dimension of tensor
     """
 
     def __init__(self, in_dim: int) -> None:
@@ -42,7 +42,7 @@ class Encoding(FieldModule):
         super().__init__(in_dim=in_dim)
 
     @abstractmethod
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         raise NotImplementedError
 
 
@@ -52,7 +52,7 @@ class Identity(Encoding):
     def get_out_dim(self) -> int:
         return self.in_dim
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         return in_tensor
 
 
@@ -60,9 +60,9 @@ class ScalingAndOffset(Encoding):
     """Simple scaling and offet to input
 
     Args:
-        in_dim (int): Input dimension of tensor
-        scaling (float, optional): Scaling applied to tensor. Defaults to 1.0.
-        offset (float, optional): Offset applied to tensor. Defaults to 0.0.
+        in_dim: Input dimension of tensor
+        scaling: Scaling applied to tensor. Defaults to 1.0.
+        offset: Offset applied to tensor. Defaults to 0.0.
     """
 
     def __init__(self, in_dim: int, scaling: float = 1.0, offset: float = 0.0) -> None:
@@ -74,7 +74,7 @@ class ScalingAndOffset(Encoding):
     def get_out_dim(self) -> int:
         return self.in_dim
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         return self.scaling * in_tensor + self.offset
 
 
@@ -83,11 +83,11 @@ class NeRFEncoding(Encoding):
     Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.
 
     Args:
-        in_dim (int): Input dimension of tensor
-        num_frequencies (int): Number of encoded frequencies per axis
-        min_freq_exp (float): Minimum frequency exponent
-        max_freq_exp (float): Maximum frequency exponent
-        include_input (float): Append the input coordinate to the encoding
+        in_dim: Input dimension of tensor
+        num_frequencies: Number of encoded frequencies per axis
+        min_freq_exp: Minimum frequency exponent
+        max_freq_exp: Maximum frequency exponent
+        include_input: Append the input coordinate to the encoding
     """
 
     def __init__(
@@ -107,16 +107,18 @@ class NeRFEncoding(Encoding):
         return out_dim
 
     def forward(
-        self, in_tensor: TensorType[..., "input_dim"], covs: Optional[TensorType[..., "input_dim", "input_dim"]] = None
-    ) -> TensorType[..., "output_dim"]:
+        self,
+        in_tensor: TensorType["bs":..., "input_dim"],
+        covs: Optional[TensorType["bs":..., "input_dim", "input_dim"]] = None,
+    ) -> TensorType["bs":..., "output_dim"]:
         """Calculates NeRF encoding. If covariances are provided the encodings will be integrated as proposed
             in mip-NeRF.
 
         Args:
-            in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
-            covs (TensorType[..., "input_dim", "input_dim"], optional): Covariances of input points. Defaults to None.
+            in_tensor: For best performance, the input tensor should be between 0 and 1.
+            covs: Covariances of input points. Defaults to None.
         Returns:
-            TensorType[..., "output_dim"]: Output values will be between -1 and 1
+            Output values will be between -1 and 1
         """
         in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         freqs = 2 ** torch.linspace(self.min_freq, self.max_freq, self.num_frequencies).to(in_tensor.device)
@@ -141,10 +143,10 @@ class RFFEncoding(Encoding):
     """Random Fourier Feature encoding. Supports integrated encodings.
 
     Args:
-        in_dim (int): Input dimension of tensor
-        num_frequencies (int): Number of encoding frequencies
-        scale (float): Std of Gaussian to sample frequencies. Must be greater than zero
-        include_input (float): Append the input coordinate to the encoding
+        in_dim: Input dimension of tensor
+        num_frequencies: Number of encoding frequencies
+        scale: Std of Gaussian to sample frequencies. Must be greater than zero
+        include_input: Append the input coordinate to the encoding
     """
 
     def __init__(self, in_dim: int, num_frequencies: int, scale: float, include_input: bool = False) -> None:
@@ -162,17 +164,19 @@ class RFFEncoding(Encoding):
         return self.num_frequencies * 2
 
     def forward(
-        self, in_tensor: TensorType[..., "input_dim"], covs: Optional[TensorType[..., "input_dim", "input_dim"]] = None
-    ) -> TensorType[..., "output_dim"]:
+        self,
+        in_tensor: TensorType["bs":..., "input_dim"],
+        covs: Optional[TensorType["bs":..., "input_dim", "input_dim"]] = None,
+    ) -> TensorType["bs":..., "output_dim"]:
         """Calculates RFF encoding. If covariances are provided the encodings will be integrated as proposed
             in mip-NeRF.
 
         Args:
-            in_tensor (TensorType[..., "input_dim"]): For best performance, the input tensor should be between 0 and 1.
-            covs (TensorType[..., "input_dim", "input_dim"], optional): Covariances of input points. Defaults to None.
+            in_tensor: For best performance, the input tensor should be between 0 and 1.
+            covs: Covariances of input points. Defaults to None.
 
         Returns:
-            TensorType[..., "output_dim"]: Output values will be between -1 and 1
+            Output values will be between -1 and 1
         """
         in_tensor = 2 * torch.pi * in_tensor  # scale to [0, 2pi]
         scaled_inputs = in_tensor @ self.b_matrix  # [..., "num_frequencies"]
@@ -195,12 +199,12 @@ class HashEncoding(Encoding):
     """Hash encoding
 
     Args:
-        num_levels (int, optional): Number of feature grids. Defaults to 16.
-        min_res (int, optional): Resolution of smallest feature grid. Defaults to 16.
-        max_res (int, optional): Resolution of largest feature grid. Defaults to 1024.
-        hash_table_size (int, optional): Size of hash table. Defaults to 2**19.
-        features_per_level (int, optional): Number of features per level. Defaults to 2.
-        hash_init_scale (float, optional): Value to initialize hash grid. Defaults to 0.001.
+        num_levels: Number of feature grids. Defaults to 16.
+        min_res: Resolution of smallest feature grid. Defaults to 16.
+        max_res: Resolution of largest feature grid. Defaults to 1024.
+        hash_table_size: Size of hash table. Defaults to 2**19.
+        features_per_level: Number of features per level. Defaults to 2.
+        hash_init_scale: Value to initialize hash grid. Defaults to 0.001.
     """
 
     def __init__(
@@ -230,14 +234,14 @@ class HashEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
 
-    def hash_fn(self, in_tensor: TensorType[..., "num_levels", 3]) -> TensorType[..., "num_levels"]:
+    def hash_fn(self, in_tensor: TensorType["bs":..., "num_levels", 3]) -> TensorType["bs":..., "num_levels"]:
         """Hash tensor using method described in Instant-NGP
 
         Args:
-            in_tensor (TensorType[..., "num_levels", 3]): Tensor to be hashed
+            in_tensor: Tensor to be hashed
 
         Returns:
-            TensorType[..., "num_levels"]: Hashed tensor
+            Hashed tensor
         """
 
         # min_val = torch.min(in_tensor)
@@ -252,7 +256,7 @@ class HashEncoding(Encoding):
         x += self.hash_offset.to(x.device)
         return x
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         assert in_tensor.shape[-1] == 3
 
         in_tensor = in_tensor[..., None, :]  # [..., 1, 3]
@@ -299,9 +303,9 @@ class TensorCPEncoding(Encoding):
     """Learned CANDECOMP/PARFAC (CP) decomposition encoding used in TensoRF
 
     Args:
-        resolution (int, optional): Resolution of grid. Defaults to 256.
-        num_components (int, optional): Number of components per dimension. Defaults to 24.
-        init_scale (float, optional): Initialization scale. Defaults to 0.1.
+        resolution: Resolution of grid. Defaults to 256.
+        num_components: Number of components per dimension. Defaults to 24.
+        init_scale: Initialization scale. Defaults to 0.1.
     """
 
     def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
@@ -316,7 +320,7 @@ class TensorCPEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
         line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
 
@@ -335,7 +339,7 @@ class TensorCPEncoding(Encoding):
         """Upsamples underyling feature grid
 
         Args:
-            resolution (int): Target resolution.
+            resolution: Target resolution.
         """
 
         self.line_coef.data = F.interpolate(
@@ -349,9 +353,9 @@ class TensorVMEncoding(Encoding):
     """Learned vector-matrix encoding proposed by TensoRF
 
     Args:
-        resolution (int, optional): Resolution of grid. Defaults to 256.
-        num_components (int, optional): Number of components per dimension. Defaults to 24.
-        init_scale (float, optional): Initialization scale. Defaults to 0.1.
+        resolution: Resolution of grid. Defaults to 256.
+        num_components: Number of components per dimension. Defaults to 24.
+        init_scale: Initialization scale. Defaults to 0.1.
     """
 
     def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
@@ -367,7 +371,7 @@ class TensorVMEncoding(Encoding):
     def get_out_dim(self) -> int:
         return self.num_components * 3
 
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         in_tensor = in_tensor / 4.0 + 0.5
         plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]])  # [3,...,2]
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
@@ -390,7 +394,7 @@ class TensorVMEncoding(Encoding):
         """Upsamples underyling feature grid
 
         Args:
-            resolution (int): Target resolution.
+            resolution: Target resolution.
         """
 
         self.plane_coef.data = F.interpolate(
@@ -407,7 +411,7 @@ class SHEncoding(Encoding):
     """Spherical harmonic encoding
 
     Args:
-        levels (int, optional): Number of spherical hamonic levels to encode. Defaults to 4.
+        levels: Number of spherical hamonic levels to encode. Defaults to 4.
     """
 
     def __init__(self, levels: int = 4) -> None:
@@ -422,5 +426,5 @@ class SHEncoding(Encoding):
         return self.levels**2
 
     @torch.no_grad()
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         return components_from_spherical_harmonics(levels=self.levels, directions=in_tensor)

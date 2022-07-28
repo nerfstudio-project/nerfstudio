@@ -43,7 +43,7 @@ def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str)
     """Setup the graph. The dataset inputs should be set with the training data.
 
     Args:
-        dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+        dataset_inputs: The inputs which will be used to define the camera parameters.
     """
     graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
     graph.to(device)
@@ -77,14 +77,14 @@ class Graph(AbstractGraph):
     subclassed for custom NeRF model.
 
     Args:
-        intrinsics (torch.Tensor): Camera intrinsics.
-        camera_to_world (torch.Tensor): Camera to world transformation.
-        loss_coefficients (DictConfig): Loss specific weights.
-        scene_bounds (SceneBounds): Bounds of target scene.
-        enable_collider (bool): Whether to create a scene collider to filter rays.
-        collider_config (DictConfig): Configuration of scene collider.
-        enable_density_field (bool): Whether to create a density field to filter samples.
-        density_field_config (DictConfig): Configuration of density field.
+        intrinsics: Camera intrinsics.
+        camera_to_world: Camera to world transformation.
+        loss_coefficients: Loss specific weights.
+        scene_bounds: Bounds of target scene.
+        enable_collider: Whether to create a scene collider to filter rays.
+        collider_config: Configuration of scene collider.
+        enable_density_field: Whether to create a density field to filter samples.
+        density_field_config: Configuration of density field.
     """
 
     def __init__(
@@ -145,7 +145,7 @@ class Graph(AbstractGraph):
         """Obtain the parameter groups for the optimizers
 
         Returns:
-            Dict[str, List[Parameter]]: Mapping of different parameter groups
+            Mapping of different parameter groups
         """
 
     @abstractmethod
@@ -153,10 +153,10 @@ class Graph(AbstractGraph):
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
-            ray_bundle (RayBundle): Input bundle of rays.
+            ray_bundle: Input bundle of rays.
 
         Returns:
-            dict: Outputs of graph. (ie. rendered colors)
+            Outputs of graph. (ie. rendered colors)
         """
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
