@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import React, { useContext } from 'react';
+
+import React, { useContext, useEffect } from 'react';
+
 import { GUI } from 'dat.gui';
 import { SceneNode } from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
@@ -162,6 +164,23 @@ export default function SetupScene(props) {
   set_object(['Light'], light);
 
   console.log(scene);
+
+  useEffect(() => {
+    websocket.addEventListener('message', (originalCmd) => {
+      // set the remote description when the offer is received
+      const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
+      if (cmd.type === 'write') {
+        // write to the store
+        const path = cmd.path;
+        console.log(path);
+        console.log("going to dispatch");
+        // dispatch({
+        //   type: 'webrtcState/setIsConnected',
+        //   boolean: true,
+        // });
+      }
+    });
+  }, []); // empty dependency array means only run once
 
   return scene;
 }

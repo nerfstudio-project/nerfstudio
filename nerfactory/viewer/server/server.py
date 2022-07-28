@@ -109,8 +109,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
 
         if type_ == "write":
             # writes the data and dispatches update
-            print(path)
-            print(m["data"])
             find_node(self.bridge.state_tree, path).data = m["data"]
             # TODO: dispatch an update message to all websockets!
             # self.bridge.forward_to_websockets(frames)
@@ -279,7 +277,7 @@ class ZMQWebSocketBridge:
         Args:
             websocket: websocket to send information over
         """
-        print("sending scene")
+        print("sending scene. TODO: write this...")
         # def send_state_dict(path: str, node: Node):
         #     for k, v in node.items():
         #         newpath = path + "/" + k

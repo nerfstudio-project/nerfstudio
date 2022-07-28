@@ -5,7 +5,7 @@ import React, { createContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 // import io from 'socket.io-client';
-import { updateChatLog } from './WebSocketSlice.js.js';
+import { updateChatLog } from './WebSocketSlice.js';
 
 const WebSocketContext = createContext(null);
 
