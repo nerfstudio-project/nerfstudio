@@ -15,12 +15,9 @@
 """Code to interface with the `vis/` (the JS visualizer).
 """
 
-import copy
 import logging
-import random
 import sys
 import threading
-import pprint
 import time
 from typing import Any, Dict, List, Optional
 import torchvision.transforms as T
@@ -133,8 +130,8 @@ class CheckThread(threading.Thread):
                     return
 
             # check output type
-            data = self.state.vis["/Output Type"].read()
-            if data is None:
+            output_type = self.state.vis["renderingState/output_choice"].read()
+            if output_type is None:
                 output_type = "default"
             else:
                 output_type = data["output_type"]
@@ -143,17 +140,15 @@ class CheckThread(threading.Thread):
                 return
 
             # check max render
-            data = self.state.vis["/Max Resolution"].read()
-            if data is not None:
-                max_resolution = int(data["max_resolution"])
+            max_resolution = self.state.vis["renderingState/maxResolution"].read()
+            if max_resolution is not None:
                 if self.state.max_resolution != max_resolution:
                     self.state.check_interrupt_vis = True
                     return
 
             # check min render
-            data = self.state.vis["/Min Resolution"].read()
-            if data is not None:
-                min_resolution = int(data["min_resolution"])
+            min_resolution = self.state.vis["renderingState/minResolution"].read()
+            if min_resolution is not None:
                 if self.state.min_resolution != min_resolution:
                     self.state.check_interrupt_vis = True
                     return
@@ -280,7 +275,6 @@ class VisualizerState:
             self.prev_output_type = "rgb" if "rgb" in outputs else "rgb_fine"
         image_output = outputs[self.prev_output_type].cpu().numpy() * 255
         image = (image_output).astype("uint8")
-        print("set image")
         self.vis.set_image(image)
 
     @profiler.time_function
