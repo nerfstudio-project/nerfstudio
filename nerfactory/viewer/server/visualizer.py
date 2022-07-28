@@ -23,7 +23,7 @@ import umsgpack
 import zmq
 
 # for the scene
-from pyrad.viewer.server.state.scene.commands import (
+from nerfactory.viewer.server.state.scene.commands import (
     Delete,
     GetObject,
     SetObject,
@@ -33,8 +33,8 @@ from pyrad.viewer.server.state.scene.commands import (
 )
 
 # for the widgets
-from pyrad.viewer.server.state.widget.commands import SetWidget
-from pyrad.viewer.server.path import Path
+from nerfactory.viewer.server.state.widget.commands import SetWidget
+from nerfactory.viewer.server.path import Path
 
 
 class ViewerWindow:
@@ -109,7 +109,7 @@ class Viewer:
             self.window = ViewerWindow(zmq_url=zmq_url)
         else:
             self.window = window
-        self.path = Path(("pyrad",))
+        self.path = Path(("nerfactory",))
 
     @staticmethod
     def view_into(window: ViewerWindow, path: Path):

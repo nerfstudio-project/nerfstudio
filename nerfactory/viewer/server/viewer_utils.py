@@ -25,20 +25,20 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
-from pyrad.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 
-import pyrad.viewer.server.state.scene.cameras as c
-import pyrad.viewer.server.state.scene.geometry as g
-from pyrad.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
-from pyrad.cameras.rays import RayBundle
-from pyrad.data.image_dataset import ImageDataset
-from pyrad.data.structs import DatasetInputs
-from pyrad.graphs.base import Graph
-from pyrad.utils import profiler
-from pyrad.utils.config import ViewerConfig
-from pyrad.viewer.server.transformations import get_translation_matrix
-from pyrad.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
-from pyrad.viewer.server.visualizer import Viewer
+import nerfactory.viewer.server.state.scene.cameras as c
+import nerfactory.viewer.server.state.scene.geometry as g
+from nerfactory.cameras.cameras import Camera, get_camera, get_intrinsics_from_intrinsics_matrix
+from nerfactory.cameras.rays import RayBundle
+from nerfactory.data.image_dataset import ImageDataset
+from nerfactory.data.structs import DatasetInputs
+from nerfactory.graphs.base import Graph
+from nerfactory.utils import profiler
+from nerfactory.utils.config import ViewerConfig
+from nerfactory.viewer.server.transformations import get_translation_matrix
+from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfactory.viewer.server.visualizer import Viewer
 
 
 class IOChangeException(Exception):

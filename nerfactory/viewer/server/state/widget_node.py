@@ -12,7 +12,7 @@ Leva, our frontend framework for widgets, supports the following:
 """
 
 
-from pyrad.viewer.server.state.node import Node
+from nerfactory.viewer.server.state.node import Node
 
 
 class WidgetNode(Node):

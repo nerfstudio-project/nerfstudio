@@ -32,9 +32,9 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
-from pyrad.viewer.server.state.scene_node import SceneNode
-from pyrad.viewer.server.state.node import get_tree, walk, find_node
-from pyrad.viewer.server.video_stream import SingleFrameStreamTrack
+from nerfactory.viewer.server.state.scene_node import SceneNode
+from nerfactory.viewer.server.state.node import get_tree, walk, find_node
+from nerfactory.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
 DEFAULT_ZMQ_METHOD = "tcp"

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import numpy as np
-from pyrad.viewer.server.state.scene.geometry import (
+from nerfactory.viewer.server.state.scene.geometry import (
     Mesh,
     MeshPhongMaterial,
     Object,
@@ -29,7 +29,7 @@ from pyrad.viewer.server.state.scene.geometry import (
     Points,
     PointsMaterial,
 )
-from pyrad.viewer.server.path import Path
+from nerfactory.viewer.server.path import Path
 
 
 class SceneCommand:

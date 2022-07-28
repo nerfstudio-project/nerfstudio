@@ -9,7 +9,7 @@
             "request": "launch",
             "type": "chrome",
             "url": "http://localhost:4000",
-            "webRoot": "${workspaceFolder}/pyrad/viewer/app"
+            "webRoot": "${workspaceFolder}/nerfactory/viewer/app"
         },
         {
             "name": "Python: Current File",
