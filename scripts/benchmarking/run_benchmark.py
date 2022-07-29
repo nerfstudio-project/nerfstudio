@@ -83,6 +83,9 @@ def main(args):
         stats_dict = run_inference_from_config(config)
         stats_dict["checkpoint"] = ckpt
         benchmarks[dataset] = stats_dict
+        print(stats_dict)
+        print(dataset)
+        print("-" * 50)
 
         # reset hydra config
         GlobalHydra.instance().clear()
