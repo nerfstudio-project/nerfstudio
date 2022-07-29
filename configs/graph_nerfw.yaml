@@ -7,23 +7,25 @@ method_name: nerfw
 
 # the data
 data:
-  image_dataset_train:
-    _target_: pyrad.data.image_dataset.PanopticImageDataset
-  image_dataset_eval:
-    _target_: pyrad.data.image_dataset.PanopticImageDataset
+  # Train dataloading.
   dataset_inputs_train:
+    _target_: nerfactory.data.datasets.Friends
     data_directory: data/friends/TBBT-big_living_room
-    dataset_format: friends
     downscale_factor: 1
+  image_dataset_train:
+    _target_: nerfactory.data.image_dataset.PanopticImageDataset
+  # Eval dataloading
   dataset_inputs_eval:
+    _target_: nerfactory.data.datasets.Friends
     data_directory: data/friends/TBBT-big_living_room
-    dataset_format: friends
     downscale_factor: 1
+  image_dataset_eval:
+    _target_: nerfactory.data.image_dataset.PanopticImageDataset
 
 graph:
-  _target_: pyrad.graphs.nerfw.NerfWGraph
+  _target_: nerfactory.graphs.nerfw.NerfWGraph
   collider_config:
-    _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+    _target_: nerfactory.graphs.modules.scene_colliders.AABBBoxCollider
   num_coarse_samples: 64
   num_importance_samples: 64
   loss_coefficients:

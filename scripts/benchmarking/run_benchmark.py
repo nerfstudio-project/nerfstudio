@@ -7,14 +7,13 @@ import logging
 import os
 from typing import Any, Dict
 
+import numpy as np
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
-import numpy as np
 from omegaconf import DictConfig
 from tqdm import tqdm
 
 from scripts.run_eval import run_inference_from_config
-
 
 OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
 
@@ -53,7 +52,7 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     Returns:
         DictConfig: returns the loaded hydra dictionary config
     """
-    basename = os.listdir(hydra_dir)[0]
+    basename = sorted(os.listdir(hydra_dir))[-1]
     hydra_dir = f"{hydra_dir}/{basename}"
     initialize(version_base="1.2", config_path=os.path.join("../../", hydra_dir, ".hydra/"))
     config = compose("config.yaml")
@@ -75,6 +74,8 @@ def main(args):
         # set up trainer, config, and checkpoint loading
         hydra_dir = f"{args.hydra_base_dir}/blender_{dataset}_{args.benchmark_date}/{args.graph}/"
         config = _load_hydra_config(hydra_dir)
+        config.data.dataloader_eval.image_indices = None
+
         ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
         # run evaluation

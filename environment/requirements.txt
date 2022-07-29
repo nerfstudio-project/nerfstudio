@@ -4,6 +4,7 @@ av
 black[jupyter]==22.3.0
 dcargs
 functorch==0.2.0
+ninja
 h5py>=2.9.0
 hydra-colorlog==1.2.0
 hydra-core==1.2.0

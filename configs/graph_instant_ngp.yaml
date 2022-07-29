@@ -4,30 +4,57 @@ defaults:
 
 method_name: instant_ngp
 data:
+  # Train dataloading.
+  dataset_inputs_train:
+    _target_: nerfactory.data.datasets.Blender
+    data_directory: data/blender/lego
+    alpha_color: white
+    downscale_factor: 1
   dataloader_train:
     pixel_sampler:
       num_rays_per_batch: 8192 # for training
+  # Eval dataloading
+  dataset_inputs_eval:
+    _target_: nerfactory.data.datasets.Blender
+    data_directory: data/blender/lego
+    alpha_color: white
+    downscale_factor: 1
   dataloader_eval:
-    num_rays_per_chunk: 8192 # for evaluation
+    num_rays_per_chunk: 8192 # all rays for evaluation
 
 viewer:
   enable: true
   num_rays_per_chunk: 16384
 
 graph:
-  _target_: pyrad.graphs.instant_ngp.NGPGraph
-  collider_config:
-    _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
+  _target_: nerfactory.graphs.instant_ngp.NGPGraph
+  enable_density_field: true
+  enable_collider: false
   field_implementation: tcnn # torch, tcnn, ...
   loss_coefficients: # loss coefficients
     rgb_loss: 1.0
+
+  density_field_config:
+    # Please see the docstr for DensityGrid on how to set those arguments.
+    _target_: nerfactory.fields.density_fields.density_grid.DensityGrid
+    center: 0.0 # simply set it as the center of the scene bbox
+    base_scale: 3.0 # simply set it as the scale of the scene bbox
+    num_cascades: 1 # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+    resolution: 128
+    update_every_num_iters: 16
 
 # optimizer options for network
 optimizers:
   fields:
     optimizer:
-      lr: 1e-2
-      eps: 1e-7 # need to investigate further for float16 stability
+      lr: 3e-3
+      eps: 1e-15 # NGP prefers small eps
+    # Note: If you want slightly faster coverange, you can use the following optimizer instead, which
+    # requires to install apex following https://github.com/NVIDIA/apex#linux
+    # optimizer:
+    #   _target_: apex.optimizers.FusedAdam
+    #   lr: 3e-3
+    #   eps: 1e-15
     scheduler: null
 
 trainer:

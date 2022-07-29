@@ -1,7 +1,8 @@
 """View Bridge Server"""
 
 import argparse
-from pyrad.viewer.server.server import ZMQWebSocketBridge
+
+from nerfactory.viewer.server.server import ZMQWebSocketBridge
 
 
 def main():

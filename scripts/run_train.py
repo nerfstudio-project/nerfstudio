@@ -19,9 +19,9 @@ import yaml
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
-from pyrad.engine.trainer import Trainer
-from pyrad.utils import comms, profiler
-from pyrad.utils.config import Config, setup_config
+from nerfactory.engine.trainer import Trainer
+from nerfactory.utils import comms, profiler
+from nerfactory.utils.config import Config, setup_config
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 

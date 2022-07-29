@@ -3,6 +3,6 @@
 Colors
 ------------
 
-.. automodule:: pyrad.utils.colors
+.. automodule:: nerfactory.utils.colors
    :members:
    :show-inheritance:
