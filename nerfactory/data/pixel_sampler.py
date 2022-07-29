@@ -43,6 +43,7 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
 
     c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
     image = batch["image"][c, y, x]
+    mask, semantics = None, None
     if "mask" in batch:
         mask = batch["mask"][c, y, x]
     if "semantics" in batch:
@@ -57,9 +58,9 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
         "indices": indices,  # with the abs camera indices
         "image": image,
     }
-    if "mask" in batch:
+    if mask is not None:
         collated_batch["mask"] = mask
-    if "semantics" in batch:
+    if semantics is not None:
         collated_batch["semantics"] = semantics
 
     if keep_full_image:

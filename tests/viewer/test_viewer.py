@@ -12,9 +12,9 @@ import umsgpack
 from tqdm import tqdm
 
 import nerfactory.viewer.server.geometry as g
-from nerfactory.cameras.camera_paths import InterpolatedCameraPath
+from nerfactory.cameras import camera_paths
 from nerfactory.cameras.cameras import get_camera
-from nerfactory.data.utils import get_dataset_inputs
+from nerfactory.data.datasets import Blender
 from nerfactory.utils.io import get_absolute_path
 from nerfactory.viewer.server.transformations import (
     get_rotation_matrix,
@@ -24,6 +24,7 @@ from nerfactory.viewer.server.viewer_utils import get_default_vis, set_camera
 
 
 def test_drawing():
+    """Test drawing objects in the viewer."""
     vis = get_default_vis()
     vis.delete()
 
@@ -110,20 +111,21 @@ def test_drawing():
 
 
 def test_streaming():
-    pass
+    """Test streaming of data to the viewer."""
 
 
 def test_rendering():
-    pass
+    """Test rendering."""
 
 
 def test_camera_trajectory():
-    print("test_camera_trajectory")
+    """Test generating camera trajectory."""
     vis = get_default_vis()
     # vis.delete()
 
     # sample poses from a dataset
-    dataset_inputs = get_dataset_inputs(data_directory="data/blender/lego", dataset_format="blender", split="train")
+    dataset = Blender(data_directory="data/blender/lego")
+    dataset_inputs = dataset.get_dataset_inputs(split="train")
     num_cameras = len(dataset_inputs.intrinsics)
     intrinsics = dataset_inputs.intrinsics
     camera_to_world = dataset_inputs.camera_to_world
@@ -136,11 +138,10 @@ def test_camera_trajectory():
     estimated_time = num_steps / fps
     print("estimated_time:", estimated_time)
 
-    camera_path = InterpolatedCameraPath(camera_a, camera_b)
-    cameras = camera_path.get_path(steps=num_steps)
+    camera_path = camera_paths.get_interpolated_camera_path(camera_a, camera_b, steps=num_steps)
 
     start = time.time()
-    for camera in cameras:
+    for camera in camera_path.cameras:
         set_camera(vis, camera)
         time.sleep(1 / fps)
     time_elapsed = time.time() - start
@@ -148,8 +149,9 @@ def test_camera_trajectory():
 
 
 def test_send_image_stream():
+    """Test sending image stream."""
     vis = get_default_vis()
-    vis_Background = vis["/Background"]
+    vis_background = vis["/Background"]
 
     video_filename = get_absolute_path("data/instant_ngp/bear/bear.MOV")
     images = []
@@ -162,16 +164,16 @@ def test_send_image_stream():
         ret, image = cap.read()
         # break
 
-    num_images = len(images)
     fps = 30
     for image in tqdm(images):
         rgba = cv2.cvtColor(image, cv2.COLOR_RGB2RGBA)
         encoded = umsgpack.Ext(0x12, rgba.tobytes())
-        vis_Background.set_image(encoded)
+        vis_background.set_image(encoded)
         time.sleep(1 / fps)
 
 
 def test_perspective_camera():
+    """Test perspective camera in viewer."""
     vis = get_default_vis()
     vis.set_object(g.Box([0.5, 0.5, 0.5]))
     camera = g.PerspectiveCamera(fov=90)

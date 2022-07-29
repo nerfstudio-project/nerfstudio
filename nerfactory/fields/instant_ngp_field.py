@@ -17,10 +17,11 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch.nn.parameter import Parameter
+from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
 from nerfactory.data.structs import SceneBounds
@@ -110,13 +111,17 @@ class TCNNInstantNGPField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding=None):
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         # TODO: add valid_mask masking!
         # tcnn requires directions in the range [0,1]
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
-        h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+        if density_embedding is None:
+            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+            h = torch.cat([d, positions.view(-1, 3)], dim=-1)
+        else:
+            h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 

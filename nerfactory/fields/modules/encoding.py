@@ -50,6 +50,8 @@ class Identity(Encoding):
     """Identity encoding (Does not modify input)"""
 
     def get_out_dim(self) -> int:
+        if self.in_dim is None:
+            raise ValueError("Input dimension has not been set")
         return self.in_dim
 
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
@@ -72,6 +74,8 @@ class ScalingAndOffset(Encoding):
         self.offset = offset
 
     def get_out_dim(self) -> int:
+        if self.in_dim is None:
+            raise ValueError("Input dimension has not been set")
         return self.in_dim
 
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
@@ -101,6 +105,8 @@ class NeRFEncoding(Encoding):
         self.include_input = include_input
 
     def get_out_dim(self) -> int:
+        if self.in_dim is None:
+            raise ValueError("Input dimension has not been set")
         out_dim = self.in_dim * self.num_frequencies * 2
         if self.include_input:
             out_dim += self.in_dim
@@ -156,6 +162,8 @@ class RFFEncoding(Encoding):
         if not scale > 0:
             raise ValueError("RFF encoding scale should be greater than zero")
         self.scale = scale
+        if self.in_dim is None:
+            raise ValueError("Input dimension has not been set")
         b_matrix = torch.normal(mean=0, std=self.scale, size=(self.in_dim, self.num_frequencies))
         self.register_buffer(name="b_matrix", tensor=b_matrix)
         self.include_input = include_input

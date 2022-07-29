@@ -17,7 +17,7 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import torch
 from torchtyping import TensorType
@@ -37,12 +37,12 @@ class PointCloud:
 class Semantics:
     """Dataclass for semantic labels."""
 
-    stuff_classes: Optional[List[str]] = None
-    stuff_colors: Optional[List[str]] = None
-    stuff_filenames: Optional[List[str]] = None
-    thing_classes: Optional[List[str]] = None
-    thing_colors: Optional[List[str]] = None
-    thing_filenames: Optional[List[str]] = None
+    stuff_filenames: List[str]
+    stuff_classes: List[str]
+    thing_filenames: List[str]
+    thing_classes: List[str]
+    stuff_colors: Optional[torch.Tensor] = None
+    thing_colors: Optional[torch.Tensor] = None
 
 
 @dataclass
@@ -68,7 +68,7 @@ class SceneBounds:
         diff = self.aabb[1] - self.aabb[0]
         return self.aabb[0] + diff / 2.0
 
-    def get_centered_and_scaled_scene_bounds(self, scale_factor=1.0):
+    def get_centered_and_scaled_scene_bounds(self, scale_factor: Union[float, torch.Tensor] = 1.0):
         """Returns a new box that has been shifted and rescaled to be centered
         about the origin."""
         return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
@@ -110,13 +110,13 @@ class DatasetInputs:
     """
 
     image_filenames: List[str]
+    intrinsics: torch.Tensor
+    camera_to_world: torch.Tensor
     downscale_factor: int = 1
-    intrinsics: torch.tensor = None
-    camera_to_world: torch.tensor = None
-    mask_filenames: List[str] = None
-    depth_filenames: List[str] = None
+    mask_filenames: Optional[List[str]] = None
+    depth_filenames: Optional[List[str]] = None
     scene_bounds: SceneBounds = SceneBounds()
-    semantics: Semantics = Semantics()
+    semantics: Optional[Semantics] = None
     point_cloud: PointCloud = PointCloud()
     alpha_color: Optional[TensorType[3]] = None
 
@@ -151,5 +151,5 @@ class BaseDataContainer:
     """
 
     rays: RayBundle  # Raybundle and the cameras will be merged into one thing in a later PR
-    cameras: torch.tensor
+    cameras: torch.Tensor
     ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None

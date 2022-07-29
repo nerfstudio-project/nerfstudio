@@ -427,8 +427,7 @@ def read_model(path, ext=""):
         elif detect_model_format(path, ".txt"):
             ext = ".txt"
         else:
-            print("Provide model format: '.bin' or '.txt'")
-            return
+            raise ValueError("Provide model format: '.bin' or '.txt'")
 
     if ext == ".txt":
         cameras = read_cameras_text(os.path.join(path, "cameras" + ext))
@@ -489,7 +488,7 @@ def rotmat2qvec(R):
         / 3.0
     )
     eigvals, eigvecs = np.linalg.eigh(K)
-    qvec = eigvecs[[3, 0, 1, 2], np.argmax(eigvals)]
+    qvec = eigvecs[np.array([3, 0, 1, 2]), np.argmax(eigvals)]
     if qvec[0] < 0:
         qvec *= -1
     return qvec

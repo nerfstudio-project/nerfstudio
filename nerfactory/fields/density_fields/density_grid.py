@@ -51,8 +51,10 @@ class DensityGrid(nn.Module):
     on the scale but all shares the same center.
 
     For example:
-    - `center=0`, `base_scale=3`, `num_cascades=1` would create one grid (lvl=0) covers the aabb [[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]].
-    - `center=0`, `base_scale=3`, `num_cascades=2` would create one grid (lvl=0) covers the aabb [[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]],
+    - `center=0`, `base_scale=3`, `num_cascades=1` would create one grid (lvl=0) covers
+            the aabb [[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]].
+    - `center=0`, `base_scale=3`, `num_cascades=2` would create one grid (lvl=0) covers
+            the aabb [[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]],
     and one more grid (lvl=1) covers the aabb [[-3, -3, -3], [3, 3, 3]].
 
     Normally you can simply set the `center` to the scene center, and `base_scale` to be the scene scale, and use
@@ -225,6 +227,6 @@ class DensityGrid(nn.Module):
         densities = densities.view(*positions.shape[:-1], 1)
         return densities
 
-    def forward(self, x):
+    def forward(self, x):  # pylint: disable=no-self-use
         """Not implemented."""
         raise RuntimeError("Shouldn't be called!")

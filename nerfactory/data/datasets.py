@@ -462,7 +462,7 @@ class Friends(Dataset):
         camera_to_world[..., 3] = (camera_to_world[..., 3] - box_center) * box_scale_factor  # center and rescale
 
         # --- semantics ---
-        semantics = Semantics()
+        semantics = None
         if self.include_semantics:
             thing_filenames = [
                 image_filename.replace("/images/", "/segmentations/thing/").replace(".jpg", ".png")

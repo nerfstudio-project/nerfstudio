@@ -202,8 +202,8 @@ class TimeWriter:
         self.step = step
         self.write = write
 
-        self.start = None
-        self.duration = None
+        self.start: float = 0.0
+        self.duration: float = 0.0
 
     def __enter__(self):
         self.start = time()

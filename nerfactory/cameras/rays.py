@@ -23,7 +23,6 @@ import torch
 from torchtyping import TensorType
 
 from nerfactory.utils.math import Gaussians, conical_frustum_to_gaussian
-from nerfactory.utils.misc import is_not_none
 from nerfactory.utils.tensor_dataclass import TensorDataclass
 
 
@@ -143,7 +142,7 @@ class RaySamples(TensorDataclass):
         Returns:
             RaySamples: New set of masked samples.
         """
-        if is_not_none(self.valid_mask):
+        if self.valid_mask is not None:
             return self[self.valid_mask[..., 0]]
         return self
 
@@ -169,7 +168,7 @@ class RayBundle(TensorDataclass):
     nears: Optional[TensorType["num_rays", 1]] = None
     fars: Optional[TensorType["num_rays", 1]] = None
     valid_mask: Optional[TensorType["num_rays", 1, bool]] = None
-    num_rays_per_chunk: int = None
+    num_rays_per_chunk: Optional[int] = None
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.
@@ -229,7 +228,7 @@ class RayBundle(TensorDataclass):
         dists = bin_ends - bin_starts  # [..., N_samples, 1]
         deltas = dists * torch.norm(self.directions[:, :], dim=-1)[..., None, None]
 
-        if is_not_none(self.camera_indices):
+        if self.camera_indices is not None:
             camera_indices = self.camera_indices[..., None]
         else:
             camera_indices = None
