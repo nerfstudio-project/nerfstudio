@@ -20,7 +20,7 @@ const initialState = {
   },
   // the scene state
   sceneState: {
-    box: null,
+    sceneBounds: null,
     cameras: {},
   },
   // ------------------------------------------------------------------------
@@ -29,9 +29,6 @@ const initialState = {
 };
 
 function setData(newState, state, path, data) {
-  console.log(path);
-  console.log(newState);
-  console.log(state);
   if (path.length === 0) {
   }
   else if (path.length === 1) {

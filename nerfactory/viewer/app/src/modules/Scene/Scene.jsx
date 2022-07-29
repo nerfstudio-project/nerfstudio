@@ -165,26 +165,97 @@ export default function SetupScene(props) {
   const light = new THREE.AmbientLight(color, intensity);
   set_object(['Light'], light);
 
-  // const { store } = useContext(ReactReduxContext);
-  // const select = (mysstate) => {
-  //   // return state.some.deep.property;
-  //   return mysstate.websocketState.isConnected;
-  // }
-  // let currentValue;
-  // const handleChange = () => {
-  //   let previousValue = currentValue
-  //   currentValue = select(store.getState());
+  const { store } = useContext(ReactReduxContext);
   
-  //   if (previousValue !== currentValue) {
-  //     console.log(
-  //       'Some deep nested property changed from',
-  //       previousValue,
-  //       'to',
-  //       currentValue
-  //     )
-  //   }
-  // }
-  // store.subscribe(handleChange);
+
+  // handle the box drawing...
+  const select_box = (state) => {
+    return state.sceneState.sceneBounds;
+  }
+  let currentSceneStateBoxValue;
+  const handle_change_box = () => {
+    let previousSceneStateBoxValue = currentSceneStateBoxValue
+    currentSceneStateBoxValue = select_box(store.getState());
+    if (previousSceneStateBoxValue !== currentSceneStateBoxValue) {
+      console.log("box changed!");
+      console.log("draw the box!");
+      // console.log(currentSceneStateBoxValue);
+
+      const box = currentSceneStateBoxValue;
+      console.log(box);
+
+    //   const box = {
+    //     "type": "aabb",
+    //     "min_point": [
+    //         -1,
+    //         -1,
+    //         -1
+    //     ],
+    //     "max_point": [
+    //         1,
+    //         1,
+    //         1
+    //     ]
+    // }
+
+      const material = new THREE.LineBasicMaterial( { color: 0x0000ff } );
+      const w = 1.0;
+      let aaa = new THREE.Vector3( w, w, w );
+      let aab = new THREE.Vector3( w, w, -w );
+      let aba = new THREE.Vector3( w, -w, w );
+      let baa = new THREE.Vector3( -w, w, w );
+      let abb = new THREE.Vector3( w, -w, -w );
+      let bba = new THREE.Vector3( -w, -w, w );
+      let bab = new THREE.Vector3( -w, w, -w );
+      let bbb = new THREE.Vector3( -w, -w, -w );
+      let camera_points = [aaa, aab, aaa, aba, aab, abb, aba, abb];
+      camera_points = camera_points.concat([baa, bab, baa, bba, bab, bbb, bba, bbb]);
+      camera_points = camera_points.concat([aaa, baa, aab, bab, aba, bba, abb, bbb]);
+
+      console.log(camera_points);
+      
+      let max_point = new THREE.Vector3(...box["max_point"]);
+      let min_point = new THREE.Vector3(...box["min_point"]);
+
+      let lengths = max_point.clone();
+      lengths.sub(min_point);
+
+      let scalar = lengths.clone();
+      scalar.divide(new THREE.Vector3(2.0, 2.0, 2.0));
+
+      let offset = min_point.clone();
+      offset.add(scalar);
+      for (let i = 0; i < camera_points.length; i++) {
+        camera_points[i] = (camera_points[i].multiply(scalar)).add(offset);
+      }
+
+      const geometry = new THREE.BufferGeometry().setFromPoints( camera_points );
+      const line = new THREE.LineSegments( geometry, material );
+
+      set_object(['Scene Bounds'], line);
+    }
+  }
+  store.subscribe(handle_change_box);
+
+  // handle the camera drawing...
+  const select_cameras = (state) => {
+    return state.sceneState.cameras;
+  }
+  let currentCamerasValue;
+  const handle_change_cameras = () => {
+    let previousCamerasValue = currentCamerasValue
+    currentCamerasValue = select_cameras(store.getState());
+    if (previousCamerasValue !== currentCamerasValue && currentCamerasValue !== null) {
+      console.log("cameras changed!");
+      console.log("draw the cameras!");
+      console.log(currentCamerasValue);
+
+      // TODO(ethan): draw the cameras here!!
+      // set_object(['Cameras', "..."], ...);
+    }
+  }
+  store.subscribe(handle_change_cameras);
+
 
   useEffect(() => {
     websocket.addEventListener('message', (originalCmd) => {
