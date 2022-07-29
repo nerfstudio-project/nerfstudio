@@ -21,11 +21,16 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from nerfactory.fields.modules.encoding import Encoding, Identity
-from nerfactory.fields.modules.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
-from nerfactory.fields.modules.mlp import MLP
-from nerfactory.fields.base import Field
 from nerfactory.cameras.rays import RaySamples
+from nerfactory.fields.base import Field
+from nerfactory.fields.modules.encoding import Encoding, Identity
+from nerfactory.fields.modules.field_heads import (
+    DensityFieldHead,
+    FieldHead,
+    FieldHeadNames,
+    RGBFieldHead,
+)
+from nerfactory.fields.modules.mlp import MLP
 from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
 
 

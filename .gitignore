@@ -183,3 +183,4 @@ node_modules/
 scripts/colmap2nerf.py
 bash/
 nerfactory/ngp_pl/
+cache/

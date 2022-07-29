@@ -9,7 +9,10 @@
   },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python"
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
   },
   "editor.formatOnSave": true,
   "python.envFile": "${workspaceFolder}/.env",
@@ -18,7 +21,7 @@
   "python.linting.pylintEnabled": true,
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,
-  "python.sortImports.args": ["--src=${workspaceFolder}"],
+  "python.sortImports.args": ["--src=${workspaceFolder}", "--profile", "black"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.linting.ignorePatterns": [

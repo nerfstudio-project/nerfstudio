@@ -16,8 +16,8 @@
 Code for sampling images from a dataset of images.
 """
 
-from abc import abstractmethod
 import random
+from abc import abstractmethod
 from typing import Union
 
 import torch

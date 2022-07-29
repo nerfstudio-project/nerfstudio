@@ -17,15 +17,17 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import torch
 from torchtyping import TensorType
 
+from nerfactory.cameras.rays import RayBundle
+
 
 @dataclass
 class PointCloud:
-    """_summary_"""
+    """Dataclass for a point cloud."""
 
     xyz: TensorType["num_points", 3] = None
     rgb: TensorType["num_points", 3] = None
@@ -33,22 +35,24 @@ class PointCloud:
 
 @dataclass
 class Semantics:
-    """_summary_"""
+    """Dataclass for semantic labels."""
 
-    stuff_classes: List[str] = None
-    stuff_colors: List[List[int]] = None
-    stuff_filenames: List[str] = None
-    thing_classes: List[str] = None
-    thing_colors: List[List[int]] = None
-    thing_filenames: List[str] = None
+    stuff_classes: Optional[List[str]] = None
+    stuff_colors: Optional[List[str]] = None
+    stuff_filenames: Optional[List[str]] = None
+    thing_classes: Optional[List[str]] = None
+    thing_colors: Optional[List[str]] = None
+    thing_filenames: Optional[List[str]] = None
 
 
 @dataclass
 class SceneBounds:
     """Data to represent the scene bounds.
 
-    aabb: axis-aligned bounding box
-        aabb[0] is the minimum (x,y,z) point. aabb[1] is the maximum (x,y,z) point.
+    Attributes:
+        aabb: axis-aligned bounding box.
+            aabb[0] is the minimum (x,y,z) point.
+            aabb[1] is the maximum (x,y,z) point.
     """
 
     aabb: TensorType[2, 3] = None
@@ -68,6 +72,32 @@ class SceneBounds:
         """Returns a new box that has been shifted and rescaled to be centered
         about the origin."""
         return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
+
+    @staticmethod
+    def get_normalized_positions(positions: TensorType[..., 3], aabb: TensorType[2, 3]):
+        """Return normalized positions in range [0, 1] based on the aabb axis-aligned bounding box.
+
+        Args:
+            positions: the xyz positions
+            aabb: the axis-aligned bounding box
+
+        Returns:
+            positions that are normalized into the range [0, 1].
+        """
+        aabb_lengths = aabb[1] - aabb[0]
+        normalized_positions = (positions - aabb[0]) / aabb_lengths
+        return normalized_positions
+
+    def to_json(self) -> Dict:
+        """Returns a json object from the Python object."""
+        return {"type": "aabb", "min_point": self.aabb[0].tolist(), "max_point": self.aabb[1].tolist()}
+
+    @staticmethod
+    def from_json(json_: Dict) -> "SceneBounds":
+        """Returns the an instance of SceneBounds from a json dictionary."""
+        assert json_["type"] == "aabb"
+        aabb = torch.tensor([json_[0], json_[1]])
+        return SceneBounds(aabb=aabb)
 
 
 @dataclass
@@ -106,3 +136,20 @@ class DatasetInputs:
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
         return vars(self)
+
+
+@dataclass
+class BaseDataContainer:
+    """A container for data that is not specific to any dataset. It should be everything
+    needed by the renderer and loss calculation. Different datasets and models will probably
+    need to subclass from this differently, since different Field modules will require different
+    data.
+
+    Args:
+        rays (RayBundle): The rays for the image.
+        ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
+    """
+
+    rays: RayBundle  # Raybundle and the cameras will be merged into one thing in a later PR
+    cameras: torch.tensor
+    ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None

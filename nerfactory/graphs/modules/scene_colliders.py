@@ -18,8 +18,9 @@ Ray generator.
 import torch
 from torch import nn
 from torchtyping import TensorType
-from nerfactory.data.structs import SceneBounds
+
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.data.structs import SceneBounds
 
 
 class SceneBoundsCollider(nn.Module):

@@ -35,12 +35,12 @@ Original file at https://github.com/colmap/colmap/blob/1a4d0bad2e90aa65ce997c9d1
 #
 # Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
 
-import os
-import collections
-import numpy as np
-import struct
 import argparse
+import collections
+import os
+import struct
 
+import numpy as np
 
 CameraModel = collections.namedtuple("CameraModel", ["model_id", "model_name", "num_params"])
 Camera = collections.namedtuple("Camera", ["id", "model", "width", "height", "params"])

@@ -22,21 +22,24 @@ from typing import Dict, List
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.base import Graph
 from nerfactory.graphs.modules.ray_losses import distortion_loss
-from nerfactory.optimizers.loss import MSELoss
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from nerfactory.utils import colors
-from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils import visualization, writer
+from nerfactory.optimizers.loss import MSELoss
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfactory.utils import colors, misc, visualization, writer
 
 
 class MipNerf360Graph(Graph):
@@ -140,7 +143,7 @@ class MipNerf360Graph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
@@ -150,6 +153,7 @@ class MipNerf360Graph(Graph):
             "ray_loss_coarse": torch.mean(outputs["ray_loss_coarse"]),
             "ray_loss_fine": torch.mean(outputs["ray_loss_fine"]),
         }
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):

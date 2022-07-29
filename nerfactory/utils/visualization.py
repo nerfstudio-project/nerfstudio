@@ -20,16 +20,18 @@ import torch
 from matplotlib import cm
 from torchtyping import TensorType
 
+from nerfactory.utils import colors
 
-def apply_colormap(image: TensorType[..., 1], cmap="viridis") -> TensorType[..., 3]:
+
+def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType["bs":..., "rgb":3]:
     """Convert single channel to a color image.
 
     Args:
-        image (TensorType[..., 1]): Single channel image.
-        cmap (str, optional): Colormap for image. Defaults to 'turbo'.
+        image: Single channel image.
+        cmap: Colormap for image. Defaults to 'turbo'.
 
     Returns:
-        TensorType[..., 3]: Colored image
+        TensorType: Colored image
     """
 
     colormap = cm.get_cmap(cmap)
@@ -43,23 +45,23 @@ def apply_colormap(image: TensorType[..., 1], cmap="viridis") -> TensorType[...,
 
 
 def apply_depth_colormap(
-    depth: TensorType[..., 1],
-    accumulation: Optional[TensorType[..., 1]] = None,
+    depth: TensorType["bs":..., 1],
+    accumulation: Optional[TensorType["bs":..., 1]] = None,
     near_plane: Optional[float] = None,
     far_plane: Optional[float] = None,
     cmap="turbo",
-) -> TensorType[..., 3]:
+) -> TensorType["bs":..., "rgb":3]:
     """Converts a depth image to color for easier analysis.
 
     Args:
-        depth (TensorType[..., 1]): Depth image.
-        accumulation (TensorType[..., 1], optional): Ray accumulation used for masking vis. Defaults to None.
-        near_plane (float, optional): Closest depth to consider. If None, use min image value. Defaults to None.
-        far_plane (float, optional): Furthest depth to consider. If None, use max image value. Defaults to None.
-        cmap (str, optional): Colormap to apply. Defaults to "turbo".
+        depth: Depth image.
+        accumulation: Ray accumulation used for masking vis. Defaults to None.
+        near_plane: Closest depth to consider. If None, use min image value. Defaults to None.
+        far_plane: Furthest depth to consider. If None, use max image value. Defaults to None.
+        cmap: Colormap to apply. Defaults to "turbo".
 
     Returns:
-        TensorType[..., 3]: Colored depth image
+        Colored depth image
     """
 
     near_plane = near_plane or torch.min(depth)
@@ -74,4 +76,26 @@ def apply_depth_colormap(
     if accumulation is not None:
         colored_image = colored_image * accumulation + (1 - accumulation)
 
+    return colored_image
+
+
+def apply_boolean_colormap(
+    image: TensorType["bs":..., 1, bool],
+    true_color: TensorType["bs":..., "rgb":3] = colors.WHITE,
+    false_color: TensorType["bs":..., "rgb":3] = colors.BLACK,
+) -> TensorType["bs":..., "rgb":3]:
+    """Converts a depth image to color for easier analysis.
+
+    Args:
+        image: Boolean image.
+        true_color: Color to use for True. Defaults to white.
+        false_color: Color to use for False. Defaults to black.
+
+    Returns:
+        Colored boolean image
+    """
+
+    colored_image = torch.ones(image.shape[:-1] + (3,))
+    colored_image[image[..., 0], :] = true_color
+    colored_image[~image[..., 0], :] = false_color
     return colored_image

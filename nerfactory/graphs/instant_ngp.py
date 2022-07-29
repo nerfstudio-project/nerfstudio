@@ -26,32 +26,35 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.graphs.base import Graph
 from nerfactory.graphs.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
 
 class NGPGraph(Graph):
+    """Instant NGP graph
 
-    """Instant NGP graph"""
+    Args:
+        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
+        kwargs: additional params to pass up to the parent class Graph
+    """
 
-    def __init__(self, field_implementation="torch", intrinsics=None, camera_to_world=None, **kwargs) -> None:
+    def __init__(self, field_implementation="torch", **kwargs) -> None:
         assert field_implementation in field_implementation_to_class
         self.field_implementation = field_implementation
         self.field = None
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(**kwargs)
 
-    def register_callbacks(self) -> None:
-        """defining callbacks to run after every training iteration"""
-        self.callbacks = [
+    def get_training_callbacks(self) -> List[Callback]:
+        assert self.density_field is not None
+        return [
             Callback(
-                self.density_grid.update_every_num_iters,
-                self.density_grid.update_density_grid,
+                update_every_num_iters=self.density_field.update_every_num_iters,
+                func=self.density_field.update_density_grid,
                 density_eval_func=self.field.density_fn,
             )
         ]
@@ -62,11 +65,8 @@ class NGPGraph(Graph):
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
-        # density grid
-        self.density_grid = DensityGrid(center=0.0, base_scale=3, num_cascades=1)
-
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_grid)
+        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_field)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -86,14 +86,29 @@ class NGPGraph(Graph):
         # TODO(ruilongli)
         # - train test difference
         # - visualize "depth_density_grid"
+        num_rays = len(ray_bundle)
+        device = ray_bundle.origins.device
+
         ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-        accumulated_weight, accumulated_depth, accumulated_color, mask = nerfactory_cuda.VolumeRenderer.apply(
-            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs
+        # accumulate all the rays start from zero opacity
+        opacities = torch.zeros((num_rays, 1), device=device)
+        (
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            alive_ray_mask,
+        ) = nerfactory_cuda.VolumeRenderer.apply(
+            packed_info,
+            ray_samples.frustums.starts,
+            ray_samples.frustums.ends,
+            sigmas.contiguous(),
+            rgbs.contiguous(),
+            opacities,
         )
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
@@ -102,34 +117,32 @@ class NGPGraph(Graph):
             "rgb": accumulated_color,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
-            "mask": mask,  # the rays we skipped from sampler
+            "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
-        device = self.get_device()
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
+        device = self.device
         image = batch["image"].to(device)
-        if "mask" in outputs:
-            mask = outputs["mask"]
+        if "alive_ray_mask" in outputs:
+            mask = outputs["alive_ray_mask"]
             rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
         else:
             rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
         """Do preprocessing to make images valid"""
         # TODO: make log_test_image_outputs use this directly
         # TODO: implement across all the different graph implementations
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        outputs["accumulation"] = visualization.apply_colormap(outputs["accumulation"])
+        outputs["depth"] = visualization.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
-        combined_acc = torch.cat([acc], dim=1)
-        outputs["accumulation"] = combined_acc
-        combined_depth = torch.cat([depth], dim=1)
-        outputs["depth"] = combined_depth
+        outputs["alive_ray_mask"] = visualization.apply_boolean_colormap(outputs["alive_ray_mask"])
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]

@@ -3,6 +3,7 @@ Encoding Tests
 """
 import pytest
 import torch
+
 from nerfactory.fields.modules import encoding
 
 

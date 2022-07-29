@@ -20,6 +20,8 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
+from nerfactory.cameras.rays import RaySamples
+from nerfactory.fields.base import Field
 from nerfactory.fields.modules.embedding import Embedding
 from nerfactory.fields.modules.encoding import Encoding, Identity
 from nerfactory.fields.modules.field_heads import (
@@ -31,8 +33,6 @@ from nerfactory.fields.modules.field_heads import (
     UncertaintyFieldHead,
 )
 from nerfactory.fields.modules.mlp import MLP
-from nerfactory.fields.base import Field
-from nerfactory.cameras.rays import RaySamples
 
 
 class VanillaNerfWField(Field):

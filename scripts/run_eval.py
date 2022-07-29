@@ -12,8 +12,16 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from nerfactory.cameras.camera_paths import CameraPath, get_interpolated_camera_path, get_spiral_path
-from nerfactory.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
+from nerfactory.cameras.camera_paths import (
+    CameraPath,
+    get_interpolated_camera_path,
+    get_spiral_path,
+)
+from nerfactory.data.dataloader import (
+    EvalDataloader,
+    setup_dataset_eval,
+    setup_dataset_train,
+)
 from nerfactory.graphs.base import Graph, setup_graph
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter

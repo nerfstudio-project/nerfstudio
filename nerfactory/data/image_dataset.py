@@ -27,7 +27,6 @@ from PIL import Image
 from torchtyping import TensorType
 
 from nerfactory.data.structs import Semantics
-
 from nerfactory.utils.misc import is_not_none
 
 

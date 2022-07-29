@@ -59,12 +59,12 @@ class FieldModule(nn.Module):
         return self.out_dim
 
     @abstractmethod
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """
         Args:
-            in_tensor (TensorType[..., "input_dim"]): Input tensor to process
+            in_tensor: Input tensor to process
 
         Returns:
-            TensorType[..., "output_dim"]: Processed tensor
+            Processed tensor
         """
         raise NotImplementedError

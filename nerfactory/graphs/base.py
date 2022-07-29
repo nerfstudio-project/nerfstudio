@@ -30,8 +30,13 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import DatasetInputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import GraphConfig
-from nerfactory.utils.misc import get_masked_dict, instantiate_from_dict_config, is_not_none
+from nerfactory.utils.misc import (
+    get_masked_dict,
+    instantiate_from_dict_config,
+    is_not_none,
+)
 
 
 @profiler.time_function
@@ -39,7 +44,7 @@ def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str)
     """Setup the graph. The dataset inputs should be set with the training data.
 
     Args:
-        dataset_inputs (DatasetInputs): The inputs which will be used to define the camera parameters.
+        dataset_inputs: The inputs which will be used to define the camera parameters.
     """
     graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
     graph.to(device)
@@ -54,10 +59,6 @@ class AbstractGraph(nn.Module):
         # to keep track of which device the nn.Module is on
         self.device_indicator_param = nn.Parameter(torch.empty(0))
 
-    def get_device(self):
-        """Returns the device that the torch parameters are on."""
-        return self.device_indicator_param.device
-
     @property
     def device(self):
         """Returns the device that the graph is on."""
@@ -69,16 +70,19 @@ class AbstractGraph(nn.Module):
 
 
 class Graph(AbstractGraph):
-    """Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
+    """Graph class
+    Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
 
     Args:
-        intrinsics (torch.Tensor): Camera intrinsics.
-        camera_to_world (torch.Tensor): Camera to world transformation.
-        loss_coefficients (DictConfig): Loss specific weights.
-        steps_per_density_grid_update (int): How often to update density grid.
-        scene_bounds (SceneBounds): Bounds of target scene.
-        collider_config (DictConfig): Configuration of scene collider.
+        intrinsics: Camera intrinsics.
+        camera_to_world: Camera to world transformation.
+        loss_coefficients: Loss specific weights.
+        scene_bounds: Bounds of target scene.
+        enable_collider: Whether to create a scene collider to filter rays.
+        collider_config: Configuration of scene collider.
+        enable_density_field: Whether to create a density field to filter samples.
+        density_field_config: Configuration of density field.
     """
 
     def __init__(
@@ -86,9 +90,11 @@ class Graph(AbstractGraph):
         intrinsics: torch.Tensor = None,
         camera_to_world: torch.Tensor = None,
         loss_coefficients: DictConfig = None,
-        steps_per_density_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
+        enable_collider: bool = True,
         collider_config: DictConfig = None,
+        enable_density_field: bool = False,
+        density_field_config: DictConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -96,12 +102,16 @@ class Graph(AbstractGraph):
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
+        self.enable_collider = enable_collider
         self.collider_config = collider_config
         self.loss_coefficients = loss_coefficients
-        self.steps_per_density_grid_update = steps_per_density_grid_update
+        self.enable_density_field = enable_density_field
+        self.density_field_config = density_field_config
+        self.density_field = None
         self.kwargs = kwargs
         self.collider = None
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
+        self.populate_density_field()
         self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
@@ -110,13 +120,19 @@ class Graph(AbstractGraph):
         self.vis_outputs = None
         self.default_output_name = None
 
-    def register_callbacks(self):  # pylint:disable=no-self-use
-        """Option to register callback for training functions"""
-        self.callbacks = []
+    def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
+        """Returns a list of callbacks that run functions at the specified training iterations."""
+        return []
+
+    def populate_density_field(self):
+        """Set the scene density field to use."""
+        if self.enable_density_field:
+            self.density_field = instantiate_from_dict_config(self.density_field_config)
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
-        self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
+        if self.enable_collider:
+            self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_misc_modules(self):
@@ -127,7 +143,7 @@ class Graph(AbstractGraph):
         """Obtain the parameter groups for the optimizers
 
         Returns:
-            Dict[str, List[Parameter]]: Mapping of different parameter groups
+            Mapping of different parameter groups
         """
 
     @abstractmethod
@@ -135,10 +151,10 @@ class Graph(AbstractGraph):
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
-            ray_bundle (RayBundle): Input bundle of rays.
+            ray_bundle: Input bundle of rays.
 
         Returns:
-            dict: Outputs of graph. (ie. rendered colors)
+            Outputs of graph. (ie. rendered colors)
         """
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
@@ -151,20 +167,29 @@ class Graph(AbstractGraph):
 
     def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
         """Run forward starting with a ray bundle."""
-        intersected_ray_bundle = self.collider(ray_bundle)
+        if self.collider is not None:
+            intersected_ray_bundle = self.collider(ray_bundle)
+            valid_mask = intersected_ray_bundle.valid_mask[..., 0]
+        else:
+            # NOTE(ruilongli): we don't need collider for ngp
+            intersected_ray_bundle = ray_bundle
+            valid_mask = None
 
         if batch is None:
             # during inference, keep all rays
             outputs = self.get_outputs(intersected_ray_bundle)
             return outputs
 
-        # during training, keep only the rays that intersect the scene. discard the rest
-        valid_mask = intersected_ray_bundle.valid_mask[..., 0]
-        masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-        masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
-        outputs = self.get_outputs(masked_intersected_ray_bundle)
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=masked_batch)
-        loss_dict = self.get_loss_dict(outputs=outputs, batch=masked_batch)
+        if valid_mask is not None:
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+            # during training, keep only the rays that intersect the scene. discard the rest
+            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+
+        outputs = self.get_outputs(intersected_ray_bundle)
+        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
+        loss_dict = self.get_loss_dict(
+            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
+        )
 
         # scaling losses by coefficients.
         for loss_name in loss_dict.keys():
@@ -177,15 +202,15 @@ class Graph(AbstractGraph):
         ray_bundle = self.ray_generator.forward(ray_indices)
         return self.forward_after_ray_generator(ray_bundle, batch=batch)
 
-    @abstractmethod
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
-        """Computes and returns the losses dict."""
-
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
-        """Compute and obtain metrics and coefficients."""
+        """Compute and returns metrics."""
         # pylint: disable=unused-argument
         # pylint: disable=no-self-use
         return {}
+
+    @abstractmethod
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+        """Computes and returns the losses dict."""
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
@@ -204,12 +229,11 @@ class Graph(AbstractGraph):
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
-        self.vis_outputs = outputs
         return outputs
 
     def get_outputs_for_camera(self, camera: Camera):
         """Get the graph outputs for a Camera."""
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.get_device())
+        camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
     @abstractmethod

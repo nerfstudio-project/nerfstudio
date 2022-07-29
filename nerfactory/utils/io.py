@@ -19,7 +19,7 @@ import json
 import logging
 import os
 import pickle
-from typing import Any, Tuple, Optional
+from typing import Any, Optional, Tuple
 
 
 def load_from_json(filename: str):
