@@ -7,18 +7,20 @@ method_name: nerfw
 
 # the data
 data:
+  # Train dataloading.
+  dataset_inputs_train:
+    _target_: nerfactory.data.datasets.Friends
+    data_directory: data/friends/TBBT-big_living_room
+    downscale_factor: 1
   image_dataset_train:
     _target_: nerfactory.data.image_dataset.PanopticImageDataset
+  # Eval dataloading
+  dataset_inputs_eval:
+    _target_: nerfactory.data.datasets.Friends
+    data_directory: data/friends/TBBT-big_living_room
+    downscale_factor: 1
   image_dataset_eval:
     _target_: nerfactory.data.image_dataset.PanopticImageDataset
-  dataset_inputs_train:
-    data_directory: data/friends/TBBT-big_living_room
-    dataset_format: friends
-    downscale_factor: 1
-  dataset_inputs_eval:
-    data_directory: data/friends/TBBT-big_living_room
-    dataset_format: friends
-    downscale_factor: 1
 
 graph:
   _target_: nerfactory.graphs.semantic_nerf.SemanticNerfGraph

@@ -8,14 +8,14 @@ method_name: vanilla_nerf
 data:
   # Train dataloading.
   dataset_inputs_train:
+    _target_: nerfactory.data.datasets.Mipnerf360
     data_directory: data/mipnerf_360/garden
-    dataset_format: mipnerf_360
-    downscale_factor: 4
+    downscale_factor: 1
   # Eval dataloading
   dataset_inputs_eval:
+    _target_: nerfactory.data.datasets.Mipnerf360
     data_directory: data/mipnerf_360/garden
-    dataset_format: mipnerf_360
-    downscale_factor: 8
+    downscale_factor: 1
 
 trainer:
   steps_per_test: 200

@@ -48,11 +48,9 @@ hydra:
 
 data:
   # Train dataloading.
+  use_preprocessing_cache: False
   dataset_inputs_train:
-    data_directory: data/blender/lego
-    dataset_format: blender
-    downscale_factor: 1
-    alpha_color: white
+    _target_: nerfactory.data.datasets.Dataset
   image_dataset_train:
     _target_: nerfactory.data.image_dataset.ImageDataset
   dataloader_train:
@@ -65,10 +63,7 @@ data:
       num_rays_per_batch: 1024
   # Eval dataloading.
   dataset_inputs_eval:
-    data_directory: data/blender/lego
-    dataset_format: blender
-    downscale_factor: 1 # NOTE: this might be the only value that changes
-    alpha_color: white
+    _target_: nerfactory.data.datasets.Dataset
   image_dataset_eval:
     _target_: nerfactory.data.image_dataset.ImageDataset
   dataloader_eval:
@@ -95,9 +90,9 @@ graph:
   density_field_config:
     # Please see the docstr for DensityGrid on how to set those arguments.
     _target_: nerfactory.fields.density_fields.density_grid.DensityGrid
-    center: 0.0  # simply set it as the center of the scene bbox
-    base_scale: 3.0  # simply set it as the scale of the scene bbox
-    num_cascades: 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+    center: 0.0 # simply set it as the center of the scene bbox
+    base_scale: 3.0 # simply set it as the scale of the scene bbox
+    num_cascades: 1 # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
     resolution: 128
     update_every_num_iters: 16
 
