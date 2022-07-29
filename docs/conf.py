@@ -76,21 +76,27 @@ myst_enable_extensions = ["amsmath", "colon_fence", "deflist", "dollarmath", "ht
 # a list of builtin themes.
 #
 html_theme = "furo"
-html_title = "nerfactory"
+html_title = ""
 
 autosectionlabel_prefix_document = True
 
 html_theme_options = {
     "light_css_variables": {
-        "color-brand-primary": "#00878e",
-        "color-brand-content": "#00878e",
+        "color-brand-primary": "#ba3e00",
+        "color-brand-content": "#ff6f00",
     },
+    "dark_css_variables": {
+        "color-brand-primary": "#fdd06c",
+        "color-brand-content": "#ff903b",
+    },
+    "light_logo": "imgs/logo.png",
+    "dark_logo": "imgs/logo-dark.png",
 }
 
 # -- Code block theme --------------------------------------------------------
 
-pygments_style = "manni"
-pygments_dark_style = "stata-dark"
+pygments_style = "one-dark"
+pygments_dark_style = "one-dark"
 
 # -- Napoleon settings -------------------------------------------------------
 
