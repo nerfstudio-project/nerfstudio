@@ -1,4 +1,6 @@
-<h1 align="center"> nerfactory🤘 </h1>
+<p align="center">
+  <img src="docs/imgs/logo.png" width="400" />
+</p>
 
 <p align="center"> The all-in-one repo for NeRFs </p>
 
