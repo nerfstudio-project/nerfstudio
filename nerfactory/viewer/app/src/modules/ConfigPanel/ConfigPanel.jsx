@@ -89,12 +89,5 @@ export function RenderControls() {
     [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions],
   );
 
-  // TODO(ethan): figure out how to style Leva
-  // return (
-  //   <div style={{ position: "relative", width: 250, top: 60 }}>
-  //     <Leva fill oneLineLabels titleBar={false} />
-  //     {/* {controls} */}
-  //   </div>
-
   return controls;
 }

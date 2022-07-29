@@ -56,8 +56,9 @@ export default function WebSocketContextFunction({ children }) {
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
-        type: 'websocketState/setIsConnected',
-        boolean: true,
+        type: "write",
+        path: 'websocketState/isConnected',
+        data: true,
       });
       console.log('websocket connected');
     };
@@ -65,8 +66,9 @@ export default function WebSocketContextFunction({ children }) {
     socket.onclose = (e) => {
       // when closed, the websocket will try to reconnect every second
       dispatch({
-        type: 'websocketState/setIsConnected',
-        boolean: false,
+        type: "write",
+        path: 'websocketState/isConnected',
+        data: false,
       });
       setTimeout(() => {
         connect();

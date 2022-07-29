@@ -41,8 +41,9 @@ export default function WebRtcWindow() {
     // connect video
     pc.addEventListener('track', (evt) => {
       dispatch({
-        type: 'webrtcState/setIsConnected',
-        boolean: true,
+        type: "write",
+        path: 'webrtcState/isConnected',
+        data: true,
       });
       if (evt.track.kind === 'video') {
         [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
@@ -54,13 +55,15 @@ export default function WebRtcWindow() {
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'connected') {
         dispatch({
-          type: 'webrtcState/setIsConnected',
-          boolean: true,
+          type: "write",
+          path: 'webrtcState/isConnected',
+          data: true,
         });
       } else if (pc.iceConnectionState === 'disconnected') {
         dispatch({
-          type: 'webrtcState/setIsConnected',
-          boolean: false,
+          type: "write",
+          path: 'webrtcState/isConnected',
+          data: false,
         });
       }
     };

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 import React, { useContext, useEffect } from 'react';
+import { ReactReduxContext, useDispatch, useSelector } from 'react-redux';
 
 import { GUI } from 'dat.gui';
 import { SceneNode } from '../../SceneNode';
@@ -39,6 +40,7 @@ export default function SetupScene(props) {
 
   // the websocket context
   let websocket = useContext(WebSocketContext).socket;
+  const dispatch = useDispatch();
 
   const send_training_state_over_websocket = (value) => {
     if (websocket.readyState === WebSocket.OPEN) {
@@ -163,7 +165,26 @@ export default function SetupScene(props) {
   const light = new THREE.AmbientLight(color, intensity);
   set_object(['Light'], light);
 
-  console.log(scene);
+  // const { store } = useContext(ReactReduxContext);
+  // const select = (mysstate) => {
+  //   // return state.some.deep.property;
+  //   return mysstate.websocketState.isConnected;
+  // }
+  // let currentValue;
+  // const handleChange = () => {
+  //   let previousValue = currentValue
+  //   currentValue = select(store.getState());
+  
+  //   if (previousValue !== currentValue) {
+  //     console.log(
+  //       'Some deep nested property changed from',
+  //       previousValue,
+  //       'to',
+  //       currentValue
+  //     )
+  //   }
+  // }
+  // store.subscribe(handleChange);
 
   useEffect(() => {
     websocket.addEventListener('message', (originalCmd) => {
@@ -171,13 +192,11 @@ export default function SetupScene(props) {
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.type === 'write') {
         // write to the store
-        const path = cmd.path;
-        console.log(path);
-        console.log("going to dispatch");
-        // dispatch({
-        //   type: 'webrtcState/setIsConnected',
-        //   boolean: true,
-        // });
+        dispatch({
+          type: 'write',
+          path: cmd.path,
+          data: cmd.data,
+        });
       }
     });
   }, []); // empty dependency array means only run once
