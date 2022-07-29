@@ -62,16 +62,6 @@ class TrainerConfig:
 
 
 @dataclass
-class DatasetInputsConfig:
-    """Configuration for dataset specification"""
-
-    data_directory: str = MISSING
-    dataset_format: str = MISSING
-    downscale_factor: int = MISSING
-    alpha_color: str = MISSING
-
-
-@dataclass
 class ImageDatasetConfig:
     """Configuration for type of dataset to instantiate"""
 
@@ -82,14 +72,15 @@ class ImageDatasetConfig:
 class DataConfig:
     """Configuration for train/eval datasets"""
 
-    dataset_inputs_train: DatasetInputsConfig = MISSING
+    dataset_inputs_train: Dict[str, Any] = MISSING
     image_dataset_train: ImageDatasetConfig = MISSING
     dataloader_train: Dict[str, Any] = MISSING
-    dataset_inputs_eval: DatasetInputsConfig = MISSING
+    dataset_inputs_eval: Dict[str, Any] = MISSING
     image_dataset_eval: ImageDatasetConfig = MISSING
     dataloader_eval: Dict[str, Any] = MISSING
     # additional optional parameters here
     pixel_sampler: Optional[Dict[str, Any]] = None
+    use_preprocessing_cache: bool = False
 
 
 @dataclass
