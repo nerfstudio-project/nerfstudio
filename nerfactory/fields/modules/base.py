@@ -16,6 +16,7 @@
 The field module baseclass.
 """
 from abc import abstractmethod
+from typing import Optional
 
 from torch import nn
 from torchtyping import TensorType
@@ -29,7 +30,7 @@ class FieldModule(nn.Module):
         out_dim (int, optional): Ouput dimension to module.
     """
 
-    def __init__(self, in_dim: int = None, out_dim: int = None) -> None:
+    def __init__(self, in_dim: Optional[int] = None, out_dim: Optional[int] = None) -> None:
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim

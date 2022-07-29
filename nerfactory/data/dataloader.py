@@ -59,10 +59,10 @@ def setup_dataset_train(config: DataConfig, device: str) -> Tuple[DatasetInputs,
     image_dataset_train = instantiate_from_dict_config(config.image_dataset_train, **dataset_inputs_train.as_dict())
     # ImageSampler
     image_sampler_train = instantiate_from_dict_config(
-        config.dataloader_train.image_sampler, dataset=image_dataset_train, device=device
+        config.dataloader_train.image_sampler, dataset=image_dataset_train, device=device  # type: ignore
     )
     # PixelSampler
-    pixel_sampler_train = instantiate_from_dict_config(config.dataloader_train.pixel_sampler)
+    pixel_sampler_train = instantiate_from_dict_config(config.dataloader_train.pixel_sampler)  # type: ignore
     # Dataloader
     dataloader_train = TrainDataloader(image_sampler_train, pixel_sampler_train)
     return dataset_inputs_train, dataloader_train
@@ -254,6 +254,15 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
         self.num_rays_per_chunk = num_rays_per_chunk
         self.device = device
         self.kwargs = kwargs
+
+    @abstractmethod
+    def __iter__(self):
+        """Iterates over the dataset"""
+        return self
+
+    @abstractmethod
+    def __next__(self) -> Tuple[RayBundle, Dict]:
+        """Returns the next batch of data"""
 
     def get_camera(self, image_idx) -> Camera:
         """Get camera for the given image index"""

@@ -51,10 +51,10 @@ class RGBRenderer(nn.Module):
     @classmethod
     def combine_rgb(
         cls,
-        rgb: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples", 1],
+        rgb: TensorType["bs":..., "num_samples", 3],
+        weights: TensorType["bs":..., "num_samples", 1],
         background_color: Optional[TensorType[3]] = None,
-    ) -> TensorType[..., 3]:
+    ) -> TensorType["bs":..., 3]:
         """Composite samples along ray and render color image
 
         Args:
@@ -76,9 +76,9 @@ class RGBRenderer(nn.Module):
 
     def forward(
         self,
-        rgb: TensorType[..., "num_samples", 3],
-        weights: TensorType[..., "num_samples", 1],
-    ) -> TensorType[..., 3]:
+        rgb: TensorType["bs":..., "num_samples", 3],
+        weights: TensorType["bs":..., "num_samples", 1],
+    ) -> TensorType["bs":..., 3]:
         """Composite samples along ray and render color image
 
         Args:
@@ -149,8 +149,8 @@ class AccumulationRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
-        weights: TensorType[..., "num_samples", 1],
-    ) -> TensorType:
+        weights: TensorType["bs":..., "num_samples", 1],
+    ) -> TensorType["bs":..., 1]:
         """Composite samples along ray and calculate accumulation.
 
         Args:
@@ -205,8 +205,8 @@ class UncertaintyRenderer(nn.Module):
 
     @classmethod
     def forward(
-        cls, betas: TensorType[..., "num_samples", 1], weights: TensorType[..., "num_samples", 1]
-    ) -> TensorType:
+        cls, betas: TensorType["bs":..., "num_samples", 1], weights: TensorType["bs":..., "num_samples", 1]
+    ) -> TensorType["bs":..., 1]:
         """Calculate uncertainty along the ray.
 
         Args:
@@ -225,8 +225,10 @@ class SemanticRenderer(nn.Module):
 
     @classmethod
     def forward(
-        cls, semantics: TensorType[..., "num_samples", "num_classes"], weights: TensorType[..., "num_samples", 1]
-    ) -> TensorType[..., "num_classes"]:
+        cls,
+        semantics: TensorType["bs":..., "num_samples", "num_classes"],
+        weights: TensorType["bs":..., "num_samples", 1],
+    ) -> TensorType["bs":..., "num_classes"]:
         """_summary_"""
         sem = torch.sum(weights * semantics, dim=-2)
         return sem

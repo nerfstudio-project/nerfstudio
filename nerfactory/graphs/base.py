@@ -39,18 +39,6 @@ from nerfactory.utils.misc import (
 )
 
 
-@profiler.time_function
-def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str) -> "Graph":
-    """Setup the graph. The dataset inputs should be set with the training data.
-
-    Args:
-        dataset_inputs: The inputs which will be used to define the camera parameters.
-    """
-    graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
-    graph.to(device)
-    return graph
-
-
 class AbstractGraph(nn.Module):
     """Highest level graph class. Somewhat useful to lift code up and out of the way."""
 
@@ -243,3 +231,17 @@ class Graph(AbstractGraph):
     def load_graph(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path"""
         self.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
+
+
+@profiler.time_function
+def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str) -> Graph:
+    """Setup the graph. The dataset inputs should be set with the training data.
+
+    Args:
+        dataset_inputs: The inputs which will be used to define the camera parameters.
+    """
+    graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
+    graph.to(device)
+    if not isinstance(graph, Graph):
+        raise TypeError(f"Unable to instantiate Graph, got {type(graph)}")
+    return graph

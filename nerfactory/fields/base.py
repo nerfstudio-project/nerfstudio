@@ -25,7 +25,6 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.rays import Frustums, RaySamples
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.utils.misc import is_not_none
 
 
 class Field(nn.Module):
@@ -79,7 +78,7 @@ class Field(nn.Module):
         """
         valid_mask = ray_samples.valid_mask
 
-        if is_not_none(valid_mask):
+        if valid_mask is not None:
             # Hacky handling of empty masks. Tests on a single ray but doesn't use results
             if not valid_mask.any():
                 ray_samples = RaySamples(frustums=Frustums.get_mock_frustum().to(valid_mask.device))
@@ -105,5 +104,5 @@ class Field(nn.Module):
             density, density_embedding = self.get_density(ray_samples)
             field_outputs = self.get_outputs(ray_samples, density_embedding=density_embedding)
 
-        field_outputs[FieldHeadNames.DENSITY] = density
+        field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
         return field_outputs
