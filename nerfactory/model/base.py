@@ -19,7 +19,7 @@ import torch
 from torch import nn
 from torch.nn import Parameter
 
-from nerfactory.data.structs import BaseDataContainer, BaseModelOutputs, SceneBounds
+from nerfactory.data.structs import DataloaderOutputs, ModelOutputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils.misc import instantiate_from_dict_config
 
@@ -31,11 +31,29 @@ class Model(nn.Module):
     the process of forward propagation. It removes the get_outputs and forward_after_ray_generation
     functions, since we now pass in containers that have already generated the rays. Also removes
     some of the functions like get_outputs_for_camera since we can't assume what information is
-    required to render a specific camera angle. The same goes for get_outputs_for_camera_ray_bundle."""
+    required to render a specific camera angle. The same goes for get_outputs_for_camera_ray_bundle.
+    TODO: This viewer functionality will be moved into the Pipeline class.
+
+
+    Args:
+        steps_per_occupancy_grid_update: The number of steps per occupancy grid update.
+        scene_bounds: The scene bounds.
+        collider_config: The collider config.
+        kwargs: The extra kwargs.
+
+    Attributes:
+        device_indicator_param: A dummy parameter that is used to indicate the device the model is on.
+        scene_bounds: The scene bounds.
+        collider_config: The collider config.
+        steps_per_occupancy_grid_update: The number of steps per occupancy grid update.
+        kwargs: The extra kwargs passed to the model.
+        collider: The collider.
+        ray_generator: The ray generator.
+        callbacks: The callbacks.
+    """
 
     def __init__(
         self,
-        loss_coefficients: DictConfig = None,
         steps_per_occupancy_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
         collider_config: DictConfig = None,
@@ -84,15 +102,15 @@ class Model(nn.Module):
         """
 
     @abstractmethod
-    def forward(self, data_batch: BaseDataContainer) -> BaseModelOutputs:
+    def forward(self, data_batch: DataloaderOutputs) -> ModelOutputs:
         """Run the forward starting with ray indices."""
 
     @abstractmethod
-    def get_loss_dict(self, data_batch: BaseDataContainer, outputs: BaseModelOutputs) -> Dict[str, torch.tensor]:
+    def get_loss_dict(self, data_batch: DataloaderOutputs, outputs: ModelOutputs) -> Dict[str, torch.tensor]:
         """Computes and returns the losses."""
 
     @abstractmethod
-    def log_test_image_outputs(self, data_batch: BaseDataContainer) -> None:
+    def log_test_image_outputs(self, data_batch: DataloaderOutputs) -> None:
         """Log the test image outputs"""
 
     def load_graph(self, loaded_state: Dict[str, Any]) -> None:

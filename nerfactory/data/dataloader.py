@@ -31,7 +31,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.image_sampler import ImageSampler
 from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import DatasetInputs, BaseDataContainer
+from nerfactory.data.structs import DatasetInputs, DataloaderOutputs
 from nerfactory.data.utils import get_dataset_inputs_from_dataset_config
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
@@ -174,11 +174,11 @@ class AbstractDataloader(nn.Module):
         """Sets up the dataloader for evaluation"""
 
     @abstractmethod
-    def next_train(self) -> BaseDataContainer:
+    def next_train(self) -> DataloaderOutputs:
         """Returns the next batch of data from the train dataloader"""
 
     @abstractmethod
-    def next_eval(self) -> BaseDataContainer:
+    def next_eval(self) -> DataloaderOutputs:
         """Returns the next batch of data from the eval dataloader"""
 
 
@@ -204,11 +204,11 @@ class AbstractStoredDataloader(AbstractDataloader):
         """Sets up the dataloader for evaluation"""
 
     @abstractmethod
-    def next_train(self) -> BaseDataContainer:
+    def next_train(self) -> DataloaderOutputs:
         """Returns the next batch of data from the train dataloader"""
 
     @abstractmethod
-    def next_eval(self) -> BaseDataContainer:
+    def next_eval(self) -> DataloaderOutputs:
         """Returns the next batch of data from the eval dataloader"""
 
 

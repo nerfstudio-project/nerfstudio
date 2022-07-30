@@ -17,7 +17,7 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import torch
 from torchtyping import TensorType
@@ -111,7 +111,7 @@ class DatasetInputs:
 
 
 @dataclass
-class BaseDataContainer:
+class DataloaderOutputs:
     """A container for data that is not specific to any dataset. It should be everything
     needed by the renderer and loss calculation. Different datasets and models will probably
     need to subclass from this differently, since different Field modules will require different
@@ -126,9 +126,16 @@ class BaseDataContainer:
     cameras: torch.tensor
     ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None
 
+    def check_inputs(self, expected_attr: dict):
+        """This will check to make sure that the expected attributes exist.
+
+        This will exist in any subclassed version of this"""
+        for attr in expected_attr:
+            assert hasattr(self, attr)
+
 
 @dataclass
-class BaseModelOutputs:
+class ModelOutputs:
     """A container for outputs from the model.
 
     This will be passed into the loss function along with the base data container. It should be
