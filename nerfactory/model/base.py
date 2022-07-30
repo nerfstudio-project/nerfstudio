@@ -12,17 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Abstract Model classes
+"""
+
 from abc import abstractmethod
 from typing import Any, Dict, List
-from omegaconf import DictConfig
 import torch
 from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.data.structs import DataloaderOutputs, ModelOutputs, SceneBounds
-from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.graphs.modules.scene_colliders import SceneBoundsCollider
-from nerfactory.utils.misc import instantiate_from_dict_config
 
 
 class Model(nn.Module):
@@ -63,8 +64,7 @@ class Model(nn.Module):
         self.scene_bounds = scene_bounds
         self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
         self.kwargs = kwargs
-        self.collider: SceneBoundsCollider = None
-        self.populate_collider()
+        self.collider: SceneBoundsCollider = collider
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
@@ -72,12 +72,6 @@ class Model(nn.Module):
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
         self.callbacks = []
-
-    def populate_collider(self):
-        """Set the scene bounds collider to use."""
-        # TODO: FIX ME
-        # TODO: Collider class with an initializer from the config
-        self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_fields(self):
