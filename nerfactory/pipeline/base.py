@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Abstracts for the Pipeline class.
+"""
 
 import torch
 from nerfactory.data.dataloader import AbstractDataloader
@@ -93,7 +96,7 @@ class Pipeline:
             loss_dict: dict = self.model.get_loss_dict(data, outputs)
         return loss_dict
 
-    def get_aggregated_loss_dict(self, loss_dict):
+    def get_aggregated_loss_dict(self, loss_dict: dict):
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
         aggregated_loss_dict = {}
         for loss_name, loss_value in loss_dict.items():
@@ -102,10 +105,3 @@ class Pipeline:
             aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
         aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
         return aggregated_loss_dict
-
-    def process_outputs_as_images(self, outputs: ModelOutputs, shape: tuple):  # pylint: disable=no-self-use
-        """Process outputs into visualizable colored images
-
-        This function will assume that your output was formed from a raybundle that was
-        created from whole images."""
-        return outputs.rendered_pixels.reshape(shape)
