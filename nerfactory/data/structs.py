@@ -41,8 +41,8 @@ class Semantics:
     stuff_classes: List[str]
     thing_filenames: List[str]
     thing_classes: List[str]
-    stuff_colors: Optional[torch.Tensor] = None
-    thing_colors: Optional[torch.Tensor] = None
+    stuff_colors: torch.Tensor
+    thing_colors: torch.Tensor
 
 
 @dataclass

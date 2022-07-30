@@ -90,7 +90,7 @@ class SemanticNerfField(Field):
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
         encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
-        mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
+        mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))  # type: ignore
         outputs = {}
         # rgb
         outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_out)
@@ -103,7 +103,7 @@ class SemanticNerfField(Field):
 class SemanticNerfGraph(NeRFGraph):
     """Semantic-NeRF graph"""
 
-    def __init__(self, intrinsics=None, camera_to_world=None, semantics: Semantics = None, **kwargs) -> None:
+    def __init__(self, intrinsics, camera_to_world, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
@@ -185,7 +185,7 @@ class SemanticNerfGraph(NeRFGraph):
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         super().log_test_image_outputs(image_idx, step, batch, outputs)
         semantic_logits = outputs["semantic_fine"]
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(semantic_logits, dim=-1), dim=-1)
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(semantic_logits, dim=-1), dim=-1)  # type: ignore
         semantic_labels_image = self.stuff_colors[semantic_labels]
         writer.put_image(name=f"semantics/image_idx_{image_idx}", image=semantic_labels_image, step=step)
 

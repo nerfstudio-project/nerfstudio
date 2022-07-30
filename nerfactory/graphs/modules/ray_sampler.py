@@ -84,7 +84,7 @@ class SpacedSampler(Sampler):
     @torch.no_grad()
     def generate_ray_samples(
         self,
-        ray_bundle: RayBundle = None,
+        ray_bundle: Optional[RayBundle] = None,
         num_samples: Optional[int] = None,
     ) -> RaySamples:
         """Generates position samples accoring to spacing function.
@@ -236,7 +236,7 @@ class PDFSampler(Sampler):
         num_samples: int,
         train_stratified: bool = True,
         include_original: bool = True,
-        density_field: DensityGrid = None,
+        density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
         histogram_padding: float = 0.01,
     ) -> None:
@@ -257,8 +257,8 @@ class PDFSampler(Sampler):
     @torch.no_grad()
     def generate_ray_samples(
         self,
-        ray_bundle: RayBundle = None,
-        ray_samples: RaySamples = None,
+        ray_bundle: Optional[RayBundle] = None,
+        ray_samples: Optional[RaySamples] = None,
         weights: TensorType[..., "num_samples", 1] = None,
         num_samples: Optional[int] = None,
         eps: float = 1e-5,
@@ -275,6 +275,10 @@ class PDFSampler(Sampler):
         Returns:
             Positions and deltas for samples along a ray
         """
+
+        if ray_samples is None or ray_bundle is None:
+            raise ValueError("ray_samples and ray_bundle must be provided")
+
         num_samples = num_samples or self.num_samples
         num_bins = num_samples + 1
 
@@ -370,6 +374,10 @@ class NGPSpacedSampler(Sampler):
             Second return contains all the information to recover packed samples into unpacked mode for rendering.
             The last two returns are t_min and t_max from ray-aabb test.
         """
+
+        if self.density_field is None:
+            raise ValueError("density_field must be set to use NGPSpacedSampler")
+
         num_samples = num_samples or self.num_samples
 
         aabb = aabb.flatten()
@@ -380,8 +388,8 @@ class NGPSpacedSampler(Sampler):
         if t_min is None or t_max is None:
             # TODO(ruilongli): this clipping here is stupid. Try to avoid that.
             t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
-            t_min = torch.clamp(t_min, max=1e10)
-            t_max = torch.clamp(t_max, max=1e10)
+            t_min = torch.clamp(t_min, max=1e10)  # type: ignore
+            t_max = torch.clamp(t_max, max=1e10)  # type: ignore
 
         marching_steps = -1  # disable marching mode for now
         # TODO(ruilongli): * 16 is for original impl for training. Need to run

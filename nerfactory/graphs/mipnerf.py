@@ -94,10 +94,16 @@ class MipNerfGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_outputs")
+
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
@@ -183,7 +189,7 @@ class MipNerfGraph(Graph):
 
         writer.put_scalar(name=f"psnr/val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step)
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
-        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)
+        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)  # type: ignore
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)

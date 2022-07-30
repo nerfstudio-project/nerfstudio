@@ -19,7 +19,7 @@ import json
 import logging
 import os
 import pickle
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
 
 def load_from_json(filename: str):
@@ -68,7 +68,7 @@ def write_to_pkl(filename: str, content: Any):
         pickle.dump(content, f)
 
 
-def get_git_root(path: str, dirs: Tuple[str] = (".git",), default=None) -> Optional[str]:
+def get_git_root(path: str, dirs: Tuple[str] = (".git",), default: str = "") -> str:
     """Find the root of the git repository.
     'https://stackoverflow.com/questions/22081209/find-the-root-of-the-git-repository-where-the-file-lives'
 
@@ -85,15 +85,19 @@ def get_git_root(path: str, dirs: Tuple[str] = (".git",), default=None) -> Optio
         if any(os.path.isdir(os.path.join(test, directory)) for directory in dirs):
             return test
         prev, test = test, os.path.abspath(os.path.join(test, os.pardir))
+    logging.info("Couldn't find git root")
     return default
 
 
-def get_project_root(path: str):
+def get_project_root(path: str) -> str:
     """Return the project root directory from an environment variable.
     # TODO: handle this better and report user error
 
     Args:
         path: The path to start from.
+
+    Returns:
+        The project root directory.
     """
     project_root = os.getenv("PROJECT_ROOT")
     if project_root is None:
