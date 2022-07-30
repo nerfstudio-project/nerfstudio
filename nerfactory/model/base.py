@@ -21,6 +21,7 @@ from torch.nn import Parameter
 
 from nerfactory.data.structs import DataloaderOutputs, ModelOutputs, SceneBounds
 from nerfactory.graphs.modules.ray_generator import RayGenerator
+from nerfactory.graphs.modules.scene_colliders import SceneBoundsCollider
 from nerfactory.utils.misc import instantiate_from_dict_config
 
 
@@ -36,44 +37,37 @@ class Model(nn.Module):
 
 
     Args:
-        steps_per_occupancy_grid_update: The number of steps per occupancy grid update.
-        scene_bounds: The scene bounds.
-        collider_config: The collider config.
-        kwargs: The extra kwargs.
+        collider (SceneBoundsCollider): Collider for our points
+        steps_per_occupancy_grid_update (int): Number of steps per occupancy grid update
+        scene_bounds (SceneBounds): Scene bounds
 
     Attributes:
         device_indicator_param: A dummy parameter that is used to indicate the device the model is on.
         scene_bounds: The scene bounds.
-        collider_config: The collider config.
         steps_per_occupancy_grid_update: The number of steps per occupancy grid update.
         kwargs: The extra kwargs passed to the model.
         collider: The collider.
-        ray_generator: The ray generator.
         callbacks: The callbacks.
+
     """
 
     def __init__(
         self,
+        collider: SceneBoundsCollider,
         steps_per_occupancy_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
-        collider_config: DictConfig = None,
         **kwargs,
     ) -> None:
         super().__init__()
         self.device_indicator_param = nn.Parameter(torch.empty(0))
         self.scene_bounds = scene_bounds
-        self.collider_config = collider_config
         self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
         self.kwargs = kwargs
-        self.collider = None
-        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
+        self.collider: SceneBoundsCollider = None
         self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
-        # variable for visualizer to fetch TODO(figure out if there is cleaner way to do this)
-        self.vis_outputs = None
-        self.default_output_name = None
 
     def register_callbacks(self):  # pylint:disable=no-self-use
         """Option to register callback for training functions"""
