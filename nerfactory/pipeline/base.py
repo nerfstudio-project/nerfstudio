@@ -16,6 +16,7 @@
 Abstracts for the Pipeline class.
 """
 
+from typing import Dict
 import torch
 from nerfactory.data.dataloader import AbstractDataloader
 from nerfactory.data.structs import DataloaderOutputs, ModelOutputs
@@ -61,21 +62,21 @@ class Pipeline:
         self.model (Model): The model that will be used
         self.mixed_precision (bool): Whether or not to use mixed precision when fetching
             the loss dicts
-        self.loss_coefficients (dict): The loss coefficients for the model
+        self.loss_coefficients (Dict): The loss coefficients for the model
     """
 
     def __init__(
         self,
         model: Model,
         dataloader: AbstractDataloader,
-        loss_coefficients: dict,
+        loss_coefficients: Dict,
     ):
         self.dataloader: AbstractDataloader = dataloader
         self.dataloader_train_iter = self.dataloader.iter_train()
         self.dataloader_eval_iter = self.dataloader.iter_eval()
         self.model: Model = model
         self.mixed_precision: bool = False
-        self.loss_coefficients: dict = loss_coefficients
+        self.loss_coefficients: Dict = loss_coefficients
 
     def get_train_loss(self):
         """This function gets your training loss dict. This will be responsible for
@@ -84,7 +85,7 @@ class Pipeline:
         data: DataloaderOutputs = next(self.dataloader_train_iter)
         with torch.autocast(device_type=data.rays.origins.device, enabled=self.mixed_precision):
             outputs: ModelOutputs = self.model(data)
-            loss_dict: dict = self.model.get_loss_dict(data, outputs)
+            loss_dict: Dict = self.model.get_loss_dict(data, outputs)
         return loss_dict
 
     def get_eval_loss_dict(self):
@@ -93,10 +94,10 @@ class Pipeline:
         data: DataloaderOutputs = next(self.dataloader_eval_iter)
         with torch.autocast(device_type=data.rays.origins.device, enabled=self.mixed_precision):
             outputs: ModelOutputs = self.model(data)
-            loss_dict: dict = self.model.get_loss_dict(data, outputs)
+            loss_dict: Dict = self.model.get_loss_dict(data, outputs)
         return loss_dict
 
-    def get_aggregated_loss_dict(self, loss_dict: dict):
+    def get_aggregated_loss_dict(self, loss_dict: Dict):
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
         aggregated_loss_dict = {}
         for loss_name, loss_value in loss_dict.items():

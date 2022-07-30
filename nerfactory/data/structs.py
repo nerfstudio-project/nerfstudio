@@ -126,7 +126,7 @@ class DataloaderOutputs:
     cameras: torch.tensor
     ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None
 
-    def check_inputs(self, expected_attr: dict):
+    def check_inputs(self, expected_attr: Dict):
         """This will check to make sure that the expected attributes exist.
 
         This will exist in any subclassed version of this"""
