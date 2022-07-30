@@ -18,7 +18,7 @@ Code to train model.
 import functools
 import logging
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import torch
 import torch.distributed as dist
@@ -69,7 +69,7 @@ class Trainer:
         self.dataloader_train: TrainDataloader
         self.dataloader_eval: EvalDataloader
         # model variables
-        self.graph = Graph
+        self.graph: Union[Graph, DDP]
         self.optimizers: Optimizers
         self.start_step = 0
         # logging variables
@@ -90,6 +90,8 @@ class Trainer:
         self.dataset_inputs_train, self.dataloader_train = setup_dataset_train(self.config.data, device=self.device)
         _, self.dataloader_eval = setup_dataset_eval(self.config.data, test_mode=test_mode, device=self.device)
         self.graph = setup_graph(self.config.graph, self.dataset_inputs_train, device=self.device)
+        if not isinstance(self.graph, Graph):
+            raise ValueError("Graph was improperly initialized.")
         self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
 
         self._load_checkpoint()
@@ -179,9 +181,9 @@ class Trainer:
             os.makedirs(output_dir)
         ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
         if hasattr(self.graph, "module"):
-            model = self.graph.module.state_dict()
+            model = self.graph.module.state_dict()  # type: ignore
         else:
-            model = self.graph.state_dict()
+            model = self.graph.state_dict()  # type: ignore
         torch.save(
             {
                 "step": step,
@@ -207,7 +209,7 @@ class Trainer:
         self.optimizers.zero_grad_all()
         with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
             _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)  # type: ignore
-            loss = sum(loss_dict.values())
+            loss = sum(loss_dict.values())  # type: ignore
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
@@ -217,9 +219,9 @@ class Trainer:
             callback.after_step(step)
 
         # Merging loss and metrics dict into a single output.
-        loss_dict["loss"] = loss
-        loss_dict.update(metrics_dict)
-        return loss_dict
+        loss_dict["loss"] = loss  # type: ignore
+        loss_dict.update(metrics_dict)  # type: ignore
+        return loss_dict  # type: ignore
 
     @profiler.time_function
     def test_image(self, camera_ray_bundle: RayBundle, batch: dict, step: Optional[int] = None) -> float:
@@ -240,7 +242,7 @@ class Trainer:
         outputs = self.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)  # type: ignore
         psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)  # type: ignore
         self.graph.train()  # type: ignore
-        return psnr
+        return psnr  # type: ignore
 
     def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[int] = None) -> None:
         """Run evaluation with a given dataloader.

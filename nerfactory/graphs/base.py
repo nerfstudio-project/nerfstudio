@@ -17,7 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from omegaconf import DictConfig
@@ -53,7 +53,9 @@ class AbstractGraph(nn.Module):
         return self.device_indicator_param.device
 
     @abstractmethod
-    def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
+    def forward(
+        self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Optional[Dict[str, torch.Tensor]]] = None
+    ):
         """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
 
 
@@ -75,14 +77,14 @@ class Graph(AbstractGraph):
 
     def __init__(
         self,
-        intrinsics: torch.Tensor = None,
-        camera_to_world: torch.Tensor = None,
-        loss_coefficients: DictConfig = None,
-        scene_bounds: SceneBounds = None,
+        intrinsics: torch.Tensor,
+        camera_to_world: torch.Tensor,
+        loss_coefficients: DictConfig,
+        scene_bounds: Optional[SceneBounds] = None,
         enable_collider: bool = True,
-        collider_config: DictConfig = None,
+        collider_config: Optional[DictConfig] = None,
         enable_density_field: bool = False,
-        density_field_config: DictConfig = None,
+        density_field_config: Optional[DictConfig] = None,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -123,6 +125,10 @@ class Graph(AbstractGraph):
             self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
     @abstractmethod
+    def populate_fields(self):
+        """Set the fields."""
+
+    @abstractmethod
     def populate_misc_modules(self):
         """Initializes any additional modules that are part of the network."""
 
@@ -135,7 +141,7 @@ class Graph(AbstractGraph):
         """
 
     @abstractmethod
-    def get_outputs(self, ray_bundle: RayBundle) -> dict:
+    def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
@@ -153,7 +159,9 @@ class Graph(AbstractGraph):
                 v = torch.tile(v, (1, 1, 3))
             outputs[k] = v
 
-    def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: Union[str, Dict[str, torch.tensor]] = None):
+    def forward_after_ray_generator(
+        self, ray_bundle: RayBundle, batch: Optional[Union[str, Dict[str, torch.Tensor]]] = None
+    ):
         """Run forward starting with a ray bundle."""
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)
@@ -185,19 +193,21 @@ class Graph(AbstractGraph):
                 loss_dict[loss_name] *= self.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
-    def forward(self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Dict[str, torch.tensor]] = None):
+    def forward(
+        self, ray_indices: TensorType["num_rays", 3], batch: Optional[Union[str, Dict[str, torch.Tensor]]] = None
+    ):
         """Run the forward starting with ray indices."""
         ray_bundle = self.ray_generator.forward(ray_indices)
         return self.forward_after_ray_generator(ray_bundle, batch=batch)
 
-    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics."""
         # pylint: disable=unused-argument
         # pylint: disable=no-self-use
         return {}
 
     @abstractmethod
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
         """Computes and returns the losses dict."""
 
     @torch.no_grad()
@@ -213,10 +223,10 @@ class Graph(AbstractGraph):
             end_idx = i + camera_ray_bundle.num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
             outputs = self.forward_after_ray_generator(ray_bundle)
-            for output_name, output in outputs.items():
+            for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
-            outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)
+            outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
 
     def get_outputs_for_camera(self, camera: Camera):
@@ -230,7 +240,8 @@ class Graph(AbstractGraph):
 
     def load_graph(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path"""
-        self.load_state_dict({key.replace("module.", ""): value for key, value in loaded_state["model"].items()})
+        state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
+        self.load_state_dict(state)  # type: ignore
 
 
 @profiler.time_function

@@ -153,12 +153,5 @@ class TorchInstantNGPField(NeRFField):
         )
         self.aabb = Parameter(aabb, requires_grad=False)
 
-    def get_density(self, ray_samples: RaySamples):
-        normalized_ray_samples = ray_samples
-        normalized_ray_samples.positions = SceneBounds.get_normalized_positions(
-            normalized_ray_samples.frustums.get_positions(), self.aabb
-        )
-        return super().get_density(normalized_ray_samples)
-
 
 field_implementation_to_class = {"tcnn": TCNNInstantNGPField, "torch": TorchInstantNGPField}

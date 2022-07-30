@@ -15,7 +15,7 @@
 """
 Code to implement the density grid.
 """
-from typing import Callable, List, NoReturn, Tuple
+from typing import Callable, List, Tuple, Union
 
 import torch
 from torch import nn
@@ -25,7 +25,7 @@ import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RaySamples
 
 
-def _create_grid_coords(resolution: int, device: torch.device = "cpu") -> TensorType["n_coords", 3]:
+def _create_grid_coords(resolution: int, device: Union[torch.device, str] = "cpu") -> TensorType["n_coords", 3]:
     """Create 3D grid coordinates
 
     Args:
@@ -76,6 +76,9 @@ class DensityGrid(nn.Module):
         resolution (int): Resolution of the grid. Defaults to 128.
         update_every_num_iters (int): How frequently to update the grid values. Defaults to 16.
     """
+
+    density_grid: TensorType["num_cascades", "resolution**3"]
+    mean_density: TensorType[1]
 
     def __init__(
         self,
@@ -155,7 +158,7 @@ class DensityGrid(nn.Module):
         step: int,
         density_threshold: float = 2,  # 0.01 / (SQRT3 / 1024 * 3)
         decay: float = 0.95,
-    ) -> NoReturn:
+    ) -> None:
         """Update the density grid in EMA way.
 
         Args:
@@ -197,7 +200,7 @@ class DensityGrid(nn.Module):
 
         # pack to bitfield
         self.density_bitfield.data = nerfactory_cuda.packbits(
-            self.density_grid, min(self.mean_density.item(), density_threshold)
+            self.density_grid, min(self.mean_density.item(), density_threshold)  # type: ignore
         )
 
         # TODO(ruilongli): max pooling? https://github.com/NVlabs/instant-ngp/blob/master/src/testbed_nerf.cu#L578
