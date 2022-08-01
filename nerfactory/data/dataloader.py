@@ -16,6 +16,7 @@
 Data loader.
 """
 
+from ast import Pass
 import random
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
@@ -28,11 +29,12 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.data.format.instant_ngp import load_instant_ngp_data
 from nerfactory.data.image_dataset import ImageDataset
-from nerfactory.data.image_sampler import ImageSampler
+from nerfactory.data.image_sampler import CacheImageSampler, ImageSampler
 from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import DatasetInputs, DataloaderOutputs
-from nerfactory.data.utils import get_dataset_inputs_from_dataset_config
+from nerfactory.data.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
+from nerfactory.data.utils import get_dataset_inputs, get_dataset_inputs_from_dataset_config
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import DataConfig
@@ -86,6 +88,10 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
     return dataset_inputs_eval, dataloader_eval
 
 
+# -------------------------------------------------
+# Start new dataloaders
+
+
 class AbstractDataloader(nn.Module):
     """Second version of the dataloader class (V2)
 
@@ -127,24 +133,16 @@ class AbstractDataloader(nn.Module):
     Attributes:
         image_sampler (ImageSampler): image sampler
         pixel_sampler (PixelSampler): pixel sampler
-        ray_generator (RayGenerator): ray generator
         train_count (int): number of times train has been called
         eval_count (int): number of times eval has been called
     """
 
     def __init__(
         self,
-        image_sampler: ImageSampler,
-        pixel_sampler: PixelSampler,
-        ray_generator: RayGenerator,
         use_train: bool,
         use_eval: bool,
     ):
         super().__init__()
-        self.image_sampler = image_sampler
-        self.pixel_sampler = pixel_sampler
-        self.iter_image_sampler = iter(self.image_sampler)
-        self.ray_generator = ray_generator
         self.use_train = use_train
         self.use_eval = use_eval
         self.train_count = 0
@@ -154,6 +152,10 @@ class AbstractDataloader(nn.Module):
             self.setup_train()
         if use_eval:
             self.setup_eval()
+
+    def forward(self):
+        """Dummy forward method"""
+        raise NotImplementedError
 
     def iter_train(self) -> IterableWrapper:
         """Returns an iterator that executes the self.next_train function"""
@@ -168,21 +170,31 @@ class AbstractDataloader(nn.Module):
     @abstractmethod
     def setup_train(self):
         """Sets up the dataloader for training"""
+        raise NotImplementedError
 
     @abstractmethod
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
+        raise NotImplementedError
 
     @abstractmethod
-    def next_train(self) -> DataloaderOutputs:
-        """Returns the next batch of data from the train dataloader"""
+    def next_train(self) -> Tuple:
+        """Returns the next batch of data from the train dataloader.
+
+        This will be a tuple of all the information that this dataloader outputs.
+        """
+        raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self) -> DataloaderOutputs:
-        """Returns the next batch of data from the eval dataloader"""
+    def next_eval(self) -> Tuple:
+        """Returns the next batch of data from the eval dataloader.
+
+        This will be a tuple of all the information that this dataloader outputs.
+        """
+        raise NotImplementedError
 
 
-class AbstractStoredDataloader(AbstractDataloader):
+class AbstractStoredDataloader(AbstractDataloader):  # pylint: disable=abstract-method
     """Subclass of the new V2 dataloader that is used for when things fit in memory,
     and will be stored in the dataloader itself.
 
@@ -194,22 +206,58 @@ class AbstractStoredDataloader(AbstractDataloader):
     camera_to_world: torch.Tensor
     intrinsics: torch.Tensor
 
-    # These abstract methods are only copied over to appease the linter
-    @abstractmethod
+
+class TestStoredDataloader(AbstractStoredDataloader):  # pylint: disable=abstract-method
+    """Basic stored dataloader implementation for instant-ngp test run"""
+
+    def __init__(self, use_train: bool, use_eval: bool, path: str, rays_per_batch: int = 1024):
+        super().__init__(use_train, use_eval)
+        self.path = path
+        self.rays_per_batch = rays_per_batch
+
     def setup_train(self):
         """Sets up the dataloader for training"""
+        self.train_datasetinputs = get_dataset_inputs(self.path, self.format, "train")
+        self.train_image_dataset = ImageDataset(self.train_datasetinputs.as_dict())
+        self.train_image_sampler = CacheImageSampler(self.image_dataset_train)
+        self.iter_train_image_sampler = iter(self.train_image_sampler)
+        self.train_pixel_sampler = PixelSampler(self.num_rays_per_batch)
+        self.train_ray_generator = RayGenerator(
+            self.train_datasetinputs.camera_to_world, self.train_datasetinputs.intrinsics
+        )
 
-    @abstractmethod
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
+        self.eval_datasetinputs = get_dataset_inputs(self.path, self.format, "test")
+        self.eval_image_dataset = ImageDataset(self.eval_datasetinputs.as_dict())
+        self.eval_image_sampler = CacheImageSampler(self.image_dataset_eval)
+        self.iter_eval_image_sampler = iter(self.eval_image_sampler)
+        self.eval_pixel_sampler = PixelSampler(self.num_rays_per_batch)
+        self.eval_ray_generator = RayGenerator(
+            self.eval_datasetinputs.camera_to_world, self.eval_datasetinputs.intrinsics
+        )
 
-    @abstractmethod
-    def next_train(self) -> DataloaderOutputs:
+    def next_train(self) -> Tuple:
         """Returns the next batch of data from the train dataloader"""
+        self.train_count += 1
+        image_batch = next(self.iter_train_image_sampler)
+        batch = self.train_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.train_ray_generator.forward(ray_indices)
+        return ray_bundle, batch
 
-    @abstractmethod
-    def next_eval(self) -> DataloaderOutputs:
+    def next_eval(self) -> Tuple:
         """Returns the next batch of data from the eval dataloader"""
+        self.eval_count += 1
+        image_batch = next(self.iter_eval_image_sampler)
+        batch = self.eval_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.eval_ray_generator.forward(ray_indices)
+        return ray_bundle, batch
+
+
+# End new pipeline dataloaders
+# -------------------------------------------------
 
 
 class TrainDataloader:
