@@ -3,7 +3,6 @@ import './ViewerWindow.css';
 import * as THREE from 'three';
 
 import React, { useContext, useEffect, useRef } from 'react';
-import { ReactReduxContext, useDispatch, useSelector } from 'react-redux';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
@@ -13,10 +12,11 @@ const msgpack = require('msgpack-lite');
 
 // manages a camera and the web rtc stream...
 export default function ViewerWindow(props) {
+  // eslint-disable-next-line react/prop-types
   const scene = props.scene;
   let cameraControls = null;
   const myRef = useRef(null);
-  let websocket = useContext(WebSocketContext).socket;
+  const websocket = useContext(WebSocketContext).socket;
 
   const getViewportWidth = () => {
     return window.innerWidth - (window.innerWidth % 2);

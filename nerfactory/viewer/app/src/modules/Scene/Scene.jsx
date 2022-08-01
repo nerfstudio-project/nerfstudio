@@ -1,17 +1,20 @@
+/* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-import React, { useContext, useEffect } from 'react';
-import { ReactReduxContext, useDispatch, useSelector } from 'react-redux';
+import { GUI } from 'dat.gui';
+import { useContext, useEffect } from 'react';
+import { ReactReduxContext, useDispatch } from 'react-redux';
 import { drawCameras, drawSceneBounds } from './drawing';
 
-import { GUI } from 'dat.gui';
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+
+import './Scene.css';
 
 const msgpack = require('msgpack-lite');
 
 // manages setting up the scene and other logic for keeping state in sync with the server
-export default function SetupScene(props) {
+export default function SetupScene() {
   let scene = null;
   let gui = null;
   let sceneTree = null;
@@ -25,6 +28,7 @@ export default function SetupScene(props) {
 
   // GUI
   gui = new GUI();
+  gui.domElement.id = 'datgui';
   const sceneFolder = gui.addFolder('Scene');
   sceneFolder.open();
   sceneTree = new SceneNode(scene, sceneFolder);
@@ -61,7 +65,7 @@ export default function SetupScene(props) {
   let currentSceneStateBoxValue;
   const handle_change_box = () => {
     console.log('handle_change_box');
-    let previousSceneStateBoxValue = currentSceneStateBoxValue;
+    const previousSceneStateBoxValue = currentSceneStateBoxValue;
     currentSceneStateBoxValue = select_box(store.getState());
     if (previousSceneStateBoxValue !== currentSceneStateBoxValue) {
       if (currentSceneStateBoxValue !== null) {
@@ -82,7 +86,7 @@ export default function SetupScene(props) {
   };
   let currentCamerasValue;
   const handle_change_cameras = () => {
-    let previousCamerasValue = currentCamerasValue;
+    const previousCamerasValue = currentCamerasValue;
     currentCamerasValue = select_cameras(store.getState());
     if (previousCamerasValue !== currentCamerasValue) {
       if (currentCamerasValue !== null) {

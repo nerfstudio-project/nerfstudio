@@ -1,11 +1,10 @@
 // Much of this code comes from or is inspired by:
 // https://www.pluralsight.com/guides/using-web-sockets-in-your-reactredux-app
 
-import React, { createContext, useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { createContext } from 'react';
 
-// import io from 'socket.io-client';
-import { updateChatLog } from './WebSocketSlice.js';
+import PropTypes from 'prop-types';
+import { useDispatch } from 'react-redux';
 
 const WebSocketContext = createContext(null);
 
@@ -28,9 +27,7 @@ function getWebsocketEndpointFromUrl(url: string) {
 }
 
 export default function WebSocketContextFunction({ children }) {
-
-
-  console.log("calling websocket context function");
+  console.log('calling websocket context function');
 
   const dispatch = useDispatch();
 
@@ -40,32 +37,21 @@ export default function WebSocketContextFunction({ children }) {
   // should look like ws://localhost:8051
   const websocketEndpoint = getWebsocketEndpointFromUrl(window.location.href);
 
-  const sendMessage = (roomId, message) => {
-    const payload = {
-      roomId,
-      data: message,
-    };
-    socket.emit('event://send-message', JSON.stringify(payload));
-    dispatch(updateChatLog(payload));
-  };
-
-  // setIsWebsocketConnected(false);
-
   const connect = () => {
     socket = new WebSocket(`ws://${websocketEndpoint}/`);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
-        type: "write",
+        type: 'write',
         path: 'websocketState/isConnected',
         data: true,
       });
     };
 
-    socket.onclose = (e) => {
+    socket.onclose = () => {
       // when closed, the websocket will try to reconnect every second
       dispatch({
-        type: "write",
+        type: 'write',
         path: 'websocketState/isConnected',
         data: false,
       });
@@ -88,7 +74,6 @@ export default function WebSocketContextFunction({ children }) {
     connect();
     ws = {
       socket,
-      sendMessage,
     };
   }
 
@@ -96,3 +81,7 @@ export default function WebSocketContextFunction({ children }) {
     <WebSocketContext.Provider value={ws}>{children}</WebSocketContext.Provider>
   );
 }
+
+WebSocketContextFunction.propTypes = {
+  children: PropTypes.node.isRequired,
+};

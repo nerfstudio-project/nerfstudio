@@ -14,23 +14,27 @@
     "eslint-config-prettier": "^8.5.0",
     "leva": "^0.9.29",
     "msgpack-lite": "^0.1.26",
+    "prop-types": "^15.8.1",
     "react": "^18.1.0",
     "react-dom": "^18.1.0",
     "react-redux": "^8.0.2",
-    "react-scripts": "^5.0.1",
     "redux": "^4.2.0",
     "socket.io-client": "^4.5.1",
     "three": "^0.142.0",
     "three-wtm": "^1.0",
     "websocket": "^1.0.34",
-    "wwobjloader2": "^4.0"
+    "wwobjloader2": "^4.0",
+    "electron": "^19.0.4",
+    "electron-is-dev": "^2.0.0"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "electron": "electron ."
+    "electron": "electron .",
+    "lint": "eslint --ext .js,.jsx .",
+    "lint:fix": "eslint --fix --ext .js,.jsx ."
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -52,16 +56,19 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@svgr/webpack": "^6.2.1",
     "concurrently": "^7.2.1",
-    "electron": "^19.0.4",
-    "electron-is-dev": "^2.0.0",
     "eslint": "^8.2.0",
     "eslint-config-airbnb": "19.0.4",
     "eslint-plugin-import": "^2.25.3",
     "eslint-plugin-jsx-a11y": "^6.5.1",
     "eslint-plugin-react": "^7.28.0",
     "eslint-plugin-react-hooks": "^4.3.0",
+    "react-scripts": "^5.0.1",
     "typescript": "^4.7.3",
     "wait-on": "^6.0.1"
+  },
+  "resolutions": {
+    "@svgr/webpack": "$@svgr/webpack"
   }
 }

@@ -30,23 +30,23 @@ const initialState = {
 
 function setData(newState, state, path, data) {
   if (path.length === 1) {
-    newState[path[0]] = data;
-  }
-  else {
-    newState[path[0]] = {...state[path[0]]};
+    newState[path[0]] = data; // eslint-disable-line no-param-reassign
+  } else {
+    newState[path[0]] = { ...state[path[0]] }; // eslint-disable-line no-param-reassign
     setData(newState[path[0]], state[path[0]], path.slice(1), data);
   }
 }
 
 // Use the initialState as a default value
-export default function rootReducer(state = initialState, action) { // eslint-disable-line default-param-last
+// eslint-disable-next-line default-param-last
+export default function rootReducer(state = initialState, action) {
   // The reducer normally looks at the action type field to decide what happens
 
   switch (action.type) {
     case 'write': {
       const path = split_path(action.path); // convert string with "/"s to a list
       const data = action.data;
-      const newState = {...state};
+      const newState = { ...state };
       setData(newState, state, path, data);
       return newState;
     }

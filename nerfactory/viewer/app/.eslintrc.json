@@ -23,6 +23,11 @@
     ],
     "rules": {
         "arrow-body-style": "off",
-        "prefer-destructuring": "off"
+        "camelcase": "off",
+        "import/prefer-default-export": "off",
+        "no-alert": "off",
+        "no-console": "off",
+        "prefer-destructuring": "off",
+        "react/destructuring-assignment": "off"
     }
 }

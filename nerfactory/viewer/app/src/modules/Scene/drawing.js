@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 // ---- code for drawing with three.js ----
 import * as THREE from 'three';
 
@@ -54,6 +55,7 @@ export function getCameraWireframe(
   h = 2,
 ) {
   // Returns a wireframe of a 3D line-plot of a camera symbol.
+  // A wireframe is a frustum.
   // https://github.com/hangg7/mvs_visual/blob/275d382a824733a3187a8e3147be184dd6f14795/mvs_visual.py#L54.
   // scale: scale of rendering
   // focalLength: this is the focal length
@@ -101,13 +103,13 @@ export function getCameraWireframe(
   return lines;
 }
 
-export function drawCameraImagePlane(width, height, image_string) {
-  // image is the texture as a base64 string
+export function drawCameraImagePlane(width, height, imageString) {
+  // imageString is the texture as a base64 string
   const geometry = new THREE.PlaneGeometry(width, height);
   const material = new THREE.MeshBasicMaterial({
     side: THREE.DoubleSide,
   });
-  const texture = new THREE.TextureLoader().load(image_string);
+  const texture = new THREE.TextureLoader().load(imageString);
   material.map = texture;
   const plane = new THREE.Mesh(geometry, material);
   return plane;
@@ -126,29 +128,28 @@ export function drawCamera(camera): THREE.Object3D {
     'The camera should be a PinholeCamera',
   );
 
-  let height = 0.25;
-  let f = camera.fx;
-  let displayed_focal_length = height / (2.0 * (camera.cy / f));
-  let width = 2.0 * (camera.cx / f) * displayed_focal_length;
-  const cameraWireframeObject = getCameraWireframe(1.0, displayed_focal_length, width, height);
-  cameraWireframeObject.translateZ(displayed_focal_length);
+  const height = 0.25;
+  const f = camera.fx;
+  const displayedFocalLength = height / (2.0 * (camera.cy / f));
+  const width = 2.0 * (camera.cx / f) * displayedFocalLength;
+  const cameraWireframeObject = getCameraWireframe(1.0, displayedFocalLength, width, height);
+  cameraWireframeObject.translateZ(displayedFocalLength); // move the wireframe frustum back
   group.add(cameraWireframeObject);
   const cameraImagePlaneObject = drawCameraImagePlane(
     width*2,
     height*2,
     camera.image,
   );
-  // cameraImagePlaneObject.translateZ(-displayed_focal_length);
   group.add(cameraImagePlaneObject);
 
   // make homogeneous coordinates and then
   // transpose and flatten the matrix into an array
-  let camera_to_world = JSON.parse(JSON.stringify(camera.camera_to_world));
-  camera_to_world.push([0, 0, 0, 1]);
-  camera_to_world = transpose(camera_to_world).flat();
+  let c2w = JSON.parse(JSON.stringify(camera.camera_to_world));
+  c2w.push([0, 0, 0, 1]);
+  c2w = transpose(c2w).flat();
 
   const mat = new THREE.Matrix4();
-  mat.fromArray(camera_to_world);
+  mat.fromArray(c2w);
   mat.decompose(group.position, group.quaternion, group.scale);
 
   return group;

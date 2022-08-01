@@ -1,16 +1,6 @@
-import { Leva, button, buttonGroup, useControls } from 'leva';
-import React, { useContext, useEffect, useState } from 'react';
-import { ReactReduxContext, seDispatch, useSelector } from 'react-redux';
-
-export function ConfigPanel() {
-  const params = { titleBar: false };
-  const panel = (
-    <div style={{ position: 'relative', width: 250, top: 60 }}>
-      <Leva fill oneLineLabels {...params} />
-    </div>
-  );
-  return panel;
-}
+import { button, buttonGroup, useControls } from 'leva';
+import React, { useContext } from 'react';
+import { ReactReduxContext, useSelector } from 'react-redux';
 
 export function RenderControls() {
   // connection status indicators
@@ -26,8 +16,12 @@ export function RenderControls() {
   // const [outputOptions, setOutputOptions] = React.useState(
   //   renderingState.output_options,
   // );
-  const outputOptions = useSelector((state) => state.renderingState.output_options);
-  const outputChoice = useSelector((state) => state.renderingState.output_choice);
+  const outputOptions = useSelector(
+    (state) => state.renderingState.output_options,
+  );
+  const outputChoice = useSelector(
+    (state) => state.renderingState.output_choice,
+  );
 
   const toggleIsTraining = () => {
     setIsTraining((current) => !current);
@@ -89,7 +83,13 @@ export function RenderControls() {
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
     }),
-    [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions, outputChoice],
+    [
+      isWebsocketConnected,
+      isWebrtcConnected,
+      isTraining,
+      outputOptions,
+      outputChoice,
+    ],
   );
 
   // some listeners to update the state
