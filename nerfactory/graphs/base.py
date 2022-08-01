@@ -17,7 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
 from omegaconf import DictConfig
@@ -39,27 +39,7 @@ from nerfactory.utils.misc import (
 )
 
 
-class AbstractGraph(nn.Module):
-    """Highest level graph class. Somewhat useful to lift code up and out of the way."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        # to keep track of which device the nn.Module is on
-        self.device_indicator_param = nn.Parameter(torch.empty(0))
-
-    @property
-    def device(self):
-        """Returns the device that the graph is on."""
-        return self.device_indicator_param.device
-
-    @abstractmethod
-    def forward(
-        self, ray_indices: TensorType["num_rays", 3], batch: Union[str, Optional[Dict[str, torch.Tensor]]] = None
-    ):
-        """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
-
-
-class Graph(AbstractGraph):
+class Graph(nn.Module):
     """Graph class
     Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
@@ -109,6 +89,13 @@ class Graph(AbstractGraph):
         # variable for visualizer to fetch TODO(figure out if there is cleaner way to do this)
         self.vis_outputs = None
         self.default_output_name = None
+        # to keep track of which device the nn.Module is on
+        self.device_indicator_param = nn.Parameter(torch.empty(0))
+
+    @property
+    def device(self):
+        """Returns the device that the graph is on."""
+        return self.device_indicator_param.device
 
     def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
         """Returns a list of callbacks that run functions at the specified training iterations."""
@@ -159,9 +146,21 @@ class Graph(AbstractGraph):
                 v = torch.tile(v, (1, 1, 3))
             outputs[k] = v
 
+    @overload
+    def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
+        ...
+
+    @overload
     def forward_after_ray_generator(
-        self, ray_bundle: RayBundle, batch: Optional[Union[str, Dict[str, torch.Tensor]]] = None
-    ):
+        self, ray_bundle: RayBundle, batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+        ...
+
+    def forward_after_ray_generator(
+        self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
+    ) -> Union[
+        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+    ]:
         """Run forward starting with a ray bundle."""
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)
@@ -193,12 +192,25 @@ class Graph(AbstractGraph):
                 loss_dict[loss_name] *= self.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
+    @overload
+    def forward(self, ray_indices: TensorType["num_rays", 3], batch: None = None) -> Dict[str, torch.Tensor]:
+        ...
+
+    @overload
     def forward(
-        self, ray_indices: TensorType["num_rays", 3], batch: Optional[Union[str, Dict[str, torch.Tensor]]] = None
-    ):
-        """Run the forward starting with ray indices."""
+        self, ray_indices: TensorType["num_rays", 3], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+        ...
+
+    def forward(
+        self, ray_indices: TensorType["num_rays", 3], batch: Optional[Dict[str, torch.Tensor]] = None
+    ) -> Union[
+        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
+    ]:
+        """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
         ray_bundle = self.ray_generator.forward(ray_indices)
-        return self.forward_after_ray_generator(ray_bundle, batch=batch)
+        x = self.forward_after_ray_generator(ray_bundle, batch=batch)
+        return x
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics."""
@@ -222,7 +234,7 @@ class Graph(AbstractGraph):
             start_idx = i
             end_idx = i + camera_ray_bundle.num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            outputs = self.forward_after_ray_generator(ray_bundle)
+            outputs = self.forward_after_ray_generator(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
@@ -235,8 +247,19 @@ class Graph(AbstractGraph):
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        """Writes the test image outputs."""
+    def log_test_image_outputs(self, image_idx, step, batch, outputs) -> float:
+        """Writes the test image outputs.
+        TODO: This shouldn't return a loss
+
+        Args:
+            image_idx: Index of the image.
+            step: Current step.
+            batch: Batch of data.
+            outputs: Outputs of the graph.
+
+        Returns:
+            The psnr.
+        """
 
     def load_graph(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path"""
