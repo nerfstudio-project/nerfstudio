@@ -16,19 +16,21 @@
 Optimizers class.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 from hydra.utils import instantiate
 from omegaconf import DictConfig
-from torch.cuda.amp import GradScaler
-from torch.nn import Parameter
+from torch.cuda.amp.grad_scaler import GradScaler
+from torch.nn.parameter import Parameter
 from torch.optim.lr_scheduler import LambdaLR
 
 from nerfactory.utils import writer
 
 
-def setup_optimizers(config: DictConfig, param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
+def setup_optimizers(
+    config: Union[DictConfig, Dict[str, Any]], param_groups: Dict[str, List[Parameter]]
+) -> "Optimizers":
     """Helper to set up the optimizers
 
     Args:
@@ -82,7 +84,7 @@ class Optimizers:
         param_groups: A dictionary of parameter groups to optimize.
     """
 
-    def __init__(self, config: DictConfig, param_groups: Dict[str, List[Parameter]]):
+    def __init__(self, config: Union[DictConfig, Dict[str, Any]], param_groups: Dict[str, List[Parameter]]):
         self.config = config
         self.optimizers = {}
         self.schedulers = {}
@@ -108,7 +110,7 @@ class Optimizers:
         Args:
             param_group_name: name of scheduler to step forward
         """
-        if self.config.param_group_name.scheduler:
+        if self.config.param_group_name.scheduler:  # type: ignore
             self.schedulers[param_group_name].step()
 
     def zero_grad_all(self) -> None:

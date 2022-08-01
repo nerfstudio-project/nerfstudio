@@ -113,10 +113,16 @@ class NerfWGraph(Graph):
 
     def get_param_groups(self):
         param_groups = {}
+        if self.field_coarse is None or self.field_fine is None:
+            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+
+        if self.field_coarse is None or self.field_fine is None:
+            raise ValueError("populate_fields() must be called before get_outputs")
+
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 

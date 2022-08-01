@@ -48,7 +48,7 @@ def test_broadcasting():
     assert tensor_dataclass.b.shape == (4, 6, 2)
 
     a = torch.ones((4, 6, 3))
-    b = torch.ones((2))
+    b = torch.ones(2)
     tensor_dataclass = TestTensorDataclass(a=a, b=b)
     assert tensor_dataclass.b.shape == (4, 6, 2)
 

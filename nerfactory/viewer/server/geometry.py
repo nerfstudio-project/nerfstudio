@@ -15,7 +15,6 @@
 """Geometry to render meshes, textures, etc.
 """
 
-from __future__ import absolute_import, division, print_function
 
 import base64
 import sys
@@ -25,13 +24,8 @@ from typing import Any, BinaryIO, Dict, Iterable, List, Optional, Tuple
 import numpy as np
 import umsgpack
 
-if sys.version_info >= (3, 0):
-    UNICODE = str
-    from io import BytesIO, StringIO
-else:
-    from StringIO import StringIO
-
-    BytesIO = StringIO
+UNICODE = str
+from io import BytesIO, StringIO
 
 
 class SceneElement:
@@ -434,7 +428,7 @@ class OrthographicCamera(SceneElement):
     """
 
     def __init__(self, left: float, right: float, top: float, bottom: float, near: float, far: float, zoom: int = 1):
-        super(OrthographicCamera, self).__init__()
+        super().__init__()
         self.left = left
         self.right = right
         self.top = top
@@ -492,7 +486,7 @@ class PerspectiveCamera(SceneElement):
         film_offset: float = 0,
         focus: float = 10,
     ):
-        super(PerspectiveCamera, self).__init__()
+        super().__init__()
         self.fov = fov
         self.aspect = aspect
         self.far = far
@@ -583,15 +577,12 @@ def data_from_stream(stream: BinaryIO) -> str:
     Raises:
         ValueError: invalid stream type
     """
-    if sys.version_info >= (3, 0):
-        if isinstance(stream, BytesIO):
-            data = stream.read().decode(encoding="utf-8")
-        elif isinstance(stream, StringIO):
-            data = stream.read()
-        else:
-            raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(stream)}")
-    else:
+    if isinstance(stream, BytesIO):
+        data = stream.read().decode(encoding="utf-8")
+    elif isinstance(stream, StringIO):
         data = stream.read()
+    else:
+        raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(stream)}")
     return data
 
 
@@ -629,7 +620,7 @@ class ObjMeshGeometry(MeshGeometry):
         Args:
             fname: file name to read from
         """
-        with open(fname, "r", encoding="utf8") as f:
+        with open(fname, encoding="utf8") as f:
             return MeshGeometry(f.read(), "obj")
 
     @staticmethod
@@ -659,7 +650,7 @@ class DaeMeshGeometry(MeshGeometry):
         Args:
             fname: file name to read from
         """
-        with open(fname, "r", encoding="utf8") as f:
+        with open(fname, encoding="utf8") as f:
             return MeshGeometry(f.read(), "dae")
 
     @staticmethod
@@ -702,15 +693,12 @@ class StlMeshGeometry(MeshGeometry):
         Args:
             f: binary io stream to read from
         """
-        if sys.version_info >= (3, 0):
-            if isinstance(f, BytesIO):
-                arr = np.frombuffer(f.read(), dtype=np.uint8)
-            elif isinstance(f, StringIO):
-                arr = np.frombuffer(bytes(f.read(), "utf-8"), dtype=np.uint8)
-            else:
-                raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(f)}")
-        else:
+        if isinstance(f, BytesIO):
             arr = np.frombuffer(f.read(), dtype=np.uint8)
+        elif isinstance(f, StringIO):
+            arr = np.frombuffer(bytes(f.read(), "utf-8"), dtype=np.uint8)
+        else:
+            raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(f)}")
         _, extcode = threejs_type(np.uint8)
         encoded = umsgpack.Ext(extcode, arr.tobytes())
         return MeshGeometry(encoded, "stl")
@@ -746,15 +734,12 @@ class PlyMeshGeometry(MeshGeometry):
         Args:
             f: binary io stream to read from
         """
-        if sys.version_info >= (3, 0):
-            if isinstance(f, BytesIO):
-                arr = np.frombuffer(f.read(), dtype=np.uint8)
-            elif isinstance(f, StringIO):
-                arr = np.frombuffer(bytes(f.read(), "utf-8"), dtype=np.uint8)
-            else:
-                raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(f)}")
-        else:
+        if isinstance(f, BytesIO):
             arr = np.frombuffer(f.read(), dtype=np.uint8)
+        elif isinstance(f, StringIO):
+            arr = np.frombuffer(bytes(f.read(), "utf-8"), dtype=np.uint8)
+        else:
+            raise ValueError(f"Stream must be instance of StringIO or BytesIO, not {type(f)}")
         _, extcode = threejs_type(np.uint8)
         encoded = umsgpack.Ext(extcode, arr.tobytes())
         return MeshGeometry(encoded, "stl")

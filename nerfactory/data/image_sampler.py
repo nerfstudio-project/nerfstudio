@@ -21,13 +21,23 @@ from abc import abstractmethod
 from typing import Union
 
 import torch
-from torch.utils.data import default_collate
+from torch.utils.data import IterableDataset, default_collate
 
+from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.utils.misc import get_dict_to_torch
 
 
-class ImageSampler(torch.utils.data.IterableDataset):
-    """Samples image_batch's."""
+class ImageSampler(IterableDataset):
+    """Samples image_batch's.
+
+    Attributes:
+        dataset (torch.utils.data.Dataset): Dataset to sample from.
+    """
+
+    # dataset: ImageDataset
+    def __init__(self, dataset: ImageDataset):
+        super().__init__()
+        self.dataset = dataset
 
     @abstractmethod
     def __getitem__(self, idx):
@@ -51,14 +61,14 @@ class CacheImageSampler(ImageSampler):
 
     def __init__(
         self,
-        dataset: torch.utils.data.Dataset,
+        dataset: ImageDataset,
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = 0,
         device: Union[torch.device, str] = "cpu",
     ):
-        super().__init__()
+        super().__init__(dataset=dataset)
         self.dataset = dataset
-        self.cache_all_images = num_images_to_sample_from is -1
+        self.cache_all_images = num_images_to_sample_from == -1
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.num_times_to_repeat_images = num_times_to_repeat_images
         self.device = device
@@ -76,6 +86,7 @@ class CacheImageSampler(ImageSampler):
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+
         batch_list = [self.dataset.__getitem__(idx) for idx in indices]
         return batch_list
 

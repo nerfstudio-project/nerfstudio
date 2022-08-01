@@ -11,8 +11,8 @@
   "[python]": {
     "editor.defaultFormatter": "ms-python.python",
     "editor.codeActionsOnSave": {
-        "source.organizeImports": true
-    },
+      "source.organizeImports": true
+    }
   },
   "editor.formatOnSave": true,
   "python.envFile": "${workspaceFolder}/.env",
@@ -94,5 +94,6 @@
     "ios": "cpp",
     "__atomic": "cpp",
     "__node_handle": "cpp"
-  }
+  },
+  "python.analysis.typeCheckingMode": "basic"
 }

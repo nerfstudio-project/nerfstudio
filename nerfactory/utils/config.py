@@ -122,7 +122,7 @@ class Config:
     data: DataConfig = MISSING
     graph: GraphConfig = MISSING
     optimizers: Dict[str, Any] = MISSING
-    viewer: Dict[str, Any] = MISSING
+    viewer: ViewerConfig = MISSING
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 

@@ -16,7 +16,6 @@
 Functions for traversing server bridge tree nodes (storage)
 """
 
-from __future__ import absolute_import, division, print_function
 
 from collections import defaultdict
 from typing import List
@@ -28,7 +27,7 @@ class TreeNode(defaultdict):
     __slots__ = ["object", "transform", "properties", "animation"]
 
     def __init__(self, *args, **kwargs):
-        super(TreeNode, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.object = None
         self.properties = []
         self.transform = None
@@ -46,8 +45,7 @@ def walk(tree: TreeNode) -> None:
     """
     yield tree
     for v in tree.values():
-        for t in walk(v):  # could use `yield from` if we didn't need python2
-            yield t
+        yield from walk(v)
 
 
 def find_node(tree: TreeNode, path: List[str]) -> TreeNode:

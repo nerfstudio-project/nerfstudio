@@ -18,13 +18,14 @@ Code for camera paths.
 
 import copy
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 
 import nerfactory.cameras.utils as camera_utils
 from nerfactory.cameras.cameras import (
     Camera,
+    PinholeCamera,
     get_camera,
     get_intrinsics_from_intrinsics_matrix,
 )
@@ -38,7 +39,7 @@ class CameraPath:
     cameras: List[Camera]
 
 
-def get_interpolated_camera_path(camera_a: Camera, camera_b: Camera, steps: int) -> CameraPath:
+def get_interpolated_camera_path(camera_a: PinholeCamera, camera_b: PinholeCamera, steps: int) -> CameraPath:
     """Generate a camera path between two cameras.
 
     Args:
@@ -72,10 +73,10 @@ def get_interpolated_camera_path(camera_a: Camera, camera_b: Camera, steps: int)
 
 
 def get_spiral_path(
-    camera: Camera,
+    camera: PinholeCamera,
     steps: int = 30,
-    radius: float = None,
-    radiuses: Tuple[float] = None,
+    radius: Optional[float] = None,
+    radiuses: Optional[Tuple[float]] = None,
     rots: int = 2,
     zrate: float = 0.5,
 ) -> CameraPath:
