@@ -20,17 +20,12 @@ import random
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional
-import torchvision.transforms as T
+from typing import Any, Dict
 
 import numpy as np
 import torch
 
-from nerfactory.cameras.cameras import (
-    Camera,
-    get_camera,
-    get_intrinsics_from_intrinsics_matrix,
-)
+from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.structs import DatasetInputs
@@ -38,7 +33,6 @@ from nerfactory.graphs.base import Graph
 from nerfactory.utils import profiler
 from nerfactory.utils.config import ViewerConfig
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
-from nerfactory.viewer.server.transformations import get_translation_matrix
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
 
@@ -115,8 +109,10 @@ class CheckThread(threading.Thread):
         self.state = state
 
     def run(self):
-        """Run function that checks to see if any of the existing state has changed (e.g. camera pose/output type/resolutions).
-        Sets the visualizer state flag to true to signal to render thread that an interrupt was registered.
+        """Run function that checks to see if any of the existing state has changed
+        (e.g. camera pose/output type/resolutions).
+        Sets the visualizer state flag to true to signal
+        to render thread that an interrupt was registered.
         """
         self.state.check_done_render = False
         while not self.state.check_done_render:
@@ -226,21 +222,21 @@ class VisualizerState:
             graph: the current checkpoint of the model
         """
 
-        isTraining = self.vis["renderingState/isTraining"].read()
+        is_training = self.vis["renderingState/isTraining"].read()
 
-        if isTraining is None or isTraining:
+        if is_training is None or is_training:
             # in training mode, render every few steps
             if self._is_render_step(step):
                 self._render_image_in_viewer(graph)
         else:
             # in pause training mode, enter render loop with set graph
             local_step = step
-            run_loop = not isTraining
+            run_loop = not is_training
             while run_loop:
                 if self._is_render_step(local_step):
                     self._render_image_in_viewer(graph)
-                isTraining = self.vis["renderingState/isTraining"].read()
-                run_loop = not isTraining
+                is_training = self.vis["renderingState/isTraining"].read()
+                run_loop = not is_training
                 local_step += 1
 
     def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument

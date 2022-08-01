@@ -20,13 +20,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
-from nerfactory.cameras.cameras import (
-    Camera,
-    get_camera,
-    get_intrinsics_from_intrinsics_matrix,
-)
-from nerfactory.viewer.server.visualizer import Viewer
-
 
 def get_chunks(
     lst: List[float], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None

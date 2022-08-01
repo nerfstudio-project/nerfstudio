@@ -16,7 +16,7 @@
 
 
 import sys
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 import msgpack
 import msgpack_numpy
@@ -32,7 +32,7 @@ from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
 from nerfactory.viewer.server.state.node import find_node, get_tree, walk
-from nerfactory.viewer.server.state.state_node import Node, StateNode
+from nerfactory.viewer.server.state.state_node import StateNode
 from nerfactory.viewer.server.video_stream import SingleFrameStreamTrack
 
 MAX_ATTEMPTS = 1000
@@ -224,17 +224,14 @@ class ZMQWebSocketBridge:
             find_node(self.state_tree, path).data = unpacked_data["data"]
             self.forward_to_websockets(frames)
             self.zmq_socket.send(umsgpack.packb(b"ok"))
-            return
         elif cmd == "read":
             # walk the node from the specified to get the full state dictionary
             # TODO(ethan): handle the "data" key...
             read_data = find_node(self.state_tree, path).data
             self.zmq_socket.send(umsgpack.packb(read_data))
-            return
         elif cmd == "delete":
             self.forward_to_websockets(frames)
             self.zmq_socket.send(umsgpack.packb(b"ok"))
-            return
         elif cmd == "set_image":
             image = msgpack.unpackb(
                 data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
@@ -242,11 +239,8 @@ class ZMQWebSocketBridge:
             for video_track in self.video_tracks:
                 video_track.put_frame(image)
             self.zmq_socket.send(umsgpack.packb(b"ok"))
-            return
         else:
             self.zmq_socket.send(umsgpack.packb(b"error: unknown command"))
-            return
-        assert False, "should not reach this point"
 
     def forward_to_websockets(self, frames: List[bytes]):
         """Forward a zmq message to all websockets.
@@ -276,12 +270,10 @@ class ZMQWebSocketBridge:
         Args:
             websocket: websocket to send information over
         """
-        print("sending scene. TODO: write this...")
-
+        print("Sending entire scene state on refresh.")
         for path, node in walk("", self.state_tree):
             if node.data is not None:
                 command = {"type": "write", "path": path, "data": node.data}
-                print(command)
                 websocket.write_message(umsgpack.packb(command), binary=True)
 
     def run(self):

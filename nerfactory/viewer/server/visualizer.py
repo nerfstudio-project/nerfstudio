@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Code to connect and send commands to the viewer.
+"""
+
 import logging
 import signal
 import sys
@@ -19,13 +22,15 @@ from typing import Dict, Optional
 
 import msgpack
 import msgpack_numpy
-import numpy as np
 import umsgpack
 import zmq
 
 from nerfactory.viewer.server.path import Path
 
+
 class ViewerWindow:
+    """The viewer window has the ZMQ connection to the viewer bridge server."""
+
     context = zmq.Context()
 
     def __init__(self, zmq_url):
@@ -35,6 +40,7 @@ class ViewerWindow:
         self.assert_connected()
 
     def send(self, command):
+        """Sends a command to the viewer bridge server."""
         self.client.send_multipart(
             [
                 command["type"].encode("utf-8"),
@@ -75,7 +81,7 @@ class ViewerWindow:
             _ = self.send_ping()
             logging.info("Successfully connected.")
             signal.alarm(0)  # cancel the alarm
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-except
             logging.info(e)
             sys.exit()
 
@@ -127,6 +133,7 @@ class Viewer:
         return self.window.send({"type": "write", "path": path, "data": None})
 
     def set_image(self, image):
+        """Sends an image to the viewer with WebRTC."""
         type_ = "set_image"
         path = self.path.lower()
         data = msgpack.packb(image, default=msgpack_numpy.encode, use_bin_type=True)

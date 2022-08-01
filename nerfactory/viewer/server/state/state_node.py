@@ -19,6 +19,7 @@ from nerfactory.viewer.server.state.node import Node
 
 class StateNode(Node):
     """Node that holds a hierarchy of state nodes"""
+
     __slots__ = ["data"]
 
     def __init__(self, *args, **kwargs):

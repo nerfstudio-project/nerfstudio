@@ -17,7 +17,7 @@ Camera Models
 """
 import base64
 from abc import abstractmethod
-from typing import Dict, Optional, Type, Tuple
+from typing import Dict, Optional, Tuple, Type
 
 import cv2
 import numpy as np
@@ -26,6 +26,7 @@ from torch.nn.functional import normalize
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.utils.misc import is_not_none
 
 
 class Camera:
@@ -162,7 +163,11 @@ class Camera:
         return ray_bundle
 
     @abstractmethod
-    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+    def to_json(
+        self,
+        image: Optional[TensorType["image_height", "image_width", 2]] = None,
+        resize_shape: Optional[Tuple[int, int]] = None,
+    ) -> Dict:
         """Converts the camera to a json dictionary.
 
         Args:
@@ -296,7 +301,11 @@ class PinholeCamera(Camera):
 
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
-    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None, resize_shape: Optional[Tuple[int, int]] = None) -> Dict:
+    def to_json(
+        self,
+        image: Optional[TensorType["image_height", "image_width", 2]] = None,
+        resize_shape: Optional[Tuple[int, int]] = None,
+    ) -> Dict:
         json_ = {
             "type": "PinholeCamera",
             "cx": self.cx,
@@ -347,6 +356,10 @@ class SimplePinholeCamera(PinholeCamera):
     @classmethod
     def fy_index(cls):
         return 2
+
+    @staticmethod
+    def from_json(json_: Dict) -> "SimplePinholeCamera":  # pylint:disable=no-self-use
+        raise NotImplementedError
 
 
 class EquirectangularCamera(Camera):
@@ -436,7 +449,11 @@ class EquirectangularCamera(Camera):
         pixel_area = dx * dy
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
-    def to_json(self, image: Optional[TensorType["image_height", "image_width", 2]] = None) -> Dict:
+    def to_json(
+        self,
+        image: Optional[TensorType["image_height", "image_width", 2]] = None,
+        resize_shape: Optional[Tuple[int, int]] = None,
+    ) -> Dict:
         raise NotImplementedError
 
     @staticmethod
