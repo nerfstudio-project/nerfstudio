@@ -196,7 +196,7 @@ class VisualizerState:
 
         # draw the training cameras and images
         image_indices = range(len(image_dataset))
-        image_indices = random.sample(image_indices, k=10)
+        # image_indices = random.sample(image_indices, k=10)
         for idx in image_indices:
             image = image_dataset[idx]["image"]
             camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)

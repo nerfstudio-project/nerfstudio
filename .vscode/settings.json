@@ -39,7 +39,9 @@
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,
   "python.sortImports.args": [
-    "--src=${workspaceFolder}"
+    "--src=${workspaceFolder}",
+    "--profile",
+    "black"
   ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,

@@ -17,6 +17,7 @@ const initialState = {
     output_choice: 'rgb', // the selected output
     minResolution: 100,
     maxResolution: 500,
+    field_of_view: 60
   },
   // the scene state
   sceneState: {

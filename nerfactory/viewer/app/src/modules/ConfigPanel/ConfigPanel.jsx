@@ -1,6 +1,6 @@
-import { button, buttonGroup, useControls } from 'leva';
 import React, { useContext } from 'react';
 import { ReactReduxContext, useSelector } from 'react-redux';
+import { button, buttonGroup, useControls } from 'leva';
 
 export function RenderControls() {
   // connection status indicators
@@ -21,6 +21,10 @@ export function RenderControls() {
   );
   const outputChoice = useSelector(
     (state) => state.renderingState.output_choice,
+  );
+
+  const field_of_view = useSelector(
+    (state) => state.renderingState.field_of_view,
   );
 
   const toggleIsTraining = () => {
@@ -82,6 +86,7 @@ export function RenderControls() {
         '512px': () => setControls({ max_resolution: 512 }),
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
+      "Camera FoV": field_of_view,
     }),
     [
       isWebsocketConnected,
@@ -89,6 +94,7 @@ export function RenderControls() {
       isTraining,
       outputOptions,
       outputChoice,
+      field_of_view
     ],
   );
 
