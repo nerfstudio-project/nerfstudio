@@ -71,7 +71,7 @@ def test_drawing():
     v["random"].set_transform(get_translation_matrix([-0.5, -0.5, 0]))
 
     v = vis["lines"]
-    v.set_transform(get_translation_matrix(([-2, -3, 0])))
+    v.set_transform(get_translation_matrix([-2, -3, 0]))
 
     vertices = np.random.random((3, 10)).astype(np.float32)
     v["line_segments"].set_object(g.LineSegments(g.PointsGeometry(vertices)))
@@ -104,7 +104,7 @@ def test_drawing():
             g.LineBasicMaterial(vertexColors=True),
         )
     )
-    v["triad"].set_transform(get_translation_matrix(([0, 5, 0])))
+    v["triad"].set_transform(get_translation_matrix([0, 5, 0]))
 
     v["triad_function"].set_object(g.triad(0.5))
     v["triad_function"].set_transform(get_translation_matrix([0, 6, 0]))

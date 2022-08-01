@@ -52,7 +52,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     if config.load_step is None:
         print("Loading latest checkpoint from load_dir")
         # NOTE: this is specific to the checkpoint name format
-        load_step = sorted([int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir)])[-1]
+        load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
         load_step = config.load_step
     load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")

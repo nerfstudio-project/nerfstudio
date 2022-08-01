@@ -29,7 +29,7 @@ def load_from_json(filename: str):
         filename: The filename to load from.
     """
     assert filename.endswith(".json")
-    with open(filename, "r", encoding="UTF-8") as file:
+    with open(filename, encoding="UTF-8") as file:
         return json.load(file)
 
 
@@ -102,10 +102,8 @@ def get_project_root(path: str) -> str:
     project_root = os.getenv("PROJECT_ROOT")
     if project_root is None:
         logging.info(
-            (
-                "Please set PROJECT_ROOT to the root directory of this repo. "
-                "Going to try calling get_git_root(path) instead."
-            )
+            "Please set PROJECT_ROOT to the root directory of this repo. "
+            "Going to try calling get_git_root(path) instead."
         )
         project_root = get_git_root(path)
     return project_root
