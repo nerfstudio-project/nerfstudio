@@ -322,6 +322,7 @@ class LocalWriter(Writer):
         self.max_log_size = max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
+        self.has_printed = False
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         if name in self.stats_to_track:
@@ -357,9 +358,10 @@ class LocalWriter(Writer):
                     mssg += f"{name:<20} "
             self.past_mssgs[0] = mssg
             self.past_mssgs[1] = "-" * len(mssg)
-            if full_log_cond:
+            if full_log_cond or not self.has_printed:
                 print(mssg)
                 print("-" * len(mssg))
+                self.has_printed = True
 
     def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format"""
