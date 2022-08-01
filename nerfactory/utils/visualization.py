@@ -35,7 +35,7 @@ def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType
     """
 
     colormap = cm.get_cmap(cmap)
-    colormap = torch.tensor(colormap.colors).to(image.device)
+    colormap = torch.tensor(colormap.colors).to(image.device)  # type: ignore
     image_long = (image * 255).long()
     image_long_min = torch.min(image_long)
     image_long_max = torch.max(image_long)
@@ -64,8 +64,8 @@ def apply_depth_colormap(
         Colored depth image
     """
 
-    near_plane = near_plane or torch.min(depth)
-    far_plane = far_plane or torch.max(depth)
+    near_plane = near_plane or float(torch.min(depth))
+    far_plane = far_plane or float(torch.max(depth))
 
     depth = (depth - near_plane) / (far_plane - near_plane + 1e-10)
     depth = torch.clip(depth, 0, 1)

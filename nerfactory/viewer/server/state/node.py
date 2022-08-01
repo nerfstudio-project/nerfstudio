@@ -16,6 +16,10 @@
 For tree logic code.
 """
 
+<<<<<<< HEAD:nerfactory/viewer/server/state/node.py
+=======
+
+>>>>>>> master:nerfactory/viewer/server/tree.py
 from collections import defaultdict
 from typing import Callable
 
@@ -27,10 +31,21 @@ class Node(defaultdict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+<<<<<<< HEAD:nerfactory/viewer/server/state/node.py
+=======
+        self.object = None
+        self.properties = []
+        self.transform = None
+        self.animation = None
+
+
+SceneTree = lambda: TreeNode(SceneTree)
+>>>>>>> master:nerfactory/viewer/server/tree.py
 
 
 def get_tree(node_class: Callable) -> Callable:
     """
+<<<<<<< HEAD:nerfactory/viewer/server/state/node.py
     Get a tree from a node class.
     This allows one to do tree["path"]["to"]["node"]
     and it will return a new node if it doesn't exist
@@ -39,6 +54,12 @@ def get_tree(node_class: Callable) -> Callable:
     assert isinstance(node_class(), Node)
     tree = lambda: node_class(tree)
     return tree()
+=======
+    yield tree
+    for v in tree.values():
+        yield from walk(v)
+
+>>>>>>> master:nerfactory/viewer/server/tree.py
 
 
 def find_node(tree, path):

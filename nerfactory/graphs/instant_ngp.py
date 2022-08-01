@@ -55,13 +55,15 @@ class NGPGraph(Graph):
             Callback(
                 update_every_num_iters=self.density_field.update_every_num_iters,
                 func=self.density_field.update_density_grid,
-                density_eval_func=self.field.density_fn,
+                density_eval_func=self.field.density_fn,  # type: ignore
             )
         ]
 
     def populate_fields(self):
         """Set the fields."""
         # torch or tiny-cuda-nn version
+        if self.scene_bounds is None:
+            raise ValueError("scene_bounds must be set to use an NGPGraph")
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
@@ -78,6 +80,8 @@ class NGPGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
@@ -89,6 +93,8 @@ class NGPGraph(Graph):
         num_rays = len(ray_bundle)
         device = ray_bundle.origins.device
 
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_outputs")
         ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
@@ -170,7 +176,7 @@ class NGPGraph(Graph):
         lpips = self.lpips(image, rgb)
 
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(psnr), step=step)
-        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(ssim), step=step)
+        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(ssim), step=step)  # type: ignore
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(lpips), step=step)
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)

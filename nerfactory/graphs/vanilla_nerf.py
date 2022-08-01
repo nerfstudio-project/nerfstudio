@@ -17,7 +17,7 @@ Implementation of vanilla nerf.
 """
 
 
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 from omegaconf import DictConfig
@@ -58,14 +58,14 @@ class NeRFGraph(Graph):
 
     def __init__(
         self,
-        intrinsics: torch.Tensor = None,
-        camera_to_world: torch.Tensor = None,
+        intrinsics: torch.Tensor,
+        camera_to_world: torch.Tensor,
         near_plane: float = 2.0,
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
         num_importance_samples: int = 128,
         enable_density_field: bool = False,
-        density_field_config: DictConfig = None,
+        density_field_config: Optional[DictConfig] = None,
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
@@ -83,6 +83,9 @@ class NeRFGraph(Graph):
         )
 
     def get_training_callbacks(self) -> List[Callback]:
+        if self.field_coarse is None:
+            raise ValueError("populate fields must be called before get_training_callbacks.")
+
         callbacks = []
         if self.density_field is not None:
             callbacks = [
@@ -127,10 +130,16 @@ class NeRFGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
+        if self.field_coarse is None or self.field_fine is None:
+            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+
+        if self.field_coarse is None or self.field_fine is None:
+            raise ValueError("populate_fields() must be called before get_outputs")
+
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
@@ -167,7 +176,7 @@ class NeRFGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
@@ -218,7 +227,7 @@ class NeRFGraph(Graph):
 
         writer.put_scalar(name=f"psnr/val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step)
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
-        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)
+        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)  # type: ignore
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)

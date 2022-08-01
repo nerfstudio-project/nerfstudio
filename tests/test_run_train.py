@@ -1,3 +1,4 @@
+# pylint: disable=protected-access
 """
 Default test to make sure train runs
 """
@@ -19,20 +20,22 @@ def set_reduced_config(config: DictConfig):
     config.trainer.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
     # switch to using the vanilla ImageDataset class
-    config.data.image_dataset_train._target_ = (  # pylint: disable=protected-access
-        "nerfactory.data.image_dataset.ImageDataset"
-    )
-    config.data.dataset_inputs_train.data_directory = "tests/data/lego_test"
-    config.data.dataset_inputs_train.dataset_format = "blender"
-    config.data.dataset_inputs_train.downscale_factor = 16
+    config.data.image_dataset_train._target_ = "nerfactory.data.image_dataset.ImageDataset"
+
+    config.data.dataset_inputs_train = {
+        "_target_": "nerfactory.data.datasets.Blender",
+        "data_directory": "tests/data/lego_test",
+        "downscale_factor": 16,
+    }
     config.data.dataloader_train.image_sampler.num_images_to_sample_from = 1
     config.data.dataloader_train.pixel_sampler.num_rays_per_batch = 4
-    config.data.image_dataset_eval._target_ = (  # pylint: disable=protected-access
-        "nerfactory.data.image_dataset.ImageDataset"
-    )
-    config.data.dataset_inputs_eval.data_directory = "tests/data/lego_test"
-    config.data.dataset_inputs_eval.dataset_format = "blender"
-    config.data.dataset_inputs_eval.downscale_factor = 16
+    config.data.image_dataset_eval._target_ = "nerfactory.data.image_dataset.ImageDataset"
+    config.data.dataset_inputs_eval = {
+        "_target_": "nerfactory.data.datasets.Blender",
+        "data_directory": "tests/data/lego_test",
+        "downscale_factor": 16,
+    }
+
     # reduce graph factors
     config.graph.num_coarse_samples = 4
     config.graph.num_importance_samples = 4

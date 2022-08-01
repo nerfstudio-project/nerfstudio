@@ -1,4 +1,10 @@
-<h1 align="center"> nerfactory🤘 </h1>
+<p align="center">
+    <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
+    <img alt="nerfactory" src="docs/_static/imgs/logo.png" width="400">
+    </picture>
+</p>
 
 <p align="center"> The all-in-one repo for NeRFs </p>
 

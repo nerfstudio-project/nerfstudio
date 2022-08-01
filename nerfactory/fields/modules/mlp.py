@@ -42,7 +42,7 @@ class MLP(FieldModule):
         num_layers: int,
         layer_width: int,
         out_dim: Optional[int] = None,
-        skip_connections: Tuple[int] = (),
+        skip_connections: Optional[Tuple[int]] = None,
         activation: Optional[nn.Module] = nn.ReLU(),
         out_activation: Optional[nn.Module] = None,
     ) -> None:
@@ -67,9 +67,10 @@ class MLP(FieldModule):
         else:
             for i in range(self.num_layers - 1):
                 if i == 0:
-                    assert i not in list(self.skip_connections), "Skip connection at layer 0 doesn't make sense."
+                    if self.skip_connections is not None:
+                        assert i not in list(self.skip_connections), "Skip connection at layer 0 doesn't make sense."
                     layers.append(nn.Linear(self.in_dim, self.layer_width))
-                elif i in self.skip_connections:
+                elif self.skip_connections is not None and i in self.skip_connections:
                     layers.append(nn.Linear(self.layer_width + self.in_dim, self.layer_width))
                 else:
                     layers.append(nn.Linear(self.layer_width, self.layer_width))
@@ -87,7 +88,7 @@ class MLP(FieldModule):
         """
         x = in_tensor
         for i, layer in enumerate(self.layers):
-            if i in self.skip_connections:
+            if self.skip_connections is not None and i in self.skip_connections:
                 x = torch.cat([in_tensor, x], -1)
             x = layer(x)
             if self.activation:

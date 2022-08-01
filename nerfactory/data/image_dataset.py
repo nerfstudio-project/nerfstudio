@@ -21,16 +21,16 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-import PIL
 import torch
 from PIL import Image
+from torch.utils.data import Dataset
 from torchtyping import TensorType
 
 from nerfactory.data.structs import Semantics
 from nerfactory.utils.misc import is_not_none
 
 
-class ImageDataset(torch.utils.data.Dataset):
+class ImageDataset(Dataset):
     """Dataset that returns images."""
 
     def __init__(
@@ -79,7 +79,7 @@ class ImageDataset(torch.utils.data.Dataset):
                     f"Image height {image_height} is not divisible by downscale_factor {self.downscale_factor}"
                 )
             pil_image = pil_image.resize(
-                (image_width // self.downscale_factor, image_height // self.downscale_factor), PIL.Image.BILINEAR
+                (image_width // self.downscale_factor, image_height // self.downscale_factor), Image.BILINEAR
             )
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
@@ -115,10 +115,10 @@ class ImageDataset(torch.utils.data.Dataset):
         data = {"image_idx": image_idx}
         assert is_not_none(image)
         data["image"] = image
-        if is_not_none(mask):
+        if mask is not None:
             assert mask.shape[:2] == image.shape[:2]
             data["mask"] = mask
-        if is_not_none(semantics):
+        if semantics is not None:
             assert semantics.shape[:2] == image.shape[:2]
             data["semantics"] = semantics
         return data

@@ -44,3 +44,19 @@ addopts = "--typeguard-packages=nerfactory --torchtyping-patch-typeguard --disab
 testpaths = [
     "tests",
 ]
+
+# pyright
+[tool.pyright]
+include = ["nerfactory"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+]
+ignore = ["nerfactory/viewer", "nerfactory/cuda"]
+defineConstant = { DEBUG = true }
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportPrivateImportUsage = false
+
+pythonVersion = "3.8"
+pythonPlatform = "Linux"
