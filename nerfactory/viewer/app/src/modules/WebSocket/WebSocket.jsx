@@ -60,7 +60,6 @@ export default function WebSocketContextFunction({ children }) {
         path: 'websocketState/isConnected',
         data: true,
       });
-      console.log('websocket connected');
     };
 
     socket.onclose = (e) => {

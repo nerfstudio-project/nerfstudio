@@ -4,8 +4,6 @@ import style from './Alert.css';
 
 export default function Alert({ children, type, message }) {
 
-  console.log("inside alert");
-
   const [isShow, setIsShow] = useState(true);
 
   const renderElAlert = function () {

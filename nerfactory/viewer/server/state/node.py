@@ -40,8 +40,19 @@ def get_tree(node_class: Callable) -> Callable:
     tree = lambda: node_class(tree)
     return tree()
 
+
 def find_node(tree, path):
     if len(path) == 0:
         return tree
     else:
         return find_node(tree[path[0]], path[1:])
+
+
+def walk(path, tree):
+    """Walk the entire tree and return the values
+    Args:
+        tree: the root of the tree to start search
+    """
+    yield path, tree
+    for k, v in tree.items():
+        yield from walk(path + "/" + k, v)

@@ -12,7 +12,6 @@ import SetupScene from './modules/Scene/Scene';
 import ViewerWindow from './modules/ViewerWindow/ViewerWindow';
 
 export default function App() {
-  console.log('app');
   const scene = SetupScene();
 
   return (

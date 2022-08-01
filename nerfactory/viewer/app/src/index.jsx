@@ -8,7 +8,6 @@ import WebSocketProvider from './modules/WebSocket/WebSocket';
 import store from './store';
 import Alert from './modules/Alert/Alert';
 
-// console.log(store.getState());
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Provider store={store}>

@@ -32,7 +32,7 @@ from aiortc import RTCPeerConnection, RTCSessionDescription
 from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
-from nerfactory.viewer.server.state.node import find_node, get_tree
+from nerfactory.viewer.server.state.node import find_node, get_tree, walk
 from nerfactory.viewer.server.state.state_node import Node, StateNode
 from nerfactory.viewer.server.video_stream import SingleFrameStreamTrack
 
@@ -278,8 +278,10 @@ class ZMQWebSocketBridge:
             websocket: websocket to send information over
         """
         print("sending scene. TODO: write this...")
+
         # def send_state_dict(path: str, node: Node):
         #     for k, v in node.items():
+        #         print(k, v)
         #         newpath = path + "/" + k
         #         if v.data is None:
         #             send_state_dict(newpath, v)
@@ -287,9 +289,12 @@ class ZMQWebSocketBridge:
         #             command = {"type": "write", "path": newpath, "data": v.data}
         #             print(command)
         #             websocket.write_message(umsgpack.packb(command), binary=True)
-        
-        # node = find_node(self.state_tree, "/")
-        # send_state_dict("", node)
+
+        for path, node in walk("", self.state_tree):
+            if node.data is not None:
+                command = {"type": "write", "path": path, "data": node.data}
+                print(command)
+                websocket.write_message(umsgpack.packb(command), binary=True)
 
     def run(self):
         """starts and runs the websocket bridge"""

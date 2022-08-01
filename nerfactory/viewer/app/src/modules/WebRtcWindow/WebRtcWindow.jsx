@@ -121,7 +121,6 @@ export default function WebRtcWindow() {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.type === 'answer') {
-        console.log('received an answer');
         const answer = cmd.data;
         pcRef.current.setRemoteDescription(answer);
       }
