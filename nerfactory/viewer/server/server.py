@@ -279,17 +279,6 @@ class ZMQWebSocketBridge:
         """
         print("sending scene. TODO: write this...")
 
-        # def send_state_dict(path: str, node: Node):
-        #     for k, v in node.items():
-        #         print(k, v)
-        #         newpath = path + "/" + k
-        #         if v.data is None:
-        #             send_state_dict(newpath, v)
-        #         else:
-        #             command = {"type": "write", "path": newpath, "data": v.data}
-        #             print(command)
-        #             websocket.write_message(umsgpack.packb(command), binary=True)
-
         for path, node in walk("", self.state_tree):
             if node.data is not None:
                 command = {"type": "write", "path": path, "data": node.data}

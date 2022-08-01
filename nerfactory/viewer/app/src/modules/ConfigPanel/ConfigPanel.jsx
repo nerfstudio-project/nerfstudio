@@ -1,6 +1,6 @@
 import { Leva, button, buttonGroup, useControls } from 'leva';
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useContext, useEffect, useState } from 'react';
+import { ReactReduxContext, seDispatch, useSelector } from 'react-redux';
 
 export function ConfigPanel() {
   const params = { titleBar: false };
@@ -23,9 +23,11 @@ export function RenderControls() {
 
   const renderingState = useSelector((state) => state.renderingState);
   const [isTraining, setIsTraining] = React.useState(renderingState.isTraining);
-  const [outputOptions, setOutputOptions] = React.useState(
-    renderingState.output_options,
-  );
+  // const [outputOptions, setOutputOptions] = React.useState(
+  //   renderingState.output_options,
+  // );
+  const outputOptions = useSelector((state) => state.renderingState.output_options);
+  const outputChoice = useSelector((state) => state.renderingState.output_choice);
 
   const toggleIsTraining = () => {
     setIsTraining((current) => !current);
@@ -55,6 +57,7 @@ export function RenderControls() {
       output_options: {
         label: 'Output Render',
         options: outputOptions,
+        value: outputChoice,
       },
       // resolution
       min_resolution: {
@@ -86,8 +89,25 @@ export function RenderControls() {
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
     }),
-    [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions],
+    [isWebsocketConnected, isWebrtcConnected, isTraining, outputOptions, outputChoice],
   );
+
+  // some listeners to update the state
+  const { store } = useContext(ReactReduxContext);
+  const selectOutputChoice = (state) => {
+    return state.renderingState.output_choice;
+  };
+  let outputChoiceCurrent;
+  const handleOutputOptions = () => {
+    const outputChoicePrevious = outputChoiceCurrent;
+    outputChoiceCurrent = selectOutputChoice(store.getState());
+    if (outputChoicePrevious !== outputChoiceCurrent) {
+      if (outputChoiceCurrent !== null) {
+        console.log(outputChoiceCurrent);
+      }
+    }
+  };
+  store.subscribe(handleOutputOptions);
 
   return controls;
 }

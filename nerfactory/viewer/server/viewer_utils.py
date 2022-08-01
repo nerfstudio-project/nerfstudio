@@ -16,6 +16,7 @@
 """
 
 import logging
+import random
 import sys
 import threading
 import time
@@ -169,7 +170,6 @@ class VisualizerState:
         if self.config.enable:
             zmq_url = self.config.zmq_url
             self.vis = Viewer(zmq_url=zmq_url)
-            self.vis.delete()
         else:
             logging.info("Continuing without viewer.")
 
@@ -194,16 +194,25 @@ class VisualizerState:
             dataset_inputs: inputs to the image dataset and ray generator
         """
 
+        # clear the current scene
+        self.vis["sceneState/sceneBounds"].delete()
+        self.vis["sceneState/cameras"].delete()
+
         # draw the training cameras and images
-        for idx in range(len(image_dataset)):
+        image_indices = range(len(image_dataset))
+        image_indices = random.sample(image_indices, k=10)
+        for idx in image_indices:
             image = image_dataset[idx]["image"]
             camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
             bgr = image[..., [2, 1, 0]]
-            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera.to_json(image=bgr, resize_shape=(200, 200)))
+            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera.to_json(image=bgr, resize_shape=(100, 100)))
 
-        # draw the scene bounds (bounding box)
+        # draw the scene bounds (i.e., the bounding box)
         json_ = dataset_inputs.scene_bounds.to_json()
         self.vis["sceneState/sceneBounds"].write(json_)
+
+        # set the properties of the camera
+        # self.vis["renderingState/camera"].write(json_)
 
         # set the main camera intrinsics to one from the dataset
         # K = camera.get_intrinsics_matrix()

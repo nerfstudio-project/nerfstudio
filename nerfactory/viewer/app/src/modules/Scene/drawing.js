@@ -128,15 +128,17 @@ export function drawCamera(camera): THREE.Object3D {
 
   let height = 0.25;
   let f = camera.fx;
-  let dfl = height / (2.0 * (camera.cy / f));
-  let width = 2.0 * (camera.cx / f) * dfl;
-  const cameraWireframeObject = getCameraWireframe(1.0, dfl, width, height);
+  let displayed_focal_length = height / (2.0 * (camera.cy / f));
+  let width = 2.0 * (camera.cx / f) * displayed_focal_length;
+  const cameraWireframeObject = getCameraWireframe(1.0, displayed_focal_length, width, height);
+  cameraWireframeObject.translateZ(displayed_focal_length);
   group.add(cameraWireframeObject);
   const cameraImagePlaneObject = drawCameraImagePlane(
-    width,
-    height,
+    width*2,
+    height*2,
     camera.image,
   );
+  // cameraImagePlaneObject.translateZ(-displayed_focal_length);
   group.add(cameraImagePlaneObject);
 
   // make homogeneous coordinates and then

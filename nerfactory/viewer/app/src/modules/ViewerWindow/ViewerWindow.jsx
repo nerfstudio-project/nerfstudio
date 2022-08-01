@@ -3,10 +3,12 @@ import './ViewerWindow.css';
 import * as THREE from 'three';
 
 import React, { useContext, useEffect, useRef } from 'react';
+import { ReactReduxContext, useDispatch, useSelector } from 'react-redux';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+
 const msgpack = require('msgpack-lite');
 
 // manages a camera and the web rtc stream...
@@ -54,18 +56,6 @@ export default function ViewerWindow(props) {
     renderer.setSize(viewportWidth, viewportHeight);
   };
 
-  const update = () => {
-    handleResize();
-    camera.updateProjectionMatrix();
-    cameraControls.update();
-    requestAnimationFrame(update);
-    renderer.render(scene, camera);
-    sendCamera();
-  };
-
-  // TODO(ethan): add code to send over the camera information when it changes...
-  // and vice versa...?
-
   const sendCamera = () => {
     // update the camera information in the python server
     if (websocket.readyState === WebSocket.OPEN) {
@@ -79,6 +69,15 @@ export default function ViewerWindow(props) {
       const message = msgpack.encode(data);
       websocket.send(message);
     }
+  };
+
+  const update = () => {
+    handleResize();
+    camera.updateProjectionMatrix();
+    cameraControls.update();
+    requestAnimationFrame(update);
+    renderer.render(scene, camera);
+    sendCamera();
   };
 
   // similar to componentDidMount

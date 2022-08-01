@@ -5,7 +5,7 @@ import { ReactReduxContext, useDispatch, useSelector } from 'react-redux';
 import { drawCameras, drawSceneBounds } from './drawing';
 
 import { GUI } from 'dat.gui';
-import { SceneNode } from '../../SceneNode';
+import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
@@ -32,6 +32,9 @@ export default function SetupScene(props) {
   // add objects to the the scene tree
   const setObject = (path, object) => {
     sceneTree.find(path.concat(['<object>'])).set_object(object);
+  };
+  const deleteObject = (path) => {
+    sceneTree.delete(path);
   };
 
   // Axes
@@ -60,10 +63,15 @@ export default function SetupScene(props) {
     console.log('handle_change_box');
     let previousSceneStateBoxValue = currentSceneStateBoxValue;
     currentSceneStateBoxValue = select_box(store.getState());
-    if (previousSceneStateBoxValue !== currentSceneStateBoxValue && currentSceneStateBoxValue !== null) {
-      const sceneBounds = currentSceneStateBoxValue;
-      const line = drawSceneBounds(sceneBounds);
-      setObject(['Scene Bounds'], line);
+    if (previousSceneStateBoxValue !== currentSceneStateBoxValue) {
+      if (currentSceneStateBoxValue !== null) {
+        const sceneBounds = currentSceneStateBoxValue;
+        const line = drawSceneBounds(sceneBounds);
+        setObject(['Scene Bounds'], line);
+      } else {
+        console.log('deleting object');
+        deleteObject(['Scene Bounds']);
+      }
     }
   };
   store.subscribe(handle_change_box);
@@ -76,24 +84,16 @@ export default function SetupScene(props) {
   const handle_change_cameras = () => {
     let previousCamerasValue = currentCamerasValue;
     currentCamerasValue = select_cameras(store.getState());
-    if (
-      previousCamerasValue !== currentCamerasValue &&
-      currentCamerasValue !== null
-    ) {
-      const cameras = currentCamerasValue;
-      const cameraObjects = drawCameras(cameras);
-      for (const [key, camera] of Object.entries(cameraObjects)) {
-        // console.log(key);
-        // console.log(camera);
-        setObject(['Cameras', key], camera);
+    if (previousCamerasValue !== currentCamerasValue) {
+      if (currentCamerasValue !== null) {
+        const cameras = currentCamerasValue;
+        const cameraObjects = drawCameras(cameras);
+        for (const [key, camera] of Object.entries(cameraObjects)) {
+          setObject(['Cameras', key], camera);
+        }
+      } else {
+        deleteObject(['Cameras']);
       }
-
-      // for (int i = 0; i < currentCamerasValue.length; i += 1) {
-      // }
-      // setObject(['Cameras'], cameras);
-
-      // TODO(ethan): draw the cameras here!!
-      // setObject(['Cameras', "..."], ...);
     }
   };
   store.subscribe(handle_change_cameras);

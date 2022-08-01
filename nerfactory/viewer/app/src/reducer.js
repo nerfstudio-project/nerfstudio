@@ -13,15 +13,15 @@ const initialState = {
   renderingState: {
     camera: null, // the camera object used to render the three.js scene
     isTraining: false,
-    output_options: ['temp', 'temp3'], // populated by the possible Graph outputs
-    output_choice: null, // the selected output
+    output_options: ['rgb'], // populated by the possible Graph outputs
+    output_choice: 'rgb', // the selected output
     minResolution: 100,
     maxResolution: 500,
   },
   // the scene state
   sceneState: {
     sceneBounds: null,
-    cameras: {},
+    cameras: null,
   },
   // ------------------------------------------------------------------------
   // which of the state keys to synchronize with the bridge server

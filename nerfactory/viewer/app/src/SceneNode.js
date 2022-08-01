@@ -35,7 +35,7 @@ function dispose(object) {
   }
 }
 
-export class SceneNode {
+export default class SceneNode {
   constructor(object, folder) {
     this.object = object;
     this.folder = folder;
