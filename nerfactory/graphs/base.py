@@ -187,10 +187,6 @@ class Graph(AbstractGraph):
             outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
         )
 
-        # scaling losses by coefficients.
-        for loss_name in loss_dict.keys():
-            if loss_name in self.loss_coefficients:
-                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
     def forward(
