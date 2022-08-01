@@ -220,7 +220,7 @@ def main(
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif traj == TrajectoryType.INTERP:
             camera_start = dataloader_eval.get_camera(image_idx=0)
-            camera_end = dataloader_eval.get_camera(image_idx=10)
+            camera_end = dataloader_eval.get_camera(image_idx=40)
             camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
         render_trajectory_video(
             graph,
