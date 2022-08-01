@@ -192,7 +192,7 @@ class RFFEncoding(Encoding):
         if covs is None:
             encoded_inputs = torch.sin(torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1))
         else:
-            input_var = torch.sum(((covs @ self.b_matrix)) * self.b_matrix, -2)
+            input_var = torch.sum((covs @ self.b_matrix) * self.b_matrix, -2)
             encoded_inputs = expected_sin(
                 torch.cat([scaled_inputs, scaled_inputs + torch.pi / 2.0], dim=-1), torch.cat(2 * [input_var], dim=-1)
             )

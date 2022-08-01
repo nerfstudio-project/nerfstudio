@@ -41,7 +41,7 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
             * torch.tensor([num_images, image_height, image_width], device=device)
         ).long()
 
-    c, y, x = [i.flatten() for i in torch.split(indices, 1, dim=-1)]
+    c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
     image = batch["image"][c, y, x]
     mask, semantics = None, None
     if "mask" in batch:
