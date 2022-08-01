@@ -15,6 +15,7 @@
 """A set of standard datasets."""
 
 import dataclasses
+import json
 import logging
 import os
 from abc import abstractmethod
@@ -24,6 +25,7 @@ from typing import Optional, Union
 import imageio
 import numpy as np
 import torch
+from scipy.spatial.transform import Rotation
 
 from nerfactory.data.colmap_utils import (
     read_cameras_binary,
@@ -366,6 +368,93 @@ class Mipnerf360(Dataset):
             intrinsics=intrinsics,
             camera_to_world=camera_to_world,
             scene_bounds=scene_bounds,
+        )
+
+        return dataset_inputs
+
+
+@dataclass
+class Record3D(Dataset):
+    """MipNeRF 360 Dataset
+
+    Args:
+        data_directory: Location of data
+        downscale_factor: How much to downscale images. Defaults to 1.
+        val_skip: 1/val_skip images to use for validation. Defaults to 8.
+        auto_scale: Scale based on pose bounds. Defaults to True.
+        aabb_scale: Scene scale, Defaults to 1.0.
+    """
+
+    data_directory: str
+    downscale_factor: int = 1
+    val_skip: int = 8
+    auto_scale: bool = True
+    aabb_scale = 1
+
+    def _generate_dataset_inputs(self, split="train"):
+        abs_dir = get_absolute_path(self.data_directory)
+
+        image_dir = os.path.join(abs_dir, "rgb")
+
+        if not os.path.exists(image_dir):
+            raise ValueError(f"Image directory {image_dir} doesn't exist")
+
+        ext = ".jpg"
+        image_filenames = []
+        for f in os.listdir(image_dir):
+            ext = os.path.splitext(f)[1]
+            image_filenames.append(os.path.join(image_dir, f))
+        image_filenames = sorted(image_filenames, key=lambda fn: int(fn[: len(ext)]))
+        num_images = len(image_filenames)
+
+        metadata_path = os.path.join(abs_dir, "metadata.json")
+
+        with open(str(metadata_path)) as f:
+            metadata_dict = json.load(f)
+
+        # Camera intrinsics
+        K = np.array(metadata_dict["K"]).reshape((3, 3)).T
+        focal_length = K[0, 0]
+        cx, cy = K[:2, -1]
+
+        H = metadata_dict["h"]
+        W = metadata_dict["w"]
+
+        num_cameras = 1
+        num_intrinsics_params = 3
+        intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
+        intrinsics *= torch.tensor([cx, cy, focal_length])
+
+        poses_data = metadata_dict["poses"]
+        # (N, 3, 4)
+        poses = np.concatenate(
+            [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
+            axis=-1,
+        ).astype(np.float32)
+        poses = poses_data[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
+
+        idx_test = np.arange(num_images)[:: self.val_skip]
+        idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
+        idx = idx_train if split == "train" else idx_test
+
+        if num_images != poses.shape[0]:
+            raise RuntimeError(f"Different number of images ({num_images}), and poses ({poses.shape[0]})")
+
+        image_filenames = np.array(image_filenames)[idx]
+        poses = poses[idx]
+
+        poses[:, :2, 4] = np.array([H, W])
+
+        # Reorder pose to match our convention
+        # poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
+
+        camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
+
+        dataset_inputs = DatasetInputs(
+            image_filenames=image_filenames,
+            downscale_factor=1,
+            intrinsics=intrinsics,
+            camera_to_world=camera_to_world,
         )
 
         return dataset_inputs
