@@ -17,19 +17,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@master
 
-      - name: Install Node.js
-        uses: actions/setup-node@v1
+      - uses: actions/checkout@v2
+      - uses: borales/actions-yarn@v3.0.0
         with:
-          node-version: 17.8.0
+          cmd: install # will run `yarn install` command
 
-      - name: Install packages
-        run: npm install
+      - uses: borales/actions-yarn@v3.0.0
+        with:
+        # CI=false
+          cmd: build # will run `yarn build` command
 
-      - name: Build project
-        run: CI=false npm run build
-
-      # - name: Run tests
-      #   run: npm test
+      # - uses: borales/actions-yarn@v3.0.0
+      #   with:
+      #     cmd: test # will run `yarn test` command
 
       - name: Upload production-ready build files
         uses: actions/upload-artifact@v2
