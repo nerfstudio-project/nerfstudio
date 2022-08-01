@@ -18,7 +18,8 @@ Code to train model.
 import functools
 import logging
 import os
-from typing import Dict, List, Optional, Union
+import typing
+from typing import Dict, List, Optional
 
 import torch
 import torch.distributed as dist
@@ -69,7 +70,7 @@ class Trainer:
         self.dataloader_train: TrainDataloader
         self.dataloader_eval: EvalDataloader
         # model variables
-        self.graph: Union[Graph, DDP]
+        self.graph: Graph
         self.optimizers: Optimizers
         self.start_step = 0
         # logging variables
@@ -97,10 +98,10 @@ class Trainer:
         self._load_checkpoint()
 
         if self.world_size > 1:
-            self.graph = DDP(self.graph, device_ids=[self.local_rank])
+            self.graph = typing.cast(Graph, DDP(self.graph, device_ids=[self.local_rank]))
             dist.barrier(device_ids=[self.local_rank])
 
-        self.callbacks = self.graph.get_training_callbacks()  # type: ignore
+        self.callbacks = self.graph.get_training_callbacks()
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.Tensor]) -> torch.Tensor:
@@ -135,7 +136,7 @@ class Trainer:
                 if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
-                self.visualizer_state.update_scene(step, self.graph)  # type: ignore
+                self.visualizer_state.update_scene(step, self.graph)
 
         self._write_out_storage(num_iterations)
 
@@ -162,7 +163,7 @@ class Trainer:
             loaded_state = torch.load(load_path, map_location="cpu")
             self.start_step = loaded_state["step"] + 1
             # load the checkpoints for graph and optimizer
-            self.graph.load_graph(loaded_state)  # type: ignore
+            self.graph.load_graph(loaded_state)
             self.optimizers.load_optimizers(loaded_state)
             self.grad_scaler.load_state_dict(loaded_state["scaler"])
             logging.info("done loading checkpoint from %s", load_path)
@@ -183,7 +184,7 @@ class Trainer:
         if hasattr(self.graph, "module"):
             model = self.graph.module.state_dict()  # type: ignore
         else:
-            model = self.graph.state_dict()  # type: ignore
+            model = self.graph.state_dict()
         torch.save(
             {
                 "step": step,
@@ -195,7 +196,9 @@ class Trainer:
         )
 
     @profiler.time_function
-    def train_iteration(self, ray_indices: TensorType["num_rays", 3], batch: dict, step: int) -> Dict[str, float]:
+    def train_iteration(
+        self, ray_indices: TensorType["num_rays", 3], batch: Dict[str, torch.Tensor], step: int
+    ) -> Dict[str, torch.Tensor]:
         """Run one iteration with a batch of inputs.
 
         Args:
@@ -208,8 +211,8 @@ class Trainer:
         """
         self.optimizers.zero_grad_all()
         with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
-            _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)  # type: ignore
-            loss = sum(loss_dict.values())  # type: ignore
+            _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)
+            loss = typing.cast(torch.Tensor, sum(loss_dict.values()))
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
@@ -219,9 +222,9 @@ class Trainer:
             callback.after_step(step)
 
         # Merging loss and metrics dict into a single output.
-        loss_dict["loss"] = loss  # type: ignore
-        loss_dict.update(metrics_dict)  # type: ignore
-        return loss_dict  # type: ignore
+        loss_dict["loss"] = loss
+        loss_dict.update(metrics_dict)
+        return loss_dict
 
     @profiler.time_function
     def test_image(self, camera_ray_bundle: RayBundle, batch: dict, step: Optional[int] = None) -> float:
@@ -235,14 +238,14 @@ class Trainer:
         Returns:
             float: PSNR
         """
-        self.graph.eval()  # type: ignore
+        self.graph.eval()
         if camera_ray_bundle.camera_indices is None:
             raise ValueError("camera_ray_bundle.camera_indices is None during testing")
         image_idx = int(camera_ray_bundle.camera_indices[0, 0])
-        outputs = self.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)  # type: ignore
-        psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)  # type: ignore
-        self.graph.train()  # type: ignore
-        return psnr  # type: ignore
+        outputs = self.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
+        self.graph.train()
+        return psnr
 
     def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[int] = None) -> None:
         """Run evaluation with a given dataloader.
