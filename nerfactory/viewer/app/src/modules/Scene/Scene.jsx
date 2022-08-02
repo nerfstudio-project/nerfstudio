@@ -5,12 +5,12 @@ import * as THREE from 'three';
 
 import { useContext, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-import { drawCamera, drawSceneBounds } from './drawing';
 
 import { GUI } from 'dat.gui';
 import SceneNode from '../../SceneNode';
 import { subscribe_to_changes } from '../../subscriber';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+import { drawCamera, drawSceneBounds } from './drawing';
 
 const msgpack = require('msgpack-lite');
 
@@ -62,7 +62,6 @@ export default function SetupScene() {
     return state.sceneState.sceneBounds;
   };
   const fn_value_scene_bounds = (previous, current) => {
-    console.log('fn_value_scene_bounds');
     if (current !== null) {
       const line = drawSceneBounds(current);
       setObject(['Scene Bounds'], line);

@@ -27,7 +27,6 @@ function getWebsocketEndpointFromUrl(url: string) {
 }
 
 export default function WebSocketContextFunction({ children }) {
-  console.log('calling websocket context function');
 
   const dispatch = useDispatch();
 

@@ -3,6 +3,7 @@ import './ViewerWindow.css';
 import * as THREE from 'three';
 
 import React, { useContext, useEffect, useRef } from 'react';
+import { useSelector } from 'react-redux';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
@@ -17,6 +18,9 @@ export default function ViewerWindow(props) {
   let cameraControls = null;
   const myRef = useRef(null);
   const websocket = useContext(WebSocketContext).socket;
+  const field_of_view = useSelector(
+    (state) => state.renderingState.field_of_view,
+  );
 
   const getViewportWidth = () => {
     return window.innerWidth - (window.innerWidth % 2);
@@ -30,7 +34,7 @@ export default function ViewerWindow(props) {
   let viewportHeight = getViewportHeight();
 
   const camera = new THREE.PerspectiveCamera(
-    80,
+    field_of_view,
     viewportWidth / viewportHeight,
     0.01,
     100,
@@ -95,6 +99,12 @@ export default function ViewerWindow(props) {
     cameraControls.update();
     update();
   }, []);
+
+  // useEffect(() => {
+  //   camera.fov = field_of_view;
+  //   console.log(field_of_view);
+  //   camera.updateProjectionMatrix();
+  // }, [field_of_view]);
 
   return (
     <div>
