@@ -381,7 +381,7 @@ class TensorVMEncoding(Encoding):
         self.upsampling_steps = (
             torch.round(
                 torch.exp(torch.linspace(np.log(resolution), np.log(final_resolution), num_upsampling_steps + 1))
-            ).long()
+            ).long()[1:]
         ).tolist()
 
         # TODO Learning rates should be different for these
@@ -416,7 +416,7 @@ class TensorVMEncoding(Encoding):
         Args:
             resolution: Target resolution.
         """
-        if len(self.upsampling_steps) != 0:
+        if len(self.upsampling_steps) != 0 and step != 0:
             resolution = self.upsampling_steps.pop(0)
             plane_coef = F.interpolate(
                 self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True

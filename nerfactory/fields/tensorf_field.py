@@ -15,7 +15,7 @@
 """Classic NeRF field"""
 
 
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import nn
