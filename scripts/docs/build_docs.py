@@ -19,8 +19,12 @@ def run_command(command: str) -> None:
         sys.exit(1)
 
 
-def main():
-    """Run the github actions locally."""
+def main(clean_cache: bool = False):
+    """Run the github actions locally.
+
+    Args:
+        clean_cache: whether to clean the cache before building docs.
+    """
 
     print_green = lambda x: print(f"\033[32m{x}\033[0m")
 
@@ -29,7 +33,10 @@ def main():
 
     # Add checks for building documentation
     print_green("Building Documentation")
-    run_command("cd docs/; make html SPHINXOPTS='-W;'")
+    if clean_cache:
+        run_command("cd docs/; make clean; make html SPHINXOPTS='-W;'")
+    else:
+        run_command("cd docs/; make html SPHINXOPTS='-W;'")
 
     print("\n")
     print_green("=" * 100)
