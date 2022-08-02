@@ -212,7 +212,7 @@ class Trainer:
         self.optimizers.zero_grad_all()
         with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
             _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)
-            loss = typing.cast(torch.Tensor, sum(loss_dict.values()))
+            loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
