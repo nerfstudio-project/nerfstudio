@@ -251,6 +251,7 @@ class ZMQWebSocketBridge:
         _, _, data = frames  # cmd, path, data
         for websocket in self.websocket_pool:
             if websocket_to_skip and websocket == websocket_to_skip:
+                pass
             else:
                 websocket.write_message(data, binary=True)
 
