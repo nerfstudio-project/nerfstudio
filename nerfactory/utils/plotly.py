@@ -21,11 +21,12 @@ The function use prefix conventions in the following way:
         return 'go.Figure' objects which are the plots. Go Figure! :')
 """
 
-from typing import List, Union
+from typing import Any, List, Optional, Union
 
 import numpy as np
 import plotly.graph_objects as go
 import torch
+import torch.nn.functional as F
 from plotly import express as ex
 from torchtyping import TensorType
 
@@ -51,12 +52,12 @@ def get_line_segments_from_lines(
     lines: TensorType["num_rays", 2, 3],
     color: str = color_str((1, 0, 0)),
     marker_color: str = color_str((1, 0, 0)),
-    colors: List[str] = None,
+    colors: Optional[List[str]] = None,
     draw_marker: bool = True,
     draw_line: bool = True,
     marker_size: float = 4,
     line_width: float = 10,
-) -> go.Scatter3d:
+) -> List[Any]:
     """Returns a list of Scatter3D objects for creating lines with plotly.
     # TODO(ethan): make this function more efficient instead of having a list of objects.
 
@@ -98,7 +99,7 @@ def get_line_segments_from_lines(
     return data
 
 
-def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:
+def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBundle) -> go.FigureWidget:  # type: ignore
     """Visualize a dataset with plotly using our cameras and generated rays.
 
     Args:
@@ -136,8 +137,8 @@ def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBun
         autosize=False,
         width=1000,
         height=1000,
-        margin=go.layout.Margin(l=50, r=50, b=100, t=100, pad=4),
-        scene=go.layout.Scene(
+        margin=go.layout.Margin(l=50, r=50, b=100, t=100, pad=4),  # type: ignore
+        scene=go.layout.Scene(  # type: ignore
             aspectmode="data",
             camera=dict(up=dict(x=0, y=0, z=1), center=dict(x=0, y=0, z=0), eye=dict(x=1.25, y=1.25, z=1.25)),
         ),
@@ -146,7 +147,7 @@ def vis_dataset(camera_origins: TensorType["num_cameras", 3], ray_bundle: RayBun
     return fig
 
 
-def get_random_color(colormap: List[str] = None, idx: int = None) -> str:
+def get_random_color(colormap: Optional[List[str]] = None, idx: Optional[int] = None) -> str:
     """Get a random color from a colormap.
 
     Args:
@@ -165,7 +166,7 @@ def get_random_color(colormap: List[str] = None, idx: int = None) -> str:
 
 def get_sphere(
     radius: float, center: TensorType[3] = None, color: str = "black", opacity: float = 1.0, resolution: int = 32
-) -> go.Mesh3d:
+) -> go.Mesh3d:  # type: ignore
     """Returns a sphere object for plotting with plotly.
 
     Args:
@@ -211,7 +212,7 @@ def get_gaussian_ellipsiod(
     opacity: float = 0.5,
     resolution: int = 20,
     name: str = "ellipse",
-) -> go.Mesh3d:
+) -> go.Mesh3d:  # type: ignore
     """Get a plotly ellipsoid for a Gaussian.
 
     Args:
@@ -264,7 +265,7 @@ def get_gaussian_ellipsiod(
 
 def get_gaussian_ellipsoids_list(
     gaussians: Gaussians, opacity: float = 0.5, color: str = "random", resolution: int = 20
-) -> List[Union[go.Mesh3d, go.Scatter3d]]:
+) -> List[Union[go.Mesh3d, go.Scatter3d]]:  # type: ignore
     """Get a list of plotly meshes for frustums.
 
     Args:
@@ -307,7 +308,7 @@ def get_gaussian_ellipsoids_list(
 
 def get_frustum_mesh(
     frustum: Frustums, opacity: float = 0.3, color: str = "#DC203C", resolution: int = 20
-) -> go.Mesh3d:
+) -> go.Mesh3d:  # type: ignore
     """Get a plotly mesh for a single frustum.
 
     Args:
@@ -338,8 +339,8 @@ def get_frustum_mesh(
     pts = torch.stack([x, y, z], dim=-1)
 
     forward = frustum.directions
-    up = torch.nn.functional.normalize(torch.cross(forward, torch.tensor([0.0, 0, 1])), dim=-1)
-    right = torch.nn.functional.normalize(torch.cross(forward, up), dim=-1)
+    up = F.normalize(torch.cross(forward, torch.tensor([0.0, 0, 1])), dim=-1)  # type: ignore
+    right = F.normalize(torch.cross(forward, up), dim=-1)  # type: ignore
     rotation = torch.stack([forward, up, right], dim=1)
     pts = torch.einsum("kj,ij->ki", pts, rotation)
 
@@ -358,7 +359,7 @@ def get_frustum_mesh(
 
 def get_frustums_mesh_list(
     frustums: Frustums, opacity: float = 1.0, color: str = "random", resolution: int = 20
-) -> List[go.Mesh3d]:
+) -> List[go.Mesh3d]:  # type: ignore
     """Get a list of plotly meshes for a list of frustums.
 
     Args:
@@ -371,7 +372,7 @@ def get_frustums_mesh_list(
         List of plotly meshes
     """
     data = []
-    for i, frustum in enumerate(frustums.flatten()):
+    for i, frustum in enumerate(frustums.flatten()):  # type: ignore
         if color == "random":
             c = get_random_color(idx=i)
         else:
@@ -382,7 +383,7 @@ def get_frustums_mesh_list(
 
 def get_frustum_points(
     frustum: Frustums, opacity: float = 1.0, color: str = "forestgreen", size: float = 5
-) -> go.Scatter3d:
+) -> go.Scatter3d:  # type: ignore
     """Get a set plotly points for frustums centers.
 
     Args:
@@ -414,7 +415,7 @@ def get_frustum_points(
 
 def get_ray_bundle_lines(
     ray_bundle: RayBundle, length: float = 1.0, color: str = "#DC203C", width: float = 1
-) -> go.Scatter3d:
+) -> go.Scatter3d:  # type: ignore
     """Get a plotly line for a ray bundle.
 
     Args:
@@ -443,7 +444,7 @@ def get_ray_bundle_lines(
     )
 
 
-def vis_camera_rays(camera: Camera) -> go.Figure:
+def vis_camera_rays(camera: Camera) -> go.Figure:  # type: ignore
     """Visualize camera rays.
 
     Args:

@@ -143,7 +143,7 @@ def quaternion_from_matrix(matrix, isprecise=False):
         K /= 3.0
         # quaternion is eigenvector of K that corresponds to largest eigenvalue
         w, V = np.linalg.eigh(K)
-        q = V[[3, 0, 1, 2], np.argmax(w)]
+        q = V[np.array([3, 0, 1, 2]), np.argmax(w)]
     if q[0] < 0.0:
         np.negative(q, q)
     return q
@@ -167,6 +167,8 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     """
     q0 = unit_vector(quat0[:4])
     q1 = unit_vector(quat1[:4])
+    if q0 is None or q1 is None:
+        raise ValueError("Input quaternions invalid.")
     if fraction == 0.0:
         return q0
     elif fraction == 1.0:

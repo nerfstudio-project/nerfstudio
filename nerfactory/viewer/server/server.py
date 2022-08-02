@@ -14,7 +14,6 @@
 
 """Server bridge to faciliate interactions between python backend and javascript front end"""
 
-from __future__ import absolute_import, division, print_function
 
 import sys
 from typing import Callable, List, Optional

@@ -212,7 +212,7 @@ def main(config: DictConfig):
 
     unrolled_path = os.path.join(os.getcwd(), ".hydra/config.yaml")
     if os.path.exists(unrolled_path):
-        with open(unrolled_path, "r", encoding="utf8") as f:
+        with open(unrolled_path, encoding="utf8") as f:
             unrolled_config = yaml.safe_load(f)
         logger = logging.getLogger(__name__)
         logger.info("Printing current config setup")
