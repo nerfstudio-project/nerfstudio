@@ -119,7 +119,6 @@ class Viewer:
     def write(self, data: Optional[Dict] = None):
         """Write data."""
         path = self.path.lower()
-        print(path)
         return self.window.send({"type": "write", "path": path, "data": data})
 
     def read(self):

@@ -129,8 +129,6 @@ class CheckThread(threading.Thread):
             output_type = self.state.vis["renderingState/output_choice"].read()
             if output_type is None:
                 output_type = "default"
-            else:
-                output_type = data["output_type"]
             if self.state.prev_output_type != output_type:
                 self.state.check_interrupt_vis = True
                 return
