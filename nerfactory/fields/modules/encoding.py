@@ -410,7 +410,7 @@ class TensorVMEncoding(Encoding):
         return features  # [..., 3 * Components]
 
     @torch.no_grad()
-    def upsample_grid(self, step) -> None:
+    def upsample_grid(self, step=None) -> None:
         """Upsamples underyling feature grid
 
         Args:
