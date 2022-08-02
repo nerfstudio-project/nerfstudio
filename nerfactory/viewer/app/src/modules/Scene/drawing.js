@@ -132,12 +132,17 @@ export function drawCamera(camera): THREE.Object3D {
   const f = camera.fx;
   const displayedFocalLength = height / (2.0 * (camera.cy / f));
   const width = 2.0 * (camera.cx / f) * displayedFocalLength;
-  const cameraWireframeObject = getCameraWireframe(1.0, displayedFocalLength, width, height);
+  const cameraWireframeObject = getCameraWireframe(
+    1.0,
+    displayedFocalLength,
+    width,
+    height,
+  );
   cameraWireframeObject.translateZ(displayedFocalLength); // move the wireframe frustum back
   group.add(cameraWireframeObject);
   const cameraImagePlaneObject = drawCameraImagePlane(
-    width*2,
-    height*2,
+    width * 2,
+    height * 2,
     camera.image,
   );
   group.add(cameraImagePlaneObject);

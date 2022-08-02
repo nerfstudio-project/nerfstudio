@@ -41,7 +41,7 @@ export default function WebRtcWindow() {
     // connect video
     pc.addEventListener('track', (evt) => {
       dispatch({
-        type: "write",
+        type: 'write',
         path: 'webrtcState/isConnected',
         data: true,
       });
@@ -55,13 +55,13 @@ export default function WebRtcWindow() {
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'connected') {
         dispatch({
-          type: "write",
+          type: 'write',
           path: 'webrtcState/isConnected',
           data: true,
         });
       } else if (pc.iceConnectionState === 'disconnected') {
         dispatch({
-          type: "write",
+          type: 'write',
           path: 'webrtcState/isConnected',
           data: false,
         });

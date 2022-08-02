@@ -12,7 +12,7 @@ export function subscribe_to_changes(selector_fn, fn) {
     const previous = current;
     current = selector_fn(store.getState());
     if (previous !== current) {
-        fn(previous, current);
+      fn(previous, current);
     }
   };
   store.subscribe(handleChange);
