@@ -230,7 +230,7 @@ class ZMQWebSocketBridge:
             self.zmq_socket.send(umsgpack.packb(read_data))
         elif cmd == "delete":
             find_node(self.state_tree, path).data = None
-            self.forward_to_websockets(frames)      
+            self.forward_to_websockets(frames)
             self.zmq_socket.send(umsgpack.packb(b"ok"))
         elif cmd == "set_image":
             image = msgpack.unpackb(
