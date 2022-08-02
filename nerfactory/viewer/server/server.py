@@ -107,10 +107,16 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         path = list(filter(lambda x: len(x) > 0, m["path"].split("/")))
 
         if type_ == "write":
-            # writes the data and dispatches update
+            # writes the data coming from the websocket
             find_node(self.bridge.state_tree, path).data = m["data"]
-            # TODO: dispatch an update message to all websockets!
-            # self.bridge.forward_to_websockets(frames)
+            if m["path"] != "renderingState/camera":
+                # dispatch to the websockets if not a camera update!
+                # TODO(ethan): handle the camera properly!
+                # TODO: but don't update the current websocket
+                command = {"type": "write", "path": m["path"], "data": m["data"]}
+                packed_data = umsgpack.packb(command)
+                frames = ["write".encode("utf-8"), m["path"].encode("utf-8"), packed_data]
+                self.bridge.forward_to_websockets(frames, websocket_to_skip=self)
         elif type_ == "read":
             # reads and returns the data
             data = find_node(self.bridge.state_tree, path).data
@@ -234,7 +240,9 @@ class ZMQWebSocketBridge:
         else:
             self.zmq_socket.send(umsgpack.packb(b"error: unknown command"))
 
-    def forward_to_websockets(self, frames: Tuple[str, str, bytes]):
+    def forward_to_websockets(
+        self, frames: Tuple[str, str, bytes], websocket_to_skip: Optional[WebSocketHandler] = None
+    ):
         """Forward a zmq message to all websockets.
 
         Args:
@@ -242,7 +250,9 @@ class ZMQWebSocketBridge:
         """
         _, _, data = frames  # cmd, path, data
         for websocket in self.websocket_pool:
-            websocket.write_message(data, binary=True)
+            if websocket_to_skip and websocket == websocket_to_skip:
+            else:
+                websocket.write_message(data, binary=True)
 
     def setup_zmq(self, url: str):
         """Setup a zmq socket and connect it to the given url.

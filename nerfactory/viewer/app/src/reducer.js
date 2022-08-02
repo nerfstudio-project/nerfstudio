@@ -15,8 +15,8 @@ const initialState = {
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output
-    minResolution: 512,
-    maxResolution: 1024,
+    minResolution: 50,
+    maxResolution: 512,
     field_of_view: 60
   },
   // the scene state

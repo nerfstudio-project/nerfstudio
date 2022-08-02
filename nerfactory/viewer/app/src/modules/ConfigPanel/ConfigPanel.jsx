@@ -2,10 +2,15 @@ import React, { useContext } from 'react';
 import { ReactReduxContext, useSelector } from 'react-redux';
 import { button, buttonGroup, useControls } from 'leva';
 
+import { WebSocketContext } from '../WebSocket/WebSocket';
+import { subscribe_to_changes } from '../../subscriber';
 import { useDispatch } from 'react-redux';
+
+const msgpack = require('msgpack-lite');
 
 export function RenderControls() {
   // connection status indicators
+  const websocket = useContext(WebSocketContext).socket;
   const isWebsocketConnected = useSelector(
     (state) => state.websocketState.isConnected,
   );
@@ -27,20 +32,51 @@ export function RenderControls() {
     (state) => state.renderingState.output_choice,
   );
 
+  const min_resolution = useSelector(
+    (state) => state.renderingState.minResolution,
+  );
+  const max_resolution = useSelector(
+    (state) => state.renderingState.maxResolution,
+  );
+
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
 
   const dispatch = useDispatch();
 
-  const toggleIsTraining = () => {
-    console.log('toggle is training');
-    // setIsTraining((current) => !current);
+  const set_min_resolution = (value) => {
     dispatch({
       type: 'write',
-      path: 'renderingState/isTraining',
-      data: !isTraining,
+      path: 'renderingState/minResolution',
+      data: value,
     });
+    const cmd = 'write';
+    const path = 'renderingState/minResolution';
+    const data = {
+      type: cmd,
+      path,
+      data: value,
+    };
+    const message = msgpack.encode(data);
+    websocket.send(message);
+  };
+
+  const set_max_resolution = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/maxResolution',
+      data: value,
+    });
+    const cmd = 'write';
+    const path = 'renderingState/maxResolution';
+    const data = {
+      type: cmd,
+      path,
+      data: value,
+    };
+    const message = msgpack.encode(data);
+    websocket.send(message);
   };
 
   const { controls, setControls } = useControls(
@@ -59,16 +95,22 @@ export function RenderControls() {
       // isTraining
       'Pause Training': button(
         () => {
-          console.log('toggle is training resume');
-          console.log(isTraining);
-          console.log(!isTraining);
-          console.log(false);
-          // setIsTraining((current) => !current);
+          // write locally to store
           dispatch({
             type: 'write',
             path: 'renderingState/isTraining',
             data: false,
           });
+          // write to server
+          const cmd = 'write';
+          const path = 'renderingState/isTraining';
+          const data = {
+            type: cmd,
+            path,
+            data: false,
+          };
+          const message = msgpack.encode(data);
+          websocket.send(message);
         },
         {
           disabled: !isTraining,
@@ -76,16 +118,22 @@ export function RenderControls() {
       ),
       'Resume Training': button(
         () => {
-          console.log('toggle is training pause');
-          console.log(isTraining);
-          console.log(!isTraining);
-          console.log(true);
-          // setIsTraining((current) => !current);
+          // write locally to store
           dispatch({
             type: 'write',
             path: 'renderingState/isTraining',
             data: true,
           });
+          // write to server
+          const cmd = 'write';
+          const path = 'renderingState/isTraining';
+          const data = {
+            type: cmd,
+            path,
+            data: true,
+          };
+          const message = msgpack.encode(data);
+          websocket.send(message);
         },
         {
           disabled: isTraining,
@@ -100,31 +148,36 @@ export function RenderControls() {
       // resolution
       min_resolution: {
         label: 'Min Res.',
-        value: 1000,
+        value: min_resolution,
         min: 10,
         max: 1000,
         step: 1,
         suffix: 'px',
+        onChange: (v) => {
+          // update the store on change...
+          console.log(v);
+        },
+        transient: false,
       },
       ' ': buttonGroup({
-        '25px': () => setControls({ min_resolution: 25 }),
-        '50px': () => setControls({ min_resolution: 50 }),
-        '75px': () => setControls({ min_resolution: 75 }),
-        '100px': () => setControls({ min_resolution: 1000 }),
+        '25px': () => set_min_resolution(25),
+        '50px': () => set_min_resolution(50),
+        '75px': () => set_min_resolution(75),
+        '100px': () => set_min_resolution(1000),
       }),
       max_resolution: {
         label: 'Max Res.',
-        min: 1024,
+        min: 10,
         max: 2048,
         step: 1,
-        value: 2048,
+        value: max_resolution,
         suffix: 'px',
       },
       '  ': buttonGroup({
-        '128px': () => setControls({ max_resolution: 128 }),
-        '256px': () => setControls({ max_resolution: 256 }),
-        '512px': () => setControls({ max_resolution: 512 }),
-        '1024px': () => setControls({ max_resolution: 1024 }),
+        '128px': () => set_max_resolution(128),
+        '256px': () => set_max_resolution(256),
+        '512px': () => set_max_resolution(512),
+        '1024px': () => set_max_resolution(1024),
       }),
       'Camera FoV': field_of_view,
     }),
@@ -134,26 +187,11 @@ export function RenderControls() {
       isTraining,
       outputOptions,
       outputChoice,
+      min_resolution,
+      max_resolution,
       field_of_view,
     ],
   );
-
-  // some listeners to update the state
-  const { store } = useContext(ReactReduxContext);
-  const selectOutputChoice = (state) => {
-    return state.renderingState.output_choice;
-  };
-  let outputChoiceCurrent;
-  const handleOutputOptions = () => {
-    const outputChoicePrevious = outputChoiceCurrent;
-    outputChoiceCurrent = selectOutputChoice(store.getState());
-    if (outputChoicePrevious !== outputChoiceCurrent) {
-      if (outputChoiceCurrent !== null) {
-        console.log(outputChoiceCurrent);
-      }
-    }
-  };
-  store.subscribe(handleOutputOptions);
 
   return controls;
 }
