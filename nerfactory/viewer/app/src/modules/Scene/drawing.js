@@ -156,7 +156,6 @@ export function drawCamera(camera): THREE.Object3D {
 }
 
 export function drawCameras(cameras): Record<number, THREE.Object3D> {
-  // console.log('drawCameras');
   const cameraObjects = {};
   for (const [key, camera] of Object.entries(cameras)) {
     cameraObjects[key] = drawCamera(camera);

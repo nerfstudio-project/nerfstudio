@@ -30,7 +30,7 @@ export default function ViewerWindow(props) {
   let viewportHeight = getViewportHeight();
 
   const camera = new THREE.PerspectiveCamera(
-    120,
+    80,
     viewportWidth / viewportHeight,
     0.01,
     100,

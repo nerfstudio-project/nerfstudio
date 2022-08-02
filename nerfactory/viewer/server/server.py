@@ -16,7 +16,7 @@
 
 
 import sys
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 import msgpack
 import msgpack_numpy
@@ -115,10 +115,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
             # reads and returns the data
             data = find_node(self.bridge.state_tree, path).data
             self.write_message(data, binary=True)
-        elif type_ == "delete":
-            find_node(self.bridge.state_tree, path).data = None
-            # TODO: dispatch an update message to all websockets!
-            # self.bridge.forward_to_websockets(frames)
         elif type_ == "offer":
             # returns the description to for WebRTC to the specific websocket connection
             offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
@@ -210,29 +206,25 @@ class ZMQWebSocketBridge:
         Args:
             frames: the list containing command + object to be placed in tree
         """
-        cmd = frames[0].decode("utf-8")
         if len(frames) != 3:
             self.zmq_socket.send(b"error: expected 3 frames")
             return
+        type_ = frames[0].decode("utf-8")
         path = list(filter(lambda x: len(x) > 0, frames[1].decode("utf-8").split("/")))
         data = frames[2]
 
-        if cmd == "write":
+        if type_ == "write":
             # TODO: use state_tree name
             unpacked_data = umsgpack.unpackb(data)
             find_node(self.state_tree, path).data = unpacked_data["data"]
             self.forward_to_websockets(frames)
             self.zmq_socket.send(umsgpack.packb(b"ok"))
-        elif cmd == "read":
+        elif type_ == "read":
             # walk the node from the specified to get the full state dictionary
             # TODO(ethan): handle the "data" key...
             read_data = find_node(self.state_tree, path).data
             self.zmq_socket.send(umsgpack.packb(read_data))
-        elif cmd == "delete":
-            find_node(self.state_tree, path).data = None
-            self.forward_to_websockets(frames)
-            self.zmq_socket.send(umsgpack.packb(b"ok"))
-        elif cmd == "set_image":
+        elif type_ == "set_image":
             image = msgpack.unpackb(
                 data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
             )
@@ -242,7 +234,7 @@ class ZMQWebSocketBridge:
         else:
             self.zmq_socket.send(umsgpack.packb(b"error: unknown command"))
 
-    def forward_to_websockets(self, frames: List[bytes]):
+    def forward_to_websockets(self, frames: Tuple[str, str, bytes]):
         """Forward a zmq message to all websockets.
 
         Args:
@@ -270,7 +262,7 @@ class ZMQWebSocketBridge:
         Args:
             websocket: websocket to send information over
         """
-        print("Sending entire scene state on refresh.")
+        print("Sending entire scene state on websocket connect (i.e,. a page refresh).")
         for path, node in walk("", self.state_tree):
             if node.data is not None:
                 command = {"type": "write", "path": path, "data": node.data}

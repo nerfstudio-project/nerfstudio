@@ -2,6 +2,8 @@ import React, { useContext } from 'react';
 import { ReactReduxContext, useSelector } from 'react-redux';
 import { button, buttonGroup, useControls } from 'leva';
 
+import { useDispatch } from 'react-redux';
+
 export function RenderControls() {
   // connection status indicators
   const isWebsocketConnected = useSelector(
@@ -11,8 +13,10 @@ export function RenderControls() {
     (state) => state.webrtcState.isConnected,
   );
 
-  const renderingState = useSelector((state) => state.renderingState);
-  const [isTraining, setIsTraining] = React.useState(renderingState.isTraining);
+  // const renderingState = useSelector((state) => state.renderingState);
+  // const [isTraining, setIsTraining] = React.useState(renderingState.isTraining);
+  const isTraining = useSelector((state) => state.renderingState.isTraining);
+
   // const [outputOptions, setOutputOptions] = React.useState(
   //   renderingState.output_options,
   // );
@@ -27,8 +31,16 @@ export function RenderControls() {
     (state) => state.renderingState.field_of_view,
   );
 
+  const dispatch = useDispatch();
+
   const toggleIsTraining = () => {
-    setIsTraining((current) => !current);
+    console.log('toggle is training');
+    // setIsTraining((current) => !current);
+    dispatch({
+      type: 'write',
+      path: 'renderingState/isTraining',
+      data: !isTraining,
+    });
   };
 
   const { controls, setControls } = useControls(
@@ -45,12 +57,40 @@ export function RenderControls() {
         disabled: !isWebrtcConnected,
       }),
       // isTraining
-      'Resume Training': button(toggleIsTraining, {
-        disabled: !isTraining,
-      }),
-      'Pause Training': button(toggleIsTraining, {
-        disabled: isTraining,
-      }),
+      'Pause Training': button(
+        () => {
+          console.log('toggle is training resume');
+          console.log(isTraining);
+          console.log(!isTraining);
+          console.log(false);
+          // setIsTraining((current) => !current);
+          dispatch({
+            type: 'write',
+            path: 'renderingState/isTraining',
+            data: false,
+          });
+        },
+        {
+          disabled: !isTraining,
+        },
+      ),
+      'Resume Training': button(
+        () => {
+          console.log('toggle is training pause');
+          console.log(isTraining);
+          console.log(!isTraining);
+          console.log(true);
+          // setIsTraining((current) => !current);
+          dispatch({
+            type: 'write',
+            path: 'renderingState/isTraining',
+            data: true,
+          });
+        },
+        {
+          disabled: isTraining,
+        },
+      ),
       // output_options
       output_options: {
         label: 'Output Render',
@@ -60,9 +100,9 @@ export function RenderControls() {
       // resolution
       min_resolution: {
         label: 'Min Res.',
-        value: 50,
+        value: 1000,
         min: 10,
-        max: 100,
+        max: 1000,
         step: 1,
         suffix: 'px',
       },
@@ -70,14 +110,14 @@ export function RenderControls() {
         '25px': () => setControls({ min_resolution: 25 }),
         '50px': () => setControls({ min_resolution: 50 }),
         '75px': () => setControls({ min_resolution: 75 }),
-        '100px': () => setControls({ min_resolution: 100 }),
+        '100px': () => setControls({ min_resolution: 1000 }),
       }),
       max_resolution: {
         label: 'Max Res.',
-        min: 10,
+        min: 1024,
         max: 2048,
         step: 1,
-        value: 512,
+        value: 2048,
         suffix: 'px',
       },
       '  ': buttonGroup({
@@ -86,7 +126,7 @@ export function RenderControls() {
         '512px': () => setControls({ max_resolution: 512 }),
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
-      "Camera FoV": field_of_view,
+      'Camera FoV': field_of_view,
     }),
     [
       isWebsocketConnected,
@@ -94,7 +134,7 @@ export function RenderControls() {
       isTraining,
       outputOptions,
       outputChoice,
-      field_of_view
+      field_of_view,
     ],
   );
 

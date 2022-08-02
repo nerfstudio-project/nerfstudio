@@ -12,11 +12,11 @@ const initialState = {
   // the rendering state
   renderingState: {
     camera: null, // the camera object used to render the three.js scene
-    isTraining: false,
+    isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output
-    minResolution: 100,
-    maxResolution: 500,
+    minResolution: 512,
+    maxResolution: 1024,
     field_of_view: 60
   },
   // the scene state

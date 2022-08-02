@@ -116,7 +116,7 @@ class Viewer:
     def __repr__(self):
         return f"<Viewer using: {self.window} at path: {self.path}>"
 
-    def write(self, data: Dict):
+    def write(self, data: Optional[Dict] = None):
         """Write data."""
         path = self.path.lower()
         print(path)
@@ -129,8 +129,7 @@ class Viewer:
 
     def delete(self):
         """Delete data."""
-        path = self.path.lower()
-        return self.window.send({"type": "write", "path": path, "data": None})
+        return self.write(data=None)
 
     def set_image(self, image):
         """Sends an image to the viewer with WebRTC."""

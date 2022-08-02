@@ -1,15 +1,16 @@
+import './Scene.css';
+
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-import { GUI } from 'dat.gui';
 import { useContext, useEffect } from 'react';
-import { ReactReduxContext, useDispatch } from 'react-redux';
-import { drawCameras, drawSceneBounds } from './drawing';
+import { useDispatch } from 'react-redux';
+import { drawCamera, drawSceneBounds } from './drawing';
 
+import { GUI } from 'dat.gui';
 import SceneNode from '../../SceneNode';
+import { subscribe_to_changes } from '../../subscriber';
 import { WebSocketContext } from '../WebSocket/WebSocket';
-
-import './Scene.css';
 
 const msgpack = require('msgpack-lite');
 
@@ -56,51 +57,57 @@ export default function SetupScene() {
   const light = new THREE.AmbientLight(color, intensity);
   setObject(['Light'], light);
 
-  const { store } = useContext(ReactReduxContext);
-
-  // handle the box drawing...
-  const select_box = (state) => {
+  // draw scene bounds
+  const selector_fn_scene_bounds = (state) => {
     return state.sceneState.sceneBounds;
   };
-  let currentSceneStateBoxValue;
-  const handle_change_box = () => {
-    console.log('handle_change_box');
-    const previousSceneStateBoxValue = currentSceneStateBoxValue;
-    currentSceneStateBoxValue = select_box(store.getState());
-    if (previousSceneStateBoxValue !== currentSceneStateBoxValue) {
-      if (currentSceneStateBoxValue !== null) {
-        const sceneBounds = currentSceneStateBoxValue;
-        const line = drawSceneBounds(sceneBounds);
-        setObject(['Scene Bounds'], line);
-      } else {
-        console.log('deleting object');
-        deleteObject(['Scene Bounds']);
-      }
+  const fn_value_scene_bounds = (previous, current) => {
+    console.log('fn_value_scene_bounds');
+    if (current !== null) {
+      const line = drawSceneBounds(current);
+      setObject(['Scene Bounds'], line);
+    } else {
+      deleteObject(['Scene Bounds']);
     }
   };
-  store.subscribe(handle_change_box);
+  subscribe_to_changes(selector_fn_scene_bounds, fn_value_scene_bounds);
 
-  // handle the camera drawing...
-  const select_cameras = (state) => {
+  // draw camera
+  // NOTE: this has some issues right now! it won't
+  // update the camera on an individual change w/o deleting first
+  const selector_fn_cameras = (state) => {
     return state.sceneState.cameras;
   };
-  let currentCamerasValue;
-  const handle_change_cameras = () => {
-    const previousCamerasValue = currentCamerasValue;
-    currentCamerasValue = select_cameras(store.getState());
-    if (previousCamerasValue !== currentCamerasValue) {
-      if (currentCamerasValue !== null) {
-        const cameras = currentCamerasValue;
-        const cameraObjects = drawCameras(cameras);
-        for (const [key, camera] of Object.entries(cameraObjects)) {
+  const fn_value_cameras = (previous, current) => {
+    if (current !== null) {
+      let prev = new Set();
+      if (previous !== null) {
+        prev = new Set(Object.keys(previous));
+      }
+      const curr = new Set(Object.keys(current));
+      // valid if in current but not previous
+      // invalid if in previous but not current
+      for (const key of curr) {
+        // valid so draw
+        if (!prev.has(key)) {
+          // keys_valid.push(key);
+          const json = current[key];
+          const camera = drawCamera(json);
           setObject(['Cameras', key], camera);
         }
-      } else {
-        deleteObject(['Cameras']);
       }
+      for (const key of prev) {
+        // invalid so delete
+        if (!curr.has(key) || current[key] === null) {
+          // keys_invalid.push(key);
+          deleteObject(['Cameras', key]);
+        }
+      }
+    } else {
+      deleteObject(['Cameras']);
     }
   };
-  store.subscribe(handle_change_cameras);
+  subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
 
   useEffect(() => {
     socket.addEventListener('message', (originalCmd) => {

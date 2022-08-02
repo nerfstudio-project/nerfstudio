@@ -48,6 +48,13 @@ def find_node(tree, path):
         return find_node(tree[path[0]], path[1:])
 
 
+def set_node_value(tree, path, value):
+    if len(path) == 0:
+        tree.data = value
+    else:
+        set_node_value(tree[path[0]], path[1:], value)
+
+
 def walk(path, tree):
     """Walk the entire tree and return the values
     Args:
