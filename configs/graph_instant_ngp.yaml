@@ -23,21 +23,14 @@ data:
     num_rays_per_chunk: 8192 # all rays for evaluation
 
 viewer:
-  enable: false
+  enable: true
   num_rays_per_chunk: 16384
 
 graph:
-<<<<<<< Updated upstream
-  _target_: nerfactory.graphs.instant_ngp.NGPGraph
-  enable_density_field: true
-  enable_collider: false
-  field_implementation: tcnn # torch, tcnn, ...
-=======
   _target_: pyrad.graphs.instant_ngp.NGPGraph
   collider_config:
     _target_: pyrad.graphs.modules.scene_colliders.AABBBoxCollider
   field_implementation: torch # torch, tcnn, ...
->>>>>>> Stashed changes
   loss_coefficients: # loss coefficients
     rgb_loss: 1.0
 
