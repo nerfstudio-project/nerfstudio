@@ -4,6 +4,7 @@ Models
 ========
 
 .. toctree::
+    :maxdepth: 1
 
     NeRF<nerf.md>
     Mip-NeRF<mipnerf.md>
