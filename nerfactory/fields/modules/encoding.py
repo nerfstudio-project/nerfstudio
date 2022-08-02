@@ -366,11 +366,23 @@ class TensorVMEncoding(Encoding):
         init_scale: Initialization scale. Defaults to 0.1.
     """
 
-    def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
+    def __init__(
+        self,
+        resolution: int = 128,
+        num_components: int = 24,
+        init_scale: float = 0.1,
+        final_resolution=200,
+        num_upsampling_steps=5,
+    ) -> None:
         super().__init__(in_dim=3)
 
         self.resolution = resolution
         self.num_components = num_components
+        self.upsampling_steps = (
+            torch.round(
+                torch.exp(torch.linspace(np.log(resolution), np.log(final_resolution), num_upsampling_steps + 1))
+            ).long()
+        ).tolist()
 
         # TODO Learning rates should be different for these
         self.plane_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, resolution)))
@@ -398,21 +410,20 @@ class TensorVMEncoding(Encoding):
         return features  # [..., 3 * Components]
 
     @torch.no_grad()
-    def upsample_grid(self, resolution: int) -> None:
+    def upsample_grid(self, step) -> None:
         """Upsamples underyling feature grid
 
         Args:
             resolution: Target resolution.
         """
-
-        self.plane_coef.data = F.interpolate(
-            self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
-        )
-        self.line_coef.data = F.interpolate(
-            self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True
-        )
-
-        self.resolution = resolution
+        if len(self.upsampling_steps) != 0:
+            resolution = self.upsampling_steps.pop(0)
+            plane_coef = F.interpolate(
+                self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
+            )
+            line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
+            self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
+            self.resolution = resolution
 
 
 class SHEncoding(Encoding):

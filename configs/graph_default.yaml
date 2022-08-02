@@ -42,7 +42,7 @@ method_name: vanilla_nerf
 hydra:
   mode: RunMode.RUN
   run:
-    dir: outputs/${experiment_name}/${method_name}/${now:%Y-%m-%d_%H%M%S}_pos256_16_dir64_16
+    dir: outputs/${experiment_name}/${method_name}/${now:%Y-%m-%d_%H%M%S}
   job:
     chdir: True
 

@@ -25,7 +25,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.fields.modules.encoding import TensorCPEncoding, TensorVMEncoding
+from nerfactory.fields.modules.encoding import TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.tensorf_field import TensoRFField
 from nerfactory.graphs.base import Graph
@@ -66,22 +66,35 @@ class TensoRFGraph(Graph):
         )
 
     def get_training_callbacks(self) -> List[Callback]:
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_param_groups")
         callbacks = []
+        callbacks.extend(
+            [
+                Callback(update_every_num_iters=1000, func=self.field.position_encoding.upsample_grid),
+                Callback(update_every_num_iters=1000, func=self.field.direction_encoding.upsample_grid),
+            ]
+        )
         if self.density_field is not None:
-            callbacks = [
+            callbacks.append(
                 Callback(
                     update_every_num_iters=self.density_field.update_every_num_iters,
                     func=self.density_field.update_density_grid,
                     density_eval_func=self.field_coarse.density_fn,
                 )
-            ]
+            )
+
         return callbacks  # type: ignore
 
     def populate_fields(self):
         """Set the fields."""
 
-        position_encoding = TensorVMEncoding(resolution=8, num_components=1)
-        direction_encoding = TensorVMEncoding(resolution=24, num_components=95)
+        position_encoding = TensorVMEncoding(
+            resolution=128, num_components=8, final_resolution=300, num_upsampling_steps=100
+        )
+        direction_encoding = TensorVMEncoding(
+            resolution=128, num_components=24, final_resolution=300, num_upsampling_steps=100
+        )
 
         self.field = TensoRFField(
             position_encoding=position_encoding,
