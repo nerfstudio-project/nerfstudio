@@ -3,7 +3,7 @@ run_eval.py
 """
 import enum
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import dcargs
 import mediapy as media
@@ -62,7 +62,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     print(f"done loading checkpoint from {load_path}")
 
 
-def run_inference_from_config(config: DictConfig) -> Dict[str, float]:
+def run_inference_from_config(config: DictConfig) -> Dict[str, Any]:
     """helper function to run inference given config specifications (also used in benchmarking)
 
     Args:

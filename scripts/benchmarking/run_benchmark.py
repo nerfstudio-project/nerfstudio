@@ -5,17 +5,14 @@ import argparse
 import json
 import logging
 import os
-from typing import Any, Dict
+from datetime import datetime
+from typing import Any, Dict, Tuple
 
 import numpy as np
 from hydra import compose, initialize
-from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig
-from tqdm import tqdm
 
 from scripts.run_eval import run_inference_from_config
-
-OBJECT_LIST = ["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"]
 
 
 def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
@@ -43,7 +40,7 @@ def _load_best_ckpt(hydra_dir: str, config: DictConfig) -> str:
     return os.path.join(model_dir, latest_ckpt)
 
 
-def _load_hydra_config(hydra_dir: str) -> DictConfig:
+def _load_hydra_config(hydra_dir: str, benchmark_time=None, benchmark_date=None) -> Tuple[DictConfig, str]:
     """helper function to load the specified hydra config from the specified directory
 
     Args:
@@ -52,11 +49,16 @@ def _load_hydra_config(hydra_dir: str) -> DictConfig:
     Returns:
         DictConfig: returns the loaded hydra dictionary config
     """
-    basename = sorted(os.listdir(hydra_dir))[-1]
+    if benchmark_time:
+        assert benchmark_date is not None
+        reformat_date = datetime.strptime(benchmark_date, "%m-%d-%Y").strftime("%Y-%m-%d")
+        basename = f"{reformat_date}_{benchmark_time}"
+    else:
+        basename = sorted(os.listdir(hydra_dir))[-1]
     hydra_dir = f"{hydra_dir}/{basename}"
     initialize(version_base="1.2", config_path=os.path.join("../../", hydra_dir, ".hydra/"))
     config = compose("config.yaml")
-    return config
+    return config, basename
 
 
 def _calc_avg(stat_name: str, benchmark: Dict[str, Any]):
@@ -70,21 +72,18 @@ def _calc_avg(stat_name: str, benchmark: Dict[str, Any]):
 def main(args):
     """Main function."""
     benchmarks = {}
-    for dataset in tqdm(OBJECT_LIST):
-        # set up trainer, config, and checkpoint loading
-        hydra_dir = f"{args.hydra_base_dir}/blender_{dataset}_{args.benchmark_date}/{args.graph}/"
-        config = _load_hydra_config(hydra_dir)
-        config.data.dataloader_eval.image_indices = None
+    # set up trainer, config, and checkpoint loading
+    hydra_dir = f"{args.hydra_base_dir}/blender_{args.item_name}_{args.benchmark_date}/{args.graph}/"
+    config, basename = _load_hydra_config(
+        hydra_dir, benchmark_time=args.benchmark_time, benchmark_date=args.benchmark_date
+    )
+    # config.data.dataloader_eval.image_indices = None
+    ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
-        ckpt = _load_best_ckpt(hydra_dir, config.trainer)
-
-        # run evaluation
-        stats_dict = run_inference_from_config(config)
-        stats_dict["checkpoint"] = ckpt
-        benchmarks[dataset] = stats_dict
-
-        # reset hydra config
-        GlobalHydra.instance().clear()
+    # run evaluation
+    stats_dict = run_inference_from_config(config)
+    stats_dict["checkpoint"] = ckpt
+    benchmarks[args.item_name] = stats_dict
 
     avg_rays_per_sec = _calc_avg("avg rays per sec", benchmarks)
     avg_fps = _calc_avg("avg fps", benchmarks)
@@ -96,7 +95,20 @@ def main(args):
         "avg fps": avg_fps,
         "results": benchmarks,
     }
-    json_file = os.path.join(args.hydra_base_dir, f"{args.benchmark_date}.json")
+    json_dir = os.path.join(args.hydra_base_dir, args.graph)
+    if not os.path.exists(json_dir):
+        os.makedirs(json_dir)
+    json_file = os.path.join(json_dir, f"{basename}_{args.item_name}.json")
+
+    # if benchmark file already exists, update the results dictionary by overriding existing info or appending.
+    if os.path.exists(json_file):
+        with open(json_file, "r", encoding="utf8") as f:
+            existing_data = json.load(f)
+        existing_benchmarks = existing_data["results"]
+        existing_benchmarks.update(benchmarks)
+        existing_data["results"] = existing_benchmarks
+        benchmark_info = existing_data
+
     with open(json_file, "w", encoding="utf8") as f:
         json.dump(benchmark_info, f, indent=2)
     logging.info("saved benchmark results to %s", json_file)
@@ -104,8 +116,35 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-g", "--graph", type=str, required=True, help="name of nerf graph to benchmark")
-    parser.add_argument("-d", "--benchmark_date", type=str, required=True, help="timestamp of run to benchmark")
+    parser.add_argument(
+        "-g",
+        "--graph",
+        type=str,
+        required=True,
+        help="name of nerf graph to benchmark. Note: name without the 'graph_' prefix",
+    )
+    parser.add_argument(
+        "-d",
+        "--benchmark_date",
+        type=str,
+        required=True,
+        help="date of run to benchmark provided in '%%m-%%d-%%Y' format.",
+    )
+    parser.add_argument(
+        "-i",
+        "--item_name",
+        type=str,
+        required=True,
+        choices=["mic", "ficus", "chair", "hotdog", "materials", "drums", "ship", "lego"],
+        help="name of item in blender dataset to benchmark",
+    )
+    parser.add_argument(
+        "-t",
+        "--benchmark_time",
+        type=str,
+        default=None,
+        help="timestamp of the run to benchmark; if None, will default to running most recent timestamp",
+    )
     parser.add_argument("-o", "--hydra_base_dir", type=str, default="outputs/", help="hydra base output path")
     parsed_args = parser.parse_args()
     main(parsed_args)
