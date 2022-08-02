@@ -8,6 +8,21 @@
     "**/temp*": true
   },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "prettier.configPath": ".prettierrc.js",
+  "typescript.suggestionActions.enabled": false,
+  "javascript.suggestionActions.enabled": false,
   "[python]": {
     "editor.defaultFormatter": "ms-python.python",
     "editor.codeActionsOnSave": {
@@ -17,17 +32,33 @@
   "editor.formatOnSave": true,
   "python.envFile": "${workspaceFolder}/.env",
   "python.formatting.provider": "black",
-  "python.formatting.blackArgs": ["--line-length=120"],
+  "python.formatting.blackArgs": [
+    "--line-length=120"
+  ],
   "python.linting.pylintEnabled": true,
   "python.linting.flake8Enabled": false,
   "python.linting.enabled": true,
-  "python.sortImports.args": ["--src=${workspaceFolder}", "--profile", "black"],
+  "python.sortImports.args": [
+    "--src=${workspaceFolder}",
+    "--profile",
+    "black"
+  ],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.linting.ignorePatterns": [
     "**/site-packages/**/*.py",
     ".vscode/*.py",
     "external/**/*.py"
+  ],
+  "esbonio.sphinx.confDir": "",
+  // eslint extension options
+  "javascript.validate.enable": false,
+  "eslint.enable": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
   ],
   "C_Cpp.errorSquiggles": "Disabled",
   "files.associations": {
