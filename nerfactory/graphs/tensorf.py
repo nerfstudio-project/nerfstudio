@@ -67,22 +67,11 @@ class TensoRFGraph(Graph):
 
     def get_training_callbacks(self) -> List[Callback]:
         if self.field is None:
-            raise ValueError("populate_fields() must be called before get_param_groups")
-        callbacks = []
-        callbacks.extend(
-            [
-                Callback(update_every_num_iters=1000, func=self.field.position_encoding.upsample_grid),
-                Callback(update_every_num_iters=1000, func=self.field.direction_encoding.upsample_grid),
-            ]
-        )
-        if self.density_field is not None:
-            callbacks.append(
-                Callback(
-                    update_every_num_iters=self.density_field.update_every_num_iters,
-                    func=self.density_field.update_density_grid,
-                    density_eval_func=self.field_coarse.density_fn,
-                )
-            )
+            raise ValueError("populate_fields() must be called before get_training_callbacks")
+        callbacks = [
+            Callback(update_every_num_iters=1000, func=self.field.position_encoding.upsample_grid),
+            Callback(update_every_num_iters=1000, func=self.field.direction_encoding.upsample_grid),
+        ]
 
         return callbacks  # type: ignore
 
@@ -90,10 +79,10 @@ class TensoRFGraph(Graph):
         """Set the fields."""
 
         position_encoding = TensorVMEncoding(
-            resolution=128, num_components=8, final_resolution=300, num_upsampling_steps=100
+            resolution=128, num_components=8, final_resolution=300, num_upsampling_steps=0
         )
         direction_encoding = TensorVMEncoding(
-            resolution=128, num_components=24, final_resolution=300, num_upsampling_steps=100
+            resolution=128, num_components=24, final_resolution=300, num_upsampling_steps=0
         )
 
         self.field = TensoRFField(
