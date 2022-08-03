@@ -46,7 +46,7 @@ Contents
    :caption: Guides
 
    
-   models/index.rst
+   models/index
    notebooks/index
 
 .. toctree::

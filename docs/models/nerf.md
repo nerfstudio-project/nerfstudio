@@ -16,6 +16,20 @@ python scripts/run_train.py --config-name=graph_vanilla_nerf.yaml
 
 ## Method
 
+### Pipeline
+
+```{image} imgs/models_nerf-field-light.png
+:align: center
+:class: only-light
+:width: 500
+```
+
+```{image} imgs/models_nerf-field-dark.png
+:align: center
+:class: only-dark
+:width: 500
+```
+
 ### Overview
 
 If you have arrived to this site, it is likely that you have atleast heard of NeRFs. This page will discuss the original NeRF paper, _"NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"_ by Mildenhall, Srinivasan, Tancik et al. (2020). For most tasks, using the original NeRF model is likely not a good choice and hence we provide implementations of various other NeRF related models. It is however useful to understand how NeRF's work as most follow ups follow a similar structure.
