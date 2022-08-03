@@ -4,7 +4,7 @@ av
 black[jupyter]==22.3.0
 dcargs
 ninja
-functorch==0.1.1
+functorch==0.2.0
 h5py>=2.9.0
 hydra-colorlog==1.2.0
 hydra-core==1.2.0
@@ -23,10 +23,10 @@ pylint==2.13.4
 pytest
 python-socketio
 tensorboard==2.9.0
-torch==1.11.0
+torch==1.12.0
 torchmetrics[image]==0.8.2
 torchtyping
-torchvision==0.12.0
+torchvision==0.13.0
 tqdm
 u-msgpack-python>=2.4.1
 wandb
