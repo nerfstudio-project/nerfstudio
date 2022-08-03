@@ -26,7 +26,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore-paths = ["nerfactory/ngp_pl/.*$", "scripts/colmap2nerf.py", "^nerfactory/cuda/.*$", "^tests/cuda/.*$", "^nerfactory/viewer/.*$", "^tests/viewer/.*$"]
+ignore-paths = ["scripts/colmap2nerf.py", "^nerfactory/cuda/.*$", "^tests/cuda/.*$"]
 
 disable = [
   "too-many-arguments",
@@ -40,7 +40,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "--typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda --ignore=tests/viewer"
+addopts = "--typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
 testpaths = [
     "tests",
 ]

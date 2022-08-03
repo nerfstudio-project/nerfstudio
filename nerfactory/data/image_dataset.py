@@ -87,7 +87,7 @@ class ImageDataset(Dataset):
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
         return image
 
-    def get_image(self, image_idx: int):
+    def get_image(self, image_idx: int) -> TensorType["image_height", "image_width", "num_channels"]:
         """Returns a 3 channel image."""
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
         if self.alpha_color is not None and image.shape[-1] == 4:

@@ -26,7 +26,7 @@ def main(continue_on_fail: bool = False):
     """Run the github actions locally.
 
     Args:
-        continue_on_fail: Whether to continue running actions commands if the current one fails
+        continue_on_fail: Whether or not to continue running actions commands if the current one fails
     """
     with open(".github/workflows/code_checks.yml", "rb") as f:
         my_dict = yaml.safe_load(f)
