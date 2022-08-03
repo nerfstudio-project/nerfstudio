@@ -77,7 +77,7 @@ def main(args):
     config, basename = _load_hydra_config(
         hydra_dir, benchmark_time=args.benchmark_time, benchmark_date=args.benchmark_date
     )
-    # config.data.dataloader_eval.image_indices = None
+    config.data.dataloader_eval.image_indices = None
     ckpt = _load_best_ckpt(hydra_dir, config.trainer)
 
     # run evaluation
