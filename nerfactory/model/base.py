@@ -21,8 +21,9 @@ from typing import Any, Dict, List
 import torch
 from torch import nn
 from torch.nn import Parameter
+from nerfactory.cameras.rays import RayBundle
 
-from nerfactory.data.structs import DataloaderOutputs, ModelOutputs, SceneBounds
+from nerfactory.data.structs import SceneBounds
 from nerfactory.graphs.modules.scene_colliders import SceneBoundsCollider
 
 
@@ -39,7 +40,6 @@ class Model(nn.Module):
 
     Args:
         collider (SceneBoundsCollider): Collider for our points
-        steps_per_occupancy_grid_update (int): Number of steps per occupancy grid update
         scene_bounds (SceneBounds): Scene bounds
 
     Attributes:
@@ -55,14 +55,12 @@ class Model(nn.Module):
     def __init__(
         self,
         collider: SceneBoundsCollider,
-        steps_per_occupancy_grid_update: int = 16,
         scene_bounds: SceneBounds = None,
         **kwargs,
     ) -> None:
         super().__init__()
         self.device_indicator_param = nn.Parameter(torch.empty(0))
         self.scene_bounds = scene_bounds
-        self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
         self.kwargs = kwargs
         self.collider: SceneBoundsCollider = collider
         self.populate_fields()
@@ -90,16 +88,19 @@ class Model(nn.Module):
         """
 
     @abstractmethod
-    def forward(self, data_batch: DataloaderOutputs) -> ModelOutputs:
-        """Run the forward starting with ray indices."""
+    def forward(self, rays: RayBundle) -> torch.TensorType["rays_shape":..., "color_channels":3]:
+        """Run the forward starting with ray indices.
+
+        For subclassed versions of the model, we intend for additional arguments to be
+        added as needed for different models. This will generally return pixel values, but
+        may also return other information as well for different subclasses. These subclassed
+        differences are why we have the pipeline class alongside this to provide a standard
+        higher level interface.
+        """
 
     @abstractmethod
-    def get_loss_dict(self, data_batch: DataloaderOutputs, outputs: ModelOutputs) -> Dict[str, torch.tensor]:
-        """Computes and returns the losses."""
-
-    @abstractmethod
-    def log_test_image_outputs(self, data_batch: DataloaderOutputs) -> None:
-        """Log the test image outputs"""
+    def get_loss_dict(self) -> Dict[str, torch.tensor]:
+        """Computes and returns the losses from our data and the outputs of the forward function."""
 
     def load_graph(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path"""

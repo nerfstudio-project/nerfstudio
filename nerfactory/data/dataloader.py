@@ -210,29 +210,32 @@ class AbstractStoredDataloader(AbstractDataloader):  # pylint: disable=abstract-
 class TestStoredDataloader(AbstractStoredDataloader):  # pylint: disable=abstract-method
     """Basic stored dataloader implementation for instant-ngp test run"""
 
-    def __init__(self, use_train: bool, use_eval: bool, path: str, rays_per_batch: int = 1024):
+    def __init__(self, use_train: bool, use_eval: bool, path: str, data_format: str, rays_per_batch: int = 1024):
         super().__init__(use_train, use_eval)
         self.path = path
         self.rays_per_batch = rays_per_batch
+        self.format = data_format
 
     def setup_train(self):
         """Sets up the dataloader for training"""
         self.train_datasetinputs = get_dataset_inputs(self.path, self.format, "train")
         self.train_image_dataset = ImageDataset(self.train_datasetinputs.as_dict())
-        self.train_image_sampler = CacheImageSampler(self.image_dataset_train)
+        self.train_image_sampler = CacheImageSampler(self.train_image_dataset)
         self.iter_train_image_sampler = iter(self.train_image_sampler)
-        self.train_pixel_sampler = PixelSampler(self.num_rays_per_batch)
+        self.train_pixel_sampler = PixelSampler(self.rays_per_batch)
         self.train_ray_generator = RayGenerator(
             self.train_datasetinputs.camera_to_world, self.train_datasetinputs.intrinsics
         )
+        self.camera_to_world = self.train_datasetinputs.camera_to_world
+        self.intrinsics = self.train_datasetinputs.intrinsics
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
         self.eval_datasetinputs = get_dataset_inputs(self.path, self.format, "test")
         self.eval_image_dataset = ImageDataset(self.eval_datasetinputs.as_dict())
-        self.eval_image_sampler = CacheImageSampler(self.image_dataset_eval)
+        self.eval_image_sampler = CacheImageSampler(self.eval_image_dataset)
         self.iter_eval_image_sampler = iter(self.eval_image_sampler)
-        self.eval_pixel_sampler = PixelSampler(self.num_rays_per_batch)
+        self.eval_pixel_sampler = PixelSampler(self.rays_per_batch)
         self.eval_ray_generator = RayGenerator(
             self.eval_datasetinputs.camera_to_world, self.eval_datasetinputs.intrinsics
         )

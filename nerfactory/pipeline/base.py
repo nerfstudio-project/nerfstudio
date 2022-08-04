@@ -16,10 +16,9 @@
 Abstracts for the Pipeline class.
 """
 
+from abc import abstractmethod
 from typing import Dict
-import torch
 from nerfactory.data.dataloader import AbstractDataloader
-from nerfactory.data.structs import DataloaderOutputs, ModelOutputs
 from nerfactory.model.base import Model
 
 
@@ -29,7 +28,9 @@ class Pipeline:
 
     This class will contain high level functions for the model like getting the loss
     dictionaries and visualization code. It should have ways to get the next iterations
-    training loss, evaluation loss, and generate whole images for visualization.
+    training loss, evaluation loss, and generate whole images for visualization. Each model
+    class should be 1:1 with a pipeline that can act as a standardized interface and hide
+    differences in how each model takes in and outputs data.
 
     This class's function is to hide the dataloader and model classes from the trainer,
     worrying about:
@@ -37,7 +38,8 @@ class Pipeline:
     2) Feeding the model the data and fetching the loss
     3) (TODO) Visualization
     Hopefully this provides a higher level interface for the trainer to use, and
-    simplifying the model classes.
+    simplifying the model classes, which each may have different forward() methods
+    and so on.
 
 
     TODO: For visualizer functionality to be added down the line, we should make sure
@@ -78,24 +80,20 @@ class Pipeline:
         self.mixed_precision: bool = False
         self.loss_coefficients: Dict = loss_coefficients
 
-    def get_train_loss(self):
+    @abstractmethod
+    def get_train_loss_dict(self):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacign with the
         Model class."""
-        data: DataloaderOutputs = next(self.dataloader_train_iter)
-        with torch.autocast(device_type=data.rays.origins.device, enabled=self.mixed_precision):
-            outputs: ModelOutputs = self.model(data)
-            loss_dict: Dict = self.model.get_loss_dict(data, outputs)
-        return loss_dict
 
+    @abstractmethod
     def get_eval_loss_dict(self):
         """This function gets your evaluation loss dict. It needs to get the data
         from the dataloader and feed it to the model,"""
-        data: DataloaderOutputs = next(self.dataloader_eval_iter)
-        with torch.autocast(device_type=data.rays.origins.device, enabled=self.mixed_precision):
-            outputs: ModelOutputs = self.model(data)
-            loss_dict: Dict = self.model.get_loss_dict(data, outputs)
-        return loss_dict
+
+    @abstractmethod
+    def log_test_image_outputs(self) -> None:
+        """Log the test image outputs"""
 
     def get_aggregated_loss_dict(self, loss_dict: Dict):
         """Computes the aggregated loss from the loss_dict and the coefficients specified."""
