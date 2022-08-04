@@ -27,11 +27,11 @@ from typing import Dict
 import imageio
 import numpy as np
 import torch
-import wandb
 from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
+import wandb
 from nerfactory.utils.config import LoggingConfig
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
@@ -68,7 +68,7 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image, "step": step})
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image.detach().cpu(), "step": step})
 
 
 @check_main_thread
