@@ -20,13 +20,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
-from nerfactory.cameras.cameras import (
-    Camera,
-    get_camera,
-    get_intrinsics_from_intrinsics_matrix,
-)
-from nerfactory.viewer.server.visualizer import Viewer
-
 
 def get_chunks(
     lst: List[float], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None
@@ -80,25 +73,3 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     )
 
     return intrinsics_matrix, camera_to_world_h
-
-
-def get_camera_from_vis(vis: Viewer, name: str = "/Cameras/Main Camera", image_height: int = 100) -> Camera:
-    """Caculates the specified camera object's parameters (extrinsics/intrinsics); returns associated Camera Object.
-
-    Args:
-        vis: viewer object
-        name: name of camera to calculate for. Defaults to "/Cameras/Main Camera".
-        image_height: height of image. Defaults to 100.
-    """
-    data = vis[name].get_object()
-    if data is None:
-        return None
-    camera_object = data["object"]["object"]
-    intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-        camera_object, image_height=image_height
-    )
-
-    camera_to_world = camera_to_world_h[:3, :]
-    intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
-    camera = get_camera(intrinsics, camera_to_world)
-    return camera

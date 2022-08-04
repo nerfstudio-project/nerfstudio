@@ -16,7 +16,6 @@
 """
 
 
-import sys
 from typing import Tuple
 
 UNICODE = str

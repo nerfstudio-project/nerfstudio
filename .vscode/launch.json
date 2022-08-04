@@ -5,6 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch Chrome against localhost",
+      "request": "launch",
+      "type": "chrome",
+      "url": "http://localhost:4000",
+      "webRoot": "${workspaceFolder}/nerfactory/viewer/app"
+    },
+    {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
@@ -25,7 +32,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["machine.num_gpus=0"]
+      "args": [
+        "machine.num_gpus=0"
+      ]
     },
     {
       "name": "Python: run_train ngp (gpu)",
@@ -33,7 +42,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["--config-name=graph_instant_ngp.yaml"]
+      "args": [
+        "--config-name=graph_instant_ngp.yaml"
+      ]
     },
     {
       "name": "Python: run_train mipnerf 360 (gpu)",
@@ -41,7 +52,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["--config-name=graph_mipnerf_360.yaml"]
+      "args": [
+        "--config-name=graph_mipnerf_360.yaml"
+      ]
     },
     {
       "name": "Python: run_train nerfw (gpu)",

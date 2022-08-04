@@ -1,0 +1,56 @@
+{
+  "colors": {
+    "elevation1": "#292d39",
+    "elevation2": "#181c20",
+    "elevation3": "#373c4b",
+    "accent1": "#db5200",
+    "accent2": "#ff8600",
+    "accent3": "#ffd65c",
+    "highlight1": "#606980",
+    "highlight2": "#d1d4db",
+    "highlight3": "#ffffff",
+    "vivid1": "#ffcc00"
+  },
+  "radii": {
+    "xs": "2px",
+    "sm": "4px",
+    "lg": "10px"
+  },
+  "space": {
+    "sm": "6px",
+    "md": "5px",
+    "rowGap": "6px",
+    "colGap": "7px"
+  },
+  "fontSizes": {
+    "root": "11px"
+  },
+  "sizes": {
+    "rootWidth": "310px",
+    "controlWidth": "170px",
+    "scrubberWidth": "8px",
+    "scrubberHeight": "16px",
+    "rowHeight": "24px",
+    "folderHeight": "20px",
+    "checkboxSize": "16px",
+    "joystickWidth": "100px",
+    "joystickHeight": "100px",
+    "colorPickerWidth": "160px",
+    "colorPickerHeight": "100px",
+    "monitorHeight": "60px",
+    "titleBarHeight": "39px"
+  },
+  "borderWidths": {
+    "root": "0px",
+    "input": "1px",
+    "focus": "1px",
+    "hover": "1px",
+    "active": "1px",
+    "folder": "1px"
+  },
+  "fontWeights": {
+    "label": "normal",
+    "folder": "normal",
+    "button": "normal"
+  }
+}
