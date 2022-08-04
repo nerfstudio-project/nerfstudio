@@ -23,7 +23,8 @@ pylint==2.13.4
 pytest
 python-socketio
 tensorboard==2.9.0
-torch==1.12.0
+--extra-index-url https://download.pytorch.org/whl/cu113
+torch==1.12.0 
 torchmetrics[image]==0.8.2
 torchtyping
 torchvision==0.13.0
