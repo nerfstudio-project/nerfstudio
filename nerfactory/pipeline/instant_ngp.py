@@ -139,6 +139,7 @@ class InstantNGPModel(Model):
 class InstantNGPPipeline(Pipeline):
     """
     The pipeline class for the Instant NGP model."""
+
     def get_train_loss_dict(self):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacing with the
