@@ -92,7 +92,7 @@ class InstantNGPModel(Model):
         # during training, keep only the rays that intersect the scene. discard the rest
         valid_mask = intersected_ray_bundle.valid_mask[..., 0]
         masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-        masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+        # masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
 
         ray_samples, packed_info, t_min, t_max = self.sampler(masked_intersected_ray_bundle, self.field.aabb)
 
@@ -108,15 +108,14 @@ class InstantNGPModel(Model):
 
         return accumulated_color, accumulated_weight, accumulated_depth, mask
 
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.tensor]:
+    def get_loss_dict(self, outputs_rgb, batch, outputs_mask=None) -> Dict[str, torch.tensor]:
         """Computes and returns the losses."""
         device = self.get_device()
         image = batch["image"].to(device)
-        if "mask" in outputs:
-            mask = outputs["mask"]
-            rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
+        if outputs_mask != None:
+            rgb_loss = self.rgb_loss(image[outputs_mask], outputs_rgb[outputs_mask])
         else:
-            rgb_loss = self.rgb_loss(image, outputs["rgb"])
+            rgb_loss = self.rgb_loss(image, outputs_rgb)
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 
@@ -129,11 +128,17 @@ class InstantNGPPipeline(Pipeline):
         rays, batch = self.dataloader_train_iter.next()
         accumulated_color, accumulated_weight, accumulated_depth, mask = self.model(rays, batch)
         masked_batch = get_masked_dict(batch, mask)
-        loss_dict = self.model.get_loss_dict(
+        loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
+        return loss_dict
 
     def get_eval_loss_dict(self):
         """This function gets your evaluation loss dict. It needs to get the data
         from the dataloader and feed it to the model,"""
+        rays, batch = self.dataloader_eval_iter.next()
+        accumulated_color, accumulated_weight, accumulated_depth, mask = self.model(rays, batch)
+        masked_batch = get_masked_dict(batch, mask)
+        loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
+        return loss_dict
 
     def log_test_image_outputs(self) -> None:
         """Log the test image outputs"""
