@@ -28,10 +28,10 @@ import imageio
 import numpy as np
 import torch
 from omegaconf import ListConfig
+import wandb
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-import wandb
 from nerfactory.utils.config import LoggingConfig
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
