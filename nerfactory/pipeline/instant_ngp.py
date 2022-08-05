@@ -90,7 +90,7 @@ class InstantNGPModel(Model):
             return outputs
 
         # during training, keep only the rays that intersect the scene. discard the rest
-        valid_mask = intersected_ray_bundle.valid_mask[..., 0]
+        alive_ray_mask = intersected_ray_bundle.valid_mask[..., 0]
         # masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
 
         num_rays = len(ray_bundle)
@@ -122,7 +122,7 @@ class InstantNGPModel(Model):
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
 
-        return accumulated_color, accumulated_weight, accumulated_depth, mask
+        return accumulated_color, accumulated_weight, accumulated_depth, alive_ray_mask
 
     def get_loss_dict(self, outputs_rgb, batch, outputs_mask=None) -> Dict[str, torch.tensor]:
         """Computes and returns the losses."""
