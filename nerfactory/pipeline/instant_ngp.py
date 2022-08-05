@@ -81,16 +81,21 @@ class InstantNGPModel(Model):
 
     def forward(self, ray_bundle: RayBundle, batch):  # pylint:disable=arguments-differ
         """Run the forward starting with ray indices."""
-        intersected_ray_bundle = self.collider(ray_bundle)
 
-        if batch is None:
-            # during inference, keep all rays
-            outputs = self.get_outputs(intersected_ray_bundle)
-            return outputs
+        if self.collider is not None:
+            intersected_ray_bundle = self.collider(ray_bundle)
+            valid_mask = intersected_ray_bundle.valid_mask[..., 0]
+        else:
+            # NOTE(ruilongli): we don't need collider for ngp
+            intersected_ray_bundle = ray_bundle
+            valid_mask = None
 
-        # during training, keep only the rays that intersect the scene. discard the rest
-        # alive_ray_mask = intersected_ray_bundle.valid_mask[..., 0]
-        # masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+        if valid_mask is not None:
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+            # during training, keep only the rays that intersect the scene. discard the rest
+            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+
+        ray_bundle = intersected_ray_bundle
 
         num_rays = len(ray_bundle)
         device = ray_bundle.origins.device
