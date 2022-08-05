@@ -28,16 +28,30 @@ from torchtyping import TensorType
 from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import DatasetInputs, SceneBounds
+from nerfactory.fields.density_fields.density_grid import DensityGridConfig
 from nerfactory.graphs.modules.ray_generator import RayGenerator
+from nerfactory.graphs.modules.scene_colliders import ColliderConfig
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import GraphConfig
+from nerfactory.utils.config import BaseConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
     instantiate_from_dict_config,
     is_not_none,
 )
 
+
+class GraphConfig(BaseConfig):
+    """Config for the Graph class"""
+
+    def __init__(self, **kwargs):
+        # Set attributes with defaults
+        self.enable_collider: bool = kwargs.pop("enable_collider", True)
+        self.collider_config: Optional[ColliderConfig] = kwargs.pop("collider_config", None)
+        self.loss_coefficients: Dict[str, float] = kwargs.pop("loss_coefficients", {})
+        self.enable_density_field: bool = kwargs.pop("enable_density_field", False)
+        self.density_field_config: Optional[DensityGridConfig] = kwargs.pop("density_field_config", None)
+        super().__init__(**kwargs)
 
 class Graph(nn.Module):
     """Graph class
@@ -57,28 +71,33 @@ class Graph(nn.Module):
 
     def __init__(
         self,
+        config: GraphConfig,
         intrinsics: torch.Tensor,
         camera_to_world: torch.Tensor,
-        loss_coefficients: DictConfig,
-        scene_bounds: Optional[SceneBounds] = None,
-        enable_collider: bool = True,
-        collider_config: Optional[DictConfig] = None,
-        enable_density_field: bool = False,
-        density_field_config: Optional[DictConfig] = None,
-        **kwargs,
+        scene_bounds: SceneBounds,
+        # loss_coefficients: DictConfig,
+        # scene_bounds: Optional[SceneBounds] = None,
+        # enable_collider: bool = True,
+        # collider_config: Optional[DictConfig] = None,
+        # enable_density_field: bool = False,
+        # density_field_config: Optional[DictConfig] = None,
+        # **kwargs,
     ) -> None:
         super().__init__()
-        assert is_not_none(scene_bounds), "scene_bounds is needed to use the density grid"
+        self.config = config
         self.intrinsics = intrinsics
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
-        self.enable_collider = enable_collider
-        self.collider_config = collider_config
-        self.loss_coefficients = loss_coefficients
-        self.enable_density_field = enable_density_field
-        self.density_field_config = density_field_config
+        
+        # self.config = config
+        # TODO(ethan): remove the following lines
+        self.enable_collider = self.config.enable_collider
+        self.collider_config = self.config.collider_config
+        self.loss_coefficients = self.config.loss_coefficients
+        self.enable_density_field = self.config.enable_density_field
+        self.density_field_config = self.config.density_field_config
+        
         self.density_field = None
-        self.kwargs = kwargs
         self.collider = None
         self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
         self.populate_density_field()

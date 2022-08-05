@@ -18,6 +18,43 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from omegaconf import MISSING, DictConfig
+import logging
+
+from nerfactory.graphs.base import GraphConfig
+
+
+class BaseConfig:
+    """The base config class.
+    The code is adapted from HuggingFace's implementation of the PretrainedConfig class, which can be found at:
+        https://github.com/huggingface/transformers/blob/ddb1a47ec828534b4bf633b321e79c5a4aba061f/src/transformers/configuration_utils.py#L54
+
+    Class attributes (overridden by derived classes):
+    - **_target_** (`str`) -- An identifier for the class targeted by the configuration. E.g., "nerfactory.fields.density_fields.density_grid.DensityGrid"
+    - **attribute_map** (`Dict[str, str]`) -- A dict that maps model specific attribute names to the standardized
+      naming of attributes.
+    """
+
+    _target_: str = ""
+    attribute_map: Dict[str, str] = {}
+
+    def __setattr__(self, key, value):
+        if key in super().__getattribute__("attribute_map"):
+            key = super().__getattribute__("attribute_map")[key]
+        super().__setattr__(key, value)
+
+    def __getattribute__(self, key):
+        if key != "attribute_map" and key in super().__getattribute__("attribute_map"):
+            key = super().__getattribute__("attribute_map")[key]
+        return super().__getattribute__(key)
+
+    def __init__(self, **kwargs):
+        # Set attributes without default values
+        for key, value in kwargs.items():
+            try:
+                setattr(self, key, value)
+            except AttributeError as err:
+                logging.error(f"Can't set {key} with value {value} for {self}")
+                raise err
 
 
 @dataclass
@@ -84,22 +121,6 @@ class DataConfig:
 
 
 @dataclass
-class GraphConfig:
-    """Configuration for graph instantiation"""
-
-    _target_: str = MISSING
-    enable_collider: Optional[bool] = True
-    collider_config: Dict[str, Any] = MISSING
-    num_coarse_samples: int = MISSING
-    num_importance_samples: int = MISSING
-    loss_coefficients: Dict[str, Any] = MISSING
-    # additional optional parameters here
-    field_implementation: Optional[str] = "torch"
-    enable_density_field: Optional[bool] = False
-    density_field_config: Dict[str, Any] = MISSING
-
-
-@dataclass
 class ViewerConfig:
     """Configuration for viewer instantiation"""
 
@@ -120,7 +141,7 @@ class Config:
     experiment_name: str = MISSING
     method_name: str = MISSING
     data: DataConfig = MISSING
-    graph: GraphConfig = MISSING
+    graph: Optional[GraphConfig] = None
     optimizers: Dict[str, Any] = MISSING
     viewer: ViewerConfig = MISSING
     # additional optional parameters here

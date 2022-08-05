@@ -23,7 +23,17 @@ from torchtyping import TensorType
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RaySamples
+from nerfactory.utils.config import BaseConfig
 
+
+class DensityGridConfig(BaseConfig):
+    def __init__(self, **kwargs):
+        self.center: float = kwargs.pop("center", 0.0)
+        self.base_scale: float = kwargs.pop("base_scale", 3.0)
+        self.num_cascades: int = kwargs.pop("num_cascades", 1)
+        self.resolution: int = kwargs.pop("resolution", 128)
+        self.update_every_num_iters: int = kwargs.pop("update_every_num_iters", 16)
+        super().__init__(**kwargs)
 
 def _create_grid_coords(resolution: int, device: Union[torch.device, str] = "cpu") -> TensorType["n_coords", 3]:
     """Create 3D grid coordinates

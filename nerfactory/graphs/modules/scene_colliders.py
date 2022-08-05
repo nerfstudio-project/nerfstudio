@@ -21,7 +21,19 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import SceneBounds
+from nerfactory.utils.config import BaseConfig
 
+
+class ColliderConfig(BaseConfig):
+    """Config for the Collider class"""
+
+    def __init__(self, **kwargs):
+        self.near_plane: float = kwargs.pop("near_plane", 2.0)
+        self.far_plane: float = kwargs.pop("far_plane", 6.0)
+
+        # TODO(ethan): make sure the target is set
+        
+        super().__init__(**kwargs)
 
 class SceneBoundsCollider(nn.Module):
     """Module for setting near and far values for rays."""

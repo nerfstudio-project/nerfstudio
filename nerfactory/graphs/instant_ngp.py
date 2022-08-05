@@ -28,12 +28,26 @@ import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.graphs.base import Graph
+from nerfactory.graphs.base import Graph, GraphConfig
 from nerfactory.graphs.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
+
+class NGPGraphConfig(GraphConfig):
+    """Config for the NGPGraph class
+    
+    Attributes:
+        field_implementation: choice of "tcnn" or "torch"
+        num_samples: number of samples to use for each ray
+        data_range: data range for PSNR calculation
+    """
+
+    def __init__(self, **kwargs):
+        self.field_implementation: str = kwargs.pop("field_implementation", "tcnn")  # choice of "tcnn" or "torch"
+        self.num_samples: int = 1024
+        self.data_range: float = 1.0
 
 class NGPGraph(Graph):
     """Instant NGP graph
@@ -43,11 +57,9 @@ class NGPGraph(Graph):
         kwargs: additional params to pass up to the parent class Graph
     """
 
-    def __init__(self, field_implementation="torch", **kwargs) -> None:
-        assert field_implementation in field_implementation_to_class
-        self.field_implementation = field_implementation
+    def __init__(self, config: NGPGraphConfig, **kwargs) -> None:
         self.field = None
-        super().__init__(**kwargs)
+        super().__init__(config, **kwargs)
 
     def get_training_callbacks(self) -> List[Callback]:
         assert self.density_field is not None
@@ -64,17 +76,17 @@ class NGPGraph(Graph):
         # torch or tiny-cuda-nn version
         if self.scene_bounds is None:
             raise ValueError("scene_bounds must be set to use an NGPGraph")
-        self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
+        self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_field)
+        self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
 
         # losses
         self.rgb_loss = MSELoss()
 
         # metrics
-        self.psnr = PeakSignalNoiseRatio(data_range=1.0)
+        self.psnr = PeakSignalNoiseRatio(data_range=self.config.data_range)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
