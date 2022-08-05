@@ -80,9 +80,9 @@ class InstantNGPModel(Model):
         """
         return {"field": list(self.field.parameters())}
 
-    def forward(self, rays: RayBundle, batch):  # pylint:disable=arguments-differ
+    def forward(self, ray_bundle: RayBundle, batch):  # pylint:disable=arguments-differ
         """Run the forward starting with ray indices."""
-        intersected_ray_bundle = self.collider(rays)
+        intersected_ray_bundle = self.collider(ray_bundle)
 
         if batch is None:
             # during inference, keep all rays
@@ -91,17 +91,33 @@ class InstantNGPModel(Model):
 
         # during training, keep only the rays that intersect the scene. discard the rest
         valid_mask = intersected_ray_bundle.valid_mask[..., 0]
-        masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-        # masked_batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+        # masked_intersected_ray_bundle = intersected_ray_bundle[valid_mask]
 
-        ray_samples, packed_info, t_min, t_max = self.sampler(masked_intersected_ray_bundle, self.field.aabb)
+        num_rays = len(ray_bundle)
+        device = ray_bundle.origins.device
+
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_outputs")
+        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
 
-        accumulated_weight, accumulated_depth, accumulated_color, mask = nerfactory_cuda.VolumeRenderer.apply(
-            packed_info, ray_samples.frustums.starts, ray_samples.frustums.ends, sigmas, rgbs
+        # accumulate all the rays start from zero opacity
+        opacities = torch.zeros((num_rays, 1), device=device)
+        (
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+            alive_ray_mask,
+        ) = nerfactory_cuda.VolumeRenderer.apply(
+            packed_info,
+            ray_samples.frustums.starts,
+            ray_samples.frustums.ends,
+            sigmas.contiguous(),
+            rgbs.contiguous(),
+            opacities,
         )
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
