@@ -402,15 +402,12 @@ class Record3D(Dataset):
         ext = ".jpg"
         image_filenames = []
         for f in os.listdir(image_dir):
-            ext = os.path.splitext(f)[1]
             image_filenames.append(os.path.join(image_dir, f))
-        image_filenames = sorted(image_filenames, key=lambda fn: int(fn[: len(ext)]))
+        image_filenames = sorted(image_filenames, key=lambda fn: int(os.path.basename(fn)[: -len(ext)]))
         num_images = len(image_filenames)
 
         metadata_path = os.path.join(abs_dir, "metadata.json")
-
-        with open(str(metadata_path)) as f:
-            metadata_dict = json.load(f)
+        metadata_dict = load_from_json(metadata_path)
 
         # Camera intrinsics
         K = np.array(metadata_dict["K"]).reshape((3, 3)).T
@@ -425,18 +422,16 @@ class Record3D(Dataset):
         intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
-        poses_data = metadata_dict["poses"]
+        poses_data = np.array(metadata_dict["poses"])
         # (N, 3, 4)
         poses = np.concatenate(
             [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
             axis=-1,
         ).astype(np.float32)
-        poses = poses_data[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
 
         idx_test = np.arange(num_images)[:: self.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
         idx = idx_train if split == "train" else idx_test
-
         if num_images != poses.shape[0]:
             raise RuntimeError(f"Different number of images ({num_images}), and poses ({poses.shape[0]})")
 
@@ -446,7 +441,7 @@ class Record3D(Dataset):
         poses[:, :2, 4] = np.array([H, W])
 
         # Reorder pose to match our convention
-        # poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
+        poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
 
         camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
 
