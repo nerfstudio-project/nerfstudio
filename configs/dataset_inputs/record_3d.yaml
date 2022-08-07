@@ -1,0 +1,3 @@
+data_directory: /data/akristoffersen/kair/record_3d/record_test_1
+dataset_format: record3d
+downscale_factor: 1

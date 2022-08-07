@@ -414,8 +414,8 @@ class Record3D(Dataset):
         focal_length = K[0, 0]
         cx, cy = K[:2, -1]
 
-        H = metadata_dict["h"]
-        W = metadata_dict["w"]
+        # H = metadata_dict["h"]
+        # W = metadata_dict["w"]
 
         num_cameras = 1
         num_intrinsics_params = 3
@@ -438,10 +438,8 @@ class Record3D(Dataset):
         image_filenames = np.array(image_filenames)[idx]
         poses = poses[idx]
 
-        poses[:, :2, 4] = np.array([H, W])
-
-        # Reorder pose to match our convention
-        poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
+        # # Reorder pose to match our convention
+        # poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
 
         camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
 

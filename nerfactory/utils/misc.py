@@ -80,7 +80,6 @@ def instantiate_from_dict_config(dict_config: Any, **kwargs):
     Args:
         dict_config: DictConfig object to instantiate. It can be a dataclass or a dict but must have a `_target_` field.
     """
-    print(dict_config)
     dict_config_kwargs = {k: v for k, v in dict_config.items() if k != "_target_"}
     uninstantiated_class = locate(dict_config._target_)  # pylint: disable=protected-access
     all_kwargs = dict_config_kwargs
