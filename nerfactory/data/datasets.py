@@ -15,7 +15,6 @@
 """A set of standard datasets."""
 
 import dataclasses
-import json
 import logging
 import os
 from abc import abstractmethod
@@ -389,7 +388,8 @@ class Record3D(Dataset):
     downscale_factor: int = 1
     val_skip: int = 8
     auto_scale: bool = True
-    aabb_scale = 1
+    aabb_scale = 4.0
+    alpha_color: Optional[Union[str, list]] = None
 
     def _generate_dataset_inputs(self, split="train"):
         abs_dir = get_absolute_path(self.data_directory)
@@ -409,19 +409,6 @@ class Record3D(Dataset):
         metadata_path = os.path.join(abs_dir, "metadata.json")
         metadata_dict = load_from_json(metadata_path)
 
-        # Camera intrinsics
-        K = np.array(metadata_dict["K"]).reshape((3, 3)).T
-        focal_length = K[0, 0]
-        cx, cy = K[:2, -1]
-
-        # H = metadata_dict["h"]
-        # W = metadata_dict["w"]
-
-        num_cameras = 1
-        num_intrinsics_params = 3
-        intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
-        intrinsics *= torch.tensor([cx, cy, focal_length])
-
         poses_data = np.array(metadata_dict["poses"])
         # (N, 3, 4)
         poses = np.concatenate(
@@ -438,16 +425,40 @@ class Record3D(Dataset):
         image_filenames = np.array(image_filenames)[idx]
         poses = poses[idx]
 
-        # # Reorder pose to match our convention
+        # centering poses
+        poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, :], axis=0)[:, 3]
+
+        # Reorder pose to match our convention
         # poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
+        # poses = Mipnerf360._normalize_orientation(poses)
 
         camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
+
+        # Camera intrinsics
+        K = np.array(metadata_dict["K"]).reshape((3, 3)).T
+        focal_length = K[0, 0]
+        cx, cy = K[:2, -1]
+
+        # H = metadata_dict["h"]
+        # W = metadata_dict["w"]
+
+        num_cameras = len(image_filenames)
+        num_intrinsics_params = 3
+        intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
+        intrinsics *= torch.tensor([cx, cy, focal_length])
+
+        scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.aabb_scale)
+
+        print("num_cameras", num_cameras)
+        print("camera_to_world", camera_to_world.shape)
+        print("intrinsics", intrinsics.shape)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             downscale_factor=1,
             intrinsics=intrinsics,
             camera_to_world=camera_to_world,
+            scene_bounds=scene_bounds,
         )
 
         return dataset_inputs
