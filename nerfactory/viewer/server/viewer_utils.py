@@ -312,8 +312,9 @@ class VisualizerState:
         if min_resolution:
             self.min_resolution = min_resolution
 
+        damped_upsacale_factor = 1 if self.res_upscale_factor < 8 else self.res_upscale_factor
         image_height = min(
-            self.min_resolution * self.res_upscale_factor,
+            self.min_resolution * damped_upsacale_factor,
             self.max_resolution,
         )
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
