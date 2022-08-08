@@ -29,12 +29,13 @@ good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
 ignore-paths = ["scripts/colmap2nerf.py", "^nerfactory/cuda/.*$", "^tests/cuda/.*$"]
 
 disable = [
-  "too-many-arguments",
-  "fixme",
-  "too-many-branches",
-  "too-many-locals",
-  "too-many-instance-attributes",
   "duplicate-code",
+  "fixme",
+  "logging-fstring-interpolation",
+  "too-many-arguments",
+  "too-many-branches",
+  "too-many-instance-attributes",
+  "too-many-locals",
   "unnecessary-ellipsis",
 ]
 

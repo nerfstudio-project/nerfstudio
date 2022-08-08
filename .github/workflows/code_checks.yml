@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python 3.8.12
         uses: actions/setup-python@v3
         with:
-          python-version: "3.8.12"
+          python-version: '3.8.12'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -31,9 +31,9 @@ jobs:
         run: |
           python ./scripts/docs/add_nb_tags.py --check
       - name: Run isort
-        run: isort . --profile black --check
+        run: isort docs/ nerfactory/ notebooks/ scripts/ tests/ --profile black --check
       - name: Run Black
-        run: black nerfactory/ scripts/ notebooks/ docs/ --check
+        run: black docs/ nerfactory/ notebooks/ scripts/ tests/ --check
       - name: Python Pylint
         run: |
           pylint nerfactory tests scripts
