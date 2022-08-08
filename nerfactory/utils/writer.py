@@ -68,7 +68,7 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image, "step": step})
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image.detach().cpu(), "step": step})
 
 
 @check_main_thread
