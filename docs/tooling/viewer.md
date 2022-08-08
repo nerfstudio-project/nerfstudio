@@ -8,14 +8,14 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 
 ## Quick start
 
-```
-# Run bridge server in the background.
-python scripts/run_viewer_bridge_server.py
+WOP: This sections is not ready. Please proceed to the "For developers" section below.
 
-# Run training script with viewer enabled.
-# note that running with instant ngp if much faster than vanilla nerf
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
-```
+1. Open the Client App Viewer at ... `TODO(ethan): host the static website`.
+
+2. Run training script with viewer enabled. Note that you should only use the viewer with a fast pipeline, such as instant ngp.
+    ```shell
+    python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
+    ```
 
 <hr>
 
@@ -29,7 +29,7 @@ In the center, we have the Bridge Server, which facilitates the connection betwe
 
 The connection between the Bridge Server and the Client App works with WebSockets and WebRTC.
 
-- **WebSocket connection** - The WebSocket is used by the Bridge Server to dispatch commands coming from the nerfactory TCP connection. Commands can be used for drawing primitives in the [JSON Object Scene format](https://github.com/mrdoob/three.js/wiki/JSON-Object-Scene-format-4), for setting the transform of objects, for the setting various properties, and more.
+- **WebSocket connection** - The WebSocket is used by the Bridge Server to dispatch commands coming from the nerfactory TCP connection. Commands can be used for drawing primitives, for setting the transform of objects, for the setting various properties, and more.
 
 - **WebRTC connection** - We use WebRTC to stream images being rendered from nerfactory. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the nerfactory code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
 
@@ -44,7 +44,7 @@ cd nerfactory
 
 # run the server on your machine
 # this will run in the background
-python scripts/run_viewer_server.py
+python scripts/run_viewer_bridge_server.py
 
 It should print out something of the form:
 "ZMQWebSocketBridge using zmq_url=tcp://127.0.0.1:6000 and websocket_port=8051"
@@ -54,41 +54,48 @@ It should print out something of the form:
 
 > We will host the viewer online in the future, but for now we have to run it locally.
 
-```
-cd pyard
-
+```shell
 cd nerfactory/viewer/app
+```
 
-# install yarn and package.json dependencies
+Install npm (to install yarn) and yarn
+
+```shell
+sudo apt-get install npm
 npm install --global yarn
+```
 
+Install nvm and set the node version
+Install nvm with instructions at e.g., https://heynode.com/tutorial/install-nodejs-locally-nvm/
+
+```shell
+nvm install 17.8.0
+```
+
+Now running `node --version` in the shell should print "v17.8.0".
+Install package.json dependencies and start the client viewer app
+
+```shell
 yarn install
 yarn start
-
-# forward port and open in your local browser
-# the URL takes the following form
-# http://localhost:<forwarded_react_port>?localhost:<forwarded_backend_tcp_port>
-http://localhost:4000?localhost:8051
 ```
 
-Possibly edit the port in `app/.env.development` file with the following:
+Forward port and open in your local browser. The URL takes the following form, `http://localhost:<forwarded_react_port>?localhost:<forwarded_backend_tcp_port>`. Notice the "?" character.
+- http://localhost:4000?localhost:8051
+
+Possibly edit the port in `app/.env.development` file with the following to adjust the PORT, for example.
 
 ```
 BROWSER=none
 FAST_REFRESH=false
-HOST=localhost
+HOST=0.0.0.0
 PORT=4000
+ESLINT_NO_DEV_ERRORS=true
 ```
 
 #### Running the nerfactory Code
 
-- **Notebook demo** - See `notebooks/visualize_viewer.ipynb` for an overview for how to interact with the viewer with the Viewer object from nerfactory.
-
-## Features checklist
-
-- [x] WebRTC video stream
-- [x] Dynamic Resolution Scaling (DRS)
-- [ ] Draw camera frustums from the DatasetInputs
+- **Notebook demo** - See `docs/notebooks/visualize_viewer.ipynb` for an overview for how to interact with the viewer with the Viewer object from nerfactory.
 
 ## Acknowledgements and references
 
@@ -102,3 +109,7 @@ Here are other resources that we've used and/or have found helpful while buildin
 - [ThreeJS](https://threejs.org/)
 - [ReactJS](https://reactjs.org/)
 - [WebRTC](https://webrtc.org/) - WebRTC is a framework for real-time communication that allows two peers to send video, audio, or general data to and from each other with low latency. We've adopted WebRTC to stream rendered images to our viewer.
+
+```
+
+```
