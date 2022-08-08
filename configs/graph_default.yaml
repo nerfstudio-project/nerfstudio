@@ -28,7 +28,7 @@ logging:
 trainer:
   model_dir: "./checkpoints"
   steps_per_save: 1000
-  steps_per_test: 1000
+  steps_per_test: 500
   max_num_iterations: 1000000
   mixed_precision: False
   resume_train:
