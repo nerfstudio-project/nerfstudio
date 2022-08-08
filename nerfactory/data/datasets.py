@@ -437,10 +437,11 @@ class Record3D(Dataset):
         # Camera intrinsics
         K = np.array(metadata_dict["K"]).reshape((3, 3)).T
         focal_length = K[0, 0]
-        cx, cy = K[:2, -1]
+        # cy, cx = K[:2, -1]
 
-        # H = metadata_dict["h"]
-        # W = metadata_dict["w"]
+        H = metadata_dict["h"]
+        W = metadata_dict["w"]
+        cx, cy = W / 2, H / 2
 
         num_cameras = len(image_filenames)
         num_intrinsics_params = 3

@@ -1,5 +1,5 @@
 defaults:
-  - graph_default
+  - graph_instant_ngp
   - _self_
 
 machine:
@@ -55,14 +55,14 @@ data:
     _target_: nerfactory.data.image_dataset.ImageDataset
   dataloader_train:
     pixel_sampler:
-      num_rays_per_batch: 8192 # for training
+      num_rays_per_batch: 6096 # for training
   # Eval dataloading
   dataset_inputs_eval:
     _target_: nerfactory.data.datasets.Record3D
     data_directory: /data/akristoffersen/kair/record_3d/record_test_1
     downscale_factor: 1
   dataloader_eval:
-    num_rays_per_chunk: 8192 # all rays for evaluation
+    num_rays_per_chunk: 4096 # all rays for evaluation
 
 graph:
   _target_: nerfactory.graphs.vanilla_nerf.NeRFGraph
