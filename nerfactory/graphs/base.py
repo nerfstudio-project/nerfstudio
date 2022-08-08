@@ -17,6 +17,7 @@ The Graph module contains all trainable parameters.
 """
 from abc import abstractmethod
 from collections import defaultdict
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
@@ -33,25 +34,24 @@ from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.graphs.modules.scene_colliders import ColliderConfig
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import BaseConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
     instantiate_from_dict_config,
     is_not_none,
 )
 
-
-class GraphConfig(BaseConfig):
+@dataclass
+class GraphConfig:
     """Config for the Graph class"""
 
-    def __init__(self, **kwargs):
-        # Set attributes with defaults
-        self.enable_collider: bool = kwargs.pop("enable_collider", True)
-        self.collider_config: Optional[ColliderConfig] = kwargs.pop("collider_config", None)
-        self.loss_coefficients: Dict[str, float] = kwargs.pop("loss_coefficients", {})
-        self.enable_density_field: bool = kwargs.pop("enable_density_field", False)
-        self.density_field_config: Optional[DensityGridConfig] = kwargs.pop("density_field_config", None)
-        super().__init__(**kwargs)
+    # collider
+    enable_collider: bool = True
+    collider_config: Optional[ColliderConfig] = None
+    #
+    loss_coefficients: Dict[str, float] = {}
+    # density field
+    enable_density_field: bool = False
+    density_field_config: Optional[DensityGridConfig] = None
 
 class Graph(nn.Module):
     """Graph class
@@ -89,24 +89,30 @@ class Graph(nn.Module):
         self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
         
-        # self.config = config
-        # TODO(ethan): remove the following lines
+        # collider
         self.enable_collider = self.config.enable_collider
         self.collider_config = self.config.collider_config
+
+
         self.loss_coefficients = self.config.loss_coefficients
+
+        # 
         self.enable_density_field = self.config.enable_density_field
         self.density_field_config = self.config.density_field_config
         
         self.density_field = None
         self.collider = None
-        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
-        self.populate_density_field()
-        self.populate_collider()
-        self.populate_fields()
-        self.populate_misc_modules()  # populate the modules
+        self.ray_generator = None
         self.callbacks = None
         # to keep track of which device the nn.Module is on
         self.device_indicator_param = nn.Parameter(torch.empty(0))
+
+    def __post_init__(self):
+        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
+        self.populate_collider()
+        self.populate_density_field()
+        self.populate_fields() # TODO(ethan): remove this and only create fields in the base class
+        self.populate_misc_modules()
 
     @property
     def device(self):
@@ -132,7 +138,7 @@ class Graph(nn.Module):
         """Set the fields."""
 
     @abstractmethod
-    def populate_misc_modules(self):
+    def populate_misc_modules(self): # TODO(ethan): rename to 'populate_components'
         """Initializes any additional modules that are part of the network."""
 
     @abstractmethod

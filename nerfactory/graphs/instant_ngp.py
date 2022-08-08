@@ -16,7 +16,8 @@
 Implementation of Instant NGP.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Literal
+from dataclasses import dataclass
 
 import torch
 from torch.nn import Parameter
@@ -26,6 +27,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.data.structs import SceneBounds
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.graphs.base import Graph, GraphConfig
@@ -34,7 +36,7 @@ from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
-
+@dataclass
 class NGPGraphConfig(GraphConfig):
     """Config for the NGPGraph class
     
@@ -44,22 +46,22 @@ class NGPGraphConfig(GraphConfig):
         data_range: data range for PSNR calculation
     """
 
-    def __init__(self, **kwargs):
-        self.field_implementation: str = kwargs.pop("field_implementation", "tcnn")  # choice of "tcnn" or "torch"
-        self.num_samples: int = 1024
-        self.data_range: float = 1.0
+    field_implementation: Literal["tcnn", "torch"] = "tcnn"
+    num_samples: int = 1024
+    data_range: float = 1.0
 
 class NGPGraph(Graph):
     """Instant NGP graph
 
     Args:
-        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
-        kwargs: additional params to pass up to the parent class Graph
+        config: config for the graph
     """
 
-    def __init__(self, config: NGPGraphConfig, **kwargs) -> None:
-        self.field = None
-        super().__init__(config, **kwargs)
+    # NOTE(ethan): why is this needed to make Python autocomplete work?
+    config: NGPGraphConfig
+
+    def __init__(self, config: NGPGraphConfig, intrinsics: torch.Tensor, camera_to_world: torch.Tensor, scene_bounds: SceneBounds) -> None:
+        super().__init__(config, intrinsics, camera_to_world, scene_bounds)
 
     def get_training_callbacks(self) -> List[Callback]:
         assert self.density_field is not None
@@ -67,18 +69,14 @@ class NGPGraph(Graph):
             Callback(
                 update_every_num_iters=self.density_field.update_every_num_iters,
                 func=self.density_field.update_density_grid,
-                density_eval_func=self.field.density_fn,  # type: ignore
+                density_eval_func=self.field.density_fn,
             )
         ]
 
-    def populate_fields(self):
-        """Set the fields."""
-        # torch or tiny-cuda-nn version
-        if self.scene_bounds is None:
-            raise ValueError("scene_bounds must be set to use an NGPGraph")
+    def populate_misc_modules(self):
+        # field
         self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-    def populate_misc_modules(self):
         # samplers
         self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
 
