@@ -16,28 +16,37 @@ helpFunction_top()
 }
 
 
-while getopts "t:o:p:a:" opt; do
+while getopts "t:o:p" opt; do
     case "$opt" in
         t ) type="$OPTARG" ;;
         o ) output_file="$OPTARG" ;;
         p ) program="$OPTARG" ;;
         ? ) helpFunction ;; 
     esac
-    done
-    if [ -z "$type" ]; then
-        echo "Missing profiling type (flame / top)"
+done
+
+if [ -z "$type" ]; then
+    echo "Missing profiling type (flame / top)"
+fi
+shift $((OPTIND-1))
+program="$@"
+program=${program/"--"/"-- --"}
+
+# Print helpFunction in case parameters are empty
+if [[ "$type" = "flame" ]]; then
+    if [ -z "$output_file" ] || [ -z "$program" ]; then
+        echo "Some or all of the parameters are empty";
+        helpFunction_flame
     fi
-    # Print helpFunction in case parameters are empty
-    if [[ "$type" = "flame" ]]; then
-        if [ -z "$output_file" ] || [ -z "$program" ]; then
-            echo "Some or all of the parameters are empty";
-            helpFunction_flame
-        fi
-        py-spy record -o "$output_file" python "$program" 
-    elif [[ "$type" = "top" ]]; then
-        if [ -z "$program" ]; then
-            echo "Some or all of the parameters are empty";
-            helpFunction_top
-        fi
-        py-spy top python "$program" 
+    command=`echo py-spy record -o "$output_file" python "$program"`
+    echo "Running..." $command
+    eval "$command"
+elif [[ "$type" = "top" ]]; then
+    if [ -z "$program" ]; then
+        echo "Some or all of the parameters are empty";
+        helpFunction_top
     fi
+    command=`echo py-spy top python "$program"`
+    echo "Running..." $command
+    eval "$command"
+fi
