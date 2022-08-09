@@ -34,79 +34,19 @@ from nerfactory.fields.modules.field_heads import (
 )
 from nerfactory.fields.modules.mlp import MLP
 from nerfactory.fields.nerf_field import NeRFField
+from nerfactory.fields.semantic_nerf_field import SemanticNerfField
 from nerfactory.graphs.vanilla_nerf import NeRFGraph
 from nerfactory.renderers.renderers import SemanticRenderer
 from nerfactory.utils import misc, writer
 
 
-class SemanticNerfField(Field):
-    """Semantic-NeRF field"""
-
-    def __init__(
-        self,
-        num_semantic_classes: int,
-        position_encoding: Encoding = Identity(in_dim=3),
-        direction_encoding: Encoding = Identity(in_dim=3),
-        base_mlp_num_layers: int = 8,
-        base_mlp_layer_width: int = 256,
-        head_mlp_num_layers: int = 2,
-        head_mlp_layer_width: int = 128,
-        skip_connections: Tuple[int] = (4,),
-    ) -> None:
-        super().__init__()
-        self.num_semantic_classes = num_semantic_classes
-        self.position_encoding = position_encoding
-        self.direction_encoding = direction_encoding
-        self.mlp_base = MLP(
-            in_dim=self.position_encoding.get_out_dim(),
-            num_layers=base_mlp_num_layers,
-            layer_width=base_mlp_layer_width,
-            skip_connections=skip_connections,
-        )
-        self.mlp_head = MLP(
-            in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim(),
-            num_layers=head_mlp_num_layers,
-            layer_width=head_mlp_layer_width,
-        )
-        self.mlp_semantic = MLP(
-            in_dim=self.mlp_head.get_out_dim(),
-            layer_width=self.mlp_head.layer_width // 2,
-            num_layers=1,
-            activation=nn.ReLU(),
-        )
-        self.field_head_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
-        self.field_head_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim())
-        self.field_head_semantic = SemanticFieldHead(
-            in_dim=self.mlp_semantic.get_out_dim(), num_classes=self.num_semantic_classes
-        )
-
-    def get_density(self, ray_samples: RaySamples):
-        encoded_xyz = self.position_encoding(ray_samples.frustums.get_positions())
-        base_mlp_out = self.mlp_base(encoded_xyz)
-        density = self.field_head_density(base_mlp_out)
-        return density, base_mlp_out
-
-    def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
-        encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
-        mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))  # type: ignore
-        outputs = {}
-        # rgb
-        outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_out)
-        # semantic
-        mlp_out_sem = self.mlp_semantic(mlp_out)
-        outputs[self.field_head_semantic.field_head_name] = self.field_head_semantic(mlp_out_sem)
-        return outputs
-
-
 class SemanticNerfGraph(NeRFGraph):
     """Semantic-NeRF graph"""
 
-    def __init__(self, intrinsics, camera_to_world, semantics: Semantics, **kwargs) -> None:
+    def __init__(self, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(**kwargs)
 
     def populate_fields(self):
         """Set the fields."""

@@ -69,7 +69,7 @@ class ImageDatasetConfig:
 
 
 @dataclass
-class DataConfig:
+class DataloaderConfig:
     """Configuration for train/eval datasets"""
 
     dataset_inputs_train: Dict[str, Any] = MISSING
@@ -81,7 +81,6 @@ class DataConfig:
     # additional optional parameters here
     pixel_sampler: Optional[Dict[str, Any]] = None
     use_preprocessing_cache: bool = False
-
 
 @dataclass
 class GraphConfig:
@@ -98,6 +97,13 @@ class GraphConfig:
     enable_density_field: Optional[bool] = False
     density_field_config: Dict[str, Any] = MISSING
 
+@dataclass
+class PipelineConfig:
+    """Configuration for pipeline instantiation"""
+
+    _target_: str = MISSING
+    data: DataloaderConfig = MISSING
+    graph: GraphConfig = MISSING
 
 @dataclass
 class ViewerConfig:
@@ -119,10 +125,10 @@ class Config:
     trainer: TrainerConfig = MISSING
     experiment_name: str = MISSING
     method_name: str = MISSING
-    data: DataConfig = MISSING
-    graph: GraphConfig = MISSING
+    data: DataloaderConfig = MISSING
     optimizers: Dict[str, Any] = MISSING
     viewer: ViewerConfig = MISSING
+    pipeline: PipelineConfig = MISSING
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 
@@ -141,18 +147,17 @@ def setup_config(config: DictConfig) -> Config:
     trainer = TrainerConfig(**config.trainer)
     experiment_name = config.experiment_name
     method_name = config.method_name
-    data = DataConfig(**config.data)
-    graph = GraphConfig(**config.graph)
+    pipeline = PipelineConfig(**config.pipeline)
     optimizers = config.optimizers
     viewer = ViewerConfig(**config.viewer)
+ 
     return Config(
         machine=machine,
         logging=logging,
         trainer=trainer,
         experiment_name=experiment_name,
         method_name=method_name,
-        data=data,
-        graph=graph,
+        pipeline=pipeline,
         optimizers=optimizers,
         viewer=viewer,
     )

@@ -37,6 +37,7 @@ from nerfactory.data.dataloader import (
 from nerfactory.data.structs import DatasetInputs
 from nerfactory.graphs.base import Graph, setup_graph
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
+from nerfactory.pipeline.base import Pipeline
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import Config
@@ -70,7 +71,7 @@ class Trainer:
         self.dataloader_train: TrainDataloader
         self.dataloader_eval: EvalDataloader
         # model variables
-        self.graph: Graph
+        self.pipeline: Pipeline
         self.optimizers: Optimizers
         self.start_step = 0
         # logging variables
@@ -88,11 +89,10 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.dataset_inputs_train, self.dataloader_train = setup_dataset_train(self.config.data, device=self.device)
-        _, self.dataloader_eval = setup_dataset_eval(self.config.data, test_mode=test_mode, device=self.device)
-        self.graph = setup_graph(self.config.graph, self.dataset_inputs_train, device=self.device)
-        if not isinstance(self.graph, Graph):
-            raise ValueError("Graph was improperly initialized.")
+        # self.dataset_inputs_train, self.dataloader_train = setup_dataset_train(self.config.data, device=self.device)
+        # _, self.dataloader_eval = setup_dataset_eval(self.config.data, test_mode=test_mode, device=self.device)
+        # self.graph = setup_graph(self.config.graph, self.dataset_inputs_train, device=self.device)
+        self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device)
         self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
 
         self._load_checkpoint()

@@ -17,16 +17,12 @@ Abstracts for the Pipeline class.
 """
 
 from abc import abstractmethod
-import os
-from typing import Dict, List
 
-import torch
-from torch.cuda.amp import GradScaler
-
-from nerfactory.data.dataloader import AbstractDataloader
-from nerfactory.model.base import Model
-from nerfactory.optimizers.optimizers import Optimizers
-from nerfactory.utils.decorators import check_main_thread
+from nerfactory.data.dataloader import Dataloader, setup_dataloader
+from nerfactory.graphs.base import Graph, setup_graph
+from nerfactory.utils.config import PipelineConfig
+from nerfactory.utils import profiler
+from pydoc import locate
 
 
 class Pipeline:
@@ -65,31 +61,21 @@ class Pipeline:
         loss_coefficients: A dictionary of loss coefficients that will be used
 
     Attributes:
-        self.dataloader (AbstractDataloader): The dataloader that will be used
+        self.dataloader (Dataloader): The dataloader that will be used
         self.dataloader_train_iter (Iterator): The iterator for the training dataloader
         self.dataloader_eval_iter (Iterator): The iterator for the evaluation dataloader
         self.model (Model): The model that will be used
-        self.mixed_precision (bool): Whether or not to use mixed precision when fetching
-            the loss dicts
-        self.loss_coefficients (Dict): The loss coefficients for the model
     """
 
     def __init__(
         self,
-        model: Model,
-        dataloader: AbstractDataloader,
-        loss_coefficients: Dict,
-        optimizers: Optimizers,
-        grad_scaler: GradScaler = None,
+        dataloader: Dataloader,
+        model: Graph
     ):
-        self.dataloader: AbstractDataloader = dataloader
+        self.dataloader: Dataloader = dataloader
         self.dataloader_train_iter = self.dataloader.iter_train()
         self.dataloader_eval_iter = self.dataloader.iter_eval()
-        self.model: Model = model
-        self.mixed_precision: bool = False
-        self.loss_coefficients: Dict = loss_coefficients
-        self.optimizers: Optimizers = optimizers
-        self.grad_scaler: GradScaler = grad_scaler
+        self.model: Graph = model
 
     @abstractmethod
     def get_train_loss_dict(self):
@@ -106,62 +92,25 @@ class Pipeline:
     def log_test_image_outputs(self) -> None:
         """Log the test image outputs"""
 
-    def get_aggregated_loss_dict(self, loss_dict: Dict):
-        """Computes the aggregated loss from the loss_dict and the coefficients specified."""
-        aggregated_loss_dict = {}
-        for loss_name, loss_value in loss_dict.items():
-            assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
-            loss_coefficient = self.loss_coefficients[loss_name]
-            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
-        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
-        return aggregated_loss_dict
+    def load_pipeline(self):
+        """Restore state of the pipeline from a checkpoint."""
+        self.dataloader.load_dataloader()
+        self.model.load_graph()
 
-    def optimize_step(self, loss_dict: Dict):
-        """Optimizes the model based on the loss_dict (basically your backward and optimier.step
-        calls).
 
-        This function should be called after the loss_dict has been computed.
-        """
-        self.optimizers.zero_grad_all()
-        self.get_aggregated_loss_dict(loss_dict)["aggregated_loss"].backward()
-        if self.grad_scaler:
-            self.optimizers.optimizer_scaler_step_all(grad_scaler=self.grad_scaler)
-        else:
-            self.optimizers.optimizer_step_all()
+@profiler.time_function
+def setup_pipeline(config: PipelineConfig, device: str) -> Pipeline:
+    """Setup the pipeline. The dataset inputs should be set with the training data.
 
-    @check_main_thread
-    def save_checkpoint(self, output_dir: str, step: int) -> None:
-        """Save the model and optimizers
-
-        Args:
-            output_dir: directory to save the checkpoint
-            step: number of steps in training for given checkpoint
-        """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
-        torch.save(
-            {
-                "step": step,
-                "dataloader": self.dataloader.state_dict(),
-                "model": self.model.state_dict(),
-                "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
-                "scalers": self.grad_scaler.state_dict() if self.grad_scaler else None,
-            },
-            ckpt_path,
-        )
-
-    def load_checkpoint(self, load_config) -> int:
-        """Helper function to load graph and optimizer from prespecified checkpoint.
-
-        Returns the next step number to start from."""
-        load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
-        assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
-        loaded_state = torch.load(load_path, map_location="cpu")
-        # load the checkpoints for graph and optimizer
-        self.dataloader.load_state_dict(loaded_state["dataloader"])
-        self.model.load_state_dict(loaded_state["model"])
-        self.optimizers.load_optimizers(loaded_state)
-        self.grad_scaler.load_state_dict(loaded_state["scaler"])
-
-        return loaded_state["step"] + 1
+    Args:
+        config: The pipeline config.
+    """
+    # dataset_inputs
+    dataloader: Dataloader = setup_dataloader(config.dataloader_config, device=device)
+    # TODO(ethan): get rid of scene_bounds from the graph/model
+    graph: Graph = setup_graph(
+        config.graph_config, scene_bounds=dataloader.train_datasetinputs.scene_bounds, device=device
+    )
+    pipeline_class = locate(config._target_)  # pylint: disable=protected-access
+    pipeline = pipeline_class(dataloader=dataloader, model=graph)  # type: ignore
+    return pipeline

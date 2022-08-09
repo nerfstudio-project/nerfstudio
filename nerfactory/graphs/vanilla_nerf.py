@@ -46,8 +46,6 @@ class NeRFGraph(Graph):
     """Vanilla NeRF graph
 
     Args:
-        intrinsics (torch.Tensor): Camera intrinsics.
-        camera_to_world (torch.Tensor): Camera to world transformation.
         near_plane (float, optional): Where to start sampling points. Defaults to a distance of 2,
         far_plane (float, optional): Where to stop sampling points. Defaults to a distance of 6,
         num_coarse_samples (int, optional): Number of samples in coarse field evaluation. Defaults to 64,
@@ -58,8 +56,6 @@ class NeRFGraph(Graph):
 
     def __init__(
         self,
-        intrinsics: torch.Tensor,
-        camera_to_world: torch.Tensor,
         near_plane: float = 2.0,
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
@@ -75,8 +71,6 @@ class NeRFGraph(Graph):
         self.field_coarse = None
         self.field_fine = None
         super().__init__(
-            intrinsics=intrinsics,
-            camera_to_world=camera_to_world,
             enable_density_field=enable_density_field,
             density_field_config=density_field_config,
             **kwargs,

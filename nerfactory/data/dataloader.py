@@ -28,23 +28,23 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data.format.instant_ngp import load_instant_ngp_data
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.image_sampler import CacheImageSampler, ImageSampler
 from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import BaseDataContainer, DatasetInputs
+from nerfactory.data.structs import DatasetInputs
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
-from nerfactory.utils.config import DataConfig
+from nerfactory.utils.config import DataloaderConfig
 from nerfactory.utils.misc import (
     IterableWrapper,
     get_dict_to_torch,
     instantiate_from_dict_config,
 )
+from omegaconf import DictConfig
 
 
 @profiler.time_function
-def setup_dataset_train(config: DataConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
+def setup_dataset_train(config: DataloaderConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
     """Helper method to load train dataset
     Args:
         config (DataConfig): Configuration of training dataset.
@@ -71,7 +71,9 @@ def setup_dataset_train(config: DataConfig, device: str) -> Tuple[DatasetInputs,
 
 
 @profiler.time_function
-def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tuple[DatasetInputs, "EvalDataloader"]:
+def setup_dataset_eval(
+    config: DataloaderConfig, test_mode: bool, device: str
+) -> Tuple[DatasetInputs, "EvalDataloader"]:
     """Helper method to load test or val dataset based on test/train mode
     Args:
         config (DataConfig): Configuration of training dataset.
@@ -100,7 +102,7 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
 # Start new dataloaders
 
 
-class AbstractDataloader(nn.Module):
+class Dataloader(nn.Module):
     """Second version of the dataloader class (V2)
 
     This version of the dataloader is designed to subsume both the train and eval dataloaders,
@@ -145,6 +147,10 @@ class AbstractDataloader(nn.Module):
         eval_count (int): number of times eval has been called
     """
 
+    # NOTE(ethan): I'm not sure the right way to do this for enabling autocomplete
+    train_datasetinputs: DatasetInputs
+    eval_datasetinputs: DatasetInputs
+
     def __init__(
         self,
         use_train: bool,
@@ -157,8 +163,12 @@ class AbstractDataloader(nn.Module):
         self.eval_count = 0
         assert use_train or use_eval
         if use_train:
+            dataset_train = instantiate_from_dict_config(config.dataset_inputs_train)
+            self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
             self.setup_train()
         if use_eval:
+            dataset_eval = instantiate_from_dict_config(config.dataset_inputs_eval)
+            self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="test")
             self.setup_eval()
 
     def forward(self):
@@ -202,7 +212,7 @@ class AbstractDataloader(nn.Module):
         raise NotImplementedError
 
 
-class AbstractStoredDataloader(AbstractDataloader):  # pylint: disable=abstract-method
+class AbstractStoredDataloader(Dataloader):  # pylint: disable=abstract-method
     """Subclass of the new V2 dataloader that is used for when things fit in memory,
     and will be stored in the dataloader itself.
 
@@ -226,7 +236,6 @@ class TestStoredDataloader(AbstractStoredDataloader):  # pylint: disable=abstrac
 
     def setup_train(self):
         """Sets up the dataloader for training"""
-        self.train_datasetinputs = get_dataset_inputs(self.path, self.format, "train")
         self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
         self.train_image_sampler = CacheImageSampler(self.train_image_dataset)
         self.iter_train_image_sampler = iter(self.train_image_sampler)
@@ -239,7 +248,6 @@ class TestStoredDataloader(AbstractStoredDataloader):  # pylint: disable=abstrac
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
-        self.eval_datasetinputs = get_dataset_inputs(self.path, self.format, "test")
         self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
         self.eval_image_sampler = CacheImageSampler(self.eval_image_dataset)
         self.iter_eval_image_sampler = iter(self.eval_image_sampler)
@@ -393,3 +401,11 @@ class RandIndicesEvalDataloader(EvalDataloader):
             self.count += 1
             return ray_bundle, batch
         raise StopIteration
+
+
+@profiler.time_function
+def setup_dataloader(config: DataloaderConfig, device: str) -> Dataloader:
+    """Setup the dataloader."""
+
+    dataloader: Dataloader = instantiate_from_dict_config(DictConfig(config))
+    return dataloader

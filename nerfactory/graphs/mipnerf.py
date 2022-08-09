@@ -45,8 +45,6 @@ class MipNerfGraph(Graph):
 
     def __init__(
         self,
-        intrinsics=None,
-        camera_to_world=None,
         near_plane=2.0,
         far_plane=6.0,
         num_coarse_samples=64,
@@ -58,7 +56,7 @@ class MipNerfGraph(Graph):
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
         self.field = None
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(**kwargs)
 
     def populate_fields(self):
         """Set the fields."""

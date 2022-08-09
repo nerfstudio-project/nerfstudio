@@ -45,10 +45,8 @@ class Graph(nn.Module):
     subclassed for custom NeRF model.
 
     Args:
-        intrinsics: Camera intrinsics.
-        camera_to_world: Camera to world transformation.
-        loss_coefficients: Loss specific weights.
         scene_bounds: Bounds of target scene.
+        loss_coefficients: Loss specific weights.
         enable_collider: Whether to create a scene collider to filter rays.
         collider_config: Configuration of scene collider.
         enable_density_field: Whether to create a density field to filter samples.
@@ -57,10 +55,8 @@ class Graph(nn.Module):
 
     def __init__(
         self,
-        intrinsics: torch.Tensor,
-        camera_to_world: torch.Tensor,
-        loss_coefficients: DictConfig,
-        scene_bounds: Optional[SceneBounds] = None,
+        scene_bounds: SceneBounds,
+        loss_coefficients: DictConfig = DictConfig({}), # TODO(ethan): make this cleaner by just using Dict
         enable_collider: bool = True,
         collider_config: Optional[DictConfig] = None,
         enable_density_field: bool = False,
@@ -68,19 +64,15 @@ class Graph(nn.Module):
         **kwargs,
     ) -> None:
         super().__init__()
-        assert is_not_none(scene_bounds), "scene_bounds is needed to use the density grid"
-        self.intrinsics = intrinsics
-        self.camera_to_world = camera_to_world
         self.scene_bounds = scene_bounds
+        self.loss_coefficients = loss_coefficients
         self.enable_collider = enable_collider
         self.collider_config = collider_config
-        self.loss_coefficients = loss_coefficients
         self.enable_density_field = enable_density_field
         self.density_field_config = density_field_config
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
-        self.ray_generator = RayGenerator(self.intrinsics, self.camera_to_world)
         self.populate_density_field()
         self.populate_collider()
         self.populate_fields()
@@ -144,16 +136,16 @@ class Graph(nn.Module):
             outputs[k] = v
 
     @overload
-    def forward_after_ray_generator(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
+    def forward(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
         ...
 
     @overload
-    def forward_after_ray_generator(
+    def forward(
         self, ray_bundle: RayBundle, batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         ...
 
-    def forward_after_ray_generator(
+    def forward(
         self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
     ) -> Union[
         Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
@@ -189,26 +181,6 @@ class Graph(nn.Module):
                 loss_dict[loss_name] *= self.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
-    @overload
-    def forward(self, ray_indices: TensorType["num_rays", 3], batch: None = None) -> Dict[str, torch.Tensor]:
-        ...
-
-    @overload
-    def forward(
-        self, ray_indices: TensorType["num_rays", 3], batch: Dict[str, torch.Tensor]
-    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        ...
-
-    def forward(
-        self, ray_indices: TensorType["num_rays", 3], batch: Optional[Dict[str, torch.Tensor]] = None
-    ) -> Union[
-        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
-    ]:
-        """Process starting with ray indices. Turns them into rays, then performs volume rendering."""
-        ray_bundle = self.ray_generator.forward(ray_indices)
-        x = self.forward_after_ray_generator(ray_bundle, batch=batch)
-        return x
-
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics."""
         # pylint: disable=unused-argument
@@ -231,7 +203,7 @@ class Graph(nn.Module):
             start_idx = i
             end_idx = i + camera_ray_bundle.num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            outputs = self.forward_after_ray_generator(ray_bundle=ray_bundle)
+            outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
@@ -265,13 +237,13 @@ class Graph(nn.Module):
 
 
 @profiler.time_function
-def setup_graph(config: GraphConfig, dataset_inputs: DatasetInputs, device: str) -> Graph:
+def setup_graph(config: GraphConfig, scene_bounds: SceneBounds, device: str) -> Graph:
     """Setup the graph. The dataset inputs should be set with the training data.
 
     Args:
         dataset_inputs: The inputs which will be used to define the camera parameters.
     """
-    graph = instantiate_from_dict_config(DictConfig(config), **dataset_inputs.as_dict())
+    graph = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=de)
     graph.to(device)
     if not isinstance(graph, Graph):
         raise TypeError(f"Unable to instantiate Graph, got {type(graph)}")

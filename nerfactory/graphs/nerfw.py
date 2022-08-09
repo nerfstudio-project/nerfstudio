@@ -43,8 +43,6 @@ class NerfWGraph(Graph):
 
     def __init__(
         self,
-        intrinsics=None,
-        camera_to_world=None,
         near_plane=2.0,
         far_plane=6.0,
         num_coarse_samples=64,
@@ -68,10 +66,10 @@ class NerfWGraph(Graph):
         self.uncertainty_min = uncertainty_min
         self.field_coarse = None
         self.field_fine = None
-        self.num_images = len(intrinsics)
+        self.num_images = 10000 # TODO(ethan): fix this
         self.appearance_embedding_dim = 48
         self.transient_embedding_dim = 16
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(**kwargs)
 
     def populate_fields(self):
         """Set the fields."""
@@ -119,6 +117,10 @@ class NerfWGraph(Graph):
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+
+        if misc.is_not_none(ray_bundle.camera_indices):
+            # TODO(ethan): remove this check
+            assert torch.max(ray_bundle.camera_indices) < self.num_images, "num_images must be greater than the largest camera index"
 
         if self.field_coarse is None or self.field_fine is None:
             raise ValueError("populate_fields() must be called before get_outputs")
