@@ -20,12 +20,11 @@ from ast import Pass
 import random
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
-from omegaconf import ListConfig
 
 import torch
+from omegaconf import ListConfig
 from torch import nn
 from torchtyping import TensorType
-
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
@@ -33,12 +32,15 @@ from nerfactory.data.format.instant_ngp import load_instant_ngp_data
 from nerfactory.data.image_dataset import ImageDataset
 from nerfactory.data.image_sampler import CacheImageSampler, ImageSampler
 from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
-from nerfactory.data.utils import get_dataset_inputs, get_dataset_inputs_from_dataset_config
+from nerfactory.data.structs import BaseDataContainer, DatasetInputs
 from nerfactory.graphs.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import DataConfig
-from nerfactory.utils.misc import IterableWrapper, get_dict_to_torch, instantiate_from_dict_config
+from nerfactory.utils.misc import (
+    IterableWrapper,
+    get_dict_to_torch,
+    instantiate_from_dict_config,
+)
 
 
 @profiler.time_function
@@ -51,15 +53,18 @@ def setup_dataset_train(config: DataConfig, device: str) -> Tuple[DatasetInputs,
     Returns:
         Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
     """
-    dataset_inputs_train = get_dataset_inputs_from_dataset_config(**config.dataset_inputs_train, split="train")
+    dataset_train = instantiate_from_dict_config(config.dataset_inputs_train)
+    dataset_inputs_train = dataset_train.get_dataset_inputs(
+        split="train", use_preprocessing_cache=config.use_preprocessing_cache
+    )
     # ImageDataset
     image_dataset_train = instantiate_from_dict_config(config.image_dataset_train, **dataset_inputs_train.as_dict())
     # ImageSampler
     image_sampler_train = instantiate_from_dict_config(
-        config.dataloader_train.image_sampler, dataset=image_dataset_train, device=device
+        config.dataloader_train.image_sampler, dataset=image_dataset_train, device=device  # type: ignore
     )
     # PixelSampler
-    pixel_sampler_train = instantiate_from_dict_config(config.dataloader_train.pixel_sampler)
+    pixel_sampler_train = instantiate_from_dict_config(config.dataloader_train.pixel_sampler)  # type: ignore
     # Dataloader
     dataloader_train = TrainDataloader(image_sampler_train, pixel_sampler_train)
     return dataset_inputs_train, dataloader_train
@@ -77,7 +82,10 @@ def setup_dataset_eval(config: DataConfig, test_mode: bool, device: str) -> Tupl
         Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
     """
     eval_split = "test" if test_mode else "val"
-    dataset_inputs_eval = get_dataset_inputs_from_dataset_config(**config.dataset_inputs_eval, split=eval_split)
+    dataset_eval = instantiate_from_dict_config(config.dataset_inputs_eval)
+    dataset_inputs_eval = dataset_eval.get_dataset_inputs(
+        split=eval_split, use_preprocessing_cache=config.use_preprocessing_cache
+    )
     image_dataset_eval = instantiate_from_dict_config(config.image_dataset_eval, **dataset_inputs_eval.as_dict())
     dataloader_eval = instantiate_from_dict_config(
         config.dataloader_eval,
@@ -297,6 +305,15 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
         self.num_rays_per_chunk = num_rays_per_chunk
         self.device = device
         self.kwargs = kwargs
+
+    @abstractmethod
+    def __iter__(self):
+        """Iterates over the dataset"""
+        return self
+
+    @abstractmethod
+    def __next__(self) -> Tuple[RayBundle, Dict]:
+        """Returns the next batch of data"""
 
     def get_camera(self, image_idx) -> Camera:
         """Get camera for the given image index"""

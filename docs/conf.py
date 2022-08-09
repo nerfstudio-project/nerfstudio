@@ -35,13 +35,11 @@ extensions = [
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinxemoji.sphinxemoji",
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.napoleon",
     "sphinx_copybutton",
-    "nbsphinx",
     "sphinx_design",
     "sphinx.ext.mathjax",
 ]
@@ -69,7 +67,7 @@ html_js_files = [
 # -- MYST configs -----------------------------------------------------------
 
 # To enable admonitions:
-myst_enable_extensions = ["colon_fence"]
+myst_enable_extensions = ["amsmath", "colon_fence", "deflist", "dollarmath", "html_image"]
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -78,21 +76,27 @@ myst_enable_extensions = ["colon_fence"]
 # a list of builtin themes.
 #
 html_theme = "furo"
-html_title = "nerfactory"
+html_title = ""
 
 autosectionlabel_prefix_document = True
 
 html_theme_options = {
     "light_css_variables": {
-        "color-brand-primary": "#00878e",
-        "color-brand-content": "#00878e",
+        "color-brand-primary": "#ba3e00",
+        "color-brand-content": "#ff6f00",
     },
+    "dark_css_variables": {
+        "color-brand-primary": "#fdd06c",
+        "color-brand-content": "#ff903b",
+    },
+    "light_logo": "imgs/logo.png",
+    "dark_logo": "imgs/logo-dark.png",
 }
 
 # -- Code block theme --------------------------------------------------------
 
-pygments_style = "manni"
-pygments_dark_style = "stata-dark"
+pygments_style = "one-dark"
+pygments_dark_style = "one-dark"
 
 # -- Napoleon settings -------------------------------------------------------
 
@@ -112,3 +116,8 @@ napoleon_use_rtype = True
 napoleon_preprocess_types = False
 napoleon_type_aliases = None
 napoleon_attr_annotations = True
+
+# -- MYSTNB -----------------------------------------------------------------
+
+suppress_warnings = ["mystnb.unknown_mime_type", "myst.header"]
+nb_execution_mode = "off"

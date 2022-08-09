@@ -27,11 +27,11 @@ from typing import Dict
 import imageio
 import numpy as np
 import torch
+import wandb
 from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-import wandb
 from nerfactory.utils.config import LoggingConfig
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
@@ -68,7 +68,7 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image, "step": step})
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image.detach().cpu(), "step": step})
 
 
 @check_main_thread
@@ -202,8 +202,8 @@ class TimeWriter:
         self.step = step
         self.write = write
 
-        self.start = None
-        self.duration = None
+        self.start: float = 0.0
+        self.duration: float = 0.0
 
     def __enter__(self):
         self.start = time()
@@ -322,6 +322,7 @@ class LocalWriter(Writer):
         self.max_log_size = max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
+        self.has_printed = False
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         if name in self.stats_to_track:
@@ -357,9 +358,10 @@ class LocalWriter(Writer):
                     mssg += f"{name:<20} "
             self.past_mssgs[0] = mssg
             self.past_mssgs[1] = "-" * len(mssg)
-            if full_log_cond:
+            if full_log_cond or not self.has_printed:
                 print(mssg)
                 print("-" * len(mssg))
+                self.has_printed = True
 
     def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format"""

@@ -16,6 +16,7 @@
 The field module baseclass.
 """
 from abc import abstractmethod
+from typing import Optional
 
 from torch import nn
 from torchtyping import TensorType
@@ -29,7 +30,7 @@ class FieldModule(nn.Module):
         out_dim (int, optional): Ouput dimension to module.
     """
 
-    def __init__(self, in_dim: int = None, out_dim: int = None) -> None:
+    def __init__(self, in_dim: Optional[int] = None, out_dim: Optional[int] = None) -> None:
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -59,12 +60,12 @@ class FieldModule(nn.Module):
         return self.out_dim
 
     @abstractmethod
-    def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """
         Args:
-            in_tensor (TensorType[..., "input_dim"]): Input tensor to process
+            in_tensor: Input tensor to process
 
         Returns:
-            TensorType[..., "output_dim"]: Processed tensor
+            Processed tensor
         """
         raise NotImplementedError

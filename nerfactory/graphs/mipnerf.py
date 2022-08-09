@@ -22,19 +22,22 @@ from typing import Dict, List
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from torchmetrics.functional import structural_similarity_index_measure
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.base import Graph
-from nerfactory.optimizers.loss import MSELoss
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.renderers.renderers import AccumulationRenderer, DepthRenderer, RGBRenderer
-from nerfactory.utils import colors
-from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils import visualization, writer
+from nerfactory.optimizers.loss import MSELoss
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfactory.utils import colors, misc, visualization, writer
 
 
 class MipNerfGraph(Graph):
@@ -61,7 +64,7 @@ class MipNerfGraph(Graph):
         """Set the fields."""
 
         position_encoding = NeRFEncoding(
-            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+            in_dim=3, num_frequencies=16, min_freq_exp=0.0, max_freq_exp=16.0, include_input=True
         )
         direction_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
@@ -91,10 +94,16 @@ class MipNerfGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
+
+        if self.field is None:
+            raise ValueError("populate_fields() must be called before get_outputs")
+
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
@@ -131,11 +140,12 @@ class MipNerfGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
@@ -179,7 +189,7 @@ class MipNerfGraph(Graph):
 
         writer.put_scalar(name=f"psnr/val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step)
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
-        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)
+        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)  # type: ignore
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)

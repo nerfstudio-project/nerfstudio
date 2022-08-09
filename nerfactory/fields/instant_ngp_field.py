@@ -17,12 +17,14 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch.nn.parameter import Parameter
+from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
+from nerfactory.data.structs import SceneBounds
 from nerfactory.fields.base import Field
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
@@ -34,13 +36,6 @@ try:
 except ImportError:
     # tinycudann module doesn't exist
     pass
-
-
-def get_normalized_positions(positions, aabb):
-    """Return normalized positions in range [0, 1] based on the aabb axis-aligned bounding box."""
-    aabb_lengths = aabb[1] - aabb[0]
-    positions = (positions - aabb[0]) / aabb_lengths
-    return positions
 
 
 def get_normalized_directions(directions):
@@ -105,7 +100,7 @@ class TCNNInstantNGPField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        positions = get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
@@ -116,13 +111,17 @@ class TCNNInstantNGPField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
-    def get_outputs(self, ray_samples: RaySamples, density_embedding=None):
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         # TODO: add valid_mask masking!
         # tcnn requires directions in the range [0,1]
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
-        h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+        if density_embedding is None:
+            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+            h = torch.cat([d, positions.view(-1, 3)], dim=-1)
+        else:
+            h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
@@ -153,13 +152,6 @@ class TorchInstantNGPField(NeRFField):
             skip_connections,
         )
         self.aabb = Parameter(aabb, requires_grad=False)
-
-    def get_density(self, ray_samples: RaySamples):
-        normalized_ray_samples = ray_samples
-        normalized_ray_samples.positions = get_normalized_positions(
-            normalized_ray_samples.frustums.get_positions(), self.aabb
-        )
-        return super().get_density(normalized_ray_samples)
 
 
 field_implementation_to_class = {"tcnn": TCNNInstantNGPField, "torch": TorchInstantNGPField}

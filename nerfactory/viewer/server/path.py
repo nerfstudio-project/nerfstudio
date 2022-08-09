@@ -15,13 +15,10 @@
 """Path class
 """
 
-from __future__ import absolute_import, division, print_function
 
-import sys
 from typing import Tuple
 
-if sys.version_info >= (3, 0):
-    UNICODE = str
+UNICODE = str
 
 
 class Path:

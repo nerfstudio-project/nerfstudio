@@ -3,7 +3,7 @@ run_eval.py
 """
 import enum
 import os
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import dcargs
 import mediapy as media
@@ -12,8 +12,16 @@ from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from nerfactory.cameras.camera_paths import CameraPath, get_interpolated_camera_path, get_spiral_path
-from nerfactory.data.dataloader import EvalDataloader, setup_dataset_eval, setup_dataset_train
+from nerfactory.cameras.camera_paths import (
+    CameraPath,
+    get_interpolated_camera_path,
+    get_spiral_path,
+)
+from nerfactory.data.dataloader import (
+    EvalDataloader,
+    setup_dataset_eval,
+    setup_dataset_train,
+)
 from nerfactory.graphs.base import Graph, setup_graph
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
@@ -44,7 +52,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     if config.load_step is None:
         print("Loading latest checkpoint from load_dir")
         # NOTE: this is specific to the checkpoint name format
-        load_step = sorted([int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir)])[-1]
+        load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
         load_step = config.load_step
     load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")
@@ -54,7 +62,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     print(f"done loading checkpoint from {load_path}")
 
 
-def run_inference_from_config(config: DictConfig) -> Dict[str, float]:
+def run_inference_from_config(config: DictConfig) -> Dict[str, Any]:
     """helper function to run inference given config specifications (also used in benchmarking)
 
     Args:

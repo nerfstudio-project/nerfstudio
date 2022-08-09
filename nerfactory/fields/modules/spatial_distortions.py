@@ -27,13 +27,15 @@ from nerfactory.utils.math import Gaussians
 class SpatialDistortion(nn.Module):
     """Apply spatial distortions"""
 
-    def forward(self, positions: Union[TensorType[..., 3], Gaussians]) -> Union[TensorType[..., 3], Gaussians]:
+    def forward(
+        self, positions: Union[TensorType["bs":..., 3], Gaussians]
+    ) -> Union[TensorType["bs":..., 3], Gaussians]:
         """
         Args:
-            positions (Union[TensorType[..., 3], Gaussians]): Sample to distort
+            positions: Sample to distort
 
         Returns:
-            Union[TensorType[..., 3], Gaussians]: distorted sample
+            Union: distorted sample
         """
 
 

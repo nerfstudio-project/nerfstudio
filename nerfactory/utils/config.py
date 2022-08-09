@@ -16,7 +16,8 @@
 
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
-from omegaconf import DictConfig, MISSING
+
+from omegaconf import MISSING, DictConfig
 
 
 @dataclass
@@ -61,16 +62,6 @@ class TrainerConfig:
 
 
 @dataclass
-class DatasetInputsConfig:
-    """Configuration for dataset specification"""
-
-    data_directory: str = MISSING
-    dataset_format: str = MISSING
-    downscale_factor: int = MISSING
-    alpha_color: str = MISSING
-
-
-@dataclass
 class ImageDatasetConfig:
     """Configuration for type of dataset to instantiate"""
 
@@ -81,14 +72,15 @@ class ImageDatasetConfig:
 class DataConfig:
     """Configuration for train/eval datasets"""
 
-    dataset_inputs_train: DatasetInputsConfig = MISSING
+    dataset_inputs_train: Dict[str, Any] = MISSING
     image_dataset_train: ImageDatasetConfig = MISSING
     dataloader_train: Dict[str, Any] = MISSING
-    dataset_inputs_eval: DatasetInputsConfig = MISSING
+    dataset_inputs_eval: Dict[str, Any] = MISSING
     image_dataset_eval: ImageDatasetConfig = MISSING
     dataloader_eval: Dict[str, Any] = MISSING
     # additional optional parameters here
     pixel_sampler: Optional[Dict[str, Any]] = None
+    use_preprocessing_cache: bool = False
 
 
 @dataclass
@@ -96,12 +88,15 @@ class GraphConfig:
     """Configuration for graph instantiation"""
 
     _target_: str = MISSING
+    enable_collider: Optional[bool] = True
     collider_config: Dict[str, Any] = MISSING
     num_coarse_samples: int = MISSING
     num_importance_samples: int = MISSING
     loss_coefficients: Dict[str, Any] = MISSING
     # additional optional parameters here
     field_implementation: Optional[str] = "torch"
+    enable_density_field: Optional[bool] = False
+    density_field_config: Dict[str, Any] = MISSING
 
 
 @dataclass
@@ -127,7 +122,7 @@ class Config:
     data: DataConfig = MISSING
     graph: GraphConfig = MISSING
     optimizers: Dict[str, Any] = MISSING
-    viewer: Dict[str, Any] = MISSING
+    viewer: ViewerConfig = MISSING
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 

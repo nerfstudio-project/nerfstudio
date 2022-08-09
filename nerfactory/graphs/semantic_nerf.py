@@ -21,17 +21,22 @@ from typing import Dict, Optional, Tuple
 import torch
 from torch import nn
 from torchtyping import TensorType
-from nerfactory.data.structs import Semantics
 
-from nerfactory.fields.modules.encoding import Encoding, Identity, NeRFEncoding
-from nerfactory.fields.modules.field_heads import DensityFieldHead, FieldHeadNames, RGBFieldHead, SemanticFieldHead
-from nerfactory.fields.modules.mlp import MLP
+from nerfactory.cameras.rays import RayBundle, RaySamples
+from nerfactory.data.structs import Semantics
 from nerfactory.fields.base import Field
+from nerfactory.fields.modules.encoding import Encoding, Identity, NeRFEncoding
+from nerfactory.fields.modules.field_heads import (
+    DensityFieldHead,
+    FieldHeadNames,
+    RGBFieldHead,
+    SemanticFieldHead,
+)
+from nerfactory.fields.modules.mlp import MLP
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.vanilla_nerf import NeRFGraph
 from nerfactory.renderers.renderers import SemanticRenderer
-from nerfactory.cameras.rays import RaySamples, RayBundle
-from nerfactory.utils import writer
+from nerfactory.utils import misc, writer
 
 
 class SemanticNerfField(Field):
@@ -85,7 +90,7 @@ class SemanticNerfField(Field):
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
         encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
-        mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
+        mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))  # type: ignore
         outputs = {}
         # rgb
         outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_out)
@@ -98,7 +103,7 @@ class SemanticNerfField(Field):
 class SemanticNerfGraph(NeRFGraph):
     """Semantic-NeRF graph"""
 
-    def __init__(self, intrinsics=None, camera_to_world=None, semantics: Semantics = None, **kwargs) -> None:
+    def __init__(self, intrinsics, camera_to_world, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
         super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
@@ -162,7 +167,7 @@ class SemanticNerfGraph(NeRFGraph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch):
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
@@ -174,12 +179,13 @@ class SemanticNerfGraph(NeRFGraph):
             "rgb_loss_fine": rgb_loss_fine,
             "semantic_loss_fine": semantic_loss_fine,
         }
+        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         super().log_test_image_outputs(image_idx, step, batch, outputs)
         semantic_logits = outputs["semantic_fine"]
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(semantic_logits, dim=-1), dim=-1)
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(semantic_logits, dim=-1), dim=-1)  # type: ignore
         semantic_labels_image = self.stuff_colors[semantic_labels]
         writer.put_image(name=f"semantics/image_idx_{image_idx}", image=semantic_labels_image, step=step)
 

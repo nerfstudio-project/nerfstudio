@@ -30,10 +30,3 @@ Structures
 .. automodule:: nerfactory.data.structs
    :members:
    :show-inheritance:
-
-Utils
-----------------
-
-.. automodule:: nerfactory.data.utils
-   :members:
-   :show-inheritance:

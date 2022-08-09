@@ -18,10 +18,10 @@ Miscellaneous helper code.
 
 import hashlib
 import json
-from pydoc import locate
-from typing import Any, Callable, Dict
-
 from math import floor, log
+from pydoc import locate
+from typing import Any, Callable, Dict, Union
+
 import torch
 from omegaconf import DictConfig
 
@@ -34,11 +34,11 @@ class DotDict(dict):
     def __getattr__(self, attr):
         return self[attr]
 
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+    __setattr__ = dict.__setitem__  # type: ignore
+    __delattr__ = dict.__delitem__  # type: ignore
 
 
-def get_dict_to_torch(stuff, device="cpu"):
+def get_dict_to_torch(stuff, device: Union[torch.device, str] = "cpu"):
     """Set everything in the dict to the specified torch device."""
     if isinstance(stuff, dict):
         for k, v in stuff.items():
@@ -74,13 +74,17 @@ def get_masked_dict(d, mask):
     return masked_dict
 
 
-def instantiate_from_dict_config(dict_config: DictConfig, **kwargs):
-    """Our version of hydra's instantiate function."""
+def instantiate_from_dict_config(dict_config: Any, **kwargs):
+    """Our version of hydra's instantiate function.
+
+    Args:
+        dict_config: DictConfig object to instantiate. It can be a dataclass or a dict but must have a `_target_` field.
+    """
     dict_config_kwargs = {k: v for k, v in dict_config.items() if k != "_target_"}
     uninstantiated_class = locate(dict_config._target_)  # pylint: disable=protected-access
     all_kwargs = dict_config_kwargs
     all_kwargs.update(kwargs)
-    instantiated_class = uninstantiated_class(**all_kwargs)
+    instantiated_class = uninstantiated_class(**all_kwargs)  # type: ignore
     return instantiated_class
 
 
@@ -126,3 +130,19 @@ def human_format(num):
     k = 1000.0
     magnitude = int(floor(log(num, k)))
     return f"{(num / k**magnitude):.2f} {units[magnitude]}"
+
+
+def scale_dict(dictionary: Dict[Any, Any], coefficients: DictConfig) -> Dict[Any, Any]:
+    """Scale a dictionary in-place given a coefficients dictionary.
+
+    Args:
+        dictionary: input dict to be scaled.
+        coefficients: scalar dict config for holding coefficients.
+
+    Returns:
+        Input dict scaled by coefficients.
+    """
+    for key in dictionary:
+        if key in coefficients:
+            dictionary[key] *= coefficients[key]
+    return dictionary

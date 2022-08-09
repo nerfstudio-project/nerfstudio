@@ -21,11 +21,16 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from nerfactory.fields.modules.encoding import Encoding, Identity
-from nerfactory.fields.modules.field_heads import DensityFieldHead, FieldHead, FieldHeadNames, RGBFieldHead
-from nerfactory.fields.modules.mlp import MLP
-from nerfactory.fields.base import Field
 from nerfactory.cameras.rays import RaySamples
+from nerfactory.fields.base import Field
+from nerfactory.fields.modules.encoding import Encoding, Identity
+from nerfactory.fields.modules.field_heads import (
+    DensityFieldHead,
+    FieldHead,
+    FieldHeadNames,
+    RGBFieldHead,
+)
+from nerfactory.fields.modules.mlp import MLP
 from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
 
 
@@ -79,7 +84,7 @@ class NeRFField(Field):
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
         self.field_heads = nn.ModuleList(field_heads)
         for field_head in self.field_heads:
-            field_head.set_in_dim(self.mlp_head.get_out_dim())
+            field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
     def get_density(self, ray_samples: RaySamples):
         if self.use_integrated_encoding:
@@ -102,6 +107,6 @@ class NeRFField(Field):
         outputs = {}
         for field_head in self.field_heads:
             encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
-            mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))
+            mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding], dim=-1))  # type: ignore
             outputs[field_head.field_head_name] = field_head(mlp_out)
         return outputs
