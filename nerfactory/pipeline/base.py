@@ -78,7 +78,6 @@ class Pipeline:
         self,
         model: Model,
         dataloader: AbstractDataloader,
-        loss_coefficients: Dict,
         optimizers: Optimizers,
         grad_scaler: GradScaler = None,
     ):
@@ -87,7 +86,6 @@ class Pipeline:
         self.dataloader_eval_iter = self.dataloader.iter_eval()
         self.model: Model = model
         self.mixed_precision: bool = False
-        self.loss_coefficients: Dict = loss_coefficients
         self.optimizers: Optimizers = optimizers
         self.grad_scaler: GradScaler = grad_scaler
 
@@ -105,29 +103,6 @@ class Pipeline:
     @abstractmethod
     def log_test_image_outputs(self) -> None:
         """Log the test image outputs"""
-
-    def get_aggregated_loss_dict(self, loss_dict: Dict):
-        """Computes the aggregated loss from the loss_dict and the coefficients specified."""
-        aggregated_loss_dict = {}
-        for loss_name, loss_value in loss_dict.items():
-            assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
-            loss_coefficient = self.loss_coefficients[loss_name]
-            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
-        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
-        return aggregated_loss_dict
-
-    def optimize_step(self, loss_dict: Dict):
-        """Optimizes the model based on the loss_dict (basically your backward and optimier.step
-        calls).
-
-        This function should be called after the loss_dict has been computed.
-        """
-        self.optimizers.zero_grad_all()
-        self.get_aggregated_loss_dict(loss_dict)["aggregated_loss"].backward()
-        if self.grad_scaler:
-            self.optimizers.optimizer_scaler_step_all(grad_scaler=self.grad_scaler)
-        else:
-            self.optimizers.optimizer_step_all()
 
     @check_main_thread
     def save_checkpoint(self, output_dir: str, step: int) -> None:
@@ -165,3 +140,11 @@ class Pipeline:
         self.grad_scaler.load_state_dict(loaded_state["scaler"])
 
         return loaded_state["step"] + 1
+
+    def get_param_groups(self) -> List[Dict]:
+        """Get the param groups for the optimizers.
+
+        Returns:
+            A list of dictionaries containing the optimizer's param groups.
+        """
+        return {**self.dataloader.get_param_groups(), **self.model.get_param_groups()}

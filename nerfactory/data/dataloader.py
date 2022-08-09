@@ -193,6 +193,11 @@ class AbstractDataloader(nn.Module):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def get_param_groups(self):
+        """Returns a list of dictionaries that contain the parameters to be optimized"""
+        raise NotImplementedError
+
 
 class AbstractStoredDataloader(AbstractDataloader):  # pylint: disable=abstract-method
     """Subclass of the new V2 dataloader that is used for when things fit in memory,

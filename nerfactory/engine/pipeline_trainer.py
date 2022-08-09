@@ -16,6 +16,7 @@
 Code to train model.
 """
 import logging
+from typing import Dict
 
 from nerfactory.utils import writer
 from nerfactory.utils.writer import EventName, TimeWriter
@@ -38,9 +39,12 @@ class BarebonesTrainer:
         world_size (int, optional): World size of the process. Defaults to 1.
     """
 
-    def __init__(self, pipeline: Pipeline, model_dir, steps_per_log=20, steps_per_save=20, steps_per_test=20):
+    def __init__(
+        self, pipeline: Pipeline, model_dir, loss_coefficients, steps_per_log=20, steps_per_save=20, steps_per_test=20
+    ):
         self.pipeline: Pipeline = pipeline
         self.model_dir = model_dir
+        self.loss_coefficients: Dict = loss_coefficients
         self.steps_per_log = steps_per_log
         self.steps_per_save = steps_per_save
         self.steps_per_test = steps_per_test
@@ -59,6 +63,29 @@ class BarebonesTrainer:
                     self.pipeline.save_checkpoint(self.model_dir, step)
                 self._write_out_storage(step)
         self._write_out_storage(num_iterations)
+
+    def get_aggregated_loss_dict(self, loss_dict: Dict):
+        """Computes the aggregated loss from the loss_dict and the coefficients specified."""
+        aggregated_loss_dict = {}
+        for loss_name, loss_value in loss_dict.items():
+            assert loss_name in self.loss_coefficients, f"{loss_name} no in self.loss_coefficients"
+            loss_coefficient = self.loss_coefficients[loss_name]
+            aggregated_loss_dict[loss_name] = loss_coefficient * loss_value
+        aggregated_loss_dict["aggregated_loss"] = sum(loss_dict.values())
+        return aggregated_loss_dict
+
+    def optimize_step(self, loss_dict: Dict):
+        """Optimizes the model based on the loss_dict (basically your backward and optimier.step
+        calls).
+
+        This function should be called after the loss_dict has been computed.
+        """
+        self.optimizers.zero_grad_all()
+        self.get_aggregated_loss_dict(loss_dict)["aggregated_loss"].backward()
+        if self.grad_scaler:
+            self.optimizers.optimizer_scaler_step_all(grad_scaler=self.grad_scaler)
+        else:
+            self.optimizers.optimizer_step_all()
 
     def _write_out_storage(self, step: int) -> None:
         """Perform writes only during appropriate time steps
