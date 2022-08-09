@@ -119,7 +119,7 @@ class DatasetInputs:
     """
 
     image_filenames: List[str]
-    intrinsics: TensorType["num_images", ...]
+    intrinsics: TensorType["num_images", "num_camera_params"]
     camera_to_world: TensorType["num_images", 3, 4]
     downscale_factor: int = 1
     mask_filenames: Optional[List[str]] = None
