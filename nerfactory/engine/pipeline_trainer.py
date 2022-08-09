@@ -20,7 +20,7 @@ import logging
 from nerfactory.utils import writer
 from nerfactory.utils.writer import EventName, TimeWriter
 
-from nerfactory.pipeline.base import Pipeline
+from nerfactory.pipelines.base import Pipeline
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
 

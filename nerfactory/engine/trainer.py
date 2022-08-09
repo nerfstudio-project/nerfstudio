@@ -44,7 +44,7 @@ from nerfactory.data.structs import DatasetInputs,
 from nerfactory.data.structs import DatasetInputs
 from nerfactory.graphs.base import Graph, Graph, setup_graph
 from nerfactory.optimizers.optimizers import Optimizers, Optimizers, setup_optimizers
-from nerfactory.pipeline.base import Pipeline
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.callbacks import Callback
@@ -235,7 +235,7 @@ class Trainer:
         return loss_dict
 
     @profiler.time_function
-    def test_image(self, camera_ray_bundle: RayBundle, batch: dict, step: Optional[Optional[int]] = None) -> float:
+    def test_image(self, camera_ray_bundle: RayBundle, batch: dict, step: Optional[int] = None) -> float:
         """Test a specific image.
 
         Args:
@@ -257,7 +257,7 @@ class Trainer:
         self.graph.train()
         return psnr
 
-    def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[Optional[int]] = None) -> None:
+    def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[int] = None) -> None:
         """Run evaluation with a given dataloader.
 
         Args:
