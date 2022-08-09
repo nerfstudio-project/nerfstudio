@@ -116,6 +116,7 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
         remain_iter = GLOBAL_BUFFER["max_iter"] - step
         remain_time = remain_iter * GLOBAL_BUFFER["events"][name]["avg"]
         put_scalar(EventName.ETA, remain_time, step)
+        GLOBAL_BUFFER["viewer/train_eta"] = _format_time(remain_time)
 
 
 @check_main_thread
@@ -152,6 +153,7 @@ def setup_event_writers(config: LoggingConfig, max_iter: int) -> None:
     GLOBAL_BUFFER["max_buffer_size"] = config.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.steps_per_log
     GLOBAL_BUFFER["events"] = {}
+    GLOBAL_BUFFER["viewer/train_eta"] = "Paused"
 
 
 class Writer:

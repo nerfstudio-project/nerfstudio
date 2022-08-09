@@ -18,6 +18,8 @@ const initialState = {
     minResolution: 50,
     maxResolution: 512,
     field_of_view: 80,
+    eval_fps: 'Paused',
+    train_eta: 'Paused',
   },
   // the scene state
   sceneState: {
