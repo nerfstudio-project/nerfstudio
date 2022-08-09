@@ -31,6 +31,12 @@ export function RenderControls() {
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
+  let eval_fps = useSelector(
+    (state) => state.renderingState.eval_fps,
+  );
+  let train_eta = useSelector(
+    (state) => state.renderingState.train_eta,
+  );
 
   const dispatch = useDispatch();
 
@@ -111,18 +117,8 @@ export function RenderControls() {
   };
 
   const [, setControls] = useControls(
-    'Rendering State',
+    'Rendering Controls',
     () => ({
-      // WebSocket isConnected
-      // button does nothing except be an indicator
-      'WebSocket Connected': button(() => {}, {
-        disabled: !isWebsocketConnected,
-      }),
-      // webRTC isConnected
-      // button does nothing except be an indicator
-      'WebRTC Connected': button(() => {}, {
-        disabled: !isWebrtcConnected,
-      }),
       // isTraining
       'Pause Training': button(
         () => {
@@ -220,14 +216,44 @@ export function RenderControls() {
       },
     }),
     [
-      isWebsocketConnected,
-      isWebrtcConnected,
       isTraining,
       outputOptions,
       outputChoice,
       min_resolution,
       max_resolution,
       field_of_view,
+    ],
+  );
+
+  const [, setState] = useControls(
+    'Rendering Monitor',
+    () => ({
+      // WebSocket isConnected
+      // button does nothing except be an indicator
+      'WebSocket Connected': button(() => {}, {
+        disabled: !isWebsocketConnected,
+      }),
+      // webRTC isConnected
+      // button does nothing except be an indicator
+      'WebRTC Connected': button(() => {}, {
+        disabled: !isWebrtcConnected,
+      }),
+      eval_fps: {
+        label: 'Eval FPS',
+        value: eval_fps,
+        disabled: true,
+      },
+      train_eta: {
+        label: 'Train ETA',
+        value: train_eta,
+        disabled: true,
+      },
+    }),
+    [
+      isWebsocketConnected,
+      isWebrtcConnected,
+      eval_fps,
+      train_eta,
     ],
   );
 
@@ -238,8 +264,6 @@ export function RenderControls() {
     setControls({ 'Camera FoV': field_of_view });
   }, [
     setControls,
-    isWebsocketConnected,
-    isWebrtcConnected,
     isTraining,
     outputOptions,
     outputChoice,
@@ -247,6 +271,29 @@ export function RenderControls() {
     max_resolution,
     field_of_view,
   ]);
+
+  useEffect(() => {}, [
+    setState,
+    isWebsocketConnected,
+    isWebrtcConnected,
+  ]);
+
+  useEffect(() => {
+    websocket.addEventListener('message', (originalCmd) => {
+      // set the remote description when the offer is received
+      const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
+      if (cmd.path === '/renderingState/eval_fps') {
+        eval_fps = cmd.data;
+        console.log("setting state", eval_fps);
+        setState({ eval_fps });
+      }
+      if (cmd.path === '/renderingState/train_eta') {
+        train_eta = cmd.data;
+        console.log("setting state", train_eta)
+        setState({ train_eta });
+      }
+    });
+  }, []);
 
   return null;
 }

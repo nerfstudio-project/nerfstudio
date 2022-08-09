@@ -32,6 +32,7 @@ from nerfactory.graphs.base import Graph
 from nerfactory.utils import profiler
 from nerfactory.utils.config import ViewerConfig
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.writer import GLOBAL_BUFFER
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
 
@@ -279,6 +280,16 @@ class VisualizerState:
         image = (image_output).astype("uint8")
         self.vis.set_image(image)
 
+    def _update_viewer_stats(self, render_time, image_height) -> None:
+        is_training = self.vis["renderingState/isTraining"].read()
+        if is_training is None or is_training:
+            eval_fps = f"{1 / render_time:.2f} fps at {image_height} res"
+            self.vis["renderingState/eval_fps"].write(eval_fps)
+            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["viewer/train_eta"])
+        else:
+            self.vis["renderingState/eval_fps"].write("Paused")
+            self.vis["renderingState/train_eta"].write("Paused")
+
     @profiler.time_function
     def _render_image_in_viewer(self, graph: Graph) -> None:
         """
@@ -336,21 +347,25 @@ class VisualizerState:
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
+
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
+        start_time = time.time()
         check_thread.start()
         render_thread.start()
-
         try:
             render_thread.join()
             check_thread.join()
         except Exception:  # pylint: disable=broad-except
             pass
+        render_duration = time.time() - start_time
 
         graph.train()
+
         outputs = render_thread.vis_outputs
         if outputs is not None:
             self._send_output_to_viewer(outputs)
+            self._update_viewer_stats(render_duration, image_height)
 
 
 def get_default_vis() -> Viewer:
