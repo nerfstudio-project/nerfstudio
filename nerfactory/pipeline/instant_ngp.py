@@ -23,7 +23,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
-
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.structs import SceneBounds
