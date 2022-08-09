@@ -27,7 +27,7 @@ pipeline:
       downscale_factor: 1
     dataloader_eval:
       num_rays_per_chunk: 8192 # all rays for evaluation
-      
+
   graph:
     _target_: nerfactory.graphs.instant_ngp.NGPGraph
     enable_density_field: true

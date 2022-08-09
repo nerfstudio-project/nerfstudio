@@ -56,7 +56,7 @@ class Graph(nn.Module):
     def __init__(
         self,
         scene_bounds: SceneBounds,
-        loss_coefficients: DictConfig = DictConfig({}), # TODO(ethan): make this cleaner by just using Dict
+        loss_coefficients: DictConfig = DictConfig({}),
         enable_collider: bool = True,
         collider_config: Optional[DictConfig] = None,
         enable_density_field: bool = False,
@@ -243,7 +243,7 @@ def setup_graph(config: GraphConfig, scene_bounds: SceneBounds, device: str) -> 
     Args:
         dataset_inputs: The inputs which will be used to define the camera parameters.
     """
-    graph = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=de)
+    graph = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=device)
     graph.to(device)
     if not isinstance(graph, Graph):
         raise TypeError(f"Unable to instantiate Graph, got {type(graph)}")

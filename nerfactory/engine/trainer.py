@@ -19,26 +19,34 @@ import functools
 import logging
 import os
 import typing
-from typing import Dict, List, Optional
+import typing
+from typing import Dict, List, Optional, List, Optional
 
 import torch
 import torch.distributed as dist
-from torch.cuda.amp.grad_scaler import GradScaler
+from torch.cuda.amp.grad_scaler.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.data.dataloader import (
+    (
     EvalDataloader,
     TrainDataloader,
+   
+    TrainDataloader,
     setup_dataset_eval,
+   
     setup_dataset_train,
 )
+from nerfactory.data.structs import DatasetInputs,
+)
 from nerfactory.data.structs import DatasetInputs
-from nerfactory.graphs.base import Graph, setup_graph
-from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
+from nerfactory.graphs.base import Graph, Graph, setup_graph
+from nerfactory.optimizers.optimizers import Optimizers, Optimizers, setup_optimizers
 from nerfactory.pipeline.base import Pipeline
 from nerfactory.utils import profiler, writer
+from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import Config
 from nerfactory.utils.decorators import check_main_thread
@@ -98,7 +106,7 @@ class Trainer:
         self._load_checkpoint()
 
         if self.world_size > 1:
-            self.graph = typing.cast(Graph, DDP(self.graph, device_ids=[self.local_rank]))
+            self.graph = typing.cast(Graph, typing.cast(Graph, DDP(self.graph, device_ids=[self.local_rank])))
             dist.barrier(device_ids=[self.local_rank])
 
         self.callbacks = self.graph.get_training_callbacks()
@@ -227,7 +235,7 @@ class Trainer:
         return loss_dict
 
     @profiler.time_function
-    def test_image(self, camera_ray_bundle: RayBundle, batch: dict, step: Optional[int] = None) -> float:
+    def test_image(self, camera_ray_bundle: RayBundle, batch: dict, step: Optional[Optional[int]] = None) -> float:
         """Test a specific image.
 
         Args:
@@ -241,13 +249,15 @@ class Trainer:
         self.graph.eval()
         if camera_ray_bundle.camera_indices is None:
             raise ValueError("camera_ray_bundle.camera_indices is None during testing")
+        if camera_ray_bundle.camera_indices is None:
+            raise ValueError("camera_ray_bundle.camera_indices is None during testing")
         image_idx = int(camera_ray_bundle.camera_indices[0, 0])
         outputs = self.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
         self.graph.train()
         return psnr
 
-    def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[int] = None) -> None:
+    def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[Optional[int]] = None) -> None:
         """Run evaluation with a given dataloader.
 
         Args:

@@ -125,7 +125,6 @@ class Config:
     trainer: TrainerConfig = MISSING
     experiment_name: str = MISSING
     method_name: str = MISSING
-    data: DataloaderConfig = MISSING
     optimizers: Dict[str, Any] = MISSING
     viewer: ViewerConfig = MISSING
     pipeline: PipelineConfig = MISSING

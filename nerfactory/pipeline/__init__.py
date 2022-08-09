@@ -11,3 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from typing import List
+
+from nerfactory.viewer.server.state.node import Node
+
+
+class StateNode(Node):
+    """Node that holds a hierarchy of state nodes"""
+
+    __slots__ = ["data"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.path = None
+        self.data = None
