@@ -24,7 +24,7 @@ data:
     downscale_factor: 1
 
 graph:
-  _target_: nerfactory.graphs.mipnerf.MipNerfGraph
+  _target_: nerfactory.models.mipnerf.MipNerfGraph
   num_coarse_samples: 128
   num_importance_samples: 128
   loss_coefficients:

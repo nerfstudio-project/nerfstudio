@@ -28,11 +28,11 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data.image_dataset import ImageDataset
-from nerfactory.data.image_sampler import CacheImageSampler, ImageSampler
-from nerfactory.data.pixel_sampler import PixelSampler
-from nerfactory.data.structs import DatasetInputs
-from nerfactory.graphs.modules.ray_generator import RayGenerator
+from nerfactory.dataloaders.image_dataset import ImageDataset
+from nerfactory.dataloaders.image_sampler import CacheImageSampler, ImageSampler
+from nerfactory.dataloaders.pixel_sampler import PixelSampler
+from nerfactory.dataloaders.structs import DatasetInputs
+from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import DataloaderConfig
 from nerfactory.utils.misc import (
@@ -96,187 +96,6 @@ def setup_dataset_eval(
         **dataset_inputs_eval.as_dict(),
     )
     return dataset_inputs_eval, dataloader_eval
-
-
-# -------------------------------------------------
-# Start new dataloaders
-
-
-class Dataloader(nn.Module):
-    """Second version of the dataloader class (V2)
-
-    This version of the dataloader is designed to subsume both the train and eval dataloaders,
-    especially since this may contain learnable parameters which need to be shared across the train
-    and test dataloaders. The idea is that we have setup methods for train and eval separatley and
-    this can be a combined train/eval if you want.
-
-    The default should be for the train and eval dataloaders to be the same, but this can be
-    overridden. This is needed when there are learned parameters either in your data itself or in
-    the way some of the data (that we will pass to the renderer / Field) was generated. In these
-    cases, we want these parameters to be accessible by both the train and eval dataloaders, hence
-    why you would want them to be in the same dataloader.
-
-    An instance where you may want to have only the eval dataloader is if you are doing evaluation
-    and don't have the dataset used to train the model.
-
-
-    Train Methods:
-        setup_train: sets up for being used as train
-        iter_train: returns an iterator of the train dataloader
-        next_train: will be called on __next__() for the training iterator
-
-    Eval Methods:
-        setup_eval: sets up for being used as eval
-        iter_eval: returns an iterator of the eval dataloader
-        next_eval: will be called on __next__() for the eval iterator
-
-
-    Args:
-        image_sampler (ImageSampler): image sampler
-        pixel_sampler (PixelSampler): pixel sampler
-        ray_generator (RayGenerator): ray generator
-        use_train (bool): whether this is being used for training
-        use_eval (bool): whether this is being used for evaluation
-
-
-
-    Attributes:
-        image_sampler (ImageSampler): image sampler
-        pixel_sampler (PixelSampler): pixel sampler
-        train_count (int): number of times train has been called
-        eval_count (int): number of times eval has been called
-    """
-
-    # NOTE(ethan): I'm not sure the right way to do this for enabling autocomplete
-    train_datasetinputs: DatasetInputs
-    eval_datasetinputs: DatasetInputs
-
-    def __init__(
-        self,
-        use_train: bool,
-        use_eval: bool,
-    ):
-        super().__init__()
-        self.use_train = use_train
-        self.use_eval = use_eval
-        self.train_count = 0
-        self.eval_count = 0
-        assert use_train or use_eval
-        if use_train:
-            dataset_train = instantiate_from_dict_config(config.dataset_inputs_train)
-            self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
-            self.setup_train()
-        if use_eval:
-            dataset_eval = instantiate_from_dict_config(config.dataset_inputs_eval)
-            self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="test")
-            self.setup_eval()
-
-    def forward(self):
-        """Dummy forward method"""
-        raise NotImplementedError
-
-    def iter_train(self) -> IterableWrapper:
-        """Returns an iterator that executes the self.next_train function"""
-        self.train_count = 0
-        return IterableWrapper(self, self.next_train)
-
-    def iter_eval(self) -> IterableWrapper:
-        """Returns an iterator that executes the self.next_eval function"""
-        self.eval_count = 0
-        return IterableWrapper(self, self.next_eval)
-
-    @abstractmethod
-    def setup_train(self):
-        """Sets up the dataloader for training"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def setup_eval(self):
-        """Sets up the dataloader for evaluation"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def next_train(self) -> Tuple:
-        """Returns the next batch of data from the train dataloader.
-
-        This will be a tuple of all the information that this dataloader outputs.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def next_eval(self) -> Tuple:
-        """Returns the next batch of data from the eval dataloader.
-
-        This will be a tuple of all the information that this dataloader outputs.
-        """
-        raise NotImplementedError
-
-
-class AbstractStoredDataloader(Dataloader):  # pylint: disable=abstract-method
-    """Subclass of the new V2 dataloader that is used for when things fit in memory,
-    and will be stored in the dataloader itself.
-
-    Attributes:
-        camera_to_world (torch.Tensor): camera to world transformation
-        intrinsics (torch.Tensor): intrinsics matrix
-    """
-
-    camera_to_world: torch.Tensor
-    intrinsics: torch.Tensor
-
-
-class TestStoredDataloader(AbstractStoredDataloader):  # pylint: disable=abstract-method
-    """Basic stored dataloader implementation for instant-ngp test run"""
-
-    def __init__(self, use_train: bool, use_eval: bool, path: str, data_format: str, rays_per_batch: int = 1024):
-        self.path = path
-        self.rays_per_batch = rays_per_batch
-        self.format = data_format
-        super().__init__(use_train, use_eval)
-
-    def setup_train(self):
-        """Sets up the dataloader for training"""
-        self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
-        self.train_image_sampler = CacheImageSampler(self.train_image_dataset)
-        self.iter_train_image_sampler = iter(self.train_image_sampler)
-        self.train_pixel_sampler = PixelSampler(self.rays_per_batch)
-        self.train_ray_generator = RayGenerator(
-            self.train_datasetinputs.intrinsics, self.train_datasetinputs.camera_to_world
-        )
-        self.camera_to_world = self.train_datasetinputs.camera_to_world
-        self.intrinsics = self.train_datasetinputs.intrinsics
-
-    def setup_eval(self):
-        """Sets up the dataloader for evaluation"""
-        self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
-        self.eval_image_sampler = CacheImageSampler(self.eval_image_dataset)
-        self.iter_eval_image_sampler = iter(self.eval_image_sampler)
-        self.eval_pixel_sampler = PixelSampler(self.rays_per_batch)
-        self.eval_ray_generator = RayGenerator(
-            self.eval_datasetinputs.intrinsics, self.eval_datasetinputs.camera_to_world
-        )
-
-    def next_train(self) -> Tuple:
-        """Returns the next batch of data from the train dataloader"""
-        self.train_count += 1
-        image_batch = next(self.iter_train_image_sampler)
-        batch = self.train_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator.forward(ray_indices)
-        return ray_bundle, batch
-
-    def next_eval(self) -> Tuple:
-        """Returns the next batch of data from the eval dataloader"""
-        self.eval_count += 1
-        image_batch = next(self.iter_eval_image_sampler)
-        batch = self.eval_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.eval_ray_generator.forward(ray_indices)
-        return ray_bundle, batch
-
-
-# End new pipeline dataloaders
-# -------------------------------------------------
 
 
 class TrainDataloader:
@@ -401,11 +220,3 @@ class RandIndicesEvalDataloader(EvalDataloader):
             self.count += 1
             return ray_bundle, batch
         raise StopIteration
-
-
-@profiler.time_function
-def setup_dataloader(config: DataloaderConfig, device: str) -> Dataloader:
-    """Setup the dataloader."""
-
-    dataloader: Dataloader = instantiate_from_dict_config(DictConfig(config))
-    return dataloader

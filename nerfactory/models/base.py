@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-The Graph module contains all trainable parameters.
+Base Model implementation which takes in RayBundles
 """
 from abc import abstractmethod
 from collections import defaultdict
@@ -23,15 +23,13 @@ import torch
 from omegaconf import DictConfig
 from torch import nn
 from torch.nn import Parameter
-from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data.structs import DatasetInputs, SceneBounds
-from nerfactory.graphs.modules.ray_generator import RayGenerator
+from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import GraphConfig
+from nerfactory.utils.config import ModelConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
     instantiate_from_dict_config,
@@ -39,8 +37,8 @@ from nerfactory.utils.misc import (
 )
 
 
-class Graph(nn.Module):
-    """Graph class
+class Model(nn.Module):
+    """Model class
     Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
 
@@ -83,7 +81,7 @@ class Graph(nn.Module):
 
     @property
     def device(self):
-        """Returns the device that the graph is on."""
+        """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
     def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
@@ -124,7 +122,7 @@ class Graph(nn.Module):
             ray_bundle: Input bundle of rays.
 
         Returns:
-            Outputs of graph. (ie. rendered colors)
+            Outputs of model. (ie. rendered colors)
         """
 
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
@@ -193,7 +191,7 @@ class Graph(nn.Module):
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
-        """Takes in camera parameters and computes the output of the graph."""
+        """Takes in camera parameters and computes the output of the model."""
         assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
@@ -211,7 +209,7 @@ class Graph(nn.Module):
         return outputs
 
     def get_outputs_for_camera(self, camera: Camera):
-        """Get the graph outputs for a Camera."""
+        """Get the model outputs for a Camera."""
         camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
@@ -224,27 +222,25 @@ class Graph(nn.Module):
             image_idx: Index of the image.
             step: Current step.
             batch: Batch of data.
-            outputs: Outputs of the graph.
+            outputs: Outputs of the model.
 
         Returns:
             The psnr.
         """
 
-    def load_graph(self, loaded_state: Dict[str, Any]) -> None:
+    def load_model(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path"""
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
 
 
 @profiler.time_function
-def setup_graph(config: GraphConfig, scene_bounds: SceneBounds, device: str) -> Graph:
-    """Setup the graph. The dataset inputs should be set with the training data.
+def setup_model(config: ModelConfig, scene_bounds: SceneBounds, device: str) -> Model:
+    """Setup the model. The dataset inputs should be set with the training data.
 
     Args:
         dataset_inputs: The inputs which will be used to define the camera parameters.
     """
-    graph = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=device)
-    graph.to(device)
-    if not isinstance(graph, Graph):
-        raise TypeError(f"Unable to instantiate Graph, got {type(graph)}")
-    return graph
+    model = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=device)
+    model.to(device)
+    return model

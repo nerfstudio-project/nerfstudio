@@ -28,19 +28,19 @@ import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_sampler import NGPSpacedSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import colors, misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
 
-class NGPGraph(Graph):
-    """Instant NGP graph
+class NGPModel(Model):
+    """Instant NGP model
 
     Args:
         field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
-        kwargs: additional params to pass up to the parent class Graph
+        kwargs: additional params to pass up to the parent class model
     """
 
     def __init__(self, field_implementation="torch", **kwargs) -> None:
@@ -62,8 +62,6 @@ class NGPGraph(Graph):
     def populate_fields(self):
         """Set the fields."""
         # torch or tiny-cuda-nn version
-        if self.scene_bounds is None:
-            raise ValueError("scene_bounds must be set to use an NGPGraph")
         self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
@@ -142,7 +140,7 @@ class NGPGraph(Graph):
     def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
         """Do preprocessing to make images valid"""
         # TODO: make log_test_image_outputs use this directly
-        # TODO: implement across all the different graph implementations
+        # TODO: implement across all the different model implementations
         outputs["accumulation"] = visualization.apply_colormap(outputs["accumulation"])
         outputs["depth"] = visualization.apply_depth_colormap(
             outputs["depth"],

@@ -9,27 +9,21 @@ viewer:
   num_rays_per_chunk: 16384
 
 pipeline:
-  data:
-    # Train dataloading.
-    dataset_inputs_train:
-      _target_: nerfactory.data.datasets.Blender
+  dataloader:
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
       data_directory: data/blender/lego
       alpha_color: white
       downscale_factor: 1
-    dataloader_train:
-      pixel_sampler:
-        num_rays_per_batch: 8192 # for training
-    # Eval dataloading
-    dataset_inputs_eval:
-      _target_: nerfactory.data.datasets.Blender
+    train_num_rays_per_batch: 8192
+    eval_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
       data_directory: data/blender/lego
       alpha_color: white
       downscale_factor: 1
-    dataloader_eval:
-      num_rays_per_chunk: 8192 # all rays for evaluation
-
-  graph:
-    _target_: nerfactory.graphs.instant_ngp.NGPGraph
+    eval_rays_per_chunk: 8192
+  model:
+    _target_: nerfactory.models.instant_ngp.NGPModel
     enable_density_field: true
     enable_collider: false
     field_implementation: tcnn # torch, tcnn, ...

@@ -13,14 +13,13 @@
 # limitations under the License.
 
 """
-Implementation of vanilla nerf.
+Implementation of mip-NeRF.
 """
 
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import torch
-from omegaconf import DictConfig
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
@@ -30,8 +29,8 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -39,75 +38,44 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import Callback
 
 
-class NeRFGraph(Graph):
-    """Vanilla NeRF graph
-
-    Args:
-        near_plane (float, optional): Where to start sampling points. Defaults to a distance of 2,
-        far_plane (float, optional): Where to stop sampling points. Defaults to a distance of 6,
-        num_coarse_samples (int, optional): Number of samples in coarse field evaluation. Defaults to 64,
-        num_importance_samples(int, optional): Number of samples in fine field evaluation. Defaults to 64,
-        enable_density_field (bool): Whether to create a density field to filter samples.
-        density_field_config (DictConfig): Configuration of density field.
-    """
+class MipNerfModel(Model):
+    """mip-NeRF model"""
 
     def __init__(
         self,
-        near_plane: float = 2.0,
-        far_plane: float = 6.0,
-        num_coarse_samples: int = 64,
-        num_importance_samples: int = 128,
-        enable_density_field: bool = False,
-        density_field_config: Optional[DictConfig] = None,
+        near_plane=2.0,
+        far_plane=6.0,
+        num_coarse_samples=64,
+        num_importance_samples=128,
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
-        self.field_coarse = None
-        self.field_fine = None
-        super().__init__(
-            enable_density_field=enable_density_field,
-            density_field_config=density_field_config,
-            **kwargs,
-        )
-
-    def get_training_callbacks(self) -> List[Callback]:
-        if self.field_coarse is None:
-            raise ValueError("populate fields must be called before get_training_callbacks.")
-
-        callbacks = []
-        if self.density_field is not None:
-            callbacks = [
-                Callback(
-                    update_every_num_iters=self.density_field.update_every_num_iters,
-                    func=self.density_field.update_density_grid,
-                    density_eval_func=self.field_coarse.density_fn,
-                )
-            ]
-        return callbacks  # type: ignore
+        self.field = None
+        super().__init__(**kwargs)
 
     def populate_fields(self):
         """Set the fields."""
 
         position_encoding = NeRFEncoding(
-            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+            in_dim=3, num_frequencies=16, min_freq_exp=0.0, max_freq_exp=16.0, include_input=True
         )
         direction_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
         )
 
-        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
-        self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+        self.field = NeRFField(
+            position_encoding=position_encoding, direction_encoding=direction_encoding, use_integrated_encoding=True
+        )
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, density_field=self.density_field)
+        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, include_original=False)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -124,21 +92,21 @@ class NeRFGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        if self.field_coarse is None or self.field_fine is None:
+        if self.field is None:
             raise ValueError("populate_fields() must be called before get_param_groups")
-        param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
+        param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
 
-        if self.field_coarse is None or self.field_fine is None:
+        if self.field is None:
             raise ValueError("populate_fields() must be called before get_outputs")
 
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
-        # coarse field:
-        field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform)
+        # First pass:
+        field_outputs_coarse = self.field.forward(ray_samples_uniform)
         weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
         rgb_coarse = self.renderer_rgb(
             rgb=field_outputs_coarse[FieldHeadNames.RGB],
@@ -150,8 +118,8 @@ class NeRFGraph(Graph):
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
 
-        # fine field:
-        field_outputs_fine = self.field_fine.forward(ray_samples_pdf)
+        # Second pass:
+        field_outputs_fine = self.field.forward(ray_samples_pdf)
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
         rgb_fine = self.renderer_rgb(
             rgb=field_outputs_fine[FieldHeadNames.RGB],
@@ -170,14 +138,10 @@ class NeRFGraph(Graph):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
-        # Scaling metrics by coefficients to create the losses.
-        device = outputs["rgb_coarse"].device
-        image = batch["image"].to(device)
-
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
+        image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
-
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
@@ -213,6 +177,8 @@ class NeRFGraph(Graph):
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
         rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
+        rgb_coarse = torch.clip(rgb_coarse, min=-1, max=1)
+        rgb_fine = torch.clip(rgb_fine, min=-1, max=1)
 
         coarse_psnr = self.psnr(image, rgb_coarse)
         fine_psnr = self.psnr(image, rgb_fine)

@@ -62,28 +62,17 @@ class TrainerConfig:
 
 
 @dataclass
-class ImageDatasetConfig:
-    """Configuration for type of dataset to instantiate"""
-
-    _target_: str = MISSING
-
-
-@dataclass
 class DataloaderConfig:
     """Configuration for train/eval datasets"""
 
-    dataset_inputs_train: Dict[str, Any] = MISSING
-    image_dataset_train: ImageDatasetConfig = MISSING
-    dataloader_train: Dict[str, Any] = MISSING
-    dataset_inputs_eval: Dict[str, Any] = MISSING
-    image_dataset_eval: ImageDatasetConfig = MISSING
-    dataloader_eval: Dict[str, Any] = MISSING
-    # additional optional parameters here
-    pixel_sampler: Optional[Dict[str, Any]] = None
-    use_preprocessing_cache: bool = False
+    train_dataset: Dict[str, Any] = MISSING
+    train_num_rays_per_batch: int = MISSING
+    eval_dataset: Dict[str, Any] = MISSING
+    eval_rays_per_chunk: int = MISSING
+
 
 @dataclass
-class GraphConfig:
+class ModelConfig:
     """Configuration for graph instantiation"""
 
     _target_: str = MISSING
@@ -97,13 +86,15 @@ class GraphConfig:
     enable_density_field: Optional[bool] = False
     density_field_config: Dict[str, Any] = MISSING
 
+
 @dataclass
 class PipelineConfig:
     """Configuration for pipeline instantiation"""
 
     _target_: str = MISSING
-    data: DataloaderConfig = MISSING
-    graph: GraphConfig = MISSING
+    dataloader: DataloaderConfig = MISSING
+    model: ModelConfig = MISSING
+
 
 @dataclass
 class ViewerConfig:
@@ -149,7 +140,7 @@ def setup_config(config: DictConfig) -> Config:
     pipeline = PipelineConfig(**config.pipeline)
     optimizers = config.optimizers
     viewer = ViewerConfig(**config.viewer)
- 
+
     return Config(
         machine=machine,
         logging=logging,

@@ -22,7 +22,7 @@ from nerfactory.data.dataloader import (
     setup_dataset_eval,
     setup_dataset_train,
 )
-from nerfactory.graphs.base import Graph, setup_graph
+from nerfactory.models.base import Graph, setup_graph
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
 

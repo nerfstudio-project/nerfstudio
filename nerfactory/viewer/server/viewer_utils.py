@@ -26,9 +26,9 @@ import torch
 
 from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data.image_dataset import ImageDataset
-from nerfactory.data.structs import DatasetInputs
-from nerfactory.graphs.base import Graph
+from nerfactory.dataloaders.image_dataset import ImageDataset
+from nerfactory.dataloaders.structs import DatasetInputs
+from nerfactory.models.base import Model
 from nerfactory.utils import profiler
 from nerfactory.utils.config import ViewerConfig
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
@@ -63,7 +63,7 @@ class RenderThread(threading.Thread):
         camera_ray_bundle: input rays to pass through the graph to render out
     """
 
-    def __init__(self, state: "VisualizerState", graph: Graph, camera_ray_bundle: RayBundle):
+    def __init__(self, state: "VisualizerState", graph: Model, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph
@@ -210,7 +210,7 @@ class VisualizerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def update_scene(self, step: int, graph: Graph) -> None:
+    def update_scene(self, step: int, graph: Model) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -280,7 +280,7 @@ class VisualizerState:
         self.vis.set_image(image)
 
     @profiler.time_function
-    def _render_image_in_viewer(self, graph: Graph) -> None:
+    def _render_image_in_viewer(self, graph: Model) -> None:
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.

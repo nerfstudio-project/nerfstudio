@@ -30,9 +30,9 @@ from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.fields.nerf_field import NeRFField
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_losses import distortion_loss
-from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_losses import distortion_loss
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -42,8 +42,8 @@ from nerfactory.renderers.renderers import (
 from nerfactory.utils import colors, misc, visualization, writer
 
 
-class MipNerf360Graph(Graph):
-    """mip-NeRF graph"""
+class MipNerf360Model(Model):
+    """mip-NeRF model"""
 
     def __init__(
         self,

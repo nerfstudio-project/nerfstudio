@@ -24,27 +24,14 @@ from typing import Dict, List, Optional, List, Optional
 
 import torch
 import torch.distributed as dist
-from torch.cuda.amp.grad_scaler.grad_scaler import GradScaler
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data.dataloader import (
-    (
-    EvalDataloader,
-    TrainDataloader,
-   
-    TrainDataloader,
-    setup_dataset_eval,
-   
-    setup_dataset_train,
-)
-from nerfactory.data.structs import DatasetInputs,
-)
-from nerfactory.data.structs import DatasetInputs
-from nerfactory.graphs.base import Graph, Graph, setup_graph
+from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, Optimizers, setup_optimizers
-from nerfactory.pipelines.base import Pipeline
+from nerfactory.pipelines.base import Pipeline, setup_pipeline
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.callbacks import Callback
@@ -76,8 +63,6 @@ class Trainer:
             logging.warning("Mixed precision is disabled for CPU training.")
         # dataset variables
         self.dataset_inputs_train: DatasetInputs
-        self.dataloader_train: TrainDataloader
-        self.dataloader_eval: EvalDataloader
         # model variables
         self.pipeline: Pipeline
         self.optimizers: Optimizers
@@ -97,19 +82,16 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        # self.dataset_inputs_train, self.dataloader_train = setup_dataset_train(self.config.data, device=self.device)
-        # _, self.dataloader_eval = setup_dataset_eval(self.config.data, test_mode=test_mode, device=self.device)
-        # self.graph = setup_graph(self.config.graph, self.dataset_inputs_train, device=self.device)
         self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device)
-        self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
+        self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 
         if self.world_size > 1:
-            self.graph = typing.cast(Graph, typing.cast(Graph, DDP(self.graph, device_ids=[self.local_rank])))
+            self.pipeline = typing.cast(Pipeline, typing.cast(Pipeline, DDP(self.pipeline, device_ids=[self.local_rank])))
             dist.barrier(device_ids=[self.local_rank])
 
-        self.callbacks = self.graph.get_training_callbacks()
+        self.callbacks = self.pipeline.get_training_callbacks()
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.Tensor]) -> torch.Tensor:
@@ -144,7 +126,7 @@ class Trainer:
                 if step % self.config.trainer.steps_per_test == 0:
                     self.eval_with_dataloader(self.dataloader_eval, step=step)
                 self._write_out_storage(step)
-                self.visualizer_state.update_scene(step, self.graph)
+                self.visualizer_state.update_scene(step, self.pipeline.model)
 
         self._write_out_storage(num_iterations)
 
@@ -163,15 +145,15 @@ class Trainer:
             writer.write_out_storage()
 
     def _load_checkpoint(self) -> None:
-        """Helper function to load graph and optimizer from prespecified checkpoint"""
+        """Helper function to load pipeline and optimizer from prespecified checkpoint"""
         load_config = self.config.trainer.resume_train
         if load_config.load_dir is not None and load_config.load_step is not None:
             load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
             assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
             self.start_step = loaded_state["step"] + 1
-            # load the checkpoints for graph and optimizer
-            self.graph.load_graph(loaded_state)
+            # load the checkpoints for pipeline and optimizer
+            self.pipeline.load_pipeline(loaded_state)
             self.optimizers.load_optimizers(loaded_state)
             self.grad_scaler.load_state_dict(loaded_state["scaler"])
             logging.info("done loading checkpoint from %s", load_path)
@@ -189,10 +171,10 @@ class Trainer:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
-        if hasattr(self.graph, "module"):
-            model = self.graph.module.state_dict()  # type: ignore
+        if hasattr(self.pipeline, "module"):
+            model = self.pipeline.module.state_dict()  # type: ignore
         else:
-            model = self.graph.state_dict()
+            model = self.pipeline.state_dict()
         torch.save(
             {
                 "step": step,
@@ -219,6 +201,7 @@ class Trainer:
         """
         self.optimizers.zero_grad_all()
         with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
+            # TODO(ethan): make this forward function work with a pipeline
             _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)
             loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
@@ -246,7 +229,7 @@ class Trainer:
         Returns:
             float: PSNR
         """
-        self.graph.eval()
+        self.pipeline.eval()
         if camera_ray_bundle.camera_indices is None:
             raise ValueError("camera_ray_bundle.camera_indices is None during testing")
         if camera_ray_bundle.camera_indices is None:
@@ -254,7 +237,7 @@ class Trainer:
         image_idx = int(camera_ray_bundle.camera_indices[0, 0])
         outputs = self.graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         psnr = self.graph.log_test_image_outputs(image_idx, step, batch, outputs)
-        self.graph.train()
+        self.pipeline.train()
         return psnr
 
     def eval_with_dataloader(self, dataloader: EvalDataloader, step: Optional[int] = None) -> None:

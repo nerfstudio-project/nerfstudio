@@ -16,32 +16,24 @@
 Semantic NeRF implementation.
 """
 
-from typing import Dict, Optional, Tuple
-
 import torch
 from torch import nn
-from torchtyping import TensorType
 
-from nerfactory.cameras.rays import RayBundle, RaySamples
-from nerfactory.data.structs import Semantics
-from nerfactory.fields.base import Field
-from nerfactory.fields.modules.encoding import Encoding, Identity, NeRFEncoding
+from nerfactory.cameras.rays import RayBundle
+from nerfactory.dataloaders.structs import Semantics
+from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import (
-    DensityFieldHead,
     FieldHeadNames,
-    RGBFieldHead,
-    SemanticFieldHead,
 )
-from nerfactory.fields.modules.mlp import MLP
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.semantic_nerf_field import SemanticNerfField
-from nerfactory.graphs.vanilla_nerf import NeRFGraph
+from nerfactory.models.vanilla_nerf import NeRFModel
 from nerfactory.renderers.renderers import SemanticRenderer
 from nerfactory.utils import misc, writer
 
 
-class SemanticNerfGraph(NeRFGraph):
-    """Semantic-NeRF graph"""
+class SemanticNerfModel(NeRFModel):
+    """Semantic-NeRF model"""
 
     def __init__(self, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes

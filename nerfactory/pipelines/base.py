@@ -18,8 +18,8 @@ Abstracts for the Pipeline class.
 
 from abc import abstractmethod
 
-from nerfactory.data.dataloader import Dataloader, setup_dataloader
-from nerfactory.graphs.base import Graph, setup_graph
+from nerfactory.dataloaders.base import Dataloader, setup_dataloader
+from nerfactory.models.base import Model, setup_model
 from nerfactory.utils.config import PipelineConfig
 from nerfactory.utils import profiler
 from pydoc import locate
@@ -67,26 +67,32 @@ class Pipeline:
         self.model (Model): The model that will be used
     """
 
-    def __init__(
-        self,
-        dataloader: Dataloader,
-        model: Graph
-    ):
+    def __init__(self, dataloader: Dataloader, model: Model):
         self.dataloader: Dataloader = dataloader
         self.dataloader_train_iter = self.dataloader.iter_train()
         self.dataloader_eval_iter = self.dataloader.iter_eval()
-        self.model: Graph = model
+        self.model: Model = model
 
     @abstractmethod
     def get_train_loss_dict(self):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacing with the
         Model class, feeding the data to the model's forward function."""
+        rays, batch = self.dataloader_train_iter.next()
+        accumulated_color, _, _, mask = self.model(rays, batch)
+        masked_batch = get_masked_dict(batch, mask)
+        loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
+        return loss_dict
 
     @abstractmethod
     def get_eval_loss_dict(self):
         """This function gets your evaluation loss dict. It needs to get the data
         from the dataloader and feed it to the model's forward function"""
+        rays, batch = self.dataloader_eval_iter.next()
+        accumulated_color, _, _, mask = self.model(rays, batch)
+        masked_batch = get_masked_dict(batch, mask)
+        loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
+        return loss_dict
 
     @abstractmethod
     def log_test_image_outputs(self) -> None:
@@ -95,7 +101,7 @@ class Pipeline:
     def load_pipeline(self):
         """Restore state of the pipeline from a checkpoint."""
         self.dataloader.load_dataloader()
-        self.model.load_graph()
+        self.model.load_model()
 
 
 @profiler.time_function
@@ -106,11 +112,9 @@ def setup_pipeline(config: PipelineConfig, device: str) -> Pipeline:
         config: The pipeline config.
     """
     # dataset_inputs
-    dataloader: Dataloader = setup_dataloader(config.dataloader_config, device=device)
-    # TODO(ethan): get rid of scene_bounds from the graph/model
-    graph: Graph = setup_graph(
-        config.graph_config, scene_bounds=dataloader.train_datasetinputs.scene_bounds, device=device
-    )
+    dataloader: Dataloader = setup_dataloader(config.dataloader, device=device)
+    # TODO(ethan): get rid of scene_bounds from the model
+    model: Model = setup_model(config.model, scene_bounds=dataloader.train_datasetinputs.scene_bounds, device=device)
     pipeline_class = locate(config._target_)  # pylint: disable=protected-access
-    pipeline = pipeline_class(dataloader=dataloader, model=graph)  # type: ignore
+    pipeline = pipeline_class(dataloader=dataloader, model=model)  # type: ignore
     return pipeline

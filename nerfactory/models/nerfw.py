@@ -26,8 +26,8 @@ from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.nerfw_field import VanillaNerfWField
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -38,8 +38,8 @@ from nerfactory.renderers.renderers import (
 from nerfactory.utils import colors, misc, visualization, writer
 
 
-class NerfWGraph(Graph):
-    """NeRF-W graph"""
+class NerfWModel(Model):
+    """NeRF-W model"""
 
     def __init__(
         self,
@@ -50,7 +50,7 @@ class NerfWGraph(Graph):
         uncertainty_min=0.03,
         **kwargs,
     ) -> None:
-        """A NeRF-W graph.
+        """A NeRF-W model.
 
         Args:
             ...
@@ -66,7 +66,7 @@ class NerfWGraph(Graph):
         self.uncertainty_min = uncertainty_min
         self.field_coarse = None
         self.field_fine = None
-        self.num_images = 10000 # TODO(ethan): fix this
+        self.num_images = 10000  # TODO(ethan): fix this
         self.appearance_embedding_dim = 48
         self.transient_embedding_dim = 16
         super().__init__(**kwargs)
@@ -120,7 +120,9 @@ class NerfWGraph(Graph):
 
         if misc.is_not_none(ray_bundle.camera_indices):
             # TODO(ethan): remove this check
-            assert torch.max(ray_bundle.camera_indices) < self.num_images, "num_images must be greater than the largest camera index"
+            assert (
+                torch.max(ray_bundle.camera_indices) < self.num_images
+            ), "num_images must be greater than the largest camera index"
 
         if self.field_coarse is None or self.field_fine is None:
             raise ValueError("populate_fields() must be called before get_outputs")
