@@ -380,16 +380,13 @@ class Record3D(Dataset):
         data_directory: Location of data
         downscale_factor: How much to downscale images. Defaults to 1.
         val_skip: 1/val_skip images to use for validation. Defaults to 8.
-        auto_scale: Scale based on pose bounds. Defaults to True.
-        aabb_scale: Scene scale, Defaults to 1.0.
+        aabb_scale: Scene scale, Defaults to 4.0.
     """
 
     data_directory: str
     downscale_factor: int = 1
     val_skip: int = 8
-    auto_scale: bool = True
     aabb_scale = 4.0
-    alpha_color: Optional[Union[str, list]] = None
 
     def _generate_dataset_inputs(self, split="train"):
         abs_dir = get_absolute_path(self.data_directory)
@@ -428,19 +425,17 @@ class Record3D(Dataset):
         # centering poses
         poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, :], axis=0)[:, 3]
 
-        # Reorder pose to match our convention
-        # poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
-        # poses = Mipnerf360._normalize_orientation(poses)
-
         camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
 
         # Camera intrinsics
         K = np.array(metadata_dict["K"]).reshape((3, 3)).T
         focal_length = K[0, 0]
-        # cy, cx = K[:2, -1]
 
         H = metadata_dict["h"]
         W = metadata_dict["w"]
+
+        # The metadata dict comes with principle points, but caused errors in
+        # image coord indexing. Should update once that is fixed.
         cx, cy = W / 2, H / 2
 
         num_cameras = len(image_filenames)
@@ -449,10 +444,6 @@ class Record3D(Dataset):
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
         scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.aabb_scale)
-
-        print("num_cameras", num_cameras)
-        print("camera_to_world", camera_to_world.shape)
-        print("intrinsics", intrinsics.shape)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,

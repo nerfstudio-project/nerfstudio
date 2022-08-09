@@ -113,12 +113,14 @@ class DatasetInputs:
 
     Args:
         image_filenames: Filenames for the images.
+        intrinsics: Tensor of per-image camera intrisics.
+        camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
         ...
     """
 
     image_filenames: List[str]
-    intrinsics: torch.Tensor
-    camera_to_world: torch.Tensor
+    intrinsics: TensorType["num_images", ...]
+    camera_to_world: TensorType["num_images", 3, 4]
     downscale_factor: int = 1
     mask_filenames: Optional[List[str]] = None
     depth_filenames: Optional[List[str]] = None
