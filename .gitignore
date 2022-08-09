@@ -185,3 +185,4 @@ scripts/colmap2nerf.py
 bash/
 nerfactory/ngp_pl/
 cache/
+configs_custom/
