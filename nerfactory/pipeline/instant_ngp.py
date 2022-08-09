@@ -22,9 +22,11 @@ import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from nerfactory.cameras.cameras import Camera
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.data.dataloader import TestStoredDataloader
 from nerfactory.data.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.fields.instant_ngp_field import TorchInstantNGPField
@@ -47,10 +49,8 @@ class InstantNGPModel(Model):
         self,
         collider: SceneBoundsCollider,
         scene_bounds: SceneBounds = None,
-        steps_per_occupancy_grid_update: int = 16,
     ) -> None:
         super().__init__(collider, scene_bounds)
-        self.steps_per_occupancy_grid_update = steps_per_occupancy_grid_update
 
     def populate_fields(self):
         self.field = TorchInstantNGPField(self.scene_bounds.aabb)
@@ -144,6 +144,8 @@ class InstantNGPPipeline(Pipeline):
     """
     The pipeline class for the Instant NGP model."""
 
+    dataloader: TestStoredDataloader
+
     def get_train_loss_dict(self):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacing with the
@@ -163,5 +165,6 @@ class InstantNGPPipeline(Pipeline):
         loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
         return loss_dict
 
-    def log_test_image_outputs(self) -> None:
+    def test_image_outputs(self) -> None:
         """Log the test image outputs"""
+        camera = Camera(self.dataloader.eval_datasetinputs.camera_to_world[0])

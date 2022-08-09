@@ -211,10 +211,10 @@ class TestStoredDataloader(AbstractStoredDataloader):  # pylint: disable=abstrac
     """Basic stored dataloader implementation for instant-ngp test run"""
 
     def __init__(self, use_train: bool, use_eval: bool, path: str, data_format: str, rays_per_batch: int = 1024):
-        super().__init__(use_train, use_eval)
         self.path = path
         self.rays_per_batch = rays_per_batch
         self.format = data_format
+        super().__init__(use_train, use_eval)
 
     def setup_train(self):
         """Sets up the dataloader for training"""
