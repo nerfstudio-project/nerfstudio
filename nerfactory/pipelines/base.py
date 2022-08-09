@@ -17,6 +17,10 @@ Abstracts for the Pipeline class.
 """
 
 from abc import abstractmethod
+from typing import Dict, List
+
+from torch import nn
+from torch.nn import Parameter
 
 from nerfactory.dataloaders.base import Dataloader, setup_dataloader
 from nerfactory.models.base import Model, setup_model
@@ -25,7 +29,7 @@ from nerfactory.utils import profiler
 from pydoc import locate
 
 
-class Pipeline:
+class Pipeline(nn.Module):
     """The intent of this class is to provide a higher level interface for the Model
     that will be easy to use for our Trainer class.
 
@@ -78,19 +82,16 @@ class Pipeline:
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacing with the
         Model class, feeding the data to the model's forward function."""
-        rays, batch = self.dataloader_train_iter.next()
-        accumulated_color, _, _, mask = self.model(rays, batch)
-        masked_batch = get_masked_dict(batch, mask)
-        loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
-        return loss_dict
+        ray_bundle, batch = next(self.dataloader_train_iter)
+        model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
+        return model_outputs, loss_dict, metrics_dict
 
     @abstractmethod
     def get_eval_loss_dict(self):
         """This function gets your evaluation loss dict. It needs to get the data
         from the dataloader and feed it to the model's forward function"""
-        rays, batch = self.dataloader_eval_iter.next()
-        accumulated_color, _, _, mask = self.model(rays, batch)
-        masked_batch = get_masked_dict(batch, mask)
+        ray_bundle, batch = next(self.dataloader_eval_iter)
+        model_outputs = self.model(**dataloader_outputs)
         loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
         return loss_dict
 
@@ -100,8 +101,20 @@ class Pipeline:
 
     def load_pipeline(self):
         """Restore state of the pipeline from a checkpoint."""
-        self.dataloader.load_dataloader()
-        self.model.load_model()
+        # self.dataloader.load_dataloader()
+        # self.model.load_model()
+        raise NotImplementedError
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Get the param groups for the pipeline.
+
+        Returns:
+            A list of dictionaries containing the pipeline's param groups.
+        """
+        dataloader_params = self.dataloader.get_param_groups()
+        model_params = self.model.get_param_groups()
+        # TODO(ethan): assert that key names don't overlap
+        return {**dataloader_params, **model_params}
 
 
 @profiler.time_function

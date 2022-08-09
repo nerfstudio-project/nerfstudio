@@ -76,7 +76,7 @@ class Trainer:
         # training callbacks
         self.callbacks: List[Callback]
 
-    def setup(self, test_mode=False):
+    def setup(self):
         """Setup the Trainer by calling other setup functions.
 
         Args:
@@ -88,10 +88,13 @@ class Trainer:
         self._load_checkpoint()
 
         if self.world_size > 1:
-            self.pipeline = typing.cast(Pipeline, typing.cast(Pipeline, DDP(self.pipeline, device_ids=[self.local_rank])))
+            self.pipeline = typing.cast(
+                Pipeline, typing.cast(Pipeline, DDP(self.pipeline, device_ids=[self.local_rank]))
+            )
             dist.barrier(device_ids=[self.local_rank])
 
-        self.callbacks = self.pipeline.get_training_callbacks()
+        # TODO(ethan): do this for pipeline, not pipeline.model
+        self.callbacks = self.pipeline.model.get_training_callbacks()
 
     @classmethod
     def get_aggregated_loss(cls, loss_dict: Dict[str, torch.Tensor]) -> torch.Tensor:
@@ -106,18 +109,19 @@ class Trainer:
     def train(self) -> None:
         """Train the model."""
         self.visualizer_state.init_scene(
-            image_dataset=self.dataloader_train.image_sampler.dataset, dataset_inputs=self.dataset_inputs_train
+            image_dataset=self.pipeline.dataloader.train_image_dataset, dataset_inputs=self.dataset_inputs_train
         )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
-            iter_dataloader_train = iter(self.dataloader_train)
+            # iter_dataloader_train = iter(self.dataloader_train)
             for step in range(self.start_step, self.start_step + num_iterations):
-                with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
-                    ray_indices, batch = next(iter_dataloader_train)
+                # with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
+                #     ray_indices, batch = next(iter_dataloader_train)
 
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
-                    loss_metric_dict = self.train_iteration(ray_indices, batch, step)
-                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=ray_indices.shape[0] / t.duration, step=step)
+                # with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
+                #     loss_metric_dict = self.train_iteration(ray_indices, batch, step)
+
+                # writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=ray_indices.shape[0] / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_dict", scalar_dict=loss_metric_dict, step=step)
@@ -202,7 +206,8 @@ class Trainer:
         self.optimizers.zero_grad_all()
         with torch.autocast(device_type=ray_indices.device.type, enabled=self.mixed_precision):
             # TODO(ethan): make this forward function work with a pipeline
-            _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)
+            # _, loss_dict, metrics_dict = self.graph.forward(ray_indices=ray_indices, batch=batch)
+            _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict()
             loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)

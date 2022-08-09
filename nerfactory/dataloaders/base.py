@@ -17,9 +17,10 @@ Data loader.
 """
 
 from abc import abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from torch import nn
+from torch.nn import Parameter
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
@@ -135,6 +136,14 @@ class Dataloader(nn.Module):
         This will be a tuple of all the information that this dataloader outputs.
         """
         raise NotImplementedError
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Get the param groups for the dataloader.
+        
+        Returns:
+            A list of dictionaries containing the dataloader's param groups.
+        """
+        return {}
 
 
 class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
