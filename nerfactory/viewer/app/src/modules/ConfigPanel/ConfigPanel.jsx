@@ -31,12 +31,8 @@ export function RenderControls() {
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
-  let eval_fps = useSelector(
-    (state) => state.renderingState.eval_fps,
-  );
-  let train_eta = useSelector(
-    (state) => state.renderingState.train_eta,
-  );
+  let eval_fps = useSelector((state) => state.renderingState.eval_fps);
+  let train_eta = useSelector((state) => state.renderingState.train_eta);
 
   const dispatch = useDispatch();
 
@@ -249,12 +245,7 @@ export function RenderControls() {
         disabled: true,
       },
     }),
-    [
-      isWebsocketConnected,
-      isWebrtcConnected,
-      eval_fps,
-      train_eta,
-    ],
+    [isWebsocketConnected, isWebrtcConnected, eval_fps, train_eta],
   );
 
   useEffect(() => {
@@ -272,11 +263,7 @@ export function RenderControls() {
     field_of_view,
   ]);
 
-  useEffect(() => {}, [
-    setState,
-    isWebsocketConnected,
-    isWebrtcConnected,
-  ]);
+  useEffect(() => {}, [setState, isWebsocketConnected, isWebrtcConnected]);
 
   useEffect(() => {
     websocket.addEventListener('message', (originalCmd) => {
@@ -284,12 +271,12 @@ export function RenderControls() {
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.path === '/renderingState/eval_fps') {
         eval_fps = cmd.data;
-        console.log("setting state", eval_fps);
+        console.log('setting state', eval_fps);
         setState({ eval_fps });
       }
       if (cmd.path === '/renderingState/train_eta') {
         train_eta = cmd.data;
-        console.log("setting state", train_eta)
+        console.log('setting state', train_eta);
         setState({ train_eta });
       }
     });
