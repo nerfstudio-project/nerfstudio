@@ -153,7 +153,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         train_num_rays_per_batch: int,
         train_num_images_to_sample_from: int,
         eval_datasetinputs: DatasetInputs,
-        eval_image_indices: Union[List[int], ListConfig], # TODO(ethan): get rid of this hydra ListConfig nonsense
+        eval_image_indices: Union[List[int], ListConfig],  # TODO(ethan): get rid of this hydra ListConfig nonsense
         eval_num_rays_per_chunk: int,
         device: Union[torch.device, str] = "cpu",
         **kwargs  # pylint: disable=unused-argument
