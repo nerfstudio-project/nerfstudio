@@ -25,12 +25,17 @@ import imageio
 import numpy as np
 import torch
 
-from nerfactory.data.colmap_utils import (
+from nerfactory.dataloaders.colmap_utils import (
     read_cameras_binary,
     read_images_binary,
     read_pointsTD_binary,
 )
-from nerfactory.data.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
+from nerfactory.dataloaders.structs import (
+    DatasetInputs,
+    PointCloud,
+    SceneBounds,
+    Semantics,
+)
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
     get_absolute_path,

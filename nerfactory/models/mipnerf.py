@@ -28,11 +28,9 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.fields.nerf_field import NeRFField
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_losses import distortion_loss
-from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -42,13 +40,11 @@ from nerfactory.renderers.renderers import (
 from nerfactory.utils import colors, misc, visualization, writer
 
 
-class MipNerf360Graph(Graph):
-    """mip-NeRF graph"""
+class MipNerfModel(Model):
+    """mip-NeRF model"""
 
     def __init__(
         self,
-        intrinsics=None,
-        camera_to_world=None,
         near_plane=2.0,
         far_plane=6.0,
         num_coarse_samples=64,
@@ -60,23 +56,20 @@ class MipNerf360Graph(Graph):
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
         self.field = None
-        super().__init__(intrinsics=intrinsics, camera_to_world=camera_to_world, **kwargs)
+        super().__init__(**kwargs)
 
     def populate_fields(self):
         """Set the fields."""
 
         position_encoding = NeRFEncoding(
-            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+            in_dim=3, num_frequencies=16, min_freq_exp=0.0, max_freq_exp=16.0, include_input=True
         )
         direction_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
         )
 
         self.field = NeRFField(
-            position_encoding=position_encoding,
-            direction_encoding=direction_encoding,
-            use_integrated_encoding=True,
-            spatial_distortion=SceneContraction(),
+            position_encoding=position_encoding, direction_encoding=direction_encoding, use_integrated_encoding=True
         )
 
     def populate_misc_modules(self):
@@ -121,7 +114,6 @@ class MipNerf360Graph(Graph):
         )
         accumulation_coarse = self.renderer_accumulation(weights_coarse)
         depth_coarse = self.renderer_depth(weights_coarse, ray_samples_uniform)
-        ray_loss_coarse = distortion_loss(ray_samples_uniform, field_outputs_coarse[FieldHeadNames.DENSITY])
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
@@ -135,7 +127,6 @@ class MipNerf360Graph(Graph):
         )
         accumulation_fine = self.renderer_accumulation(weights_fine)
         depth_fine = self.renderer_depth(weights_fine, ray_samples_pdf)
-        ray_loss_fine = distortion_loss(ray_samples_pdf, field_outputs_fine[FieldHeadNames.DENSITY])
 
         outputs = {
             "rgb_coarse": rgb_coarse,
@@ -144,21 +135,14 @@ class MipNerf360Graph(Graph):
             "accumulation_fine": accumulation_fine,
             "depth_coarse": depth_coarse,
             "depth_fine": depth_fine,
-            "ray_loss_coarse": ray_loss_coarse,
-            "ray_loss_fine": ray_loss_fine,
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
-        loss_dict = {
-            "rgb_loss_coarse": rgb_loss_coarse,
-            "rgb_loss_fine": rgb_loss_fine,
-            "ray_loss_coarse": torch.mean(outputs["ray_loss_coarse"]),
-            "ray_loss_fine": torch.mean(outputs["ray_loss_fine"]),
-        }
+        loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
@@ -193,6 +177,8 @@ class MipNerf360Graph(Graph):
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
         rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
+        rgb_coarse = torch.clip(rgb_coarse, min=-1, max=1)
+        rgb_fine = torch.clip(rgb_fine, min=-1, max=1)
 
         coarse_psnr = self.psnr(image, rgb_coarse)
         fine_psnr = self.psnr(image, rgb_fine)
@@ -203,12 +189,6 @@ class MipNerf360Graph(Graph):
         writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
         writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)  # type: ignore
         writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
-        writer.put_scalar(
-            name=f"ray_loss_coarse/val_{image_idx}", scalar=float(torch.mean(outputs["ray_loss_coarse"])), step=step
-        )
-        writer.put_scalar(
-            name=f"ray_loss_fine/val_{image_idx}", scalar=float(torch.mean(outputs["ray_loss_fine"])), step=step
-        )
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
 

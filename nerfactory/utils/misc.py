@@ -82,6 +82,9 @@ def instantiate_from_dict_config(dict_config: Any, **kwargs):
     """
     dict_config_kwargs = {k: v for k, v in dict_config.items() if k != "_target_"}
     uninstantiated_class = locate(dict_config._target_)  # pylint: disable=protected-access
+    assert (
+        uninstantiated_class is not None
+    ), f"Could not find class {dict_config._target_}"  # pylint: disable=protected-access
     all_kwargs = dict_config_kwargs
     all_kwargs.update(kwargs)
     instantiated_class = uninstantiated_class(**all_kwargs)  # type: ignore

@@ -24,7 +24,7 @@ from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
-from nerfactory.data.structs import SceneBounds
+from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.fields.base import Field
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
