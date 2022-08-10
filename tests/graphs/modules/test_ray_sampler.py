@@ -4,14 +4,14 @@ Test samplers
 import torch
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.graphs.modules.ray_sampler import (
+from nerfactory.models.modules.ray_sampler import (
     LinearDisparitySampler,
     LogSampler,
     PDFSampler,
     SqrtSampler,
     UniformSampler,
 )
-from nerfactory.graphs.modules.scene_colliders import NearFarCollider
+from nerfactory.models.modules.scene_colliders import NearFarCollider
 
 
 def test_uniform_sampler():

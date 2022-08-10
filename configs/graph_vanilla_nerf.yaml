@@ -2,16 +2,17 @@ defaults:
   - graph_default
   - _self_
 
-data:
-  # Train dataloading.
-  dataset_inputs_train:
-    _target_: nerfactory.data.datasets.Blender
-    data_directory: data/blender/lego
-    alpha_color: white
-    downscale_factor: 1
-  # Eval dataloading
-  dataset_inputs_eval:
-    _target_: nerfactory.data.datasets.Blender
-    data_directory: data/blender/lego
-    alpha_color: white
-    downscale_factor: 1
+pipeline:
+  dataloader:
+    # Train dataloading.
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
+      data_directory: data/blender/lego
+      alpha_color: white
+      downscale_factor: 1
+    # Eval dataloading
+    eval_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
+      data_directory: data/blender/lego
+      alpha_color: white
+      downscale_factor: 1

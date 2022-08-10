@@ -128,6 +128,9 @@ def make_dir(filename_or_folder: str) -> str:
 
     Args:
         filename_or_folder (str): The filename or folder to make.
+
+    Returns:
+        The filename_or_folder, which is the input.
     """
     if filename_or_folder[-1] != "/" and filename_or_folder.find(".") < 0:
         folder = os.path.dirname(filename_or_folder + "/")

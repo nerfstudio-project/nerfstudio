@@ -15,7 +15,7 @@
 """Structured config classes"""
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from omegaconf import MISSING, DictConfig
 
@@ -62,29 +62,21 @@ class TrainerConfig:
 
 
 @dataclass
-class ImageDatasetConfig:
-    """Configuration for type of dataset to instantiate"""
-
-    _target_: str = MISSING
-
-
-@dataclass
-class DataConfig:
+class DataloaderConfig:
     """Configuration for train/eval datasets"""
 
-    dataset_inputs_train: Dict[str, Any] = MISSING
-    image_dataset_train: ImageDatasetConfig = MISSING
-    dataloader_train: Dict[str, Any] = MISSING
-    dataset_inputs_eval: Dict[str, Any] = MISSING
-    image_dataset_eval: ImageDatasetConfig = MISSING
-    dataloader_eval: Dict[str, Any] = MISSING
-    # additional optional parameters here
-    pixel_sampler: Optional[Dict[str, Any]] = None
-    use_preprocessing_cache: bool = False
+    _target_: str = MISSING
+    image_dataset_type: Optional[str] = "rgb"
+    train_dataset: Dict[str, Any] = MISSING
+    train_num_rays_per_batch: int = MISSING
+    train_num_images_to_sample_from: int = MISSING
+    eval_dataset: Dict[str, Any] = MISSING
+    eval_image_indices: List[int] = MISSING
+    eval_num_rays_per_chunk: int = MISSING
 
 
 @dataclass
-class GraphConfig:
+class ModelConfig:
     """Configuration for graph instantiation"""
 
     _target_: str = MISSING
@@ -97,6 +89,15 @@ class GraphConfig:
     field_implementation: Optional[str] = "torch"
     enable_density_field: Optional[bool] = False
     density_field_config: Dict[str, Any] = MISSING
+
+
+@dataclass
+class PipelineConfig:
+    """Configuration for pipeline instantiation"""
+
+    _target_: str = MISSING
+    dataloader: DataloaderConfig = MISSING
+    model: ModelConfig = MISSING
 
 
 @dataclass
@@ -119,10 +120,9 @@ class Config:
     trainer: TrainerConfig = MISSING
     experiment_name: str = MISSING
     method_name: str = MISSING
-    data: DataConfig = MISSING
-    graph: GraphConfig = MISSING
     optimizers: Dict[str, Any] = MISSING
     viewer: ViewerConfig = MISSING
+    pipeline: PipelineConfig = MISSING
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 
@@ -141,18 +141,17 @@ def setup_config(config: DictConfig) -> Config:
     trainer = TrainerConfig(**config.trainer)
     experiment_name = config.experiment_name
     method_name = config.method_name
-    data = DataConfig(**config.data)
-    graph = GraphConfig(**config.graph)
+    pipeline = PipelineConfig(**config.pipeline)
     optimizers = config.optimizers
     viewer = ViewerConfig(**config.viewer)
+
     return Config(
         machine=machine,
         logging=logging,
         trainer=trainer,
         experiment_name=experiment_name,
         method_name=method_name,
-        data=data,
-        graph=graph,
+        pipeline=pipeline,
         optimizers=optimizers,
         viewer=viewer,
     )

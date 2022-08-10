@@ -5,29 +5,29 @@ defaults:
 experiment_name: mipnerf_360
 method_name: vanilla_nerf
 
-data:
-  # Train dataloading.
-  dataset_inputs_train:
-    _target_: nerfactory.data.datasets.Mipnerf360
-    data_directory: data/mipnerf_360/garden
-    downscale_factor: 1
-  # Eval dataloading
-  dataset_inputs_eval:
-    _target_: nerfactory.data.datasets.Mipnerf360
-    data_directory: data/mipnerf_360/garden
-    downscale_factor: 1
+pipeline:
+  dataloader:
+    # Train dataloading.
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Mipnerf360
+      data_directory: data/mipnerf_360/garden
+      downscale_factor: 1
+    # Eval dataloading
+    eval_dataset:
+      _target_: nerfactory.dataloaders.datasets.Mipnerf360
+      data_directory: data/mipnerf_360/garden
+      downscale_factor: 1
+  model:
+    _target_: nerfactory.models.mipnerf_360.MipNerf360Model
+    num_coarse_samples: 128
+    num_importance_samples: 128
+    collider_config:
+      _target_: nerfactory.models.modules.scene_colliders.NearFarCollider
+      near_plane: 0.5
+      far_plane: 20.0
+    loss_coefficients:
+      ray_loss_coarse: 1.0
+      ray_loss_fine: 1.0
 
 trainer:
   steps_per_test: 200
-
-graph:
-  _target_: nerfactory.graphs.mipnerf_360.MipNerf360Graph
-  num_coarse_samples: 128
-  num_importance_samples: 128
-  collider_config:
-    _target_: nerfactory.graphs.modules.scene_colliders.NearFarCollider
-    near_plane: 0.5
-    far_plane: 20.0
-  loss_coefficients:
-    ray_loss_coarse: 1.0
-    ray_loss_fine: 1.0

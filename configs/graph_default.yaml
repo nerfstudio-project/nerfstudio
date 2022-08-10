@@ -16,9 +16,9 @@ logging:
   # writer logs losses and images per iteration
   writer:
     TensorboardWriter:
-      log_dir: "./"
+      log_dir: './'
     LocalWriter:
-      log_dir: "./"
+      log_dir: './'
       stats_to_track:
         [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
       max_log_size: 10 # if 0, logs everything with no erasing
@@ -26,7 +26,7 @@ logging:
   enable_profiler: True
 
 trainer:
-  model_dir: "./checkpoints"
+  model_dir: './checkpoints'
   steps_per_save: 1000
   steps_per_test: 500
   max_num_iterations: 1000000
@@ -46,55 +46,40 @@ hydra:
   job:
     chdir: True
 
-data:
-  # Train dataloading.
-  use_preprocessing_cache: False
-  dataset_inputs_train:
-    _target_: nerfactory.data.datasets.Dataset
-  image_dataset_train:
-    _target_: nerfactory.data.image_dataset.ImageDataset
-  dataloader_train:
-    _target_: nerfactory.data.dataloader.TrainDataloader
-    image_sampler:
-      _target_: nerfactory.data.image_sampler.CacheImageSampler
-      num_images_to_sample_from: -1
-    pixel_sampler:
-      _target_: nerfactory.data.pixel_sampler.PixelSampler
-      num_rays_per_batch: 1024
-  # Eval dataloading.
-  dataset_inputs_eval:
-    _target_: nerfactory.data.datasets.Dataset
-  image_dataset_eval:
-    _target_: nerfactory.data.image_dataset.ImageDataset
-  dataloader_eval:
-    _target_: nerfactory.data.dataloader.FixedIndicesEvalDataloader
-    image_indices: [0] # which images to evaluate on
-    num_rays_per_chunk: 4096
-  # dataloader_eval:
-  #   _target_: nerfactory.data.dataloader.RandIndicesEvalDataloader
-  #   num_rays_per_chunk: 4096
-
-graph:
-  _target_: nerfactory.graphs.vanilla_nerf.NeRFGraph
-  enable_collider: True
-  collider_config:
-    _target_: nerfactory.graphs.modules.scene_colliders.NearFarCollider
-    near_plane: 2.0
-    far_plane: 6.0
-  num_coarse_samples: 64
-  num_importance_samples: 128
-  loss_coefficients:
-    rgb_loss_coarse: 1.0
-    rgb_loss_fine: 1.0
-  enable_density_field: false
-  density_field_config:
-    # Please see the docstr for DensityGrid on how to set those arguments.
-    _target_: nerfactory.fields.density_fields.density_grid.DensityGrid
-    center: 0.0 # simply set it as the center of the scene bbox
-    base_scale: 3.0 # simply set it as the scale of the scene bbox
-    num_cascades: 1 # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-    resolution: 128
-    update_every_num_iters: 16
+pipeline:
+  _target_: nerfactory.pipelines.base.Pipeline
+  dataloader:
+    _target_: nerfactory.dataloaders.base.VanillaDataloader
+    image_dataset_type: rgb
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Dataset
+    train_num_rays_per_batch: 1024
+    train_num_images_to_sample_from: -1
+    eval_dataset:
+      _target_: nerfactory.dataloaders.datasets.Dataset
+    eval_image_indices: [0]
+    eval_num_rays_per_chunk: 4096
+  model:
+    _target_: nerfactory.models.vanilla_nerf.NeRFModel
+    enable_collider: True
+    collider_config:
+      _target_: nerfactory.models.modules.scene_colliders.NearFarCollider
+      near_plane: 2.0
+      far_plane: 6.0
+    num_coarse_samples: 64
+    num_importance_samples: 128
+    loss_coefficients:
+      rgb_loss_coarse: 1.0
+      rgb_loss_fine: 1.0
+    enable_density_field: false
+    density_field_config:
+      # Please see the docstr for DensityGrid on how to set those arguments.
+      _target_: nerfactory.fields.density_fields.density_grid.DensityGrid
+      center: 0.0 # simply set it as the center of the scene bbox
+      base_scale: 3.0 # simply set it as the scale of the scene bbox
+      num_cascades: 1 # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+      resolution: 128
+      update_every_num_iters: 16
 
 optimizers:
   fields:

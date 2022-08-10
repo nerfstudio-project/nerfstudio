@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
 
+import { useDispatch } from 'react-redux';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const WebRtcContext = createContext(null);
@@ -74,12 +74,15 @@ export default function WebRtcWindow() {
     pcRef.current
       .createOffer()
       .then((offer) => {
+        console.log('[webrtc] created offer');
         return pcRef.current.setLocalDescription(offer);
       })
       .then(() => {
+        console.log('[webrtc] set local description');
         // wait for ICE gathering to complete
         return new Promise((resolve) => {
           if (pcRef.current.iceGatheringState === 'complete') {
+            console.log('[webrtc] ICE gathering complete');
             resolve();
           } else {
             const checkState = () => {
@@ -100,6 +103,7 @@ export default function WebRtcWindow() {
       })
       .then(() => {
         // send the offer
+        console.log('[webrtc] sending offer');
         const offer = pcRef.current.localDescription;
         const cmd = 'offer';
         const path = '';
@@ -129,6 +133,7 @@ export default function WebRtcWindow() {
     websocket.addEventListener('open', () => {
       // connect webrtc when the websocket is connected
       pcRef.current = getRTCPeerConnection();
+      console.log('sending offer');
       sendOffer();
     });
   }, []); // empty dependency array means only run once

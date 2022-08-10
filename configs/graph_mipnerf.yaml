@@ -9,24 +9,24 @@ method_name: mipnerf
 # density = softplus(x)          density = softplus(x-1)
 # rgb = sigmoid(x)               rgb = (1 + 2e) / (1 + exp(-x)) -e
 
-data:
-  # Train dataloading.
-  dataset_inputs_train:
-    _target_: nerfactory.data.datasets.Blender
-    data_directory: data/blender/lego
-    alpha_color: white
-    downscale_factor: 1
-  # Eval dataloading
-  dataset_inputs_eval:
-    _target_: nerfactory.data.datasets.Blender
-    data_directory: data/blender/lego
-    alpha_color: white
-    downscale_factor: 1
-
-graph:
-  _target_: nerfactory.graphs.mipnerf.MipNerfGraph
-  num_coarse_samples: 128
-  num_importance_samples: 128
-  loss_coefficients:
-    rgb_loss_coarse: 0.1
-    rgb_loss_fine: 1.0
+pipeline:
+  dataloader:
+    # Train dataloading.
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
+      data_directory: data/blender/lego
+      alpha_color: white
+      downscale_factor: 1
+    # Eval dataloading
+    eval_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
+      data_directory: data/blender/lego
+      alpha_color: white
+      downscale_factor: 1
+  model:
+    _target_: nerfactory.models.mipnerf.MipNerfModel
+    num_coarse_samples: 128
+    num_importance_samples: 128
+    loss_coefficients:
+      rgb_loss_coarse: 0.1
+      rgb_loss_fine: 1.0

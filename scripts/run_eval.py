@@ -4,7 +4,7 @@ run_eval.py
 import enum
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import dcargs
 import mediapy as media
@@ -18,12 +18,8 @@ from nerfactory.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_spiral_path,
 )
-from nerfactory.data.dataloader import (
-    EvalDataloader,
-    setup_dataset_eval,
-    setup_dataset_train,
-)
-from nerfactory.graphs.base import Graph, setup_graph
+from nerfactory.pipelines.base import Pipeline, setup_pipeline
+from nerfactory.utils import io as io_utils
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
 
@@ -42,12 +38,12 @@ def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
     return (step * prev_avg + new_val) / (step + 1)
 
 
-def _load_checkpoint(config: DictConfig, graph: Graph) -> str:
-    """Helper function to load checkpointed graph
+def _load_checkpoint(config: DictConfig, pipeline: Pipeline) -> str:
+    """Helper function to load checkpointed pipeline
 
     Args:
-        config (DictConfig): Configuration of graph to load
-        graph (Graph): Graph instance of which to load weights
+        config (DictConfig): Configuration of pipeline to load
+        pipeline (Pipeline): Pipeline instance of which to load weights
     """
     assert config.load_dir is not None
     if config.load_step is None:
@@ -59,41 +55,16 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> str:
     load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")
     assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
-    graph.load_graph(loaded_state)
+    pipeline.load_pipeline(loaded_state["pipeline"])
     print(f"done loading checkpoint from {load_path}")
     return load_path
 
 
-def run_inference_from_config(config: DictConfig) -> Dict[str, Any]:
-    """helper function to run inference given config specifications (also used in benchmarking)
+def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
+    """Helper function to evaluate the pipeline on a dataloader.
 
     Args:
-        config (DictConfig): Configuration for loading the evaluation.
-
-    Returns:
-        Tuple[float, float]: returns both the avg psnr and avg rays per second
-    """
-    print("Running inference.")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # setup graph and dataset
-    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
-    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
-    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
-    graph.eval()
-
-    # load checkpointed information
-    _ = _load_checkpoint(config.trainer.resume_train, graph)
-
-    # calculate average psnr across test dataset
-    return render_stats_dict(graph, dataloader_eval)
-
-
-def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> Dict[str, float]:
-    """Helper function to evaluate the graph on a dataloader.
-
-    Args:
-        graph (Graph): Graph to evaluate
-        dataloader_eval (EvalDataloader): Dataloader to evaluate on
+        pipeline (Pipeline): Pipeline to evaluate
 
     Returns:
         dict: returns the average psnr and average rays per second
@@ -101,12 +72,12 @@ def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> Dict[str
     avg_psnr = 0
     avg_rays_per_sec = 0
     avg_fps = 0
-    for step, (camera_ray_bundle, batch) in tqdm(enumerate(dataloader_eval)):
+    for step, (camera_ray_bundle, batch) in tqdm(enumerate(pipeline.dataloader.eval_dataloader)):
         with TimeWriter(writer=None, name=None, write=False) as t:
             with torch.no_grad():
                 image_idx = int(camera_ray_bundle.camera_indices[0, 0])
-                outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                psnr = graph.log_test_image_outputs(image_idx, step, batch, outputs)
+                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                psnr = pipeline.model.log_test_image_outputs(image_idx, step, batch, outputs)
         avg_rays_per_sec = _update_avg(avg_rays_per_sec, camera_ray_bundle.origins.shape[0] / t.duration, step)
         avg_psnr = _update_avg(avg_psnr, psnr, step)
         avg_fps = _update_avg(avg_fps, 1 / t.duration, step)
@@ -114,17 +85,17 @@ def render_stats_dict(graph: Graph, dataloader_eval: EvalDataloader) -> Dict[str
 
 
 def render_trajectory_video(
-    graph: Graph,
+    pipeline: Pipeline,
     camera_path: CameraPath,
-    output_filename: Optional[str] = None,
-    rendered_output_name: Optional[str] = None,
+    output_filename: str,
+    rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
     num_rays_per_chunk: int = 4096,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
     Args:
-        graph: Graph to evaluate with.
+        pipeline: Pipeline to evaluate with.
         camera_path: Index of the image to render.
         output_filename: Name of the output file.
         rendered_output_name: Name of the renderer output to use.
@@ -136,11 +107,10 @@ def render_trajectory_video(
     images = []
     for camera in tqdm(camera_path.cameras):
         camera.rescale_output_resolution(rendered_resolution_scaling_factor)
-        camera_ray_bundle = camera.get_camera_ray_bundle().to(graph.device)
+        camera_ray_bundle = camera.get_camera_ray_bundle().to(pipeline.device)
         camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
         with torch.no_grad():
-            outputs = graph.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        # TODO: don't hardcode the key! this will break for some nerf Graphs
+            outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         image = outputs[rendered_output_name].cpu().numpy()
         images.append(image)
 
@@ -169,7 +139,7 @@ def main(
     rendered_output_name: str,
     method: MethodType = MethodType.PSNR,
     traj: TrajectoryType = TrajectoryType.SPIRAL,
-    output_filename: str = "output.mp4",
+    output_filename: str = "output.json",
     rendered_resolution_scaling_factor: float = 1.0,
     config_overrides: Optional[List[str]] = None,
 ):
@@ -186,8 +156,6 @@ def main(
             Defaults to 1.0.
         config_overrides: List of strings to override config values.
     """
-    # parser = my_func_that_returns_a_parser()
-    # args = parser.parse_args()
 
     config_path = "../configs"
     initialize(version_base="1.2", config_path=config_path)
@@ -195,19 +163,18 @@ def main(
     config = compose(config_name, overrides=config_overrides)
 
     config.trainer.resume_train.load_dir = checkpoint_dir
-    config.data.dataloader_eval.image_indices = None
+    config.pipeline.dataloader.eval_image_indices = None
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # setup graph and dataset
-    dataset_inputs_train, _ = setup_dataset_train(config.data, device=device)
-    _, dataloader_eval = setup_dataset_eval(config.data, test_mode=True, device=device)
-    graph = setup_graph(config.graph, dataset_inputs_train, device=device)
-    graph.eval()
+    # setup pipeline (which includes the dataloaders)
+    pipeline = setup_pipeline(config.pipeline, device=device, test_mode=True)
+    pipeline.eval()
     # load checkpointed information
-    checkpoint_name = _load_checkpoint(config.trainer.resume_train, graph)
+    checkpoint_name = _load_checkpoint(config.trainer.resume_train, pipeline)
 
     if method == MethodType.PSNR:
-        stats_dict = render_stats_dict(graph, dataloader_eval)
+        assert output_filename.endswith(".json")
+        stats_dict = render_stats_dict(pipeline)
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
         avg_fps = stats_dict["avg fps"]
@@ -215,9 +182,7 @@ def main(
         print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
         # save output to some file
-        dirname = os.path.dirname(output_filename)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        io_utils.make_dir(output_filename)
         benchmark_info = {
             "config_name": config_name,
             "checkpoint": checkpoint_name,
@@ -228,22 +193,23 @@ def main(
         print(f"Saved results to: {output_filename}")
 
     elif method == MethodType.TRAJ:
-        # TODO(ethan): pass in camera information into argparse parser
+        assert output_filename.endswith(".mp4")
+        # TODO(ethan): use camera information from parsing args
         if traj == TrajectoryType.SPIRAL:
-            camera_start = dataloader_eval.get_camera(image_idx=0)
+            camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif traj == TrajectoryType.INTERP:
-            camera_start = dataloader_eval.get_camera(image_idx=0)
-            camera_end = dataloader_eval.get_camera(image_idx=10)
+            camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
+            camera_end = pipeline.dataloader.eval_dataloader.get_camera(image_idx=10)
             camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
         render_trajectory_video(
-            graph,
+            pipeline,
             camera_path,
             output_filename=output_filename,
             rendered_output_name=rendered_output_name,
             rendered_resolution_scaling_factor=rendered_resolution_scaling_factor,
-            num_rays_per_chunk=config.data.dataloader_eval.num_rays_per_chunk,
+            num_rays_per_chunk=pipeline.dataloader.eval_num_rays_per_chunk,
         )
 
 

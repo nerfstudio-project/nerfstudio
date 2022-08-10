@@ -5,30 +5,26 @@ defaults:
 experiment_name: friends_TBBT-big_living_room
 method_name: nerfw
 
-# the data
-data:
-  # Train dataloading.
-  dataset_inputs_train:
-    _target_: nerfactory.data.datasets.Friends
-    data_directory: data/friends/TBBT-big_living_room
-    downscale_factor: 1
-  image_dataset_train:
-    _target_: nerfactory.data.image_dataset.PanopticImageDataset
-  # Eval dataloading
-  dataset_inputs_eval:
-    _target_: nerfactory.data.datasets.Friends
-    data_directory: data/friends/TBBT-big_living_room
-    downscale_factor: 1
-  image_dataset_eval:
-    _target_: nerfactory.data.image_dataset.PanopticImageDataset
-
-graph:
-  _target_: nerfactory.graphs.semantic_nerf.SemanticNerfGraph
-  collider_config:
-    _target_: nerfactory.graphs.modules.scene_colliders.AABBBoxCollider
-  num_coarse_samples: 64
-  num_importance_samples: 64
-  loss_coefficients:
-    rgb_loss_coarse: 1.0
-    rgb_loss_fine: 1.0
-    semantic_loss_fine: 0.05
+pipeline:
+  dataloader:
+    image_dataset_type: panoptic
+    # Train dataloading.
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Friends
+      data_directory: data/friends/TBBT-big_living_room
+      downscale_factor: 1
+    # Eval dataloading
+    eval_dataset:
+      _target_: nerfactory.dataloaders.datasets.Friends
+      data_directory: data/friends/TBBT-big_living_room
+      downscale_factor: 1
+  model:
+    _target_: nerfactory.models.semantic_nerf.SemanticNerfModel
+    collider_config:
+      _target_: nerfactory.models.modules.scene_colliders.AABBBoxCollider
+    num_coarse_samples: 64
+    num_importance_samples: 64
+    loss_coefficients:
+      rgb_loss_coarse: 1.0
+      rgb_loss_fine: 1.0
+      semantic_loss_fine: 0.05
