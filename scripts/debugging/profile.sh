@@ -27,6 +27,7 @@ done
 
 if [ -z "$type" ]; then
     echo "Missing profiling type (flame / top)"
+    exit 1
 fi
 shift $((OPTIND-1))
 program="$@"
