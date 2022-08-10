@@ -17,7 +17,7 @@ Abstracts for the Pipeline class.
 """
 
 from abc import abstractmethod
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 from torch import nn
 from torch.nn import Parameter
@@ -72,38 +72,42 @@ class Pipeline(nn.Module):
     """
 
     def __init__(self, dataloader: Dataloader, model: Model):
+        super().__init__()
         self.dataloader: Dataloader = dataloader
-        self.dataloader_train_iter = self.dataloader.iter_train()
-        self.dataloader_eval_iter = self.dataloader.iter_eval()
         self.model: Model = model
 
     @abstractmethod
-    def get_train_loss_dict(self):
+    @profiler.time_function
+    def get_train_loss_dict(self, step: Optional[int] = None):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacing with the
         Model class, feeding the data to the model's forward function."""
-        ray_bundle, batch = next(self.dataloader_train_iter)
+        ray_bundle, batch = self.dataloader.next_train()
         model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
         return model_outputs, loss_dict, metrics_dict
 
     @abstractmethod
-    def get_eval_loss_dict(self):
+    @profiler.time_function
+    def get_eval_loss_dict(self, step: Optional[int] = None):
         """This function gets your evaluation loss dict. It needs to get the data
         from the dataloader and feed it to the model's forward function"""
-        ray_bundle, batch = next(self.dataloader_eval_iter)
-        model_outputs = self.model(**dataloader_outputs)
-        loss_dict = self.model.get_loss_dict(accumulated_color, masked_batch, mask)
-        return loss_dict
+        self.eval()
+        # NOTE(ethan): next_eval() is not being used right now
+        for camera_ray_bundle, batch in self.dataloader.eval_dataloader:
+            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            image_idx = int(camera_ray_bundle.camera_indices[0, 0])
+            psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
+        self.train()
+        return None
 
     @abstractmethod
     def log_test_image_outputs(self) -> None:
         """Log the test image outputs"""
 
-    def load_pipeline(self):
-        """Restore state of the pipeline from a checkpoint."""
-        # self.dataloader.load_dataloader()
-        # self.model.load_model()
-        raise NotImplementedError
+    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+        """Load the checkpoint from the given path"""
+        state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
+        self.load_state_dict(state)  # type: ignore
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.

@@ -17,11 +17,13 @@ Data loader.
 """
 
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
+import torch
 from torch import nn
 from torch.nn import Parameter
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
@@ -64,15 +66,12 @@ class Dataloader(nn.Module):
         iter_eval: returns an iterator of the eval dataloader
         next_eval: will be called on __next__() for the eval iterator
 
-
     Args:
         image_sampler (ImageSampler): image sampler
         pixel_sampler (PixelSampler): pixel sampler
         ray_generator (RayGenerator): ray generator
         use_train (bool): whether this is being used for training
         use_eval (bool): whether this is being used for evaluation
-
-
 
     Attributes:
         image_sampler (ImageSampler): image sampler
@@ -139,7 +138,7 @@ class Dataloader(nn.Module):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the dataloader.
-        
+
         Returns:
             A list of dictionaries containing the dataloader's param groups.
         """
@@ -153,14 +152,20 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         self,
         train_datasetinputs: DatasetInputs,
         train_num_rays_per_batch: int,
+        train_num_images_to_sample_from: int,
         eval_datasetinputs: DatasetInputs,
+        eval_image_indices: List[int],
         eval_num_rays_per_chunk: int,
+        device: Union[torch.device, str] = "cpu",
         **kwargs
     ):
         self.train_datasetinputs = train_datasetinputs
         self.train_num_rays_per_batch = train_num_rays_per_batch
+        self.train_num_images_to_sample_from = train_num_images_to_sample_from
         self.eval_datasetinputs = eval_datasetinputs
+        self.eval_image_indices = eval_image_indices
         self.eval_num_rays_per_chunk = eval_num_rays_per_chunk
+        self.device = device
         use_train = self.train_datasetinputs is not None
         use_eval = self.eval_datasetinputs is not None
         super().__init__(use_train, use_eval)
@@ -168,28 +173,30 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the dataloader for training"""
         self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
-        self.train_image_sampler = CacheImageSampler(self.train_image_dataset)
+        self.train_image_sampler = CacheImageSampler(
+            self.train_image_dataset, num_images_to_sample_from=self.train_num_images_to_sample_from, device=self.device
+        )  # TODO(ethan): pass this in
         self.iter_train_image_sampler = iter(self.train_image_sampler)
         self.train_pixel_sampler = PixelSampler(self.train_num_rays_per_batch)
         self.train_ray_generator = RayGenerator(
             self.train_datasetinputs.intrinsics, self.train_datasetinputs.camera_to_world
         )
-        self.camera_to_world = self.train_datasetinputs.camera_to_world
-        self.intrinsics = self.train_datasetinputs.intrinsics
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
-        # TODO(ethan): I don't this will work because it won't return full images...
         self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
-        self.eval_image_sampler = CacheImageSampler(self.eval_image_dataset)
-        self.iter_eval_image_sampler = iter(self.eval_image_sampler)
-        self.eval_pixel_sampler = PixelSampler(self.eval_num_rays_per_chunk)
-        self.eval_ray_generator = RayGenerator(
-            self.eval_datasetinputs.intrinsics, self.eval_datasetinputs.camera_to_world
+        self.eval_dataloader = FixedIndicesEvalDataloader(
+            image_dataset=self.eval_image_dataset,
+            intrinsics=self.eval_datasetinputs.intrinsics,
+            camera_to_world=self.eval_datasetinputs.camera_to_world,
+            num_rays_per_chunk=self.eval_num_rays_per_chunk,
+            image_indices=self.eval_image_indices,
+            device=self.device
         )
 
     def next_train(self) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the train dataloader"""
+        """Returns the next batch of data from the train dataloader.
+        The RayBundle can be shaped in whatever way."""
         self.train_count += 1
         image_batch = next(self.iter_train_image_sampler)
         batch = self.train_pixel_sampler.sample(image_batch)
@@ -198,13 +205,11 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         return ray_bundle, batch
 
     def next_eval(self) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the eval dataloader"""
+        """Returns the next batch of data from the eval dataloader.
+        The RayBundle should be shaped like an image."""
         self.eval_count += 1
-        image_batch = next(self.iter_eval_image_sampler)
-        batch = self.eval_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.eval_ray_generator.forward(ray_indices)
-        return ray_bundle, batch
+        camera_ray_bundle, batch = next(self.eval_dataloader)
+        return camera_ray_bundle, batch
 
 
 @profiler.time_function
@@ -217,7 +222,10 @@ def setup_dataloader(config: DataloaderConfig, device: str) -> Dataloader:
     eval_datasetinputs = dataset_eval.get_dataset_inputs(split="test")
 
     dataloader: Dataloader = instantiate_from_dict_config(
-        DictConfig(config), train_datasetinputs=train_datasetinputs, eval_datasetinputs=eval_datasetinputs
+        DictConfig(config),
+        train_datasetinputs=train_datasetinputs,
+        eval_datasetinputs=eval_datasetinputs,
+        device=device,
     )
     dataloader.to(device)
     return dataloader

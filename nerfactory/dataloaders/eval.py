@@ -98,27 +98,6 @@ def setup_dataset_eval(
     return dataset_inputs_eval, dataloader_eval
 
 
-class TrainDataloader:
-    """Training dataloader base class."""
-
-    def __init__(self, image_sampler: ImageSampler, pixel_sampler: PixelSampler):
-        self.image_sampler = image_sampler
-        self.pixel_sampler = pixel_sampler
-        self.iter_image_sampler = iter(self.image_sampler)
-        self.count = 0
-
-    def __iter__(self):
-        self.count = 0
-        return self
-
-    def __next__(self) -> Tuple[TensorType["num_rays", 3], Dict]:
-        self.count += 1
-        image_batch = next(self.iter_image_sampler)
-        batch = self.pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        return ray_indices, batch
-
-
 class EvalDataloader:  # pylint: disable=too-few-public-methods
     """Evaluation dataloader base class"""
 

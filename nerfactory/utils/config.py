@@ -15,7 +15,7 @@
 """Structured config classes"""
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from omegaconf import MISSING, DictConfig
 
@@ -65,10 +65,13 @@ class TrainerConfig:
 class DataloaderConfig:
     """Configuration for train/eval datasets"""
 
+    _target_: str = MISSING
     train_dataset: Dict[str, Any] = MISSING
     train_num_rays_per_batch: int = MISSING
+    train_num_images_to_sample_from: int = MISSING
     eval_dataset: Dict[str, Any] = MISSING
-    eval_rays_per_chunk: int = MISSING
+    eval_image_indices: List[int] = MISSING
+    eval_num_rays_per_chunk: int = MISSING
 
 
 @dataclass
