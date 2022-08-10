@@ -50,8 +50,7 @@ if [ -z "$GPU_IDX" ]; then
 fi
 echo available gpus... ${GPU_IDX[@]}
 
-# DATASETS=("mic" "ficus" "chair" "hotdog" "materials" "drums" "ship" "lego")
-DATASETS=("ficus" "chair" "drums" "ship")
+DATASETS=("mic" "ficus" "chair" "hotdog" "materials" "drums" "ship" "lego")
 idx=0
 len=${#GPU_IDX[@]}
 ((len=len-1))
@@ -62,7 +61,8 @@ for dataset in ${DATASETS[@]}; do
     checkpoint_dir="${output_dir}/blender_${dataset}_${month}-${date}-${year}/${base_config_name}/${year}-${month}-${date}_${seconds}/nerfactory_models/"
     python scripts/run_eval.py --config-name ${config_name} \
         --checkpoint-dir ${checkpoint_dir} \
-        --rendered-output-name rgb & 
+        --rendered-output-name rgb \
+        --config-overrides data.dataset_inputs_train.data_directory=data/blender/${dataset} data.dataset_inputs_eval.data_directory=data/blender/${dataset} &
     echo "Launched ${checkpoint_dir} on gpu ${GPU_IDX[$idx]}"
 
     # update gpu
