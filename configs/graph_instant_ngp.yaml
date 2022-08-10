@@ -16,11 +16,6 @@ pipeline:
       alpha_color: white
       downscale_factor: 1
     train_num_rays_per_batch: 8192
-    eval_dataset:
-      _target_: nerfactory.dataloaders.datasets.Blender
-      data_directory: data/blender/lego
-      alpha_color: white
-      downscale_factor: 1
     eval_num_rays_per_chunk: 8192
   model:
     _target_: nerfactory.models.instant_ngp.NGPModel

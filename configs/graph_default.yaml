@@ -55,8 +55,6 @@ pipeline:
       _target_: nerfactory.dataloaders.datasets.Dataset
     train_num_rays_per_batch: 1024
     train_num_images_to_sample_from: -1
-    eval_dataset:
-      _target_: nerfactory.dataloaders.datasets.Dataset
     eval_image_indices: [0]
     eval_num_rays_per_chunk: 4096
   model:

@@ -16,6 +16,7 @@
 Data loader.
 """
 
+import logging
 from abc import abstractmethod
 from typing import Dict, List, Tuple, Union
 
@@ -224,7 +225,11 @@ def setup_dataloader(config: DataloaderConfig, device: str, test_mode=False) -> 
 
     dataset_train = instantiate_from_dict_config(config.train_dataset)
     train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
-    dataset_eval = instantiate_from_dict_config(config.eval_dataset)
+    if config.eval_dataset is not None:
+        dataset_eval = instantiate_from_dict_config(config.eval_dataset)
+    else:
+        logging.info("No eval dataset specified so using train dataset for eval.")
+        dataset_eval = dataset_train
     eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
 
     dataloader: Dataloader = instantiate_from_dict_config(
