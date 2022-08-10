@@ -7,4 +7,6 @@ Real-time web viewer
     :maxdepth: 1
 
     viewer_quickstart.md
+    for_developers.md
     viewer_notebook.ipynb
+    faq.md

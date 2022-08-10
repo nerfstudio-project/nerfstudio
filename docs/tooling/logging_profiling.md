@@ -1,13 +1,5 @@
 # Loggers and Profilers
 
-* [Logging support](logging_support)
-    * [Tensorboard](tensorboard)
-    * [Weights and Biases](wnb)
-    * [Local writer](local)
-* [Code profiling support](code_profiler)
-    * [In-house profiler](inhouse)
-    * [Profiling with PySpy](pyspy)
-
 (logging_support)=
 ## Logging support
 
@@ -41,7 +33,7 @@ TensorboardWriter:
 ```
 
 (wnb)=
-#### Weights and Biases:
+#### Weights and Biases
 To log training stats and images with [wandb](https://wandb.ai/site):
 ```
 WandbWriter:
@@ -49,7 +41,7 @@ WandbWriter:
 ```
 
 (local)=
-#### Local writer: 
+#### Local writer
 ```
 LocalWriter:
     log_dir: "./" # if images are saved, where the images would be saved
