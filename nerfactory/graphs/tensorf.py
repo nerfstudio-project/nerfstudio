@@ -16,8 +16,9 @@
 TensorRF implementation.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
+import numpy as np
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
@@ -27,7 +28,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.fields.tensorf_field import TensoRFField
+from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.graphs.base import Graph
 from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
@@ -54,6 +55,9 @@ class TensoRFGraph(Graph):
         num_coarse_samples: int = 64,
         num_importance_samples: int = 128,
         enable_density_field: bool = False,
+        init_resolution: int = 128,
+        final_resolution: int = 200,
+        upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000),
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
@@ -61,6 +65,15 @@ class TensoRFGraph(Graph):
         self.field = None
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
+        self.init_resolution = init_resolution
+        self.final_resolution = final_resolution
+        self.upsampling_iters = upsampling_iters
+        self.upsampling_steps = (
+            torch.round(
+                torch.exp(torch.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters)))
+            ).long()[1:]
+        ).tolist()
+
         super().__init__(
             intrinsics=intrinsics, camera_to_world=camera_to_world, enable_density_field=enable_density_field, **kwargs
         )
@@ -69,8 +82,8 @@ class TensoRFGraph(Graph):
         if self.field is None:
             raise ValueError("populate_fields() must be called before get_training_callbacks")
         callbacks = [
-            Callback(update_every_num_iters=1000, func=self.field.position_encoding.upsample_grid),
-            Callback(update_every_num_iters=1000, func=self.field.direction_encoding.upsample_grid),
+            Callback(iters=self.upsampling_iters, func=self.field.position_encoding.upsample_grid, reinit=True, upsampling_steps=self.upsampling_steps),  # type: ignore
+            Callback(iters=self.upsampling_iters, func=self.field.direction_encoding.upsample_grid, reinit=True, upsampling_steps=self.upsampling_steps),  # type: ignore
         ]
 
         return callbacks  # type: ignore
@@ -79,13 +92,15 @@ class TensoRFGraph(Graph):
         """Set the fields."""
 
         position_encoding = TensorVMEncoding(
-            resolution=128, num_components=8, final_resolution=300, num_upsampling_steps=0
+            resolution=self.init_resolution,
+            num_components=24,
         )
         direction_encoding = TensorVMEncoding(
-            resolution=128, num_components=24, final_resolution=300, num_upsampling_steps=0
+            resolution=self.init_resolution,
+            num_components=24,
         )
 
-        self.field = TensoRFField(
+        self.field = NeRFField(
             position_encoding=position_encoding,
             direction_encoding=direction_encoding,
             base_mlp_num_layers=2,

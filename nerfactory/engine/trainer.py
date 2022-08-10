@@ -220,6 +220,8 @@ class Trainer:
         self.optimizers.scheduler_step_all(step)
         for callback in self.callbacks:
             callback.after_step(step)
+            if callback.reinit and callback.iters and step in callback.iters:
+                self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss

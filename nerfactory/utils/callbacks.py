@@ -16,7 +16,7 @@
 Callback code used for training iterations
 """
 
-from typing import Callable
+from typing import Callable, Optional, Tuple
 
 
 class Callback:
@@ -31,10 +31,20 @@ class Callback:
         kwargs: kwargs for the function 'func'.
     """
 
-    def __init__(self, update_every_num_iters: int, func: Callable, *args, **kwargs):
+    def __init__(
+        self,
+        func: Callable,
+        update_every_num_iters: Optional[int] = None,
+        iters: Optional[Tuple[int, ...]] = None,
+        reinit: bool = False,
+        *args,
+        **kwargs
+    ):
         # TODO(ethan): how do we type args and kwargs?
         self.update_every_num_iters = update_every_num_iters
+        self.iters = iters
         self.func = func
+        self.reinit = reinit
         self.args = args
         self.kwargs = kwargs
 
@@ -52,5 +62,9 @@ class Callback:
         Args:
             step (int): current iteration step
         """
-        if step % self.update_every_num_iters == 0:
-            self.func(*self.args, **self.kwargs, step=step)
+        if self.update_every_num_iters is not None:
+            if step % self.update_every_num_iters == 0:
+                self.func(*self.args, **self.kwargs, step=step)
+        elif self.iters is not None:
+            if step in self.iters:
+                self.func(*self.args, **self.kwargs, step=step)

@@ -83,7 +83,7 @@ def test_tensor_vm_encoder():
     in_dim = 3
     out_dim = 3 * num_components
 
-    encoder = encoding.TensorVMEncoding(num_components=num_components, resolution=resolution, final_resolution=128)
+    encoder = encoding.TensorVMEncoding(num_components=num_components, resolution=resolution)
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((3, in_dim))
@@ -94,7 +94,7 @@ def test_tensor_vm_encoder():
     encoded = encoder(in_tensor)
     assert encoded.shape == (6, 3, out_dim)
 
-    encoder.upsample_grid()
+    encoder.upsample_grid(upsampling_steps=[64, 128])
 
 
 def test_tensor_cp_encoder():

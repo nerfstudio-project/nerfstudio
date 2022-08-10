@@ -55,21 +55,21 @@ optimizers:
       lr: 0.001
     scheduler:
       _target_: nerfactory.optimizers.optimizers.ExponentialDecaySchedule
-      lr_final: 0.000005
-      max_steps: 1000000
+      lr_final: 0.00005
+      max_steps: 15000
   position_encoding:
     optimizer:
       _target_: torch.optim.Adam
       lr: 0.02
     scheduler:
       _target_: nerfactory.optimizers.optimizers.ExponentialDecaySchedule
-      lr_final: 0.000005
-      max_steps: 1000000
+      lr_final: 0.005
+      max_steps: 15000
   direction_encoding:
     optimizer:
       _target_: torch.optim.Adam
       lr: 0.02  
     scheduler:
       _target_: nerfactory.optimizers.optimizers.ExponentialDecaySchedule
-      lr_final: 0.000005
-      max_steps: 1000000
+      lr_final: 0.005
+      max_steps: 15000
