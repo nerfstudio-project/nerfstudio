@@ -82,8 +82,18 @@ class TensoRFGraph(Graph):
         if self.field is None:
             raise ValueError("populate_fields() must be called before get_training_callbacks")
         callbacks = [
-            Callback(iters=self.upsampling_iters, func=self.field.position_encoding.upsample_grid, reinit=True, upsampling_steps=self.upsampling_steps),  # type: ignore
-            Callback(iters=self.upsampling_iters, func=self.field.direction_encoding.upsample_grid, reinit=True, upsampling_steps=self.upsampling_steps),  # type: ignore
+            Callback(
+                iters=self.upsampling_iters,
+                func=self.field.position_encoding.upsample_grid,  # type: ignore
+                reinit=True,
+                upsampling_steps=self.upsampling_steps,
+            ),
+            Callback(
+                iters=self.upsampling_iters,
+                func=self.field.direction_encoding.upsample_grid,  # type: ignore
+                reinit=True,
+                upsampling_steps=self.upsampling_steps,
+            ),
         ]
 
         return callbacks  # type: ignore
