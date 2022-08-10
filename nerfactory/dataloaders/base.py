@@ -24,7 +24,7 @@ from torch import nn
 from torch.nn import Parameter
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
-from nerfactory.dataloaders.image_dataset import ImageDataset
+from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.dataloaders.structs import DatasetInputs
@@ -150,6 +150,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
     def __init__(
         self,
+        image_dataset_type: str,
         train_datasetinputs: DatasetInputs,
         train_num_rays_per_batch: int,
         train_num_images_to_sample_from: int,
@@ -159,6 +160,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         device: Union[torch.device, str] = "cpu",
         **kwargs
     ):
+        self.image_dataset_type = image_dataset_type
         self.train_datasetinputs = train_datasetinputs
         self.train_num_rays_per_batch = train_num_rays_per_batch
         self.train_num_images_to_sample_from = train_num_images_to_sample_from
@@ -172,7 +174,10 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
     def setup_train(self):
         """Sets up the dataloader for training"""
-        self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
+        if self.image_dataset_type == "rgb":
+            self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
+        elif self.image_dataset_type == "panoptic":
+            self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
         self.train_image_sampler = CacheImageSampler(
             self.train_image_dataset, num_images_to_sample_from=self.train_num_images_to_sample_from, device=self.device
         )  # TODO(ethan): pass this in
@@ -184,7 +189,10 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
-        self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
+        if self.image_dataset_type == "rgb":
+            self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
+        elif self.image_dataset_type == "panoptic":
+            self.eval_image_dataset = PanopticImageDataset(**self.eval_datasetinputs.as_dict())
         self.eval_dataloader = FixedIndicesEvalDataloader(
             image_dataset=self.eval_image_dataset,
             intrinsics=self.eval_datasetinputs.intrinsics,

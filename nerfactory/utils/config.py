@@ -66,6 +66,7 @@ class DataloaderConfig:
     """Configuration for train/eval datasets"""
 
     _target_: str = MISSING
+    image_dataset_type: Optional[str] = "rgb"
     train_dataset: Dict[str, Any] = MISSING
     train_num_rays_per_batch: int = MISSING
     train_num_images_to_sample_from: int = MISSING
