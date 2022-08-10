@@ -4,14 +4,7 @@ defaults:
 
 pipeline:
   dataloader:
-    # Train dataloading.
     train_dataset:
-      _target_: nerfactory.dataloaders.datasets.Blender
-      data_directory: data/blender/lego
-      alpha_color: white
-      downscale_factor: 1
-    # Eval dataloading
-    eval_dataset:
       _target_: nerfactory.dataloaders.datasets.Blender
       data_directory: data/blender/lego
       alpha_color: white

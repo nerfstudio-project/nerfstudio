@@ -190,7 +190,7 @@ class Model(nn.Module):
         """Computes and returns the losses dict."""
 
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
+    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model."""
         assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]

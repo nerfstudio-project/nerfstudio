@@ -101,8 +101,6 @@ class Trainer:
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
-                # with TimeWriter(writer, EventName.ITER_LOAD_TIME, step=step):
-                #     ray_indices, batch = next(iter_dataloader_train)
 
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
                     loss_metric_dict = self.train_iteration(step)
