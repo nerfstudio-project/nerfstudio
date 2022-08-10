@@ -72,13 +72,13 @@ class Trainer:
         # training callbacks
         self.callbacks: List[Callback]
 
-    def setup(self):
+    def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
 
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device)
+        self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device, test_mode=test_mode)
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
@@ -145,7 +145,7 @@ class Trainer:
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
-            self.grad_scaler.load_state_dict(loaded_state["scaler"])
+            self.grad_scaler.load_state_dict(loaded_state["scalers"])
             logging.info("done loading checkpoint from %s", load_path)
         else:
             logging.info("No checkpoints to load, training from scratch")
