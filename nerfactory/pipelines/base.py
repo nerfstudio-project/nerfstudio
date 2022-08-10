@@ -76,6 +76,11 @@ class Pipeline(nn.Module):
         self.dataloader: Dataloader = dataloader
         self.model: Model = model
 
+    @property
+    def device(self):
+        """Returns the device that the model is on."""
+        return self.model.device
+
     @abstractmethod
     @profiler.time_function
     def get_train_loss_dict(self, step: Optional[int] = None):
@@ -94,8 +99,8 @@ class Pipeline(nn.Module):
         self.eval()
         # NOTE(ethan): next_eval() is not being used right now
         for camera_ray_bundle, batch in self.dataloader.eval_dataloader:
-            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
+            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
         self.train()
         return None
@@ -122,14 +127,14 @@ class Pipeline(nn.Module):
 
 
 @profiler.time_function
-def setup_pipeline(config: PipelineConfig, device: str) -> Pipeline:
+def setup_pipeline(config: PipelineConfig, device: str, test_mode=False) -> Pipeline:
     """Setup the pipeline. The dataset inputs should be set with the training data.
 
     Args:
         config: The pipeline config.
     """
     # dataset_inputs
-    dataloader: Dataloader = setup_dataloader(config.dataloader, device=device)
+    dataloader: Dataloader = setup_dataloader(config.dataloader, device=device, test_mode=test_mode)
     # TODO(ethan): get rid of scene_bounds from the model
     model: Model = setup_model(config.model, scene_bounds=dataloader.train_datasetinputs.scene_bounds, device=device)
     pipeline_class = locate(config._target_)  # pylint: disable=protected-access

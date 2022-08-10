@@ -213,13 +213,13 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
 
 @profiler.time_function
-def setup_dataloader(config: DataloaderConfig, device: str) -> Dataloader:
+def setup_dataloader(config: DataloaderConfig, device: str, test_mode=False) -> Dataloader:
     """Setup the dataloader."""
 
     dataset_train = instantiate_from_dict_config(config.train_dataset)
     train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
     dataset_eval = instantiate_from_dict_config(config.eval_dataset)
-    eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val")
+    eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
 
     dataloader: Dataloader = instantiate_from_dict_config(
         DictConfig(config),
