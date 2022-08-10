@@ -62,6 +62,7 @@ for dataset in ${DATASETS[@]}; do
     python scripts/run_eval.py --config-name ${config_name} \
         --checkpoint-dir ${checkpoint_dir} \
         --rendered-output-name rgb \
+        --output-filename ${output_dir}/${base_config_name}/blender_${dataset}_${month}-${date}-${year}_${seconds}.json \
         --config-overrides data.dataset_inputs_train.data_directory=data/blender/${dataset} data.dataset_inputs_eval.data_directory=data/blender/${dataset} &
     echo "Launched ${checkpoint_dir} on gpu ${GPU_IDX[$idx]}"
 
