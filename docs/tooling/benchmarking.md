@@ -1,8 +1,12 @@
 # Benchmarking workflow
 
-We make it easy to benchmark your new NeRF against the standard Blender dataset.
+* [Launching training on Blender dataset](train)
+* [Evaluating trained Blender models](eval)
 
-#### Launching training on Blender dataset
+We make it easy to benchmark your new NeRF against the standard Blender dataset. 
+
+(train)=
+## Launching training on Blender dataset
 
 To start, you will need to train your NeRF on each of the blender objects.
 To launch training jobs automatically on each of these items, you can call:
@@ -27,8 +31,8 @@ A full example would be:
 
 The script will automatically launch training on all of the items and save the checkpoints in an output directory with the current date and timestamp.
 
-
-#### Benchmarking on Blender
+(eval)=
+## Evaluating trained Blender models
 Once you have launched training, and training converges, you can test your method with `scripts/benchmarking/launch_eval_blender.sh`.
 
 Say we ran a benchmark on 08-10-2022 for instant_ngp. By default, the train script will save the benchmarks in the following format:
