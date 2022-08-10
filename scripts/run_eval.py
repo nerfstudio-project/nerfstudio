@@ -2,6 +2,7 @@
 run_eval.py
 """
 import enum
+import json
 import os
 from typing import Any, Dict, List, Optional
 
@@ -41,7 +42,7 @@ def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
     return (step * prev_avg + new_val) / (step + 1)
 
 
-def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
+def _load_checkpoint(config: DictConfig, graph: Graph) -> str:
     """Helper function to load checkpointed graph
 
     Args:
@@ -60,6 +61,7 @@ def _load_checkpoint(config: DictConfig, graph: Graph) -> None:
     loaded_state = torch.load(load_path, map_location="cpu")
     graph.load_graph(loaded_state)
     print(f"done loading checkpoint from {load_path}")
+    return load_path
 
 
 def run_inference_from_config(config: DictConfig) -> Dict[str, Any]:
@@ -80,7 +82,7 @@ def run_inference_from_config(config: DictConfig) -> Dict[str, Any]:
     graph.eval()
 
     # load checkpointed information
-    _load_checkpoint(config.trainer.resume_train, graph)
+    _ = _load_checkpoint(config.trainer.resume_train, graph)
 
     # calculate average psnr across test dataset
     return render_stats_dict(graph, dataloader_eval)
@@ -202,7 +204,7 @@ def main(
     graph = setup_graph(config.graph, dataset_inputs_train, device=device)
     graph.eval()
     # load checkpointed information
-    _load_checkpoint(config.trainer.resume_train, graph)
+    checkpoint_name = _load_checkpoint(config.trainer.resume_train, graph)
 
     if method == MethodType.PSNR:
         stats_dict = render_stats_dict(graph, dataloader_eval)
@@ -212,6 +214,19 @@ def main(
         print(f"Avg. PSNR: {avg_psnr:0.4f}")
         print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
+        # save output to some file
+        dirname = os.path.dirname(output_filename)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        benchmark_info = {
+            "config_name": config_name,
+            "checkpoint": checkpoint_name,
+            "results": stats_dict,
+        }
+        with open(output_filename, "w", encoding="utf8") as f:
+            json.dump(benchmark_info, f, indent=2)
+        print(f"Saved results to: {output_filename}")
+
     elif method == MethodType.TRAJ:
         # TODO(ethan): pass in camera information into argparse parser
         if traj == TrajectoryType.SPIRAL:

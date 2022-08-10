@@ -1,7 +1,27 @@
 #!/bin/bash
 
-METHOD=$1
-shift
+helpFunction_launch_train()
+{
+   echo "Usage: $0 -c config_name -g gpu_list"
+   echo -e "\t-c name of config to benchmark (e.g. graph_mipnerf, graph_instant_ngp)"
+   echo -e "\t-g list of space-separated gpu numbers to launch train on (e.g. 0 2 4 5)"
+   exit 1 # Exit program after printing help
+}
+
+while getopts "c:g" opt; do
+    case "$opt" in
+        c ) config_name="$OPTARG" ;;
+        g ) gpu_list="$OPTARG" ;;
+        ? ) helpFunction ;; 
+    esac
+done
+
+if [ -z "$config_name" ]; then
+    echo "Missing method name"
+    helpFunction_launch_train
+fi
+
+shift $((OPTIND-1))
 
 # Deal with gpu's. If passed in, use those.
 GPU_IDX=("$@")
@@ -32,13 +52,8 @@ len=${#GPU_IDX[@]}
 
 for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
-    if [ $idx == $len ]; then
-        idx=0
-    else
-        ((idx=idx+1))
-    fi
     python scripts/run_train.py \
-           --config-name ${METHOD} \
+           --config-name ${config_name} \
            '~logging.writer.LocalWriter' \
            data.dataset_inputs_train.data_directory=data/blender/${dataset} \
            data.dataset_inputs_eval.data_directory=data/blender/${dataset} \
@@ -48,5 +63,12 @@ for dataset in ${DATASETS[@]}; do
            trainer.max_num_iterations=2000000 \
            viewer.enable=False \
            logging.enable_profiler=False &
-    echo "Launched ${METHOD} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
+    echo "Launched ${config_name} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
+    
+    # update gpu
+    if [ $idx == $len ]; then
+        idx=0
+    else
+        ((idx=idx+1))
+    fi
 done
