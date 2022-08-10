@@ -219,7 +219,7 @@ def setup_dataloader(config: DataloaderConfig, device: str) -> Dataloader:
     dataset_train = instantiate_from_dict_config(config.train_dataset)
     train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
     dataset_eval = instantiate_from_dict_config(config.eval_dataset)
-    eval_datasetinputs = dataset_eval.get_dataset_inputs(split="test")
+    eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val")
 
     dataloader: Dataloader = instantiate_from_dict_config(
         DictConfig(config),
