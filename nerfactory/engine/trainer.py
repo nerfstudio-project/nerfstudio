@@ -19,15 +19,15 @@ import functools
 import logging
 import os
 import typing
-import typing
-from typing import Dict, List, Optional, List, Optional
+from typing import Dict, List
 
 import torch
 import torch.distributed as dist
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
+
 from nerfactory.dataloaders.structs import DatasetInputs
-from nerfactory.optimizers.optimizers import Optimizers, Optimizers, setup_optimizers
+from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
 from nerfactory.pipelines.base import Pipeline, setup_pipeline
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback

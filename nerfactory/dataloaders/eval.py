@@ -16,86 +16,16 @@
 Data loader.
 """
 
-from ast import Pass
 import random
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
-import torch
 from omegaconf import ListConfig
-from torch import nn
-from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.image_dataset import ImageDataset
-from nerfactory.dataloaders.image_sampler import CacheImageSampler, ImageSampler
-from nerfactory.dataloaders.pixel_sampler import PixelSampler
-from nerfactory.dataloaders.structs import DatasetInputs
-from nerfactory.models.modules.ray_generator import RayGenerator
-from nerfactory.utils import profiler
-from nerfactory.utils.config import DataloaderConfig
-from nerfactory.utils.misc import (
-    IterableWrapper,
-    get_dict_to_torch,
-    instantiate_from_dict_config,
-)
-from omegaconf import DictConfig
-
-
-@profiler.time_function
-def setup_dataset_train(config: DataloaderConfig, device: str) -> Tuple[DatasetInputs, "TrainDataloader"]:
-    """Helper method to load train dataset
-    Args:
-        config (DataConfig): Configuration of training dataset.
-        device (str): device to load the dataset to
-
-    Returns:
-        Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
-    """
-    dataset_train = instantiate_from_dict_config(config.dataset_inputs_train)
-    dataset_inputs_train = dataset_train.get_dataset_inputs(
-        split="train", use_preprocessing_cache=config.use_preprocessing_cache
-    )
-    # ImageDataset
-    image_dataset_train = instantiate_from_dict_config(config.image_dataset_train, **dataset_inputs_train.as_dict())
-    # ImageSampler
-    image_sampler_train = instantiate_from_dict_config(
-        config.dataloader_train.image_sampler, dataset=image_dataset_train, device=device  # type: ignore
-    )
-    # PixelSampler
-    pixel_sampler_train = instantiate_from_dict_config(config.dataloader_train.pixel_sampler)  # type: ignore
-    # Dataloader
-    dataloader_train = TrainDataloader(image_sampler_train, pixel_sampler_train)
-    return dataset_inputs_train, dataloader_train
-
-
-@profiler.time_function
-def setup_dataset_eval(
-    config: DataloaderConfig, test_mode: bool, device: str
-) -> Tuple[DatasetInputs, "EvalDataloader"]:
-    """Helper method to load test or val dataset based on test/train mode
-    Args:
-        config (DataConfig): Configuration of training dataset.
-        test_mode (bool): specifies whether you are training/testing mode, to load validation/test data
-        device (str): device to load the dataset to
-
-    Returns:
-        Tuple[DatasetInputs, "TrainDataloader"]: returns both the dataset input information and associated dataloader
-    """
-    eval_split = "test" if test_mode else "val"
-    dataset_eval = instantiate_from_dict_config(config.dataset_inputs_eval)
-    dataset_inputs_eval = dataset_eval.get_dataset_inputs(
-        split=eval_split, use_preprocessing_cache=config.use_preprocessing_cache
-    )
-    image_dataset_eval = instantiate_from_dict_config(config.image_dataset_eval, **dataset_inputs_eval.as_dict())
-    dataloader_eval = instantiate_from_dict_config(
-        config.dataloader_eval,
-        image_dataset=image_dataset_eval,
-        device=device,
-        **dataset_inputs_eval.as_dict(),
-    )
-    return dataset_inputs_eval, dataloader_eval
+from nerfactory.utils.misc import get_dict_to_torch
 
 
 class EvalDataloader:  # pylint: disable=too-few-public-methods

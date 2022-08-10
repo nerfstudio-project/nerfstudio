@@ -13,15 +13,11 @@ pipeline:
       _target_: nerfactory.dataloaders.datasets.Friends
       data_directory: data/friends/TBBT-big_living_room
       downscale_factor: 1
-    image_dataset_train:
-      _target_: nerfactory.dataloaders.image_dataset.PanopticImageDataset
     # Eval dataloading
     eval_dataset:
       _target_: nerfactory.dataloaders.datasets.Friends
       data_directory: data/friends/TBBT-big_living_room
       downscale_factor: 1
-    image_dataset_eval:
-      _target_: nerfactory.dataloaders.image_dataset.PanopticImageDataset
   model:
     _target_: nerfactory.models.semantic_nerf.SemanticNerfModel
     collider_config:

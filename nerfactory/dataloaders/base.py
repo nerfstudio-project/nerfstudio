@@ -17,11 +17,13 @@ Data loader.
 """
 
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
+from omegaconf import DictConfig, ListConfig
 from torch import nn
 from torch.nn import Parameter
+
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
 from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
@@ -31,11 +33,7 @@ from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
 from nerfactory.utils.config import DataloaderConfig
-from nerfactory.utils.misc import (
-    IterableWrapper,
-    instantiate_from_dict_config,
-)
-from omegaconf import DictConfig
+from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
 
 
 class Dataloader(nn.Module):
@@ -136,7 +134,7 @@ class Dataloader(nn.Module):
         """
         raise NotImplementedError
 
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the dataloader.
 
         Returns:
@@ -155,10 +153,10 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         train_num_rays_per_batch: int,
         train_num_images_to_sample_from: int,
         eval_datasetinputs: DatasetInputs,
-        eval_image_indices: List[int],
+        eval_image_indices: Union[List[int], ListConfig], # TODO(ethan): get rid of this hydra ListConfig nonsense
         eval_num_rays_per_chunk: int,
         device: Union[torch.device, str] = "cpu",
-        **kwargs
+        **kwargs  # pylint: disable=unused-argument
     ):
         self.image_dataset_type = image_dataset_type
         self.train_datasetinputs = train_datasetinputs
@@ -199,7 +197,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
             camera_to_world=self.eval_datasetinputs.camera_to_world,
             num_rays_per_chunk=self.eval_num_rays_per_chunk,
             image_indices=self.eval_image_indices,
-            device=self.device
+            device=self.device,
         )
 
     def next_train(self) -> Tuple[RayBundle, Dict]:

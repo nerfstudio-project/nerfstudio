@@ -17,6 +17,7 @@ Abstracts for the Pipeline class.
 """
 
 from abc import abstractmethod
+from pydoc import locate
 from typing import Any, Dict, List, Optional
 
 from torch import nn
@@ -24,9 +25,8 @@ from torch.nn import Parameter
 
 from nerfactory.dataloaders.base import Dataloader, setup_dataloader
 from nerfactory.models.base import Model, setup_model
-from nerfactory.utils.config import PipelineConfig
 from nerfactory.utils import profiler
-from pydoc import locate
+from nerfactory.utils.config import PipelineConfig
 
 
 class Pipeline(nn.Module):
@@ -102,8 +102,8 @@ class Pipeline(nn.Module):
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
+        # TODO(ethan): this function should probably return something?
         self.train()
-        return None
 
     @abstractmethod
     def log_test_image_outputs(self) -> None:

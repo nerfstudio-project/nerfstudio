@@ -30,7 +30,12 @@ from nerfactory.dataloaders.colmap_utils import (
     read_images_binary,
     read_pointsTD_binary,
 )
-from nerfactory.dataloaders.structs import DatasetInputs, PointCloud, SceneBounds, Semantics
+from nerfactory.dataloaders.structs import (
+    DatasetInputs,
+    PointCloud,
+    SceneBounds,
+    Semantics,
+)
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
     get_absolute_path,

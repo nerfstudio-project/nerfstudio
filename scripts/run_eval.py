@@ -4,7 +4,7 @@ run_eval.py
 import enum
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import dcargs
 import mediapy as media
@@ -19,9 +19,9 @@ from nerfactory.cameras.camera_paths import (
     get_spiral_path,
 )
 from nerfactory.pipelines.base import Pipeline, setup_pipeline
+from nerfactory.utils import io as io_utils
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
-from nerfactory.utils import io as io_utils
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
