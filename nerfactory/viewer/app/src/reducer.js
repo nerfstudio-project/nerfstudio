@@ -20,6 +20,7 @@ const initialState = {
     field_of_view: 80,
     eval_fps: 'Paused',
     train_eta: 'Paused',
+    vis_train_ratio: 'Paused',
   },
   // the scene state
   sceneState: {

@@ -102,8 +102,13 @@ class Trainer:
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
 
+                # Note: if visualizer used, the rendering of the visualizer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
                     loss_metric_dict = self.train_iteration(step)
+
+                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
+                        self.visualizer_state.update_scene(step, self.pipeline.model)
+
                 train_num_rays_per_batch = self.pipeline.dataloader.train_num_rays_per_batch
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
 
@@ -114,7 +119,6 @@ class Trainer:
                 if step % self.config.trainer.steps_per_test == 0:
                     self.pipeline.get_eval_loss_dict(step=step)
                 self._write_out_storage(step)
-                self.visualizer_state.update_scene(step, self.pipeline.model)
 
         self._write_out_storage(num_iterations)
 
