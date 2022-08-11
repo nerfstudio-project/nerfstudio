@@ -33,7 +33,9 @@ export function RenderControls() {
   );
   let eval_fps = useSelector((state) => state.renderingState.eval_fps);
   let train_eta = useSelector((state) => state.renderingState.train_eta);
-  let vis_train_ratio = useSelector((state) => state.renderingState.vis_train_ratio);
+  let vis_train_ratio = useSelector(
+    (state) => state.renderingState.vis_train_ratio,
+  );
 
   const dispatch = useDispatch();
 
@@ -251,7 +253,13 @@ export function RenderControls() {
         disabled: true,
       },
     }),
-    [isWebsocketConnected, isWebrtcConnected, eval_fps, train_eta, vis_train_ratio],
+    [
+      isWebsocketConnected,
+      isWebrtcConnected,
+      eval_fps,
+      train_eta,
+      vis_train_ratio,
+    ],
   );
 
   useEffect(() => {
