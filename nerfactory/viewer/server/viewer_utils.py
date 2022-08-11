@@ -32,7 +32,7 @@ from nerfactory.models.base import Model
 from nerfactory.utils import profiler
 from nerfactory.utils.config import ViewerConfig
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
-from nerfactory.utils.writer import GLOBAL_BUFFER
+from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
 
@@ -280,15 +280,32 @@ class VisualizerState:
         image = (image_output).astype("uint8")
         self.vis.set_image(image)
 
-    def _update_viewer_stats(self, render_time, image_height) -> None:
+    def _update_viewer_stats(self, render_time: float, image_height: int) -> None:
+        """Function that calculates and populates all the rendering statistics accordingly
+
+        Args:
+            render_time: total time spent rendering current view
+            image_height: resolution of the current view
+        """
         is_training = self.vis["renderingState/isTraining"].read()
         if is_training is None or is_training:
+            # process the  current rendering fps
             eval_fps = f"{1 / render_time:.2f} fps at {image_height} res"
             self.vis["renderingState/eval_fps"].write(eval_fps)
-            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["viewer/train_eta"])
+            # process remaining training ETA
+            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
+            # process ratio time spent on vis vs train
+            if EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]:
+                vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
+                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
+                vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
+                self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
+            else:
+                self.vis["renderingState/vis_train_ratio"] = "Starting"
         else:
             self.vis["renderingState/eval_fps"].write("Paused")
             self.vis["renderingState/train_eta"].write("Paused")
+            self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
 
     @profiler.time_function
     def _render_image_in_viewer(self, graph: Model) -> None:

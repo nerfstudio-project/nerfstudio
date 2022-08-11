@@ -33,6 +33,7 @@ export function RenderControls() {
   );
   let eval_fps = useSelector((state) => state.renderingState.eval_fps);
   let train_eta = useSelector((state) => state.renderingState.train_eta);
+  let vis_train_ratio = useSelector((state) => state.renderingState.vis_train_ratio);
 
   const dispatch = useDispatch();
 
@@ -244,8 +245,13 @@ export function RenderControls() {
         value: train_eta,
         disabled: true,
       },
+      vis_train_ratio: {
+        label: 'Time Allocation',
+        value: vis_train_ratio,
+        disabled: true,
+      },
     }),
-    [isWebsocketConnected, isWebrtcConnected, eval_fps, train_eta],
+    [isWebsocketConnected, isWebrtcConnected, eval_fps, train_eta, vis_train_ratio],
   );
 
   useEffect(() => {
@@ -271,13 +277,15 @@ export function RenderControls() {
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.path === '/renderingState/eval_fps') {
         eval_fps = cmd.data;
-        console.log('setting state', eval_fps);
         setState({ eval_fps });
       }
       if (cmd.path === '/renderingState/train_eta') {
         train_eta = cmd.data;
-        console.log('setting state', train_eta);
         setState({ train_eta });
+      }
+      if (cmd.path === '/renderingState/vis_train_ratio') {
+        vis_train_ratio = cmd.data;
+        setState({ vis_train_ratio });
       }
     });
   }, []);
