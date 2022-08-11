@@ -355,15 +355,13 @@ class VisualizerState:
 
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
-        if output_type is None:
-            output_type = "default"
+        output_type = "default" if output_type is None else output_type
         self.output_type_changed = self.prev_output_type != output_type
         self.prev_output_type = output_type
 
         # check and perform colormap type updates
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        if colormap_type is None:
-            colormap_type = "default"
+        colormap_type = "default" if colormap_type is None else colormap_type
         self.prev_colormap_type = colormap_type
 
         # check and perform min/max update
