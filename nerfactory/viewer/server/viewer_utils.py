@@ -317,7 +317,7 @@ class VisualizerState:
                 colormap_options.extend(["boolean"])
             else:
                 raise NotImplementedError
-            self.output_type_changed = Falses
+            self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = self._apply_colormap(outputs, stuff_colors).cpu().numpy()
