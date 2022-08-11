@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 
-import { useDispatch } from 'react-redux';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+import { useDispatch } from 'react-redux';
 
 const WebRtcContext = createContext(null);
 const msgpack = require('msgpack-lite');
@@ -21,24 +21,29 @@ export default function WebRtcWindow() {
         {
           urls: 'stun:stun.l.google.com:19302',
         },
-        {
-          urls: 'stun:openrelay.metered.ca:80',
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject',
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443',
-          username: 'openrelayproject',
-          credential: 'openrelayproject',
-        },
-        {
-          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-          username: 'openrelayproject',
-          credential: 'openrelayproject',
-        },
+        // {
+        //   urls: 'stun:openrelay.metered.ca:80',
+        // },
+        // {
+        //   urls: 'turn:openrelay.metered.ca:80',
+        //   username: 'openrelayproject',
+        //   credential: 'openrelayproject',
+        // },
+        // {
+        //   urls: 'turn:openrelay.metered.ca:443',
+        //   username: 'openrelayproject',
+        //   credential: 'openrelayproject',
+        // },
+        // {
+        //   urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        //   username: 'openrelayproject',
+        //   credential: 'openrelayproject',
+        // },
+        // {
+        //   urls: 'turn:34.102.68.79:3478',
+        //   username: 'test',
+        //   credential: 'test123',
+        // },
       ],
     });
     // connect video
@@ -78,11 +83,13 @@ export default function WebRtcWindow() {
       .createOffer()
       .then((offer) => {
         console.log('[webrtc] created offer');
+        console.log(offer);
         return pcRef.current.setLocalDescription(offer);
       })
       .then(() => {
-        console.log('[webrtc] set local description');
         // wait for ICE gathering to complete
+        console.log('[webrtc] set local description');
+        console.log(pcRef.current);
         return new Promise((resolve) => {
           if (pcRef.current.iceGatheringState === 'complete') {
             console.log('[webrtc] ICE gathering complete');
@@ -97,6 +104,10 @@ export default function WebRtcWindow() {
                 resolve();
               }
             };
+            console.log(
+              '[webrtc] adding listener for `icegatheringstatechange`',
+            );
+            console.log(pcRef.current);
             pcRef.current.addEventListener(
               'icegatheringstatechange',
               checkState,
@@ -128,7 +139,9 @@ export default function WebRtcWindow() {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.type === 'answer') {
+        console.log('[webrtc] received answer');
         const answer = cmd.data;
+        console.log(answer);
         pcRef.current.setRemoteDescription(answer);
       }
     });
@@ -136,7 +149,7 @@ export default function WebRtcWindow() {
     websocket.addEventListener('open', () => {
       // connect webrtc when the websocket is connected
       pcRef.current = getRTCPeerConnection();
-      console.log('sending offer');
+      console.log('[webrtc] starting process');
       sendOffer();
     });
   }, []); // empty dependency array means only run once

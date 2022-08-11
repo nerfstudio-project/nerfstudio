@@ -271,12 +271,12 @@ export function RenderControls() {
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.path === '/renderingState/eval_fps') {
         eval_fps = cmd.data;
-        console.log('setting state', eval_fps);
+        // console.log('setting state', eval_fps);
         setState({ eval_fps });
       }
       if (cmd.path === '/renderingState/train_eta') {
         train_eta = cmd.data;
-        console.log('setting state', train_eta);
+        // console.log('setting state', train_eta);
         setState({ train_eta });
       }
     });
