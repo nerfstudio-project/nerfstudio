@@ -125,14 +125,6 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
-        """Process output images into visualizable colored images"""
-        # TODO override this function elsewhere or do something else for processing images
-        for k, v in outputs.items():
-            if v.shape[-1] == 1:
-                v = torch.tile(v, (1, 1, 3))
-            outputs[k] = v
-
     @overload
     def forward(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
         ...

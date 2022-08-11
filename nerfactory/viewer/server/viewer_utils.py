@@ -29,7 +29,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.base import Model
-from nerfactory.utils import profiler
+from nerfactory.utils import profiler, visualization
 from nerfactory.utils.config import ViewerConfig
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.writer import GLOBAL_BUFFER
@@ -85,7 +85,6 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
-            self.graph.process_outputs_as_images(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -134,6 +133,14 @@ class CheckThread(threading.Thread):
                 self.state.check_interrupt_vis = True
                 return
 
+            # check colormap type
+            colormap_type = self.state.vis["renderingState/colormap_choice"].read()
+            if colormap_type is None:
+                colormap_type = "default"
+            if self.state.prev_colormap_type != colormap_type:
+                self.state.check_interrupt_vis = True
+                return
+
             # check max render
             max_resolution = self.state.vis["renderingState/maxResolution"].read()
             if max_resolution is not None:
@@ -170,6 +177,8 @@ class VisualizerState:
         # visualizer specific variables
         self.prev_camera_matrix = None
         self.prev_output_type = "default"
+        self.prev_colormap_type = "default"
+        self.output_type_changed = True
         self.min_resolution = 50
         self.max_resolution = 1000
         self.res_upscale_factor = 1
@@ -263,20 +272,56 @@ class VisualizerState:
                 return True  # if not higher res, but steps met
         return False  # if init
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any]):
+    def _apply_colormap(self, outputs, stuff_colors=None):
+        if self.prev_colormap_type == "turbo":
+            return visualization.apply_colormap(outputs[self.prev_output_type])
+        if self.prev_colormap_type == "depth":
+            return visualization.apply_depth_colormap(
+                outputs[self.prev_output_type], accumulation=outputs["accumulation"]
+            )
+        if self.prev_colormap_type == "semantic":
+            logits = outputs[self.prev_output_type]
+            labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
+            assert stuff_colors is not None
+            return stuff_colors[labels]
+        if self.prev_colormap_type == "boolean":
+            return visualization.apply_boolean_colormap(outputs[self.prev_output_type])
+        # dealing with no colormap
+        if outputs[self.prev_output_type].shape[-1] == 1:
+            return torch.tile(outputs[self.prev_output_type], (1, 1, 3))
+        return outputs[self.prev_output_type]
+
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors=None):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
         """
         if not self.outputs_set:
-            # set_output_options(self.vis, list(outputs.keys()))
             self.vis["renderingState/output_options"].write(list(outputs.keys()))
             self.outputs_set = True
         # gross hack to get the image key, depending on which keys the graph uses
         if self.prev_output_type == "default":
             self.prev_output_type = "rgb" if "rgb" in outputs else "rgb_fine"
-        image_output = outputs[self.prev_output_type].cpu().numpy() * 255
+        # re-register colormas and send to viewer
+        if self.output_type_changed or self.prev_colormap_type == "default":
+            self.prev_colormap_type = "none"
+            colormap_options = ["none"]
+            if outputs[self.prev_output_type].dtype == torch.float and torch.max(outputs[self.prev_output_type]) >= 1:
+                colormap_options.extend(["depth"])
+            elif outputs[self.prev_output_type].dtype == torch.float:
+                colormap_options.extend(["turbo", "depth"])
+            elif outputs[self.prev_output_type].dtype == torch.int:
+                colormap_options.extend(["semantic"])
+            elif outputs[self.prev_output_type].dtype == torch.bool:
+                colormap_options.extend(["boolean"])
+            else:
+                raise NotImplementedError
+            self.output_type_changed = Falses
+            self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
+            self.vis["renderingState/colormap_options"].write(colormap_options)
+        selected_output = self._apply_colormap(outputs, stuff_colors).cpu().numpy()
+        image_output = selected_output * 255
         image = (image_output).astype("uint8")
         self.vis.set_image(image)
 
@@ -312,7 +357,14 @@ class VisualizerState:
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
             output_type = "default"
+        self.output_type_changed = self.prev_output_type != output_type
         self.prev_output_type = output_type
+
+        # check and perform colormap type updates
+        colormap_type = self.vis["renderingState/colormap_choice"].read()
+        if colormap_type is None:
+            colormap_type = "default"
+        self.prev_colormap_type = colormap_type
 
         # check and perform min/max update
         max_resolution = self.vis["renderingState/maxResolution"].read()
@@ -364,7 +416,8 @@ class VisualizerState:
 
         outputs = render_thread.vis_outputs
         if outputs is not None:
-            self._send_output_to_viewer(outputs)
+            stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
+            self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
             self._update_viewer_stats(render_duration, image_height)
 
 
