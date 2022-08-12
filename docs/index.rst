@@ -18,11 +18,11 @@ Neural Volumetric Rendering
 
 All-in-one repository for state-of-the-art NeRFs.
 
-Nerfactory provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and testing NeRFs.
+nerfactory provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and testing NeRFs.
 The library supports a more interpretable implementation of NeRFs by modularizing each component.
 With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation. 
 
-It's as simple as plug and play with Nerfactory!
+It's as simple as plug and play with nerfactory!
 
 If you have further questions or want a feature that is not yet supported, please do not hesitate to reach out to the Plenoptix team.
 
@@ -37,9 +37,9 @@ Contents
    :caption: Getting Started
 
    Quickstart<tutorials/quickstart_index>
-   tutorials/data/data_index
-   tutorials/models/creating_pipelines
-   tutorials/viewer/using_viewer
+   tutorials/data_index
+   tutorials/creating_graphs.md
+   tutorials/system_overview.md
 
 .. toctree::
    :hidden:

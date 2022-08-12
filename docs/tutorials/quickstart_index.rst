@@ -24,12 +24,9 @@ The library supports a more interpretable implementation of NeRFs by modularizin
 With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation. 
 
 
-# TODO: high level summary of what is in the quickstart tabs.
-
 Quickstart
 -----------
 
 .. toctree::
-  :maxdepth: 1
-  
-  quickstart.md
+
+    quickstart.md
