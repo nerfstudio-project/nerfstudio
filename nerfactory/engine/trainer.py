@@ -105,7 +105,6 @@ class Trainer:
                 # Note: if visualizer used, the rendering of the visualizer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
                     loss_metric_dict = self.train_iteration(step)
-
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
