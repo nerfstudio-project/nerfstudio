@@ -15,6 +15,7 @@
 """Code to interface with the `vis/` (the JS visualizer).
 """
 
+import enum
 import logging
 import sys
 import threading
@@ -35,6 +36,25 @@ from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
+
+
+class OutputTypes(str, enum.Enum):
+    """Noncomprehsnive list of output render types"""
+
+    INIT = "init"
+    RGB = "rgb"
+    RGB_FINE = "rgb_fine"
+
+
+class ColormapTypes(str, enum.Enum):
+    """Noncomprehsnive list of colormap render types"""
+
+    INIT = "init"
+    DEFAULT = "default"
+    TURBO = "turbo"
+    DEPTH = "depth"
+    SEMANTIC = "semantic"
+    BOOLEAN = "boolean"
 
 
 class IOChangeException(Exception):
@@ -128,7 +148,7 @@ class CheckThread(threading.Thread):
             # check output type
             output_type = self.state.vis["renderingState/output_choice"].read()
             if output_type is None:
-                output_type = "default"
+                output_type = OutputTypes.INIT
             if self.state.prev_output_type != output_type:
                 self.state.check_interrupt_vis = True
                 return
@@ -136,7 +156,7 @@ class CheckThread(threading.Thread):
             # check colormap type
             colormap_type = self.state.vis["renderingState/colormap_choice"].read()
             if colormap_type is None:
-                colormap_type = "default"
+                colormap_type = ColormapTypes.INIT
             if self.state.prev_colormap_type != colormap_type:
                 self.state.check_interrupt_vis = True
                 return
@@ -176,8 +196,8 @@ class VisualizerState:
 
         # visualizer specific variables
         self.prev_camera_matrix = None
-        self.prev_output_type = "default"
-        self.prev_colormap_type = "default"
+        self.prev_output_type = OutputTypes.INIT
+        self.prev_colormap_type = ColormapTypes.INIT
         self.output_type_changed = True
         self.min_resolution = 50
         self.max_resolution = 1000
@@ -272,51 +292,74 @@ class VisualizerState:
                 return True  # if not higher res, but steps met
         return False  # if init
 
-    def _apply_colormap(self, outputs, stuff_colors=None):
-        if self.prev_colormap_type == "turbo":
-            return visualization.apply_colormap(outputs[self.prev_output_type])
-        if self.prev_colormap_type == "depth":
+    def _apply_colormap(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
+        """Determines which colormap to use based on set colormap type
+
+        Args:
+            outputs: the output tensors for which to apply colormaps on
+            stuff_colors: is only set if colormap is for semantics. Defaults to None.
+        """
+        # default for rgb images
+        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].shape[-1] == 3:
+            return outputs[self.prev_output_type]
+
+        # rendering depth outputs
+        if self.prev_colormap_type == ColormapTypes.DEPTH or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT
+            and outputs[self.prev_output_type].dtype == torch.float
+            and (torch.max(outputs[self.prev_output_type]) - 1.0) > eps  # handle floating point arithmetic
+        ):
             return visualization.apply_depth_colormap(
                 outputs[self.prev_output_type], accumulation=outputs["accumulation"]
             )
-        if self.prev_colormap_type == "semantic":
+
+        # rendering accumulation outputs
+        if self.prev_colormap_type == ColormapTypes.TURBO or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.float
+        ):
+            return visualization.apply_colormap(outputs[self.prev_output_type])
+
+        # rendering semantic outputs
+        if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.int
+        ):
             logits = outputs[self.prev_output_type]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert stuff_colors is not None
             return stuff_colors[labels]
-        if self.prev_colormap_type == "boolean":
+        
+        # rendering boolean outputs
+        if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.bool
+        ):
             return visualization.apply_boolean_colormap(outputs[self.prev_output_type])
-        # dealing with no colormap
-        if outputs[self.prev_output_type].shape[-1] == 1:
-            return torch.tile(outputs[self.prev_output_type], (1, 1, 3))
-        return outputs[self.prev_output_type]
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors=None):
+        raise NotImplementedError
+
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
+            stuff_colors: is only set if colormap is for semantics. Defaults to None.
         """
         if not self.outputs_set:
             self.vis["renderingState/output_options"].write(list(outputs.keys()))
             self.outputs_set = True
         # gross hack to get the image key, depending on which keys the graph uses
-        if self.prev_output_type == "default":
-            self.prev_output_type = "rgb" if "rgb" in outputs else "rgb_fine"
-        # re-register colormas and send to viewer
-        if self.output_type_changed or self.prev_colormap_type == "default":
-            self.prev_colormap_type = "none"
-            colormap_options = ["none"]
-            if outputs[self.prev_output_type].dtype == torch.float and torch.max(outputs[self.prev_output_type]) >= 1:
+        if self.prev_output_type == OutputTypes.INIT:
+            self.prev_output_type = OutputTypes.RGB if OutputTypes.RGB in outputs else OutputTypes.RGB_FINE
+        # re-register colormaps and send to viewer
+        if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
+            self.prev_colormap_type = ColormapTypes.DEFAULT
+            colormap_options = [ColormapTypes.DEFAULT]
+            if (
+                outputs[self.prev_output_type].shape[-1] != 3
+                and outputs[self.prev_output_type].dtype == torch.float
+                and (torch.max(outputs[self.prev_output_type]) - 1.0) <= eps  # handle floating point arithmetic
+            ):
+                # accumulation can also include depth
                 colormap_options.extend(["depth"])
-            elif outputs[self.prev_output_type].dtype == torch.float:
-                colormap_options.extend(["turbo", "depth"])
-            elif outputs[self.prev_output_type].dtype == torch.int:
-                colormap_options.extend(["semantic"])
-            elif outputs[self.prev_output_type].dtype == torch.bool:
-                colormap_options.extend(["boolean"])
-            else:
-                raise NotImplementedError
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
@@ -372,13 +415,13 @@ class VisualizerState:
 
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
-        output_type = "default" if output_type is None else output_type
+        output_type = OutputTypes.INIT if output_type is None else output_type
         self.output_type_changed = self.prev_output_type != output_type
         self.prev_output_type = output_type
 
         # check and perform colormap type updates
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        colormap_type = "default" if colormap_type is None else colormap_type
+        colormap_type = ColormapTypes.INIT if colormap_type is None else colormap_type
         self.prev_colormap_type = colormap_type
 
         # check and perform min/max update

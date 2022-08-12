@@ -201,7 +201,7 @@ export function RenderControls() {
       },
       // colormap_options
       colormap_options: {
-        label: 'Colormap Options',
+        label: 'Colormap',
         options: colormapOptions,
         value: colormapChoice,
         onChange: (v) => {
