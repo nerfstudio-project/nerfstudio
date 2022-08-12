@@ -327,7 +327,7 @@ class VisualizerState:
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert stuff_colors is not None
             return stuff_colors[labels]
-        
+
         # rendering boolean outputs
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
             self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.bool
