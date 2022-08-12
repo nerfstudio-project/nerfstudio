@@ -214,10 +214,11 @@ export function RenderControls() {
         },
       },
       // training speed
-      "Train Speed": buttonGroup({
-        'Fast': () => setControls({ min_resolution: 10, max_resolution: 10 }),
-        'Balanced': () => setControls({min_resolution: 50, max_resolution: 512 }),
-        'Slow': () => setControls({ min_resolution: 100, max_resolution: 1024 }),
+      'Train Speed': buttonGroup({
+        Fast: () => setControls({ min_resolution: 10, max_resolution: 10 }),
+        Balanced: () =>
+          setControls({ min_resolution: 50, max_resolution: 512 }),
+        Slow: () => setControls({ min_resolution: 100, max_resolution: 1024 }),
       }),
     }),
     [
