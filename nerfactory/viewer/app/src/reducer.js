@@ -15,6 +15,8 @@ const initialState = {
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output
+    colormap_options: ['default'], // populated by the output choice
+    colormap_choice: 'default', // the selected colormap
     minResolution: 50,
     maxResolution: 512,
     field_of_view: 80,
@@ -22,6 +24,7 @@ const initialState = {
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
   },
+  
   // the scene state
   sceneState: {
     sceneBounds: null,
@@ -33,6 +36,9 @@ const initialState = {
 };
 
 function setData(newState, state, path, data) {
+  if (path === 'colormap_options') {
+    newState.colormap_choice = 'default'; // eslint-disable-line no-param-reassign
+  }
   if (path.length === 1) {
     newState[path[0]] = data; // eslint-disable-line no-param-reassign
   } else {
