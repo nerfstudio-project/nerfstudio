@@ -24,7 +24,7 @@ const initialState = {
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
   },
-  
+
   // the scene state
   sceneState: {
     sceneBounds: null,

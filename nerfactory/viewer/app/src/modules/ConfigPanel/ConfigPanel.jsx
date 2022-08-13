@@ -207,7 +207,7 @@ export function RenderControls() {
         onChange: (v) => {
           set_colormap_choice(v);
         },
-        disabled: colormapOptions.length === 1
+        disabled: colormapOptions.length === 1,
       },
       // resolution
       min_resolution: {
