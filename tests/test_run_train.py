@@ -20,33 +20,32 @@ def set_reduced_config(config: DictConfig):
     config.trainer.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
     # switch to using the vanilla ImageDataset class
-    config.data.image_dataset_train._target_ = "nerfactory.data.image_dataset.ImageDataset"
+    config.pipeline.dataloader.image_dataset_type = "rgb"
 
-    config.data.dataset_inputs_train = {
-        "_target_": "nerfactory.data.datasets.Blender",
+    config.pipeline.dataloader.train_dataset = {
+        "_target_": "nerfactory.dataloaders.datasets.Blender",
         "data_directory": "tests/data/lego_test",
         "downscale_factor": 16,
     }
-    config.data.dataloader_train.image_sampler.num_images_to_sample_from = 1
-    config.data.dataloader_train.pixel_sampler.num_rays_per_batch = 4
-    config.data.image_dataset_eval._target_ = "nerfactory.data.image_dataset.ImageDataset"
-    config.data.dataset_inputs_eval = {
-        "_target_": "nerfactory.data.datasets.Blender",
+    config.pipeline.dataloader.train_num_images_to_sample_from = 1
+    config.pipeline.dataloader.train_num_rays_per_batch = 4
+    config.pipeline.dataloader.eval_dataset = {
+        "_target_": "nerfactory.dataloaders.datasets.Blender",
         "data_directory": "tests/data/lego_test",
         "downscale_factor": 16,
     }
 
-    # reduce graph factors
-    config.graph.num_coarse_samples = 4
-    config.graph.num_importance_samples = 4
+    # reduce model factors
+    config.pipeline.model.num_coarse_samples = 4
+    config.pipeline.model.num_importance_samples = 4
     # set logging to tmp
     config.logging.writer.TensorboardWriter.log_dir = "/tmp/"
     # remove viewer
     config.viewer.enable = False
 
-    # graph specific config settings
+    # model specific config settings
     if config.method_name == "instant_ngp":
-        config.graph.field_implementation = "torch"
+        config.pipeline.model.field_implementation = "torch"
 
     return config
 

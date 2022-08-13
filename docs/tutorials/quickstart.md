@@ -88,7 +88,7 @@ Run a faster version with instant ngp using tcnn (without the viewer).
 python scripts/run_train.py --config-name=graph_instant_ngp.yaml
 ```
 
-Run with the viewer. However, you'll have to start the viewer server first. (See the docs.)
+Run with the viewer. However, you'll have to start the viewer server first. (See [viewer docs](../tutorials/viewer/viewer_quickstart.md))
 
 ```bash
 python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
@@ -113,6 +113,24 @@ bash environment/run_tensorboard.sh
 
 # Rendering a Trajectory
 
+To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../tooling/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
+
 ```bash
 python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.mp4 --config-name=graph_instant_ngp.yaml trainer.resume_train.load_dir=outputs/blender_lego/instant_ngp/2022-07-07_230905/checkpoints
+```
+
+Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based visualizer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.
+
+# FAQ
+
+* [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
+
+(tiny-cuda-error)=
+#### TinyCUDA installation errors out with cuda mismatch
+
+While installing tiny-cuda, you run into: `The detected CUDA version mismatches the version that was used to compile PyTorch (10.2). Please make sure to use the same CUDA versions.`
+
+**Solution**:
+```
+pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```

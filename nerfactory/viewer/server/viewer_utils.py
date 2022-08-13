@@ -15,6 +15,7 @@
 """Code to interface with the `vis/` (the JS visualizer).
 """
 
+import enum
 import logging
 import sys
 import threading
@@ -26,14 +27,34 @@ import torch
 
 from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data.image_dataset import ImageDataset
-from nerfactory.data.structs import DatasetInputs
-from nerfactory.graphs.base import Graph
-from nerfactory.utils import profiler
+from nerfactory.dataloaders.image_dataset import ImageDataset
+from nerfactory.dataloaders.structs import DatasetInputs
+from nerfactory.models.base import Model
+from nerfactory.utils import profiler, visualization
 from nerfactory.utils.config import ViewerConfig
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
+
+
+class OutputTypes(str, enum.Enum):
+    """Noncomprehsnive list of output render types"""
+
+    INIT = "init"
+    RGB = "rgb"
+    RGB_FINE = "rgb_fine"
+
+
+class ColormapTypes(str, enum.Enum):
+    """Noncomprehsnive list of colormap render types"""
+
+    INIT = "init"
+    DEFAULT = "default"
+    TURBO = "turbo"
+    DEPTH = "depth"
+    SEMANTIC = "semantic"
+    BOOLEAN = "boolean"
 
 
 class IOChangeException(Exception):
@@ -63,7 +84,7 @@ class RenderThread(threading.Thread):
         camera_ray_bundle: input rays to pass through the graph to render out
     """
 
-    def __init__(self, state: "VisualizerState", graph: Graph, camera_ray_bundle: RayBundle):
+    def __init__(self, state: "VisualizerState", graph: Model, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph
@@ -84,7 +105,6 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
-            self.graph.process_outputs_as_images(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -128,8 +148,16 @@ class CheckThread(threading.Thread):
             # check output type
             output_type = self.state.vis["renderingState/output_choice"].read()
             if output_type is None:
-                output_type = "default"
+                output_type = OutputTypes.INIT
             if self.state.prev_output_type != output_type:
+                self.state.check_interrupt_vis = True
+                return
+
+            # check colormap type
+            colormap_type = self.state.vis["renderingState/colormap_choice"].read()
+            if colormap_type is None:
+                colormap_type = ColormapTypes.INIT
+            if self.state.prev_colormap_type != colormap_type:
                 self.state.check_interrupt_vis = True
                 return
 
@@ -168,7 +196,9 @@ class VisualizerState:
 
         # visualizer specific variables
         self.prev_camera_matrix = None
-        self.prev_output_type = "default"
+        self.prev_output_type = OutputTypes.INIT
+        self.prev_colormap_type = ColormapTypes.INIT
+        self.output_type_changed = True
         self.min_resolution = 50
         self.max_resolution = 1000
         self.res_upscale_factor = 1
@@ -210,7 +240,7 @@ class VisualizerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def update_scene(self, step: int, graph: Graph) -> None:
+    def update_scene(self, step: int, graph: Model) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -262,25 +292,111 @@ class VisualizerState:
                 return True  # if not higher res, but steps met
         return False  # if init
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any]):
+    def _apply_colormap(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
+        """Determines which colormap to use based on set colormap type
+
+        Args:
+            outputs: the output tensors for which to apply colormaps on
+            stuff_colors: is only set if colormap is for semantics. Defaults to None.
+        """
+        # default for rgb images
+        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].shape[-1] == 3:
+            return outputs[self.prev_output_type]
+
+        # rendering depth outputs
+        if self.prev_colormap_type == ColormapTypes.DEPTH or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT
+            and outputs[self.prev_output_type].dtype == torch.float
+            and (torch.max(outputs[self.prev_output_type]) - 1.0) > eps  # handle floating point arithmetic
+        ):
+            return visualization.apply_depth_colormap(
+                outputs[self.prev_output_type], accumulation=outputs["accumulation"]
+            )
+
+        # rendering accumulation outputs
+        if self.prev_colormap_type == ColormapTypes.TURBO or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.float
+        ):
+            return visualization.apply_colormap(outputs[self.prev_output_type])
+
+        # rendering semantic outputs
+        if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.int
+        ):
+            logits = outputs[self.prev_output_type]
+            labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
+            assert stuff_colors is not None
+            return stuff_colors[labels]
+
+        # rendering boolean outputs
+        if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.bool
+        ):
+            return visualization.apply_boolean_colormap(outputs[self.prev_output_type])
+
+        raise NotImplementedError
+
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
+            stuff_colors: is only set if colormap is for semantics. Defaults to None.
         """
         if not self.outputs_set:
-            # set_output_options(self.vis, list(outputs.keys()))
             self.vis["renderingState/output_options"].write(list(outputs.keys()))
             self.outputs_set = True
         # gross hack to get the image key, depending on which keys the graph uses
-        if self.prev_output_type == "default":
-            self.prev_output_type = "rgb" if "rgb" in outputs else "rgb_fine"
-        image_output = outputs[self.prev_output_type].cpu().numpy() * 255
+        if self.prev_output_type == OutputTypes.INIT:
+            self.prev_output_type = OutputTypes.RGB if OutputTypes.RGB in outputs else OutputTypes.RGB_FINE
+        # re-register colormaps and send to viewer
+        if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
+            self.prev_colormap_type = ColormapTypes.DEFAULT
+            colormap_options = [ColormapTypes.DEFAULT]
+            if (
+                outputs[self.prev_output_type].shape[-1] != 3
+                and outputs[self.prev_output_type].dtype == torch.float
+                and (torch.max(outputs[self.prev_output_type]) - 1.0) <= eps  # handle floating point arithmetic
+            ):
+                # accumulation can also include depth
+                colormap_options.extend(["depth"])
+            self.output_type_changed = False
+            self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
+            self.vis["renderingState/colormap_options"].write(colormap_options)
+        selected_output = self._apply_colormap(outputs, stuff_colors).cpu().numpy()
+        image_output = selected_output * 255
         image = (image_output).astype("uint8")
         self.vis.set_image(image)
 
+    def _update_viewer_stats(self, render_time: float, image_height: int) -> None:
+        """Function that calculates and populates all the rendering statistics accordingly
+
+        Args:
+            render_time: total time spent rendering current view
+            image_height: resolution of the current view
+        """
+        is_training = self.vis["renderingState/isTraining"].read()
+        if is_training is None or is_training:
+            # process the  current rendering fps
+            eval_fps = f"{1 / render_time:.2f} fps at {image_height} res"
+            self.vis["renderingState/eval_fps"].write(eval_fps)
+            # process remaining training ETA
+            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
+            # process ratio time spent on vis vs train
+            if EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]:
+                vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
+                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
+                vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
+                self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
+            else:
+                self.vis["renderingState/vis_train_ratio"] = "Starting"
+        else:
+            self.vis["renderingState/eval_fps"].write("Paused")
+            self.vis["renderingState/train_eta"].write("Paused")
+            self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
+
     @profiler.time_function
-    def _render_image_in_viewer(self, graph: Graph) -> None:
+    def _render_image_in_viewer(self, graph: Model) -> None:
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
@@ -299,9 +415,14 @@ class VisualizerState:
 
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
-        if output_type is None:
-            output_type = "default"
+        output_type = OutputTypes.INIT if output_type is None else output_type
+        self.output_type_changed = self.prev_output_type != output_type
         self.prev_output_type = output_type
+
+        # check and perform colormap type updates
+        colormap_type = self.vis["renderingState/colormap_choice"].read()
+        colormap_type = ColormapTypes.INIT if colormap_type is None else colormap_type
+        self.prev_colormap_type = colormap_type
 
         # check and perform min/max update
         max_resolution = self.vis["renderingState/maxResolution"].read()
@@ -312,8 +433,9 @@ class VisualizerState:
         if min_resolution:
             self.min_resolution = min_resolution
 
+        damped_upsacale_factor = 1 if self.res_upscale_factor < 8 else self.res_upscale_factor
         image_height = min(
-            self.min_resolution * self.res_upscale_factor,
+            self.min_resolution * damped_upsacale_factor,
             self.max_resolution,
         )
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
@@ -335,21 +457,26 @@ class VisualizerState:
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
+
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
+        start_time = time.time()
         check_thread.start()
         render_thread.start()
-
         try:
             render_thread.join()
             check_thread.join()
         except Exception:  # pylint: disable=broad-except
             pass
+        render_duration = time.time() - start_time
 
         graph.train()
+
         outputs = render_thread.vis_outputs
         if outputs is not None:
-            self._send_output_to_viewer(outputs)
+            stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
+            self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
+            self._update_viewer_stats(render_duration, image_height)
 
 
 def get_default_vis() -> Viewer:
