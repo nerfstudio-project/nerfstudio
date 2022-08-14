@@ -18,9 +18,6 @@ export default function WebRtcWindow() {
   const getRTCPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [
-        // {
-        //   urls: 'stun:stun.l.google.com:19302',
-        // },
         {
           urls: 'stun:openrelay.metered.ca:80',
         },
@@ -44,6 +41,11 @@ export default function WebRtcWindow() {
           username: 'test',
           credential: 'test123',
         },
+        // extra STUN server(s):
+        // {
+        //   urls: 'stun:stun.l.google.com:19302',
+        // },
+        // extra TURN server(s):
         // {
         //   urls: 'turn:1830walnut.ddns.net',
         //   username: 'turnuser',
@@ -108,10 +110,10 @@ export default function WebRtcWindow() {
                   pcRef.current.iceGatheringState}`,
               );
               if (pcRef.current.iceGatheringState === 'complete') {
-                // pcRef.current.removeEventListener(
-                //   'icegatheringstatechange',
-                //   checkState,
-                // );
+                pcRef.current.removeEventListener(
+                  'icegatheringstatechange',
+                  checkState,
+                );
                 resolve();
               }
             };

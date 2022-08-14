@@ -67,6 +67,7 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
         print_red("ERRORS FOUND")
         print_red("=" * 100)
 
+
 def run_code_checks(continue_on_fail: bool = False):
     """Run a github actions file locally.
 
@@ -76,7 +77,8 @@ def run_code_checks(continue_on_fail: bool = False):
     # core code checks
     run_github_actions_file(filename=".github/workflows/core_code_checks.yml", continue_on_fail=continue_on_fail)
     # viewer build and deployment
-    run_github_actions_file(filename=".github/workflows/viewer_build_deploy.yml", continue_on_fail=continue_on_fail)
+    # run_github_actions_file(filename=".github/workflows/viewer_build_deploy.yml", continue_on_fail=continue_on_fail)
+
 
 if __name__ == "__main__":
     dcargs.cli(run_code_checks)
