@@ -1,4 +1,4 @@
-name: Build and deploy viewer client app.
+name: Build and deploy viewer.
 
 on:
   push:
@@ -21,15 +21,13 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 17.8.0
+          cache: 'yarn'
 
       - name: Install packages
-        run: npm install
+        run: yarn install
 
       - name: Build project
-        run: CI=false npm run build
-
-      # - name: Run tests
-      #   run: npm test
+        run: CI=false yarn build
 
       - name: Upload production-ready build files
         uses: actions/upload-artifact@v2
@@ -41,7 +39,10 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    # if: github.ref == 'refs/heads/master'
+
+    env:
+      SSH_KEY: ${{secrets.SSH_KEY}}
 
     steps:
       - name: Download artifact
@@ -50,8 +51,10 @@ jobs:
           name: production-files
           path: ./nerfactory/viewer/app/build
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./nerfactory/viewer/app/build
+      - name: Deploy files
+      - run: mkdir ~/.ssh
+      - run: 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
+      - run: chmod 400 ~/.ssh/github_actions_user_key_filename
+      - run: echo -e "Host github_action_remote_machine\n\tUser eweb0124\n\tHostname 34.102.68.79\n\tIdentityFile ~/.ssh/github_actions_user_key_filename\n\tStrictHostKeyChecking No" >> ~/.ssh/config
+      - run: rsync -e ssh ./nerfactory/viewer/app/build github_action_remote_machine:/home/eweb0124/viewer/build
+      - run: ssn -n github_action_remote_machine mv /home/eweb0124/viewer/build /home/eweb0124/latest

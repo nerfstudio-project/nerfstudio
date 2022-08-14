@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 
-import { WebSocketContext } from '../WebSocket/WebSocket';
 import { useDispatch } from 'react-redux';
+import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const WebRtcContext = createContext(null);
 const msgpack = require('msgpack-lite');
@@ -21,43 +21,43 @@ export default function WebRtcWindow() {
         // {
         //   urls: 'stun:stun.l.google.com:19302',
         // },
-        // {
-        //   urls: 'stun:openrelay.metered.ca:80',
-        // },
-        // {
-        //   urls: 'turn:openrelay.metered.ca:80',
-        //   username: 'openrelayproject',
-        //   credential: 'openrelayproject',
-        // },
-        // {
-        //   urls: 'turn:openrelay.metered.ca:443',
-        //   username: 'openrelayproject',
-        //   credential: 'openrelayproject',
-        // },
-        // {
-        //   urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-        //   username: 'openrelayproject',
-        //   credential: 'openrelayproject',
-        // },
-        // {
-        //   urls: 'turn:34.102.68.79:3478',
-        //   username: 'test',
-        //   credential: 'test123',
-        // },
         {
-          urls: 'turn:1830walnut.ddns.net',
-          username: 'turnuser',
-          credential: 'turnpassword',
+          urls: 'stun:openrelay.metered.ca:80',
         },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject',
+        },
+        {
+          urls: 'turn:34.102.68.79:3478',
+          username: 'test',
+          credential: 'test123',
+        },
+        // {
+        //   urls: 'turn:1830walnut.ddns.net',
+        //   username: 'turnuser',
+        //   credential: 'turnpassword',
+        // },
+        // {
+        //   urls: 'turn:turn.nerfactory.com:3478',
+        //   username: 'turnuser',
+        //   credential: 'turnpassword',
+        // },
       ],
     });
     // connect video
     pc.addEventListener('track', (evt) => {
-      dispatch({
-        type: 'write',
-        path: 'webrtcState/isConnected',
-        data: true,
-      });
       if (evt.track.kind === 'video') {
         [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
       }
@@ -66,13 +66,16 @@ export default function WebRtcWindow() {
 
     // for updating the status of the peer connection
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'connected') {
+      // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState
+      console.log(`[webrtc] connectionState: ${  pc.connectionState}`);
+      if (pc.connectionState === 'connected') {
+        console.log('[webrtc] connected');
         dispatch({
           type: 'write',
           path: 'webrtcState/isConnected',
           data: true,
         });
-      } else if (pc.iceConnectionState === 'disconnected') {
+      } else {
         dispatch({
           type: 'write',
           path: 'webrtcState/isConnected',
@@ -94,25 +97,27 @@ export default function WebRtcWindow() {
       .then(() => {
         // wait for ICE gathering to complete
         console.log('[webrtc] set local description');
-        console.log(pcRef.current);
         return new Promise((resolve) => {
           if (pcRef.current.iceGatheringState === 'complete') {
             console.log('[webrtc] ICE gathering complete');
             resolve();
           } else {
             const checkState = () => {
+              console.log(
+                `[webrtc] iceGatheringState: ${ 
+                  pcRef.current.iceGatheringState}`,
+              );
               if (pcRef.current.iceGatheringState === 'complete') {
-                pcRef.current.removeEventListener(
-                  'icegatheringstatechange',
-                  checkState,
-                );
+                // pcRef.current.removeEventListener(
+                //   'icegatheringstatechange',
+                //   checkState,
+                // );
                 resolve();
               }
             };
             console.log(
               '[webrtc] adding listener for `icegatheringstatechange`',
             );
-            console.log(pcRef.current);
             pcRef.current.addEventListener(
               'icegatheringstatechange',
               checkState,
