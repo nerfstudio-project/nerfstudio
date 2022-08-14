@@ -70,7 +70,7 @@ export default function WebRtcWindow() {
     pc.oniceconnectionstatechange = () => {
       // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState
       console.log(`[webrtc] connectionState: ${  pc.connectionState}`);
-      if (pc.connectionState === 'connected') {
+      if (pc.connectionState === 'connecting' || pc.connectionState === 'connected') {
         console.log('[webrtc] connected');
         dispatch({
           type: 'write',

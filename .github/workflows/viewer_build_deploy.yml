@@ -1,4 +1,4 @@
-name: Build and deploy viewer.
+name: Build and deploy Nerfviewer.
 
 on:
   push:
