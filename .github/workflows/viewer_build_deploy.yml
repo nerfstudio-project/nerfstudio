@@ -21,7 +21,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 17.8.0
-          cache: 'yarn'
+          # cache: 'yarn'
 
       - name: Install packages
         run: yarn install
