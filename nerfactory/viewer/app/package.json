@@ -1,6 +1,6 @@
 {
   "name": "viewer",
-  "homepage": "https://viewer.nerfactory.com/latest/",
+  "homepage": "https://viewer.nerfactory.com/master/",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
