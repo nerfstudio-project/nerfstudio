@@ -58,7 +58,7 @@ jobs:
       - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/build'
       # ${GITHUB_REF##*/} is the branch name
       - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/viewer/${GITHUB_REF##*/}'
-      - run: mkdir -p /home/eweb0124/viewer/${GITHUB_REF##*/}
+      - run: ssh github_action_remote_machine 'mkdir -p /home/eweb0124/viewer/${GITHUB_REF##*/}''
       - run: scp -r ./nerfactory/viewer/app/build github_action_remote_machine:/home/eweb0124/
       # TODO(ethan): move the current version to an older folder
       - run: ssh github_action_remote_machine 'mv /home/eweb0124/viewer/build /home/eweb0124/viewer/${GITHUB_REF##*/}'
