@@ -57,4 +57,4 @@ jobs:
       - run: echo -e "Host github_action_remote_machine\n\tUser eweb0124\n\tHostname 34.102.68.79\n\tIdentityFile ~/.ssh/github_actions_user_key_filename\n\tStrictHostKeyChecking No" >> ~/.ssh/config
       - run: ssh github_action_remote_machine rm -rf /home/eweb0124/viewer/build
       - run: scp -r ./nerfactory/viewer/app/build github_action_remote_machine:/home/eweb0124/viewer/
-      - run: ssh github_action_remote_machine mv /home/eweb0124/viewer/build /home/eweb0124/latest
+      - run: ssh github_action_remote_machine mv /home/eweb0124/viewer/build /home/eweb0124/viewer/latest
