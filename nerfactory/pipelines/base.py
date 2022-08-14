@@ -55,7 +55,7 @@ class Pipeline(nn.Module):
     primarily located in the dataloader (first because it makes sense as the
     visualizers main job in this context is to feed in data for the model to load)
     so that we can have an easier time ensuring that the visualizer is always
-    spitting out the same formatted data as for in train / eval. All this is pending changes to
+    returning the same formatted data as for in train / eval. All this is pending changes to
     be done in the future... but just bear in mind that if learned parameters are in the dataloader,
     the visualizer may have to use those parameters as well.
 

@@ -42,12 +42,12 @@ class Dataloader(nn.Module):
 
     This version of the dataloader is designed be a monolithic way to load data and latents,
     especially since this may contain learnable parameters which need to be shared across the train
-    and test dataloaders. The idea is that we have setup methods for train and eval separatley and
+    and test dataloaders. The idea is that we have setup methods for train and eval separately and
     this can be a combined train/eval if you want.
 
     Usage:
     To get data, use the next_train and next_eval functions.
-    This dataloader's next_train and next_eval methods will spit out 2 things:
+    This dataloader's next_train and next_eval methods will return 2 things:
         1. A Raybundle: This will contain the rays we are sampling, with latents and
             conditionals attached (everything needed at inference)
         2. A "batch" of auxilury information: This will contain the mask, the ground truth
@@ -127,7 +127,7 @@ class Dataloader(nn.Module):
         in an __iter__ function for our dummy iterable that we are making."""
         self.eval_count = 0
 
-    def get_train_iterable(self) -> IterableWrapper:
+    def get_train_iterable(self, length=-1) -> IterableWrapper:
         """Gets a dummy pythonic iterator that will use the iter_train and next_train functions
         as __iter__ and __next__ methods respectivley.
 
@@ -137,9 +137,9 @@ class Dataloader(nn.Module):
         since the returned IterableWrapper is just an iterator with the __iter__ and __next__
         methods (methods bound to our Dataloader instance in this case) specified in the constructor.
         """
-        return IterableWrapper(self.iter_train, self.next_train)
+        return IterableWrapper(self.iter_train, self.next_train, length)
 
-    def get_eval_iterable(self) -> IterableWrapper:
+    def get_eval_iterable(self, length=-1) -> IterableWrapper:
         """Gets a dummy pythonic iterator that will use the iter_eval and next_eval functions
         as __iter__ and __next__ methods respectivley.
 
@@ -149,7 +149,7 @@ class Dataloader(nn.Module):
         since the returned IterableWrapper is just an iterator with the __iter__ and __next__
         methods (methods bound to our Dataloader instance in this case) specified in the constructor.
         """
-        return IterableWrapper(self.iter_eval, self.next_eval)
+        return IterableWrapper(self.iter_eval, self.next_eval, length)
 
     @abstractmethod
     def setup_train(self):

@@ -112,23 +112,33 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
     Args:
         new_iter (callable): function that will be called instead as the __iter__() function
         new_next (callable): function that will be called instead as the __next__() function
+        length (int): length of the iterable. If -1, the iterable will be infinite.
 
 
     Attributes:
         new_iter (callable): object's pointer to the function we are calling for __iter__()
         new_next (callable): object's pointer to the function we are calling for __next__()
+        length (int): length of the iterable. If -1, the iterable will be infinite.
+        i (int): current index of the iterable.
 
     """
 
-    def __init__(self, new_iter: Callable, new_next: Callable):
+    i: int
+
+    def __init__(self, new_iter: Callable, new_next: Callable, length: int = -1):
         self.new_iter = new_iter
         self.new_next = new_next
+        self.length = length
 
     def __next__(self):
+        if self.length != -1 and self.i >= self.length:
+            raise StopIteration
+        self.i += 1
         return self.new_next()
 
     def __iter__(self):
         self.new_iter()
+        self.i = 0
         return self
 
 
