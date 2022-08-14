@@ -137,17 +137,6 @@ class NGPModel(Model):
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
-    def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
-        """Do preprocessing to make images valid"""
-        # TODO: make log_test_image_outputs use this directly
-        # TODO: implement across all the different model implementations
-        outputs["accumulation"] = visualization.apply_colormap(outputs["accumulation"])
-        outputs["depth"] = visualization.apply_depth_colormap(
-            outputs["depth"],
-            accumulation=outputs["accumulation"],
-        )
-        outputs["alive_ray_mask"] = visualization.apply_boolean_colormap(outputs["alive_ray_mask"])
-
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"]
         rgb = outputs["rgb"]

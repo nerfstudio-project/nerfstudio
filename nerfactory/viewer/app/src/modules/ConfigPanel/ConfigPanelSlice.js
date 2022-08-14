@@ -4,3 +4,4 @@
 export const selectTrainingState = (state) =>
   state.shared.rendering.training_state;
 export const selectOutputOptions = (state) => state.shared.output_options;
+export const selectColormapOptions = (state) => state.shared.colormap_options;
