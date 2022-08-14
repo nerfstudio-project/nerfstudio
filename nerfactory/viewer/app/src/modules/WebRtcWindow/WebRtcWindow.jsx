@@ -36,11 +36,6 @@ export default function WebRtcWindow() {
           username: 'openrelayproject',
           credential: 'openrelayproject',
         },
-        {
-          urls: 'turn:34.102.68.79:3478',
-          username: 'test',
-          credential: 'test123',
-        },
         // extra STUN server(s):
         // {
         //   urls: 'stun:stun.l.google.com:19302',

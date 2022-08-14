@@ -9,7 +9,7 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 
 ## Run hosted web viewer
 
-1. Open the Client App Viewer at ... [https://viewer.nerfactory.com/master/?localhost:8051](https://viewer.nerfactory.com/master/?localhost:8051) but make sure to change `localhost:8051` accordingly.
+1. Open the Client App Viewer at ... [https://viewer.nerfactory.com/branch/master/?localhost:8051](https://viewer.nerfactory.com/branch/master/?localhost:8051) but make sure to change `localhost:8051` accordingly.
 
 2. Run training script with viewer enabled. Note that you should only use the viewer with a fast pipeline, such as instant ngp.
     ```shell
