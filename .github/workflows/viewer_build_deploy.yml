@@ -51,19 +51,27 @@ jobs:
           name: production-files
           path: ./nerfactory/viewer/app/build
 
-      - name: Branch name
-        run: echo running on branch ${GITHUB_REF##*/}
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
       - run: mkdir ~/.ssh
       - run: 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
       - run: chmod 400 ~/.ssh/github_actions_user_key_filename
       - run: echo -e "Host github_action_remote_machine\n\tUser eweb0124\n\tHostname 34.102.68.79\n\tIdentityFile ~/.ssh/github_actions_user_key_filename\n\tStrictHostKeyChecking No" >> ~/.ssh/config
       - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/build'
-      # ${GITHUB_REF##*/} is the branch name
-      - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/viewer/${GITHUB_REF##*/}'
-      - run: ssh github_action_remote_machine 'mkdir -p /home/eweb0124/viewer/${GITHUB_REF##*/}''
+      # ${{ env.BRANCH_NAME }} is the branch name
+      - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/viewer/${{ env.BRANCH_NAME }}'
+      - run: ssh github_action_remote_machine 'mkdir -p /home/eweb0124/viewer/${{ env.BRANCH_NAME }}'
       - run: scp -r ./nerfactory/viewer/app/build github_action_remote_machine:/home/eweb0124/
       # TODO(ethan): move the current version to an older folder
-      - run: ssh github_action_remote_machine 'mv /home/eweb0124/viewer/build /home/eweb0124/viewer/${GITHUB_REF##*/}'
+      - run: ssh github_action_remote_machine 'mv /home/eweb0124/viewer/build /home/eweb0124/viewer/${{ env.BRANCH_NAME }}'
 
   # deploy:
   #   name: Deploy
