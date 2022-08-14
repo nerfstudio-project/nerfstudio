@@ -51,7 +51,6 @@ jobs:
           name: production-files
           path: ./nerfactory/viewer/app/build
 
-      - name: Deploy files
       - run: mkdir ~/.ssh
       - run: 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
       - run: chmod 400 ~/.ssh/github_actions_user_key_filename
