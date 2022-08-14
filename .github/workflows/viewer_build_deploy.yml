@@ -51,6 +51,8 @@ jobs:
           name: production-files
           path: ./nerfactory/viewer/app/build
 
+      - name: Branch name
+        run: echo running on branch ${GITHUB_REF##*/}
       - run: mkdir ~/.ssh
       - run: 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
       - run: chmod 400 ~/.ssh/github_actions_user_key_filename
