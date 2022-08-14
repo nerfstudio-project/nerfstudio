@@ -1,6 +1,6 @@
 {
   "name": "viewer",
-  "homepage": "https://ethanweber.me/nerfactory-private/",
+  "homepage": "https://viewer.nerfactory.com/latest/",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
