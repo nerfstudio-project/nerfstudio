@@ -107,7 +107,7 @@ class Dataloader(nn.Module):
             self.setup_eval()
 
     def forward(self):
-        """Dummy forward method
+        """Blank forward method
 
         This is an nn.Module, and so requires a forward() method normally, although in our case
         we do not need a forward() method"""
@@ -117,18 +117,18 @@ class Dataloader(nn.Module):
         """The __iter__ function for the train iterator.
 
         This only exists to assist the get_train_iterable function, since we need to pass
-        in an __iter__ function for our dummy iterable that we are making."""
+        in an __iter__ function for our trivial iterable that we are making."""
         self.train_count = 0
 
     def iter_eval(self):
         """The __iter__ function for the eval iterator.
 
         This only exists to assist the get_eval_iterable function, since we need to pass
-        in an __iter__ function for our dummy iterable that we are making."""
+        in an __iter__ function for our trivial iterable that we are making."""
         self.eval_count = 0
 
     def get_train_iterable(self, length=-1) -> IterableWrapper:
-        """Gets a dummy pythonic iterator that will use the iter_train and next_train functions
+        """Gets a trivial pythonic iterator that will use the iter_train and next_train functions
         as __iter__ and __next__ methods respectivley.
 
         This basically is just a little utility if you want to do something like:
@@ -140,7 +140,7 @@ class Dataloader(nn.Module):
         return IterableWrapper(self.iter_train, self.next_train, length)
 
     def get_eval_iterable(self, length=-1) -> IterableWrapper:
-        """Gets a dummy pythonic iterator that will use the iter_eval and next_eval functions
+        """Gets a trivial pythonic iterator that will use the iter_eval and next_eval functions
         as __iter__ and __next__ methods respectivley.
 
         This basically is just a little utility if you want to do something like:
