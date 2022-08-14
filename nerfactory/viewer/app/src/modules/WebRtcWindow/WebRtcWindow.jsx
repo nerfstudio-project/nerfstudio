@@ -64,8 +64,11 @@ export default function WebRtcWindow() {
     // for updating the status of the peer connection
     pc.oniceconnectionstatechange = () => {
       // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState
-      console.log(`[webrtc] connectionState: ${  pc.connectionState}`);
-      if (pc.connectionState === 'connecting' || pc.connectionState === 'connected') {
+      console.log(`[webrtc] connectionState: ${pc.connectionState}`);
+      if (
+        pc.connectionState === 'connecting' ||
+        pc.connectionState === 'connected'
+      ) {
         console.log('[webrtc] connected');
         dispatch({
           type: 'write',
@@ -101,8 +104,7 @@ export default function WebRtcWindow() {
           } else {
             const checkState = () => {
               console.log(
-                `[webrtc] iceGatheringState: ${ 
-                  pcRef.current.iceGatheringState}`,
+                `[webrtc] iceGatheringState: ${pcRef.current.iceGatheringState}`,
               );
               if (pcRef.current.iceGatheringState === 'complete') {
                 pcRef.current.removeEventListener(
