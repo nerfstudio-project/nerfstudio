@@ -7,13 +7,7 @@ method_name: vanilla_nerf
 
 pipeline:
   dataloader:
-    # Train dataloading.
     train_dataset:
-      _target_: nerfactory.dataloaders.datasets.Mipnerf360
-      data_directory: data/mipnerf_360/garden
-      downscale_factor: 1
-    # Eval dataloading
-    eval_dataset:
       _target_: nerfactory.dataloaders.datasets.Mipnerf360
       data_directory: data/mipnerf_360/garden
       downscale_factor: 1

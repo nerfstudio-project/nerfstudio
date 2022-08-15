@@ -1,8 +1,10 @@
 # Benchmarking workflow
 
-We make it easy to benchmark your new NeRF against the standard Blender dataset.
 
-#### Launching training on Blender dataset
+We make it easy to benchmark your new NeRF against the standard Blender dataset. 
+
+(train)=
+## Launching training on Blender dataset
 
 To start, you will need to train your NeRF on each of the blender objects.
 To launch training jobs automatically on each of these items, you can call:
@@ -27,8 +29,8 @@ A full example would be:
 
 The script will automatically launch training on all of the items and save the checkpoints in an output directory with the current date and timestamp.
 
-
-#### Benchmarking on Blender
+(eval)=
+## Evaluating trained Blender models
 Once you have launched training, and training converges, you can test your method with `scripts/benchmarking/launch_eval_blender.sh`.
 
 Say we ran a benchmark on 08-10-2022 for instant_ngp. By default, the train script will save the benchmarks in the following format:
@@ -47,20 +49,19 @@ outputs
 ...
 ```
 
-In the above example, we can break down the path into component flags that will be passed into the benchmarking script:
+If we wanted to run the benchmark on all the blender data for the above example, we would run:
+```bash
+./scripts/benchmarking/launch_eval_blender.sh -c graph_instant_ngp -o ./outputs/ -m 08 -d 10 -y 2022 -s 172517 -g 4 5 6 7
+```
+
+The flags used in the benchmarking script are defined as follows:
 * `-c`: config name (e.g. `graph_instant_ngp`). This should be the same as what was passed in for -c in the train script.
 * `-o`: base output directory for where all of the benchmarks are stored (e.g. `outputs/`). Corresponds to the hydra base dir.
 * `-m`: month of benchmark (e.g. `08`) of format 02d. 
 * `-d`: date of benchmark (e.g. `10`) of format 02d.
 * `-y`: year of benchmark (e.g. `2022`).
 * `-s`: seconds timestamp of benchmark (e.g. `172517`) of format 06d.
-
-If we wanted to run the full benchmark for all the blender data given the above example, we would run the following:
-```bash
-./scripts/benchmarking/launch_eval_blender.sh -c graph_instant_ngp -o ./outputs/ -m 08 -d 10 -y 2022 -s 172517 -g 4 5 6 7
-```
-
-where `-g` again specifies the gpus to use and if not specified (no -g flag), will automaticaly search for available gpus.
+* `-g`: specifies the gpus to use and if not specified (no -g flag), will automaticaly search for available gpus.
 
 The script will simultaneously run the benchmarking across all the objects in the blender dataset and calculates the PSNR/FPS/other stats. The results are saved as .json files in the `-o` directory with the following format:
 

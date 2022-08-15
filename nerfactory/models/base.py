@@ -125,14 +125,6 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def process_outputs_as_images(self, outputs):  # pylint:disable=no-self-use
-        """Process output images into visualizable colored images"""
-        # TODO override this function elsewhere or do something else for processing images
-        for k, v in outputs.items():
-            if v.shape[-1] == 1:
-                v = torch.tile(v, (1, 1, 3))
-            outputs[k] = v
-
     @overload
     def forward(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
         ...
@@ -190,7 +182,7 @@ class Model(nn.Module):
         """Computes and returns the losses dict."""
 
     @torch.no_grad()
-    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle):
+    def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model."""
         assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]

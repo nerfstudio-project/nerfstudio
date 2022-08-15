@@ -8,13 +8,7 @@ method_name: nerfw
 pipeline:
   dataloader:
     image_dataset_type: panoptic
-    # Train dataloading.
     train_dataset:
-      _target_: nerfactory.dataloaders.datasets.Friends
-      data_directory: data/friends/TBBT-big_living_room
-      downscale_factor: 1
-    # Eval dataloading
-    eval_dataset:
       _target_: nerfactory.dataloaders.datasets.Friends
       data_directory: data/friends/TBBT-big_living_room
       downscale_factor: 1

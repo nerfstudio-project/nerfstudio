@@ -9,5 +9,4 @@ It can be difficult getting started with NeRFs. The field is still quite new and
     Ray Samplers<visualize_samplers.ipynb>
     Spatial Distortions<visualize_spatial_distortions.ipynb>
     Encoders<visualize_encoders.ipynb>
-    Viewer<visualize_viewer.ipynb>
 ```
