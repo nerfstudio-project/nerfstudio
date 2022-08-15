@@ -51,6 +51,8 @@ class Model(nn.Module):
         density_field_config: Configuration of density field.
     """
 
+    config: ModelConfig
+
     def __init__(
         self,
         scene_bounds: SceneBounds,

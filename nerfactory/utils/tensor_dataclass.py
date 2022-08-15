@@ -15,7 +15,7 @@
 """Tensor dataclass"""
 
 import dataclasses
-from typing import Callable, NoReturn, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, NoReturn, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
