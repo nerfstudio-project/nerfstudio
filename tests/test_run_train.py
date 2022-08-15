@@ -7,9 +7,10 @@ import os
 import pytest
 from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
-from omegaconf import DictConfig
+from omegaconf import DictConfig, open_dict
 
-from scripts.run_train import main
+from nerfactory.engine.trainer import train_loop
+from nerfactory.utils.config import setup_config
 
 BLACKLIST = ["graph_semantic_nerf.yaml", "graph_mipnerf_360.yaml", "graph_instant_ngp.yaml"]
 
@@ -29,11 +30,12 @@ def set_reduced_config(config: DictConfig):
     }
     config.pipeline.dataloader.train_num_images_to_sample_from = 1
     config.pipeline.dataloader.train_num_rays_per_batch = 4
-    config.pipeline.dataloader.eval_dataset = {
-        "_target_": "nerfactory.dataloaders.datasets.Blender",
-        "data_directory": "tests/data/lego_test",
-        "downscale_factor": 16,
-    }
+    with open_dict(config):
+        config.pipeline.dataloader.eval_dataset = {
+            "_target_": "nerfactory.dataloaders.datasets.Blender",
+            "data_directory": "tests/data/lego_test",
+            "downscale_factor": 16,
+        }
 
     # reduce model factors
     config.pipeline.model.num_coarse_samples = 4
@@ -61,7 +63,9 @@ def test_run_train():
         initialize(version_base="1.2", config_path="../configs/")  # relative to test path
         config = compose(config_path)
         config = set_reduced_config(config)
-        main(config)
+        config = setup_config(config)
+
+        train_loop(local_rank=0, world_size=0, config=config)
 
         GlobalHydra.instance().clear()
 
