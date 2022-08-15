@@ -71,7 +71,7 @@ class DataloaderConfig:
     train_num_rays_per_batch: int = MISSING
     train_num_images_to_sample_from: int = MISSING
     eval_dataset: Optional[Dict[str, Any]] = None
-    eval_image_indices: List[int] = MISSING
+    eval_image_indices: Optional[List[int]] = None
     eval_num_rays_per_chunk: int = MISSING
 
 
@@ -141,7 +141,11 @@ def setup_config(config: DictConfig) -> Config:
     trainer = TrainerConfig(**config.trainer)
     experiment_name = config.experiment_name
     method_name = config.method_name
-    pipeline = PipelineConfig(**config.pipeline)
+    dataloader = DataloaderConfig(**config.pipeline.dataloader)
+    model = ModelConfig(**config.pipeline.model)
+    pipeline = PipelineConfig(
+        _target_=config.pipeline._target_, dataloader=dataloader, model=model  # pylint:disable=protected-access
+    )
     optimizers = config.optimizers
     viewer = ViewerConfig(**config.viewer)
 

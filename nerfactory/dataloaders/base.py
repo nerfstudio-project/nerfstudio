@@ -222,7 +222,6 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 @profiler.time_function
 def setup_dataloader(config: DataloaderConfig, device: str, test_mode=False) -> Dataloader:
     """Setup the dataloader."""
-
     dataset_train = instantiate_from_dict_config(config.train_dataset)
     train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
     if config.eval_dataset is not None:
