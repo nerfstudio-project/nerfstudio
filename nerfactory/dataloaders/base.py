@@ -38,52 +38,63 @@ from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
 
 
 class Dataloader(nn.Module):
-    """Second version of the dataloader class (V2)
+    """Generic dataloader's abstract class
 
-    This version of the dataloader is designed to subsume both the train and eval dataloaders,
+    This version of the dataloader is designed be a monolithic way to load data and latents,
     especially since this may contain learnable parameters which need to be shared across the train
-    and test dataloaders. The idea is that we have setup methods for train and eval separatley and
+    and test dataloaders. The idea is that we have setup methods for train and eval separately and
     this can be a combined train/eval if you want.
 
-    The default should be for the train and eval dataloaders to be the same, but this can be
-    overridden. This is needed when there are learned parameters either in your data itself or in
-    the way some of the data (that we will pass to the renderer / Field) was generated. In these
-    cases, we want these parameters to be accessible by both the train and eval dataloaders, hence
-    why you would want them to be in the same dataloader.
+    Usage:
+    To get data, use the next_train and next_eval functions.
+    This dataloader's next_train and next_eval methods will return 2 things:
+        1. A Raybundle: This will contain the rays we are sampling, with latents and
+            conditionals attached (everything needed at inference)
+        2. A "batch" of auxilury information: This will contain the mask, the ground truth
+            pixels, etc needed to actually train, score, etc the model
 
-    An instance where you may want to have only the eval dataloader is if you are doing evaluation
-    and don't have the dataset used to train the model.
+    Rationale:
+    Because of this abstraction we've added, we can support more NeRF paradigms beyond the
+    vanilla nerf paradigm of single-scene, fixed-images, no-learnt-latents.
+    We can now support variable scenes, variable number of images, and arbitrary latents.
 
 
     Train Methods:
         setup_train: sets up for being used as train
-        iter_train: returns an iterator of the train dataloader
+        iter_train: will be called on __iter__() for the train iterator
         next_train: will be called on __next__() for the training iterator
+        get_train_iterable: utility that gets a clean pythonic iterator for your training data
 
     Eval Methods:
         setup_eval: sets up for being used as eval
-        iter_eval: returns an iterator of the eval dataloader
+        iter_eval: will be called on __iter__() for the eval iterator
         next_eval: will be called on __next__() for the eval iterator
+        get_eval_iterable: utility that gets a clean pythonic iterator for your eval data
 
     Args:
-        image_sampler (ImageSampler): image sampler
-        pixel_sampler (PixelSampler): pixel sampler
-        ray_generator (RayGenerator): ray generator
-        use_train (bool): whether this is being used for training
-        use_eval (bool): whether this is being used for evaluation
+        use_train (bool): whether this dataloader is being used for training
+        use_eval (bool): whether this dataloader is being used for evaluation
 
     Attributes:
-        image_sampler (ImageSampler): image sampler
-        pixel_sampler (PixelSampler): pixel sampler
-        train_count (int): number of times train has been called
-        eval_count (int): number of times eval has been called
+        use_train (bool): whether or not we are using train
+        use_eval (bool): whether or not we are using eval
+        train_count (int): the step number of our train iteration, needs to be incremented manually
+        eval_count (int): the step number of our eval iteration, needs to be incremented manually
+
+        Additional attributes specific to each subclass are defined in the setuo_train and setup_eval
+        functions.
+
     """
 
-    def __init__(
-        self,
-        use_train: bool,
-        use_eval: bool,
-    ):
+    def __init__(self, use_train: bool, use_eval: bool):
+        """Constructor for the Dataloader class.
+
+        Subclassed Dataloaders will likely need to override this constructor.
+
+        If you aren't manually calling the setup_train and setup_eval functions from an overriden
+        constructor, that you call super().__init__(use_train, use_eval) BEFORE you initialize any
+        nn.Modules or nn.Parameters, but AFTER you've already set all the attributes you need
+        for the setup functions."""
         super().__init__()
         self.use_train = use_train
         self.use_eval = use_eval
@@ -96,22 +107,55 @@ class Dataloader(nn.Module):
             self.setup_eval()
 
     def forward(self):
-        """Dummy forward method"""
+        """Blank forward method
+
+        This is an nn.Module, and so requires a forward() method normally, although in our case
+        we do not need a forward() method"""
         raise NotImplementedError
 
-    def iter_train(self) -> IterableWrapper:
-        """Returns an iterator that executes the self.next_train function"""
-        self.train_count = 0
-        return IterableWrapper(self, self.next_train)
+    def iter_train(self):
+        """The __iter__ function for the train iterator.
 
-    def iter_eval(self) -> IterableWrapper:
-        """Returns an iterator that executes the self.next_eval function"""
+        This only exists to assist the get_train_iterable function, since we need to pass
+        in an __iter__ function for our trivial iterable that we are making."""
+        self.train_count = 0
+
+    def iter_eval(self):
+        """The __iter__ function for the eval iterator.
+
+        This only exists to assist the get_eval_iterable function, since we need to pass
+        in an __iter__ function for our trivial iterable that we are making."""
         self.eval_count = 0
-        return IterableWrapper(self, self.next_eval)
+
+    def get_train_iterable(self, length=-1) -> IterableWrapper:
+        """Gets a trivial pythonic iterator that will use the iter_train and next_train functions
+        as __iter__ and __next__ methods respectivley.
+
+        This basically is just a little utility if you want to do something like:
+        |    for ray_bundle, batch in dataloader.get_train_iterable():
+        |        <eval code here>
+        since the returned IterableWrapper is just an iterator with the __iter__ and __next__
+        methods (methods bound to our Dataloader instance in this case) specified in the constructor.
+        """
+        return IterableWrapper(self.iter_train, self.next_train, length)
+
+    def get_eval_iterable(self, length=-1) -> IterableWrapper:
+        """Gets a trivial pythonic iterator that will use the iter_eval and next_eval functions
+        as __iter__ and __next__ methods respectivley.
+
+        This basically is just a little utility if you want to do something like:
+        |    for ray_bundle, batch in dataloader.get_eval_iterable():
+        |        <eval code here>
+        since the returned IterableWrapper is just an iterator with the __iter__ and __next__
+        methods (methods bound to our Dataloader instance in this case) specified in the constructor.
+        """
+        return IterableWrapper(self.iter_eval, self.next_eval, length)
 
     @abstractmethod
     def setup_train(self):
-        """Sets up the dataloader for training"""
+        """Sets up the dataloader for training.
+
+        Here you will define any subclass specific object attributes from the attribute"""
         raise NotImplementedError
 
     @abstractmethod
@@ -135,6 +179,7 @@ class Dataloader(nn.Module):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the dataloader.
 
@@ -145,7 +190,13 @@ class Dataloader(nn.Module):
 
 
 class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
-    """Basic stored dataloader implementation for instant-ngp test run"""
+    """Basic stored dataloader implementation.
+
+    This is pretty much a port over from our old dataloading utilities, and is a little jank
+    under the hood. We may clean this up a little bit under the hood with more standard dataloading
+    components that can be strung together, but it can be just used as a black box for now since
+    only the constructor is likely to change in the future, or maybe passing in step number to the
+    next_train and next_eval functions."""
 
     def __init__(
         self,
