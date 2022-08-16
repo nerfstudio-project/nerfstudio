@@ -3,7 +3,16 @@ defaults:
   - override hydra/hydra_logging: colorlog
   - _self_
 
+machine:
+  seed: 42
+  num_gpus: 1
+  num_machines: 1
+  machine_rank: 0
+  dist_url: auto
+
 logging:
+  steps_per_log: 10
+  max_buffer_size: 20
   # writer logs losses and images per iteration
   writer:
     TensorboardWriter:
@@ -13,6 +22,18 @@ logging:
       stats_to_track:
         [ITER_LOAD_TIME, ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
       max_log_size: 10 # if 0, logs everything with no erasing
+  # profiler logs run times of functions and prints at end of training
+  enable_profiler: True
+
+trainer:
+  model_dir: './checkpoints'
+  steps_per_save: 1000
+  steps_per_test: 500
+  max_num_iterations: 1000000
+  mixed_precision: False
+  resume_train:
+    load_dir: # pretrained model directory
+    load_step: # pretrained model's step number
 
 experiment_name: blender_lego
 method_name: vanilla_nerf
