@@ -439,8 +439,8 @@ class Record3D(Dataset):
         H = metadata_dict["h"]
         W = metadata_dict["w"]
 
-        # The metadata dict comes with principle points, but caused errors in
-        # image coord indexing. Should update once that is fixed.
+        # TODO(akristoffersen): The metadata dict comes with principle points,
+        # but caused errors in image coord indexing. Should update once that is fixed.
         cx, cy = W / 2, H / 2
 
         num_cameras = len(image_filenames)
