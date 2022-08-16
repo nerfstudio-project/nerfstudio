@@ -43,7 +43,6 @@ class Pipeline(nn.Module):
     worrying about:
     1) Fetching data with the dataloader
     2) Feeding the model the data and fetching the loss
-    3) (TODO) Visualization
     Hopefully this provides a higher level interface for the trainer to use, and
     simplifying the model classes, which each may have different forward() methods
     and so on.
@@ -56,7 +55,9 @@ class Pipeline(nn.Module):
     primarily located in the dataloader (first because it makes sense as the
     visualizers main job in this context is to feed in data for the model to load)
     so that we can have an easier time ensuring that the visualizer is always
-    spitting out the same formatted data as for in train / eval.
+    returning the same formatted data as for in train / eval. All this is pending changes to
+    be done in the future... but just bear in mind that if learned parameters are in the dataloader,
+    the visualizer may have to use those parameters as well.
 
 
     Args:
@@ -66,8 +67,6 @@ class Pipeline(nn.Module):
 
     Attributes:
         self.dataloader (Dataloader): The dataloader that will be used
-        self.dataloader_train_iter (Iterator): The iterator for the training dataloader
-        self.dataloader_eval_iter (Iterator): The iterator for the evaluation dataloader
         self.model (Model): The model that will be used
     """
 
