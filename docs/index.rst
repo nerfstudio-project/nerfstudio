@@ -37,17 +37,17 @@ Contents
    :caption: Getting Started
 
    Quickstart<tutorials/quickstart_index>
-   tutorials/data/data_index
-   tutorials/models/creating_pipelines
-   tutorials/viewer/using_viewer
+   tutorials/data/index
+   tutorials/pipelines/index
+   tutorials/viewer/index
 
 .. toctree::
    :hidden:
    :caption: Guides
 
-   
    models/index
-   notebooks/index
+   model_components/index
+   dataloader_components/index
 
 .. toctree::
    :hidden:

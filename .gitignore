@@ -171,6 +171,7 @@ data
 data_*/
 !nerfactory/data
 !configs/data
+configs_custom
 !docs/tutorials/data
 
 # Misc
