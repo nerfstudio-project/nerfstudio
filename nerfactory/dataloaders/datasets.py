@@ -379,7 +379,7 @@ class Mipnerf360(Dataset):
 
 @dataclass
 class Record3D(Dataset):
-    """MipNeRF 360 Dataset
+    """Record3D Dataset
 
     Args:
         data_directory: Location of data
@@ -393,7 +393,7 @@ class Record3D(Dataset):
     val_skip: int = 8
     aabb_scale = 4.0
 
-    def _generate_dataset_inputs(self, split="train"):
+    def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
         abs_dir = get_absolute_path(self.data_directory)
 
         image_dir = os.path.join(abs_dir, "rgb")
