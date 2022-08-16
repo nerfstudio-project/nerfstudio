@@ -17,7 +17,7 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 from torchtyping import TensorType
@@ -154,22 +154,25 @@ class RayBundle(TensorDataclass):
     Args:
         origins: Ray origins (XYZ)
         directions: Unit ray direction vector
-        pixel_area: Projected area of pixel a distance 1 away from origin.
+        pixel_area: Projected area of pixel a distance 1 away from origin
         camera_indices: Camera indices
         nears: Distance along ray to start sampling
         fars: Rays Distance along ray to stop sampling
         valid_mask: Rays that are valid
         num_rays_per_chunk: Number of rays per chunk
+        metadata: Additional metadata that the user can populate from the Dataloader
     """
 
-    origins: TensorType["num_rays", 3]
-    directions: TensorType["num_rays", 3]
-    pixel_area: TensorType["num_rays", 1]
-    camera_indices: Optional[TensorType["num_rays", 1]] = None
-    nears: Optional[TensorType["num_rays", 1]] = None
-    fars: Optional[TensorType["num_rays", 1]] = None
-    valid_mask: Optional[TensorType["num_rays", 1, bool]] = None
+    # TODO(ethan): make sure the sizes with ... are correct
+    origins: TensorType[..., 3]
+    directions: TensorType[..., 3]
+    pixel_area: TensorType[..., 1]
+    camera_indices: Optional[TensorType[..., 1]] = None
+    nears: Optional[TensorType[..., 1]] = None
+    fars: Optional[TensorType[..., 1]] = None
+    valid_mask: Optional[TensorType[..., 1, bool]] = None
     num_rays_per_chunk: int = 128
+    metadata: Optional[str, TensorType[..., "dim"]] = None  # TODO(ethan): figure out how to type this
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.

@@ -14,31 +14,47 @@
 
 """Structured config classes"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar
 
 from omegaconf import MISSING, DictConfig
+from nerfactory.dataloaders.base import VanillaDataloader
+from nerfactory.models.base import Model
+from ..pipelines.base import Pipeline
+
+
+class InstantiateConfig:
+    """Config class for instantiating an the class specified in the _target attribute."""
+
+    _target: ClassVar[Type]
+
+    def setup(self) -> TypeVar:
+        """Returns the instantiated object using the config."""
+        return self._target(self)
 
 
 @dataclass
 class MachineConfig:
     """Configuration of machine setup"""
 
-    seed: int = MISSING
-    num_gpus: int = MISSING
-    num_machines: int = MISSING
-    machine_rank: int = MISSING
-    dist_url: str = MISSING
+    seed: int = 42
+    num_gpus: int = 1
+    num_machines: int = 1
+    machine_rank: int = 0
+    dist_url: str = "auto"
 
 
 @dataclass
 class LoggingConfig:
     """Configuration of loggers and profilers"""
 
-    steps_per_log: int = MISSING
-    max_buffer_size: int = MISSING
+    steps_per_log: int = 10
+    max_buffer_size: int = 20
     writer: Dict[str, Any] = MISSING
-    enable_profiler: bool = MISSING
+    # profiler logs run times of functions and prints at end of training
+    enable_profiler: bool = True
 
 
 @dataclass
@@ -53,19 +69,19 @@ class ResumeTrainConfig:
 class TrainerConfig:
     """Configuration for training regimen"""
 
-    model_dir: str = MISSING
-    steps_per_save: int = MISSING
-    steps_per_test: int = MISSING
-    max_num_iterations: int = MISSING
-    mixed_precision: bool = MISSING
+    model_dir: str = "./checkpoints"
+    steps_per_save: int = 1000
+    steps_per_test: int = 500
+    max_num_iterations: int = 1000000
+    mixed_precision: bool = False
     resume_train: ResumeTrainConfig = MISSING
 
 
 @dataclass
-class DataloaderConfig:
+class VanillaDataloaderConfig(InstantiateConfig):
     """Configuration for train/eval datasets"""
 
-    _target_: str = MISSING
+    _target: ClassVar[Type] = VanillaDataloader
     image_dataset_type: Optional[str] = "rgb"
     train_dataset: Dict[str, Any] = MISSING
     train_num_rays_per_batch: int = MISSING
@@ -76,14 +92,12 @@ class DataloaderConfig:
 
 
 @dataclass
-class ModelConfig:
+class ModelConfig(InstantiateConfig):
     """Configuration for graph instantiation"""
 
-    _target_: str = MISSING
+    _target: ClassVar[Type] = Model
     enable_collider: Optional[bool] = True
     collider_config: Dict[str, Any] = MISSING
-    num_coarse_samples: int = MISSING
-    num_importance_samples: int = MISSING
     loss_coefficients: Dict[str, Any] = MISSING
     # additional optional parameters here
     field_implementation: Optional[str] = "torch"
@@ -92,10 +106,10 @@ class ModelConfig:
 
 
 @dataclass
-class PipelineConfig:
+class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
-    _target_: str = MISSING
+    _target: ClassVar[Type] = Pipeline
     dataloader: DataloaderConfig = MISSING
     model: ModelConfig = MISSING
 

@@ -33,7 +33,7 @@ from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
-from nerfactory.utils.config import DataloaderConfig
+from nerfactory.utils.config import DataloaderConfig, VanillaDataloaderConfig
 from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
 
 
@@ -143,29 +143,22 @@ class Dataloader(nn.Module):
         """
         return {}
 
-
 class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     """Basic stored dataloader implementation for instant-ngp test run"""
 
+    config: VanillaDataloaderConfig
+
     def __init__(
         self,
-        image_dataset_type: str,
         train_datasetinputs: DatasetInputs,
-        train_num_rays_per_batch: int,
-        train_num_images_to_sample_from: int,
         eval_datasetinputs: DatasetInputs,
-        eval_image_indices: Union[List[int], ListConfig],  # TODO(ethan): get rid of this hydra ListConfig nonsense
-        eval_num_rays_per_chunk: int,
+        config: VanillaDataloaderConfig = VanillaDataloaderConfig(),
         device: Union[torch.device, str] = "cpu",
         **kwargs  # pylint: disable=unused-argument
     ):
-        self.image_dataset_type = image_dataset_type
         self.train_datasetinputs = train_datasetinputs
-        self.train_num_rays_per_batch = train_num_rays_per_batch
-        self.train_num_images_to_sample_from = train_num_images_to_sample_from
         self.eval_datasetinputs = eval_datasetinputs
-        self.eval_image_indices = eval_image_indices
-        self.eval_num_rays_per_chunk = eval_num_rays_per_chunk
+        self.config = config
         self.device = device
         use_train = self.train_datasetinputs is not None
         use_eval = self.eval_datasetinputs is not None
@@ -178,7 +171,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         elif self.image_dataset_type == "panoptic":
             self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
         self.train_image_sampler = CacheImageSampler(
-            self.train_image_dataset, num_images_to_sample_from=self.train_num_images_to_sample_from, device=self.device
+            self.train_image_dataset, num_images_to_sample_from=self.config.train_num_images_to_sample_from, device=self.device
         )  # TODO(ethan): pass this in
         self.iter_train_image_sampler = iter(self.train_image_sampler)
         self.train_pixel_sampler = PixelSampler(self.train_num_rays_per_batch)
@@ -196,8 +189,8 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
             image_dataset=self.eval_image_dataset,
             intrinsics=self.eval_datasetinputs.intrinsics,
             camera_to_world=self.eval_datasetinputs.camera_to_world,
-            num_rays_per_chunk=self.eval_num_rays_per_chunk,
-            image_indices=self.eval_image_indices,
+            num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
+            image_indices=self.config.eval_image_indices,
             device=self.device,
         )
 

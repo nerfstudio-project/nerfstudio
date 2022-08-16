@@ -71,10 +71,15 @@ class Pipeline(nn.Module):
         self.model (Model): The model that will be used
     """
 
-    def __init__(self, dataloader: Dataloader, model: Model):
+    def __init__(self, config: PipelineConfig):
         super().__init__()
-        self.dataloader: Dataloader = dataloader
-        self.model: Model = model
+        self.dataloader = config.dataloader.setup()
+        self.model = config.model.setup()
+
+    @classmethod
+    def from_dataloader_and_model(cls, dataloader: Dataloader, model: Model):
+        # TODO(ethan): finish implementing this
+        return cls(dataloader, model)
 
     @property
     def device(self):
