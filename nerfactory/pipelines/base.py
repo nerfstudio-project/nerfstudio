@@ -24,8 +24,10 @@ from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.dataloaders.base import Dataloader, setup_dataloader
+from nerfactory.utils.callbacks import TrainingCallbackAttributes
 from nerfactory.models.base import Model, setup_model
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import TrainingCallback
 from nerfactory.utils.config import PipelineConfig
 
 
@@ -112,6 +114,15 @@ class Pipeline(nn.Module):
         """Load the checkpoint from the given path"""
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         self.load_state_dict(state)  # type: ignore
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        """Returns the training callbacks from both the Dataloader and the Model."""
+        dataloader_callbacks = self.dataloader.get_training_callbacks(training_callback_attributes)
+        model_callbacks = self.model.get_training_callbacks(training_callback_attributes)
+        callbacks = dataloader_callbacks + model_callbacks
+        return callbacks
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.

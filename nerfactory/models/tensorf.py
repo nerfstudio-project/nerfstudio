@@ -26,30 +26,30 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.utils.callbacks import TrainingCallbackAttributes
 from nerfactory.fields.modules.encoding import TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
+from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import TrainingCallback
 
 
-class TensoRFGraph(Graph):
+class TensoRFModel(Model):
     """
-    TensoRF Graph
+    TensoRF Model
     """
 
     def __init__(
         self,
-        intrinsics: torch.Tensor = None,
-        camera_to_world: torch.Tensor = None,
         near_plane: float = 2.0,
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
@@ -74,33 +74,37 @@ class TensoRFGraph(Graph):
             ).long()[1:]
         ).tolist()
 
-        super().__init__(
-            intrinsics=intrinsics, camera_to_world=camera_to_world, enable_density_field=enable_density_field, **kwargs
-        )
+        super().__init__(enable_density_field=enable_density_field, **kwargs)
 
-    def get_training_callbacks(self) -> List[Callback]:
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_training_callbacks")
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        def reinitialize_optimizers():
+
+            # upsample the position and direction grids
+            self.field.position_encoding.upsample_grid(upsampling_steps=self.upsampling_steps)
+            self.field.direction_encoding.upsample_grid(upsampling_steps=self.upsampling_steps)
+
+            # reinitialize the optimizer
+            optimizers_config = training_callback_attributes.optimizers.config
+            training_callback_attributes.optimizers = Optimizers(
+                optimizers_config, training_callback_attributes.pipeline.get_param_groups()
+            )
+            # TODO(ethan): do something with the learning rate
+            # we don't want to reinitialize the learning rate each time
+
         callbacks = [
-            Callback(
+            TrainingCallback(
                 iters=self.upsampling_iters,
-                func=self.field.position_encoding.upsample_grid,  # type: ignore
+                func=reinitialize_optimizers,  # type: ignore
                 reinit=True,
                 upsampling_steps=self.upsampling_steps,
-            ),
-            Callback(
-                iters=self.upsampling_iters,
-                func=self.field.direction_encoding.upsample_grid,  # type: ignore
-                reinit=True,
-                upsampling_steps=self.upsampling_steps,
-            ),
+            )
         ]
+        return callbacks
 
-        return callbacks  # type: ignore
-
-    def populate_fields(self):
-        """Set the fields."""
-
+    def populate_misc_modules(self):
+        # fields
         position_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
             num_components=24,
@@ -117,7 +121,6 @@ class TensoRFGraph(Graph):
             base_mlp_layer_width=128,
         )
 
-    def populate_misc_modules(self):
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, density_field=self.density_field)
@@ -137,17 +140,12 @@ class TensoRFGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field.parameters())
         param_groups["position_encoding"] = list(self.field.position_encoding.parameters())
         param_groups["direction_encoding"] = list(self.field.direction_encoding.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
-
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_outputs")
 
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)

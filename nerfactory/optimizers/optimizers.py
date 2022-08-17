@@ -28,21 +28,6 @@ from torch.optim.lr_scheduler import LambdaLR
 from nerfactory.utils import writer
 
 
-def setup_optimizers(
-    config: Union[DictConfig, Dict[str, Any]], param_groups: Dict[str, List[Parameter]]
-) -> "Optimizers":
-    """Helper to set up the optimizers
-
-    Args:
-        config: The optimizer configuration object.
-        param_groups: A dictionary of parameter groups to optimize.
-
-    Returns:
-        The optimizers object.
-    """
-    return Optimizers(config, param_groups)
-
-
 class ExponentialDecaySchedule(LambdaLR):
     """Exponential learning rate decay function.
     See https://github.com/google-research/google-research/blob/

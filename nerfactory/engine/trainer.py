@@ -15,6 +15,7 @@
 """
 Code to train model.
 """
+from dataclasses import dataclass
 import functools
 import logging
 import os
@@ -26,11 +27,10 @@ import torch.distributed as dist
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from nerfactory.dataloaders.structs import DatasetInputs
-from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
+from nerfactory.optimizers.optimizers import Optimizers
 from nerfactory.pipelines.base import Pipeline, setup_pipeline
 from nerfactory.utils import profiler, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.config import Config
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
@@ -74,8 +74,6 @@ class Trainer:
         if self.device == "cpu":
             self.mixed_precision = False
             logging.warning("Mixed precision is disabled for CPU training.")
-        # dataset variables
-        self.dataset_inputs_train: DatasetInputs
         # model variables
         self.pipeline: Pipeline
         self.optimizers: Optimizers
@@ -87,7 +85,7 @@ class Trainer:
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # training callbacks
-        self.callbacks: List[Callback]
+        self.callbacks: List[TrainingCallback]
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
@@ -96,7 +94,7 @@ class Trainer:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
         self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device, test_mode=test_mode)
-        self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
+        self.optimizers = Optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 
@@ -106,8 +104,9 @@ class Trainer:
             )
             dist.barrier(device_ids=[self.local_rank])
 
-        # TODO(ethan): do this for pipeline, not pipeline.model
-        self.callbacks = self.pipeline.model.get_training_callbacks()
+        self.callbacks = self.pipeline.get_training_callbacks(
+            TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler)
+        )
 
     def train(self) -> None:
         """Train the model."""
@@ -214,9 +213,7 @@ class Trainer:
 
         self.optimizers.scheduler_step_all(step)
         for callback in self.callbacks:
-            callback.after_step(step)
-            if callback.reinit and callback.iters and step in callback.iters:
-                self.optimizers = setup_optimizers(self.config.optimizers, self.graph.get_param_groups())
+            callback.after_train_iteration(step)
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss

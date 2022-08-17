@@ -16,13 +16,28 @@
 Callback code used for training iterations
 """
 
+from dataclasses import dataclass
 from typing import Callable, Optional, Tuple
 
+# from nerfactory.optimizers.optimizers import Optimizers
 
-class Callback:
+
+@dataclass
+class TrainingCallbackAttributes:
+    """Attributes that can be used to configure training callbacks.
+    The callbacks can be specified in the Dataloader or Model implementations.
+    Instead of providing access to the entire Trainer object, we only provide these attributes.
+    This should be least prone to errors and fairly clean from a user perspective."""
+
+    optimizers = None #: Optimizers
+    grad_scaler = None #: GradScaler
+    pipeline = None #: Pipeline
+
+
+class TrainingCallback:
     """Callback class used during training.
     The function 'func' with 'args' and 'kwargs' will be called every 'update_every_num_iters' training iterations,
-    including at iteration 0.
+    including at iteration 0. The function is called after the training iteration.
 
     Args:
         update_every_num_iters: How often to call the function `func`.
@@ -48,16 +63,8 @@ class Callback:
         self.args = args
         self.kwargs = kwargs
 
-    def before_step(self, step: int):
-        """callback to run before training step
-
-        Args:
-            step (int): current iteration step
-        """
-        raise NotImplementedError
-
-    def after_step(self, step: int):
-        """callback to run after training step
+    def after_train_iteration(self, step: int):
+        """Callback to run after training step
 
         Args:
             step (int): current iteration step
