@@ -149,7 +149,7 @@ def main(
     Args:
         config_name: Name of the config file to use.
         checkpoint_dir: Directory to load the checkpoint from.
-        rendered_output_name: Name of the renderer output to use.
+        rendered_output_name: Name of the renderer output to use (rgb, depth, etc.).
         method: Method to use for evaluation. PSNR computes metrics, TRAJ renders a trajectory.
         traj: Trajectory to render.
         output_filename: Name of the output file.
