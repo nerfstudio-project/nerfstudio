@@ -191,20 +191,6 @@ class Dataloader(nn.Module):
         return {}
 
 
-@dataclass
-class VanillaDataloaderConfig(cfg.InstantiateConfig):
-    """Configuration for train/eval datasets"""
-
-    _target: str = "nerfactory.dataloaders.base.VanillaDataloader"
-    image_dataset_type: Optional[str] = "rgb"
-    train_dataset: Dict[str, Any] = MISSING
-    train_num_rays_per_batch: int = MISSING
-    train_num_images_to_sample_from: int = MISSING
-    eval_dataset: Optional[Dict[str, Any]] = None
-    eval_image_indices: Optional[List[int]] = None
-    eval_num_rays_per_chunk: int = MISSING
-
-
 class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     """Basic stored dataloader implementation.
 
@@ -214,11 +200,11 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     only the constructor is likely to change in the future, or maybe passing in step number to the
     next_train and next_eval functions."""
 
-    config: VanillaDataloaderConfig
+    config: cfg.DataloaderConfig
 
     def __init__(
         self,
-        config: VanillaDataloaderConfig = VanillaDataloaderConfig(),
+        config: cfg.DataloaderConfig = cfg.DataloaderConfig(),
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
         **kwargs,  # pylint: disable=unused-argument
