@@ -63,7 +63,7 @@ for dataset in ${DATASETS[@]}; do
         --checkpoint-dir ${checkpoint_dir} \
         --rendered-output-name rgb \
         --output-filename ${output_dir}/${base_config_name}/blender_${dataset}_${month}-${date}-${year}_${seconds}.json \
-        --config-overrides data.dataset_inputs_train.data_directory=data/blender/${dataset} data.dataset_inputs_eval.data_directory=data/blender/${dataset} &
+        --config-overrides pipeline.dataloader.train_dataset.data_directory=data/blender/${dataset} &
     echo "Launched ${checkpoint_dir} on gpu ${GPU_IDX[$idx]}"
 
     # update gpu

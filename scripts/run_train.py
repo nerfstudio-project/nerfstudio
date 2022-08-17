@@ -19,7 +19,7 @@ import yaml
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
-from nerfactory.engine.trainer import Trainer
+from nerfactory.engine.trainer import train_loop
 from nerfactory.utils import comms, profiler
 from nerfactory.utils.config import Config, setup_config
 
@@ -112,23 +112,6 @@ def _distributed_worker(
     return output
 
 
-def _train(local_rank: int, world_size: int, config: Config) -> Any:
-    """Main training function that sets up and runs the trainer per process
-
-    Args:
-        local_rank (int): current rank of process
-        world_size (int): total number of gpus available
-        config (Config): config file specifying training regimen
-
-    Returns:
-        Any: TODO(): determine the return type
-    """
-    trainer = Trainer(config, local_rank, world_size)
-    trainer.setup()
-    trainer.train()
-    return 0
-
-
 def launch(
     main_func: Callable,
     num_gpus_per_machine: int,
@@ -219,7 +202,7 @@ def main(config: DictConfig):
         print(yaml.dump(unrolled_config, sort_keys=False, default_flow_style=False))
 
     launch(
-        _train,
+        train_loop,
         config.machine.num_gpus,
         num_machines=config.machine.num_machines,
         machine_rank=config.machine.machine_rank,

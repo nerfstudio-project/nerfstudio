@@ -3,6 +3,6 @@
 Ray Losses
 ===================
 
-.. automodule:: nerfactory.graphs.modules.ray_losses
+.. automodule:: nerfactory.models.modules.ray_losses
    :members:
    :show-inheritance:

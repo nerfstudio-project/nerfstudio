@@ -50,7 +50,7 @@ NeRFs are a volumetric representation encoded into a neural network. They are no
 
 #### Positional Encoding
 
-An extra trick is necessary to making the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../notebooks/visualize_encoders.ipynb).
+An extra trick is necessary to making the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../model_components/visualize_encoders.ipynb).
 
 ### Rendering
 

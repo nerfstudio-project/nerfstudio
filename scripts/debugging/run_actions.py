@@ -22,13 +22,14 @@ def run_command(command: str, continue_on_fail: bool = False) -> None:
     return ret_code == 0
 
 
-def main(continue_on_fail: bool = False):
-    """Run the github actions locally.
+def run_github_actions_file(filename: str, continue_on_fail: bool = False):
+    """Run a github actions file locally.
 
     Args:
+        filename: Which yml github actions file to run.
         continue_on_fail: Whether or not to continue running actions commands if the current one fails
     """
-    with open(".github/workflows/code_checks.yml", "rb") as f:
+    with open(filename, "rb") as f:
         my_dict = yaml.safe_load(f)
     steps = my_dict["jobs"]["build"]["steps"]
 
@@ -67,5 +68,17 @@ def main(continue_on_fail: bool = False):
         print_red("=" * 100)
 
 
+def run_code_checks(continue_on_fail: bool = False):
+    """Run a github actions file locally.
+
+    Args:
+        continue_on_fail: Whether or not to continue running actions commands if the current one fails
+    """
+    # core code checks
+    run_github_actions_file(filename=".github/workflows/core_code_checks.yml", continue_on_fail=continue_on_fail)
+    # viewer build and deployment
+    # run_github_actions_file(filename=".github/workflows/viewer_build_deploy.yml", continue_on_fail=continue_on_fail)
+
+
 if __name__ == "__main__":
-    dcargs.cli(main)
+    dcargs.cli(run_code_checks)

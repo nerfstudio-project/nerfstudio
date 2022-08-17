@@ -49,6 +49,7 @@ class EventName(enum.Enum):
     ITER_LOAD_TIME = "Data Load (time)"
     ITER_TRAIN_TIME = "Train Iter (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
+    ITER_VIS_TIME = "Visualizer Rendering (time)"
     ETA = "ETA (time)"
     RAYS_PER_SEC = "Rays / Sec"
     CURR_TEST_PSNR = "Test PSNR"
@@ -116,7 +117,7 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
         remain_iter = GLOBAL_BUFFER["max_iter"] - step
         remain_time = remain_iter * GLOBAL_BUFFER["events"][name]["avg"]
         put_scalar(EventName.ETA, remain_time, step)
-        GLOBAL_BUFFER["viewer/train_eta"] = _format_time(remain_time)
+        GLOBAL_BUFFER["events"][EventName.ETA.value] = _format_time(remain_time)
 
 
 @check_main_thread
@@ -153,7 +154,6 @@ def setup_event_writers(config: LoggingConfig, max_iter: int) -> None:
     GLOBAL_BUFFER["max_buffer_size"] = config.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.steps_per_log
     GLOBAL_BUFFER["events"] = {}
-    GLOBAL_BUFFER["viewer/train_eta"] = "Paused"
 
 
 class Writer:
