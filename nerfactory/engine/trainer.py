@@ -15,6 +15,8 @@
 """
 Code to train model.
 """
+from __future__ import annotations
+
 import functools
 import logging
 import os
@@ -29,9 +31,9 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
 from nerfactory.pipelines.base import Pipeline, setup_pipeline
+from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import Config
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
@@ -39,7 +41,7 @@ from nerfactory.viewer.server import viewer_utils
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
-def train_loop(local_rank: int, world_size: int, config: Config) -> Any:
+def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -65,7 +67,7 @@ class Trainer:
         world_size (int, optional): World size of the process. Defaults to 1.
     """
 
-    def __init__(self, config: Config, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size

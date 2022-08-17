@@ -10,7 +10,7 @@ from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, open_dict
 
 from nerfactory.engine.trainer import train_loop
-from nerfactory.utils.config import setup_config
+from nerfactory.utils import config as cfg
 
 BLACKLIST = ["graph_semantic_nerf.yaml", "graph_mipnerf_360.yaml", "graph_instant_ngp.yaml"]
 
@@ -63,7 +63,7 @@ def test_run_train():
         initialize(version_base="1.2", config_path="../configs/")  # relative to test path
         config = compose(config_path)
         config = set_reduced_config(config)
-        config = setup_config(config)
+        config = cfg.setup_config(config)
 
         train_loop(local_rank=0, world_size=0, config=config)
 

@@ -15,13 +15,15 @@
 """
 Data loader.
 """
+from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from typing import Dict, List, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
-from omegaconf import DictConfig, ListConfig
+from omegaconf import MISSING, DictConfig
 from torch import nn
 from torch.nn import Parameter
 
@@ -32,8 +34,8 @@ from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
+from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler
-from nerfactory.utils.config import DataloaderConfig, VanillaDataloaderConfig
 from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
 
 
@@ -188,6 +190,21 @@ class Dataloader(nn.Module):
         """
         return {}
 
+
+@dataclass
+class VanillaDataloaderConfig(cfg.InstantiateConfig):
+    """Configuration for train/eval datasets"""
+
+    _target: str = "nerfactory.dataloaders.base.VanillaDataloader"
+    image_dataset_type: Optional[str] = "rgb"
+    train_dataset: Dict[str, Any] = MISSING
+    train_num_rays_per_batch: int = MISSING
+    train_num_images_to_sample_from: int = MISSING
+    eval_dataset: Optional[Dict[str, Any]] = None
+    eval_image_indices: Optional[List[int]] = None
+    eval_num_rays_per_chunk: int = MISSING
+
+
 class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     """Basic stored dataloader implementation.
 
@@ -201,14 +218,20 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
     def __init__(
         self,
-        train_datasetinputs: DatasetInputs,
-        eval_datasetinputs: DatasetInputs,
         config: VanillaDataloaderConfig = VanillaDataloaderConfig(),
         device: Union[torch.device, str] = "cpu",
-        **kwargs  # pylint: disable=unused-argument
+        test_mode: bool = False,
+        **kwargs,  # pylint: disable=unused-argument
     ):
-        self.train_datasetinputs = train_datasetinputs
-        self.eval_datasetinputs = eval_datasetinputs
+        dataset_train = instantiate_from_dict_config(config.train_dataset)
+        self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
+        if config.eval_dataset is not None:
+            dataset_eval = instantiate_from_dict_config(config.eval_dataset)
+        else:
+            logging.info("No eval dataset specified so using train dataset for eval.")
+            dataset_eval = dataset_train
+        self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
+
         self.config = config
         self.device = device
         use_train = self.train_datasetinputs is not None
@@ -222,7 +245,9 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         elif self.image_dataset_type == "panoptic":
             self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
         self.train_image_sampler = CacheImageSampler(
-            self.train_image_dataset, num_images_to_sample_from=self.config.train_num_images_to_sample_from, device=self.device
+            self.train_image_dataset,
+            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            device=self.device,
         )  # TODO(ethan): pass this in
         self.iter_train_image_sampler = iter(self.train_image_sampler)
         self.train_pixel_sampler = PixelSampler(self.train_num_rays_per_batch)
@@ -264,22 +289,14 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
 
 @profiler.time_function
-def setup_dataloader(config: DataloaderConfig, device: str, test_mode=False) -> Dataloader:
+def setup_dataloader(config: cfg.DataloaderConfig, device: str, test_mode=False) -> Dataloader:
     """Setup the dataloader."""
-    dataset_train = instantiate_from_dict_config(config.train_dataset)
-    train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
-    if config.eval_dataset is not None:
-        dataset_eval = instantiate_from_dict_config(config.eval_dataset)
-    else:
-        logging.info("No eval dataset specified so using train dataset for eval.")
-        dataset_eval = dataset_train
-    eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
-
-    dataloader: Dataloader = instantiate_from_dict_config(
-        DictConfig(config),
-        train_datasetinputs=train_datasetinputs,
-        eval_datasetinputs=eval_datasetinputs,
-        device=device,
-    )
-    dataloader.to(device)
+    # dataloader: Dataloader = instantiate_from_dict_config(
+    #     DictConfig(config),
+    #     train_datasetinputs=train_datasetinputs,
+    #     eval_datasetinputs=eval_datasetinputs,
+    #     device=device,
+    # )
+    dataloader = config.setup(device=device, test_mode=test_mode)
+    # dataloader.to(device)
     return dataloader

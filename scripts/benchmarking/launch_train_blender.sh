@@ -58,8 +58,8 @@ for dataset in ${DATASETS[@]}; do
            pipeline.dataloader.train_dataset.data_directory=data/blender/${dataset} \
            experiment_name=blender_${dataset}_${tag} \
            trainer.model_dir=nerfactory_models/ \
-           trainer.steps_per_save=25000 \
-           trainer.max_num_iterations=2000000 \
+           trainer.steps_per_save=16000 \
+           trainer.max_num_iterations=16500 \
            viewer.enable=False \
            logging.enable_profiler=False &
     echo "Launched ${config_name} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"

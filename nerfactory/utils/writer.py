@@ -15,7 +15,7 @@
 """
 Generic Writer class
 """
-
+from __future__ import annotations
 
 import enum
 import os
@@ -32,7 +32,7 @@ from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-from nerfactory.utils.config import LoggingConfig
+from nerfactory.utils import config as cfg
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
 
@@ -138,7 +138,7 @@ def write_out_storage():
 
 
 @check_main_thread
-def setup_event_writers(config: LoggingConfig, max_iter: int) -> None:
+def setup_event_writers(config: cfg.LoggingConfig, max_iter: int) -> None:
     """Initialization of all event writers specified in config"""
     for writer_type in config.writer:
         writer_class = getattr(sys.modules[__name__], writer_type)

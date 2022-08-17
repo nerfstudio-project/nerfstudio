@@ -15,6 +15,7 @@
 """
 Abstracts for the Pipeline class.
 """
+from __future__ import annotations
 
 from abc import abstractmethod
 from pydoc import locate
@@ -25,8 +26,8 @@ from torch.nn import Parameter
 
 from nerfactory.dataloaders.base import Dataloader, setup_dataloader
 from nerfactory.models.base import Model, setup_model
+from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler
-from nerfactory.utils.config import PipelineConfig
 
 
 class Pipeline(nn.Module):
@@ -70,7 +71,7 @@ class Pipeline(nn.Module):
         self.model (Model): The model that will be used
     """
 
-    def __init__(self, config: PipelineConfig):
+    def __init__(self, config: cfg.PipelineConfig):
         super().__init__()
         self.dataloader = config.dataloader.setup()
         self.model = config.model.setup()
@@ -131,7 +132,7 @@ class Pipeline(nn.Module):
 
 
 @profiler.time_function
-def setup_pipeline(config: PipelineConfig, device: str, test_mode=False) -> Pipeline:
+def setup_pipeline(config: cfg.PipelineConfig, device: str, test_mode=False) -> Pipeline:
     """Setup the pipeline. The dataset inputs should be set with the training data.
 
     Args:

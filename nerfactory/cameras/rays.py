@@ -172,7 +172,7 @@ class RayBundle(TensorDataclass):
     fars: Optional[TensorType[..., 1]] = None
     valid_mask: Optional[TensorType[..., 1, bool]] = None
     num_rays_per_chunk: int = 128
-    metadata: Optional[str, TensorType[..., "dim"]] = None  # TODO(ethan): figure out how to type this
+    metadata: Optional[Dict[str, TensorType[..., "dim"]]] = None  # TODO(ethan): figure out how to type this
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.

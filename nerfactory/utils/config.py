@@ -16,13 +16,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar
 
-from omegaconf import MISSING, DictConfig
-from nerfactory.dataloaders.base import VanillaDataloader
-from nerfactory.models.base import Model
-from ..pipelines.base import Pipeline
+import torch
+
+from .misc import DotDict
 
 
 class InstantiateConfig:
@@ -30,9 +29,9 @@ class InstantiateConfig:
 
     _target: ClassVar[Type]
 
-    def setup(self) -> TypeVar:
+    def setup(self, **kwargs) -> TypeVar:
         """Returns the instantiated object using the config."""
-        return self._target(self)
+        return self._target(self, **kwargs)
 
 
 @dataclass
@@ -52,17 +51,20 @@ class LoggingConfig:
 
     steps_per_log: int = 10
     max_buffer_size: int = 20
-    writer: Dict[str, Any] = MISSING
+    writer: Dict[str, "Any"] = field(
+        default_factory=lambda: DotDict(
+            {
+                "TensorboardWriter": {"log_dir": "./"},
+                "LocalWriter": {
+                    "log_dir": "./",
+                    "stats_to_track": ["ITER_LOAD_TIME", "ITER_TRAIN_TIME", "RAYS_PER_SEC", "CURR_TEST_PSNR"],
+                    "max_log_size": 10,  # if 0, logs everything with no erasing
+                },
+            }
+        )
+    )
     # profiler logs run times of functions and prints at end of training
     enable_profiler: bool = True
-
-
-@dataclass
-class ResumeTrainConfig:
-    """Configuration for loading previous checkpoints"""
-
-    load_dir: Optional[str] = None
-    load_step: Optional[int] = None
 
 
 @dataclass
@@ -74,102 +76,121 @@ class TrainerConfig:
     steps_per_test: int = 500
     max_num_iterations: int = 1000000
     mixed_precision: bool = False
-    resume_train: ResumeTrainConfig = MISSING
+    # optional parameteres if we want to resume training
+    load_dir: Optional[str] = None
+    load_step: Optional[int] = None
 
 
 @dataclass
-class VanillaDataloaderConfig(InstantiateConfig):
+class DataloaderConfig(InstantiateConfig):
     """Configuration for train/eval datasets"""
 
-    _target: ClassVar[Type] = VanillaDataloader
-    image_dataset_type: Optional[str] = "rgb"
-    train_dataset: Dict[str, Any] = MISSING
-    train_num_rays_per_batch: int = MISSING
-    train_num_images_to_sample_from: int = MISSING
+    from ..dataloaders import base
+
+    _target: ClassVar[Type] = base.VanillaDataloader
+    image_dataset_type: str = "rgb"
+    train_dataset: Dict[str, Any] = field(
+        default_factory=lambda: DotDict({"_target": "nerfactory.dataloaders.datasets.Dataset"})
+    )
+    train_num_rays_per_batch: int = 1024
+    train_num_images_to_sample_from: int = -1
     eval_dataset: Optional[Dict[str, Any]] = None
-    eval_image_indices: Optional[List[int]] = None
-    eval_num_rays_per_chunk: int = MISSING
+    eval_image_indices: List[int] = field(default_factory=lambda: [0])
+    eval_num_rays_per_chunk: int = 4096
+
+
+@dataclass
+class ColliderConfig(InstantiateConfig):
+    from ..models.modules import scene_colliders
+
+    _target: ClassVar[Type] = scene_colliders.NearFarCollider
+    near_plane: float = 2.0
+    far_plane: float = 6.0
+
+
+@dataclass
+class DensityFieldConfig(InstantiateConfig):
+    from ..fields.density_fields import density_grid
+
+    _target: ClassVar[Type] = density_grid.DensityGrid
+    center: float = 0.0  # simply set it as the center of the scene bbox
+    base_scale: float = 3.0  # simply set it as the scale of the scene bbox
+    num_cascades: int = 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+    resolution: int = 128
+    update_every_num_iters: int = 16
 
 
 @dataclass
 class ModelConfig(InstantiateConfig):
     """Configuration for graph instantiation"""
 
-    _target: ClassVar[Type] = Model
+    from ..models import base
+
+    _target: ClassVar[Type] = base.Model
     enable_collider: Optional[bool] = True
-    collider_config: Dict[str, Any] = MISSING
-    loss_coefficients: Dict[str, Any] = MISSING
-    # additional optional parameters here
-    field_implementation: Optional[str] = "torch"
-    enable_density_field: Optional[bool] = False
-    density_field_config: Dict[str, Any] = MISSING
+    collider_config: InstantiateConfig = ColliderConfig()
+    loss_coefficients: Dict[str, Any] = field(
+        default_factory=lambda: DotDict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
+    )
+    num_coarse_samples: int = 64
+    num_importance_samples: int = 128
+    field_implementation: str = "torch"
+    enable_density_field: bool = False
+    density_field_config: InstantiateConfig = DensityFieldConfig()
 
 
 @dataclass
 class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
-    _target: ClassVar[Type] = Pipeline
-    dataloader: DataloaderConfig = MISSING
-    model: ModelConfig = MISSING
+    from ..pipelines import base
+
+    _target: ClassVar[Type] = base.Pipeline
+    dataloader: DataloaderConfig = DataloaderConfig()
+    model: ModelConfig = ModelConfig()
+
+
+class OptmizerFieldsConfig:
+    fields: Dict[str, Dict[str, Any]] = field(
+        default_factory=lambda: DotDict(
+            {
+                "optimizer": {"_target_": "torch.optim.RAdam", "lr": 0.0005},
+                "scheduler": {
+                    "_target_": "nerfactory.optimizers.optimizers.ExponentialDecaySchedule",
+                    "lr_final": 0.000005,
+                    "max_steps": 1000000,
+                },
+            }
+        )
+    )
 
 
 @dataclass
 class ViewerConfig:
     """Configuration for viewer instantiation"""
 
-    enable: bool = MISSING
-    zmq_url: str = MISSING
-    min_render_image_height: int = MISSING
-    max_render_image_height: int = MISSING
-    num_rays_per_chunk: int = MISSING
+    enable: bool = False
+    zmq_url: str = "tcp://127.0.0.1:6000"
+    min_render_image_height: int = 64
+    max_render_image_height: int = 1024
+    num_rays_per_chunk: int = 4096
 
 
 @dataclass
 class Config:
     """Full config contents"""
 
-    machine: MachineConfig = MISSING
-    logging: LoggingConfig = MISSING
-    trainer: TrainerConfig = MISSING
-    experiment_name: str = MISSING
-    method_name: str = MISSING
-    optimizers: Dict[str, Any] = MISSING
-    viewer: ViewerConfig = MISSING
-    pipeline: PipelineConfig = MISSING
+    machine: MachineConfig = MachineConfig()
+    logging: LoggingConfig = LoggingConfig()
+    trainer: TrainerConfig = TrainerConfig()
+    experiment_name: str = "blender_lego"
+    method_name: str = "vanilla_nerf"
+    optimizers: OptmizerFieldsConfig = OptmizerFieldsConfig()
+    viewer: ViewerConfig = ViewerConfig()
+    pipeline: PipelineConfig = PipelineConfig()
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 
 
-def setup_config(config: DictConfig) -> Config:
-    """helper that creates a typed config from the DictConfig
-
-    Args:
-        config (DictConfig): configuration to convert
-
-    Returns:
-        Config: typed version of the input configuration
-    """
-    machine = MachineConfig(**config.machine)
-    logging = LoggingConfig(**config.logging)
-    trainer = TrainerConfig(**config.trainer)
-    experiment_name = config.experiment_name
-    method_name = config.method_name
-    dataloader = DataloaderConfig(**config.pipeline.dataloader)
-    model = ModelConfig(**config.pipeline.model)
-    pipeline = PipelineConfig(
-        _target_=config.pipeline._target_, dataloader=dataloader, model=model  # pylint:disable=protected-access
-    )
-    optimizers = config.optimizers
-    viewer = ViewerConfig(**config.viewer)
-
-    return Config(
-        machine=machine,
-        logging=logging,
-        trainer=trainer,
-        experiment_name=experiment_name,
-        method_name=method_name,
-        pipeline=pipeline,
-        optimizers=optimizers,
-        viewer=viewer,
-    )
+def setup_config():
+    return Config()

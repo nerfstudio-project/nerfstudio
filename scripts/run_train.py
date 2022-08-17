@@ -20,8 +20,9 @@ from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig
 
 from nerfactory.engine.trainer import train_loop
-from nerfactory.utils import comms, profiler
-from nerfactory.utils.config import Config, setup_config
+from nerfactory.utils import comms
+from nerfactory.utils import config as cfg
+from nerfactory.utils import profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 
@@ -54,7 +55,7 @@ def _distributed_worker(
     num_gpus_per_machine: int,
     machine_rank: int,
     dist_url: str,
-    config: Config,
+    config: cfg.Config,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
@@ -118,7 +119,7 @@ def launch(
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
-    config: Config = None,
+    config: cfg.Config = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
@@ -184,22 +185,9 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-cs = ConfigStore.instance()
-cs.store(name="graph_default", node=Config)
-
-
-@hydra.main(version_base="1.2", config_path="../configs", config_name="graph_default.yaml")
-def main(config: DictConfig):
+def main():
     """Main function."""
-    config = setup_config(config)  # converting to typed config
-
-    unrolled_path = os.path.join(os.getcwd(), ".hydra/config.yaml")
-    if os.path.exists(unrolled_path):
-        with open(unrolled_path, encoding="utf8") as f:
-            unrolled_config = yaml.safe_load(f)
-        logger = logging.getLogger(__name__)
-        logger.info("Printing current config setup")
-        print(yaml.dump(unrolled_config, sort_keys=False, default_flow_style=False))
+    config = cfg.setup_config()
 
     launch(
         train_loop,

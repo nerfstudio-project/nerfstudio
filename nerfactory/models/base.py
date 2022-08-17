@@ -15,6 +15,9 @@
 """
 Base Model implementation which takes in RayBundles
 """
+
+from __future__ import annotations
+
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union, overload
@@ -27,9 +30,9 @@ from torch.nn import Parameter
 from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.structs import SceneBounds
+from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import ModelConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
     instantiate_from_dict_config,
@@ -53,7 +56,7 @@ class Model(nn.Module):
         density_field_config: Configuration of density field.
     """
 
-    config: ModelConfig
+    config: cfg.ModelConfig
 
     def __init__(
         self,
