@@ -90,7 +90,14 @@ class DataloaderConfig(InstantiateConfig):
     _target: ClassVar[Type] = base.VanillaDataloader
     image_dataset_type: str = "rgb"
     train_dataset: Dict[str, Any] = field(
-        default_factory=lambda: DotDict({"_target": "nerfactory.dataloaders.datasets.Dataset"})
+        default_factory=lambda: DotDict(
+            {
+                "_target": "nerfactory.dataloaders.datasets.Blender",
+                "data_directory": "data/blender/lego",
+                "alpha_color": "white",
+                "downscale_factor": 1,
+            }
+        )
     )
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
@@ -150,13 +157,13 @@ class PipelineConfig(InstantiateConfig):
     model: ModelConfig = ModelConfig()
 
 
-class OptmizerFieldsConfig:
+class OptimizerFieldsConfig:
     fields: Dict[str, Dict[str, Any]] = field(
         default_factory=lambda: DotDict(
             {
-                "optimizer": {"_target_": "torch.optim.RAdam", "lr": 0.0005},
+                "optimizer": {"_target": "torch.optim.RAdam", "lr": 0.0005},
                 "scheduler": {
-                    "_target_": "nerfactory.optimizers.optimizers.ExponentialDecaySchedule",
+                    "_target": "nerfactory.optimizers.optimizers.ExponentialDecaySchedule",
                     "lr_final": 0.000005,
                     "max_steps": 1000000,
                 },
@@ -185,7 +192,7 @@ class Config:
     trainer: TrainerConfig = TrainerConfig()
     experiment_name: str = "blender_lego"
     method_name: str = "vanilla_nerf"
-    optimizers: OptmizerFieldsConfig = OptmizerFieldsConfig()
+    optimizers: OptimizerFieldsConfig = OptimizerFieldsConfig()
     viewer: ViewerConfig = ViewerConfig()
     pipeline: PipelineConfig = PipelineConfig()
     # additional optional parameters here

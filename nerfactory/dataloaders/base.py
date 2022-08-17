@@ -204,11 +204,18 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
     def __init__(
         self,
-        config: cfg.DataloaderConfig = cfg.DataloaderConfig(),
+        config: cfg.DataloaderConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
         **kwargs,  # pylint: disable=unused-argument
     ):
+        self.image_dataset_type = config.image_dataset_type
+        self.train_num_rays_per_batch = config.train_num_rays_per_batch
+        self.train_num_images_to_sample_from = config.train_num_images_to_sample_from
+        self.eval_dataset = config.eval_dataset
+        self.eval_image_indices = config.eval_image_indices
+        self.eval_num_rays_per_chunk = config.eval_num_rays_per_chunk
+
         dataset_train = instantiate_from_dict_config(config.train_dataset)
         self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
         if config.eval_dataset is not None:
@@ -277,12 +284,6 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 @profiler.time_function
 def setup_dataloader(config: cfg.DataloaderConfig, device: str, test_mode=False) -> Dataloader:
     """Setup the dataloader."""
-    # dataloader: Dataloader = instantiate_from_dict_config(
-    #     DictConfig(config),
-    #     train_datasetinputs=train_datasetinputs,
-    #     eval_datasetinputs=eval_datasetinputs,
-    #     device=device,
-    # )
     dataloader = config.setup(device=device, test_mode=test_mode)
-    # dataloader.to(device)
+    dataloader.to(device)
     return dataloader
