@@ -278,7 +278,7 @@ class Mipnerf360(Dataset):
     aabb_scale = 4
 
     @classmethod
-    def _normalize_orientation(cls, poses: np.ndarray):
+    def normalize_orientation(cls, poses: np.ndarray):
         """Set the _up_ direction to be in the positive Y direction.
 
         Args:
@@ -342,7 +342,7 @@ class Mipnerf360(Dataset):
         poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
 
         # Center poses and rotate. (Compute up from average of all poses)
-        poses = self._normalize_orientation(poses)
+        poses = self.normalize_orientation(poses)
 
         # Scale factor used in mipnerf
         if self.auto_scale:
@@ -418,6 +418,24 @@ class Record3D(Dataset):
             axis=-1,
         ).astype(np.float32)
 
+        # Normalization similar to Mipnerf360
+        poses = Mipnerf360.normalize_orientation(poses)
+
+        bottom = np.reshape([0, 0, 0, 1.0], [1, 4])
+        bottom = np.tile(np.reshape(bottom, [1, 1, 4]), [poses.shape[0], 1, 1])
+        poses = np.concatenate([poses[:, :3, :4], bottom], -2).astype(np.float32)
+
+        rotation_matrix = np.array(
+            [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 0.0, -1.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ],
+            dtype=np.float32,
+        )
+        poses = rotation_matrix @ poses
+
         idx_test = np.arange(num_images)[:: self.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
         idx = idx_train if split == "train" else idx_test
@@ -427,8 +445,8 @@ class Record3D(Dataset):
         image_filenames = np.array(image_filenames)[idx]
         poses = poses[idx]
 
-        # centering poses
-        poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, :], axis=0)[:, 3]
+        # Centering poses
+        poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, 3], axis=0)
 
         camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
 
@@ -448,7 +466,9 @@ class Record3D(Dataset):
         intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
-        scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.aabb_scale)
+        # scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.aabb_scale)
+        aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.aabb_scale
+        scene_bounds = SceneBounds(aabb=aabb)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
