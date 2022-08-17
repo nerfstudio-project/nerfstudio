@@ -1,4 +1,4 @@
-name: Run prettier for viewer client app.
+name: Run prettier for Nerfviewer.
 
 on:
   pull_request:

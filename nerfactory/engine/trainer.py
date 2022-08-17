@@ -19,7 +19,7 @@ import functools
 import logging
 import os
 import typing
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import torch
 import torch.distributed as dist
@@ -37,6 +37,23 @@ from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
+
+
+def train_loop(local_rank: int, world_size: int, config: Config) -> Any:
+    """Main training function that sets up and runs the trainer per process
+
+    Args:
+        local_rank (int): current rank of process
+        world_size (int): total number of gpus available
+        config (Config): config file specifying training regimen
+
+    Returns:
+        Any: TODO(): determine the return type
+    """
+    trainer = Trainer(config, local_rank, world_size)
+    trainer.setup()
+    trainer.train()
+    return 0
 
 
 class Trainer:
