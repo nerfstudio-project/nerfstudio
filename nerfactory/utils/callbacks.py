@@ -16,10 +16,9 @@
 Callback code used for training iterations
 """
 
-from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
-
-# from nerfactory.optimizers.optimizers import Optimizers
+from dataclasses import InitVar, dataclass
+from enum import Enum, auto
+from typing import Callable, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -29,9 +28,17 @@ class TrainingCallbackAttributes:
     Instead of providing access to the entire Trainer object, we only provide these attributes.
     This should be least prone to errors and fairly clean from a user perspective."""
 
-    optimizers = None #: Optimizers
-    grad_scaler = None #: GradScaler
-    pipeline = None #: Pipeline
+    # TODO(ethan): type this without circular imports
+    optimizers: Optional[InitVar]
+    grad_scaler: Optional[InitVar]
+    pipeline: Optional[InitVar]
+
+
+class TrainingCallbackLocation(Enum):
+    """Enum for specifying where the training callback should be run."""
+
+    BEFORE_TRAIN_ITERATION = auto()
+    AFTER_TRAIN_ITERATION = auto()
 
 
 class TrainingCallback:
@@ -48,22 +55,24 @@ class TrainingCallback:
 
     def __init__(
         self,
+        where_to_run: List[TrainingCallbackLocation],
         func: Callable,
         update_every_num_iters: Optional[int] = None,
         iters: Optional[Tuple[int, ...]] = None,
-        reinit: bool = False,
-        *args,
-        **kwargs
+        args: Optional[List] = None,
+        kwargs: Optional[Dict] = None,
     ):
-        # TODO(ethan): how do we type args and kwargs?
+        assert (
+            "step" in func.__code__.co_varnames
+        ), f"'step: int' must be an argument in the callback function 'func': {func.__name__}"
+        self.where_to_run = where_to_run
         self.update_every_num_iters = update_every_num_iters
         self.iters = iters
         self.func = func
-        self.reinit = reinit
-        self.args = args
-        self.kwargs = kwargs
+        self.args = args if args is not None else []
+        self.kwargs = kwargs if kwargs is not None else {}
 
-    def after_train_iteration(self, step: int):
+    def run_callback(self, step: int):
         """Callback to run after training step
 
         Args:
@@ -75,3 +84,8 @@ class TrainingCallback:
         elif self.iters is not None:
             if step in self.iters:
                 self.func(*self.args, **self.kwargs, step=step)
+
+    def run_callback_at_location(self, step: int, location: TrainingCallbackLocation):
+        """Runs the callback if it's supposed to be run at the given location."""
+        if location in self.where_to_run:
+            self.run_callback(step=step)

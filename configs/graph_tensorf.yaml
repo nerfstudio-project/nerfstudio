@@ -10,14 +10,13 @@ viewer:
 
 pipeline:
   dataloader:
-    dataloader:
-      train_dataset:
-        _target_: nerfactory.dataloaders.datasets.Blender
-        data_directory: data/blender/lego
-        alpha_color: white
-        downscale_factor: 1
-      train_num_rays_per_batch: 1600
-      eval_num_rays_per_chunk: 2400
+    train_dataset:
+      _target_: nerfactory.dataloaders.datasets.Blender
+      data_directory: data/blender/lego
+      alpha_color: white
+      downscale_factor: 1
+    train_num_rays_per_batch: 1600
+    eval_num_rays_per_chunk: 2400
   model:
     _target_: nerfactory.models.tensorf.TensoRFModel
     loss_coefficients:

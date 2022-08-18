@@ -24,10 +24,9 @@ from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.dataloaders.base import Dataloader, setup_dataloader
-from nerfactory.utils.callbacks import TrainingCallbackAttributes
 from nerfactory.models.base import Model, setup_model
 from nerfactory.utils import profiler
-from nerfactory.utils.callbacks import TrainingCallback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.config import PipelineConfig
 
 

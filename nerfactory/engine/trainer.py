@@ -15,7 +15,6 @@
 """
 Code to train model.
 """
-from dataclasses import dataclass
 import functools
 import logging
 import os
@@ -30,7 +29,11 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nerfactory.optimizers.optimizers import Optimizers
 from nerfactory.pipelines.base import Pipeline, setup_pipeline
 from nerfactory.utils import profiler, writer
-from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfactory.utils.config import Config
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
@@ -105,7 +108,7 @@ class Trainer:
             dist.barrier(device_ids=[self.local_rank])
 
         self.callbacks = self.pipeline.get_training_callbacks(
-            TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler)
+            TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler, pipeline=self.pipeline)
         )
 
     def train(self) -> None:
@@ -118,14 +121,25 @@ class Trainer:
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
 
-                # Note: if visualizer used, the rendering of the visualizer will be included in the iteration train time
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
+                # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t0:
+
+                    # training callbacks before the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(
+                            step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
+                        )
+
                     loss_metric_dict = self.train_iteration(step)
-                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
+                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
+                    # training callbacks after the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
+
                 train_num_rays_per_batch = self.pipeline.dataloader.train_num_rays_per_batch
-                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
+                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t0.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
@@ -210,10 +224,7 @@ class Trainer:
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
-
         self.optimizers.scheduler_step_all(step)
-        for callback in self.callbacks:
-            callback.after_train_iteration(step)
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss

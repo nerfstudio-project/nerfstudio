@@ -94,7 +94,8 @@ def test_tensor_vm_encoder():
     encoded = encoder(in_tensor)
     assert encoded.shape == (6, 3, out_dim)
 
-    encoder.upsample_grid(upsampling_steps=[64, 128])
+    encoder.upsample_grid(resolution=64)
+    encoder.upsample_grid(resolution=128)
 
 
 def test_tensor_cp_encoder():

@@ -26,21 +26,24 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils.callbacks import TrainingCallbackAttributes
 from nerfactory.fields.modules.encoding import TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
+from nerfactory.optimizers.optimizers import Optimizers
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import TrainingCallback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 class TensoRFModel(Model):
@@ -54,7 +57,6 @@ class TensoRFModel(Model):
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
         num_importance_samples: int = 128,
-        enable_density_field: bool = False,
         init_resolution: int = 128,
         final_resolution: int = 200,
         upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000),
@@ -62,28 +64,31 @@ class TensoRFModel(Model):
     ) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
-        self.field = None
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
         self.init_resolution = init_resolution
         self.final_resolution = final_resolution
         self.upsampling_iters = upsampling_iters
         self.upsampling_steps = (
-            torch.round(
-                torch.exp(torch.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters)))
-            ).long()[1:]
-        ).tolist()
-
-        super().__init__(enable_density_field=enable_density_field, **kwargs)
+            np.round(np.exp(np.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters))))
+            .astype("int")
+            .tolist()[1:]
+        )
+        super().__init__(**kwargs)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
-        def reinitialize_optimizers():
+
+        # the callback that we want to run every X iterations after the training iteration
+        def reinitialize_optimizer(self, training_callback_attributes: TrainingCallbackAttributes, step: int):
+            resolution = self.upsampling_steps.pop(0)
 
             # upsample the position and direction grids
-            self.field.position_encoding.upsample_grid(upsampling_steps=self.upsampling_steps)
-            self.field.direction_encoding.upsample_grid(upsampling_steps=self.upsampling_steps)
+            # TODO(ethan): ask Brent how to get typing to work on this... the Encoding base class type
+            # in NeRFField is causing the issue
+            self.field.position_encoding.upsample_grid(resolution)
+            self.field.direction_encoding.upsample_grid(resolution)
 
             # reinitialize the optimizer
             optimizers_config = training_callback_attributes.optimizers.config
@@ -95,10 +100,10 @@ class TensoRFModel(Model):
 
         callbacks = [
             TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 iters=self.upsampling_iters,
-                func=reinitialize_optimizers,  # type: ignore
-                reinit=True,
-                upsampling_steps=self.upsampling_steps,
+                func=reinitialize_optimizer,
+                args=[self, training_callback_attributes],
             )
         ]
         return callbacks
@@ -120,6 +125,8 @@ class TensoRFModel(Model):
             base_mlp_num_layers=2,
             base_mlp_layer_width=128,
         )
+
+        position_encoding.upsample_grid(self.final_resolution)
 
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)

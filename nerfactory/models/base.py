@@ -27,9 +27,8 @@ from torch.nn import Parameter
 from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.structs import SceneBounds
-from nerfactory.utils.callbacks import TrainingCallbackAttributes
 from nerfactory.utils import profiler
-from nerfactory.utils.callbacks import TrainingCallback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.config import ModelConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
@@ -103,7 +102,6 @@ class Model(nn.Module):
         if self.enable_collider:
             self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
-    @abstractmethod
     def populate_fields(self):
         """Set the fields."""
 
