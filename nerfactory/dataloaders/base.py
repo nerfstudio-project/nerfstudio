@@ -209,6 +209,8 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         test_mode: bool = False,
         **kwargs,  # pylint: disable=unused-argument
     ):
+        self.config = config
+        self.device = device
         self.image_dataset_type = config.image_dataset_type
         self.train_num_rays_per_batch = config.train_num_rays_per_batch
         self.train_num_images_to_sample_from = config.train_num_images_to_sample_from
@@ -216,17 +218,14 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         self.eval_image_indices = config.eval_image_indices
         self.eval_num_rays_per_chunk = config.eval_num_rays_per_chunk
 
-        dataset_train = instantiate_from_dict_config(config.train_dataset)
+        dataset_train = config.train_dataset.setup()
         self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
         if config.eval_dataset is not None:
-            dataset_eval = instantiate_from_dict_config(config.eval_dataset)
+            dataset_eval = config.eval_dataset.setup()
         else:
             logging.info("No eval dataset specified so using train dataset for eval.")
             dataset_eval = dataset_train
         self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
-
-        self.config = config
-        self.device = device
         use_train = self.train_datasetinputs is not None
         use_eval = self.eval_datasetinputs is not None
         super().__init__(use_train, use_eval)
@@ -279,11 +278,3 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         self.eval_count += 1
         camera_ray_bundle, batch = next(self.eval_dataloader)
         return camera_ray_bundle, batch
-
-
-@profiler.time_function
-def setup_dataloader(config: cfg.DataloaderConfig, device: str, test_mode=False) -> Dataloader:
-    """Setup the dataloader."""
-    dataloader = config.setup(device=device, test_mode=test_mode)
-    dataloader.to(device)
-    return dataloader

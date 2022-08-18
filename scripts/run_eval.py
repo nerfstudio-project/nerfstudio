@@ -18,7 +18,7 @@ from nerfactory.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_spiral_path,
 )
-from nerfactory.pipelines.base import Pipeline, setup_pipeline
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import config as cfg
 from nerfactory.utils import io as io_utils
 from nerfactory.utils.misc import human_format
@@ -169,7 +169,7 @@ def main(
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # setup pipeline (which includes the dataloaders)
-    pipeline = setup_pipeline(config.pipeline, device=device, test_mode=True)
+    pipeline = config.pipeline.setup(device=device, test_mode=True)
     pipeline.eval()
     # load checkpointed information
     checkpoint_name = _load_checkpoint(config.trainer.resume_train, pipeline)

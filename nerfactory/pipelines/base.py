@@ -18,14 +18,13 @@ Abstracts for the Pipeline class.
 from __future__ import annotations
 
 from abc import abstractmethod
-from pydoc import locate
 from typing import Any, Dict, List, Optional
 
 from torch import nn
 from torch.nn import Parameter
 
-from nerfactory.dataloaders.base import Dataloader, setup_dataloader
-from nerfactory.models.base import Model, setup_model
+from nerfactory.dataloaders.base import Dataloader
+from nerfactory.models.base import Model
 from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler
 
@@ -71,10 +70,13 @@ class Pipeline(nn.Module):
         self.model (Model): The model that will be used
     """
 
-    def __init__(self, config: cfg.PipelineConfig):
+    def __init__(self, config: cfg.PipelineConfig, device: str, test_mode: bool = False):
         super().__init__()
-        self.dataloader = config.dataloader.setup()
-        self.model = config.model.setup()
+        self.dataloader: Dataloader = config.dataloader.setup(device=device, test_mode=test_mode)
+        self.dataloader.to(device)
+        # TODO(ethan): get rid of scene_bounds from the model
+        self.model: Model = config.model.setup(scene_bounds=self.dataloader.train_datasetinputs.scene_bounds)
+        self.model.to(device)
 
     @classmethod
     def from_dataloader_and_model(cls, dataloader: Dataloader, model: Model):
@@ -127,21 +129,6 @@ class Pipeline(nn.Module):
         """
         dataloader_params = self.dataloader.get_param_groups()
         model_params = self.model.get_param_groups()
+        print("debug", dataloader_params, model_params)
         # TODO(ethan): assert that key names don't overlap
         return {**dataloader_params, **model_params}
-
-
-@profiler.time_function
-def setup_pipeline(config: cfg.PipelineConfig, device: str, test_mode=False) -> Pipeline:
-    """Setup the pipeline. The dataset inputs should be set with the training data.
-
-    Args:
-        config: The pipeline config.
-    """
-    # dataset_inputs
-    dataloader: Dataloader = setup_dataloader(config.dataloader, device=device, test_mode=test_mode)
-    # TODO(ethan): get rid of scene_bounds from the model
-    model: Model = setup_model(config.model, scene_bounds=dataloader.train_datasetinputs.scene_bounds, device=device)
-    pipeline_class = locate(config._target_)  # pylint: disable=protected-access
-    pipeline = pipeline_class(dataloader=dataloader, model=model)  # type: ignore
-    return pipeline

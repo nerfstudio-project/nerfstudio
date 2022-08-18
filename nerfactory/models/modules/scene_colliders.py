@@ -15,12 +15,16 @@
 """
 Ray generator.
 """
+
+from __future__ import annotations
+
 import torch
 from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.structs import SceneBounds
+from nerfactory.utils import config as cfg
 
 
 class SceneBoundsCollider(nn.Module):
@@ -96,9 +100,11 @@ class AABBBoxCollider(SceneBoundsCollider):
 class NearFarCollider(SceneBoundsCollider):
     """Sets the nears and fars with fixed values."""
 
-    def __init__(self, near_plane, far_plane, **kwargs) -> None:
-        self.near_plane = near_plane
-        self.far_plane = far_plane
+    config: cfg.ColliderConfig
+
+    def __init__(self, config: cfg.ColliderConfig, **kwargs) -> None:
+        self.near_plane = config.near_plane
+        self.far_plane = config.far_plane
         super().__init__(**kwargs)
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:

@@ -14,6 +14,8 @@
 
 """A set of standard datasets."""
 
+from __future__ import annotations
+
 import dataclasses
 import logging
 import os
@@ -36,6 +38,7 @@ from nerfactory.dataloaders.structs import (
     SceneBounds,
     Semantics,
 )
+from nerfactory.utils import config as cfg
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
     get_absolute_path,
@@ -132,10 +135,13 @@ class Blender(Dataset):
         downscale_factor: How much to downscale images. Defaults to 1.
     """
 
-    data_directory: str
-    scale_factor: float = 1.0
-    alpha_color: Optional[Union[str, list]] = None
-    downscale_factor: int = 1
+    def __init__(self, config: cfg.BlenderDatasetConfig):
+        super().__init__()
+        self.config = config
+        self.data_directory: str = config.data_directory
+        self.scale_factor: float = config.scale_factor
+        self.alpha_color: Optional[Union[str, list]] = config.alpha_color
+        self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):
         if self.alpha_color is not None:

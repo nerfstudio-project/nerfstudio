@@ -30,7 +30,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
-from nerfactory.pipelines.base import Pipeline, setup_pipeline
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback
@@ -97,7 +97,7 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device, test_mode=test_mode)
+        self.pipeline: Pipeline = self.config.pipeline.setup(device=self.device, test_mode=test_mode)
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()

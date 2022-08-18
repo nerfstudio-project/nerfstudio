@@ -60,21 +60,18 @@ class Model(nn.Module):
 
     def __init__(
         self,
+        config: cfg.ModelConfig,
         scene_bounds: SceneBounds,
-        loss_coefficients: DictConfig = DictConfig({}),
-        enable_collider: bool = True,
-        collider_config: Optional[DictConfig] = None,
-        enable_density_field: bool = False,
-        density_field_config: Optional[DictConfig] = None,
         **kwargs,
     ) -> None:
         super().__init__()
+        self.config = config
         self.scene_bounds = scene_bounds
-        self.loss_coefficients = loss_coefficients
-        self.enable_collider = enable_collider
-        self.collider_config = collider_config
-        self.enable_density_field = enable_density_field
-        self.density_field_config = density_field_config
+        self.loss_coefficients = config.loss_coefficients
+        self.enable_collider = config.enable_collider
+        self.collider_config = config.collider_config
+        self.enable_density_field = config.enable_density_field
+        self.density_field_config = config.density_field_config
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
@@ -103,7 +100,7 @@ class Model(nn.Module):
     def populate_collider(self):
         """Set the scene bounds collider to use."""
         if self.enable_collider:
-            self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
+            self.collider = self.collider_config.setup(scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_fields(self):
@@ -239,15 +236,3 @@ class Model(nn.Module):
         """Load the checkpoint from the given path"""
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
-
-
-@profiler.time_function
-def setup_model(config: ModelConfig, scene_bounds: SceneBounds, device: str) -> Model:
-    """Setup the model. The dataset inputs should be set with the training data.
-
-    Args:
-        dataset_inputs: The inputs which will be used to define the camera parameters.
-    """
-    model = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=device)
-    model.to(device)
-    return model

@@ -82,6 +82,17 @@ class TrainerConfig:
 
 
 @dataclass
+class BlenderDatasetConfig(InstantiateConfig):
+    from ..dataloaders import datasets
+
+    _target: ClassVar[Type] = datasets.Blender
+    data_directory: str = "data/blender/lego"
+    scale_factor: float = 1.0
+    alpha_color: str = "white"
+    downscale_factor: int = 1
+
+
+@dataclass
 class DataloaderConfig(InstantiateConfig):
     """Configuration for train/eval datasets"""
 
@@ -89,19 +100,10 @@ class DataloaderConfig(InstantiateConfig):
 
     _target: ClassVar[Type] = base.VanillaDataloader
     image_dataset_type: str = "rgb"
-    train_dataset: Dict[str, Any] = field(
-        default_factory=lambda: DotDict(
-            {
-                "_target": "nerfactory.dataloaders.datasets.Blender",
-                "data_directory": "data/blender/lego",
-                "alpha_color": "white",
-                "downscale_factor": 1,
-            }
-        )
-    )
+    train_dataset: InstantiateConfig = BlenderDatasetConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
-    eval_dataset: Optional[Dict[str, Any]] = None
+    eval_dataset: Optional[InstantiateConfig] = None
     eval_image_indices: List[int] = field(default_factory=lambda: [0])
     eval_num_rays_per_chunk: int = 4096
 
