@@ -23,7 +23,6 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
-from omegaconf import DictConfig
 from torch import nn
 from torch.nn import Parameter
 
@@ -31,13 +30,8 @@ from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.utils import config as cfg
-from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.misc import (
-    get_masked_dict,
-    instantiate_from_dict_config,
-    is_not_none,
-)
+from nerfactory.utils.misc import get_masked_dict, is_not_none
 
 
 class Model(nn.Module):
@@ -95,7 +89,7 @@ class Model(nn.Module):
     def populate_density_field(self):
         """Set the scene density field to use."""
         if self.enable_density_field:
-            self.density_field = instantiate_from_dict_config(self.density_field_config)
+            self.density_field = self.density_field_config.setup()
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""

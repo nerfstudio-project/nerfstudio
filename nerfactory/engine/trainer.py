@@ -156,9 +156,10 @@ class Trainer:
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        load_config = self.config.trainer.resume_train
-        if load_config.load_dir is not None and load_config.load_step is not None:
-            load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
+        load_dir = self.config.trainer.load_dir
+        load_step = self.config.trainer.load_step
+        if load_dir is not None and load_step is not None:
+            load_path = os.path.join(load_dir, f"step-{load_step:09d}.ckpt")
             assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
             self.start_step = loaded_state["step"] + 1

@@ -16,11 +16,11 @@
 Implementation of vanilla nerf.
 """
 
+from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import torch
-from omegaconf import DictConfig
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
@@ -38,7 +38,9 @@ from nerfactory.renderers.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfactory.utils import colors, misc, visualization, writer
+from nerfactory.utils import colors
+from nerfactory.utils import config as cfg
+from nerfactory.utils import misc, visualization, writer
 from nerfactory.utils.callbacks import Callback
 
 
@@ -56,23 +58,20 @@ class NeRFModel(Model):
 
     def __init__(
         self,
-        near_plane: float = 2.0,
-        far_plane: float = 6.0,
-        num_coarse_samples: int = 64,
-        num_importance_samples: int = 128,
-        enable_density_field: bool = False,
-        density_field_config: Optional[DictConfig] = None,
+        config: cfg.ModelConfig,
         **kwargs,
     ) -> None:
-        self.near_plane = near_plane
-        self.far_plane = far_plane
-        self.num_coarse_samples = num_coarse_samples
-        self.num_importance_samples = num_importance_samples
+        self.num_coarse_samples = config.num_coarse_samples
+        self.num_importance_samples = config.num_importance_samples
+        self.near_plane = config.collider_config.near_plane if config.collider_config else 2.0
+        self.far_plane = config.collider_config.far_plane if config.collider_config else 6.0
         self.field_coarse = None
         self.field_fine = None
+
         super().__init__(
-            enable_density_field=enable_density_field,
-            density_field_config=density_field_config,
+            config=config,
+            enable_density_field=config.enable_density_field,
+            density_field_config=config.density_field_config,
             **kwargs,
         )
 

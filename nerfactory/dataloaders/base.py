@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
-from omegaconf import MISSING, DictConfig
 from torch import nn
 from torch.nn import Parameter
 
@@ -32,11 +30,9 @@ from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
 from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
-from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils import config as cfg
-from nerfactory.utils import profiler
-from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
+from nerfactory.utils.misc import IterableWrapper
 
 
 class Dataloader(nn.Module):

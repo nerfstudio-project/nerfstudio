@@ -129,6 +129,5 @@ class Pipeline(nn.Module):
         """
         dataloader_params = self.dataloader.get_param_groups()
         model_params = self.model.get_param_groups()
-        print("debug", dataloader_params, model_params)
         # TODO(ethan): assert that key names don't overlap
         return {**dataloader_params, **model_params}

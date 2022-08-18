@@ -163,7 +163,7 @@ def main(
     config_overrides = config_overrides or []
     config = compose(config_name, overrides=config_overrides)
 
-    config.trainer.resume_train.load_dir = checkpoint_dir
+    config.trainer.load_dir = checkpoint_dir
     config.pipeline.dataloader.eval_image_indices = None
     config = cfg.setup_config(config)  # converting to typed config
 
@@ -172,7 +172,7 @@ def main(
     pipeline = config.pipeline.setup(device=device, test_mode=True)
     pipeline.eval()
     # load checkpointed information
-    checkpoint_name = _load_checkpoint(config.trainer.resume_train, pipeline)
+    checkpoint_name = _load_checkpoint(config.trainer, pipeline)
 
     if method == MethodType.PSNR:
         assert output_filename.endswith(".json")

@@ -19,7 +19,6 @@ Miscellaneous helper code.
 import hashlib
 import json
 from math import floor, log
-from pydoc import locate
 from typing import Any, Callable, Dict, Union
 
 import torch
@@ -77,23 +76,6 @@ def get_masked_dict(d, mask):
     for key, value in d.items():
         masked_dict[key] = value[mask]
     return masked_dict
-
-
-def instantiate_from_dict_config(dict_config: Any, **kwargs):
-    """Our version of hydra's instantiate function.
-
-    Args:
-        dict_config: DictConfig object to instantiate. It can be a dataclass or a dict but must have a `_target` field.
-    """
-    dict_config_kwargs = {k: v for k, v in dict_config.items() if k != "_target"}
-    uninstantiated_class = locate(dict_config._target)  # pylint: disable=protected-access
-    assert (
-        uninstantiated_class is not None
-    ), f"Could not find class {dict_config._target}"  # pylint: disable=protected-access
-    all_kwargs = dict_config_kwargs
-    all_kwargs.update(kwargs)
-    instantiated_class = uninstantiated_class(**all_kwargs)  # type: ignore
-    return instantiated_class
 
 
 def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
