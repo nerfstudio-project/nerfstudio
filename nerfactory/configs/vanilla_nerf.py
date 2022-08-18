@@ -11,22 +11,23 @@ from nerfactory.configs.base import (
 
 
 @dataclass
+class BlenderDatasetConfig(InstantiateConfig):
+    from nerfactory.dataloaders import datasets
+
+    _target = datasets.Blender
+    data_directory = "data/blender/lego"
+    scale_factor = 1.0
+    alpha_color = "white"
+    downscale_factor = 1
+
+
+@dataclass
 class BlenderDataloaderConfig(DataloaderConfig):
     """Configuration for train/eval datasets"""
 
     from nerfactory.dataloaders import base
 
-    @dataclass
-    class BlenderDatasetConfig(InstantiateConfig):
-        from nerfactory.dataloaders import datasets
-
-        _target: ClassVar[Type] = datasets.Blender
-        data_directory: str = "data/blender/lego"
-        scale_factor: float = 1.0
-        alpha_color: str = "white"
-        downscale_factor: int = 1
-
-    _target: ClassVar[Type] = base.VanillaDataloader
+    _target = base.VanillaDataloader
     train_dataset: InstantiateConfig = BlenderDatasetConfig()
 
 
@@ -36,7 +37,7 @@ class VanillaNerfModelConfig(ModelConfig):
 
     from nerfactory.models import vanilla_nerf
 
-    _target: ClassVar[Type] = vanilla_nerf.NeRFModel
+    _target = vanilla_nerf.NeRFModel
 
 
 @dataclass
@@ -45,7 +46,7 @@ class VanillaNerfPipelineConfig(PipelineConfig):
 
     from nerfactory.pipelines import base
 
-    _target: ClassVar[Type] = base.Pipeline
+    _target = base.Pipeline
     dataloader: DataloaderConfig = BlenderDataloaderConfig()
     model: ModelConfig = VanillaNerfModelConfig()
 

@@ -85,17 +85,18 @@ class TrainerConfig:
 
 
 @dataclass
+class DatasetConfig(InstantiateConfig):
+    # TODO move
+    from nerfactory.dataloaders import datasets
+
+    _target: ClassVar[Type] = datasets.Dataset
+
+
+@dataclass
 class DataloaderConfig(InstantiateConfig):
     """Configuration for train/eval datasets"""
 
     from nerfactory.dataloaders import base
-
-    @dataclass
-    class DatasetConfig(InstantiateConfig):
-        # TODO move
-        from nerfactory.dataloaders import datasets
-
-        _target: ClassVar[Type] = datasets.Dataset
 
     _target: ClassVar[Type] = base.Dataloader
     image_dataset_type: str = "rgb"
@@ -108,32 +109,34 @@ class DataloaderConfig(InstantiateConfig):
 
 
 @dataclass
+class ColliderConfig(InstantiateConfig):
+    from nerfactory.models.modules import scene_colliders
+
+    _target: ClassVar[Type] = scene_colliders.NearFarCollider
+    near_plane: float = 2.0
+    far_plane: float = 6.0
+
+
+@dataclass
+class DensityFieldConfig(InstantiateConfig):
+    from nerfactory.fields.density_fields import density_grid
+
+    _target: ClassVar[Type] = density_grid.DensityGrid
+    center: float = 0.0  # simply set it as the center of the scene bbox
+    base_scale: float = 3.0  # simply set it as the scale of the scene bbox
+    num_cascades: int = 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+    resolution: int = 128
+    update_every_num_iters: int = 16
+
+
+@dataclass
 class ModelConfig(InstantiateConfig):
     """Configuration for graph instantiation"""
 
     from nerfactory.models import base
 
-    @dataclass
-    class ColliderConfig(InstantiateConfig):
-        from nerfactory.models.modules import scene_colliders
-
-        _target: ClassVar[Type] = scene_colliders.NearFarCollider
-        near_plane: float = 2.0
-        far_plane: float = 6.0
-
-    @dataclass
-    class DensityFieldConfig(InstantiateConfig):
-        from nerfactory.fields.density_fields import density_grid
-
-        _target: ClassVar[Type] = density_grid.DensityGrid
-        center: float = 0.0  # simply set it as the center of the scene bbox
-        base_scale: float = 3.0  # simply set it as the scale of the scene bbox
-        num_cascades: int = 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-        resolution: int = 128
-        update_every_num_iters: int = 16
-
     _target: ClassVar[Type] = base.Model
-    enable_collider: Optional[bool] = True
+    enable_collider: bool = True
     collider_config: InstantiateConfig = ColliderConfig()
     loss_coefficients: Dict[str, Any] = to_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     num_coarse_samples: int = 64
@@ -169,12 +172,13 @@ class ViewerConfig:
 class OptimizerConfig(InstantiateConfig):
     _target: ClassVar[Type] = torch.optim.RAdam
     lr: float = 0.0005
+    eps: float = 1e-08
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
     def setup(self, params) -> TypeVar:
         """Returns the instantiated object using the config."""
-        return self._target(params, lr=self.lr)
+        return self._target(params, lr=self.lr, eps=self.eps)
 
 
 @dataclass
