@@ -23,9 +23,9 @@ from typing import Any, Dict, List, Optional
 from torch import nn
 from torch.nn import Parameter
 
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.base import Dataloader
 from nerfactory.models.base import Model
-from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler
 
 

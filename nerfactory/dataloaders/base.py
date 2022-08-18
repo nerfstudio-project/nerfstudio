@@ -26,12 +26,12 @@ from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
 from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.models.modules.ray_generator import RayGenerator
-from nerfactory.utils import config as cfg
 from nerfactory.utils.misc import IterableWrapper
 
 

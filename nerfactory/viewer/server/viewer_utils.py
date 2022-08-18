@@ -27,10 +27,10 @@ import torch
 
 from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.base import Model
-from nerfactory.utils import config as cfg
 from nerfactory.utils import profiler, visualization
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName

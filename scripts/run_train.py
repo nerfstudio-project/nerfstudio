@@ -15,10 +15,9 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
+from nerfactory.configs import base as cfg
 from nerfactory.engine.trainer import train_loop
-from nerfactory.utils import comms
-from nerfactory.utils import config as cfg
-from nerfactory.utils import profiler
+from nerfactory.utils import comms, profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 

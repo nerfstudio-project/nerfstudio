@@ -21,8 +21,8 @@ import logging
 import time
 from typing import Callable
 
+from nerfactory.configs import base as cfg
 from nerfactory.utils import comms
-from nerfactory.utils import config as cfg
 from nerfactory.utils.decorators import (
     check_main_thread,
     check_profiler_enabled,

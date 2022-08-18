@@ -18,8 +18,8 @@ from nerfactory.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_spiral_path,
 )
+from nerfactory.configs import base as cfg
 from nerfactory.pipelines.base import Pipeline
-from nerfactory.utils import config as cfg
 from nerfactory.utils import io as io_utils
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter

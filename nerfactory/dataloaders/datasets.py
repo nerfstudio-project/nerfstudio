@@ -27,6 +27,7 @@ import imageio
 import numpy as np
 import torch
 
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.colmap_utils import (
     read_cameras_binary,
     read_images_binary,
@@ -38,7 +39,6 @@ from nerfactory.dataloaders.structs import (
     SceneBounds,
     Semantics,
 )
-from nerfactory.utils import config as cfg
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
     get_absolute_path,

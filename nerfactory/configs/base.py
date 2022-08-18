@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar, overload
+from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar
 
 import torch
 
-from .misc import DotDict
+from nerfactory.utils.misc import DotDict
 
 # cannot use mutable types directly within dataclass; abstracting default factory calls
 to_dict = lambda d: field(default_factory=lambda: DotDict(d))
@@ -55,6 +55,7 @@ class LoggingConfig:
 
     steps_per_log: int = 10
     max_buffer_size: int = 20
+    # TODO: migrate these into instantiable classes as well
     writer: Dict[str, "Any"] = to_dict(
         {
             "TensorboardWriter": {"log_dir": "./"},
@@ -84,26 +85,21 @@ class TrainerConfig:
 
 
 @dataclass
-class BlenderDatasetConfig(InstantiateConfig):
-    # TODO move
-    from ..dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Blender
-    data_directory: str = "data/blender/lego"
-    scale_factor: float = 1.0
-    alpha_color: str = "white"
-    downscale_factor: int = 1
-
-
-@dataclass
 class DataloaderConfig(InstantiateConfig):
     """Configuration for train/eval datasets"""
 
-    from ..dataloaders import base
+    from nerfactory.dataloaders import base
 
-    _target: ClassVar[Type] = base.VanillaDataloader  # TODO: change
+    @dataclass
+    class DatasetConfig(InstantiateConfig):
+        # TODO move
+        from nerfactory.dataloaders import datasets
+
+        _target: ClassVar[Type] = datasets.Dataset
+
+    _target: ClassVar[Type] = base.Dataloader
     image_dataset_type: str = "rgb"
-    train_dataset: InstantiateConfig = BlenderDatasetConfig()  # TODO: change
+    train_dataset: InstantiateConfig = DatasetConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataset: Optional[InstantiateConfig] = None
@@ -112,33 +108,31 @@ class DataloaderConfig(InstantiateConfig):
 
 
 @dataclass
-class ColliderConfig(InstantiateConfig):
-    from ..models.modules import scene_colliders
-
-    _target: ClassVar[Type] = scene_colliders.NearFarCollider
-    near_plane: float = 2.0
-    far_plane: float = 6.0
-
-
-@dataclass
-class DensityFieldConfig(InstantiateConfig):
-    from ..fields.density_fields import density_grid
-
-    _target: ClassVar[Type] = density_grid.DensityGrid
-    center: float = 0.0  # simply set it as the center of the scene bbox
-    base_scale: float = 3.0  # simply set it as the scale of the scene bbox
-    num_cascades: int = 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-    resolution: int = 128
-    update_every_num_iters: int = 16
-
-
-@dataclass
 class ModelConfig(InstantiateConfig):
     """Configuration for graph instantiation"""
 
-    from ..models import vanilla_nerf  # TODO: change
+    from nerfactory.models import base
 
-    _target: ClassVar[Type] = vanilla_nerf.NeRFModel  # TODO: change
+    @dataclass
+    class ColliderConfig(InstantiateConfig):
+        from nerfactory.models.modules import scene_colliders
+
+        _target: ClassVar[Type] = scene_colliders.NearFarCollider
+        near_plane: float = 2.0
+        far_plane: float = 6.0
+
+    @dataclass
+    class DensityFieldConfig(InstantiateConfig):
+        from nerfactory.fields.density_fields import density_grid
+
+        _target: ClassVar[Type] = density_grid.DensityGrid
+        center: float = 0.0  # simply set it as the center of the scene bbox
+        base_scale: float = 3.0  # simply set it as the scale of the scene bbox
+        num_cascades: int = 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+        resolution: int = 128
+        update_every_num_iters: int = 16
+
+    _target: ClassVar[Type] = base.Model
     enable_collider: Optional[bool] = True
     collider_config: InstantiateConfig = ColliderConfig()
     loss_coefficients: Dict[str, Any] = to_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
@@ -153,7 +147,7 @@ class ModelConfig(InstantiateConfig):
 class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
-    from ..pipelines import base
+    from nerfactory.pipelines import base
 
     _target: ClassVar[Type] = base.Pipeline
     dataloader: DataloaderConfig = DataloaderConfig()
@@ -185,12 +179,14 @@ class OptimizerConfig(InstantiateConfig):
 
 @dataclass
 class SchedulerConfig(InstantiateConfig):
-    from ..optimizers import schedulers
+    from nerfactory.optimizers import schedulers
 
     _target: ClassVar[Type] = schedulers.ExponentialDecaySchedule
     lr_final: float = 0.000005
     max_steps: int = 1000000
 
+    # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
+    # but also not sure how to go about passing things into predefined torch objects.
     def setup(self, optimizer, lr_init) -> TypeVar:
         """Returns the instantiated object using the config."""
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
@@ -204,8 +200,8 @@ class Config:
     logging: LoggingConfig = LoggingConfig()
     trainer: TrainerConfig = TrainerConfig()
     experiment_name: str = "blender_lego"
-    method_name: str = "vanilla_nerf"
-    # TODO: figure out a better way to do the optimizers
+    method_name: str = "base_method"
+    pipeline: PipelineConfig = PipelineConfig()
     optimizers: Dict[str, Any] = to_dict(
         {
             "fields": {
@@ -215,10 +211,14 @@ class Config:
         }
     )
     viewer: ViewerConfig = ViewerConfig()
-    pipeline: PipelineConfig = PipelineConfig()
     # additional optional parameters here
     hydra: Optional[Dict[str, Any]] = None
 
 
-def setup_config():
-    return Config()
+def setup_config(config_name: str = "vanilla_nerf"):
+    if config_name == "vanilla_nerf":
+        from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
+
+        return VanillaNerfConfig()
+    elif config_name == "instant_ngp":
+        pass
