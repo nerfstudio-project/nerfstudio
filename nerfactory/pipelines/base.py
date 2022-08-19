@@ -20,13 +20,15 @@ from abc import abstractmethod
 from pydoc import locate
 from typing import Any, Dict, List, Optional
 
+import torch
 from torch import nn
 from torch.nn import Parameter
 
-from nerfactory.dataloaders.base import Dataloader, setup_dataloader
-from nerfactory.models.base import Model, setup_model
+from nerfactory.dataloaders.base import Dataloader, VanillaDataloader, setup_dataloader
+from nerfactory.models.base import Model, VanillaModel, setup_model
 from nerfactory.utils import profiler
 from nerfactory.utils.config import PipelineConfig
+from nerfactory.utils.misc import get_masked_dict
 
 
 class Pipeline(nn.Module):
@@ -70,10 +72,89 @@ class Pipeline(nn.Module):
         self.model (Model): The model that will be used
     """
 
-    def __init__(self, dataloader: Dataloader, model: Model):
+    def __init__(self, dataloader: Dataloader, model: Model, loss_coefficients: Dict[str, float]):
         super().__init__()
         self.dataloader: Dataloader = dataloader
         self.model: Model = model
+        self.loss_coefficients = loss_coefficients
+
+    @property
+    def device(self):
+        """Returns the device that the model is on."""
+        return self.model.device
+
+    @profiler.time_function
+    def get_train_loss_dict(self, step: Optional[int] = None):  # pylint: disable=unused-argument
+        """This function gets your training loss dict. This will be responsible for
+        getting the next batch of data from the dataloader and interfacing with the
+        Model class, feeding the data to the model's forward function.
+
+        This function should be generic enough to be used for any subclassed pipeline."""
+        ray_bundle, batch = self.dataloader.next_train()
+        outputs, valid_mask = self.model(ray_bundle, batch)
+
+        if valid_mask is not None:
+            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+
+        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
+        loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
+
+        # scaling losses by coefficients.
+        for loss_name in loss_dict.keys():
+            if loss_name in self.loss_coefficients:
+                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
+        return outputs, loss_dict, metrics_dict
+
+    @abstractmethod
+    @profiler.time_function
+    def get_eval_loss_dict(self, step: Optional[int] = None):
+        """This function gets your evaluation loss dict. It needs to get the data
+        from the dataloader and feed it to the model's forward function.
+
+        Implementations of this function aren't currently generic enough to be used for any
+        subclassed pipeline."""
+
+    @abstractmethod
+    def log_test_image_outputs(self) -> None:
+        """Log the test image outputs"""
+
+    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+        """Load the checkpoint from the given path"""
+        state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
+        self.load_state_dict(state)  # type: ignore
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Get the param groups for the pipeline.
+
+        Returns:
+            A list of dictionaries containing the pipeline's param groups.
+        """
+        dataloader_params = self.dataloader.get_param_groups()
+        model_params = self.model.get_param_groups()
+        # TODO(ethan): assert that key names don't overlap
+        return {**dataloader_params, **model_params}
+
+    @abstractmethod
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Compute and returns metrics."""
+
+    @abstractmethod
+    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Computes and returns the losses dict."""
+
+
+class VanillaPipeline(Pipeline):
+    """A pipeline for the vanilla NeRF data and model paradigm."""
+
+    dataloader: VanillaDataloader
+    model: VanillaModel
+
+    def __init__(self, dataloader: VanillaDataloader, model: VanillaModel, loss_coefficients: Dict[str, float]):
+        super().__init__(dataloader, model, loss_coefficients)
+
+    def forward(self):
+        """Dummy forward method since not really a true nn.Module"""
+        raise NotImplementedError
 
     @property
     def device(self):
@@ -81,14 +162,12 @@ class Pipeline(nn.Module):
         return self.model.device
 
     @abstractmethod
-    @profiler.time_function
-    def get_train_loss_dict(self, step: Optional[int] = None):
-        """This function gets your training loss dict. This will be responsible for
-        getting the next batch of data from the dataloader and interfacing with the
-        Model class, feeding the data to the model's forward function."""
-        ray_bundle, batch = self.dataloader.next_train()
-        model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
-        return model_outputs, loss_dict, metrics_dict
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Compute and returns metrics."""
+
+    @abstractmethod
+    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Computes and returns the losses dict."""
 
     @abstractmethod
     @profiler.time_function
@@ -96,13 +175,34 @@ class Pipeline(nn.Module):
         """This function gets your evaluation loss dict. It needs to get the data
         from the dataloader and feed it to the model's forward function"""
         self.eval()
+        averaged_loss_dict = {}
+        averaged_metrics_dict = {}
         # NOTE(ethan): next_eval() is not being used right now
-        for camera_ray_bundle, batch in self.dataloader.eval_dataloader:
+        n = 0
+        for camera_ray_bundle, batch in self.dataloader.get_eval_iterable():
+            n += 1
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
-            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            outputs, _ = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
-        # TODO(ethan): this function should probably return something?
+            metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
+            loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
+            if not averaged_loss_dict:
+                averaged_loss_dict = loss_dict
+                averaged_metrics_dict = metrics_dict
+            else:
+                for field, value in loss_dict.items():
+                    averaged_loss_dict[field] += value
+                for field, value in metrics_dict.items():
+                    averaged_metrics_dict[field] += value
+
+        for field in averaged_loss_dict:
+            averaged_loss_dict[field] /= n
+        for field in averaged_metrics_dict:
+            averaged_metrics_dict[field] /= n
+
         self.train()
+
+        return averaged_loss_dict, averaged_metrics_dict
 
     @abstractmethod
     def log_test_image_outputs(self) -> None:

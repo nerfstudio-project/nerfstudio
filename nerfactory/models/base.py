@@ -17,7 +17,7 @@ Base Model implementation which takes in RayBundles
 """
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from omegaconf import DictConfig
@@ -30,11 +30,7 @@ from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.config import ModelConfig
-from nerfactory.utils.misc import (
-    get_masked_dict,
-    instantiate_from_dict_config,
-    is_not_none,
-)
+from nerfactory.utils.misc import instantiate_from_dict_config, is_not_none
 
 
 class Model(nn.Module):
@@ -128,29 +124,12 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    @overload
-    def forward(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
-        ...
-
-    @overload
-    def forward(
-        self, ray_bundle: RayBundle, batch: Dict[str, torch.Tensor]
-    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        ...
-
-    def forward(
-        self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
-    ) -> Union[
-        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
-    ]:
+    def forward(self, ray_bundle: RayBundle) -> Tuple[Dict[str, torch.Tensor], Optional[torch.Tensor]]:
         """Run forward starting with a ray bundle.
 
         This takes in raybundles (containing all the information needed to render that ray...
-        latents included) and the batch (containing all the auxilury things needed to train
-        like masks and ground truth pixels).
-
-        This outputs different things depending on the configuration of the model and whether or not
-        the batch is provided (whether or not we are training basically)."""
+        latents included), and returns the outputs of the model, as well as the mask for the
+        rays if there is a collider / scene bounds used."""
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
@@ -159,37 +138,17 @@ class Model(nn.Module):
             intersected_ray_bundle = ray_bundle
             valid_mask = None
 
-        if batch is None:
-            # during inference, keep all rays
-            outputs = self.get_outputs(intersected_ray_bundle)
-            return outputs
-
         if valid_mask is not None:
-            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
             # during training, keep only the rays that intersect the scene. discard the rest
-            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
 
         outputs = self.get_outputs(intersected_ray_bundle)
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
-        loss_dict = self.get_loss_dict(
-            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
-        )
 
-        return outputs, loss_dict, metrics_dict
-
-    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
-        """Compute and returns metrics."""
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
-        return {}
-
-    @abstractmethod
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
-        """Computes and returns the losses dict."""
+        return outputs, valid_mask
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
-        """Takes in camera parameters and computes the output of the model."""
+        """Takes in ray bundle that needs to be batched and returns the outputs."""
         assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
@@ -199,17 +158,42 @@ class Model(nn.Module):
             start_idx = i
             end_idx = i + camera_ray_bundle.num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
-            outputs = self.forward(ray_bundle=ray_bundle)
+            outputs, _ = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
         for output_name, outputs_list in outputs_lists.items():
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
 
+    def load_model(self, loaded_state: Dict[str, Any]) -> None:
+        """Load the checkpoint from the given path"""
+        state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
+        self.load_state_dict(state)  # type: ignore
+
+
+class VanillaModel(Model):
+    """Model class for the vanilla NeRF paradigm"""
+
     def get_outputs_for_camera(self, camera: Camera):
         """Get the model outputs for a Camera."""
         camera_ray_bundle = camera.get_camera_ray_bundle(device=self.device)
         return self.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+    @abstractmethod
+    def populate_fields(self):
+        """Set the fields."""
+
+    @abstractmethod
+    def populate_misc_modules(self):
+        """Initializes any additional modules that are part of the network."""
+
+    @abstractmethod
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Obtain the parameter groups for the optimizers
+
+        Returns:
+            Mapping of different parameter groups
+        """
 
     @abstractmethod
     def log_test_image_outputs(self, image_idx, step, batch, outputs) -> float:
@@ -225,11 +209,6 @@ class Model(nn.Module):
         Returns:
             The psnr.
         """
-
-    def load_model(self, loaded_state: Dict[str, Any]) -> None:
-        """Load the checkpoint from the given path"""
-        state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
-        self.load_state_dict(state)  # type: ignore
 
 
 @profiler.time_function
