@@ -138,7 +138,7 @@ class ModelConfig(InstantiateConfig):
     _target: ClassVar[Type] = base.Model
     enable_collider: bool = True
     collider_config: InstantiateConfig = ColliderConfig()
-    loss_coefficients: Dict[str, Any] = to_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
+    loss_coefficients: DotDict = to_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     num_coarse_samples: int = 64
     num_importance_samples: int = 128
     field_implementation: str = "torch"
@@ -206,7 +206,7 @@ class Config:
     experiment_name: str = "blender_lego"
     method_name: str = "base_method"
     pipeline: PipelineConfig = PipelineConfig()
-    optimizers: Dict[str, Any] = to_dict(
+    optimizers: DotDict = to_dict(
         {
             "fields": {
                 "optimizer": OptimizerConfig(),
@@ -219,10 +219,12 @@ class Config:
     hydra: Optional[Dict[str, Any]] = None
 
 
-def setup_config(config_name: str = "vanilla_nerf"):
+def setup_config(config_name: str = "instant_ngp"):
     if config_name == "vanilla_nerf":
         from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
 
         return VanillaNerfConfig()
     elif config_name == "instant_ngp":
-        pass
+        from nerfactory.configs.instant_ngp import InstantNGPConfig
+
+        return InstantNGPConfig()

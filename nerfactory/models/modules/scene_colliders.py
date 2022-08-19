@@ -42,7 +42,9 @@ class SceneBoundsCollider(nn.Module):
 class AABBBoxCollider(SceneBoundsCollider):
     """Module for colliding rays with the scene bounds to compute near and far values."""
 
-    def __init__(self, scene_bounds: SceneBounds, **kwargs) -> None:
+    config: cfg.ColliderConfig
+
+    def __init__(self, config: cfg.ColliderConfig, scene_bounds: SceneBounds, **kwargs) -> None:
         super().__init__(**kwargs)
         self.scene_bounds = scene_bounds
 
