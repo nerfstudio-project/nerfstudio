@@ -42,6 +42,8 @@ class Model(nn.Module):
     Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
 
+    TODO:
+
     Args:
         scene_bounds: Bounds of target scene.
         loss_coefficients: Loss specific weights.
@@ -119,7 +121,8 @@ class Model(nn.Module):
         """Takes in a Ray Bundle and returns a dictionary of outputs.
 
         Args:
-            ray_bundle: Input bundle of rays.
+            ray_bundle: Input bundle of rays. This raybundle should have all the
+            needed information to compute the outputs.
 
         Returns:
             Outputs of model. (ie. rendered colors)
@@ -140,7 +143,14 @@ class Model(nn.Module):
     ) -> Union[
         Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
     ]:
-        """Run forward starting with a ray bundle."""
+        """Run forward starting with a ray bundle.
+
+        This takes in raybundles (containing all the information needed to render that ray...
+        latents included) and the batch (containing all the auxilury things needed to train
+        like masks and ground truth pixels).
+
+        This outputs different things depending on the configuration of the model and whether or not
+        the batch is provided (whether or not we are training basically)."""
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]

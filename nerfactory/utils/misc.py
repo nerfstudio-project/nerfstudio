@@ -104,27 +104,42 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
     """A helper that will allow an instance of a class to return multiple kinds of iterables bound
     to different functions of that class.
 
-    To use this, pass in the instance of the class you want to have multiple kinds of iterables for,
-    and pass in a method belonging to that class that you want to be the __next__() method of the
-    iterable. The resulting instantiated object will be an iterable that will use the passed in
-    class method as the __next__() method.
+    To use this, take an instance of a class. From that class, pass in the <instance>.<new_iter_function>
+    and <instance>.<new_next_function> to the IterableWrapper constructor. By passing in the instance's
+    functions instead of just the class's functions, the self argument should automatically be accounted
+    for.
 
     Args:
-        instance (object): instance class we are wrapping
-        new_next (callable): function that will be called instead as the __next__()
+        new_iter (callable): function that will be called instead as the __iter__() function
+        new_next (callable): function that will be called instead as the __next__() function
+        length (int): length of the iterable. If -1, the iterable will be infinite.
 
 
     Attributes:
-        instance (object): instance class we are wrapping
-        new_next (callable): function that will be called instead as the __next__()
+        new_iter (callable): object's pointer to the function we are calling for __iter__()
+        new_next (callable): object's pointer to the function we are calling for __next__()
+        length (int): length of the iterable. If -1, the iterable will be infinite.
+        i (int): current index of the iterable.
+
     """
 
-    def __init__(self, instance: object, new_next: Callable):
-        self.instance = instance
+    i: int
+
+    def __init__(self, new_iter: Callable, new_next: Callable, length: int = -1):
+        self.new_iter = new_iter
         self.new_next = new_next
+        self.length = length
 
     def __next__(self):
-        return self.new_next(self.instance)
+        if self.length != -1 and self.i >= self.length:
+            raise StopIteration
+        self.i += 1
+        return self.new_next()
+
+    def __iter__(self):
+        self.new_iter()
+        self.i = 0
+        return self
 
 
 def human_format(num):
