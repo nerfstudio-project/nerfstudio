@@ -21,6 +21,7 @@ from pydoc import locate
 from typing import Any, Dict, List, Optional
 
 import torch
+from omegaconf import DictConfig
 from torch import nn
 from torch.nn import Parameter
 
@@ -72,7 +73,12 @@ class Pipeline(nn.Module):
         self.model (Model): The model that will be used
     """
 
-    def __init__(self, dataloader: Dataloader, model: Model, loss_coefficients: Dict[str, float]):
+    def __init__(
+        self,
+        dataloader: Dataloader,
+        model: Model,
+        loss_coefficients: DictConfig = DictConfig({}),
+    ):
         super().__init__()
         self.dataloader: Dataloader = dataloader
         self.model: Model = model
@@ -149,7 +155,12 @@ class VanillaPipeline(Pipeline):
     dataloader: VanillaDataloader
     model: VanillaModel
 
-    def __init__(self, dataloader: VanillaDataloader, model: VanillaModel, loss_coefficients: Dict[str, float]):
+    def __init__(
+        self,
+        dataloader: Dataloader,
+        model: Model,
+        loss_coefficients: DictConfig = DictConfig({}),
+    ):
         super().__init__(dataloader, model, loss_coefficients)
 
     def forward(self):
@@ -233,7 +244,7 @@ def setup_pipeline(config: PipelineConfig, device: str, test_mode=False) -> Pipe
         config: The pipeline config.
     """
     # dataset_inputs
-    dataloader: Dataloader = setup_dataloader(config.dataloader, device=device, test_mode=test_mode)
+    dataloader: VanillaDataloader = setup_dataloader(config.dataloader, device=device, test_mode=test_mode)
     # TODO(ethan): get rid of scene_bounds from the model
     model: Model = setup_model(config.model, scene_bounds=dataloader.train_datasetinputs.scene_bounds, device=device)
     pipeline_class = locate(config._target_)  # pylint: disable=protected-access

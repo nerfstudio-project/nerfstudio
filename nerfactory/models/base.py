@@ -52,7 +52,6 @@ class Model(nn.Module):
     def __init__(
         self,
         scene_bounds: SceneBounds,
-        loss_coefficients: DictConfig = DictConfig({}),
         enable_collider: bool = True,
         collider_config: Optional[DictConfig] = None,
         enable_density_field: bool = False,
@@ -61,7 +60,6 @@ class Model(nn.Module):
     ) -> None:
         super().__init__()
         self.scene_bounds = scene_bounds
-        self.loss_coefficients = loss_coefficients
         self.enable_collider = enable_collider
         self.collider_config = collider_config
         self.enable_density_field = enable_density_field
