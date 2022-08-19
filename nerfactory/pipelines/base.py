@@ -20,8 +20,6 @@ from abc import abstractmethod
 from pydoc import locate
 from typing import Any, Dict, List, Optional
 
-import torch
-from omegaconf import DictConfig
 from torch import nn
 from torch.nn import Parameter
 
@@ -77,12 +75,10 @@ class Pipeline(nn.Module):
         self,
         dataloader: Dataloader,
         model: Model,
-        loss_coefficients: DictConfig = DictConfig({}),
     ):
         super().__init__()
         self.dataloader: Dataloader = dataloader
         self.model: Model = model
-        self.loss_coefficients = loss_coefficients
 
     @property
     def device(self):
@@ -102,13 +98,9 @@ class Pipeline(nn.Module):
         if valid_mask is not None:
             batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
 
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
-        loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
+        metrics_dict = self.model.get_metrics_dict(outputs=outputs, batch=batch)
+        loss_dict = self.model.get_loss_dict(outputs=outputs, batch=batch)
 
-        # scaling losses by coefficients.
-        for loss_name in loss_dict.keys():
-            if loss_name in self.loss_coefficients:
-                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
     @abstractmethod
@@ -140,28 +132,12 @@ class Pipeline(nn.Module):
         # TODO(ethan): assert that key names don't overlap
         return {**dataloader_params, **model_params}
 
-    @abstractmethod
-    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
-        """Compute and returns metrics."""
-
-    @abstractmethod
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
-        """Computes and returns the losses dict."""
-
 
 class VanillaPipeline(Pipeline):
     """A pipeline for the vanilla NeRF data and model paradigm."""
 
     dataloader: VanillaDataloader
     model: VanillaModel
-
-    def __init__(
-        self,
-        dataloader: Dataloader,
-        model: Model,
-        loss_coefficients: DictConfig = DictConfig({}),
-    ):
-        super().__init__(dataloader, model, loss_coefficients)
 
     def forward(self):
         """Dummy forward method since not really a true nn.Module"""
@@ -171,14 +147,6 @@ class VanillaPipeline(Pipeline):
     def device(self):
         """Returns the device that the model is on."""
         return self.model.device
-
-    @abstractmethod
-    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
-        """Compute and returns metrics."""
-
-    @abstractmethod
-    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
-        """Computes and returns the losses dict."""
 
     @abstractmethod
     @profiler.time_function
@@ -195,8 +163,8 @@ class VanillaPipeline(Pipeline):
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             outputs, _ = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
-            metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
-            loss_dict = self.get_loss_dict(outputs=outputs, batch=batch)
+            metrics_dict = self.model.get_metrics_dict(outputs=outputs, batch=batch)
+            loss_dict = self.model.get_loss_dict(outputs=outputs, batch=batch)
             if not averaged_loss_dict:
                 averaged_loss_dict = loss_dict
                 averaged_metrics_dict = metrics_dict

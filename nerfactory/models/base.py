@@ -52,6 +52,7 @@ class Model(nn.Module):
     def __init__(
         self,
         scene_bounds: SceneBounds,
+        loss_coefficients: DictConfig = DictConfig({}),
         enable_collider: bool = True,
         collider_config: Optional[DictConfig] = None,
         enable_density_field: bool = False,
@@ -60,6 +61,7 @@ class Model(nn.Module):
     ) -> None:
         super().__init__()
         self.scene_bounds = scene_bounds
+        self.loss_coefficients = loss_coefficients
         self.enable_collider = enable_collider
         self.collider_config = collider_config
         self.enable_density_field = enable_density_field
@@ -121,6 +123,14 @@ class Model(nn.Module):
         Returns:
             Outputs of model. (ie. rendered colors)
         """
+
+    @abstractmethod
+    def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Compute and returns metrics."""
+
+    @abstractmethod
+    def get_loss_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
+        """Computes and returns the losses dict."""
 
     def forward(self, ray_bundle: RayBundle) -> Tuple[Dict[str, torch.Tensor], Optional[torch.Tensor]]:
         """Run forward starting with a ray bundle.
