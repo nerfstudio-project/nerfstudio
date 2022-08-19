@@ -1,0 +1,74 @@
+name: Build and deploy Nerfviewer.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./nerfactory/viewer/app
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 17.8.0
+          # cache: 'yarn'
+
+      - name: Install packages
+        run: yarn install
+
+      - name: Build project
+        run: CI=false yarn build
+
+      - name: Upload production-ready build files
+        uses: actions/upload-artifact@v2
+        with:
+          name: production-files
+          path: ./nerfactory/viewer/app/build
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    # if: github.ref == 'refs/heads/master'
+
+    env:
+      SSH_KEY: ${{secrets.SSH_KEY}}
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: production-files
+          path: ./nerfactory/viewer/app/build
+
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
+      - run: mkdir ~/.ssh
+      - run: 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
+      - run: chmod 400 ~/.ssh/github_actions_user_key_filename
+      - run: echo -e "Host github_action_remote_machine\n\tUser eweb0124\n\tHostname 34.102.68.79\n\tIdentityFile ~/.ssh/github_actions_user_key_filename\n\tStrictHostKeyChecking No" >> ~/.ssh/config
+      - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/build'
+      # ${{ env.BRANCH_NAME }} is the branch name
+      - run: ssh github_action_remote_machine 'mkdir -p /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'
+      - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'
+      - run: scp -r ./nerfactory/viewer/app/build github_action_remote_machine:/home/eweb0124/
+      # TODO(ethan): move the current version to an older folder
+      - run: ssh github_action_remote_machine 'mv /home/eweb0124/build /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'

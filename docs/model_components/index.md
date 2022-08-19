@@ -1,6 +1,6 @@
-# Components
+# Model Components
 
-It can be difficult getting started with NeRFs. The field is still quite new and most of the key nuggets are burried in research papers. For this reason we can consoladated many of the key concepts into a series of guides.
+It can be difficult getting started with NeRFs. The reserach field is still quite new and most of the key nuggets are burried in academic papers. For this reason, we have consoladated many of the key concepts into a series of guides.
 
 ```{toctree}
     :maxdepth: 1
