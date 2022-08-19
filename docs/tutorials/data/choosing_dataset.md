@@ -66,3 +66,19 @@ Download
 ```yaml
 dataset_format: mipnerf_360
 ```
+
+###### Record3D
+
+```{button-link} https://record3d.app/
+:color: primary
+:outline:
+Download
+```
+
+```yaml
+dataset_format: record_3d
+```
+
+Directly import dataset recorded from a >= iPhone 12 Pro using the Record3D app.
+
+Record a video and export with the `EXR + JPG sequence` format. Unzip export and `rgb` folder before training.
