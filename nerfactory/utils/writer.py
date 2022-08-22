@@ -18,6 +18,7 @@ Generic Writer class
 from __future__ import annotations
 
 import enum
+import logging
 import os
 import sys
 from abc import abstractmethod
@@ -144,10 +145,11 @@ def setup_event_writers(config: cfg.LoggingConfig, max_iter: int) -> None:
         writer_class = getattr(sys.modules[__name__], writer_type)
         writer_config = config.writer[writer_type]
         if writer_type == "LocalWriter":
-            curr_writer = writer_class(writer_config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
+            curr_writer = writer_class(config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
         else:
-            curr_writer = writer_class(writer_config.log_dir)
+            curr_writer = writer_class(config.log_dir)
         EVENT_WRITERS.append(curr_writer)
+    logging.info("logging info to: %s", config.log_dir)
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter

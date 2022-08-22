@@ -15,11 +15,13 @@
 """
 Semantic NeRF implementation.
 """
+from __future__ import annotations
 
 import torch
 from torch import nn
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import semantic_nerf as cfg
 from nerfactory.dataloaders.structs import Semantics
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
@@ -33,10 +35,10 @@ from nerfactory.utils import misc, writer
 class SemanticNerfModel(NeRFModel):
     """Semantic-NeRF model"""
 
-    def __init__(self, semantics: Semantics, **kwargs) -> None:
+    def __init__(self, config: cfg.SemanticNerfConfig, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
-        super().__init__(**kwargs)
+        super().__init__(config=config, **kwargs)
 
     def populate_fields(self):
         """Set the fields."""

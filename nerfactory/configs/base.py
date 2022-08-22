@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar
 
 import torch
@@ -53,14 +54,14 @@ class MachineConfig:
 class LoggingConfig:
     """Configuration of loggers and profilers"""
 
+    log_dir: str = "./"
     steps_per_log: int = 10
     max_buffer_size: int = 20
     # TODO: migrate these into instantiable classes as well
     writer: Dict[str, "Any"] = to_dict(
         {
-            "TensorboardWriter": {"log_dir": "./"},
+            "TensorboardWriter": {},
             "LocalWriter": {
-                "log_dir": "./",
                 "stats_to_track": ["ITER_LOAD_TIME", "ITER_TRAIN_TIME", "RAYS_PER_SEC", "CURR_TEST_PSNR"],
                 "max_log_size": 10,  # if 0, logs everything with no erasing
             },
@@ -200,11 +201,11 @@ class SchedulerConfig(InstantiateConfig):
 class Config:
     """Full config contents"""
 
+    experiment_name: str = "blender_lego"
+    method_name: str = "base_method"
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
     trainer: TrainerConfig = TrainerConfig()
-    experiment_name: str = "blender_lego"
-    method_name: str = "base_method"
     pipeline: PipelineConfig = PipelineConfig()
     optimizers: DotDict = to_dict(
         {
@@ -215,11 +216,16 @@ class Config:
         }
     )
     viewer: ViewerConfig = ViewerConfig()
-    # additional optional parameters here
-    hydra: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self):
+        """Convert logging directories to more specific filepaths"""
+        dt_str: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        base_dir: str = f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}"
+        self.trainer.model_dir = f"{base_dir}/nerfactory_models/"
+        self.logging.log_dir = f"{base_dir}"
 
 
-def setup_config(config_name: str = "instant_ngp"):
+def setup_config(config_name: str = "mipnerf"):
     if config_name == "vanilla_nerf":
         from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
 
@@ -228,3 +234,11 @@ def setup_config(config_name: str = "instant_ngp"):
         from nerfactory.configs.instant_ngp import InstantNGPConfig
 
         return InstantNGPConfig()
+    elif config_name == "mipnerf":
+        from nerfactory.configs.mipnerf import MipNerfConfig
+
+        return MipNerfConfig()
+    elif config_name == "mipnerf_360":
+        from nerfactory.configs.mipnerf_360 import MipNerf360Config
+
+        return MipNerf360Config()

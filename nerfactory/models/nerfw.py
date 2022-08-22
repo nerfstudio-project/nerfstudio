@@ -16,12 +16,15 @@
 NeRF-W (NeRF in the wild) implementation.
 """
 
+from __future__ import annotations
+
 import torch
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import nerfw as cfg
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
@@ -43,11 +46,7 @@ class NerfWModel(Model):
 
     def __init__(
         self,
-        near_plane=2.0,
-        far_plane=6.0,
-        num_coarse_samples=64,
-        num_importance_samples=64,
-        uncertainty_min=0.03,
+        config: cfg.NerfWModelConfig,
         **kwargs,
     ) -> None:
         """A NeRF-W model.
@@ -59,11 +58,11 @@ class NerfWModel(Model):
                 This avoids calling torch.log() on a zero value, which would be undefined.
                 Defaults to 0.03.
         """
-        self.near_plane = near_plane
-        self.far_plane = far_plane
-        self.num_coarse_samples = num_coarse_samples
-        self.num_importance_samples = num_importance_samples
-        self.uncertainty_min = uncertainty_min
+        self.near_plane = config.near_plane
+        self.far_plane = config.far_plane
+        self.num_coarse_samples = config.num_coarse_samples
+        self.num_importance_samples = config.num_importance_samples
+        self.uncertainty_min = config.uncertainty_min
         self.field_coarse = None
         self.field_fine = None
         self.num_images = 10000  # TODO(ethan): fix this

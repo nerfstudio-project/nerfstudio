@@ -16,6 +16,7 @@
 Implementation of mip-NeRF.
 """
 
+from __future__ import annotations
 
 from typing import Dict, List
 
@@ -26,6 +27,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import mipnerf_360 as cfg
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
@@ -47,18 +49,15 @@ class MipNerf360Model(Model):
 
     def __init__(
         self,
-        near_plane=2.0,
-        far_plane=6.0,
-        num_coarse_samples=64,
-        num_importance_samples=128,
+        config: cfg.MipNerf360Config,
         **kwargs,
     ) -> None:
-        self.near_plane = near_plane
-        self.far_plane = far_plane
-        self.num_coarse_samples = num_coarse_samples
-        self.num_importance_samples = num_importance_samples
+        self.near_plane = config.collider_config.near_plane
+        self.far_plane = config.collider_config.far_plane
+        self.num_coarse_samples = config.num_coarse_samples
+        self.num_importance_samples = config.num_importance_samples
         self.field = None
-        super().__init__(**kwargs)
+        super().__init__(config=config, **kwargs)
 
     def populate_fields(self):
         """Set the fields."""
