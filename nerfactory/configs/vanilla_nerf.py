@@ -1,7 +1,22 @@
+# Copyright 2022 The Plenoptix Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Vanilla NeRF Configs"""
 from dataclasses import dataclass
 from typing import ClassVar, Type
 
-from nerfactory.configs.base import (
+from nerfactory.configs.base_config import (
     Config,
     DataloaderConfig,
     InstantiateConfig,
@@ -9,9 +24,13 @@ from nerfactory.configs.base import (
     PipelineConfig,
 )
 
+# pylint: disable=import-outside-toplevel
+
 
 @dataclass
 class BlenderDatasetConfig(InstantiateConfig):
+    """Blender dataset config"""
+
     from nerfactory.dataloaders import datasets
 
     _target: ClassVar[Type] = datasets.Blender
@@ -23,7 +42,7 @@ class BlenderDatasetConfig(InstantiateConfig):
 
 @dataclass
 class BlenderDataloaderConfig(DataloaderConfig):
-    """Configuration for train/eval datasets"""
+    """Blender dataloader config"""
 
     from nerfactory.dataloaders import base
 
@@ -33,16 +52,16 @@ class BlenderDataloaderConfig(DataloaderConfig):
 
 @dataclass
 class VanillaNerfModelConfig(ModelConfig):
-    """Configuration for graph instantiation"""
+    """Vanilla NeRF model config"""
 
-    from nerfactory.models import vanilla_nerf
+    from nerfactory.models import vanilla_nerf_config
 
-    _target: ClassVar[Type] = vanilla_nerf.NeRFModel
+    _target: ClassVar[Type] = vanilla_nerf_config.NeRFModel
 
 
 @dataclass
 class VanillaNerfPipelineConfig(PipelineConfig):
-    """Configuration for pipeline instantiation"""
+    """Vanilla NeRF pipeline config"""
 
     from nerfactory.pipelines import base
 
@@ -53,5 +72,7 @@ class VanillaNerfPipelineConfig(PipelineConfig):
 
 @dataclass
 class VanillaNerfConfig(Config):
+    """Vanilla NeRF base config"""
+
     method_name: str = "vanilla_nerf"
     pipeline: PipelineConfig = VanillaNerfPipelineConfig()

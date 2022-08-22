@@ -9,8 +9,8 @@ from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, open_dict
 
+from nerfactory.configs import base_config as cfg
 from nerfactory.engine.trainer import train_loop
-from nerfactory.utils import config as cfg
 
 BLACKLIST = ["graph_semantic_nerf.yaml", "graph_mipnerf_360.yaml", "graph_instant_ngp.yaml"]
 

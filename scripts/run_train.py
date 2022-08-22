@@ -3,7 +3,6 @@ run_train_nerf.py
 """
 
 import logging
-import os
 import random
 import socket
 import traceback
@@ -15,7 +14,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from nerfactory.configs import base as cfg
+from nerfactory.configs import base_config as cfg
 from nerfactory.engine.trainer import train_loop
 from nerfactory.utils import comms, profiler
 

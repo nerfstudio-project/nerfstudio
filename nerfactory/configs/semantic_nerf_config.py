@@ -1,21 +1,38 @@
+# Copyright 2022 The Plenoptix Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Semantic Nerf Configs"""
 from dataclasses import dataclass
 from typing import ClassVar, Type
 
-from nerfactory.configs.base import (
+from nerfactory.configs.base_config import (
     DataloaderConfig,
     InstantiateConfig,
     ModelConfig,
     PipelineConfig,
     to_dict,
 )
-from nerfactory.configs.nerfw import AABBColliderConfig, FriendsDataloaderConfig
+from nerfactory.configs.nerfw_config import AABBColliderConfig, FriendsDataloaderConfig
 from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
 from nerfactory.utils.misc import DotDict
+
+# pylint: disable=import-outside-toplevel
 
 
 @dataclass
 class SemanticNerfModelConfig(ModelConfig):
-    """Configuration for graph instantiation"""
+    """Semantic nerf model config"""
 
     from nerfactory.models import semantic_nerf
 
@@ -28,6 +45,8 @@ class SemanticNerfModelConfig(ModelConfig):
 
 @dataclass
 class SemanticNerfPipelineConfig(PipelineConfig):
+    """Semantic nerf pipeline config"""
+
     from nerfactory.pipelines import base
 
     _target: ClassVar[Type] = base.Pipeline
@@ -37,6 +56,8 @@ class SemanticNerfPipelineConfig(PipelineConfig):
 
 @dataclass
 class SemanticNerfConfig(VanillaNerfConfig):
+    """Semantic nerf base config"""
+
     experiment_name: str = "friends_TBBT-big_living_room"
     method_name: str = "semantic_nerf"
     pipeline: PipelineConfig = SemanticNerfPipelineConfig()

@@ -33,7 +33,7 @@ from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-from nerfactory.configs import base as cfg
+from nerfactory.configs import base_config as cfg
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
 

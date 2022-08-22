@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 from torch import nn
 from torch.nn import Parameter
 
-from nerfactory.configs import base as cfg
+from nerfactory.configs import base_config as cfg
 from nerfactory.dataloaders.base import Dataloader
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler
@@ -77,11 +77,6 @@ class Pipeline(nn.Module):
         # TODO(ethan): get rid of scene_bounds from the model
         self.model: Model = config.model.setup(scene_bounds=self.dataloader.train_datasetinputs.scene_bounds)
         self.model.to(device)
-
-    @classmethod
-    def from_dataloader_and_model(cls, dataloader: Dataloader, model: Model):
-        # TODO(ethan): finish implementing this
-        return cls(dataloader, model)
 
     @property
     def device(self):

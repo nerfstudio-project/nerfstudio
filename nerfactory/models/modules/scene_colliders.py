@@ -23,7 +23,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs import base_config as cfg
 from nerfactory.dataloaders.structs import SceneBounds
 
 
@@ -46,6 +46,7 @@ class AABBBoxCollider(SceneBoundsCollider):
 
     def __init__(self, config: cfg.ColliderConfig, scene_bounds: SceneBounds, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.config = config
         self.scene_bounds = scene_bounds
 
     @classmethod

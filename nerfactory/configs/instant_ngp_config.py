@@ -1,11 +1,24 @@
-from ast import Dict
-from dataclasses import dataclass
-from typing import Any, ClassVar, Type
+# Copyright 2022 The Plenoptix Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from nerfactory.configs.base import (
+"""Instant NGP Configs"""
+from dataclasses import dataclass
+from typing import ClassVar, Type
+
+from nerfactory.configs.base_config import (
     Config,
     DataloaderConfig,
-    InstantiateConfig,
     ModelConfig,
     OptimizerConfig,
     PipelineConfig,
@@ -15,10 +28,12 @@ from nerfactory.configs.base import (
 from nerfactory.configs.vanilla_nerf import BlenderDataloaderConfig
 from nerfactory.utils.misc import DotDict
 
+# pylint: disable=import-outside-toplevel
+
 
 @dataclass
 class InstantNGPModelConfig(ModelConfig):
-    """Configuration for graph instantiation"""
+    """Instant NGP Model Config"""
 
     from nerfactory.models import instant_ngp
 
@@ -31,7 +46,7 @@ class InstantNGPModelConfig(ModelConfig):
 
 @dataclass
 class InstantNGPPipelineConfig(PipelineConfig):
-    """Configuration for pipeline instantiation"""
+    """Instnat NGP pipeline config"""
 
     from nerfactory.pipelines import base
 
@@ -42,6 +57,8 @@ class InstantNGPPipelineConfig(PipelineConfig):
 
 @dataclass
 class InstantNGPConfig(Config):
+    """Instant NGP base config"""
+
     trainer: TrainerConfig = TrainerConfig(mixed_precision=True)
     method_name: str = "instant_ngp"
     pipeline: PipelineConfig = InstantNGPPipelineConfig()

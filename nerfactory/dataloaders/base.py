@@ -26,7 +26,7 @@ from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs import base_config as cfg
 from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
 from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler

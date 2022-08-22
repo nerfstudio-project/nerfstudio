@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Structured config classes"""
+"""Base Configs"""
 
 from __future__ import annotations
 
@@ -24,12 +24,28 @@ import torch
 
 from nerfactory.utils.misc import DotDict
 
+# pylint: disable=import-outside-toplevel
+
 # cannot use mutable types directly within dataclass; abstracting default factory calls
-to_dict = lambda d: field(default_factory=lambda: DotDict(d))
-to_list = lambda l: field(default_factory=lambda: l)
+def to_dict(d: Dict[str, Any]):
+    """Method to convert mutable dict to default factory dict
+
+    Args:
+        d: dictionary to convert into default factory dict for dataclass
+    """
+    return field(default_factory=lambda: DotDict(d))
 
 
-class InstantiateConfig:
+def to_list(l: List[Any]):
+    """Method to convert mutable list to default factory list
+
+    Args:
+        l: list to convert into default factory list for dataclass
+    """
+    return field(default_factory=lambda: l)
+
+
+class InstantiateConfig:  # pylint: disable=too-few-public-methods
     """Config class for instantiating an the class specified in the _target attribute."""
 
     _target: ClassVar[Type]
@@ -87,7 +103,8 @@ class TrainerConfig:
 
 @dataclass
 class DatasetConfig(InstantiateConfig):
-    # TODO move
+    """Basic dataset config"""
+
     from nerfactory.dataloaders import datasets
 
     _target: ClassVar[Type] = datasets.Dataset
@@ -111,6 +128,8 @@ class DataloaderConfig(InstantiateConfig):
 
 @dataclass
 class ColliderConfig(InstantiateConfig):
+    """Basic collider config: near/far"""
+
     from nerfactory.models.modules import scene_colliders
 
     _target: ClassVar[Type] = scene_colliders.NearFarCollider
@@ -120,6 +139,8 @@ class ColliderConfig(InstantiateConfig):
 
 @dataclass
 class DensityFieldConfig(InstantiateConfig):
+    """Basic density field config"""
+
     from nerfactory.fields.density_fields import density_grid
 
     _target: ClassVar[Type] = density_grid.DensityGrid
@@ -171,19 +192,23 @@ class ViewerConfig:
 
 @dataclass
 class OptimizerConfig(InstantiateConfig):
+    """Basic optimizer config with RAdam"""
+
     _target: ClassVar[Type] = torch.optim.RAdam
     lr: float = 0.0005
     eps: float = 1e-08
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params) -> TypeVar:
+    def setup(self, params=None, **kwargs) -> TypeVar:
         """Returns the instantiated object using the config."""
         return self._target(params, lr=self.lr, eps=self.eps)
 
 
 @dataclass
 class SchedulerConfig(InstantiateConfig):
+    """Basic scheduler config with self-defined exponential decay schedule"""
+
     from nerfactory.optimizers import schedulers
 
     _target: ClassVar[Type] = schedulers.ExponentialDecaySchedule
@@ -192,7 +217,7 @@ class SchedulerConfig(InstantiateConfig):
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, optimizer, lr_init) -> TypeVar:
+    def setup(self, optimizer=None, lr_init=None, **kwargs) -> TypeVar:
         """Returns the instantiated object using the config."""
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 
@@ -225,20 +250,31 @@ class Config:
         self.logging.log_dir = f"{base_dir}"
 
 
-def setup_config(config_name: str = "mipnerf"):
+def setup_config(config_name: str = "instant_ngp"):
+    """Mapping from config name to actual config; list of all pre-implemented NeRF models"""
+    if config_name == "instant_ngp":
+        from nerfactory.configs.instant_ngp_config import InstantNGPConfig
+
+        return InstantNGPConfig()
+    if config_name == "mipnerf_360":
+        from nerfactory.configs.mipnerf_360_config import MipNerf360Config
+
+        return MipNerf360Config()
+    if config_name == "mipnerf":
+        from nerfactory.configs.mipnerf_config import MipNerfConfig
+
+        return MipNerfConfig()
+    if config_name == "nerfw":
+        from nerfactory.configs.nerfw_config import NerfWConfig
+
+        return NerfWConfig()
+    if config_name == "semantic_nerf":
+        from nerfactory.configs.semantic_nerf_config import SemanticNerfConfig
+
+        return SemanticNerfConfig()
     if config_name == "vanilla_nerf":
         from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
 
         return VanillaNerfConfig()
-    elif config_name == "instant_ngp":
-        from nerfactory.configs.instant_ngp import InstantNGPConfig
 
-        return InstantNGPConfig()
-    elif config_name == "mipnerf":
-        from nerfactory.configs.mipnerf import MipNerfConfig
-
-        return MipNerfConfig()
-    elif config_name == "mipnerf_360":
-        from nerfactory.configs.mipnerf_360 import MipNerf360Config
-
-        return MipNerf360Config()
+    raise NotImplementedError

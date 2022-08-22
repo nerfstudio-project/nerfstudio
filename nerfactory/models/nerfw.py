@@ -24,7 +24,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import nerfw as cfg
+from nerfactory.configs import nerfw_config as cfg
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
