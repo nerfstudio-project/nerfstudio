@@ -58,11 +58,6 @@ class NerfWModel(Model):
                 This avoids calling torch.log() on a zero value, which would be undefined.
                 Defaults to 0.03.
         """
-        self.near_plane = config.near_plane
-        self.far_plane = config.far_plane
-        self.num_coarse_samples = config.num_coarse_samples
-        self.num_importance_samples = config.num_importance_samples
-        self.uncertainty_min = config.uncertainty_min
         self.field_coarse = None
         self.field_fine = None
         self.num_images = 10000  # TODO(ethan): fix this
@@ -91,8 +86,8 @@ class NerfWModel(Model):
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.BLACK)
@@ -175,7 +170,7 @@ class NerfWModel(Model):
 
         # uncertainty
         uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
-        uncertainty += self.uncertainty_min
+        uncertainty += self.config.uncertainty_min
 
         outputs = {
             "rgb_coarse": rgb_coarse,  # (num_rays, 3)

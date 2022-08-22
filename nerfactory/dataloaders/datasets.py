@@ -140,7 +140,7 @@ class Blender(Dataset):
         self.config = config
         self.data_directory: str = config.data_directory
         self.scale_factor: float = config.scale_factor
-        self.alpha_color: Optional[Union[str, list]] = config.alpha_color
+        self.alpha_color = config.alpha_color
         self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):

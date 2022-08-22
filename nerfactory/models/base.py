@@ -61,11 +61,6 @@ class Model(nn.Module):
         super().__init__()
         self.config = config
         self.scene_bounds = scene_bounds
-        self.loss_coefficients = config.loss_coefficients
-        self.enable_collider = config.enable_collider
-        self.collider_config = config.collider_config
-        self.enable_density_field = config.enable_density_field
-        self.density_field_config = config.density_field_config
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
@@ -88,13 +83,13 @@ class Model(nn.Module):
 
     def populate_density_field(self):
         """Set the scene density field to use."""
-        if self.enable_density_field:
-            self.density_field = self.density_field_config.setup()
+        if self.config.enable_density_field:
+            self.density_field = self.config.density_field_config.setup()
 
     def populate_collider(self):
         """Set the scene bounds collider to use."""
-        if self.enable_collider:
-            self.collider = self.collider_config.setup(scene_bounds=self.scene_bounds)
+        if self.config.enable_collider:
+            self.collider = self.config.collider_config.setup(scene_bounds=self.scene_bounds)
 
     @abstractmethod
     def populate_fields(self):
@@ -168,13 +163,13 @@ class Model(nn.Module):
         outputs = self.get_outputs(intersected_ray_bundle)
         metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
         loss_dict = self.get_loss_dict(
-            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
+            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.config.loss_coefficients
         )
 
         # scaling losses by coefficients.
         for loss_name in loss_dict.keys():
-            if loss_name in self.loss_coefficients:
-                loss_dict[loss_name] *= self.loss_coefficients[loss_name]
+            if loss_name in self.config.loss_coefficients:
+                loss_dict[loss_name] *= self.config.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:

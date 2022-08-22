@@ -48,7 +48,6 @@ class NGPModel(Model):
 
     def __init__(self, config: cfg.InstantNGPConfig, **kwargs) -> None:
         assert config.field_implementation in field_implementation_to_class
-        self.field_implementation = config.field_implementation
         self.field = None
         super().__init__(config=config, **kwargs)
 
@@ -65,7 +64,7 @@ class NGPModel(Model):
     def populate_fields(self):
         """Set the fields."""
         # torch or tiny-cuda-nn version
-        self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
+        self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
     def populate_misc_modules(self):
         # samplers

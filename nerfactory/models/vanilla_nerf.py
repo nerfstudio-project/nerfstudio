@@ -60,10 +60,6 @@ class NeRFModel(Model):
         config: cfg.VanillaNerfConfig,
         **kwargs,
     ) -> None:
-        self.num_coarse_samples = config.num_coarse_samples
-        self.num_importance_samples = config.num_importance_samples
-        self.near_plane = config.collider_config.near_plane if config.collider_config else 2.0
-        self.far_plane = config.collider_config.far_plane if config.collider_config else 6.0
         self.field_coarse = None
         self.field_fine = None
 
@@ -104,8 +100,10 @@ class NeRFModel(Model):
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, density_field=self.density_field)
+        self.sampler_uniform = UniformSampler(
+            num_samples=self.config.num_coarse_samples, density_field=self.density_field
+        )
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples, density_field=self.density_field)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -189,14 +187,14 @@ class NeRFModel(Model):
         depth_coarse = visualization.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
-            near_plane=self.near_plane,
-            far_plane=self.far_plane,
+            near_plane=self.config.near_plane,
+            far_plane=self.config.far_plane,
         )
         depth_fine = visualization.apply_depth_colormap(
             outputs["depth_fine"],
             accumulation=outputs["accumulation_fine"],
-            near_plane=self.near_plane,
-            far_plane=self.far_plane,
+            near_plane=self.config.near_plane,
+            far_plane=self.config.far_plane,
         )
 
         combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)

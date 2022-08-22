@@ -80,7 +80,7 @@ class TrainerConfig:
     steps_per_test: int = 500
     max_num_iterations: int = 1000000
     mixed_precision: bool = False
-    # optional parameteres if we want to resume training
+    # optional parameters if we want to resume training
     load_dir: Optional[str] = None
     load_step: Optional[int] = None
 
