@@ -20,7 +20,6 @@ from __future__ import annotations
 import enum
 import logging
 import os
-import sys
 from abc import abstractmethod
 from time import time
 from typing import Dict
@@ -141,15 +140,10 @@ def write_out_storage():
 @check_main_thread
 def setup_event_writers(config: cfg.LoggingConfig, max_iter: int) -> None:
     """Initialization of all event writers specified in config"""
-    for writer_type in config.writer:
-        writer_class = getattr(sys.modules[__name__], writer_type)
-        writer_config = config.writer[writer_type]
-        if writer_type == "LocalWriter":
-            curr_writer = writer_class(config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
-        else:
-            curr_writer = writer_class(config.log_dir)
+    for writer_type_config in config.writer:
+        curr_writer = writer_type_config.setup()
         EVENT_WRITERS.append(curr_writer)
-    logging.info("logging info to: %s", config.log_dir)
+        logging.info("logging info to: %s", writer_type_config.log_dir)
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
@@ -230,9 +224,9 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: str):
-        super().__init__(log_dir)
-        wandb.init(dir=log_dir)
+    def __init__(self, config: cfg.WandbWriterConfig):
+        super().__init__(config.log_dir)
+        wandb.init(dir=config.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -258,9 +252,9 @@ class WandbWriter(Writer):
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, log_dir: str):
-        super().__init__(log_dir)
-        self.tb_writer = SummaryWriter(log_dir=self.log_dir)
+    def __init__(self, config: cfg.TensorboardWriterConfig):
+        super().__init__(config.log_dir)
+        self.tb_writer = SummaryWriter(log_dir=config.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -315,15 +309,15 @@ def _format_time(seconds):
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, log_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
+    def __init__(self, config: cfg.LocalWriterConfig):
         """
         Args:
             stats_to_track (ListConfig): the names of stats that should be logged.
             max_log size (int): max number of lines that will be logged to teminal.
         """
-        super().__init__(log_dir)
-        self.stats_to_track = [EventName[name].value for name in stats_to_track]
-        self.max_log_size = max_log_size
+        super().__init__(config.log_dir)
+        self.stats_to_track = [name.value for name in config.stats_to_track]
+        self.max_log_size = config.max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
         self.has_printed = False

@@ -67,22 +67,45 @@ class MachineConfig:
 
 
 @dataclass
+class TensorboardWriterConfig(InstantiateConfig):
+    from nerfactory.utils import writer
+
+    _target: ClassVar[Type] = writer.TensorboardWriter
+    log_dir: str = "./"
+
+
+@dataclass
+class WandbWriterConfig(InstantiateConfig):
+    from nerfactory.utils import writer
+
+    _target: ClassVar[Type] = writer.WandbWriter
+    log_dir: str = "./"
+
+
+@dataclass
+class LocalWriterConfig(InstantiateConfig):
+    from nerfactory.utils import writer
+
+    _target: ClassVar[Type] = writer.LocalWriter
+    stats_to_track: List[writer.EventName] = to_list(
+        [
+            writer.EventName.ITER_LOAD_TIME,
+            writer.EventName.ITER_TRAIN_TIME,
+            writer.EventName.RAYS_PER_SEC,
+            writer.EventName.CURR_TEST_PSNR,
+        ]
+    )
+    max_log_size: int = 10
+    log_dir: str = "./"
+
+
+@dataclass
 class LoggingConfig:
     """Configuration of loggers and profilers"""
 
-    log_dir: str = "./"
     steps_per_log: int = 10
     max_buffer_size: int = 20
-    # TODO: migrate these into instantiable classes as well
-    writer: Dict[str, "Any"] = to_dict(
-        {
-            "TensorboardWriter": {},
-            "LocalWriter": {
-                "stats_to_track": ["ITER_LOAD_TIME", "ITER_TRAIN_TIME", "RAYS_PER_SEC", "CURR_TEST_PSNR"],
-                "max_log_size": 10,  # if 0, logs everything with no erasing
-            },
-        }
-    )
+    writer: List[Any] = to_list([TensorboardWriterConfig(), LocalWriterConfig()])
     # profiler logs run times of functions and prints at end of training
     enable_profiler: bool = True
 
@@ -91,7 +114,7 @@ class LoggingConfig:
 class TrainerConfig:
     """Configuration for training regimen"""
 
-    model_dir: str = "./checkpoints"
+    model_dir: str = "nerfactory_models/"
     steps_per_save: int = 1000
     steps_per_test: int = 500
     max_num_iterations: int = 1000000
@@ -269,8 +292,9 @@ class Config:
         """Convert logging directories to more specific filepaths"""
         dt_str: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         base_dir: str = f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}"
-        self.trainer.model_dir = f"{base_dir}/nerfactory_models/"
-        self.logging.log_dir = f"{base_dir}"
+        self.trainer.model_dir = f"{base_dir}/{self.trainer.model_dir}"
+        for writer in self.logging.writer:
+            writer.log_dir = f"{base_dir}/{writer.log_dir}"
 
 
 def setup_config(config_name: str):
