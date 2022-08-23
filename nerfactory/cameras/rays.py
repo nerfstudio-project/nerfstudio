@@ -17,7 +17,7 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 from torchtyping import TensorType
@@ -160,6 +160,7 @@ class RayBundle(TensorDataclass):
         fars: Rays Distance along ray to stop sampling
         valid_mask: Rays that are valid
         num_rays_per_chunk: Number of rays per chunk
+        shaped_metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
     """
 
     origins: TensorType["num_rays", 3]
@@ -170,6 +171,7 @@ class RayBundle(TensorDataclass):
     fars: Optional[TensorType["num_rays", 1]] = None
     valid_mask: Optional[TensorType["num_rays", 1, bool]] = None
     num_rays_per_chunk: int = 128
+    shaped_metadata: Optional[Dict[str, TensorType["num_rays", ...]]] = None
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.

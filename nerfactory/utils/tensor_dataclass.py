@@ -15,7 +15,7 @@
 """Tensor dataclass"""
 
 import dataclasses
-from typing import Callable, NoReturn, Optional, Tuple, TypeVar, Union
+from typing import Callable, Dict, NoReturn, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -172,7 +172,7 @@ class TensorDataclass:
 
         Args:
             fn (Callable): The function to apply to tensor fields.
-            dataclass_fn (Optional[Callable]): The function to apply to TensorDataclass fields. Else use fn.
+            dataclass_fn (Optional[Callable]): The function to apply to TensorDataclass fields.
 
         Returns:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
@@ -187,5 +187,24 @@ class TensorDataclass:
                     new_fields[f] = dataclass_fn(v)
                 elif isinstance(v, (torch.Tensor, TensorDataclass)):
                     new_fields[f] = fn(v)
+                elif isinstance(v, Dict):
+                    new_fields[f] = self._apply_fn_to_dict(v, fn, dataclass_fn)
 
         return dataclasses.replace(self, **new_fields)
+
+    def _apply_fn_to_dict(self, dict_ptr: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
+        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_ptr"""
+
+        field_names = dict_ptr.keys()
+        new_dict = {}
+        for f in field_names:
+            v = dict_ptr[f]
+            if v is not None:
+                if isinstance(v, TensorDataclass) and dataclass_fn is not None:
+                    new_dict[f] = dataclass_fn(v)
+                elif isinstance(v, (torch.Tensor, TensorDataclass)):
+                    new_dict[f] = fn(v)
+                elif isinstance(v, Dict):
+                    new_dict[f] = self._apply_fn_to_dict(v, fn, dataclass_fn)
+
+        return new_dict
