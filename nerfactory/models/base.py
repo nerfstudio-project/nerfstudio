@@ -165,11 +165,6 @@ class Model(nn.Module):
         loss_dict = self.get_loss_dict(
             outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.config.loss_coefficients
         )
-
-        # scaling losses by coefficients.
-        for loss_name in loss_dict.keys():
-            if loss_name in self.config.loss_coefficients:
-                loss_dict[loss_name] *= self.config.loss_coefficients[loss_name]
         return outputs, loss_dict, metrics_dict
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:

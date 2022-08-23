@@ -16,20 +16,6 @@ python scripts/run_train.py --config-name=graph_vanilla_nerf.yaml
 
 ## Method
 
-### Pipeline
-
-```{image} imgs/models_nerf-field-light.png
-:align: center
-:class: only-light
-:width: 500
-```
-
-```{image} imgs/models_nerf-field-dark.png
-:align: center
-:class: only-dark
-:width: 500
-```
-
 ### Overview
 
 If you have arrived to this site, it is likely that you have atleast heard of NeRFs. This page will discuss the original NeRF paper, _"NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"_ by Mildenhall, Srinivasan, Tancik et al. (2020). For most tasks, using the original NeRF model is likely not a good choice and hence we provide implementations of various other NeRF related models. It is however useful to understand how NeRF's work as most follow ups follow a similar structure.
@@ -44,21 +30,137 @@ If any of the following assumptions are broken, the reconstructions may fail com
 * Dense input capture (Each point in the scene should be visible in multiple images)
 ```
 
+## Pipeline
+
+```{image} imgs/models_nerf-pipeline-light.png
+:align: center
+:class: only-light
+```
+
+```{image} imgs/models_nerf-pipeline-dark.png
+:align: center
+:class: only-dark
+```
+
+Here is an overview pipeline for NeRF, we will walk though each component in this guide.
+
 ### Field Representation
 
+```{image} imgs/models_nerf-pipeline-field-light.png
+:align: center
+:class: only-light
+```
+
+```{image} imgs/models_nerf-pipeline-field-dark.png
+:align: center
+:class: only-dark
+```
+
 NeRFs are a volumetric representation encoded into a neural network. They are not 3D meshes and they are not voxels. For each point in space the NeRF represents a view dependent radiance. More concretely each point has a density which describes how transparent or opaque a point in space is. They also have a view dependent color that changes depending on the angle the point is viewed.
+
+```{image} imgs/models_nerf-field-light.png
+:align: center
+:class: only-light
+:width: 400
+```
+
+```{image} imgs/models_nerf-field-dark.png
+:align: center
+:class: only-dark
+:width: 400
+```
+
+The associated NeRF fields can be instantiated with the following Nerfactory code (encoding described in next section):
+
+```python
+from nerfactory.fields.nerf_field import NeRFField
+
+field_coarse = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
+field_fine = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
+```
 
 #### Positional Encoding
 
 An extra trick is necessary to making the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../model_components/visualize_encoders.ipynb).
 
+```python
+from nerfactory.fields.modules.encoding import NeRFEncoding
+
+pos_enc = NeRFEncoding(
+    in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+)
+dir_enc = NeRFEncoding(
+    in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
+)
+```
+
 ### Rendering
 
-Now that we have a representation of space, we need some way to render new images of it. To accomplish this, we are going to _shoot_ a ray from the target pixel and evaluate points along that ray. We then rely on classic volumetric rendering techniques [[Kajiya, 1984]](https://dl.acm.org/doi/abs/10.1145/964965.808594) to composite the points into a predicted color. This compositing is similar to what happens in tools like Photoshop when you layer multiple objects of varying opacity on top of each other. The only difference is that NeRF takes into account the differences in spacing between points.
+```{image} imgs/models_nerf-pipeline-renderer-light.png
+:align: center
+:class: only-light
+```
+
+```{image} imgs/models_nerf-pipeline-renderer-dark.png
+:align: center
+:class: only-dark
+```
+
+Now that we have a representation of space, we need some way to render new images of it. To accomplish this, we are going to _project_ a ray from the target pixel and evaluate points along that ray. We then rely on classic volumetric rendering techniques [[Kajiya, 1984]](https://dl.acm.org/doi/abs/10.1145/964965.808594) to composite the points into a predicted color. This compositing is similar to what happens in tools like Photoshop when you layer multiple objects of varying opacity on top of each other. The only difference is that NeRF takes into account the differences in spacing between points.
+
+Rending RGB images is not the only type of output render supported. It is possible to render other output types such as depth and semantics. Additional renderers can be found [Here](../reference/api/renderers/index.rst).
+
+Associated Nerfactory code:
+
+```python
+from nerfactory.renderers.renderers import RGBRenderer
+
+renderer_rgb = RGBRenderer(background_color=colors.WHITE)
+# Ray samples discussed in the next section
+field_outputs = field_coarse.forward(ray_samples)
+weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+rgb = renderer_rgb(
+    rgb=field_outputs[FieldHeadNames.RGB],
+    weights=weights,
+)
+```
 
 #### Sampling
 
-How we sample the rays in space is an important design decision.
+```{image} imgs/models_nerf-pipeline-sampler-light.png
+:align: center
+:class: only-light
+```
+
+```{image} imgs/models_nerf-pipeline-sampler-dark.png
+:align: center
+:class: only-dark
+```
+
+How we sample points along rays in space is an important design decision. Various sampling strategies can be used which are dicussed in detail in the [Ray Samplers](../model_components/visualize_samplers.ipynb) guide. In NeRF we take advantage of a hierarchical sampling scheme that first uses a _uniform sampler_ and is followed by a _PDF sampler_. The uniform sampler distributes samples evenly between a predefined distance range from the camera. These are then used to compute an initial render of the scene. The renderer optionally produces _weights_ for each sample that correlate with how important each sample was to the final renderer. The PDF sampler uses these _weights_ to generate a new set of samples that are biased to regions of higher weight. In practice, these regions are near the surface of the object.
+
+Associated code:
+
+```python
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
+
+sampler_uniform = UniformSampler(num_samples=num_coarse_samples)
+ray_samples_uniform = sampler_uniform(ray_bundle)
+
+sampler_pdf = PDFSampler(num_samples=num_importance_samples)
+field_outputs_coarse = field_coarse.forward(ray_samples_uniform)
+weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
+ray_samples_pdf = sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
+```
+
+
+```{warning}
+Described above is specific to scenes that have known bounds (ie. the Blender Sythetic dataset). For unbounded scenes, the original NeRF paper uses Normalized Device Coordinates (NDC) to warp space, along with a _linear in disparity_ sampler. We do not support NDC, for unbounded scenes consider using [Spatial Distortions](../model_components/visualize_spatial_distortions.ipynb).
+```
+
+```{tip}
+For all sampling, we use _Stratified_ samples during optimization and unmodified samples during inference. Further details can be found in the [Ray Samplers](../model_components/visualize_samplers.ipynb) guide.
+```
 
 ## Benchmarks
 

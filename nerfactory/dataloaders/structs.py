@@ -99,6 +99,13 @@ class SceneBounds:
         aabb = torch.tensor([json_[0], json_[1]])
         return SceneBounds(aabb=aabb)
 
+    @staticmethod
+    def from_camera_poses(poses: TensorType[..., 3, 4], scale_factor: float) -> "SceneBounds":
+        """Returns the instance of SceneBounds that fully envelopes a set of poses"""
+        xyzs = poses[..., :3, -1]
+        aabb = torch.stack([torch.min(xyzs, dim=0)[0], torch.max(xyzs, dim=0)[0]])
+        return SceneBounds(aabb=aabb * scale_factor)
+
 
 @dataclass
 class DatasetInputs:
@@ -106,12 +113,14 @@ class DatasetInputs:
 
     Args:
         image_filenames: Filenames for the images.
+        intrinsics: Tensor of per-image camera intrisics.
+        camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
         ...
     """
 
     image_filenames: List[str]
-    intrinsics: torch.Tensor
-    camera_to_world: torch.Tensor
+    intrinsics: TensorType["num_cameras", "num_intrinsics_params"]
+    camera_to_world: TensorType["num_cameras", 3, 4]
     downscale_factor: int = 1
     mask_filenames: Optional[List[str]] = None
     depth_filenames: Optional[List[str]] = None
