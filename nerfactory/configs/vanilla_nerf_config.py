@@ -31,9 +31,9 @@ from nerfactory.configs.base_config import (
 class VanillaNerfModelConfig(ModelConfig):
     """Vanilla NeRF model config"""
 
-    from nerfactory.models import vanilla_nerf_config
+    from nerfactory.models import vanilla_nerf
 
-    _target: ClassVar[Type] = vanilla_nerf_config.NeRFModel
+    _target: ClassVar[Type] = vanilla_nerf.NeRFModel
 
 
 @dataclass

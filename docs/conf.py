@@ -15,6 +15,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
+import nerfactory.configs.base_config
+import nerfactory.configs.instant_ngp_config
+import nerfactory.configs.mipnerf_360_config
+import nerfactory.configs.mipnerf_config
+import nerfactory.configs.nerfw_config
+import nerfactory.configs.semantic_nerf_config
+import nerfactory.configs.vanilla_nerf_config
+import nerfactory.dataloaders.base
 
 # -- Project information -----------------------------------------------------
 

@@ -27,7 +27,7 @@ from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.semantic_nerf_field import SemanticNerfField
-from nerfactory.models.vanilla_nerf_config import NeRFModel
+from nerfactory.models.vanilla_nerf import NeRFModel
 from nerfactory.renderers.renderers import SemanticRenderer
 from nerfactory.utils import misc, writer
 
