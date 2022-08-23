@@ -26,7 +26,7 @@ import imageio
 import numpy as np
 import torch
 
-from nerfactory.configs import vanilla_nerf as cfg
+from nerfactory.configs import base_config as cfg
 from nerfactory.dataloaders.colmap_utils import (
     read_cameras_binary,
     read_images_binary,

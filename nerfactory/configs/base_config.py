@@ -50,7 +50,7 @@ class InstantiateConfig:  # pylint: disable=too-few-public-methods
 
     _target: ClassVar[Type]
 
-    def setup(self, **kwargs) -> TypeVar:
+    def setup(self, **kwargs) -> Any:
         """Returns the instantiated object using the config."""
         return self._target(self, **kwargs)
 
@@ -124,6 +124,29 @@ class DataloaderConfig(InstantiateConfig):
     eval_dataset: Optional[InstantiateConfig] = None
     eval_image_indices: List[int] = to_list([0])
     eval_num_rays_per_chunk: int = 4096
+
+
+@dataclass
+class BlenderDatasetConfig(InstantiateConfig):
+    """Blender dataset config"""
+
+    from nerfactory.dataloaders import datasets
+
+    _target: ClassVar[Type] = datasets.Blender
+    data_directory: str = "data/blender/lego"
+    scale_factor: float = 1.0
+    alpha_color: str = "white"
+    downscale_factor: int = 1
+
+
+@dataclass
+class BlenderDataloaderConfig(DataloaderConfig):
+    """Blender dataloader config"""
+
+    from nerfactory.dataloaders import base
+
+    _target: ClassVar[Type] = base.VanillaDataloader
+    train_dataset: InstantiateConfig = BlenderDatasetConfig()
 
 
 @dataclass
@@ -273,7 +296,7 @@ def setup_config(config_name: str = "instant_ngp"):
 
         return SemanticNerfConfig()
     if config_name == "vanilla_nerf":
-        from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
+        from nerfactory.configs.vanilla_nerf_config import VanillaNerfConfig
 
         return VanillaNerfConfig()
 

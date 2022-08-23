@@ -24,7 +24,7 @@ from nerfactory.configs.base_config import (
     to_dict,
 )
 from nerfactory.configs.nerfw_config import AABBColliderConfig, FriendsDataloaderConfig
-from nerfactory.configs.vanilla_nerf import VanillaNerfConfig
+from nerfactory.configs.vanilla_nerf_config import VanillaNerfConfig
 from nerfactory.utils.misc import DotDict
 
 # pylint: disable=import-outside-toplevel

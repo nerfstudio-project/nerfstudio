@@ -17,37 +17,14 @@ from dataclasses import dataclass
 from typing import ClassVar, Type
 
 from nerfactory.configs.base_config import (
+    BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
-    InstantiateConfig,
     ModelConfig,
     PipelineConfig,
 )
 
 # pylint: disable=import-outside-toplevel
-
-
-@dataclass
-class BlenderDatasetConfig(InstantiateConfig):
-    """Blender dataset config"""
-
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Blender
-    data_directory: str = "data/blender/lego"
-    scale_factor: float = 1.0
-    alpha_color: str = "white"
-    downscale_factor: int = 1
-
-
-@dataclass
-class BlenderDataloaderConfig(DataloaderConfig):
-    """Blender dataloader config"""
-
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.VanillaDataloader
-    train_dataset: InstantiateConfig = BlenderDatasetConfig()
 
 
 @dataclass

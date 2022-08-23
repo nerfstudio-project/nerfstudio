@@ -2,6 +2,9 @@
 """
 Default test to make sure train runs
 """
+
+from __future__ import annotations
+
 import os
 
 import pytest

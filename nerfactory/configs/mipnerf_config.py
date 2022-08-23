@@ -17,13 +17,13 @@ from dataclasses import dataclass
 from typing import ClassVar, Type
 
 from nerfactory.configs.base_config import (
+    BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
     ModelConfig,
     PipelineConfig,
     to_dict,
 )
-from nerfactory.configs.vanilla_nerf import BlenderDataloaderConfig
 from nerfactory.utils.misc import DotDict
 
 # pylint: disable=import-outside-toplevel
