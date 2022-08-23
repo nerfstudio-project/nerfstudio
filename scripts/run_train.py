@@ -9,6 +9,7 @@ import traceback
 from datetime import timedelta
 from typing import Any, Callable
 
+import dcargs
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -179,9 +180,9 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-def main():
+def main(config_name: str):
     """Main function."""
-    config = cfg.setup_config()
+    config = cfg.setup_config(config_name=config_name)
 
     launch(
         train_loop,
@@ -194,4 +195,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
+    dcargs.cli(main)  # pylint: disable=no-value-for-parameter

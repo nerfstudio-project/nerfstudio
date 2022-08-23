@@ -187,14 +187,14 @@ class NeRFModel(Model):
         depth_coarse = visualization.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
-            near_plane=self.config.near_plane,
-            far_plane=self.config.far_plane,
+            near_plane=self.config.collider_config.near_plane,
+            far_plane=self.config.collider_config.far_plane,
         )
         depth_fine = visualization.apply_depth_colormap(
             outputs["depth_fine"],
             accumulation=outputs["accumulation_fine"],
-            near_plane=self.config.near_plane,
-            far_plane=self.config.far_plane,
+            near_plane=self.config.collider_config.near_plane,
+            far_plane=self.config.collider_config.far_plane,
         )
 
         combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)

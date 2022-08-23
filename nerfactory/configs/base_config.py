@@ -273,7 +273,7 @@ class Config:
         self.logging.log_dir = f"{base_dir}"
 
 
-def setup_config(config_name: str = "instant_ngp"):
+def setup_config(config_name: str):
     """Mapping from config name to actual config; list of all pre-implemented NeRF models"""
     if config_name == "instant_ngp":
         from nerfactory.configs.instant_ngp_config import InstantNGPConfig
