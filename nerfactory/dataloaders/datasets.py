@@ -386,8 +386,8 @@ class Record3D(Dataset):
         downscale_factor: How much to downscale images. Defaults to 1.
         val_skip: 1/val_skip images to use for validation. Defaults to 8.
         aabb_scale: Scene scale, Defaults to 4.0.
-        max_dataset_size: Max number of images to train on. Images will be selected
-                          at regular intervals from data_directory. Defaults to 150.
+        max_dataset_size: Max number of images to train on. If the dataset has
+            more, images will be sampled approximately evenly. Defaults to 150.
     """
 
     data_directory: str
