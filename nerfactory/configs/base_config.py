@@ -69,6 +69,7 @@ class MachineConfig:
 @dataclass
 class TensorboardWriterConfig(InstantiateConfig):
     """Tensorboard Writer config"""
+
     from nerfactory.utils import writer
 
     _target: ClassVar[Type] = writer.TensorboardWriter
@@ -78,6 +79,7 @@ class TensorboardWriterConfig(InstantiateConfig):
 @dataclass
 class WandbWriterConfig(InstantiateConfig):
     """WandDB Writer config"""
+
     from nerfactory.utils import writer
 
     _target: ClassVar[Type] = writer.WandbWriter
@@ -87,6 +89,7 @@ class WandbWriterConfig(InstantiateConfig):
 @dataclass
 class LocalWriterConfig(InstantiateConfig):
     """Local Writer config"""
+
     from nerfactory.utils import writer
 
     _target: ClassVar[Type] = writer.LocalWriter
