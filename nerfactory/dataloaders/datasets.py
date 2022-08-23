@@ -409,6 +409,7 @@ class Record3D(Dataset):
         for f in os.listdir(image_dir):
             image_filenames.append(os.path.join(image_dir, f))
         image_filenames = sorted(image_filenames, key=lambda fn: int(os.path.basename(fn)[: -len(ext)]))
+        image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
         metadata_path = os.path.join(abs_dir, "metadata.json")
@@ -422,9 +423,11 @@ class Record3D(Dataset):
         ).astype(np.float32)
 
         if num_images > self.max_dataset_size:
-            step_size = 1 + num_images // self.max_dataset_size
-            poses = poses[::step_size]
-            image_filenames = image_filenames[::step_size]
+            # Evenly select max_dataset_size images from dataset, including first
+            # and last indices.
+            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
+            poses = poses[idx]
+            image_filenames = image_filenames[idx]
             num_images = len(image_filenames)
 
         # Normalization similar to Mipnerf360
@@ -451,7 +454,7 @@ class Record3D(Dataset):
         if num_images != poses.shape[0]:
             raise RuntimeError(f"Different number of images ({num_images}), and poses ({poses.shape[0]})")
 
-        image_filenames = np.array(image_filenames)[idx]
+        image_filenames = image_filenames[idx]
         poses = poses[idx]
 
         # Centering poses
