@@ -386,12 +386,15 @@ class Record3D(Dataset):
         downscale_factor: How much to downscale images. Defaults to 1.
         val_skip: 1/val_skip images to use for validation. Defaults to 8.
         aabb_scale: Scene scale, Defaults to 4.0.
+        max_dataset_size: Max number of images to train on. If the dataset has
+            more, images will be sampled approximately evenly. Defaults to 150.
     """
 
     data_directory: str
     downscale_factor: int = 1
     val_skip: int = 8
     aabb_scale = 4.0
+    max_dataset_size: int = 150
 
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
         abs_dir = get_absolute_path(self.data_directory)
@@ -406,6 +409,7 @@ class Record3D(Dataset):
         for f in os.listdir(image_dir):
             image_filenames.append(os.path.join(image_dir, f))
         image_filenames = sorted(image_filenames, key=lambda fn: int(os.path.basename(fn)[: -len(ext)]))
+        image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
         metadata_path = os.path.join(abs_dir, "metadata.json")
@@ -417,6 +421,14 @@ class Record3D(Dataset):
             [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
             axis=-1,
         ).astype(np.float32)
+
+        if num_images > self.max_dataset_size:
+            # Evenly select max_dataset_size images from dataset, including first
+            # and last indices.
+            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
+            poses = poses[idx]
+            image_filenames = image_filenames[idx]
+            num_images = len(image_filenames)
 
         # Normalization similar to Mipnerf360
         poses = Mipnerf360.normalize_orientation(poses)
@@ -442,7 +454,7 @@ class Record3D(Dataset):
         if num_images != poses.shape[0]:
             raise RuntimeError(f"Different number of images ({num_images}), and poses ({poses.shape[0]})")
 
-        image_filenames = np.array(image_filenames)[idx]
+        image_filenames = image_filenames[idx]
         poses = poses[idx]
 
         # Centering poses
@@ -472,8 +484,8 @@ class Record3D(Dataset):
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=1,
-            intrinsics=intrinsics,
+            downscale_factor=self.downscale_factor,
+            intrinsics=intrinsics * 1.0 / self.downscale_factor,
             camera_to_world=camera_to_world,
             scene_bounds=scene_bounds,
         )
