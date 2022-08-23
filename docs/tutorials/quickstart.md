@@ -98,7 +98,9 @@ With support for [Hydra](https://hydra.cc/), you can run with other configuratio
 
 # Visualizing training runs
 
-If you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
+If you using a fast NeRF variant (ie. Instant-NGP), we reccomend using our viewer. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
+
+Additionally, if you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
 ```bash
 tensorboard --logdir outputs
