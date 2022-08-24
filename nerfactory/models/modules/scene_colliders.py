@@ -23,7 +23,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
 
 

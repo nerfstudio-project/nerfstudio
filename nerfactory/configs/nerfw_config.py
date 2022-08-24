@@ -14,17 +14,16 @@
 
 """NerfW Configs"""
 from dataclasses import dataclass
-from typing import ClassVar, Type
+from typing import ClassVar, Dict, Type
 
-from nerfactory.configs.base_config import (
+from nerfactory.configs.base import (
     Config,
     DataloaderConfig,
     InstantiateConfig,
     ModelConfig,
     PipelineConfig,
-    to_dict,
 )
-from nerfactory.utils.misc import DotDict
+from nerfactory.configs.utils import to_immutable_dict
 
 # pylint: disable=import-outside-toplevel
 
@@ -67,7 +66,7 @@ class NerfWModelConfig(ModelConfig):
 
     _target: ClassVar[Type] = nerfw.NerfWModel
     collider_config: InstantiateConfig = AABBColliderConfig()
-    loss_coefficients: DotDict = to_dict(
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
         {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "uncertainty_loss": 1.0, "density_loss": 0.01}
     )
     num_coarse_samples: int = 64

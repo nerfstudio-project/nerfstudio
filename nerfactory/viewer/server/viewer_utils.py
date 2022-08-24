@@ -27,7 +27,7 @@ import torch
 
 from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.base import Model

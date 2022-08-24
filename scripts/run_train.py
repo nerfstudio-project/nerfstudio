@@ -9,13 +9,13 @@ import traceback
 from datetime import timedelta
 from typing import Any, Callable
 
-import dcargs
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
+from nerfactory.configs.utils import cli_from_base_configs
 from nerfactory.engine.trainer import train_loop
 from nerfactory.utils import comms, profiler
 
@@ -180,10 +180,8 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-def main(config_name: str):
+def main(config: cfg.Config) -> None:
     """Main function."""
-    config = cfg.setup_config(config_name=config_name)
-
     launch(
         train_loop,
         config.machine.num_gpus,
@@ -195,4 +193,7 @@ def main(config_name: str):
 
 
 if __name__ == "__main__":
-    dcargs.cli(main)  # pylint: disable=no-value-for-parameter
+    from nerfactory.configs.base_configs import base_configs
+
+    instantiated_config = cli_from_base_configs(base_configs)
+    main(config=instantiated_config)

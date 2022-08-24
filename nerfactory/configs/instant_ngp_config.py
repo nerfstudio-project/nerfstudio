@@ -14,9 +14,9 @@
 
 """Instant NGP Configs"""
 from dataclasses import dataclass
-from typing import ClassVar, Type
+from typing import Any, ClassVar, Dict, Type
 
-from nerfactory.configs.base_config import (
+from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
@@ -24,9 +24,8 @@ from nerfactory.configs.base_config import (
     OptimizerConfig,
     PipelineConfig,
     TrainerConfig,
-    to_dict,
 )
-from nerfactory.utils.misc import DotDict
+from nerfactory.configs.utils import to_immutable_dict
 
 # pylint: disable=import-outside-toplevel
 
@@ -41,7 +40,7 @@ class InstantNGPModelConfig(ModelConfig):
     enable_density_field: bool = True
     enable_collider: bool = False
     field_implementation: str = "tcnn"  # torch, tcnn, ...
-    loss_coefficients: DotDict = to_dict({"rgb_loss": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
 
 
 @dataclass
@@ -62,7 +61,7 @@ class InstantNGPConfig(Config):
     trainer: TrainerConfig = TrainerConfig(mixed_precision=True)
     method_name: str = "instant_ngp"
     pipeline: PipelineConfig = InstantNGPPipelineConfig()
-    optimizers: DotDict = to_dict(
+    optimizers: Dict[str, Any] = to_immutable_dict(
         {
             "fields": {
                 "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),

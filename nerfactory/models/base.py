@@ -28,7 +28,7 @@ from torch.nn import Parameter
 
 from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.misc import get_masked_dict, is_not_none

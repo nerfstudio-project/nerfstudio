@@ -14,17 +14,16 @@
 
 """Mipnerf Configs"""
 from dataclasses import dataclass
-from typing import ClassVar, Type
+from typing import ClassVar, Dict, Type
 
-from nerfactory.configs.base_config import (
+from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
     ModelConfig,
     PipelineConfig,
-    to_dict,
 )
-from nerfactory.utils.misc import DotDict
+from nerfactory.configs.utils import to_immutable_dict
 
 # pylint: disable=import-outside-toplevel
 
@@ -42,7 +41,7 @@ class MipNerfModelConfig(ModelConfig):
     from nerfactory.models import mipnerf
 
     _target: ClassVar[Type] = mipnerf.MipNerfModel
-    loss_coefficients: DotDict = to_dict({"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0})
     num_coarse_samples: int = 128
     num_importance_samples: int = 128
 
