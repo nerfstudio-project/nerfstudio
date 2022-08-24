@@ -5,7 +5,7 @@ Test samplers
 import torch
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.models.modules.ray_sampler import (
     LinearDisparitySampler,
     LogSampler,

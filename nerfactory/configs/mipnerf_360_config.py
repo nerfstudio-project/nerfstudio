@@ -14,9 +14,9 @@
 
 """Mipnerf 360 Configs"""
 from dataclasses import dataclass
-from typing import ClassVar, Type
+from typing import ClassVar, Dict, Type
 
-from nerfactory.configs.base_config import (
+from nerfactory.configs.base import (
     ColliderConfig,
     Config,
     DataloaderConfig,
@@ -24,9 +24,8 @@ from nerfactory.configs.base_config import (
     ModelConfig,
     PipelineConfig,
     TrainerConfig,
-    to_dict,
 )
-from nerfactory.utils.misc import DotDict
+from nerfactory.configs.utils import to_immutable_dict
 
 # pylint: disable=import-outside-toplevel
 
@@ -59,7 +58,7 @@ class MipNerf360ModelConfig(ModelConfig):
 
     _target: ClassVar[Type] = mipnerf_360.MipNerf360Model
     collider_config: InstantiateConfig = ColliderConfig(near_plane=0.5, far_plane=20.0)
-    loss_coefficients: DotDict = to_dict({"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0})
     num_coarse_samples: int = 128
     num_importance_samples: int = 128
 

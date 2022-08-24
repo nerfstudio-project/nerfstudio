@@ -9,7 +9,6 @@ from typing import Dict, List, Optional
 import dcargs
 import mediapy as media
 import torch
-from hydra import compose, initialize
 from omegaconf import DictConfig
 from tqdm import tqdm
 
@@ -18,7 +17,7 @@ from nerfactory.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_spiral_path,
 )
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs.base_configs import base_configs
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import io as io_utils
 from nerfactory.utils.misc import human_format
@@ -158,14 +157,10 @@ def main(
         config_overrides: List of strings to override config values.
     """
 
-    config_path = "../configs"
-    initialize(version_base="1.2", config_path=config_path)
     config_overrides = config_overrides or []
-    config = compose(config_name, overrides=config_overrides)
-
+    config = base_configs[config_name]
     config.trainer.load_dir = checkpoint_dir
     config.pipeline.dataloader.eval_image_indices = None
-    config = cfg.setup_config(config)  # converting to typed config
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # setup pipeline (which includes the dataloaders)

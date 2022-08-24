@@ -8,14 +8,13 @@ from __future__ import annotations
 import os
 
 import pytest
-from hydra import compose, initialize
 from hydra.core.global_hydra import GlobalHydra
 from omegaconf import DictConfig, open_dict
 
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs.base_configs import base_configs
 from nerfactory.engine.trainer import train_loop
 
-BLACKLIST = ["graph_semantic_nerf.yaml", "graph_mipnerf_360.yaml", "graph_instant_ngp.yaml"]
+BLACKLIST = ["semantic_nerf", "mipnerf_360", "instant_ngp"]
 
 
 def set_reduced_config(config: DictConfig):
@@ -59,14 +58,13 @@ def set_reduced_config(config: DictConfig):
 def test_run_train():
     """test run train script works properly"""
     all_configs = [f for f in os.listdir("configs/") if f.endswith(".yaml")]  # relative to run path
-    for config_path in all_configs:
-        print(f"testing run for: {config_path}")
-        if config_path in BLACKLIST:
+    all_config_names = [x.replace(".yaml", "") for x in all_configs]
+    for config_name in all_config_names:
+        print(f"testing run for: {config_name}")
+        if config_name in BLACKLIST:
             continue
-        initialize(version_base="1.2", config_path="../configs/")  # relative to test path
-        config = compose(config_path)
+        config = base_configs[config_name]
         config = set_reduced_config(config)
-        config = cfg.setup_config(config)
 
         train_loop(local_rank=0, world_size=0, config=config)
 

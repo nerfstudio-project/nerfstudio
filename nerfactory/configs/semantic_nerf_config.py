@@ -14,18 +14,17 @@
 
 """Semantic Nerf Configs"""
 from dataclasses import dataclass
-from typing import ClassVar, Type
+from typing import ClassVar, Dict, Type
 
-from nerfactory.configs.base_config import (
+from nerfactory.configs.base import (
     DataloaderConfig,
     InstantiateConfig,
     ModelConfig,
     PipelineConfig,
-    to_dict,
 )
 from nerfactory.configs.nerfw_config import AABBColliderConfig, FriendsDataloaderConfig
+from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.configs.vanilla_nerf_config import VanillaNerfConfig
-from nerfactory.utils.misc import DotDict
 
 # pylint: disable=import-outside-toplevel
 
@@ -38,7 +37,9 @@ class SemanticNerfModelConfig(ModelConfig):
 
     _target: ClassVar[Type] = semantic_nerf.SemanticNerfModel
     collider_config: InstantiateConfig = AABBColliderConfig()
-    loss_coefficients: DotDict = to_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05})
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
+        {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05}
+    )
     num_coarse_samples: int = 64
     num_importance_samples: int = 64
 

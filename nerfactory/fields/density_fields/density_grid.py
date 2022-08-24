@@ -26,7 +26,7 @@ from torchtyping import TensorType
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RaySamples
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
 
 
 def _create_grid_coords(resolution: int, device: Union[torch.device, str] = "cpu") -> TensorType["n_coords", 3]:

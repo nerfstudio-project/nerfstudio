@@ -16,7 +16,7 @@
 from dataclasses import dataclass
 from typing import ClassVar, Type
 
-from nerfactory.configs.base_config import (
+from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
     DataloaderConfig,

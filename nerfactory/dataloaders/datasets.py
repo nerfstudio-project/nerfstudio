@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
-from nerfactory.configs import base_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.colmap_utils import (
     read_cameras_binary,
     read_images_binary,

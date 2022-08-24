@@ -25,23 +25,6 @@ import torch
 from omegaconf import DictConfig
 
 
-class DotDict(dict):
-    """
-    dot.notation access to dictionary attributes
-    """
-
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__  # type: ignore
-    __delattr__ = dict.__delitem__  # type: ignore
-
-    def __init__(self, dct):
-        super().__init__()
-        for key, value in dct.items():
-            if hasattr(value, "keys"):
-                value = DotDict(value)
-            self[key] = value
-
-
 def get_dict_to_torch(stuff, device: Union[torch.device, str] = "cpu"):
     """Set everything in the dict to the specified torch device."""
     if isinstance(stuff, dict):

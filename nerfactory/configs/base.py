@@ -16,35 +16,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar
 
 import torch
 
-from nerfactory.utils.misc import DotDict
+from nerfactory.configs.utils import to_immutable_dict, to_immutable_list
 
 # pylint: disable=import-outside-toplevel
 
-# cannot use mutable types directly within dataclass; abstracting default factory calls
-def to_dict(d: Dict[str, Any]):
-    """Method to convert mutable dict to default factory dict
 
-    Args:
-        d: dictionary to convert into default factory dict for dataclass
-    """
-    return field(default_factory=lambda: DotDict(d))
-
-
-def to_list(l: List[Any]):
-    """Method to convert mutable list to default factory list
-
-    Args:
-        l: list to convert into default factory list for dataclass
-    """
-    return field(default_factory=lambda: l)
-
-
+@dataclass
 class InstantiateConfig:  # pylint: disable=too-few-public-methods
     """Config class for instantiating an the class specified in the _target attribute."""
 
@@ -93,7 +76,7 @@ class LocalWriterConfig(InstantiateConfig):
     from nerfactory.utils import writer
 
     _target: ClassVar[Type] = writer.LocalWriter
-    stats_to_track: List[writer.EventName] = to_list(
+    stats_to_track: List[writer.EventName] = to_immutable_list(
         [
             writer.EventName.ITER_LOAD_TIME,
             writer.EventName.ITER_TRAIN_TIME,
@@ -111,7 +94,7 @@ class LoggingConfig:
 
     steps_per_log: int = 10
     max_buffer_size: int = 20
-    writer: List[Any] = to_list([TensorboardWriterConfig(), LocalWriterConfig()])
+    writer: List[Any] = to_immutable_list([TensorboardWriterConfig(), LocalWriterConfig()])
     # profiler logs run times of functions and prints at end of training
     enable_profiler: bool = True
 
@@ -141,7 +124,7 @@ class DatasetConfig(InstantiateConfig):
 
 @dataclass
 class DataloaderConfig(InstantiateConfig):
-    """Configuration for train/eval datasets"""
+    """Configuration for dataloader instantiation"""
 
     from nerfactory.dataloaders import base
 
@@ -151,7 +134,7 @@ class DataloaderConfig(InstantiateConfig):
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataset: Optional[InstantiateConfig] = None
-    eval_image_indices: List[int] = to_list([0])
+    eval_image_indices: List[int] = to_immutable_list([0])
     eval_num_rays_per_chunk: int = 4096
 
 
@@ -205,14 +188,14 @@ class DensityFieldConfig(InstantiateConfig):
 
 @dataclass
 class ModelConfig(InstantiateConfig):
-    """Configuration for graph instantiation"""
+    """Configuration for model instantiation"""
 
     from nerfactory.models import base
 
     _target: ClassVar[Type] = base.Model
     enable_collider: bool = True
     collider_config: InstantiateConfig = ColliderConfig()
-    loss_coefficients: DotDict = to_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     num_coarse_samples: int = 64
     num_importance_samples: int = 128
     field_implementation: str = "torch"
@@ -284,7 +267,7 @@ class Config:
     logging: LoggingConfig = LoggingConfig()
     trainer: TrainerConfig = TrainerConfig()
     pipeline: PipelineConfig = PipelineConfig()
-    optimizers: DotDict = to_dict(
+    optimizers: Dict[str, Any] = to_immutable_dict(
         {
             "fields": {
                 "optimizer": OptimizerConfig(),
@@ -301,33 +284,3 @@ class Config:
         self.trainer.model_dir = f"{base_dir}/{self.trainer.model_dir}"
         for writer in self.logging.writer:
             writer.log_dir = f"{base_dir}/{writer.log_dir}"
-
-
-def setup_config(config_name: str):
-    """Mapping from config name to actual config; list of all pre-implemented NeRF models"""
-    if config_name == "instant_ngp":
-        from nerfactory.configs.instant_ngp_config import InstantNGPConfig
-
-        return InstantNGPConfig()
-    if config_name == "mipnerf_360":
-        from nerfactory.configs.mipnerf_360_config import MipNerf360Config
-
-        return MipNerf360Config()
-    if config_name == "mipnerf":
-        from nerfactory.configs.mipnerf_config import MipNerfConfig
-
-        return MipNerfConfig()
-    if config_name == "nerfw":
-        from nerfactory.configs.nerfw_config import NerfWConfig
-
-        return NerfWConfig()
-    if config_name == "semantic_nerf":
-        from nerfactory.configs.semantic_nerf_config import SemanticNerfConfig
-
-        return SemanticNerfConfig()
-    if config_name == "vanilla_nerf":
-        from nerfactory.configs.vanilla_nerf_config import VanillaNerfConfig
-
-        return VanillaNerfConfig()
-
-    raise NotImplementedError
