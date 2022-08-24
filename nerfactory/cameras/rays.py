@@ -161,6 +161,7 @@ class RayBundle(TensorDataclass):
         valid_mask: Rays that are valid
         num_rays_per_chunk: Number of rays per chunk
         shaped_metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
+            NOTE: Careful here as shaped metadata must be consistent with the shape of the ray's num_rays dim
     """
 
     origins: TensorType["num_rays", 3]
@@ -171,7 +172,7 @@ class RayBundle(TensorDataclass):
     fars: Optional[TensorType["num_rays", 1]] = None
     valid_mask: Optional[TensorType["num_rays", 1, bool]] = None
     num_rays_per_chunk: int = 128
-    shaped_metadata: Optional[Dict[str, TensorType["num_rays", ...]]] = None
+    shaped_metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.

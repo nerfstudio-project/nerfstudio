@@ -15,6 +15,7 @@
 """Tensor dataclass"""
 
 import dataclasses
+from copy import deepcopy
 from typing import Callable, Dict, NoReturn, Optional, Tuple, TypeVar, Union
 
 import numpy as np
@@ -26,6 +27,8 @@ TensorDataclassT = TypeVar("TensorDataclassT", bound="TensorDataclass")
 class TensorDataclass:
     """Data class of tensors with the same size batch. Allows indexing and standard tensor ops.
     Fields that are not Tensors will not be batched unless they are also a TensorDataclass.
+    Any fields that are dictionaries will have their Tensors or TensorDataclasses batched, and
+    dictionaries will have their tensors or TensorDataclasses considered in the initial broadcast.
 
     Example:
 
@@ -66,6 +69,8 @@ class TensorDataclass:
                     batch_shapes.append(v.shape[:-1])
                 elif isinstance(v, TensorDataclass):
                     batch_shapes.append(v.shape)
+                elif isinstance(v, Dict):
+                    batch_shapes.extend(self._get_dict_batch_shapes(v))
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
@@ -77,8 +82,34 @@ class TensorDataclass:
                     self.__setattr__(f, v.broadcast_to((*batch_shape, v.shape[-1])))
                 elif isinstance(v, TensorDataclass):
                     self.__setattr__(f, v.broadcast_to(batch_shape))
+                elif isinstance(v, Dict):
+                    self.__setattr__(f, self._broadcast_dict_fields(v, batch_shape))
 
         self.__setattr__("_shape", batch_shape)
+
+    def _get_dict_batch_shapes(self, dict_field: Dict) -> list:
+        """Returns batch shapes of all tensors in a dictionary"""
+        batch_shapes = []
+        for k, v in dict_field.items():
+            if isinstance(v, torch.Tensor):
+                batch_shapes.append(v.shape[:-1])
+            elif isinstance(v, TensorDataclass):
+                batch_shapes.append(v.shape)
+            elif isinstance(v, Dict):
+                batch_shapes.extend(self._get_dict_batch_shapes(v))
+        return batch_shapes
+
+    def _broadcast_dict_fields(self, dict_field: Dict, batch_shape) -> Dict:
+        """Broadcasts all tensors in a dictionary according to batch_shape"""
+        new_dict = {}
+        for k, v in dict_field.items():
+            if isinstance(v, torch.Tensor):
+                new_dict[k] = v.broadcast_to((*batch_shape, v.shape[-1]))
+            elif isinstance(v, TensorDataclass):
+                new_dict[k] = v.broadcast_to(batch_shape)
+            elif isinstance(v, Dict):
+                new_dict[k] = self._broadcast_dict_fields(v, batch_shape)
+        return new_dict
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
         if isinstance(indices, torch.Tensor):
@@ -123,6 +154,8 @@ class TensorDataclass:
     def reshape(self: TensorDataclassT, shape: Tuple[int, ...]) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but with a new shape.
 
+        This should deepcopy as well.
+
         Args:
             shape (Tuple[int, ...]): The new shape of the tensor dataclass.
 
@@ -145,6 +178,9 @@ class TensorDataclass:
 
     def broadcast_to(self: TensorDataclassT, shape: Union[torch.Size, Tuple[int, ...]]) -> TensorDataclassT:
         """Returns a new TensorDataclass broadcast to new shape.
+
+        Changes to the original tensor dataclass should effect the returned tensor dataclass,
+        meaning it is NOT a deepcopy, and they are still linked.
 
         Args:
             shape (Tuple[int, ...]): The new shape of the tensor dataclass.
@@ -192,13 +228,13 @@ class TensorDataclass:
 
         return dataclasses.replace(self, **new_fields)
 
-    def _apply_fn_to_dict(self, dict_ptr: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
-        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_ptr"""
+    def _apply_fn_to_dict(self, dict_field: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
+        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_field"""
 
-        field_names = dict_ptr.keys()
+        field_names = dict_field.keys()
         new_dict = {}
         for f in field_names:
-            v = dict_ptr[f]
+            v = dict_field[f]
             if v is not None:
                 if isinstance(v, TensorDataclass) and dataclass_fn is not None:
                     new_dict[f] = dataclass_fn(v)
@@ -206,5 +242,7 @@ class TensorDataclass:
                     new_dict[f] = fn(v)
                 elif isinstance(v, Dict):
                     new_dict[f] = self._apply_fn_to_dict(v, fn, dataclass_fn)
+                else:
+                    new_dict[f] = deepcopy(v)
 
         return new_dict
