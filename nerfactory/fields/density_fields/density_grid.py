@@ -77,7 +77,7 @@ class DensityGrid(nn.Module):
         update_every_num_iters (int): How frequently to update the grid values. Defaults to 16.
     """
 
-    density_grid: TensorType["num_cascades", "resolution**3"]
+    density_grid: TensorType["num_cascades", "resolution_cubed"]
     mean_density: TensorType[1]
 
     def __init__(

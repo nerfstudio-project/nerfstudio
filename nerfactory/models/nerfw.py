@@ -118,7 +118,7 @@ class NerfWModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
 
-        if misc.is_not_none(ray_bundle.camera_indices):
+        if ray_bundle.camera_indices is not None:
             # TODO(ethan): remove this check
             assert (
                 torch.max(ray_bundle.camera_indices) < self.num_images
