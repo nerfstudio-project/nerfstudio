@@ -29,32 +29,34 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.modules.encoding import TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
-from nerfactory.graphs.base import Graph
-from nerfactory.graphs.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import MSELoss
+from nerfactory.optimizers.optimizers import Optimizers
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
-class TensoRFGraph(Graph):
+class TensoRFModel(Model):
     """
-    TensoRF Graph
+    TensoRF Model
     """
 
     def __init__(
         self,
-        intrinsics: torch.Tensor = None,
-        camera_to_world: torch.Tensor = None,
         near_plane: float = 2.0,
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
         num_importance_samples: int = 128,
-        enable_density_field: bool = False,
         init_resolution: int = 128,
         final_resolution: int = 200,
         upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000),
@@ -62,45 +64,52 @@ class TensoRFGraph(Graph):
     ) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
-        self.field = None
         self.num_coarse_samples = num_coarse_samples
         self.num_importance_samples = num_importance_samples
         self.init_resolution = init_resolution
         self.final_resolution = final_resolution
         self.upsampling_iters = upsampling_iters
         self.upsampling_steps = (
-            torch.round(
-                torch.exp(torch.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters)))
-            ).long()[1:]
-        ).tolist()
-
-        super().__init__(
-            intrinsics=intrinsics, camera_to_world=camera_to_world, enable_density_field=enable_density_field, **kwargs
+            np.round(np.exp(np.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters))))
+            .astype("int")
+            .tolist()[1:]
         )
+        super().__init__(**kwargs)
 
-    def get_training_callbacks(self) -> List[Callback]:
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_training_callbacks")
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+
+        # the callback that we want to run every X iterations after the training iteration
+        def reinitialize_optimizer(self, training_callback_attributes: TrainingCallbackAttributes, step: int):
+            resolution = self.upsampling_steps.pop(0)
+
+            # upsample the position and direction grids
+            # TODO(ethan): ask Brent how to get typing to work on this... the Encoding base class type
+            # in NeRFField is causing the issue
+            self.field.position_encoding.upsample_grid(resolution)
+            self.field.direction_encoding.upsample_grid(resolution)
+
+            # reinitialize the optimizer
+            optimizers_config = training_callback_attributes.optimizers.config
+            training_callback_attributes.optimizers = Optimizers(
+                optimizers_config, training_callback_attributes.pipeline.get_param_groups()
+            )
+            # TODO(ethan): do something with the learning rate
+            # we don't want to reinitialize the learning rate each time
+
         callbacks = [
-            Callback(
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 iters=self.upsampling_iters,
-                func=self.field.position_encoding.upsample_grid,  # type: ignore
-                reinit=True,
-                upsampling_steps=self.upsampling_steps,
-            ),
-            Callback(
-                iters=self.upsampling_iters,
-                func=self.field.direction_encoding.upsample_grid,  # type: ignore
-                reinit=True,
-                upsampling_steps=self.upsampling_steps,
-            ),
+                func=reinitialize_optimizer,
+                args=[self, training_callback_attributes],
+            )
         ]
+        return callbacks
 
-        return callbacks  # type: ignore
-
-    def populate_fields(self):
-        """Set the fields."""
-
+    def populate_misc_modules(self):
+        # fields
         position_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
             num_components=24,
@@ -117,7 +126,8 @@ class TensoRFGraph(Graph):
             base_mlp_layer_width=128,
         )
 
-    def populate_misc_modules(self):
+        position_encoding.upsample_grid(self.final_resolution)
+
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)
         self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, density_field=self.density_field)
@@ -137,17 +147,12 @@ class TensoRFGraph(Graph):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field.parameters())
         param_groups["position_encoding"] = list(self.field.position_encoding.parameters())
         param_groups["direction_encoding"] = list(self.field.direction_encoding.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
-
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_outputs")
 
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)

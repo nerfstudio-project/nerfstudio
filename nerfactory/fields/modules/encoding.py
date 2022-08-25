@@ -17,7 +17,7 @@ Encoding functions
 """
 
 from abc import abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 import torch
@@ -403,20 +403,19 @@ class TensorVMEncoding(Encoding):
         return features  # [..., 3 * Components]
 
     @torch.no_grad()
-    def upsample_grid(self, upsampling_steps: List[int], step=None) -> None:
+    def upsample_grid(self, resolution: int) -> None:
         """Upsamples underyling feature grid
 
         Args:
             resolution: Target resolution.
         """
-        if len(upsampling_steps) != 0:
-            resolution = upsampling_steps.pop(0)
-            plane_coef = F.interpolate(
-                self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
-            )
-            line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
-            self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
-            self.resolution = resolution
+        plane_coef = F.interpolate(
+            self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
+        )
+        line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
+        # TODO(ethan): are these torch.nn.Parameters needed?
+        self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
+        self.resolution = resolution
 
 
 class SHEncoding(Encoding):

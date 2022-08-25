@@ -28,7 +28,7 @@ from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.utils import profiler
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.config import ModelConfig
 from nerfactory.utils.misc import (
     get_masked_dict,
@@ -86,7 +86,9 @@ class Model(nn.Module):
         """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
-    def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:  # pylint:disable=no-self-use
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
 
@@ -100,7 +102,6 @@ class Model(nn.Module):
         if self.enable_collider:
             self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
 
-    @abstractmethod
     def populate_fields(self):
         """Set the fields."""
 

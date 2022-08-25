@@ -33,6 +33,7 @@ from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.config import DataloaderConfig
 from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
 
@@ -178,6 +179,12 @@ class Dataloader(nn.Module):
         This will be a tuple of all the information that this dataloader outputs.
         """
         raise NotImplementedError
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        """Returns a list of callbacks to be used during training."""
+        return []
 
     @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
