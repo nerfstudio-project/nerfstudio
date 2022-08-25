@@ -20,10 +20,8 @@ from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
-    LoggingConfig,
     ModelConfig,
     PipelineConfig,
-    TrainerConfig,
 )
 from nerfactory.configs.utils import to_immutable_dict
 

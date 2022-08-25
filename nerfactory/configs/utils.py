@@ -18,7 +18,7 @@ Some utility code for configs.
 
 import sys
 from dataclasses import field
-from typing import Any, Dict, List, TypeVar
+from typing import Any, Dict, TypeVar
 
 import dcargs
 

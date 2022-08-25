@@ -20,7 +20,6 @@ from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
-    LoggingConfig,
     ModelConfig,
     OptimizerConfig,
     PipelineConfig,
