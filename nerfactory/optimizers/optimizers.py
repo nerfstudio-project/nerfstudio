@@ -54,10 +54,10 @@ class Optimizers:
         self.optimizers = {}
         self.schedulers = {}
         for param_group_name, params in param_groups.items():
-            lr_init = config[param_group_name].optimizer.lr
-            self.optimizers[param_group_name] = config[param_group_name].optimizer.setup(params=params)
-            if config[param_group_name].scheduler:
-                self.schedulers[param_group_name] = config[param_group_name].scheduler.setup(
+            lr_init = config[param_group_name]["optimizer"].lr
+            self.optimizers[param_group_name] = config[param_group_name]["optimizer"].setup(params=params)
+            if config[param_group_name]["scheduler"]:
+                self.schedulers[param_group_name] = config[param_group_name]["scheduler"].setup(
                     optimizer=self.optimizers[param_group_name], lr_init=lr_init
                 )
 

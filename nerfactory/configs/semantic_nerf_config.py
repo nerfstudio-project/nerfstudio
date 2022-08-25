@@ -17,26 +17,25 @@ from dataclasses import dataclass
 from typing import ClassVar, Dict, Type
 
 from nerfactory.configs.base import (
+    Config,
     DataloaderConfig,
-    InstantiateConfig,
+    FriendsDataloaderConfig,
     ModelConfig,
     PipelineConfig,
 )
-from nerfactory.configs.nerfw_config import AABBColliderConfig, FriendsDataloaderConfig
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.configs.vanilla_nerf_config import VanillaNerfConfig
+from nerfactory.configs.vanilla_nerf_config import VanillaNerfModelConfig
 
 # pylint: disable=import-outside-toplevel
 
 
 @dataclass
-class SemanticNerfModelConfig(ModelConfig):
+class SemanticNerfModelConfig(VanillaNerfModelConfig):
     """Semantic nerf model config"""
 
     from nerfactory.models import semantic_nerf
 
     _target: ClassVar[Type] = semantic_nerf.SemanticNerfModel
-    collider_config: InstantiateConfig = AABBColliderConfig()
     loss_coefficients: Dict[str, float] = to_immutable_dict(
         {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05}
     )
@@ -48,15 +47,12 @@ class SemanticNerfModelConfig(ModelConfig):
 class SemanticNerfPipelineConfig(PipelineConfig):
     """Semantic nerf pipeline config"""
 
-    from nerfactory.pipelines import base
-
-    _target: ClassVar[Type] = base.Pipeline
     dataloader: DataloaderConfig = FriendsDataloaderConfig()
     model: ModelConfig = SemanticNerfModelConfig()
 
 
 @dataclass
-class SemanticNerfConfig(VanillaNerfConfig):
+class SemanticNerfConfig(Config):
     """Semantic nerf base config"""
 
     experiment_name: str = "friends_TBBT-big_living_room"

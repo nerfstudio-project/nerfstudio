@@ -127,7 +127,7 @@ class Trainer:
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
-                train_num_rays_per_batch = self.pipeline.dataloader.train_num_rays_per_batch
+                train_num_rays_per_batch = self.config.pipeline.dataloader.train_num_rays_per_batch
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:

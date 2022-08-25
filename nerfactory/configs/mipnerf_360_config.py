@@ -17,10 +17,9 @@ from dataclasses import dataclass
 from typing import ClassVar, Dict, Type
 
 from nerfactory.configs.base import (
-    ColliderConfig,
     Config,
     DataloaderConfig,
-    InstantiateConfig,
+    MipNerf360DataloaderConfig,
     ModelConfig,
     PipelineConfig,
     TrainerConfig,
@@ -31,33 +30,13 @@ from nerfactory.configs.utils import to_immutable_dict
 
 
 @dataclass
-class MipNerf360DatasetConfig(InstantiateConfig):
-    """Mipnerf 360 dataset config"""
-
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Mipnerf360
-    data_directory: str = "data/mipnerf_360/garden"
-
-
-@dataclass
-class MipNerf360DataloaderConfig(DataloaderConfig):
-    """Mipnerf 360 dataloader config"""
-
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.VanillaDataloader
-    train_dataset: InstantiateConfig = MipNerf360DatasetConfig()
-
-
-@dataclass
 class MipNerf360ModelConfig(ModelConfig):
     """Mipnerf 360 model config"""
 
     from nerfactory.models import mipnerf_360
 
     _target: ClassVar[Type] = mipnerf_360.MipNerf360Model
-    collider_config: InstantiateConfig = ColliderConfig(near_plane=0.5, far_plane=20.0)
+    collider_config: Dict[str, float] = to_immutable_dict({"near_plane": 0.5, "far_plane": 20.0})
     loss_coefficients: Dict[str, float] = to_immutable_dict({"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0})
     num_coarse_samples: int = 128
     num_importance_samples: int = 128
@@ -67,9 +46,6 @@ class MipNerf360ModelConfig(ModelConfig):
 class MipNerf360PipelineConfig(PipelineConfig):
     """Mipnerf 360 pipeline config"""
 
-    from nerfactory.pipelines import base
-
-    _target: ClassVar[Type] = base.Pipeline
     dataloader: DataloaderConfig = MipNerf360DataloaderConfig()
     model: ModelConfig = MipNerf360ModelConfig()
 
@@ -79,6 +55,6 @@ class MipNerf360Config(Config):
     """Mipnerf 360 base config"""
 
     experiment_name: str = "mipnerf_360"
-    method_name: str = "vanilla_nerf"
+    method_name: str = "mipnerf_360"
     trainer: TrainerConfig = TrainerConfig(steps_per_test=200)
     pipeline: PipelineConfig = MipNerf360PipelineConfig()

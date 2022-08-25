@@ -207,12 +207,6 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     ):
         self.config = config
         self.device = device
-        self.image_dataset_type = config.image_dataset_type
-        self.train_num_rays_per_batch = config.train_num_rays_per_batch
-        self.train_num_images_to_sample_from = config.train_num_images_to_sample_from
-        self.eval_dataset = config.eval_dataset
-        self.eval_image_indices = config.eval_image_indices
-        self.eval_num_rays_per_chunk = config.eval_num_rays_per_chunk
 
         dataset_train = config.train_dataset.setup()
         self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
@@ -221,16 +215,16 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         else:
             logging.info("No eval dataset specified so using train dataset for eval.")
             dataset_eval = dataset_train
-        self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
+        self.config.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
         use_train = self.train_datasetinputs is not None
-        use_eval = self.eval_datasetinputs is not None
+        use_eval = self.config.eval_datasetinputs is not None
         super().__init__(use_train, use_eval)
 
     def setup_train(self):
         """Sets up the dataloader for training"""
-        if self.image_dataset_type == "rgb":
+        if self.config.image_dataset_type == "rgb":
             self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
-        elif self.image_dataset_type == "panoptic":
+        elif self.config.image_dataset_type == "panoptic":
             self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
         self.train_image_sampler = CacheImageSampler(
             self.train_image_dataset,
@@ -238,21 +232,21 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
             device=self.device,
         )  # TODO(ethan): pass this in
         self.iter_train_image_sampler = iter(self.train_image_sampler)
-        self.train_pixel_sampler = PixelSampler(self.train_num_rays_per_batch)
+        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_ray_generator = RayGenerator(
             self.train_datasetinputs.intrinsics, self.train_datasetinputs.camera_to_world
         )
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
-        if self.image_dataset_type == "rgb":
-            self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
-        elif self.image_dataset_type == "panoptic":
-            self.eval_image_dataset = PanopticImageDataset(**self.eval_datasetinputs.as_dict())
+        if self.config.image_dataset_type == "rgb":
+            self.eval_image_dataset = ImageDataset(**self.config.eval_datasetinputs.as_dict())
+        elif self.config.image_dataset_type == "panoptic":
+            self.eval_image_dataset = PanopticImageDataset(**self.config.eval_datasetinputs.as_dict())
         self.eval_dataloader = FixedIndicesEvalDataloader(
             image_dataset=self.eval_image_dataset,
-            intrinsics=self.eval_datasetinputs.intrinsics,
-            camera_to_world=self.eval_datasetinputs.camera_to_world,
+            intrinsics=self.config.eval_datasetinputs.intrinsics,
+            camera_to_world=self.config.eval_datasetinputs.camera_to_world,
             num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
             image_indices=self.config.eval_image_indices,
             device=self.device,

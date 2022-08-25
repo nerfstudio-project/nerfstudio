@@ -30,6 +30,7 @@ from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
+from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.utils.callbacks import Callback
 from nerfactory.utils.misc import get_masked_dict, is_not_none
 
@@ -65,7 +66,6 @@ class Model(nn.Module):
         self.kwargs = kwargs
         self.collider = None
         self.populate_density_field()
-        self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
@@ -84,12 +84,14 @@ class Model(nn.Module):
     def populate_density_field(self):
         """Set the scene density field to use."""
         if self.config.enable_density_field:
-            self.density_field = self.config.density_field_config.setup()
 
-    def populate_collider(self):
-        """Set the scene bounds collider to use."""
-        if self.config.enable_collider:
-            self.collider = self.config.collider_config.setup(scene_bounds=self.scene_bounds)
+            self.density_field = DensityGrid(
+                center=self.config.density_field_params["center"],
+                base_scale=self.config.density_field_params["base_scale"],
+                num_cascades=self.config.density_field_params["num_cascades"],
+                resolution=self.config.density_field_params["resolution"],
+                update_every_num_iters=self.config.density_field_params["update_every_num_iters"],
+            )
 
     @abstractmethod
     def populate_fields(self):
@@ -143,7 +145,7 @@ class Model(nn.Module):
         This outputs different things depending on the configuration of the model and whether or not
         the batch is provided (whether or not we are training basically)."""
         if self.collider is not None:
-            intersected_ray_bundle = self.collider(ray_bundle)
+            intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
         else:
             # NOTE(ruilongli): we don't need collider for ngp

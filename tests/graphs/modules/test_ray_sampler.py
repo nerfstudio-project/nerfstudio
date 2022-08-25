@@ -5,7 +5,6 @@ Test samplers
 import torch
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
 from nerfactory.models.modules.ray_sampler import (
     LinearDisparitySampler,
     LogSampler,
@@ -13,11 +12,11 @@ from nerfactory.models.modules.ray_sampler import (
     SqrtSampler,
     UniformSampler,
 )
+from nerfactory.models.modules.scene_colliders import NearFarCollider
 
 
 def test_uniform_sampler():
     """Test uniform sampler"""
-    collider_config = cfg.ColliderConfig(near_plane=2, far_plane=4)
     num_samples = 15
     sampler = UniformSampler(num_samples=num_samples)
 
@@ -25,7 +24,7 @@ def test_uniform_sampler():
     directions = torch.ones_like(origins)
     radius = torch.ones((10, 1))
     ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
-    collider = collider_config.setup()
+    collider = NearFarCollider(near_plane=2, far_plane=4)
     ray_bundle = collider(ray_bundle)
 
     ray_samples = sampler(ray_bundle)
@@ -37,7 +36,6 @@ def test_uniform_sampler():
 
 def test_lin_disp_sampler():
     """Test linear in disparity sampler"""
-    collider_config = cfg.ColliderConfig(near_plane=2, far_plane=4)
     num_samples = 15
     sampler = LinearDisparitySampler(num_samples=num_samples)
 
@@ -45,7 +43,7 @@ def test_lin_disp_sampler():
     directions = torch.ones_like(origins)
     radius = torch.ones((10, 1))
     ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
-    collider = collider_config.setup()
+    collider = NearFarCollider(near_plane=2, far_plane=4)
     ray_bundle = collider(ray_bundle)
 
     ray_samples = sampler(ray_bundle)
@@ -55,7 +53,6 @@ def test_lin_disp_sampler():
 
 def test_sqrt_sampler():
     """Test square root sampler"""
-    collider_config = cfg.ColliderConfig(near_plane=2, far_plane=4)
     num_samples = 15
     sampler = SqrtSampler(num_samples=num_samples)
 
@@ -63,7 +60,7 @@ def test_sqrt_sampler():
     directions = torch.ones_like(origins)
     radius = torch.ones((10, 1))
     ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
-    collider = collider_config.setup()
+    collider = NearFarCollider(near_plane=2, far_plane=4)
     ray_bundle = collider(ray_bundle)
 
     ray_samples = sampler(ray_bundle)
@@ -73,7 +70,6 @@ def test_sqrt_sampler():
 
 def test_log_sampler():
     """Test log sampler"""
-    collider_config = cfg.ColliderConfig(near_plane=2, far_plane=4)
     num_samples = 15
     sampler = LogSampler(num_samples=num_samples)
 
@@ -81,7 +77,7 @@ def test_log_sampler():
     directions = torch.ones_like(origins)
     radius = torch.ones((10, 1))
     ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
-    collider = collider_config.setup()
+    collider = NearFarCollider(near_plane=2, far_plane=4)
     ray_bundle = collider(ray_bundle)
 
     ray_samples = sampler(ray_bundle)
@@ -91,14 +87,13 @@ def test_log_sampler():
 
 def test_pdf_sampler():
     """Test pdf sampler"""
-    collider_config = cfg.ColliderConfig(near_plane=2, far_plane=4)
     num_samples = 15
 
     origins = torch.zeros((10, 3))
     directions = torch.ones_like(origins)
     radius = torch.ones((10, 1))
     ray_bundle = RayBundle(origins=origins, directions=directions, pixel_area=radius)
-    collider = collider_config.setup()
+    collider = NearFarCollider(near_plane=2, far_plane=4)
     ray_bundle = collider(ray_bundle)
 
     uniform_sampler = UniformSampler(num_samples=num_samples)

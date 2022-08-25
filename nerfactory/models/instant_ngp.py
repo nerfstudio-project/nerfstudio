@@ -46,7 +46,7 @@ class NGPModel(Model):
         kwargs: additional params to pass up to the parent class model
     """
 
-    def __init__(self, config: cfg.InstantNGPConfig, **kwargs) -> None:
+    def __init__(self, config: cfg.InstantNGPModelConfig, **kwargs) -> None:
         assert config.field_implementation in field_implementation_to_class
         self.field = None
         super().__init__(config=config, **kwargs)
@@ -77,6 +77,8 @@ class NGPModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+        # no colliders default
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}

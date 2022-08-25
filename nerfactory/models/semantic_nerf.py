@@ -27,6 +27,7 @@ from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.semantic_nerf_field import SemanticNerfField
+from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.models.vanilla_nerf import NeRFModel
 from nerfactory.renderers.renderers import SemanticRenderer
 from nerfactory.utils import misc, writer
@@ -35,7 +36,7 @@ from nerfactory.utils import misc, writer
 class SemanticNerfModel(NeRFModel):
     """Semantic-NeRF model"""
 
-    def __init__(self, config: cfg.SemanticNerfConfig, semantics: Semantics, **kwargs) -> None:
+    def __init__(self, config: cfg.SemanticNerfModelConfig, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
         super().__init__(config=config, **kwargs)
@@ -57,8 +58,16 @@ class SemanticNerfModel(NeRFModel):
 
     def populate_misc_modules(self):
         super().populate_misc_modules()
+
+        # renderers
         self.renderer_semantic = SemanticRenderer()
+
+        # losses
         self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="mean")
+
+        # colliders
+        if self.config.enable_collider:
+            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling

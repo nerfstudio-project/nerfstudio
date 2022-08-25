@@ -41,4 +41,4 @@ jobs:
           pylint --disable=cyclic-import nerfactory tests scripts
       - name: Test with pytest
         run: |
-          pytest --ignore=tests/test_run_train.py
+          pytest

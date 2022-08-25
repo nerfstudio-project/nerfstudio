@@ -19,7 +19,7 @@ from typing import ClassVar, Dict, Type
 from nerfactory.configs.base import (
     Config,
     DataloaderConfig,
-    InstantiateConfig,
+    FriendsDataloaderConfig,
     ModelConfig,
     PipelineConfig,
 )
@@ -29,43 +29,12 @@ from nerfactory.configs.utils import to_immutable_dict
 
 
 @dataclass
-class FriendsDatasetConfig(InstantiateConfig):
-    """Friends dataset config"""
-
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Friends
-    data_directory: str = "data/friends/TBBT-big_living_room"
-
-
-@dataclass
-class FriendsDataloaderConfig(DataloaderConfig):
-    """Friends dataloader config"""
-
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.VanillaDataloader
-    train_dataset: InstantiateConfig = FriendsDatasetConfig()
-    image_dataset_type: str = "panoptic"
-
-
-@dataclass
-class AABBColliderConfig(InstantiateConfig):
-    """AABB collider config"""
-
-    from nerfactory.models.modules import scene_colliders
-
-    _target: ClassVar[Type] = scene_colliders.AABBBoxCollider
-
-
-@dataclass
 class NerfWModelConfig(ModelConfig):
     """NerfW model config"""
 
     from nerfactory.models import nerfw
 
     _target: ClassVar[Type] = nerfw.NerfWModel
-    collider_config: InstantiateConfig = AABBColliderConfig()
     loss_coefficients: Dict[str, float] = to_immutable_dict(
         {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "uncertainty_loss": 1.0, "density_loss": 0.01}
     )
@@ -78,9 +47,6 @@ class NerfWModelConfig(ModelConfig):
 class NerfWPipelineConfig(PipelineConfig):
     """NerfW pipeline config"""
 
-    from nerfactory.pipelines import base
-
-    _target: ClassVar[Type] = base.Pipeline
     dataloader: DataloaderConfig = FriendsDataloaderConfig()
     model: ModelConfig = NerfWModelConfig()
 

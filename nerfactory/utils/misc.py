@@ -22,7 +22,6 @@ from math import floor, log
 from typing import Any, Callable, Dict, Union
 
 import torch
-from omegaconf import DictConfig
 
 
 def get_dict_to_torch(stuff, device: Union[torch.device, str] = "cpu"):
@@ -120,7 +119,7 @@ def human_format(num):
     return f"{(num / k**magnitude):.2f} {units[magnitude]}"
 
 
-def scale_dict(dictionary: Dict[Any, Any], coefficients: DictConfig) -> Dict[Any, Any]:
+def scale_dict(dictionary: Dict[Any, Any], coefficients: Dict[str, float]) -> Dict[Any, Any]:
     """Scale a dictionary in-place given a coefficients dictionary.
 
     Args:

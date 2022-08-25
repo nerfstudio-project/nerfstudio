@@ -47,9 +47,6 @@ class InstantNGPModelConfig(ModelConfig):
 class InstantNGPPipelineConfig(PipelineConfig):
     """Instnat NGP pipeline config"""
 
-    from nerfactory.pipelines import base
-
-    _target: ClassVar[Type] = base.Pipeline
     dataloader: DataloaderConfig = BlenderDataloaderConfig(train_num_rays_per_batch=8192, eval_num_rays_per_chunk=8192)
     model: ModelConfig = InstantNGPModelConfig()
 

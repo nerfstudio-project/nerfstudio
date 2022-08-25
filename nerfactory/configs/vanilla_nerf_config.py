@@ -40,9 +40,6 @@ class VanillaNerfModelConfig(ModelConfig):
 class VanillaNerfPipelineConfig(PipelineConfig):
     """Vanilla NeRF pipeline config"""
 
-    from nerfactory.pipelines import base
-
-    _target: ClassVar[Type] = base.Pipeline
     dataloader: DataloaderConfig = BlenderDataloaderConfig()
     model: ModelConfig = VanillaNerfModelConfig()
 

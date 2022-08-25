@@ -33,6 +33,7 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -57,7 +58,7 @@ class NeRFModel(Model):
 
     def __init__(
         self,
-        config: cfg.VanillaNerfConfig,
+        config: cfg.VanillaNerfModelConfig,
         **kwargs,
     ) -> None:
         self.field_coarse = None
@@ -65,8 +66,6 @@ class NeRFModel(Model):
 
         super().__init__(
             config=config,
-            enable_density_field=config.enable_density_field,
-            density_field_config=config.density_field_config,
             **kwargs,
         )
 
@@ -117,6 +116,12 @@ class NeRFModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+        # colliders
+        if self.config.enable_collider:
+            self.collider = NearFarCollider(
+                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
+            )
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -187,14 +192,14 @@ class NeRFModel(Model):
         depth_coarse = visualization.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
-            near_plane=self.config.collider_config.near_plane,
-            far_plane=self.config.collider_config.far_plane,
+            near_plane=self.config.collider_params["near_plane"],
+            far_plane=self.config.collider_params["far_plane"],
         )
         depth_fine = visualization.apply_depth_colormap(
             outputs["depth_fine"],
             accumulation=outputs["accumulation_fine"],
-            near_plane=self.config.collider_config.near_plane,
-            far_plane=self.config.collider_config.far_plane,
+            near_plane=self.config.collider_params["near_plane"],
+            far_plane=self.config.collider_params["far_plane"],
         )
 
         combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)

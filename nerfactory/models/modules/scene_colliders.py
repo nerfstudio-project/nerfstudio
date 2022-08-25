@@ -23,7 +23,6 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
 
 
@@ -42,11 +41,8 @@ class SceneBoundsCollider(nn.Module):
 class AABBBoxCollider(SceneBoundsCollider):
     """Module for colliding rays with the scene bounds to compute near and far values."""
 
-    config: cfg.ColliderConfig
-
-    def __init__(self, config: cfg.ColliderConfig, scene_bounds: SceneBounds, **kwargs) -> None:
+    def __init__(self, scene_bounds: SceneBounds, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.config = config
         self.scene_bounds = scene_bounds
 
     @classmethod
@@ -103,11 +99,9 @@ class AABBBoxCollider(SceneBoundsCollider):
 class NearFarCollider(SceneBoundsCollider):
     """Sets the nears and fars with fixed values."""
 
-    config: cfg.ColliderConfig
-
-    def __init__(self, config: cfg.ColliderConfig, **kwargs) -> None:
-        self.near_plane = config.near_plane
-        self.far_plane = config.far_plane
+    def __init__(self, near_plane: float, far_plane: float, **kwargs) -> None:
+        self.near_plane = near_plane
+        self.far_plane = far_plane
         super().__init__(**kwargs)
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:

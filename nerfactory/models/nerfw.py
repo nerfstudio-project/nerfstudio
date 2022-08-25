@@ -31,6 +31,7 @@ from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.nerfw_field import VanillaNerfWField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -63,7 +64,7 @@ class NerfWModel(Model):
         self.num_images = 10000  # TODO(ethan): fix this
         self.appearance_embedding_dim = 48
         self.transient_embedding_dim = 16
-        super().__init__(**kwargs)
+        super().__init__(config=config, **kwargs)
 
     def populate_fields(self):
         """Set the fields."""
@@ -102,6 +103,10 @@ class NerfWModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+        # colliders
+        if self.config.enable_collider:
+            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
 
     def get_param_groups(self):
         param_groups = {}

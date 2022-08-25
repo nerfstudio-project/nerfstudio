@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, ClassVar, Dict, List, Optional, Type, TypeVar
+from typing import Any, ClassVar, Dict, List, Optional, Type
 
 import torch
 
@@ -26,7 +26,7 @@ from nerfactory.configs.utils import to_immutable_dict, to_immutable_list
 
 # pylint: disable=import-outside-toplevel
 
-
+# Base instantiate configs
 @dataclass
 class InstantiateConfig:  # pylint: disable=too-few-public-methods
     """Config class for instantiating an the class specified in the _target attribute."""
@@ -38,6 +38,7 @@ class InstantiateConfig:  # pylint: disable=too-few-public-methods
         return self._target(self, **kwargs)
 
 
+# Machine related configs
 @dataclass
 class MachineConfig:
     """Configuration of machine setup"""
@@ -49,6 +50,7 @@ class MachineConfig:
     dist_url: str = "auto"
 
 
+# Logging related configs
 @dataclass
 class TensorboardWriterConfig(InstantiateConfig):
     """Tensorboard Writer config"""
@@ -99,6 +101,7 @@ class LoggingConfig:
     enable_profiler: bool = True
 
 
+# Trainer related configs
 @dataclass
 class TrainerConfig:
     """Configuration for training regimen"""
@@ -113,6 +116,7 @@ class TrainerConfig:
     load_step: Optional[int] = None
 
 
+# Dataset related configs
 @dataclass
 class DatasetConfig(InstantiateConfig):
     """Basic dataset config"""
@@ -162,30 +166,47 @@ class BlenderDataloaderConfig(DataloaderConfig):
 
 
 @dataclass
-class ColliderConfig(InstantiateConfig):
-    """Basic collider config: near/far"""
+class FriendsDatasetConfig(InstantiateConfig):
+    """Friends dataset config"""
 
-    from nerfactory.models.modules import scene_colliders
+    from nerfactory.dataloaders import datasets
 
-    _target: ClassVar[Type] = scene_colliders.NearFarCollider
-    near_plane: float = 2.0
-    far_plane: float = 6.0
+    _target: ClassVar[Type] = datasets.Friends
+    data_directory: str = "data/friends/TBBT-big_living_room"
 
 
 @dataclass
-class DensityFieldConfig(InstantiateConfig):
-    """Basic density field config"""
+class FriendsDataloaderConfig(DataloaderConfig):
+    """Friends dataloader config"""
 
-    from nerfactory.fields.density_fields import density_grid
+    from nerfactory.dataloaders import base
 
-    _target: ClassVar[Type] = density_grid.DensityGrid
-    center: float = 0.0  # simply set it as the center of the scene bbox
-    base_scale: float = 3.0  # simply set it as the scale of the scene bbox
-    num_cascades: int = 1  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-    resolution: int = 128
-    update_every_num_iters: int = 16
+    _target: ClassVar[Type] = base.VanillaDataloader
+    train_dataset: InstantiateConfig = FriendsDatasetConfig()
+    image_dataset_type: str = "panoptic"
 
 
+@dataclass
+class MipNerf360DatasetConfig(InstantiateConfig):
+    """Mipnerf 360 dataset config"""
+
+    from nerfactory.dataloaders import datasets
+
+    _target: ClassVar[Type] = datasets.Mipnerf360
+    data_directory: str = "data/mipnerf_360/garden"
+
+
+@dataclass
+class MipNerf360DataloaderConfig(DataloaderConfig):
+    """Mipnerf 360 dataloader config"""
+
+    from nerfactory.dataloaders import base
+
+    _target: ClassVar[Type] = base.VanillaDataloader
+    train_dataset: InstantiateConfig = MipNerf360DatasetConfig()
+
+
+# Model related configs
 @dataclass
 class ModelConfig(InstantiateConfig):
     """Configuration for model instantiation"""
@@ -194,15 +215,24 @@ class ModelConfig(InstantiateConfig):
 
     _target: ClassVar[Type] = base.Model
     enable_collider: bool = True
-    collider_config: InstantiateConfig = ColliderConfig()
+    collider_params: Dict[str, float] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     num_coarse_samples: int = 64
     num_importance_samples: int = 128
     field_implementation: str = "torch"
     enable_density_field: bool = False
-    density_field_config: InstantiateConfig = DensityFieldConfig()
+    density_field_params: Dict[str, Any] = to_immutable_dict(
+        {
+            "center": 0.0,  # simply set it as the center of the scene bbox
+            "base_scale": 3.0,  # simply set it as the scale of the scene bbox
+            "num_cascades": 1,  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+            "resolution": 128,
+            "update_every_num_iters": 16,
+        }
+    )
 
 
+# Pipeline related configs
 @dataclass
 class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
@@ -214,6 +244,7 @@ class PipelineConfig(InstantiateConfig):
     model: ModelConfig = ModelConfig()
 
 
+# Viewer related configs
 @dataclass
 class ViewerConfig:
     """Configuration for viewer instantiation"""
@@ -225,6 +256,7 @@ class ViewerConfig:
     num_rays_per_chunk: int = 4096
 
 
+# Optimizer related configs
 @dataclass
 class OptimizerConfig(InstantiateConfig):
     """Basic optimizer config with RAdam"""
@@ -235,7 +267,7 @@ class OptimizerConfig(InstantiateConfig):
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params=None, **kwargs) -> TypeVar:
+    def setup(self, params=None, **kwargs) -> Any:
         """Returns the instantiated object using the config."""
         return self._target(params, lr=self.lr, eps=self.eps)
 
@@ -252,7 +284,7 @@ class SchedulerConfig(InstantiateConfig):
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, optimizer=None, lr_init=None, **kwargs) -> TypeVar:
+    def setup(self, optimizer=None, lr_init=None, **kwargs) -> Any:
         """Returns the instantiated object using the config."""
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 

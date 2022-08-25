@@ -26,7 +26,6 @@ from torchtyping import TensorType
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RaySamples
-from nerfactory.configs import base as cfg
 
 
 def _create_grid_coords(resolution: int, device: Union[torch.device, str] = "cpu") -> TensorType["n_coords", 3]:
@@ -85,15 +84,14 @@ class DensityGrid(nn.Module):
     mean_density: TensorType[1]
 
     def __init__(
-        self,
-        config: cfg.DensityFieldConfig,
+        self, center: float, base_scale: float, num_cascades: int, resolution: int, update_every_num_iters: int
     ) -> None:
         super().__init__()
-        self.center = config.center
-        self.base_scale = config.base_scale
-        self.num_cascades = config.num_cascades  # the number of levels (i.e, cascades)
-        self.resolution = config.resolution
-        self.update_every_num_iters = config.update_every_num_iters
+        self.center = center
+        self.base_scale = base_scale
+        self.num_cascades = num_cascades  # the number of levels (i.e, cascades)
+        self.resolution = resolution
+        self.update_every_num_iters = update_every_num_iters
 
         density_grid = torch.zeros([self.num_cascades] + [self.resolution**3])
         self.register_buffer("density_grid", density_grid)
