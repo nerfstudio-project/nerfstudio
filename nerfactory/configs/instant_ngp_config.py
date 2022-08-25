@@ -20,6 +20,7 @@ from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
     DataloaderConfig,
+    LoggingConfig,
     ModelConfig,
     OptimizerConfig,
     PipelineConfig,
@@ -55,8 +56,8 @@ class InstantNGPPipelineConfig(PipelineConfig):
 class InstantNGPConfig(Config):
     """Instant NGP base config"""
 
-    trainer: TrainerConfig = TrainerConfig(mixed_precision=True)
     method_name: str = "instant_ngp"
+    trainer: TrainerConfig = TrainerConfig(mixed_precision=True)
     pipeline: PipelineConfig = InstantNGPPipelineConfig()
     optimizers: Dict[str, Any] = to_immutable_dict(
         {

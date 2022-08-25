@@ -19,6 +19,7 @@ from typing import ClassVar, Dict, Type
 from nerfactory.configs.base import (
     Config,
     DataloaderConfig,
+    LoggingConfig,
     MipNerf360DataloaderConfig,
     ModelConfig,
     PipelineConfig,

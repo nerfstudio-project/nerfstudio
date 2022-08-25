@@ -18,11 +18,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, ClassVar, Dict, List, Optional, Type
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type
 
 import torch
 
-from nerfactory.configs.utils import to_immutable_dict, to_immutable_list
+from nerfactory.configs.utils import to_immutable_dict
+from nerfactory.utils import writer
 
 # pylint: disable=import-outside-toplevel
 
@@ -55,39 +56,34 @@ class MachineConfig:
 class TensorboardWriterConfig(InstantiateConfig):
     """Tensorboard Writer config"""
 
-    from nerfactory.utils import writer
-
     _target: ClassVar[Type] = writer.TensorboardWriter
-    log_dir: str = "./"
+    relative_log_dir: str = "./"
+    log_dir = Optional[None]  # full log dir path to be dynamically set
 
 
 @dataclass
 class WandbWriterConfig(InstantiateConfig):
     """WandDB Writer config"""
 
-    from nerfactory.utils import writer
-
     _target: ClassVar[Type] = writer.WandbWriter
-    log_dir: str = "./"
+    relative_log_dir: str = "./"
+    log_dir = Optional[None]  # full log dir path to be dynamically set
 
 
 @dataclass
 class LocalWriterConfig(InstantiateConfig):
     """Local Writer config"""
 
-    from nerfactory.utils import writer
-
     _target: ClassVar[Type] = writer.LocalWriter
-    stats_to_track: List[writer.EventName] = to_immutable_list(
-        [
-            writer.EventName.ITER_LOAD_TIME,
-            writer.EventName.ITER_TRAIN_TIME,
-            writer.EventName.RAYS_PER_SEC,
-            writer.EventName.CURR_TEST_PSNR,
-        ]
+    stats_to_track: Tuple[writer.EventName, ...] = (
+        writer.EventName.ITER_LOAD_TIME,
+        writer.EventName.ITER_TRAIN_TIME,
+        writer.EventName.RAYS_PER_SEC,
+        writer.EventName.CURR_TEST_PSNR,
     )
     max_log_size: int = 10
-    log_dir: str = "./"
+    relative_log_dir: str = "./"
+    log_dir = Optional[None]  # full log dir path to be dynamically set
 
 
 @dataclass
@@ -96,7 +92,7 @@ class LoggingConfig:
 
     steps_per_log: int = 10
     max_buffer_size: int = 20
-    writer: List[Any] = to_immutable_list([TensorboardWriterConfig(), LocalWriterConfig()])
+    writer: Tuple[Any, ...] = (TensorboardWriterConfig(), LocalWriterConfig())
     # profiler logs run times of functions and prints at end of training
     enable_profiler: bool = True
 
@@ -106,7 +102,6 @@ class LoggingConfig:
 class TrainerConfig:
     """Configuration for training regimen"""
 
-    model_dir: str = "nerfactory_models/"
     steps_per_save: int = 1000
     steps_per_test: int = 500
     max_num_iterations: int = 1000000
@@ -114,6 +109,8 @@ class TrainerConfig:
     # optional parameters if we want to resume training
     load_dir: Optional[str] = None
     load_step: Optional[int] = None
+    relative_model_dir: str = "nerfactory_models/"
+    model_dir: Optional[str] = None  # full model dir path to be dynamically set
 
 
 # Dataset related configs
@@ -138,7 +135,7 @@ class DataloaderConfig(InstantiateConfig):
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataset: Optional[InstantiateConfig] = None
-    eval_image_indices: List[int] = to_immutable_list([0])
+    eval_image_indices: Tuple[int, ...] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
 
@@ -311,8 +308,8 @@ class Config:
 
     def __post_init__(self):
         """Convert logging directories to more specific filepaths"""
-        dt_str: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        base_dir: str = f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}"
-        self.trainer.model_dir = f"{base_dir}/{self.trainer.model_dir}"
-        for writer in self.logging.writer:
-            writer.log_dir = f"{base_dir}/{writer.log_dir}"
+        dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        base_dir = f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}"
+        self.trainer.model_dir = f"{base_dir}/{self.trainer.relative_model_dir}"
+        for curr_writer in self.logging.writer:
+            curr_writer.log_dir = f"{base_dir}/{curr_writer.relative_log_dir}"

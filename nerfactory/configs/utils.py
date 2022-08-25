@@ -58,12 +58,3 @@ def to_immutable_dict(d: Dict[str, Any]):
         d: dictionary to convert into default factory dict for dataclass
     """
     return field(default_factory=lambda: dict(d))
-
-
-def to_immutable_list(l: List[Any]):
-    """Method to convert mutable list to default factory list
-
-    Args:
-        l: list to convert into default factory list for dataclass
-    """
-    return field(default_factory=lambda: l)
