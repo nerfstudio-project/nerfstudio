@@ -26,7 +26,6 @@ from torch.nn.functional import normalize
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils.misc import is_not_none
 
 
 class Camera:
@@ -315,7 +314,7 @@ class PinholeCamera(Camera):
             "camera_to_world": self.camera_to_world.tolist(),
             "camera_index": self.camera_index,
         }
-        if is_not_none(image):
+        if image is not None:
             image_uint8 = (image * 255).detach().cpu().numpy().astype(np.uint8)
             if resize_shape:
                 image_uint8 = cv2.resize(image_uint8, resize_shape)

@@ -1,10 +1,8 @@
-.. _tooling:
-
 
 .. toctree::
+    :maxdepth: 1
 
     hydra.md
-    logging.md
-    viewer.md
-    profiling.md
+    logging_profiling.md
     benchmarking.md
+

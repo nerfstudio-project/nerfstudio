@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
 
+import { useDispatch } from 'react-redux';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const WebRtcContext = createContext(null);
@@ -36,15 +36,25 @@ export default function WebRtcWindow() {
           username: 'openrelayproject',
           credential: 'openrelayproject',
         },
+        // extra STUN server(s):
+        // {
+        //   urls: 'stun:stun.l.google.com:19302',
+        // },
+        // extra TURN server(s):
+        // {
+        //   urls: 'turn:1830walnut.ddns.net',
+        //   username: 'turnuser',
+        //   credential: 'turnpassword',
+        // },
+        // {
+        //   urls: 'turn:turn.nerfactory.com:3478',
+        //   username: 'turnuser',
+        //   credential: 'turnpassword',
+        // },
       ],
     });
     // connect video
     pc.addEventListener('track', (evt) => {
-      dispatch({
-        type: 'write',
-        path: 'webrtcState/isConnected',
-        data: true,
-      });
       if (evt.track.kind === 'video') {
         [localVideoRef.current.srcObject] = evt.streams; // uses array destructuring
       }
@@ -53,13 +63,19 @@ export default function WebRtcWindow() {
 
     // for updating the status of the peer connection
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'connected') {
+      // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/connectionState
+      console.log(`[webrtc] connectionState: ${pc.connectionState}`);
+      if (
+        pc.connectionState === 'connecting' ||
+        pc.connectionState === 'connected'
+      ) {
+        console.log('[webrtc] connected');
         dispatch({
           type: 'write',
           path: 'webrtcState/isConnected',
           data: true,
         });
-      } else if (pc.iceConnectionState === 'disconnected') {
+      } else {
         dispatch({
           type: 'write',
           path: 'webrtcState/isConnected',
@@ -74,15 +90,22 @@ export default function WebRtcWindow() {
     pcRef.current
       .createOffer()
       .then((offer) => {
+        console.log('[webrtc] created offer');
+        console.log(offer);
         return pcRef.current.setLocalDescription(offer);
       })
       .then(() => {
         // wait for ICE gathering to complete
+        console.log('[webrtc] set local description');
         return new Promise((resolve) => {
           if (pcRef.current.iceGatheringState === 'complete') {
+            console.log('[webrtc] ICE gathering complete');
             resolve();
           } else {
             const checkState = () => {
+              console.log(
+                `[webrtc] iceGatheringState: ${pcRef.current.iceGatheringState}`,
+              );
               if (pcRef.current.iceGatheringState === 'complete') {
                 pcRef.current.removeEventListener(
                   'icegatheringstatechange',
@@ -91,6 +114,9 @@ export default function WebRtcWindow() {
                 resolve();
               }
             };
+            console.log(
+              '[webrtc] adding listener for `icegatheringstatechange`',
+            );
             pcRef.current.addEventListener(
               'icegatheringstatechange',
               checkState,
@@ -100,6 +126,7 @@ export default function WebRtcWindow() {
       })
       .then(() => {
         // send the offer
+        console.log('[webrtc] sending offer');
         const offer = pcRef.current.localDescription;
         const cmd = 'offer';
         const path = '';
@@ -121,7 +148,9 @@ export default function WebRtcWindow() {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.type === 'answer') {
+        console.log('[webrtc] received answer');
         const answer = cmd.data;
+        console.log(answer);
         pcRef.current.setRemoteDescription(answer);
       }
     });
@@ -129,6 +158,7 @@ export default function WebRtcWindow() {
     websocket.addEventListener('open', () => {
       // connect webrtc when the websocket is connected
       pcRef.current = getRTCPeerConnection();
+      console.log('[webrtc] starting process');
       sendOffer();
     });
   }, []); // empty dependency array means only run once

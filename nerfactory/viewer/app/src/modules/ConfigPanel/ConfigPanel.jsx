@@ -22,6 +22,12 @@ export function RenderControls() {
   const outputChoice = useSelector(
     (state) => state.renderingState.output_choice,
   );
+  const colormapOptions = useSelector(
+    (state) => state.renderingState.colormap_options,
+  );
+  const colormapChoice = useSelector(
+    (state) => state.renderingState.colormap_choice,
+  );
   const min_resolution = useSelector(
     (state) => state.renderingState.minResolution,
   );
@@ -33,6 +39,9 @@ export function RenderControls() {
   );
   let eval_fps = useSelector((state) => state.renderingState.eval_fps);
   let train_eta = useSelector((state) => state.renderingState.train_eta);
+  let vis_train_ratio = useSelector(
+    (state) => state.renderingState.vis_train_ratio,
+  );
 
   const dispatch = useDispatch();
 
@@ -83,6 +92,25 @@ export function RenderControls() {
       });
       const cmd = 'write';
       const path = 'renderingState/output_choice';
+      const data = {
+        type: cmd,
+        path,
+        data: value,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  const set_colormap_choice = (value) => {
+    if (websocket.readyState === WebSocket.OPEN) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/colormap_choice',
+        data: value,
+      });
+      const cmd = 'write';
+      const path = 'renderingState/colormap_choice';
       const data = {
         type: cmd,
         path,
@@ -171,6 +199,16 @@ export function RenderControls() {
           set_output_choice(v);
         },
       },
+      // colormap_options
+      colormap_options: {
+        label: 'Colormap',
+        options: colormapOptions,
+        value: colormapChoice,
+        onChange: (v) => {
+          set_colormap_choice(v);
+        },
+        disabled: colormapOptions.length === 1,
+      },
       // resolution
       min_resolution: {
         label: 'Min Res.',
@@ -210,11 +248,20 @@ export function RenderControls() {
           set_fov(v);
         },
       },
+      // training speed
+      'Train Speed': buttonGroup({
+        Fast: () => setControls({ min_resolution: 10, max_resolution: 10 }),
+        Balanced: () =>
+          setControls({ min_resolution: 50, max_resolution: 512 }),
+        Slow: () => setControls({ min_resolution: 100, max_resolution: 1024 }),
+      }),
     }),
     [
       isTraining,
       outputOptions,
       outputChoice,
+      colormapOptions,
+      colormapChoice,
       min_resolution,
       max_resolution,
       field_of_view,
@@ -244,20 +291,34 @@ export function RenderControls() {
         value: train_eta,
         disabled: true,
       },
+      vis_train_ratio: {
+        label: 'Time Allocation',
+        value: vis_train_ratio,
+        disabled: true,
+      },
     }),
-    [isWebsocketConnected, isWebrtcConnected, eval_fps, train_eta],
+    [
+      isWebsocketConnected,
+      isWebrtcConnected,
+      eval_fps,
+      train_eta,
+      vis_train_ratio,
+    ],
   );
 
   useEffect(() => {
     setControls({ min_resolution });
     setControls({ max_resolution });
     setControls({ output_options: outputChoice });
+    setControls({ colormap_options: colormapChoice });
     setControls({ 'Camera FoV': field_of_view });
   }, [
     setControls,
     isTraining,
     outputOptions,
     outputChoice,
+    colormapOptions,
+    colormapChoice,
     min_resolution,
     max_resolution,
     field_of_view,
@@ -271,13 +332,15 @@ export function RenderControls() {
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
       if (cmd.path === '/renderingState/eval_fps') {
         eval_fps = cmd.data;
-        console.log('setting state', eval_fps);
         setState({ eval_fps });
       }
       if (cmd.path === '/renderingState/train_eta') {
         train_eta = cmd.data;
-        console.log('setting state', train_eta);
         setState({ train_eta });
+      }
+      if (cmd.path === '/renderingState/vis_train_ratio') {
+        vis_train_ratio = cmd.data;
+        setState({ vis_train_ratio });
       }
     });
   }, []);
