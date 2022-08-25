@@ -25,7 +25,7 @@ TensorDataclassT = TypeVar("TensorDataclassT", bound="TensorDataclass")
 
 
 class TensorDataclass:
-    """Data class of tensors with the same size batch. Allows indexing and standard tensor ops.
+    """@dataclass of tensors with the same size batch. Allows indexing and standard tensor ops.
     Fields that are not Tensors will not be batched unless they are also a TensorDataclass.
     Any fields that are dictionaries will have their Tensors or TensorDataclasses batched, and
     dictionaries will have their tensors or TensorDataclasses considered in the initial broadcast.
@@ -60,37 +60,21 @@ class TensorDataclass:
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
-        field_names = [f.name for f in dataclasses.fields(self)]
-        batch_shapes = []
-        for f in field_names:
-            v = self.__getattribute__(f)
-            if v is not None:
-                if isinstance(v, torch.Tensor):
-                    batch_shapes.append(v.shape[:-1])
-                elif isinstance(v, TensorDataclass):
-                    batch_shapes.append(v.shape)
-                elif isinstance(v, Dict):
-                    batch_shapes.extend(self._get_dict_batch_shapes(v))
+        batch_shapes = self._get_dict_batch_shapes(dataclasses.asdict(self))
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
 
-        for f in field_names:
-            v = self.__getattribute__(f)
-            if v is not None:
-                if isinstance(v, torch.Tensor):
-                    self.__setattr__(f, v.broadcast_to((*batch_shape, v.shape[-1])))
-                elif isinstance(v, TensorDataclass):
-                    self.__setattr__(f, v.broadcast_to(batch_shape))
-                elif isinstance(v, Dict):
-                    self.__setattr__(f, self._broadcast_dict_fields(v, batch_shape))
+        broadcasted_fields = self._broadcast_dict_fields(dataclasses.asdict(self), batch_shape)
+        for f, v in broadcasted_fields.items():
+            self.__setattr__(f, v)
 
         self.__setattr__("_shape", batch_shape)
 
-    def _get_dict_batch_shapes(self, dict_field: Dict) -> list:
+    def _get_dict_batch_shapes(self, dict_: Dict) -> list:
         """Returns batch shapes of all tensors in a dictionary"""
         batch_shapes = []
-        for k, v in dict_field.items():
+        for v in dict_.values():
             if isinstance(v, torch.Tensor):
                 batch_shapes.append(v.shape[:-1])
             elif isinstance(v, TensorDataclass):
@@ -99,10 +83,10 @@ class TensorDataclass:
                 batch_shapes.extend(self._get_dict_batch_shapes(v))
         return batch_shapes
 
-    def _broadcast_dict_fields(self, dict_field: Dict, batch_shape) -> Dict:
+    def _broadcast_dict_fields(self, dict_: Dict, batch_shape) -> Dict:
         """Broadcasts all tensors in a dictionary according to batch_shape"""
         new_dict = {}
-        for k, v in dict_field.items():
+        for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
                 new_dict[k] = v.broadcast_to((*batch_shape, v.shape[-1]))
             elif isinstance(v, TensorDataclass):
@@ -214,27 +198,17 @@ class TensorDataclass:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
         """
 
-        field_names = [f.name for f in dataclasses.fields(self)]
-        new_fields = {}
-        for f in field_names:
-            v = self.__getattribute__(f)
-            if v is not None:
-                if isinstance(v, TensorDataclass) and dataclass_fn is not None:
-                    new_fields[f] = dataclass_fn(v)
-                elif isinstance(v, (torch.Tensor, TensorDataclass)):
-                    new_fields[f] = fn(v)
-                elif isinstance(v, Dict):
-                    new_fields[f] = self._apply_fn_to_dict(v, fn, dataclass_fn)
+        new_fields = self._apply_fn_to_dict(dataclasses.asdict(self), fn, dataclass_fn)
 
         return dataclasses.replace(self, **new_fields)
 
-    def _apply_fn_to_dict(self, dict_field: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
-        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_field"""
+    def _apply_fn_to_dict(self, dict_: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
+        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_"""
 
-        field_names = dict_field.keys()
+        field_names = dict_.keys()
         new_dict = {}
         for f in field_names:
-            v = dict_field[f]
+            v = dict_[f]
             if v is not None:
                 if isinstance(v, TensorDataclass) and dataclass_fn is not None:
                     new_dict[f] = dataclass_fn(v)

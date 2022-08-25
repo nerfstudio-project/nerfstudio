@@ -100,6 +100,7 @@ class RaySamples(TensorDataclass):
     camera_indices: Optional[TensorType["bs":..., 1]] = None
     valid_mask: Optional[TensorType["bs":..., 1]] = None
     deltas: Optional[TensorType["bs":..., 1]] = None
+    metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities
@@ -161,7 +162,6 @@ class RayBundle(TensorDataclass):
         valid_mask: Rays that are valid
         num_rays_per_chunk: Number of rays per chunk
         shaped_metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
-            NOTE: Careful here as shaped metadata must be consistent with the shape of the ray's num_rays dim
     """
 
     origins: TensorType["num_rays", 3]
@@ -172,7 +172,7 @@ class RayBundle(TensorDataclass):
     fars: Optional[TensorType["num_rays", 1]] = None
     valid_mask: Optional[TensorType["num_rays", 1, bool]] = None
     num_rays_per_chunk: int = 128
-    shaped_metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
+    metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.
@@ -250,6 +250,7 @@ class RayBundle(TensorDataclass):
             camera_indices=camera_indices,  # [..., 1, 1]
             valid_mask=valid_mask,  # [..., N_samples, 1]
             deltas=deltas,  # [..., N_samples, 1]
+            metadata=self.metadata,
         )
 
         return ray_samples
