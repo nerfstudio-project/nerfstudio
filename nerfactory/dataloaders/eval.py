@@ -20,6 +20,7 @@ import random
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
+import torch
 from omegaconf import ListConfig
 
 from nerfactory.cameras.cameras import Camera, get_camera
@@ -32,7 +33,13 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
     """Evaluation dataloader base class"""
 
     def __init__(
-        self, image_dataset: ImageDataset, intrinsics, camera_to_world, num_rays_per_chunk: int, device="cpu", **kwargs
+        self,
+        image_dataset: ImageDataset,
+        intrinsics,
+        camera_to_world,
+        num_rays_per_chunk: int,
+        device: Union[torch.device, str] = "cpu",
+        **kwargs,
     ):
         super().__init__()
         self.image_dataset = image_dataset
@@ -78,7 +85,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         camera_to_world,
         num_rays_per_chunk: int,
         image_indices: Optional[Union[List[int], ListConfig]] = None,
-        device="cpu",
+        device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
         """
@@ -112,7 +119,13 @@ class RandIndicesEvalDataloader(EvalDataloader):
     """Dataloader that returns random images."""
 
     def __init__(
-        self, image_dataset: ImageDataset, intrinsics, camera_to_world, num_rays_per_chunk: int, device="cpu", **kwargs
+        self,
+        image_dataset: ImageDataset,
+        intrinsics,
+        camera_to_world,
+        num_rays_per_chunk: int,
+        device: Union[torch.device, str] = "cpu",
+        **kwargs,
     ):
         super().__init__(image_dataset, intrinsics, camera_to_world, num_rays_per_chunk, device, **kwargs)
         self.count = 0
