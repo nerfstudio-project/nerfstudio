@@ -21,7 +21,7 @@ import torch
 from torch import nn
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import semantic_nerf_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import Semantics
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
@@ -36,7 +36,7 @@ from nerfactory.utils import misc, writer
 class SemanticNerfModel(NeRFModel):
     """Semantic-NeRF model"""
 
-    def __init__(self, config: cfg.SemanticNerfModelConfig, semantics: Semantics, **kwargs) -> None:
+    def __init__(self, config: cfg.ModelConfig, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
         super().__init__(config=config, **kwargs)

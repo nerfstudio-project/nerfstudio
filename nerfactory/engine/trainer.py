@@ -21,6 +21,7 @@ import functools
 import logging
 import os
 import typing
+from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
@@ -172,16 +173,16 @@ class Trainer:
             logging.info("No checkpoints to load, training from scratch")
 
     @check_main_thread
-    def _save_checkpoint(self, output_dir: str, step: int) -> None:
+    def _save_checkpoint(self, output_dir: Path, step: int) -> None:
         """Save the model and optimizers
 
         Args:
             output_dir: directory to save the checkpoint
             step: number of steps in training for given checkpoint
         """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_path = output_dir / f"step-{step:09d}.ckpt"
         if hasattr(self.pipeline, "module"):
             pipeline = self.pipeline.module.state_dict()  # type: ignore
         else:

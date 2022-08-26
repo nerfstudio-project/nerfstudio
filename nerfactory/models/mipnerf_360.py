@@ -27,7 +27,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import mipnerf_360_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
@@ -50,7 +50,7 @@ class MipNerf360Model(Model):
 
     def __init__(
         self,
-        config: cfg.MipNerf360ModelConfig,
+        config: cfg.ModelConfig,
         **kwargs,
     ) -> None:
         self.field = None

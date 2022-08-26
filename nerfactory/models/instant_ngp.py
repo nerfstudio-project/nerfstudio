@@ -28,7 +28,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import instant_ngp_config as cfg
+from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model

@@ -43,7 +43,7 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "--config-name=graph_instant_ngp.yaml"
+        "instant_ngp"
       ]
     },
     {
@@ -53,7 +53,7 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "--config-name=graph_mipnerf_360.yaml"
+        "mipnerf_360"
       ]
     },
     {
@@ -63,7 +63,7 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "--config-name=graph_nerfw.yaml"
+        "nerfw"
         // "++data.use_preprocessing_cache=true"
       ]
     },
@@ -74,7 +74,7 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "--config-name=graph_semantic_nerf.yaml",
+        "semantic_nerf",
         "++data.use_preprocessing_cache=true"
       ]
     }

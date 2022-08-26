@@ -14,25 +14,30 @@
 
 """Base Configs"""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, ClassVar, Dict, Optional, Tuple, Type
+from pathlib import Path
+from typing import Any, Dict, Literal, Optional, Tuple, Type
 
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
+from nerfactory.dataloaders.base import Dataloader, VanillaDataloader
+from nerfactory.dataloaders.datasets import Blender, Dataset, Friends, Mipnerf360
+from nerfactory.models.base import Model
+from nerfactory.models.instant_ngp import NGPModel
+from nerfactory.models.nerfw import NerfWModel
+from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
 
-# pylint: disable=import-outside-toplevel
 
 # Base instantiate configs
 @dataclass
 class InstantiateConfig:  # pylint: disable=too-few-public-methods
     """Config class for instantiating an the class specified in the _target attribute."""
 
-    _target: ClassVar[Type]
+    _target: Type
 
     def setup(self, **kwargs) -> Any:
         """Returns the instantiated object using the config."""
@@ -56,25 +61,25 @@ class MachineConfig:
 class TensorboardWriterConfig(InstantiateConfig):
     """Tensorboard Writer config"""
 
-    _target: ClassVar[Type] = writer.TensorboardWriter
-    relative_log_dir: str = "./"
-    log_dir = Optional[None]  # full log dir path to be dynamically set
+    _target: Type = writer.TensorboardWriter
+    relative_log_dir: Path = Path("./")
+    log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
 
 @dataclass
 class WandbWriterConfig(InstantiateConfig):
     """WandDB Writer config"""
 
-    _target: ClassVar[Type] = writer.WandbWriter
-    relative_log_dir: str = "./"
-    log_dir = Optional[None]  # full log dir path to be dynamically set
+    _target: Type = writer.WandbWriter
+    relative_log_dir: Path = Path("./")
+    log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
 
 @dataclass
 class LocalWriterConfig(InstantiateConfig):
     """Local Writer config"""
 
-    _target: ClassVar[Type] = writer.LocalWriter
+    _target: Type = writer.LocalWriter
     stats_to_track: Tuple[writer.EventName, ...] = (
         writer.EventName.ITER_LOAD_TIME,
         writer.EventName.ITER_TRAIN_TIME,
@@ -82,8 +87,8 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.CURR_TEST_PSNR,
     )
     max_log_size: int = 10
-    relative_log_dir: str = "./"
-    log_dir = Optional[None]  # full log dir path to be dynamically set
+    relative_log_dir: Path = Path("./")
+    log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
 
 @dataclass
@@ -109,8 +114,8 @@ class TrainerConfig:
     # optional parameters if we want to resume training
     load_dir: Optional[str] = None
     load_step: Optional[int] = None
-    relative_model_dir: str = "nerfactory_models/"
-    model_dir: Optional[str] = None  # full model dir path to be dynamically set
+    relative_model_dir: Path = Path("nerfactory_models/")
+    model_dir: Optional[Path] = None  # full model dir path to be dynamically set
 
 
 # Dataset related configs
@@ -118,18 +123,14 @@ class TrainerConfig:
 class DatasetConfig(InstantiateConfig):
     """Basic dataset config"""
 
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Dataset
+    _target: Type = Dataset
 
 
 @dataclass
 class DataloaderConfig(InstantiateConfig):
     """Configuration for dataloader instantiation"""
 
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.Dataloader
+    _target: Type = Dataloader
     image_dataset_type: str = "rgb"
     train_dataset: InstantiateConfig = DatasetConfig()
     train_num_rays_per_batch: int = 1024
@@ -143,9 +144,7 @@ class DataloaderConfig(InstantiateConfig):
 class BlenderDatasetConfig(InstantiateConfig):
     """Blender dataset config"""
 
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Blender
+    _target: Type = Blender
     data_directory: str = "data/blender/lego"
     scale_factor: float = 1.0
     alpha_color: str = "white"
@@ -156,9 +155,7 @@ class BlenderDatasetConfig(InstantiateConfig):
 class BlenderDataloaderConfig(DataloaderConfig):
     """Blender dataloader config"""
 
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.VanillaDataloader
+    _target: Type = VanillaDataloader
     train_dataset: InstantiateConfig = BlenderDatasetConfig()
 
 
@@ -166,9 +163,7 @@ class BlenderDataloaderConfig(DataloaderConfig):
 class FriendsDatasetConfig(InstantiateConfig):
     """Friends dataset config"""
 
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Friends
+    _target: Type = Friends
     data_directory: str = "data/friends/TBBT-big_living_room"
 
 
@@ -176,9 +171,7 @@ class FriendsDatasetConfig(InstantiateConfig):
 class FriendsDataloaderConfig(DataloaderConfig):
     """Friends dataloader config"""
 
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.VanillaDataloader
+    _target: Type = VanillaDataloader
     train_dataset: InstantiateConfig = FriendsDatasetConfig()
     image_dataset_type: str = "panoptic"
 
@@ -187,9 +180,7 @@ class FriendsDataloaderConfig(DataloaderConfig):
 class MipNerf360DatasetConfig(InstantiateConfig):
     """Mipnerf 360 dataset config"""
 
-    from nerfactory.dataloaders import datasets
-
-    _target: ClassVar[Type] = datasets.Mipnerf360
+    _target: Type = Mipnerf360
     data_directory: str = "data/mipnerf_360/garden"
 
 
@@ -197,9 +188,7 @@ class MipNerf360DatasetConfig(InstantiateConfig):
 class MipNerf360DataloaderConfig(DataloaderConfig):
     """Mipnerf 360 dataloader config"""
 
-    from nerfactory.dataloaders import base
-
-    _target: ClassVar[Type] = base.VanillaDataloader
+    _target: Type = VanillaDataloader
     train_dataset: InstantiateConfig = MipNerf360DatasetConfig()
 
 
@@ -208,15 +197,13 @@ class MipNerf360DataloaderConfig(DataloaderConfig):
 class ModelConfig(InstantiateConfig):
     """Configuration for model instantiation"""
 
-    from nerfactory.models import base
-
-    _target: ClassVar[Type] = base.Model
+    _target: Type = Model
     enable_collider: bool = True
     collider_params: Dict[str, float] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     num_coarse_samples: int = 64
     num_importance_samples: int = 128
-    field_implementation: str = "torch"
+    field_implementation: Literal["torch", "tcnn"] = "torch"
     enable_density_field: bool = False
     density_field_params: Dict[str, Any] = to_immutable_dict(
         {
@@ -229,14 +216,36 @@ class ModelConfig(InstantiateConfig):
     )
 
 
+@dataclass
+class InstantNGPModelConfig(ModelConfig):
+    """Instant NGP Model Config"""
+
+    _target: Type = NGPModel
+    enable_density_field: bool = True
+    enable_collider: bool = False
+    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
+
+
+@dataclass
+class NerfWModelConfig(ModelConfig):
+    """NerfW model config"""
+
+    _target: Type = NerfWModel
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
+        {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "uncertainty_loss": 1.0, "density_loss": 0.01}
+    )
+    num_coarse_samples: int = 64
+    num_importance_samples: int = 64
+    uncertainty_min: float = 0.03
+
+
 # Pipeline related configs
 @dataclass
 class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
-    from nerfactory.pipelines import base
-
-    _target: ClassVar[Type] = base.Pipeline
+    _target: Type = Pipeline
     dataloader: DataloaderConfig = DataloaderConfig()
     model: ModelConfig = ModelConfig()
 
@@ -258,7 +267,7 @@ class ViewerConfig:
 class OptimizerConfig(InstantiateConfig):
     """Basic optimizer config with RAdam"""
 
-    _target: ClassVar[Type] = torch.optim.RAdam
+    _target: Type = torch.optim.RAdam
     lr: float = 0.0005
     eps: float = 1e-08
 
@@ -273,9 +282,7 @@ class OptimizerConfig(InstantiateConfig):
 class SchedulerConfig(InstantiateConfig):
     """Basic scheduler config with self-defined exponential decay schedule"""
 
-    from nerfactory.optimizers import schedulers
-
-    _target: ClassVar[Type] = schedulers.ExponentialDecaySchedule
+    _target: Type = ExponentialDecaySchedule
     lr_final: float = 0.000005
     max_steps: int = 1000000
 
@@ -309,7 +316,7 @@ class Config:
     def __post_init__(self):
         """Convert logging directories to more specific filepaths"""
         dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        base_dir = f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}"
-        self.trainer.model_dir = f"{base_dir}/{self.trainer.relative_model_dir}"
+        base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
+        self.trainer.model_dir = base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
-            curr_writer.log_dir = f"{base_dir}/{curr_writer.relative_log_dir}"
+            curr_writer.log_dir = base_dir / curr_writer.relative_log_dir

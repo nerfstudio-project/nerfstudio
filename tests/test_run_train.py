@@ -5,7 +5,7 @@ Default test to make sure train runs
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 import pytest
 
@@ -38,7 +38,7 @@ def set_reduced_config(config: cfg.Config):
     config.pipeline.model.num_importance_samples = 4
     # set logging to tmp
     for writer in config.logging.writer:
-        writer.log_dir = "/tmp/"
+        writer.log_dir = Path("/tmp/")
     # remove viewer
     config.viewer.enable = False
 
@@ -52,12 +52,12 @@ def set_reduced_config(config: cfg.Config):
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_run_train():
     """test run train script works properly"""
-    all_configs = [f for f in os.listdir("nerfactory/configs/") if "_config.py" in f]  # relative to run path
-    all_config_names = [x.replace("_config.py", "") for x in all_configs]
+    all_config_names = base_configs.keys()
     for config_name in all_config_names:
-        print(f"testing run for: {config_name}")
         if config_name in BLACKLIST:
+            print("skipping", config_name)
             continue
+        print(f"testing run for: {config_name}")
         config = base_configs[config_name]
         config = set_reduced_config(config)
 

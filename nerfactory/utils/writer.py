@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import enum
 import logging
-import os
 from abc import abstractmethod
+from pathlib import Path
 from time import time
-from typing import Dict
+from typing import Dict, Optional
 
 import imageio
 import numpy as np
@@ -154,7 +154,7 @@ def setup_event_writers(config: cfg.LoggingConfig, max_iter: int) -> None:
 class Writer:
     """Writer class"""
 
-    def __init__(self, log_dir: str):
+    def __init__(self, log_dir: Optional[Path]):
         self.log_dir = log_dir
 
     @abstractmethod
@@ -322,9 +322,9 @@ class LocalWriter(Writer):
         self.has_printed = False
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        if name in self.stats_to_track:
+        if name in self.stats_to_track and self.log_dir:
             image = to8b(image)
-            image_path = os.path.join(self.log_dir, f"{name}.jpg")
+            image_path = self.log_dir / f"{name}.jpg"
             imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
