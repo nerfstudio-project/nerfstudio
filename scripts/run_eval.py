@@ -18,7 +18,6 @@ from nerfactory.cameras.camera_paths import (
 from nerfactory.configs import base as cfg
 from nerfactory.configs.utils import cli_from_base_configs
 from nerfactory.pipelines.base import Pipeline
-from nerfactory.utils import io as io_utils
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
 
