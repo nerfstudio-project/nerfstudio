@@ -15,6 +15,7 @@
 """
 Ray generator.
 """
+import torch
 from torch import nn
 from torchtyping import TensorType
 
@@ -29,12 +30,14 @@ class RayGenerator(nn.Module):
     Args:
         intrinsics: The intrinsics parameters.
         camera_to_world: Camera to world transformation matrix.
+        trainable_poses: Whether the c2w matrices can be updated during training.
     """
 
     def __init__(
         self,
         intrinsics: TensorType["num_cameras", "num_intrinsics_params"],
         camera_to_world: TensorType["num_cameras", 3, 4],
+        trainable_poses: bool = False,
     ) -> None:
         super().__init__()
         self.num_cameras, self.num_intrinsics_params = intrinsics.shape
@@ -42,6 +45,9 @@ class RayGenerator(nn.Module):
         self.intrinsics = nn.Parameter(intrinsics, requires_grad=False)
         self.camera_to_world = nn.Parameter(camera_to_world, requires_grad=False)
         # TODO(ethan): add learnable parameters that are deltas on the intrinsics and camera_to_world parameters
+        self.trainable_poses = trainable_poses
+        if self.trainable_poses:
+            self.camera_to_world_delta = nn.Parameter(torch.zeros_like(camera_to_world), requires_grad=True)
 
         # NOTE(ethan): we currently assume all images have the same height and width
         camera_index = 0
@@ -60,6 +66,8 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         intrinsics = self.intrinsics[c]
         camera_to_world = self.camera_to_world[c]
+        if self.trainable_poses:
+            camera_to_world += self.camera_to_world_delta[c]
         coords = self.image_coords[y, x]
 
         ray_bundle = self.camera_class.generate_rays(
