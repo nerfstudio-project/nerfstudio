@@ -33,9 +33,26 @@ from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
 
 
+# Pretty printing class
+class PrintableConfig:  # pylint: disable=too-few-public-methods
+    """Printable Config defining str function"""
+
+    def __str__(self):
+        lines = [self.__class__.__name__ + ":"]
+        for key, val in vars(self).items():
+            if isinstance(val, Tuple):
+                flattened_val = "["
+                for item in val:
+                    flattened_val += str(item) + "\n"
+                flattened_val = flattened_val.rstrip("\n")
+                val = flattened_val + "]"
+            lines += f"{key}: {str(val)}".split("\n")
+        return "\n    ".join(lines)
+
+
 # Base instantiate configs
 @dataclass
-class InstantiateConfig:  # pylint: disable=too-few-public-methods
+class InstantiateConfig(PrintableConfig):  # pylint: disable=too-few-public-methods
     """Config class for instantiating an the class specified in the _target attribute."""
 
     _target: Type
@@ -47,7 +64,7 @@ class InstantiateConfig:  # pylint: disable=too-few-public-methods
 
 # Machine related configs
 @dataclass
-class MachineConfig:
+class MachineConfig(PrintableConfig):
     """Configuration of machine setup"""
 
     seed: int = 42
@@ -96,7 +113,7 @@ class LocalWriterConfig(InstantiateConfig):
 
 
 @dataclass
-class LoggingConfig:
+class LoggingConfig(PrintableConfig):
     """Configuration of loggers and profilers"""
 
     steps_per_log: int = 10
@@ -112,18 +129,19 @@ class LoggingConfig:
 
 # Trainer related configs
 @dataclass
-class TrainerConfig:
+class TrainerConfig(PrintableConfig):
     """Configuration for training regimen"""
 
     steps_per_save: int = 1000
     steps_per_test: int = 500
     max_num_iterations: int = 1000000
     mixed_precision: bool = False
+    relative_model_dir: Path = Path("nerfactory_models/")
+    model_dir: Optional[Path] = None  # full model dir path to be dynamically set
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     load_step: Optional[int] = None
-    relative_model_dir: Path = Path("nerfactory_models/")
-    model_dir: Optional[Path] = None  # full model dir path to be dynamically set
+    load_config: Optional[Path] = None
 
 
 # Dataset related configs
@@ -260,7 +278,7 @@ class PipelineConfig(InstantiateConfig):
 
 # Viewer related configs
 @dataclass
-class ViewerConfig:
+class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
     enable: bool = False
@@ -316,7 +334,7 @@ class TrajectoryType(enum.Enum):
 
 
 @dataclass
-class EvalConfig:
+class EvalConfig(PrintableConfig):
     """Boiler plate config for running eval"""
 
     checkpoint_dir: Optional[Path] = None
@@ -325,14 +343,16 @@ class EvalConfig:
     traj: TrajectoryType = TrajectoryType.SPIRAL
     output_filename: Path = Path("output.json")
     rendered_resolution_scaling_factor: float = 1.0
+    load_config: Optional[Path] = None  # optionally load config file from training
 
 
 @dataclass
-class Config:
+class Config(PrintableConfig):
     """Full config contents"""
 
     experiment_name: str = "blender_lego"
     method_name: str = "base_method"
+    base_dir: Optional[Path] = None  # base dir path to be dynamically set
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
     trainer: TrainerConfig = TrainerConfig()
@@ -351,7 +371,7 @@ class Config:
     def __post_init__(self):
         """Convert logging directories to more specific filepaths"""
         dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
-        self.trainer.model_dir = base_dir / self.trainer.relative_model_dir
+        self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
+        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
-            curr_writer.log_dir = base_dir / curr_writer.relative_log_dir
+            curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir

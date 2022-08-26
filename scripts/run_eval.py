@@ -2,7 +2,9 @@
 run_eval.py
 """
 import json
+import logging
 import os
+import pickle
 from pathlib import Path
 from typing import Dict
 
@@ -20,6 +22,8 @@ from nerfactory.configs.utils import cli_from_base_configs
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
+
+logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
@@ -161,8 +165,8 @@ def main(config: cfg.Config):
             "checkpoint": str(checkpoint_name),
             "results": stats_dict,
         }
-        with open(config.eval.output_filename, "w", encoding="utf8") as f:
-            json.dump(benchmark_info, f, indent=2)
+        with open(config.eval.output_filename, "w", encoding="utf8") as output_f:
+            json.dump(benchmark_info, output_f, indent=2)
         print(f"Saved results to: {config.eval.output_filename}")
 
     elif config.eval.method == cfg.MethodType.TRAJ:
@@ -195,4 +199,12 @@ if __name__ == "__main__":
     from nerfactory.configs.base_configs import base_configs
 
     instantiated_config = cli_from_base_configs(base_configs, eval_mode=True)
+    if instantiated_config.eval.load_config:
+        logging.info(f"Loading pre-set config to: {instantiated_config.eval.load_config}")
+        with open(instantiated_config.eval.load_config, "rb") as config_f:
+            train_instantiated_config = pickle.load(config_f)
+        train_instantiated_config.eval = instantiated_config.eval
+        instantiated_config = train_instantiated_config
+    logging.info("Printing current config setup")
+    print(instantiated_config)
     main(instantiated_config)

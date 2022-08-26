@@ -3,11 +3,12 @@ run_train_nerf.py
 """
 
 import logging
+import pickle
 import random
 import socket
 import traceback
 from datetime import timedelta
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import numpy as np
 import torch
@@ -85,8 +86,7 @@ def _distributed_worker(
             timeout=timeout,
         )
     except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error("Process group URL: %s", dist_url)
+        logging.error("Process group URL: %s", dist_url)
         raise e
 
     assert comms._LOCAL_PROCESS_GROUP is None  # pylint: disable=protected-access
@@ -114,7 +114,7 @@ def launch(
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
-    config: cfg.Config = None,
+    config: Optional[cfg.Config] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
@@ -149,8 +149,7 @@ def launch(
             port = _find_free_port()
             dist_url = f"tcp://127.0.0.1:{port}"
         if num_machines > 1 and dist_url.startswith("file://"):
-            logger = logging.getLogger(__name__)
-            logger.warning("file:// is not a reliable init_method in multi-machine jobs. Prefer tcp://")
+            logging.warning("file:// is not a reliable init_method in multi-machine jobs. Prefer tcp://")
 
         process_context = mp.spawn(
             _distributed_worker,
@@ -169,13 +168,12 @@ def launch(
         try:
             process_context.join()
         except KeyboardInterrupt:
-            logger = logging.getLogger(__name__)
             for i, process in enumerate(process_context.processes):
                 if process.is_alive():
-                    logger.info("Terminating process %s", str(i))
+                    logging.info("Terminating process %s", str(i))
                     process.terminate()
                 process.join()
-                logger.info("Process %s finished", str(i))
+                logging.info("Process %s finished", str(i))
         finally:
             profiler.flush_profiler(config.logging)
 
@@ -196,4 +194,20 @@ if __name__ == "__main__":
     from nerfactory.configs.base_configs import base_configs
 
     instantiated_config = cli_from_base_configs(base_configs)
+    if instantiated_config.trainer.load_config:
+        logging.info(f"Loading pre-set config to: {instantiated_config.trainer.load_config}")
+        with open(instantiated_config.trainer.load_config, "rb") as f:
+            instantiated_config = pickle.load(f)
+    # log and save config
+    logging.info("Printing current config setup")
+    print(instantiated_config)
+    config_pickle_path = instantiated_config.base_dir / "config.pkl"
+    config_json_path = instantiated_config.base_dir / "config.txt"
+    logging.info(f"Saving instance of config to: {config_pickle_path}")
+    logging.info(f"Saving human-readable config to: {config_json_path}")
+    config_pickle_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_pickle_path, "wb") as f:
+        pickle.dump(instantiated_config, f)
+    with open(config_json_path, "w", encoding="utf8") as f:
+        f.write(str(instantiated_config))
     main(config=instantiated_config)
