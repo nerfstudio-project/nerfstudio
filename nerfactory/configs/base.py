@@ -14,6 +14,7 @@
 
 """Base Configs"""
 
+import enum
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -62,6 +63,7 @@ class TensorboardWriterConfig(InstantiateConfig):
     """Tensorboard Writer config"""
 
     _target: Type = writer.TensorboardWriter
+    enable: bool = False
     relative_log_dir: Path = Path("./")
     log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
@@ -71,6 +73,7 @@ class WandbWriterConfig(InstantiateConfig):
     """WandDB Writer config"""
 
     _target: Type = writer.WandbWriter
+    enable: bool = False
     relative_log_dir: Path = Path("./")
     log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
@@ -80,6 +83,7 @@ class LocalWriterConfig(InstantiateConfig):
     """Local Writer config"""
 
     _target: Type = writer.LocalWriter
+    enable: bool = False
     stats_to_track: Tuple[writer.EventName, ...] = (
         writer.EventName.ITER_LOAD_TIME,
         writer.EventName.ITER_TRAIN_TIME,
@@ -97,7 +101,11 @@ class LoggingConfig:
 
     steps_per_log: int = 10
     max_buffer_size: int = 20
-    writer: Tuple[Any, ...] = (TensorboardWriterConfig(), LocalWriterConfig())
+    writer: Tuple[Any, ...] = (
+        TensorboardWriterConfig(enable=True),
+        WandbWriterConfig(enable=False),
+        LocalWriterConfig(enable=True),
+    )
     # profiler logs run times of functions and prints at end of training
     enable_profiler: bool = True
 
@@ -112,7 +120,7 @@ class TrainerConfig:
     max_num_iterations: int = 1000000
     mixed_precision: bool = False
     # optional parameters if we want to resume training
-    load_dir: Optional[str] = None
+    load_dir: Optional[Path] = None
     load_step: Optional[int] = None
     relative_model_dir: Path = Path("nerfactory_models/")
     model_dir: Optional[Path] = None  # full model dir path to be dynamically set
@@ -136,7 +144,7 @@ class DataloaderConfig(InstantiateConfig):
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataset: Optional[InstantiateConfig] = None
-    eval_image_indices: Tuple[int, ...] = (0,)
+    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
 
@@ -293,6 +301,32 @@ class SchedulerConfig(InstantiateConfig):
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 
 
+class MethodType(enum.Enum):
+    """Enum for the method type."""
+
+    PSNR = enum.auto()
+    TRAJ = enum.auto()
+
+
+class TrajectoryType(enum.Enum):
+    """Enum for the trajectory type."""
+
+    SPIRAL = enum.auto()
+    INTERP = enum.auto()
+
+
+@dataclass
+class EvalConfig:
+    """Boiler plate config for running eval"""
+
+    checkpoint_dir: Optional[Path] = None
+    rendered_output_name: Optional[str] = None
+    method: MethodType = MethodType.PSNR
+    traj: TrajectoryType = TrajectoryType.SPIRAL
+    output_filename: Path = Path("output.json")
+    rendered_resolution_scaling_factor: float = 1.0
+
+
 @dataclass
 class Config:
     """Full config contents"""
@@ -312,6 +346,7 @@ class Config:
         }
     )
     viewer: ViewerConfig = ViewerConfig()
+    eval: Optional[EvalConfig] = None
 
     def __post_init__(self):
         """Convert logging directories to more specific filepaths"""

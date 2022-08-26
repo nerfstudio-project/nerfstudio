@@ -140,9 +140,10 @@ def write_out_storage():
 def setup_event_writers(config: cfg.LoggingConfig, max_iter: int) -> None:
     """Initialization of all event writers specified in config"""
     for writer_type_config in config.writer:
-        curr_writer = writer_type_config.setup()
-        EVENT_WRITERS.append(curr_writer)
-        logging.info("logging info to: %s", writer_type_config.log_dir)
+        if writer_type_config.enable:
+            curr_writer = writer_type_config.setup()
+            EVENT_WRITERS.append(curr_writer)
+            logging.info("logging info to: %s", writer_type_config.log_dir)
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
