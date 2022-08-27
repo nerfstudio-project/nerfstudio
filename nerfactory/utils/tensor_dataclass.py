@@ -16,7 +16,7 @@
 
 import dataclasses
 from copy import deepcopy
-from typing import Callable, Dict, NoReturn, Optional, Tuple, TypeVar, Union
+from typing import Callable, Dict, List, NoReturn, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -79,7 +79,7 @@ class TensorDataclass:
 
         self.__setattr__("_shape", batch_shape)
 
-    def _get_dict_batch_shapes(self, dict_: Dict) -> list:
+    def _get_dict_batch_shapes(self, dict_: Dict) -> List:
         """Returns batch shapes of all tensors in a dictionary
 
         Args:
@@ -234,7 +234,15 @@ class TensorDataclass:
         return dataclasses.replace(self, **new_fields)
 
     def _apply_fn_to_dict(self, dict_: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
-        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_"""
+        """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_
+
+        Args:
+            dict_ (Dict): The dictionary to apply the function to.
+            fn (Callable): The function to apply to tensor fields.
+            dataclass_fn (Optional[Callable]): The function to apply to TensorDataclass fields.
+
+        Returns:
+            Dict: A new dictionary with the same data but with a new shape. Will deep copy"""
 
         field_names = dict_.keys()
         new_dict = {}
