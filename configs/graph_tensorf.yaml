@@ -21,6 +21,7 @@ pipeline:
     _target_: nerfactory.models.tensorf.TensoRFModel
     loss_coefficients:
       rgb_loss: 1.0
+      feature_loss: 8e-5
 
 optimizers:
   fields:

@@ -31,7 +31,7 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.optimizers.loss import MSELoss
+from nerfactory.optimizers.loss import L1Loss, MSELoss
 from nerfactory.optimizers.optimizers import Optimizers
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -57,9 +57,9 @@ class TensoRFModel(Model):
         far_plane: float = 6.0,
         num_coarse_samples: int = 64,
         num_importance_samples: int = 128,
-        init_resolution: int = 128,
+        init_resolution: int = 200,
         final_resolution: int = 200,
-        upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000),
+        upsampling_iters: Tuple[int, ...] = (),  # (2000, 3000, 4000, 5500, 7000),
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
@@ -70,7 +70,7 @@ class TensoRFModel(Model):
         self.final_resolution = final_resolution
         self.upsampling_iters = upsampling_iters
         self.upsampling_steps = (
-            np.round(np.exp(np.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters))))
+            np.round(np.exp(np.linspace(np.log(init_resolution), np.log(final_resolution), len(upsampling_iters) + 1)))
             .astype("int")
             .tolist()[1:]
         )
@@ -87,14 +87,14 @@ class TensoRFModel(Model):
             # upsample the position and direction grids
             # TODO(ethan): ask Brent how to get typing to work on this... the Encoding base class type
             # in NeRFField is causing the issue
-            self.field.position_encoding.upsample_grid(resolution)
-            self.field.direction_encoding.upsample_grid(resolution)
+            # self.field.position_encoding.upsample_grid(resolution)
+            # self.field.direction_encoding.upsample_grid(resolution)
 
             # reinitialize the optimizer
-            optimizers_config = training_callback_attributes.optimizers.config
-            training_callback_attributes.optimizers = Optimizers(
-                optimizers_config, training_callback_attributes.pipeline.get_param_groups()
-            )
+            # optimizers_config = training_callback_attributes.optimizers.config
+            # training_callback_attributes.optimizers = Optimizers(
+            #     optimizers_config, training_callback_attributes.pipeline.get_param_groups()
+            # )
             # TODO(ethan): do something with the learning rate
             # we don't want to reinitialize the learning rate each time
 
@@ -112,11 +112,11 @@ class TensoRFModel(Model):
         # fields
         position_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=24,
+            num_components=96,
         )
         direction_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=24,
+            num_components=96,
         )
 
         self.field = NeRFField(
@@ -139,6 +139,7 @@ class TensoRFModel(Model):
 
         # losses
         self.rgb_loss = MSELoss()
+        self.feature_loss = L1Loss()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -176,8 +177,14 @@ class TensoRFModel(Model):
         image = batch["image"].to(device)
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
+        plane_coef = self.field.position_encoding.plane_coef
+        line_coef = self.field.position_encoding.line_coef
 
-        loss_dict = {"rgb_loss": rgb_loss}
+        feature_loss = self.feature_loss(plane_coef, torch.zeros(plane_coef.size()).to(device)) + self.feature_loss(  # type: ignore
+            line_coef, torch.zeros(line_coef.size()).to(device)  # type: ignore
+        )
+
+        loss_dict = {"rgb_loss": rgb_loss, "feature_loss": feature_loss}
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
