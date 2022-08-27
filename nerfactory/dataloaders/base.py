@@ -270,6 +270,22 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         return camera_ray_bundle, batch
 
 
+class LearnableCamerasDataloader(VanillaDataloader):
+    def setup_train(self):
+        """Sets up the dataloader for training"""
+        super().setup_train()
+        self.train_ray_generator = RayGenerator(
+            self.train_datasetinputs.intrinsics,
+            self.train_datasetinputs.camera_to_world,
+            trainable_poses=True,
+        )
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        params_dict = {}
+        params_dict["camera_params"] = [self.train_ray_generator.camera_to_world_delta]
+        return params_dict
+
+
 @profiler.time_function
 def setup_dataloader(config: DataloaderConfig, device: str, test_mode=False) -> Dataloader:
     """Setup the dataloader."""
