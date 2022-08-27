@@ -17,6 +17,7 @@ Camera Models
 """
 import base64
 from abc import abstractmethod
+from enum import Enum, auto
 from typing import Dict, Optional, Tuple, Type
 
 import cv2
@@ -26,6 +27,125 @@ from torch.nn.functional import normalize
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
+
+
+class CameraType(Enum):
+    """Supported camera types."""
+
+    PERSPECTIVE = auto
+    FISHEYE = auto
+
+
+class NewCamera:
+    """Dataset inputs for the image dataset and the ray generator.
+
+    Args:
+        camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
+        fx: Focal length x.
+        fy: Focal length y.
+        cx: Principal point x.
+        cy: Principal point y.
+        distortion_params: OpenCV 6 radial distortion coefficients.
+        camera_type: Type of camera model.
+
+    Attributes:
+        camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
+        intrinsic_matrix: Camera intrinsics matrix.
+    """
+
+    def __init__(
+        self,
+        camera_to_world: TensorType["num_cameras", 3, 4],
+        fx: TensorType["num_cameras", 1],
+        fy: TensorType["num_cameras", 1],
+        cx: TensorType["num_cameras", 1],
+        cy: TensorType["num_cameras", 1],
+        distortion_params: Optional[TensorType["num_cameras", 6]] = None,
+        camera_type: CameraType = CameraType.PERSPECTIVE,
+    ):
+        self.camera_to_world = camera_to_world
+        self.intrinsic_matrix = self._compute_intrinsic_matrix(fx, fy, cx, cy)
+        if distortion_params is not None:
+            self.distortion_params = distortion_params.broadcast_to(camera_to_world.shape[:-1])
+        else:
+            self.distortion_params = None
+        self._image_height = int(cy * 2)
+        self._image_width = int(cx * 2)
+        self.camera_type = camera_type
+
+    @property
+    def device(self):
+        """Returns the device that the camera is on."""
+        return self.camera_to_world.device
+
+    @property
+    def image_height(self) -> int:
+        """Returns the height of the images."""
+        return self._image_height
+
+    @property
+    def image_width(self) -> int:
+        """Returns the height of the images."""
+        return self.image_width
+
+    def _compute_intrinsic_matrix(self, fx: float, fy: float, cx: float, cy: float) -> TensorType[3, 3]:
+        """Computes the intrinsic matrix for the camera."""
+        return torch.tensor(
+            [
+                [fx, 0, cx],
+                [0, fy, cy],
+                [0, 0, 1],
+            ],
+            device=self.device,
+        )
+
+    def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
+        """
+        Args:
+            pixel_offset (float): Offset for each pixel. Defaults to center of pixel (0.5)
+
+        Returns:
+            TensorType["image_height", "image_width", 2]: Grid of image coordinates.
+        """
+        image_height = self.image_height
+        image_width = self.image_width
+        image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
+        image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
+        return image_coords
+
+    def generate_rays(
+        self,
+        intrinsic_matrix_delta: TensorType[..., 3, 3],
+        camera_to_world_delta: TensorType[..., 3, 4],
+        coords: Optional[TensorType[..., 2]] = None,
+        distortion_params_delta: Optional[TensorType[..., 6]] = None,
+    ) -> RayBundle:
+
+        coords = self.get_image_coords()
+
+        y = coords[..., 0:1]  # (..., 1)
+        x = coords[..., 1:2]  # (..., 1)
+        z = torch.ones_like(y)  # (..., 1)
+
+        inv_intrinsic_matrix = torch.inverse(self.intrinsic_matrix[c] + intrinsic_matrix_delta)
+        directions = normalize(inv_intrinsic_matrix @ torch.stack([x, y, z], dim=-1))
+        directions_x_offset = normalize(inv_intrinsic_matrix @ torch.stack([x + 1, y, z], dim=-1))
+        directions_y_offset = normalize(inv_intrinsic_matrix @ torch.stack([x, y + 1, z], dim=-1))
+
+        dx = torch.sqrt(torch.sum((directions - directions_x_offset) ** 2, dim=-1))
+        dy = torch.sqrt(torch.sum((directions - directions_y_offset) ** 2, dim=-1))
+        pixel_area = dx * dy
+
+        # Change coordinate system
+        directions = directions * torch.tensor([1, -1, -1], device=directions.device)
+
+        c2w = camera_to_world_delta + self.camera_to_world[c]
+        rotation = c2w[..., :3, :3]  # (..., 3, 3)
+        directions = torch.sum(directions[..., None, :] * rotation, dim=-1)  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
+        directions = normalize(directions, dim=-1)
+        origins = c2w[..., :3, 3]  # (..., 3)
+
+        return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
 
 class Camera:
@@ -62,13 +182,6 @@ class Camera:
             Intrinsics matrix
         """
         return
-
-    def get_camera_to_world(self) -> TensorType[3, 4]:
-        """
-        Returns:
-            Camera to world transformation
-        """
-        return self.camera_to_world
 
     def get_camera_to_world_h(self) -> TensorType[4, 4]:
         """

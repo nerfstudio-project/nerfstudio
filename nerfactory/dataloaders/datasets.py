@@ -19,8 +19,10 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+import struct
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Optional, OrderedDict, Union
 
 import imageio
 import numpy as np
@@ -144,10 +146,6 @@ class Blender(Dataset):
         self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):
-        if self.alpha_color is not None:
-            alpha_color_tensor = get_color(self.alpha_color)
-        else:
-            alpha_color_tensor = None
 
         abs_dir = get_absolute_path(self.data_directory)
         meta = load_from_json(os.path.join(abs_dir, f"transforms_{split}.json"))
@@ -180,6 +178,119 @@ class Blender(Dataset):
             image_filenames=image_filenames,
             downscale_factor=self.downscale_factor,
             alpha_color=alpha_color_tensor,
+            intrinsics=intrinsics * 1.0 / self.downscale_factor,  # downscaling the intrinsics here
+            camera_to_world=camera_to_world,
+            scene_bounds=scene_bounds,
+        )
+
+        return dataset_inputs
+
+
+@dataclass
+class Colmap(Dataset):
+    """Colmap Dataset
+    Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
+
+    Args:
+        data_directory: Location of data
+        alpha_color: Sets transparent regions to specified color, otherwise black.
+        scale_factor: How much to scale the camera origins by.
+        downscale_factor: How much to downscale images. Defaults to 1.
+    """
+
+    data_directory: str
+    scale_factor: float = 1.0
+    downscale_factor: int = 1
+    scene_scale: float = 0.33
+
+    def _generate_dataset_inputs(self, split="train"):
+
+        abs_dir = get_absolute_path(self.data_directory)
+        img_dir = os.path.join(abs_dir, "images")
+
+        cameras_file = os.path.join(abs_dir, "sparse", "0", "cameras.bin")
+        assert os.path.exists(cameras_file), f"Cameras file not found - {cameras_file}"
+
+        camera_type_id_to_name = {
+            0: "SIMPLE_PINHOLE",
+            1: "PINHOLE",
+            2: "SIMPLE_RADIAL",
+            3: "RADIAL",
+            4: "OPENCV",
+            5: "OPENCV_FISHEYE",
+            6: "FULL_OPENCV",
+            7: "FOV",
+            8: "SIMPLE_RADIAL_FISHEYE",
+            9: "RADIAL_FISHEYE",
+            10: "THIN_PRISM_FISHEYE",
+        }
+
+        camera_name_to_params = {
+            "SIMPLE_PINHOLE": 3,
+            "PINHOLE": 4,
+            "SIMPLE_RADIAL": 4,
+            "RADIAL": 5,
+            "OPENCV": 8,
+        }
+
+        with open(cameras_file, "rb") as f:
+            num_cameras = struct.unpack("L", f.read(8))[0]
+            assert num_cameras == 1, f"Only one camera is supported, found {num_cameras}"
+
+            _, camera_type_id, width, height = struct.unpack("IiLL", f.read(24))
+            camera_name = camera_type_id_to_name[camera_type_id]
+            assert camera_name in camera_name_to_params, f"Unknown camera type {camera_name}"
+            num_params = camera_name_to_params[camera_name]
+            params = struct.unpack("d" * num_params, f.read(8 * num_params))
+
+        meta = load_from_json(os.path.join(abs_dir, "transforms.json"))
+        image_filenames = []
+        poses = []
+        num_skipped_image_filenames = 0
+        for frame in meta["frames"]:
+            fname = os.path.join(abs_dir, frame["file_path"])
+            if not os.path.exists(fname):
+                num_skipped_image_filenames += 1
+            else:
+                image_filenames.append(fname)
+                poses.append(np.array(frame["transform_matrix"]))
+        if num_skipped_image_filenames >= 0:
+            logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+        assert (
+            len(image_filenames) != 0
+        ), """
+        No image files found. 
+        You should check the file_paths in the transforms.json file to make sure they are correct.
+        """
+        poses = np.array(poses).astype(np.float32)
+        poses[:3, 3] *= self.scene_scale
+
+        img_0 = imageio.imread(image_filenames[0])
+        image_height, image_width = img_0.shape[:2]
+        camera_angle_x = float(meta["camera_angle_x"])
+        focal_length = 0.5 * image_width / np.tan(0.5 * camera_angle_x)
+
+        cx = image_width / 2.0
+        cy = image_height / 2.0
+        camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
+        num_cameras = len(image_filenames)
+        num_intrinsics_params = 3
+        intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
+        intrinsics *= torch.tensor([cx, cy, focal_length])
+
+        # in x,y,z order
+        # assumes that the scene is centered at the origin
+        aabb_scale = meta["aabb_scale"]
+        scene_bounds = SceneBounds(
+            aabb=torch.tensor(
+                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+            )
+        )
+
+        # TODO(ethan): add alpha background color
+        dataset_inputs = DatasetInputs(
+            image_filenames=image_filenames,
+            downscale_factor=self.downscale_factor,
             intrinsics=intrinsics * 1.0 / self.downscale_factor,  # downscaling the intrinsics here
             camera_to_world=camera_to_world,
             scene_bounds=scene_bounds,

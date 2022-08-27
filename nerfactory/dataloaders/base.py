@@ -233,9 +233,9 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         )  # TODO(ethan): pass this in
         self.iter_train_image_sampler = iter(self.train_image_sampler)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_ray_generator = RayGenerator(
-            self.train_datasetinputs.intrinsics, self.train_datasetinputs.camera_to_world
-        )
+        # self.train_ray_generator = RayGenerator(
+        #     self.train_datasetinputs.intrinsics, self.train_datasetinputs.camera_to_world
+        # )
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
@@ -259,7 +259,8 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         image_batch = next(self.iter_train_image_sampler)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator.forward(ray_indices)
+        ray_bundle = self.train_datasetinputs.cameras.generate_rays(ray_indices)
+        # ray_bundle = self.train_ray_generator.forward(ray_indices)
         return ray_bundle, batch
 
     def next_eval(self) -> Tuple[RayBundle, Dict]:
