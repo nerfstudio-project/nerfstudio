@@ -217,6 +217,8 @@ class RayBundle(TensorDataclass):
     ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction.
 
+        Currently samples uniformly.
+
 
         Args:
             bin_starts (TensorType[..., "num_samples", 1]): Distance from origin to start of bin.

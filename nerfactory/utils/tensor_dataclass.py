@@ -57,6 +57,10 @@ class TensorDataclass:
     _shape: tuple
 
     def __post_init__(self) -> None:
+        """Finishes setting up the TensorDataclass
+
+        This will 1) find the broadcasted shape and 2) broadcast all fields to this shape 3)
+        set _shape to be the broadcasted shape."""
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
@@ -72,7 +76,13 @@ class TensorDataclass:
         self.__setattr__("_shape", batch_shape)
 
     def _get_dict_batch_shapes(self, dict_: Dict) -> list:
-        """Returns batch shapes of all tensors in a dictionary"""
+        """Returns batch shapes of all tensors in a dictionary
+
+        Args:
+            dict_ (Dict): The dictionary to get the batch shapes of.
+
+        Returns:
+            list: The batch shapes of all tensors in the dictionary."""
         batch_shapes = []
         for v in dict_.values():
             if isinstance(v, torch.Tensor):
@@ -84,7 +94,13 @@ class TensorDataclass:
         return batch_shapes
 
     def _broadcast_dict_fields(self, dict_: Dict, batch_shape) -> Dict:
-        """Broadcasts all tensors in a dictionary according to batch_shape"""
+        """Broadcasts all tensors in a dictionary according to batch_shape
+
+        Args:
+            dict_ (Dict): The dictionary to broadcast.
+
+        Returns:
+            Dict: The broadcasted dictionary."""
         new_dict = {}
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
@@ -189,6 +205,13 @@ class TensorDataclass:
         self: TensorDataclassT, fn: Callable, dataclass_fn: Optional[Callable] = None
     ) -> TensorDataclassT:
         """Applies a function to all fields of the tensor dataclass.
+
+        TODO: Someone needs to make a high level design choice for whether not not we want this
+        to apply the function to any fields in arbitray superclasses. This is an edge case until we
+        upgrade to python 3.10 and dataclasses can actually be subclassed with vanilla python and no
+        janking, but if people try to jank some subclasses that are grandchildren of TensorDataclass
+        (imagine if someone tries to subclass the RayBundle) this will matter even before upgrading
+        to 3.10
 
         Args:
             fn (Callable): The function to apply to tensor fields.
