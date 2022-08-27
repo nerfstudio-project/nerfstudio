@@ -3,7 +3,7 @@
 helpFunction_launch_train()
 {
    echo "Usage: $0 -c config_name -g gpu_list"
-   echo -e "\t-c name of config to benchmark (e.g. graph_mipnerf, graph_instant_ngp)"
+   echo -e "\t-c name of config to benchmark (e.g. mipnerf, instant_ngp)"
    echo -e "\t-g list of space-separated gpu numbers to launch train on (e.g. 0 2 4 5)"
    exit 1 # Exit program after printing help
 }
@@ -53,15 +53,14 @@ len=${#GPU_IDX[@]}
 for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
     python scripts/run_train.py \
-           --config-name ${config_name} \
-           '~logging.writer.LocalWriter' \
-           pipeline.dataloader.train_dataset.data_directory=data/blender/${dataset} \
-           experiment_name=blender_${dataset}_${tag} \
-           trainer.model_dir=nerfactory_models/ \
-           trainer.steps_per_save=25000 \
-           trainer.max_num_iterations=2000000 \
-           viewer.enable=False \
-           logging.enable_profiler=False &
+           ${config_name} \
+           --logging.writer.2.no-enable \
+           --pipeline.dataloader.train-dataset.data-directory=data/blender/${dataset} \
+           --experiment-name=blender_${dataset}_${tag} \
+           --trainer.model-dir=nerfactory_models/ \
+           --trainer.steps-per-save=16000 \
+           --trainer.max-num-iterations=16500 \
+           --logging.no-enable-profiler &
     echo "Launched ${config_name} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
     
     # update gpu

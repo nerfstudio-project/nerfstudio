@@ -38,7 +38,7 @@ jobs:
         run: black docs/ nerfactory/ scripts/ tests/ --check
       - name: Python Pylint
         run: |
-          pylint nerfactory tests scripts
+          pylint --disable=cyclic-import nerfactory tests scripts
       - name: Test with pytest
         run: |
           pytest

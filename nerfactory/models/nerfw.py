@@ -16,18 +16,22 @@
 NeRF-W (NeRF in the wild) implementation.
 """
 
+from __future__ import annotations
+
 import torch
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import base as cfg
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.nerfw_field import VanillaNerfWField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -43,11 +47,7 @@ class NerfWModel(Model):
 
     def __init__(
         self,
-        near_plane=2.0,
-        far_plane=6.0,
-        num_coarse_samples=64,
-        num_importance_samples=64,
-        uncertainty_min=0.03,
+        config: cfg.NerfWModelConfig,
         **kwargs,
     ) -> None:
         """A NeRF-W model.
@@ -59,17 +59,12 @@ class NerfWModel(Model):
                 This avoids calling torch.log() on a zero value, which would be undefined.
                 Defaults to 0.03.
         """
-        self.near_plane = near_plane
-        self.far_plane = far_plane
-        self.num_coarse_samples = num_coarse_samples
-        self.num_importance_samples = num_importance_samples
-        self.uncertainty_min = uncertainty_min
         self.field_coarse = None
         self.field_fine = None
         self.num_images = 10000  # TODO(ethan): fix this
         self.appearance_embedding_dim = 48
         self.transient_embedding_dim = 16
-        super().__init__(**kwargs)
+        super().__init__(config=config, **kwargs)
 
     def populate_fields(self):
         """Set the fields."""
@@ -92,8 +87,8 @@ class NerfWModel(Model):
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.BLACK)
@@ -108,6 +103,10 @@ class NerfWModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+        # colliders
+        if self.config.enable_collider:
+            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
 
     def get_param_groups(self):
         param_groups = {}
@@ -176,7 +175,7 @@ class NerfWModel(Model):
 
         # uncertainty
         uncertainty = self.renderer_uncertainty(field_outputs_fine[FieldHeadNames.UNCERTAINTY], weights_fine_transient)
-        uncertainty += self.uncertainty_min
+        uncertainty += self.config.uncertainty_min
 
         outputs = {
             "rgb_coarse": rgb_coarse,  # (num_rays, 3)

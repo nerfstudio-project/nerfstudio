@@ -1,16 +1,15 @@
 """
 run_eval.py
 """
-import enum
 import json
+import logging
 import os
-from typing import Dict, List, Optional
+import pickle
+from pathlib import Path
+from typing import Dict
 
-import dcargs
 import mediapy as media
 import torch
-from hydra import compose, initialize
-from omegaconf import DictConfig
 from tqdm import tqdm
 
 from nerfactory.cameras.camera_paths import (
@@ -18,11 +17,13 @@ from nerfactory.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_spiral_path,
 )
-from nerfactory.pipelines.base import Pipeline, setup_pipeline
-from nerfactory.utils import io as io_utils
-from nerfactory.utils.config import setup_config
+from nerfactory.configs import base as cfg
+from nerfactory.configs.utils import cli_from_base_configs
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
+
+logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
@@ -39,7 +40,7 @@ def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
     return (step * prev_avg + new_val) / (step + 1)
 
 
-def _load_checkpoint(config: DictConfig, pipeline: Pipeline) -> str:
+def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     """Helper function to load checkpointed pipeline
 
     Args:
@@ -53,8 +54,8 @@ def _load_checkpoint(config: DictConfig, pipeline: Pipeline) -> str:
         load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
         load_step = config.load_step
-    load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")
-    assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+    load_path = config.load_dir / f"step-{load_step:09d}.ckpt"
+    assert load_path.exists(), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
     pipeline.load_pipeline(loaded_state["pipeline"])
     print(f"done loading checkpoint from {load_path}")
@@ -88,7 +89,7 @@ def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
 def render_trajectory_video(
     pipeline: Pipeline,
     camera_path: CameraPath,
-    output_filename: str,
+    output_filename: Path,
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
     num_rays_per_chunk: int = 4096,
@@ -120,30 +121,7 @@ def render_trajectory_video(
     media.write_video(output_filename, images, fps=fps)
 
 
-class MethodType(enum.Enum):
-    """Enum for the method type."""
-
-    PSNR = enum.auto()
-    TRAJ = enum.auto()
-
-
-class TrajectoryType(enum.Enum):
-    """Enum for the trajectory type."""
-
-    SPIRAL = enum.auto()
-    INTERP = enum.auto()
-
-
-def main(
-    config_name: str,
-    checkpoint_dir: str,
-    rendered_output_name: str,
-    method: MethodType = MethodType.PSNR,
-    traj: TrajectoryType = TrajectoryType.SPIRAL,
-    output_filename: str = "output.json",
-    rendered_resolution_scaling_factor: float = 1.0,
-    config_overrides: Optional[List[str]] = None,
-):
+def main(config: cfg.Config):
     """Evaluate trained model. This evaluation can either render a trajectory or compute the eval psnr.
 
     Args:
@@ -157,25 +135,21 @@ def main(
             Defaults to 1.0.
         config_overrides: List of strings to override config values.
     """
+    assert config.eval is not None, "Eval config needs to be set"
+    assert config.eval.checkpoint_dir is not None, "Missing eval checkpoint dir: --eval.checkpoint-dir"
 
-    config_path = "../configs"
-    initialize(version_base="1.2", config_path=config_path)
-    config_overrides = config_overrides or []
-    config = compose(config_name, overrides=config_overrides)
-
-    config.trainer.resume_train.load_dir = checkpoint_dir
+    config.trainer.load_dir = config.eval.checkpoint_dir
     config.pipeline.dataloader.eval_image_indices = None
-    config = setup_config(config)  # converting to typed config
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # setup pipeline (which includes the dataloaders)
-    pipeline = setup_pipeline(config.pipeline, device=device, test_mode=True)
+    pipeline = config.pipeline.setup(device=device, test_mode=True)
     pipeline.eval()
     # load checkpointed information
-    checkpoint_name = _load_checkpoint(config.trainer.resume_train, pipeline)
+    checkpoint_name = _load_checkpoint(config.trainer, pipeline)
 
-    if method == MethodType.PSNR:
-        assert output_filename.endswith(".json")
+    if config.eval.method == cfg.MethodType.PSNR:
+        assert config.eval.output_filename.suffix == ".json"
         stats_dict = render_stats_dict(pipeline)
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
@@ -184,36 +158,53 @@ def main(
         print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
         # save output to some file
-        io_utils.make_dir(output_filename)
+        config.eval.output_filename.parent.mkdir(parents=True, exist_ok=True)
         benchmark_info = {
-            "config_name": config_name,
-            "checkpoint": checkpoint_name,
+            "experiment_name": config.experiment_name,
+            "method_name": config.method_name,
+            "checkpoint": str(checkpoint_name),
             "results": stats_dict,
         }
-        with open(output_filename, "w", encoding="utf8") as f:
-            json.dump(benchmark_info, f, indent=2)
-        print(f"Saved results to: {output_filename}")
+        with open(config.eval.output_filename, "w", encoding="utf8") as output_f:
+            json.dump(benchmark_info, output_f, indent=2)
+        print(f"Saved results to: {config.eval.output_filename}")
 
-    elif method == MethodType.TRAJ:
-        assert output_filename.endswith(".mp4")
+    elif config.eval.method == cfg.MethodType.TRAJ:
+        assert config.eval.output_filename.suffix == ".mp4"
+        assert config.eval.rendered_output_name is not None, "Missing eval output type: --eval.rendered-output-name"
+
         # TODO(ethan): use camera information from parsing args
-        if traj == TrajectoryType.SPIRAL:
+        if config.eval.traj == cfg.TrajectoryType.SPIRAL:
             camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-        elif traj == TrajectoryType.INTERP:
+        elif config.eval.traj == cfg.TrajectoryType.INTERP:
             camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
             camera_end = pipeline.dataloader.eval_dataloader.get_camera(image_idx=10)
             camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
+        else:
+            raise NotImplementedError
+
         render_trajectory_video(
             pipeline,
             camera_path,
-            output_filename=output_filename,
-            rendered_output_name=rendered_output_name,
-            rendered_resolution_scaling_factor=rendered_resolution_scaling_factor,
+            output_filename=config.eval.output_filename,
+            rendered_output_name=config.eval.rendered_output_name,
+            rendered_resolution_scaling_factor=config.eval.rendered_resolution_scaling_factor,
             num_rays_per_chunk=pipeline.dataloader.eval_num_rays_per_chunk,
         )
 
 
 if __name__ == "__main__":
-    dcargs.cli(main)
+    from nerfactory.configs.base_configs import base_configs
+
+    instantiated_config = cli_from_base_configs(base_configs, eval_mode=True)
+    if instantiated_config.eval.load_config:
+        logging.info(f"Loading pre-set config to: {instantiated_config.eval.load_config}")
+        with open(instantiated_config.eval.load_config, "rb") as config_f:
+            train_instantiated_config = pickle.load(config_f)
+        train_instantiated_config.eval = instantiated_config.eval
+        instantiated_config = train_instantiated_config
+    logging.info("Printing current config setup")
+    print(instantiated_config)
+    main(instantiated_config)

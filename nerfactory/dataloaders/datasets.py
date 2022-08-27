@@ -14,18 +14,20 @@
 
 """A set of standard datasets."""
 
+from __future__ import annotations
+
 import dataclasses
 import logging
 import os
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Union
 
 import imageio
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.colmap_utils import (
     read_cameras_binary,
     read_images_binary,
@@ -133,10 +135,13 @@ class Blender(Dataset):
         downscale_factor: How much to downscale images. Defaults to 1.
     """
 
-    data_directory: str
-    scale_factor: float = 1.0
-    alpha_color: Optional[Union[str, list]] = None
-    downscale_factor: int = 1
+    def __init__(self, config: cfg.BlenderDatasetConfig):
+        super().__init__()
+        self.config = config
+        self.data_directory: str = config.data_directory
+        self.scale_factor: float = config.scale_factor
+        self.alpha_color = config.alpha_color
+        self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):
         if self.alpha_color is not None:

@@ -18,10 +18,9 @@ Data loader.
 
 import random
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
-from omegaconf import ListConfig
 
 from nerfactory.cameras.cameras import Camera, get_camera
 from nerfactory.cameras.rays import RayBundle
@@ -84,7 +83,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         intrinsics,
         camera_to_world,
         num_rays_per_chunk: int,
-        image_indices: Optional[Union[List[int], ListConfig]] = None,
+        image_indices: Optional[Tuple[int]] = None,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):

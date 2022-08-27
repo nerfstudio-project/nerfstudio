@@ -19,23 +19,9 @@ Miscellaneous helper code.
 import hashlib
 import json
 from math import floor, log
-from pydoc import locate
 from typing import Any, Callable, Dict, Union
 
 import torch
-from omegaconf import DictConfig
-
-
-class DotDict(dict):
-    """
-    dot.notation access to dictionary attributes
-    """
-
-    def __getattr__(self, attr):
-        return self[attr]
-
-    __setattr__ = dict.__setitem__  # type: ignore
-    __delattr__ = dict.__delitem__  # type: ignore
 
 
 def get_dict_to_torch(stuff, device: Union[torch.device, str] = "cpu"):
@@ -72,23 +58,6 @@ def get_masked_dict(d, mask):
     for key, value in d.items():
         masked_dict[key] = value[mask]
     return masked_dict
-
-
-def instantiate_from_dict_config(dict_config: Any, **kwargs):
-    """Our version of hydra's instantiate function.
-
-    Args:
-        dict_config: DictConfig object to instantiate. It can be a dataclass or a dict but must have a `_target_` field.
-    """
-    dict_config_kwargs = {k: v for k, v in dict_config.items() if k != "_target_"}
-    uninstantiated_class = locate(dict_config._target_)  # pylint: disable=protected-access
-    assert (
-        uninstantiated_class is not None
-    ), f"Could not find class {dict_config._target_}"  # pylint: disable=protected-access
-    all_kwargs = dict_config_kwargs
-    all_kwargs.update(kwargs)
-    instantiated_class = uninstantiated_class(**all_kwargs)  # type: ignore
-    return instantiated_class
 
 
 def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
@@ -150,7 +119,7 @@ def human_format(num):
     return f"{(num / k**magnitude):.2f} {units[magnitude]}"
 
 
-def scale_dict(dictionary: Dict[Any, Any], coefficients: DictConfig) -> Dict[Any, Any]:
+def scale_dict(dictionary: Dict[Any, Any], coefficients: Dict[str, float]) -> Dict[Any, Any]:
     """Scale a dictionary in-place given a coefficients dictionary.
 
     Args:

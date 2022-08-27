@@ -59,11 +59,9 @@ for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
     base_config_name=${config_name/"graph_"/""}
     checkpoint_dir="${output_dir}/blender_${dataset}_${month}-${date}-${year}/${base_config_name}/${year}-${month}-${date}_${seconds}/nerfactory_models/"
-    python scripts/run_eval.py --config-name ${config_name} \
-        --checkpoint-dir ${checkpoint_dir} \
-        --rendered-output-name rgb \
-        --output-filename ${output_dir}/${base_config_name}/blender_${dataset}_${month}-${date}-${year}_${seconds}.json \
-        --config-overrides pipeline.dataloader.train_dataset.data_directory=data/blender/${dataset} &
+    python scripts/run_eval.py ${config_name} \
+        --eval.checkpoint-dir=${checkpoint_dir} \
+        --eval.output-filename=${output_dir}/${base_config_name}/blender_${dataset}_${month}-${date}-${year}_${seconds}.json &
     echo "Launched ${checkpoint_dir} on gpu ${GPU_IDX[$idx]}"
 
     # update gpu

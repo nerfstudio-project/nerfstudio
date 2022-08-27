@@ -15,15 +15,13 @@
 """
 Optimizers class.
 """
+from __future__ import annotations
 
 from typing import Any, Dict, List, Union
 
-import numpy as np
-from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
-from torch.optim.lr_scheduler import LambdaLR
 
 from nerfactory.utils import writer
 
@@ -43,39 +41,6 @@ def setup_optimizers(
     return Optimizers(config, param_groups)
 
 
-class ExponentialDecaySchedule(LambdaLR):
-    """Exponential learning rate decay function.
-    See https://github.com/google-research/google-research/blob/
-    fd2cea8cdd86b3ed2c640cbe5561707639e682f3/jaxnerf/nerf/utils.py#L360
-    for details.
-
-    Args:
-        optimizer: The optimizer to update.
-        lr_init: The initial learning rate.
-        lr_final: The final learning rate.
-        max_steps: The maximum number of steps.
-        lr_delay_steps: The number of steps to delay the learning rate. Default is 0.
-        lr_delay_mult: The multiplier for the learning rate after the delay. Default is 1.0.
-    """
-
-    def __init__(self, optimizer, lr_init, lr_final, max_steps, lr_delay_steps=0, lr_delay_mult=1.0) -> None:
-        def func(step):
-            if lr_delay_steps > 0:
-                delay_rate = lr_delay_mult + (1 - lr_delay_mult) * np.sin(
-                    0.5 * np.pi * np.clip(step / lr_delay_steps, 0, 1)
-                )
-            else:
-                delay_rate = 1.0
-            t = np.clip(step / max_steps, 0, 1)
-            log_lerp = np.exp(np.log(lr_init) * (1 - t) + np.log(lr_final) * t)
-            multiplier = (
-                log_lerp / lr_init
-            )  # divided by lr_init because the multiplier is with the initial learning rate
-            return delay_rate * multiplier
-
-        super().__init__(optimizer, lr_lambda=func)
-
-
 class Optimizers:
     """A set of optimizers.
 
@@ -89,11 +54,11 @@ class Optimizers:
         self.optimizers = {}
         self.schedulers = {}
         for param_group_name, params in param_groups.items():
-            lr_init = config[param_group_name].optimizer.lr
-            self.optimizers[param_group_name] = instantiate(config[param_group_name].optimizer, params=params)
-            if config[param_group_name].scheduler:
-                self.schedulers[param_group_name] = instantiate(
-                    config[param_group_name].scheduler, optimizer=self.optimizers[param_group_name], lr_init=lr_init
+            lr_init = config[param_group_name]["optimizer"].lr
+            self.optimizers[param_group_name] = config[param_group_name]["optimizer"].setup(params=params)
+            if config[param_group_name]["scheduler"]:
+                self.schedulers[param_group_name] = config[param_group_name]["scheduler"].setup(
+                    optimizer=self.optimizers[param_group_name], lr_init=lr_init
                 )
 
     def optimizer_step(self, param_group_name: str) -> None:

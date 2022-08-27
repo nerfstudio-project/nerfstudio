@@ -15,26 +15,24 @@
 """
 Base Model implementation which takes in RayBundles
 """
+
+from __future__ import annotations
+
 from abc import abstractmethod
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import torch
-from omegaconf import DictConfig
 from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.cameras.cameras import Camera
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
-from nerfactory.utils import profiler
+from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import ModelConfig
-from nerfactory.utils.misc import (
-    get_masked_dict,
-    instantiate_from_dict_config,
-    is_not_none,
-)
+from nerfactory.utils.misc import get_masked_dict, is_not_none
 
 
 class Model(nn.Module):
@@ -53,28 +51,21 @@ class Model(nn.Module):
         density_field_config: Configuration of density field.
     """
 
+    config: cfg.ModelConfig
+
     def __init__(
         self,
+        config: cfg.ModelConfig,
         scene_bounds: SceneBounds,
-        loss_coefficients: DictConfig = DictConfig({}),
-        enable_collider: bool = True,
-        collider_config: Optional[DictConfig] = None,
-        enable_density_field: bool = False,
-        density_field_config: Optional[DictConfig] = None,
         **kwargs,
     ) -> None:
         super().__init__()
+        self.config = config
         self.scene_bounds = scene_bounds
-        self.loss_coefficients = loss_coefficients
-        self.enable_collider = enable_collider
-        self.collider_config = collider_config
-        self.enable_density_field = enable_density_field
-        self.density_field_config = density_field_config
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
         self.populate_density_field()
-        self.populate_collider()
         self.populate_fields()
         self.populate_misc_modules()  # populate the modules
         self.callbacks = None
@@ -92,13 +83,15 @@ class Model(nn.Module):
 
     def populate_density_field(self):
         """Set the scene density field to use."""
-        if self.enable_density_field:
-            self.density_field = instantiate_from_dict_config(self.density_field_config)
+        if self.config.enable_density_field:
 
-    def populate_collider(self):
-        """Set the scene bounds collider to use."""
-        if self.enable_collider:
-            self.collider = instantiate_from_dict_config(self.collider_config, scene_bounds=self.scene_bounds)
+            self.density_field = DensityGrid(
+                center=self.config.density_field_params["center"],
+                base_scale=self.config.density_field_params["base_scale"],
+                num_cascades=self.config.density_field_params["num_cascades"],
+                resolution=self.config.density_field_params["resolution"],
+                update_every_num_iters=self.config.density_field_params["update_every_num_iters"],
+            )
 
     @abstractmethod
     def populate_fields(self):
@@ -152,7 +145,7 @@ class Model(nn.Module):
         This outputs different things depending on the configuration of the model and whether or not
         the batch is provided (whether or not we are training basically)."""
         if self.collider is not None:
-            intersected_ray_bundle = self.collider(ray_bundle)
+            intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
         else:
             # NOTE(ruilongli): we don't need collider for ngp
@@ -172,9 +165,8 @@ class Model(nn.Module):
         outputs = self.get_outputs(intersected_ray_bundle)
         metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
         loss_dict = self.get_loss_dict(
-            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.loss_coefficients
+            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.config.loss_coefficients
         )
-
         return outputs, loss_dict, metrics_dict
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
@@ -230,15 +222,3 @@ class Model(nn.Module):
         """Load the checkpoint from the given path"""
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
-
-
-@profiler.time_function
-def setup_model(config: ModelConfig, scene_bounds: SceneBounds, device: str) -> Model:
-    """Setup the model. The dataset inputs should be set with the training data.
-
-    Args:
-        dataset_inputs: The inputs which will be used to define the camera parameters.
-    """
-    model = instantiate_from_dict_config(DictConfig(config), scene_bounds=scene_bounds, device=device)
-    model.to(device)
-    return model

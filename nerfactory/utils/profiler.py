@@ -15,12 +15,14 @@
 """
 Profiler base class and functionality
 """
+from __future__ import annotations
+
 import logging
 import time
 from typing import Callable
 
+from nerfactory.configs import base as cfg
 from nerfactory.utils import comms
-from nerfactory.utils.config import LoggingConfig
 from nerfactory.utils.decorators import (
     check_main_thread,
     check_profiler_enabled,
@@ -44,13 +46,13 @@ def time_function(func: Callable) -> Callable:
     return wrapper
 
 
-def flush_profiler(config: LoggingConfig):
+def flush_profiler(config: cfg.LoggingConfig):
     """Method that checks if profiler is enabled before flushing"""
     if config.enable_profiler and PROFILER:
         PROFILER[0].print_profile()
 
 
-def setup_profiler(config: LoggingConfig):
+def setup_profiler(config: cfg.LoggingConfig):
     """Initialization of profilers"""
     if comms.is_main_process():
         PROFILER.append(Profiler(config))
@@ -60,7 +62,7 @@ def setup_profiler(config: LoggingConfig):
 class Profiler:
     """Profiler class"""
 
-    def __init__(self, config: LoggingConfig):
+    def __init__(self, config: cfg.LoggingConfig):
         self.config = config
         self.profiler_dict = {}
 
