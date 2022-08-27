@@ -64,12 +64,16 @@ class TensorDataclass:
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
-        batch_shapes = self._get_dict_batch_shapes(self.__dict__)
+        batch_shapes = self._get_dict_batch_shapes(
+            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)}
+        )
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
 
-        broadcasted_fields = self._broadcast_dict_fields(self.__dict__, batch_shape)
+        broadcasted_fields = self._broadcast_dict_fields(
+            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)}, batch_shape
+        )
         for f, v in broadcasted_fields.items():
             self.__setattr__(f, v)
 
@@ -211,7 +215,9 @@ class TensorDataclass:
         upgrade to python 3.10 and dataclasses can actually be subclassed with vanilla python and no
         janking, but if people try to jank some subclasses that are grandchildren of TensorDataclass
         (imagine if someone tries to subclass the RayBundle) this will matter even before upgrading
-        to 3.10
+        to 3.10 . Currently we aren't going to be able to work properly for grandchildren, but you
+        want to use self.__dict__ if you want to apply this to grandchildren instead of our dictionary
+        from dataclasses.fields(self) as we do below and in other places.
 
         Args:
             fn (Callable): The function to apply to tensor fields.
@@ -221,13 +227,10 @@ class TensorDataclass:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
         """
 
-        new_fields = self._apply_fn_to_dict(self.__dict__, fn, dataclass_fn)
+        new_fields = self._apply_fn_to_dict(
+            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)}, fn, dataclass_fn
+        )
 
-        # TODO: Make this cleaner and more general. We have to remove _shape due to dataclass
-        # inheritance issues. replace() tries to create a new dataclass of the same type as self by
-        # passing in **new_fields as args, but this fails because _shape isn't an argument when
-        # initializing any subclass of TensorDataclass.
-        del new_fields["_shape"]
         return dataclasses.replace(self, **new_fields)
 
     def _apply_fn_to_dict(self, dict_: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
