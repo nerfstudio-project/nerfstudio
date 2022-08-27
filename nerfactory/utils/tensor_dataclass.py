@@ -60,12 +60,12 @@ class TensorDataclass:
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
-        batch_shapes = self._get_dict_batch_shapes(dataclasses.asdict(self))
+        batch_shapes = self._get_dict_batch_shapes(self.__dict__)
         if len(batch_shapes) == 0:
             raise ValueError("TensorDataclass must have at least one tensor")
         batch_shape = torch.broadcast_shapes(*batch_shapes)
 
-        broadcasted_fields = self._broadcast_dict_fields(dataclasses.asdict(self), batch_shape)
+        broadcasted_fields = self._broadcast_dict_fields(self.__dict__, batch_shape)
         for f, v in broadcasted_fields.items():
             self.__setattr__(f, v)
 
@@ -198,8 +198,13 @@ class TensorDataclass:
             TensorDataclass: A new TensorDataclass with the same data but with a new shape.
         """
 
-        new_fields = self._apply_fn_to_dict(dataclasses.asdict(self), fn, dataclass_fn)
+        new_fields = self._apply_fn_to_dict(self.__dict__, fn, dataclass_fn)
 
+        # TODO: Make this cleaner and more general. We have to remove _shape due to dataclass
+        # inheritance issues. replace() tries to create a new dataclass of the same type as self by
+        # passing in **new_fields as args, but this fails because _shape isn't an argument when
+        # initializing any subclass of TensorDataclass.
+        del new_fields["_shape"]
         return dataclasses.replace(self, **new_fields)
 
     def _apply_fn_to_dict(self, dict_: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:

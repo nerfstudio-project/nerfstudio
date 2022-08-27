@@ -161,7 +161,7 @@ class RayBundle(TensorDataclass):
         fars: Rays Distance along ray to stop sampling
         valid_mask: Rays that are valid
         num_rays_per_chunk: Number of rays per chunk
-        shaped_metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
+        metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
     """
 
     origins: TensorType["num_rays", 3]
