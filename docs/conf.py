@@ -15,6 +15,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
+import nerfactory.configs.base
+import nerfactory.dataloaders.base
 
 # -- Project information -----------------------------------------------------
 

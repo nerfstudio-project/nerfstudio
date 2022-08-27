@@ -20,14 +20,11 @@ data:
 
 #### Visualize dataset
 
-You can use `notebooks/visualize_dataset.ipynb` to see how your formatted dataset looks. This code will load a dataset from a yaml config, show the camera poses, and visualize rays with the specified collider in the config. TODO: add a better visualization with images too
-
-![visualize_dataset](media/creating_dataset_visualize_dataset.png)
-
+TODO
 
 #### Supported datasets
 
-We include support for a set of standard dataset formats. 
+We include support for a set of standard dataset formats.
 
 ###### Blender Synthetic
 

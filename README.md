@@ -156,7 +156,7 @@ logging:
 #### 5. Rendering a trajectories during inference
 
 ```
-python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.mp4 --config-name=graph_instant_ngp.yaml trainer.resume_train.load_dir=outputs/blender_lego/instant_ngp/2022-07-07_230905/checkpoints
+python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.mp4 --config-name=graph_instant_ngp.yaml --checkpoint-dir=outputs/blender_lego/instant_ngp/2022-07-07_230905/checkpoints
 ```
 
 #### 6. In-depth guide

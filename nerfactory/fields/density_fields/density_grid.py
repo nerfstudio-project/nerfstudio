@@ -15,6 +15,9 @@
 """
 Code to implement the density grid.
 """
+
+from __future__ import annotations
+
 from typing import Callable, List, Tuple, Union
 
 import torch
@@ -81,12 +84,7 @@ class DensityGrid(nn.Module):
     mean_density: TensorType[1]
 
     def __init__(
-        self,
-        center: float = 0.0,
-        base_scale: float = 1.0,
-        num_cascades: int = 1,
-        resolution: int = 128,
-        update_every_num_iters: int = 16,
+        self, center: float, base_scale: float, num_cascades: int, resolution: int, update_every_num_iters: int
     ) -> None:
         super().__init__()
         self.center = center
@@ -102,7 +100,7 @@ class DensityGrid(nn.Module):
         self.register_buffer("density_bitfield", density_bitfield)
 
         # Integer grid coords / indices that do not related to cascades
-        grid_coords = _create_grid_coords(resolution)
+        grid_coords = _create_grid_coords(self.resolution)
         # TODO(ruilongli): hacky way for now. support cpu version of morton3D?
         grid_indices = nerfactory_cuda.morton3D(grid_coords.to("cuda:0")).to("cpu")
         self.register_buffer("grid_coords", grid_coords)
