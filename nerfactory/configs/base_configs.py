@@ -16,6 +16,8 @@
 Put all the method implementations in one location.
 """
 
+from typing import Dict
+
 from nerfactory.configs.base import (
     BlenderDataloaderConfig,
     Config,
@@ -33,7 +35,7 @@ from nerfactory.models.mipnerf_360 import MipNerf360Model
 from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
 
-base_configs = {}
+base_configs: Dict[str, Config] = {}
 base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
     trainer=TrainerConfig(mixed_precision=True),
