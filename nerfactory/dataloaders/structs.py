@@ -17,6 +17,7 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import torch
@@ -37,9 +38,9 @@ class PointCloud:
 class Semantics:
     """Dataclass for semantic labels."""
 
-    stuff_filenames: List[str]
+    stuff_filenames: List[Path]
     stuff_classes: List[str]
-    thing_filenames: List[str]
+    thing_filenames: List[Path]
     thing_classes: List[str]
     stuff_colors: torch.Tensor
     thing_colors: torch.Tensor
@@ -118,12 +119,12 @@ class DatasetInputs:
         ...
     """
 
-    image_filenames: List[str]
+    image_filenames: List[Path]
     intrinsics: TensorType["num_cameras", "num_intrinsics_params"]
     camera_to_world: TensorType["num_cameras", 3, 4]
     downscale_factor: int = 1
-    mask_filenames: Optional[List[str]] = None
-    depth_filenames: Optional[List[str]] = None
+    mask_filenames: Optional[List[Path]] = None
+    depth_filenames: Optional[List[Path]] = None
     scene_bounds: SceneBounds = SceneBounds()
     semantics: Optional[Semantics] = None
     point_cloud: PointCloud = PointCloud()
@@ -134,11 +135,11 @@ class DatasetInputs:
         assert self.intrinsics.dtype == torch.float32
         assert self.camera_to_world.dtype == torch.float32
 
-    def save_to_folder_name(self, data_directory: str):
+    def save_to_folder_name(self, data_directory: Path):
         """Save the dataset inputs."""
         raise NotImplementedError
 
-    def load_from_folder_name(self, data_directory: str):
+    def load_from_folder_name(self, data_directory: Path):
         """Load the saved dataset inputs."""
         raise NotImplementedError
 

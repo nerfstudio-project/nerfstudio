@@ -17,6 +17,7 @@ Some dataset code.
 """
 
 from abc import abstractmethod
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import numpy as np
@@ -35,7 +36,7 @@ class ImageDataset(Dataset):
 
     def __init__(
         self,
-        image_filenames: List[str],
+        image_filenames: List[Path],
         downscale_factor: int = 1,
         alpha_color: Optional[TensorType[3]] = None,
         **kwargs,
@@ -134,7 +135,7 @@ class PanopticImageDataset(ImageDataset):
     def __init__(
         self,
         semantics: Semantics,
-        image_filenames: List[str],
+        image_filenames: List[Path],
         downscale_factor: int = 1,
         alpha_color: Optional[TensorType[3]] = None,
         **kwargs,
