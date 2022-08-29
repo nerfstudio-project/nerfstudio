@@ -133,7 +133,7 @@ class Cameras:
 
     def generate_rays(
         self,
-        camera_indices: TensorType["num_rays":...],
+        camera_indices: Union[TensorType["num_rays":...], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
         camera_to_world_delta: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
@@ -246,3 +246,14 @@ class Cameras:
         K[:, 1, 2] = self.cy
         K[:, 2, 2] = 1.0
         return K
+
+    def rescale_output_resolution(self, scaling_factor: float) -> None:
+        """Rescale the output resolution of the cameras.
+
+        Args:
+            scaling_factor: Scaling factor to apply to the output resolution.
+        """
+        self.fx *= scaling_factor
+        self.fy *= scaling_factor
+        self.cx *= scaling_factor
+        self.cy *= scaling_factor

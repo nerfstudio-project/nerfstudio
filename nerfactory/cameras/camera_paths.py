@@ -16,8 +16,6 @@
 Code for camera paths.
 """
 
-import copy
-from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import torch

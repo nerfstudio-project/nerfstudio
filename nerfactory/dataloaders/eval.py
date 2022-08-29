@@ -55,11 +55,24 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
     def __next__(self) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data"""
 
+    def get_camera(self, image_idx) -> Cameras:
+        """Get camera for the given image index"""
+        camera = Cameras(
+            fx=self.cameras.fx[image_idx],
+            fy=self.cameras.fy[image_idx],
+            cx=self.cameras.cx,
+            cy=self.cameras.cy,
+            camera_to_worlds=self.cameras.camera_to_worlds[image_idx],
+            distortion_params=self.cameras.distortion_params[image_idx],
+            camera_type=self.cameras.camera_type,
+        )
+        return camera
+
     def get_data_from_image_idx(self, image_idx) -> Tuple[RayBundle, Dict]:
         """Returns the data for a specific image index."""
         ray_bundle = self.cameras.generate_rays(camera_indices=image_idx)
         ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
-        ray_bundle.camera_indices = torch.Tensor([image_idx])[..., None]
+        ray_bundle.camera_indices = torch.Tensor([image_idx])[..., None].int()
         batch = self.image_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device)
         return ray_bundle, batch
