@@ -296,12 +296,20 @@ class Colmap(Dataset):
             )
         )
 
+        cameras = Cameras(
+            fx=focal_length / self.downscale_factor,
+            fy=focal_length / self.downscale_factor,
+            cx=cx / self.downscale_factor,
+            cy=cy / self.downscale_factor,
+            camera_to_worlds=camera_to_world,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
         # TODO(ethan): add alpha background color
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             downscale_factor=self.downscale_factor,
-            intrinsics=intrinsics * 1.0 / self.downscale_factor,  # downscaling the intrinsics here
-            camera_to_world=camera_to_world,
+            cameras=cameras,
             scene_bounds=scene_bounds,
         )
 
@@ -372,12 +380,20 @@ class InstantNGP(Dataset):
             )
         )
 
+        cameras = Cameras(
+            fx=focal_length / self.downscale_factor,
+            fy=focal_length / self.downscale_factor,
+            cx=cx / self.downscale_factor,
+            cy=cy / self.downscale_factor,
+            camera_to_worlds=camera_to_world,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
         # TODO(ethan): add alpha background color
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             downscale_factor=self.downscale_factor,
-            intrinsics=intrinsics * 1.0 / self.downscale_factor,  # downscaling the intrinsics here
-            camera_to_world=camera_to_world,
+            cameras=cameras,
             scene_bounds=scene_bounds,
         )
 
@@ -491,11 +507,19 @@ class Mipnerf360(Dataset):
         aabb = torch.tensor([[-4, -4, -4], [4, 4, 4]], dtype=torch.float32) * self.aabb_scale
         scene_bounds = SceneBounds(aabb=aabb)
 
+        cameras = Cameras(
+            fx=focal_length / self.downscale_factor,
+            fy=focal_length / self.downscale_factor,
+            cx=cx / self.downscale_factor,
+            cy=cy / self.downscale_factor,
+            camera_to_worlds=camera_to_world,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             downscale_factor=1,
-            intrinsics=intrinsics,
-            camera_to_world=camera_to_world,
+            cameras=cameras,
             scene_bounds=scene_bounds,
         )
 
@@ -607,11 +631,19 @@ class Record3D(Dataset):
         aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.aabb_scale
         scene_bounds = SceneBounds(aabb=aabb)
 
+        cameras = Cameras(
+            fx=focal_length / self.downscale_factor,
+            fy=focal_length / self.downscale_factor,
+            cx=cx / self.downscale_factor,
+            cy=cy / self.downscale_factor,
+            camera_to_worlds=camera_to_world,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             downscale_factor=self.downscale_factor,
-            intrinsics=intrinsics * 1.0 / self.downscale_factor,
-            camera_to_world=camera_to_world,
+            cameras=cameras,
             scene_bounds=scene_bounds,
         )
 
@@ -682,15 +714,16 @@ class Friends(Dataset):
 
         # --- intrinsics ---
         cameras_data = read_cameras_binary(os.path.join(abs_dir, "colmap", "cameras.bin"))
-        intrinsics = []
+        focal_lengths = []
         for image_path in image_paths:
             cam = cameras_data[image_path_to_image_id[image_path]]
             assert len(cam.params) == 3
-            focal_length = cam.params[0]  # f (fx and fy)
-            cx = cam.params[1]  # cx
-            cy = cam.params[2]  # cy
-            intrinsics.append([cx, cy, focal_length])
-        intrinsics = torch.tensor(intrinsics).float()
+            focal_lengths.append(cam.params[0])  # f (fx and fy)
+        focal_lengths = torch.stack(focal_lengths, dim=0)
+
+        cam = cameras_data[image_path_to_image_id[image_paths[0]]]
+        cx = cam.params[1]  # cx
+        cy = cam.params[2]  # cy
 
         # --- camera_to_world (extrinsics) ---
         camera_to_world = []
@@ -746,11 +779,19 @@ class Friends(Dataset):
             point_cloud.xyz = xyz
             point_cloud.rgb = rgb
 
+        cameras = Cameras(
+            fx=focal_lengths / self.downscale_factor,
+            fy=focal_lengths / self.downscale_factor,
+            cx=cx / self.downscale_factor,
+            cy=cy / self.downscale_factor,
+            camera_to_worlds=camera_to_world,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             downscale_factor=self.downscale_factor,
-            intrinsics=intrinsics / self.downscale_factor,
-            camera_to_world=camera_to_world,
+            cameras=cameras,
             semantics=semantics,
             point_cloud=point_cloud,
             scene_bounds=scene_bounds,
