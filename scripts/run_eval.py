@@ -67,7 +67,7 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     return load_path
 
 
-def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
+def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
     """Helper function to evaluate the pipeline on a dataloader.
 
     Args:
@@ -140,6 +140,7 @@ def _eval_setup(config_path: Path) -> Tuple[cfg.Config, Pipeline, Path]:
     assert isinstance(config, cfg.Config)
 
     # load checkpoints from wherever they were saved
+    # TODO: expose the ability to choose an arbitrary checkpoint
     config.trainer.load_dir = config.trainer.model_dir
     config.pipeline.dataloader.eval_image_indices = None
 
@@ -169,7 +170,7 @@ class ComputePSNR:
         config, pipeline, checkpoint_path = _eval_setup(self.load_config)
 
         assert self.output_path.suffix == ".json"
-        stats_dict = render_stats_dict(pipeline)
+        stats_dict = _render_stats_dict(pipeline)
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
         avg_fps = stats_dict["avg fps"]
@@ -231,4 +232,11 @@ class RenderTrajectory:
 
 if __name__ == "__main__":
     # A Union over dataclass types will create a subcommand for each type.
+    #
+    # TODO: it would make sense to split this script up into separate scripts.
+    # - To reduce duplicate code, some "upstream" refactor could also simplify the
+    #   shared `_load_checkpoint()` and `_eval_setup()` helpers. The high-level
+    #   operations implemented by each seem fairly universal; ideally the checkpoint
+    #   loading logic, for example, would be the same as what's used for loading a
+    #   checkpoint when resuming a training run.
     dcargs.cli(Union[ComputePSNR, RenderTrajectory]).main()
