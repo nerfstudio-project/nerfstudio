@@ -270,7 +270,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         return camera_ray_bundle, batch
 
 
-class LearnableCamerasDataloader(VanillaDataloader):
+class LearnableCamerasDataloader(VanillaDataloader):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the dataloader for training"""
         super().setup_train()
