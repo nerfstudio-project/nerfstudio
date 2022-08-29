@@ -43,7 +43,7 @@ _C = load(
     sources=sources,
     extra_cflags=extra_cflags,
     extra_cuda_cflags=extra_cuda_cflags,
-    verbose=True
+    verbose=True,
 )
 
 __all__ = ["_C"]
