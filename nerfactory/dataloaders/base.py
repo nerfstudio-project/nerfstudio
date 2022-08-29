@@ -32,14 +32,7 @@ from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageData
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.models.modules.ray_generator import RayGenerator
-<<<<<<< HEAD
-from nerfactory.utils import profiler
-from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.config import DataloaderConfig
-from nerfactory.utils.misc import IterableWrapper, instantiate_from_dict_config
-=======
 from nerfactory.utils.misc import IterableWrapper
->>>>>>> 7e9a56fac44d12cbfea05aa8cce81829431c3432
 
 
 class Dataloader(nn.Module):

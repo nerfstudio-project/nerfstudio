@@ -59,7 +59,7 @@ class TensoRFModel(Model):
         num_importance_samples: int = 128,
         init_resolution: int = 200,
         final_resolution: int = 200,
-        upsampling_iters: Tuple[int, ...] = (),  # (2000, 3000, 4000, 5500, 7000),
+        upsampling_iters: Tuple[int, ...] = (5000, 5500, 7000),
         **kwargs,
     ) -> None:
         self.near_plane = near_plane
@@ -87,14 +87,14 @@ class TensoRFModel(Model):
             # upsample the position and direction grids
             # TODO(ethan): ask Brent how to get typing to work on this... the Encoding base class type
             # in NeRFField is causing the issue
-            # self.field.position_encoding.upsample_grid(resolution)
-            # self.field.direction_encoding.upsample_grid(resolution)
+            self.field.position_encoding.upsample_grid(resolution)
+            self.field.direction_encoding.upsample_grid(resolution)
 
             # reinitialize the optimizer
-            # optimizers_config = training_callback_attributes.optimizers.config
-            # training_callback_attributes.optimizers = Optimizers(
-            #     optimizers_config, training_callback_attributes.pipeline.get_param_groups()
-            # )
+            optimizers_config = training_callback_attributes.optimizers.config
+            training_callback_attributes.optimizers = Optimizers(
+                optimizers_config, training_callback_attributes.pipeline.get_param_groups()
+            )
             # TODO(ethan): do something with the learning rate
             # we don't want to reinitialize the learning rate each time
 
