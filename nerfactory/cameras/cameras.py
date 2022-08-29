@@ -18,7 +18,7 @@ Camera Models
 import base64
 from abc import abstractmethod
 from enum import Enum, auto
-from typing import Dict, Optional, Tuple, Type
+from typing import Dict, Optional, Tuple, Type, Union
 
 import cv2
 import numpy as np
@@ -36,8 +36,10 @@ class CameraType(Enum):
     FISHEYE = auto
 
 
-class NewCamera:
+class Cameras:
     """Dataset inputs for the image dataset and the ray generator.
+
+    Note: currently only supports cameras with the same principal points and types.
 
     Args:
         camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
@@ -49,54 +51,74 @@ class NewCamera:
         camera_type: Type of camera model.
 
     Attributes:
-        camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
-        intrinsic_matrix: Camera intrinsics matrix.
+        camera_to_worlds: Tensor of per-image c2w matrices, in [R | t] format.
     """
 
     def __init__(
         self,
-        camera_to_world: TensorType["num_cameras", 3, 4],
-        fx: TensorType["num_cameras", 1],
-        fy: TensorType["num_cameras", 1],
-        cx: TensorType["num_cameras", 1],
-        cy: TensorType["num_cameras", 1],
+        camera_to_worlds: TensorType["num_cameras", 3, 4],
+        fx: Union[TensorType["num_cameras"], float],
+        fy: Union[TensorType["num_cameras"], float],
+        cx: float,
+        cy: float,
         distortion_params: Optional[TensorType["num_cameras", 6]] = None,
         camera_type: CameraType = CameraType.PERSPECTIVE,
     ):
-        self.camera_to_world = camera_to_world
-        self.intrinsic_matrix = self._compute_intrinsic_matrix(fx, fy, cx, cy)
+        self._num_cameras = camera_to_worlds.shape[0]
+        self.camera_to_worlds = camera_to_worlds
+        if not isinstance(fx, torch.Tensor):
+            fx = torch.Tensor([fx]).broadcast_to((self._num_cameras))
+        if not isinstance(fy, torch.Tensor):
+            fy = torch.Tensor([fy]).broadcast_to((self._num_cameras))
+        self.fx = fx.to(self.device)
+        self.fy = fy.to(self.device)
+        self.cx = cx
+        self.cy = cy
         if distortion_params is not None:
-            self.distortion_params = distortion_params.broadcast_to(camera_to_world.shape[:-1])
+            self.distortion_params = distortion_params.broadcast_to((self._num_cameras, 6))
         else:
             self.distortion_params = None
-        self._image_height = int(cy * 2)
-        self._image_width = int(cx * 2)
+        self._image_heights = int(self.cy * 2)
+        self._image_widths = int(self.cx * 2)
         self.camera_type = camera_type
 
     @property
     def device(self):
         """Returns the device that the camera is on."""
-        return self.camera_to_world.device
+        return self.camera_to_worlds.device
+
+    @property
+    def size(self) -> int:
+        """Returns the number of cameras."""
+        return self._num_cameras
 
     @property
     def image_height(self) -> int:
         """Returns the height of the images."""
-        return self._image_height
+        return self._image_heights
 
     @property
     def image_width(self) -> int:
         """Returns the height of the images."""
-        return self.image_width
+        return self._image_widths
 
-    def _compute_intrinsic_matrix(self, fx: float, fy: float, cx: float, cy: float) -> TensorType[3, 3]:
-        """Computes the intrinsic matrix for the camera."""
-        return torch.tensor(
-            [
-                [fx, 0, cx],
-                [0, fy, cy],
-                [0, 0, 1],
-            ],
-            device=self.device,
+    def to(self, device: torch.device) -> "Cameras":
+        """
+        Args:
+            device (torch.device): Device to move the camera to.
+
+        Returns:
+            Cameras: Cameras on the specified device.
+        """
+        distortion_params = self.distortion_params.to(device) if self.distortion_params is not None else None
+        return Cameras(
+            camera_to_worlds=self.camera_to_worlds.to(device),
+            fx=self.fx.to(device),
+            fy=self.fy.to(device),
+            cx=self.cx,
+            cy=self.cy,
+            distortion_params=distortion_params,
+            camera_type=self.camera_type,
         )
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
@@ -115,35 +137,50 @@ class NewCamera:
 
     def generate_rays(
         self,
-        intrinsic_matrix_delta: TensorType[..., 3, 3],
-        camera_to_world_delta: TensorType[..., 3, 4],
-        coords: Optional[TensorType[..., 2]] = None,
-        distortion_params_delta: Optional[TensorType[..., 6]] = None,
+        camera_indices: TensorType["num_rays":...],
+        coords: Optional[TensorType["num_rays":..., 2]] = None,
+        distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        camera_to_world_delta: Optional[TensorType["num_rays":..., 3, 4]] = None,
     ) -> RayBundle:
+        """Generates rays for the given camera indices.
 
-        coords = self.get_image_coords()
+        TODO - add support for intrinsics delta.
+        """
 
-        y = coords[..., 0:1]  # (..., 1)
-        x = coords[..., 1:2]  # (..., 1)
-        z = torch.ones_like(y)  # (..., 1)
+        if coords is None:
+            coords = self.get_image_coords().to(self.device)
 
-        inv_intrinsic_matrix = torch.inverse(self.intrinsic_matrix[c] + intrinsic_matrix_delta)
-        directions = normalize(inv_intrinsic_matrix @ torch.stack([x, y, z], dim=-1))
-        directions_x_offset = normalize(inv_intrinsic_matrix @ torch.stack([x + 1, y, z], dim=-1))
-        directions_y_offset = normalize(inv_intrinsic_matrix @ torch.stack([x, y + 1, z], dim=-1))
+        assert coords is not None
+        y = coords[..., 0]  # (..., 1)
+        x = coords[..., 1]  # (..., 1)
+        fx, fy = self.fx[camera_indices], self.fy[camera_indices]
+        cx, cy = self.cx, self.cy
+
+        directions = normalize(torch.stack([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1))
+        directions_x_offset = normalize(torch.stack([(x - cx + 1) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1))
+        directions_y_offset = normalize(torch.stack([(x - cx) / fx, -(y - cy + 1) / fy, -torch.ones_like(x)], -1))
 
         dx = torch.sqrt(torch.sum((directions - directions_x_offset) ** 2, dim=-1))
         dy = torch.sqrt(torch.sum((directions - directions_y_offset) ** 2, dim=-1))
         pixel_area = dx * dy
 
-        # Change coordinate system
-        directions = directions * torch.tensor([1, -1, -1], device=directions.device)
-
-        c2w = camera_to_world_delta + self.camera_to_world[c]
+        c2w = self.camera_to_worlds[camera_indices]
+        if camera_to_world_delta is not None:
+            c2w = c2w + camera_to_world_delta
         rotation = c2w[..., :3, :3]  # (..., 3, 3)
         directions = torch.sum(directions[..., None, :] * rotation, dim=-1)  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
         directions = normalize(directions, dim=-1)
         origins = c2w[..., :3, 3]  # (..., 3)
+
+        distortion_params = None
+        if self.distortion_params is not None:
+            if distortion_params_delta is not None:
+                distortion_params = self.distortion_params[camera_indices] + distortion_params_delta
+        elif distortion_params_delta is not None:
+            distortion_params = distortion_params_delta
+
+        if distortion_params is not None:
+            raise NotImplementedError("Camera distortion not implemented.")
 
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 

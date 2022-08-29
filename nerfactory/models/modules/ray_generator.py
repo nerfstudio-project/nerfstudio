@@ -18,6 +18,7 @@ Ray generator.
 from torch import nn
 from torchtyping import TensorType
 
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 
 
@@ -30,13 +31,9 @@ class RayGenerator(nn.Module):
         camera_to_world: Camera to world transformation matrix.
     """
 
-    def __init__(self, cameras: NewCamera) -> None:
+    def __init__(self, cameras: Cameras) -> None:
         super().__init__()
-        self.intrinsics_delta = nn.Parameter(cameras.intrinsic_matrix, requires_grad=False)
-        self.camera_to_world_delta = nn.Parameter(cameras.camera_to_world, requires_grad=False)
-
-        # NOTE(ethan): we currently assume all images have the same height and width
-        camera_index = 0
+        self.cameras = cameras
         self.image_coords = nn.Parameter(cameras.get_image_coords(), requires_grad=False)
 
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
@@ -48,12 +45,11 @@ class RayGenerator(nn.Module):
         c = ray_indices[:, 0]  # camera indices
         y = ray_indices[:, 1]  # row indices
         x = ray_indices[:, 2]  # col indices
-        intrinsics_delta = self.intrinsics_delta[c]
-        camera_to_world_delta = self.camera_to_world_delta[c]
         coords = self.image_coords[y, x]
 
         ray_bundle = self.cameras.generate_rays(
-            intrinsics_delta=intrinsics_delta, camera_to_world_delta=camera_to_world_delta, coords=coords
+            camera_indices=c,
+            coords=coords,
         )
         ray_bundle.camera_indices = c[..., None]  # ["num_rays",1]
         return ray_bundle

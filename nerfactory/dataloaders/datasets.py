@@ -29,6 +29,7 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
+from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.colmap_utils import (
     read_cameras_binary,
@@ -146,6 +147,10 @@ class Blender(Dataset):
         self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):
+        if self.alpha_color is not None:
+            alpha_color_tensor = get_color(self.alpha_color)
+        else:
+            alpha_color_tensor = None
 
         abs_dir = get_absolute_path(self.data_directory)
         meta = load_from_json(os.path.join(abs_dir, f"transforms_{split}.json"))
@@ -165,21 +170,25 @@ class Blender(Dataset):
         cx = image_width / 2.0
         cy = image_height / 2.0
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
-        num_cameras = len(image_filenames)
-        num_intrinsics_params = 3
-        intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
-        intrinsics *= torch.tensor([cx, cy, focal_length])
 
         # in x,y,z order
         camera_to_world[..., 3] *= self.scale_factor
         scene_bounds = SceneBounds(aabb=torch.tensor([[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]], dtype=torch.float32))
 
+        cameras = Cameras(
+            camera_to_worlds=camera_to_world,
+            fx=focal_length / self.downscale_factor,
+            fy=focal_length / self.downscale_factor,
+            cx=cx / self.downscale_factor,
+            cy=cy / self.downscale_factor,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
+            cameras=cameras,
             downscale_factor=self.downscale_factor,
             alpha_color=alpha_color_tensor,
-            intrinsics=intrinsics * 1.0 / self.downscale_factor,  # downscaling the intrinsics here
-            camera_to_world=camera_to_world,
             scene_bounds=scene_bounds,
         )
 

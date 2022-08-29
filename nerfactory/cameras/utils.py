@@ -21,6 +21,7 @@ import math
 
 import numpy as np
 import torch
+from torchtyping import TensorType
 
 _EPS = np.finfo(float).eps * 4.0
 

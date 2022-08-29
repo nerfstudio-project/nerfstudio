@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Union
 import torch
 from torchtyping import TensorType
 
-from nerfactory.cameras.cameras import NewCamera
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 
 
@@ -120,9 +120,7 @@ class DatasetInputs:
     """
 
     image_filenames: List[str]
-    cameras: NewCamera
-    intrinsics: TensorType["num_cameras", "num_intrinsics_params"]
-    camera_to_world: TensorType["num_cameras", 3, 4]
+    cameras: Cameras
     downscale_factor: int = 1
     mask_filenames: Optional[List[str]] = None
     depth_filenames: Optional[List[str]] = None
