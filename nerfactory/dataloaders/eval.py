@@ -22,7 +22,7 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 
-from nerfactory.cameras.cameras import Camera, Cameras, get_camera
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.utils.misc import get_dict_to_torch

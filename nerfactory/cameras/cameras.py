@@ -184,6 +184,37 @@ class Cameras:
 
         return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
 
+    def to_json(
+        self,
+        camera_idx: int,
+        image: Optional[TensorType["height", "width", 2]] = None,
+        resize_shape: Optional[Tuple[int, int]] = None,
+    ) -> Dict:
+        """Convert a camera to a json dictionary.
+
+        Args:
+            image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
+
+        Returns:
+            A JSON representation of the camera
+        """
+        json_ = {
+            "type": "PinholeCamera",
+            "cx": self.cx,
+            "cy": self.cy,
+            "fx": self.fx[camera_idx].tolist(),
+            "fy": self.fy[camera_idx].tolist(),
+            "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
+            "camera_index": camera_idx,
+        }
+        if image is not None:
+            image_uint8 = (image * 255).detach().cpu().numpy().astype(np.uint8)
+            if resize_shape:
+                image_uint8 = cv2.resize(image_uint8, resize_shape)
+            data = cv2.imencode(".png", image_uint8)[1].tobytes()
+            json_["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
+        return json_
+
 
 class Camera:
     """Base Camera. Intended to be subclassed.
