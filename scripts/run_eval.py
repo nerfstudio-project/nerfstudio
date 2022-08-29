@@ -13,10 +13,10 @@ import torch
 from tqdm import tqdm
 
 from nerfactory.cameras.camera_paths import (
-    CameraPath,
     get_interpolated_camera_path,
     get_spiral_path,
 )
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.configs import base as cfg
 from nerfactory.configs.utils import cli_from_base_configs
 from nerfactory.pipelines.base import Pipeline
@@ -88,7 +88,7 @@ def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
 
 def render_trajectory_video(
     pipeline: Pipeline,
-    camera_path: CameraPath,
+    cameras: Cameras,
     output_filename: Path,
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
@@ -98,7 +98,7 @@ def render_trajectory_video(
 
     Args:
         pipeline: Pipeline to evaluate with.
-        camera_path: Index of the image to render.
+        cameras: Cameras to render.
         output_filename: Name of the output file.
         rendered_output_name: Name of the renderer output to use.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
@@ -107,9 +107,9 @@ def render_trajectory_video(
     """
     print("Creating trajectory video.")
     images = []
-    for camera in tqdm(camera_path.cameras):
-        camera.rescale_output_resolution(rendered_resolution_scaling_factor)
-        camera_ray_bundle = camera.get_camera_ray_bundle().to(pipeline.device)
+    cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
+    for camera_idx in tqdm(range(cameras.size)):
+        camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
         camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
@@ -179,9 +179,8 @@ def main(config: cfg.Config):
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif config.eval.traj == cfg.TrajectoryType.INTERP:
-            camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
-            camera_end = pipeline.dataloader.eval_dataloader.get_camera(image_idx=10)
-            camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
+            cameras = pipeline.dataloader.eval_dataloader.get_camera(image_idx=[0, 10])
+            camera_path = get_interpolated_camera_path(cameras, steps=30)
         else:
             raise NotImplementedError
 
