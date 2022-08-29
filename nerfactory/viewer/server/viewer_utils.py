@@ -25,7 +25,7 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
-from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.image_dataset import ImageDataset
@@ -225,9 +225,9 @@ class VisualizerState:
         image_indices = range(len(image_dataset))
         for idx in image_indices:
             image = image_dataset[idx]["image"]
-            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
             bgr = image[..., [2, 1, 0]]
-            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera.to_json(image=bgr, resize_shape=(100, 100)))
+            camera_json = dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
         json_ = dataset_inputs.scene_bounds.to_json()
@@ -451,9 +451,17 @@ class VisualizerState:
             ],
             dim=0,
         )
-        intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
-        camera = get_camera(intrinsics, camera_to_world)
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.device)
+
+        camera = Cameras(
+            fx=intrinsics_matrix[0, 0],
+            fy=intrinsics_matrix[1, 1],
+            cx=intrinsics_matrix[0, 2],
+            cy=intrinsics_matrix[1, 2],
+            camera_to_worlds=camera_to_world[None, ...],
+        )
+        camera = camera.to(graph.device)
+
+        camera_ray_bundle = camera.generate_rays(camera_indices=0)
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()

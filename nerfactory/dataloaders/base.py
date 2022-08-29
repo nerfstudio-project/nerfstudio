@@ -210,12 +210,14 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
         dataset_train = config.train_dataset.setup()
         self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
+        self.train_cameras = self.train_datasetinputs.cameras.to(device)
         if config.eval_dataset is not None:
             dataset_eval = config.eval_dataset.setup()
         else:
             logging.info("No eval dataset specified so using train dataset for eval.")
             dataset_eval = dataset_train
         self.config.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
+        self.eval_cameras = self.config.eval_datasetinputs.cameras.to(device)
         use_train = self.train_datasetinputs is not None
         use_eval = self.config.eval_datasetinputs is not None
         super().__init__(use_train, use_eval)
@@ -233,9 +235,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         )  # TODO(ethan): pass this in
         self.iter_train_image_sampler = iter(self.train_image_sampler)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_ray_generator = RayGenerator(
-            self.train_datasetinputs.intrinsics, self.train_datasetinputs.camera_to_world
-        )
+        self.train_ray_generator = RayGenerator(self.train_cameras)
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
@@ -245,8 +245,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
             self.eval_image_dataset = PanopticImageDataset(**self.config.eval_datasetinputs.as_dict())
         self.eval_dataloader = FixedIndicesEvalDataloader(
             image_dataset=self.eval_image_dataset,
-            intrinsics=self.config.eval_datasetinputs.intrinsics,
-            camera_to_world=self.config.eval_datasetinputs.camera_to_world,
+            cameras=self.eval_cameras,
             num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
             image_indices=self.config.eval_image_indices,
             device=self.device,
@@ -259,7 +258,7 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         image_batch = next(self.iter_train_image_sampler)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator.forward(ray_indices)
+        ray_bundle = self.train_ray_generator(ray_indices)
         return ray_bundle, batch
 
     def next_eval(self) -> Tuple[RayBundle, Dict]:
