@@ -156,9 +156,13 @@ class Cameras:
         fx, fy = self.fx[camera_indices], self.fy[camera_indices]
         cx, cy = self.cx, self.cy
 
-        directions = normalize(torch.stack([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1))
-        directions_x_offset = normalize(torch.stack([(x - cx + 1) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1))
-        directions_y_offset = normalize(torch.stack([(x - cx) / fx, -(y - cy + 1) / fy, -torch.ones_like(x)], -1))
+        directions = normalize(torch.stack([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1), dim=-1)
+        directions_x_offset = normalize(
+            torch.stack([(x - cx + 1) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1), dim=-1
+        )
+        directions_y_offset = normalize(
+            torch.stack([(x - cx) / fx, -(y - cy + 1) / fy, -torch.ones_like(x)], -1), dim=-1
+        )
 
         dx = torch.sqrt(torch.sum((directions - directions_x_offset) ** 2, dim=-1))
         dy = torch.sqrt(torch.sum((directions - directions_y_offset) ** 2, dim=-1))
