@@ -59,7 +59,7 @@ git clone git@github.com:plenoptix/nerfactory.git
 
 # Install dependencies
 cd nerfactory
-pip install -r environment/requirements.txt
+pip install -r requirements.txt
 
 # Install nerfactory as a library
 pip install -e .
@@ -130,12 +130,8 @@ viewer:
 
 If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
-```
+```bash
 tensorboard --logdir outputs
-
-# or the following
-export TENSORBOARD_PORT=<port>
-bash environment/run_tensorboard.sh
 ```
 
 </details>

@@ -25,7 +25,7 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}
       - name: Install dependencies
         run: |
-          pip install --upgrade --upgrade-strategy eager -r environment/requirements.txt -e .
+          pip install --upgrade --upgrade-strategy eager -r requirements.txt -e .
       - name: Run license checks
         run: |
           ./scripts/licensing/license_headers.sh --check

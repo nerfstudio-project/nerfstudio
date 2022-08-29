@@ -35,7 +35,7 @@ Install dependencies
 
 ```bash
 cd nerfactory
-pip install -r environment/requirements.txt
+pip install -r requirements.txt
 ```
 
 Install nerfactory as a library
@@ -104,13 +104,6 @@ Additionally, if you run everything with the default configuration, by default, 
 
 ```bash
 tensorboard --logdir outputs
-```
-
-Or the following:
-
-```bash
-export TENSORBOARD_PORT=<port>
-bash environment/run_tensorboard.sh
 ```
 
 # Rendering a Trajectory
