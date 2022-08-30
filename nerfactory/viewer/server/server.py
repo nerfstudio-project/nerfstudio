@@ -297,8 +297,8 @@ class ZMQWebSocketBridge:
 def run_viewer_bridge_server():
     """Run the viewer bridge server"""
     parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
-    parser.add_argument("--zmq-port", "-z", type=int, nargs="?", default=None)
-    parser.add_argument("--websocket-port", "-wp", type=int, nargs="?", default=None)
+    parser.add_argument("--zmq-port", "-z", type=int, nargs="?", default=6000)
+    parser.add_argument("--websocket-port", "-wp", type=int, nargs="?", default=7007)
     args = parser.parse_args()
     bridge = ZMQWebSocketBridge(zmq_port=args.zmq_port, websocket_port=args.websocket_port)
     print(bridge)

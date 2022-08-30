@@ -19,18 +19,18 @@ Code to use the viewer as a subprocess.
 import atexit
 import subprocess
 import sys
+from typing import Optional
 
 from nerfactory.viewer.server import server
 
 
-def run_viewer_bridge_server_as_subprocess(
-    zmq_port: int, websocket_port: int, log_filename: str = "viewer_bridge_server_log.txt"
-):
+def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, log_filename: Optional[str] = None):
     """Runs the viewer bridge server as a subprocess.
 
     Args:
         zmq_port: Port to use for the ZMQ server.
         websocket_port: Port to use for the websocket server.
+        log_filename: Filename to use for the log file. Defaults to None. If None, no log file is created.
 
     Returns:
         None
@@ -40,9 +40,12 @@ def run_viewer_bridge_server_as_subprocess(
     args.append(str(zmq_port))
     args.append("--websocket-port")
     args.append(str(websocket_port))
-    logfile = open(log_filename, "w", encoding="utf8")  # pylint: disable=consider-using-with
+    stdout_and_err = None
+    if log_filename:
+        logfile = open(log_filename, "w", encoding="utf8")  # pylint: disable=consider-using-with
+        stdout_and_err = logfile
     process = subprocess.Popen(  # pylint: disable=consider-using-with
-        args, stdout=logfile, stderr=logfile, start_new_session=True
+        args, stdout=stdout_and_err, stderr=stdout_and_err, start_new_session=True
     )
 
     def cleanup(process):

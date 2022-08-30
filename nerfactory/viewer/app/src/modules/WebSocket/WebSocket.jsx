@@ -10,16 +10,23 @@ const WebSocketContext = createContext(null);
 
 export { WebSocketContext };
 
-function getWebsocketEndpointFromUrl(url: string) {
-  const splitUrl = url.split('?');
-  if (splitUrl.length !== 2) {
-    window.alert("There should be exactly one '?' in the url.");
-    return '';
+function getParam(param_name) {
+  // https://stackoverflow.com/questions/831030/how-to-get-get-request-parameters-in-javascript
+  const params = new RegExp(
+    `[?&]${encodeURIComponent(param_name)}=([^&]*)`,
+  ).exec(window.location.href);
+  if (params === null) {
+    return undefined;
   }
-  const endpoint = splitUrl.pop();
-  if (endpoint === '') {
+  return decodeURIComponent(params[1]);
+}
+
+function getWebsocketEndpoint() {
+  const endpoint = getParam('websocket_url');
+  console.log("websocket url: ", endpoint);
+  if (endpoint === undefined) {
     const message =
-      'Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051';
+      'Please set the websocket endpoint. The format should look like "<viewer_url>?websocket_url=localhost:<port>". E.g., "https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:7007".';
     window.alert(message);
     return '';
   }
@@ -32,8 +39,8 @@ export default function WebSocketContextFunction({ children }) {
   let socket;
   let ws;
 
-  // should look like ws://localhost:8051
-  const websocketEndpoint = getWebsocketEndpointFromUrl(window.location.href);
+  // should look like e.g., "ws://<localhost:port>"
+  const websocketEndpoint = getWebsocketEndpoint();
 
   const connect = () => {
     socket = new WebSocket(`ws://${websocketEndpoint}/`);

@@ -189,15 +189,26 @@ class VisualizerState:
         self.config = config
 
         self.vis = None
+        self.viewer_url = None
         if self.config.enable:
             if self.config.launch_bridge_server:
                 # start the viewer bridge server
                 zmq_port = int(self.config.zmq_url.split(":")[-1])
                 websocket_port = self.config.websocket_port
                 run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
+                # TODO(ethan): move this into the writer such that it's at the bottom
+                # of the logging stack and easy to see and click
                 print("\n")
-                viewer_url = f"https://viewer.nerfactory.com/branch/master/?localhost:{websocket_port}"
-                print(f'Open the viewer at "{viewer_url}"')
+                self.viewer_url = (
+                    f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
+                )
+                viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
+                pub_open_viewer_instructions_string = f'[Public] Open the viewer at "{self.viewer_url}"'
+                dev_open_viewer_instructions_string = f'[Local] Open the viewer at "{viewer_url_local}"'
+                print("-" * len(pub_open_viewer_instructions_string))
+                print(pub_open_viewer_instructions_string)
+                print(dev_open_viewer_instructions_string)
+                print("-" * len(pub_open_viewer_instructions_string))
                 print("\n")
             self.vis = Viewer(zmq_url=self.config.zmq_url)
         else:
