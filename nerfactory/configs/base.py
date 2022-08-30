@@ -17,7 +17,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import torch
 
@@ -109,6 +109,14 @@ class LocalWriterConfig(InstantiateConfig):
     max_log_size: int = 10
     relative_log_dir: Path = Path("./")
     log_dir: Optional[Path] = None  # full log dir path to be dynamically set
+
+    def setup(self, banner_messages: Optional[List[str]] = None, **kwargs) -> Any:
+        """Instantiate local writer
+
+        Args:
+            banner_messages: List of strings that always print at the bottom of screen. Defaults to None.
+        """
+        return self._target(self, banner_messages=banner_messages, **kwargs)
 
 
 @dataclass
