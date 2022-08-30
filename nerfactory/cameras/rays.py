@@ -239,6 +239,8 @@ class RayBundle(TensorDataclass):
         else:
             camera_indices = None
 
+        expanded_metadata = self[..., None, :].metadata  # TODO: This needs its own function to not waste compute
+
         frustums = Frustums(
             origins=self.origins[..., None, :],  # [..., 1, 3]
             directions=self.directions[..., None, :],  # [..., 1, 3]
@@ -252,7 +254,7 @@ class RayBundle(TensorDataclass):
             camera_indices=camera_indices,  # [..., 1, 1]
             valid_mask=valid_mask,  # [..., N_samples, 1]
             deltas=deltas,  # [..., N_samples, 1]
-            metadata=self.metadata,
+            metadata=expanded_metadata,
         )
 
         return ray_samples
