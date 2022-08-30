@@ -23,7 +23,7 @@ function getParam(param_name) {
 
 function getWebsocketEndpoint() {
   const endpoint = getParam('websocket_url');
-  console.log("websocket url: ", endpoint);
+  console.log('websocket url: ', endpoint);
   if (endpoint === undefined) {
     const message =
       'Please set the websocket endpoint. The format should look like "<viewer_url>?websocket_url=localhost:<port>". E.g., "https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:7007".';
