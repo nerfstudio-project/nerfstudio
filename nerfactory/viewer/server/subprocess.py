@@ -17,6 +17,7 @@ Code to use the viewer as a subprocess.
 """
 
 import atexit
+import os
 import subprocess
 import sys
 from typing import Optional
@@ -40,12 +41,12 @@ def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, l
     args.append(str(zmq_port))
     args.append("--websocket-port")
     args.append(str(websocket_port))
-    stdout_and_err = None
-    if log_filename:
-        logfile = open(log_filename, "w", encoding="utf8")  # pylint: disable=consider-using-with
-        stdout_and_err = logfile
+    # supress output if no log filename is specified
+    logfile = open(  # pylint: disable=consider-using-with
+        log_filename if log_filename else os.devnull, "w", encoding="utf8"
+    )
     process = subprocess.Popen(  # pylint: disable=consider-using-with
-        args, stdout=stdout_and_err, stderr=stdout_and_err, start_new_session=True
+        args, stdout=logfile, stderr=logfile, start_new_session=True
     )
 
     def cleanup(process):
