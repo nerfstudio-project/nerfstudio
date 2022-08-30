@@ -14,7 +14,6 @@
 
 """Base Configs"""
 
-import enum
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -320,33 +319,6 @@ class SchedulerConfig(InstantiateConfig):
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 
 
-class MethodType(enum.Enum):
-    """Enum for the method type."""
-
-    PSNR = enum.auto()
-    TRAJ = enum.auto()
-
-
-class TrajectoryType(enum.Enum):
-    """Enum for the trajectory type."""
-
-    SPIRAL = enum.auto()
-    INTERP = enum.auto()
-
-
-@dataclass
-class EvalConfig(PrintableConfig):
-    """Boiler plate config for running eval"""
-
-    checkpoint_dir: Optional[Path] = None
-    rendered_output_name: Optional[str] = None
-    method: MethodType = MethodType.PSNR
-    traj: TrajectoryType = TrajectoryType.SPIRAL
-    output_filename: Path = Path("output.json")
-    rendered_resolution_scaling_factor: float = 1.0
-    load_config: Optional[Path] = None  # optionally load config file from training
-
-
 @dataclass
 class Config(PrintableConfig):
     """Full config contents"""
@@ -367,7 +339,6 @@ class Config(PrintableConfig):
         }
     )
     viewer: ViewerConfig = ViewerConfig()
-    eval: Optional[EvalConfig] = None
 
     def __post_init__(self):
         """Convert logging directories to more specific filepaths"""

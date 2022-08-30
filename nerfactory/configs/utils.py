@@ -24,19 +24,13 @@ from typing import Any, Dict, TypeVar
 
 import dcargs
 
-from nerfactory.configs import base as cfg
-
 T = TypeVar("T")
 
 
-def cli_from_base_configs(base_library: Dict[str, T], eval_mode=False) -> T:
+def cli_from_base_configs(base_library: Dict[str, T]) -> T:
     """Populate an instance of `cls`, where the first positional argument is used to
     select from a library of named base configs. See
     https://brentyi.github.io/dcargs/examples/06_base_configs/ for more details."""
-
-    if eval_mode:
-        for _, v in base_library.items():
-            v.eval = cfg.EvalConfig()
 
     # Get base configuration name from the first positional argument.
     if len(sys.argv) < 2 or sys.argv[1] not in base_library:
@@ -52,8 +46,7 @@ def cli_from_base_configs(base_library: Dict[str, T], eval_mode=False) -> T:
         args=sys.argv[2:],
         default_instance=default_instance,
         # `avoid_subparsers` will avoid making a subparser for unions when a default is
-        # provided; in this case, it simplifies our CLI but makes it less expressive
-        # (cannot switch away from the base optimizer types).
+        # provided; in this case, it simplifies our CLI but makes it less expressive.
         avoid_subparsers=True,
     )
 

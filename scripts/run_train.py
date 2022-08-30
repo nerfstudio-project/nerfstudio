@@ -3,7 +3,6 @@ run_train_nerf.py
 """
 
 import logging
-import pickle
 import random
 import socket
 import traceback
@@ -14,6 +13,7 @@ import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import yaml
 
 from nerfactory.configs import base as cfg
 from nerfactory.configs.utils import cli_from_base_configs
@@ -25,7 +25,7 @@ logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=loggin
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
 # speedup for when input size to model doesn't change (much)
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = True  # type: ignore
 
 
 def _find_free_port() -> str:
@@ -128,6 +128,7 @@ def launch(
         config (Config, optional): config file specifying training regimen. Defaults to None.
         timeout (timedelta, optional): timeout of the distributed workers. Defaults to DEFAULT_TIMEOUT.
     """
+    assert config is not None
     world_size = num_machines * num_gpus_per_machine
     if world_size == 0:
         # Using only CPU and one process.
@@ -165,6 +166,7 @@ def launch(
             ),
             join=False,
         )
+        assert process_context is not None
         try:
             process_context.join()
         except KeyboardInterrupt:
@@ -195,19 +197,16 @@ if __name__ == "__main__":
 
     instantiated_config = cli_from_base_configs(base_configs)
     if instantiated_config.trainer.load_config:
-        logging.info(f"Loading pre-set config to: {instantiated_config.trainer.load_config}")
-        with open(instantiated_config.trainer.load_config, "rb") as f:
-            instantiated_config = pickle.load(f)
-    # log and save config
+        logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")
+        instantiated_config = yaml.load(instantiated_config.trainer.load_config.read_text(), Loader=yaml.Loader)
+
+    # print and save config
     logging.info("Printing current config setup")
-    print(instantiated_config)
-    config_pickle_path = instantiated_config.base_dir / "config.pkl"
-    config_json_path = instantiated_config.base_dir / "config.txt"
-    logging.info(f"Saving instance of config to: {config_pickle_path}")
-    logging.info(f"Saving human-readable config to: {config_json_path}")
-    config_pickle_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_pickle_path, "wb") as f:
-        pickle.dump(instantiated_config, f)
-    with open(config_json_path, "w", encoding="utf8") as f:
-        f.write(str(instantiated_config))
+    logging.info(instantiated_config)
+    assert instantiated_config.base_dir is not None
+    instantiated_config.base_dir.mkdir(parents=True, exist_ok=True)
+    config_yaml_path = instantiated_config.base_dir / "config.yml"
+    logging.info(f"Saving config to: {config_yaml_path}")
+    config_yaml_path.write_text(yaml.dump(instantiated_config), "utf8")
+
     main(config=instantiated_config)

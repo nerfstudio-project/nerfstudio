@@ -2,7 +2,7 @@ aiohttp
 aiortc
 av
 black[jupyter]==22.3.0
-dcargs>=0.2.5
+dcargs>=0.2.6
 ninja
 functorch==0.1.1
 h5py>=2.9.0
