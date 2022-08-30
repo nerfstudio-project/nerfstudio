@@ -16,7 +16,6 @@ def test_run_subprocess():
     print("Started the viewer bridge server as a subprocess.")
     # do something will the viewer bridge server runs
     time.sleep(1)
-    # process.terminate()
 
 
 if __name__ == "__main__":

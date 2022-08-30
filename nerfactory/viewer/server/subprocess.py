@@ -24,7 +24,7 @@ from nerfactory.viewer.server import server
 
 
 def run_viewer_bridge_server_as_subprocess(
-    zmq_port: int, websocket_port: int, log_filename="viewer_bridge_server_log.txt"
+    zmq_port: int, websocket_port: int, log_filename: str = "viewer_bridge_server_log.txt"
 ):
     """Runs the viewer bridge server as a subprocess.
 
@@ -40,11 +40,13 @@ def run_viewer_bridge_server_as_subprocess(
     args.append(str(zmq_port))
     args.append("--websocket-port")
     args.append(str(websocket_port))
-    with open(log_filename, "w", encoding="utf8") as logfile:
-        with subprocess.Popen(args, stdout=logfile, stderr=logfile, start_new_session=True) as process:
+    logfile = open(log_filename, "w", encoding="utf8")  # pylint: disable=consider-using-with
+    process = subprocess.Popen(  # pylint: disable=consider-using-with
+        args, stdout=logfile, stderr=logfile, start_new_session=True
+    )
 
-            def cleanup(process):
-                process.kill()
-                process.wait()
+    def cleanup(process):
+        process.kill()
+        process.wait()
 
-            atexit.register(cleanup, process)
+    atexit.register(cleanup, process)
