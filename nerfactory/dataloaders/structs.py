@@ -17,6 +17,7 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 import torch
@@ -38,9 +39,9 @@ class PointCloud:
 class Semantics:
     """Dataclass for semantic labels."""
 
-    stuff_filenames: List[str]
+    stuff_filenames: List[Path]
     stuff_classes: List[str]
-    thing_filenames: List[str]
+    thing_filenames: List[Path]
     thing_classes: List[str]
     stuff_colors: torch.Tensor
     thing_colors: torch.Tensor
@@ -119,11 +120,11 @@ class DatasetInputs:
         ...
     """
 
-    image_filenames: List[str]
+    image_filenames: List[Path]
     cameras: Cameras
     downscale_factor: int = 1
-    mask_filenames: Optional[List[str]] = None
-    depth_filenames: Optional[List[str]] = None
+    mask_filenames: Optional[List[Path]] = None
+    depth_filenames: Optional[List[Path]] = None
     scene_bounds: SceneBounds = SceneBounds()
     semantics: Optional[Semantics] = None
     point_cloud: PointCloud = PointCloud()

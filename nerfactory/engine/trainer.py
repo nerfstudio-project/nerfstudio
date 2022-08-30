@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import os
 import typing
 from pathlib import Path
 from typing import Any, Dict, List
@@ -165,8 +164,8 @@ class Trainer:
         load_dir = self.config.trainer.load_dir
         load_step = self.config.trainer.load_step
         if load_dir is not None and load_step is not None:
-            load_path = os.path.join(load_dir, f"step-{load_step:09d}.ckpt")
-            assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+            load_path = load_dir / f"step-{load_step:09d}.ckpt"
+            assert load_path.exists(), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
             self.start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar

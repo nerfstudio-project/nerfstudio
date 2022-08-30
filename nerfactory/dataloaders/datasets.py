@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-import os
 from abc import abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 
 import imageio
 import numpy as np
@@ -45,7 +45,6 @@ from nerfactory.utils.io import (
     get_absolute_path,
     load_from_json,
     load_from_pkl,
-    make_dir,
     write_to_pkl,
 )
 from nerfactory.utils.misc import get_hash_str_from_dict
@@ -82,7 +81,7 @@ class Dataset:
             dataset_inputs = self._generate_dataset_inputs(split)
         return dataset_inputs
 
-    def _get_cache_filename(self, split: str) -> str:
+    def _get_cache_filename(self, split: str) -> Path:
         """Creates a cache filename from the dataset inputs arguments.
 
         Args:
@@ -92,9 +91,10 @@ class Dataset:
             filename for cache.
         """
         dataset_config_hash = get_hash_str_from_dict(dataclasses.asdict(self))
-        dataset_config_hash_filename = make_dir(
-            get_absolute_path(f"cache/dataset_inputs/{dataset_config_hash}-{split}.pkl")
-        )
+        dataset_config_hash_filename = get_absolute_path(
+            f"cache/dataset_inputs/{dataset_config_hash}-{split}.pkl"
+        ).parent.mkdir()
+        assert dataset_config_hash_filename is not None, "dataset hash is None"
         return dataset_config_hash_filename
 
     def save_dataset_inputs_to_cache(self, split: str):
@@ -114,7 +114,7 @@ class Dataset:
             split: Which dataset split to load.
         """
         dataset_config_hash_filename = self._get_cache_filename(split)
-        if os.path.exists(dataset_config_hash_filename):
+        if dataset_config_hash_filename.exists():
             logging.info("Loading dataset from cache.")
             dataset_inputs = load_from_pkl(dataset_config_hash_filename)
         else:
@@ -139,7 +139,7 @@ class Blender(Dataset):
     def __init__(self, config: cfg.BlenderDatasetConfig):
         super().__init__()
         self.config = config
-        self.data_directory: str = config.data_directory
+        self.data_directory: Path = config.data_directory
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
         self.downscale_factor: int = config.downscale_factor
@@ -151,11 +151,11 @@ class Blender(Dataset):
             alpha_color_tensor = None
 
         abs_dir = get_absolute_path(self.data_directory)
-        meta = load_from_json(os.path.join(abs_dir, f"transforms_{split}.json"))
+        meta = load_from_json(abs_dir / f"transforms_{split}.json")
         image_filenames = []
         poses = []
         for frame in meta["frames"]:
-            fname = os.path.join(abs_dir, frame["file_path"].replace("./", "") + ".png")
+            fname = abs_dir / Path(frame["file_path"].replace("./", "") + ".png")
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
         poses = np.array(poses).astype(np.float32)
@@ -204,7 +204,7 @@ class InstantNGP(Dataset):
         scene_scale: How much to scale the scene. Defaults to 0.33
     """
 
-    data_directory: str
+    data_directory: Path
     scale_factor: float = 1.0
     downscale_factor: int = 1
     scene_scale: float = 0.33
@@ -213,13 +213,13 @@ class InstantNGP(Dataset):
 
         abs_dir = get_absolute_path(self.data_directory)
 
-        meta = load_from_json(os.path.join(abs_dir, "transforms.json"))
+        meta = load_from_json(abs_dir / "transforms.json")
         image_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
-            fname = os.path.join(abs_dir, frame["file_path"])
-            if not os.path.exists(fname):
+            fname = abs_dir / Path(frame["file_path"])
+            if not fname:
                 num_skipped_image_filenames += 1
             else:
                 image_filenames.append(fname)
@@ -289,7 +289,7 @@ class Mipnerf360(Dataset):
         aabb_scale: Scene scale, Defaults to 1.0.
     """
 
-    data_directory: str
+    data_directory: Path
     downscale_factor: int = 1
     val_skip: int = 8
     auto_scale: bool = True
@@ -319,24 +319,24 @@ class Mipnerf360(Dataset):
 
     def _generate_dataset_inputs(self, split="train"):
         abs_dir = get_absolute_path(self.data_directory)
-        image_dir = os.path.join(abs_dir, "images")
+        image_dir = "images"
         if self.downscale_factor > 1:
             image_dir += f"_{self.downscale_factor}"
-
-        if not os.path.exists(image_dir):
+        image_dir = abs_dir / image_dir
+        if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
         valid_formats = [".jpg", ".png"]
         image_filenames = []
-        for f in os.listdir(image_dir):
-            ext = os.path.splitext(f)[1]
+        for f in image_dir.iterdir():
+            ext = f.suffix
             if ext.lower() not in valid_formats:
                 continue
-            image_filenames.append(os.path.join(image_dir, f))
+            image_filenames.append(image_dir / f)
         image_filenames = sorted(image_filenames)
         num_images = len(image_filenames)
 
-        poses_data = np.load(os.path.join(abs_dir, "poses_bounds.npy"))
+        poses_data = np.load(abs_dir / "poses_bounds.npy")
         poses = poses_data[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
         bounds = poses_data[:, -2:].transpose([1, 0])
 
@@ -416,7 +416,7 @@ class Record3D(Dataset):
             more, images will be sampled approximately evenly. Defaults to 150.
     """
 
-    data_directory: str
+    data_directory: Path
     downscale_factor: int = 1
     val_skip: int = 8
     aabb_scale = 4.0
@@ -425,20 +425,20 @@ class Record3D(Dataset):
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
         abs_dir = get_absolute_path(self.data_directory)
 
-        image_dir = os.path.join(abs_dir, "rgb")
+        image_dir = abs_dir / "rgb"
 
-        if not os.path.exists(image_dir):
+        if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
         ext = ".jpg"
         image_filenames = []
-        for f in os.listdir(image_dir):
-            image_filenames.append(os.path.join(image_dir, f))
-        image_filenames = sorted(image_filenames, key=lambda fn: int(os.path.basename(fn)[: -len(ext)]))
+        for f in image_dir.iterdir():
+            image_filenames.append(image_dir / f)
+        image_filenames = sorted(image_filenames, key=lambda fn: int(fn.name[: -len(ext)]))
         image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
-        metadata_path = os.path.join(abs_dir, "metadata.json")
+        metadata_path = abs_dir / "metadata.json"
         metadata_dict = load_from_json(metadata_path)
 
         poses_data = np.array(metadata_dict["poses"])
@@ -538,7 +538,7 @@ class Friends(Dataset):
         include_point_cloud: whether or not to include the point cloud. Defaults to False.
     """
 
-    data_directory: str
+    data_directory: Path
     downscale_factor: int = 1
     include_semantics: bool = True
     include_point_cloud: bool = False
@@ -546,8 +546,8 @@ class Friends(Dataset):
     @classmethod
     def _get_aabb_and_transform(cls, basedir):
         """Returns the aabb and pointcloud transform from the threejs.json file."""
-        filename = os.path.join(basedir, "threejs.json")
-        assert os.path.exists(filename)
+        filename = basedir / "threejs.json"
+        assert filename.exists()
         data = load_from_json(filename)
 
         # point cloud transformation
@@ -569,9 +569,9 @@ class Friends(Dataset):
 
         abs_dir = get_absolute_path(self.data_directory)
 
-        images_data = read_images_binary(os.path.join(abs_dir, "colmap", "images.bin"))
+        images_data = read_images_binary(abs_dir / "colmap" / "images.bin")
         # `image_path` is only the end of the filename, including the extension e.g., `.jpg`
-        image_paths = sorted(os.listdir(os.path.join(abs_dir, "images")))
+        image_paths = sorted((abs_dir / "images").iterdir())
 
         image_path_to_image_id = {}
         image_id_to_image_path = {}
@@ -579,7 +579,7 @@ class Friends(Dataset):
             image_path_to_image_id[v.name] = v.id
             image_id_to_image_path[v.id] = v.name
         # TODO: handle the splits differently
-        image_filenames = [os.path.join(abs_dir, "images", image_path) for image_path in image_paths]
+        image_filenames = [abs_dir / "images" / image_path for image_path in image_paths]
 
         # -- set the bounding box ---
         aabb, transposed_point_cloud_transform = self._get_aabb_and_transform(abs_dir)
@@ -590,7 +590,7 @@ class Friends(Dataset):
         scene_bounds = scene_bounds_original.get_centered_and_scaled_scene_bounds(box_scale_factor)
 
         # --- intrinsics ---
-        cameras_data = read_cameras_binary(os.path.join(abs_dir, "colmap", "cameras.bin"))
+        cameras_data = read_cameras_binary(abs_dir / "colmap" / "cameras.bin")
         focal_lengths = []
         for image_path in image_paths:
             cam = cameras_data[image_path_to_image_id[image_path]]
@@ -622,14 +622,14 @@ class Friends(Dataset):
         semantics = None
         if self.include_semantics:
             thing_filenames = [
-                image_filename.replace("/images/", "/segmentations/thing/").replace(".jpg", ".png")
+                Path(str(image_filename).replace("/images/", "/segmentations/thing/").replace(".jpg", ".png"))
                 for image_filename in image_filenames
             ]
             stuff_filenames = [
-                image_filename.replace("/images/", "/segmentations/stuff/").replace(".jpg", ".png")
+                Path(str(image_filename).replace("/images/", "/segmentations/stuff/").replace(".jpg", ".png"))
                 for image_filename in image_filenames
             ]
-            panoptic_classes = load_from_json(os.path.join(abs_dir, "panoptic_classes.json"))
+            panoptic_classes = load_from_json(abs_dir / "panoptic_classes.json")
             stuff_classes = panoptic_classes["stuff"]
             stuff_colors = torch.tensor(panoptic_classes["stuff_colors"], dtype=torch.float32) / 255.0
             thing_classes = panoptic_classes["thing"]
@@ -647,7 +647,7 @@ class Friends(Dataset):
         # NOTE(ethan): this will be common across the different splits.
         point_cloud = PointCloud()
         if self.include_point_cloud:
-            points_3d = read_pointsTD_binary(os.path.join(abs_dir, "colmap", "points3D.bin"))
+            points_3d = read_pointsTD_binary(abs_dir / "colmap" / "points3D.bin")
             xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()])).float()
             rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()])).float()
             xyz_h = torch.cat([xyz, torch.ones_like(xyz[..., :1])], -1)
