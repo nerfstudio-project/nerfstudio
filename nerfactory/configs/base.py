@@ -283,6 +283,8 @@ class ViewerConfig(PrintableConfig):
 
     enable: bool = False
     zmq_url: str = "tcp://127.0.0.1:6000"
+    launch_bridge_server: bool = True
+    websocket_port: int = 7007
     min_render_image_height: int = 64
     max_render_image_height: int = 1024
     num_rays_per_chunk: int = 4096
