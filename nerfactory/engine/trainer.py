@@ -84,7 +84,12 @@ class Trainer:
         self.optimizers: Optimizers
         self.start_step = 0
         # logging variables
-        writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
+        banner_messages = None
+        if config.viewer.enable:
+            banner_messages = ["Viewer at: https://viewer.nerfactory.com/branch/master/?localhost:8051"]
+        writer.setup_event_writers(
+            config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
+        )
         profiler.setup_profiler(config.logging)
         # visualizer variable
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)

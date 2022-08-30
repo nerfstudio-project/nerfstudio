@@ -110,6 +110,9 @@ class LocalWriterConfig(InstantiateConfig):
     relative_log_dir: Path = Path("./")
     log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
+    def setup(self, banner_messages=None, **kwargs) -> Any:
+        return self._target(self, banner_messages=banner_messages, **kwargs)
+
 
 @dataclass
 class LoggingConfig(PrintableConfig):

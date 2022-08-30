@@ -208,5 +208,4 @@ if __name__ == "__main__":
     config_yaml_path = instantiated_config.base_dir / "config.yml"
     logging.info(f"Saving config to: {config_yaml_path}")
     config_yaml_path.write_text(yaml.dump(instantiated_config), "utf8")
-
     main(config=instantiated_config)
