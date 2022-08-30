@@ -16,6 +16,7 @@
 Camera Models
 """
 import base64
+import math
 from enum import Enum, auto
 from typing import Dict, Optional, Tuple, Union
 
@@ -31,8 +32,8 @@ from nerfactory.cameras.rays import RayBundle
 class CameraType(Enum):
     """Supported camera types."""
 
-    PERSPECTIVE = auto
-    FISHEYE = auto
+    PERSPECTIVE = auto()
+    FISHEYE = auto()
 
 
 class Cameras:
@@ -162,13 +163,9 @@ class Cameras:
         fx, fy = self.fx[camera_indices], self.fy[camera_indices]
         cx, cy = self.cx, self.cy
 
-        directions = normalize(torch.stack([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1), dim=-1)
-        directions_x_offset = normalize(
-            torch.stack([(x - cx + 1) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1), dim=-1
-        )
-        directions_y_offset = normalize(
-            torch.stack([(x - cx) / fx, -(y - cy + 1) / fy, -torch.ones_like(x)], -1), dim=-1
-        )
+        directions = torch.stack([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)
+        directions_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)
+        directions_y_offset = torch.stack([(x - cx) / fx, -(y - cy + 1) / fy, -torch.ones_like(x)], -1)
 
         directions_stack = torch.stack([directions, directions_x_offset, directions_y_offset], dim=0)
 
@@ -179,7 +176,6 @@ class Cameras:
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
         )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
-        directions_stack = normalize(directions_stack, dim=-1)
 
         distortion_params = None
         if self.distortion_params is not None:
@@ -190,6 +186,22 @@ class Cameras:
 
         if distortion_params is not None:
             raise NotImplementedError("Camera distortion not implemented.")
+
+        if self.camera_type == CameraType.FISHEYE:
+            theta = torch.sqrt(torch.sum(directions_stack[..., :2] ** 2, dim=-1))
+            theta = torch.clip(theta, 0.0, math.pi)
+
+            sin_theta = torch.sin(theta)
+            directions_stack = torch.stack(
+                [
+                    directions_stack[..., 0] * sin_theta / theta,
+                    directions_stack[..., 1] * sin_theta / theta,
+                    torch.cos(theta),
+                ],
+                dim=-1,
+            )
+
+        directions_stack = normalize(directions_stack, dim=-1)
 
         origins = c2w[..., :3, 3]  # (..., 3)
         directions = directions_stack[0]
