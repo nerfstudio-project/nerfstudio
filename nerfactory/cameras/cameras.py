@@ -163,19 +163,11 @@ class Cameras:
         fx, fy = self.fx[camera_indices], self.fy[camera_indices]
         cx, cy = self.cx, self.cy
 
-        directions = torch.stack([(x - cx) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)
-        directions_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy, -torch.ones_like(x)], -1)
-        directions_y_offset = torch.stack([(x - cx) / fx, -(y - cy + 1) / fy, -torch.ones_like(x)], -1)
+        coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)
+        coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)
+        coord_y_offset = torch.stack([(x - cx) / fx, -(y - cy + 1) / fy], -1)
 
-        directions_stack = torch.stack([directions, directions_x_offset, directions_y_offset], dim=0)
-
-        c2w = self.camera_to_worlds[camera_indices]
-        if camera_to_world_delta is not None:
-            c2w = c2w + camera_to_world_delta
-        rotation = c2w[..., :3, :3]  # (..., 3, 3)
-        directions_stack = torch.sum(
-            directions_stack[..., None, :] * rotation, dim=-1
-        )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
+        coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
 
         distortion_params = None
         if self.distortion_params is not None:
@@ -187,19 +179,33 @@ class Cameras:
         if distortion_params is not None:
             raise NotImplementedError("Camera distortion not implemented.")
 
-        if self.camera_type == CameraType.FISHEYE:
-            theta = torch.sqrt(torch.sum(directions_stack[..., :2] ** 2, dim=-1))
+        if self.camera_type == CameraType.PERSPECTIVE:
+            directions_stack = torch.stack(
+                [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
+            )
+        elif self.camera_type == CameraType.FISHEYE:
+            theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
 
             sin_theta = torch.sin(theta)
             directions_stack = torch.stack(
                 [
-                    directions_stack[..., 0] * sin_theta / theta,
-                    directions_stack[..., 1] * sin_theta / theta,
-                    torch.cos(theta),
+                    coord_stack[..., 0] * sin_theta / theta,
+                    coord_stack[..., 1] * sin_theta / theta,
+                    -torch.cos(theta),
                 ],
                 dim=-1,
             )
+        else:
+            raise ValueError(f"Camera type {self.camera_type} not supported.")
+
+        c2w = self.camera_to_worlds[camera_indices]
+        if camera_to_world_delta is not None:
+            c2w = c2w + camera_to_world_delta
+        rotation = c2w[..., :3, :3]  # (..., 3, 3)
+        directions_stack = torch.sum(
+            directions_stack[..., None, :] * rotation, dim=-1
+        )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
 
         directions_stack = normalize(directions_stack, dim=-1)
 
