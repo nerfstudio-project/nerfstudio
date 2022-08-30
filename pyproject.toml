@@ -17,6 +17,9 @@ classifiers = [
 [project.urls]
 "Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
 
+[project.scripts]
+viewer-bridge-server = "nerfactory.viewer.server.server:run_viewer_bridge_server"
+
 # black
 [tool.black]
 line-length = 120
