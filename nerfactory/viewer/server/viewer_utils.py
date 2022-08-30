@@ -34,6 +34,7 @@ from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
+from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
 
@@ -189,8 +190,16 @@ class VisualizerState:
 
         self.vis = None
         if self.config.enable:
-            zmq_url = self.config.zmq_url
-            self.vis = Viewer(zmq_url=zmq_url)
+            if self.config.launch_bridge_server:
+                # start the viewer bridge server
+                zmq_port = int(self.config.zmq_url.split(":")[-1])
+                websocket_port = self.config.websocket_port
+                run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
+                print("\n")
+                viewer_url = f"https://viewer.nerfactory.com/branch/master/?localhost:{websocket_port}"
+                print(f'Open the viewer at "{viewer_url}"')
+                print("\n")
+            self.vis = Viewer(zmq_url=self.config.zmq_url)
         else:
             logging.info("Continuing without viewer.")
 
@@ -477,10 +486,3 @@ class VisualizerState:
             stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
             self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
             self._update_viewer_stats(render_duration, image_height)
-
-
-def get_default_vis() -> Viewer:
-    """Returns the default Visualizer."""
-    zmq_url = "tcp://0.0.0.0:6000"
-    viewer = Viewer(zmq_url=zmq_url)
-    return viewer

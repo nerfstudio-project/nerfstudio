@@ -64,9 +64,6 @@ pip install -r environment/requirements.txt
 # Install nerfactory as a library
 pip install -e .
 
-# Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
-python setup.py develop
-
 # Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
@@ -99,10 +96,10 @@ To run with all the defaults, e.g. vanilla nerf method with the blender lego ima
 python scripts/run_train.py
 
 # Run a faster version with instant ngp using tcnn (without the viewer).
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml
+python scripts/run_train.py instant_ngp
 
 # Run with the viewer. However, you'll have to start the viewer server first. (See the docs.)
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
+python scripts/run_train.py instant_ngp viewer.enable
 ```
 
 With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments.
