@@ -21,7 +21,8 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 17.8.0
-          # cache: 'yarn'
+          cache: 'yarn'
+          cache-dependency-path: ./nerfactory/viewer/app/yarn.lock
 
       - name: Install packages
         run: yarn install

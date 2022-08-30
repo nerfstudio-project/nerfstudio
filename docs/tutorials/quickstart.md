@@ -98,7 +98,9 @@ With support for [Hydra](https://hydra.cc/), you can run with other configuratio
 
 # Visualizing training runs
 
-If you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
+If you using a fast NeRF variant (ie. Instant-NGP), we reccomend using our viewer. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
+
+Additionally, if you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
 ```bash
 tensorboard --logdir outputs
@@ -116,7 +118,7 @@ bash environment/run_tensorboard.sh
 To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../tooling/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
-python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.mp4 --config-name=graph_instant_ngp.yaml trainer.resume_train.load_dir=outputs/blender_lego/instant_ngp/2022-07-07_230905/checkpoints
+python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
 ```
 
 Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based visualizer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.

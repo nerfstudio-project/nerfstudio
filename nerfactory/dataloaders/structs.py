@@ -22,6 +22,7 @@ from typing import Dict, List, Optional, Union
 import torch
 from torchtyping import TensorType
 
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 
 
@@ -119,8 +120,7 @@ class DatasetInputs:
     """
 
     image_filenames: List[str]
-    intrinsics: TensorType["num_cameras", "num_intrinsics_params"]
-    camera_to_world: TensorType["num_cameras", 3, 4]
+    cameras: Cameras
     downscale_factor: int = 1
     mask_filenames: Optional[List[str]] = None
     depth_filenames: Optional[List[str]] = None
@@ -128,19 +128,6 @@ class DatasetInputs:
     semantics: Optional[Semantics] = None
     point_cloud: PointCloud = PointCloud()
     alpha_color: Optional[TensorType[3]] = None
-
-    def check_inputs(self):
-        """Check the inputs to make sure everything is okay."""
-        assert self.intrinsics.dtype == torch.float32
-        assert self.camera_to_world.dtype == torch.float32
-
-    def save_to_folder_name(self, data_directory: str):
-        """Save the dataset inputs."""
-        raise NotImplementedError
-
-    def load_from_folder_name(self, data_directory: str):
-        """Load the saved dataset inputs."""
-        raise NotImplementedError
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""

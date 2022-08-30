@@ -30,7 +30,7 @@ import torch.nn.functional as F
 from plotly import express as ex
 from torchtyping import TensorType
 
-from nerfactory.cameras.cameras import Camera
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import Frustums, RayBundle
 from nerfactory.utils.math import Gaussians
 
@@ -444,7 +444,7 @@ def get_ray_bundle_lines(
     )
 
 
-def vis_camera_rays(camera: Camera) -> go.Figure:  # type: ignore
+def vis_camera_rays(cameras: Cameras) -> go.Figure:  # type: ignore
     """Visualize camera rays.
 
     Args:
@@ -454,12 +454,12 @@ def vis_camera_rays(camera: Camera) -> go.Figure:  # type: ignore
         Plotly lines
     """
 
-    coords = camera.get_image_coords()
-    coords[..., 0] /= camera.get_image_height()
-    coords[..., 1] /= camera.get_image_width()
+    coords = cameras.get_image_coords()
+    coords[..., 0] /= cameras.image_height
+    coords[..., 1] /= cameras.image_width
     coords = torch.cat([coords, torch.ones((*coords.shape[:-1], 1))], dim=-1)
 
-    ray_bundle = camera.get_camera_ray_bundle()
+    ray_bundle = cameras.generate_rays(camera_indices=0)
 
     origins = ray_bundle.origins.view(-1, 3)
     directions = ray_bundle.directions.view(-1, 3)
@@ -498,7 +498,7 @@ def vis_camera_rays(camera: Camera) -> go.Figure:  # type: ignore
     return fig
 
 
-def get_camera_frustums(cameras: List[Camera]):
+def get_camera_frustums(cameras: Cameras):
     """Returns the camera frustums for the cameras that we are using.
 
     Args:
@@ -507,7 +507,7 @@ def get_camera_frustums(cameras: List[Camera]):
     Returns:
         A plotly scatter that can be plotted.
     """
-    for camera in cameras:
-        json_ = camera.to_json()
+    for camera_idx in range(cameras.size):
+        json_ = cameras.to_json(camera_idx=camera_idx)
         print(json_)
     raise NotImplementedError

@@ -15,10 +15,13 @@
 """
 Code to train model.
 """
+from __future__ import annotations
+
 import functools
 import logging
 import os
 import typing
+from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
@@ -26,12 +29,12 @@ import torch.distributed as dist
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
-from nerfactory.pipelines.base import Pipeline, setup_pipeline
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import Callback
-from nerfactory.utils.config import Config
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
@@ -39,7 +42,7 @@ from nerfactory.viewer.server import viewer_utils
 logging.getLogger("PIL").setLevel(logging.WARNING)
 
 
-def train_loop(local_rank: int, world_size: int, config: Config) -> Any:
+def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -65,7 +68,7 @@ class Trainer:
         world_size (int, optional): World size of the process. Defaults to 1.
     """
 
-    def __init__(self, config: Config, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -95,7 +98,7 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = setup_pipeline(self.config.pipeline, device=self.device, test_mode=test_mode)
+        self.pipeline: Pipeline = self.config.pipeline.setup(device=self.device, test_mode=test_mode)
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
@@ -125,7 +128,7 @@ class Trainer:
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
-                train_num_rays_per_batch = self.pipeline.dataloader.train_num_rays_per_batch
+                train_num_rays_per_batch = self.config.pipeline.dataloader.train_num_rays_per_batch
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
@@ -154,9 +157,10 @@ class Trainer:
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        load_config = self.config.trainer.resume_train
-        if load_config.load_dir is not None and load_config.load_step is not None:
-            load_path = os.path.join(load_config.load_dir, f"step-{load_config.load_step:09d}.ckpt")
+        load_dir = self.config.trainer.load_dir
+        load_step = self.config.trainer.load_step
+        if load_dir is not None and load_step is not None:
+            load_path = os.path.join(load_dir, f"step-{load_step:09d}.ckpt")
             assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
             self.start_step = loaded_state["step"] + 1
@@ -169,16 +173,16 @@ class Trainer:
             logging.info("No checkpoints to load, training from scratch")
 
     @check_main_thread
-    def _save_checkpoint(self, output_dir: str, step: int) -> None:
+    def _save_checkpoint(self, output_dir: Path, step: int) -> None:
         """Save the model and optimizers
 
         Args:
             output_dir: directory to save the checkpoint
             step: number of steps in training for given checkpoint
         """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        ckpt_path = os.path.join(output_dir, f"step-{step:09d}.ckpt")
+        if not output_dir.exists():
+            output_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_path = output_dir / f"step-{step:09d}.ckpt"
         if hasattr(self.pipeline, "module"):
             pipeline = self.pipeline.module.state_dict()  # type: ignore
         else:

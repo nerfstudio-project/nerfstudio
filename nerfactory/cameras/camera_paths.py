@@ -16,30 +16,16 @@
 Code for camera paths.
 """
 
-import copy
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 
 import nerfactory.cameras.utils as camera_utils
-from nerfactory.cameras.cameras import (
-    Camera,
-    PinholeCamera,
-    get_camera,
-    get_intrinsics_from_intrinsics_matrix,
-)
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.utils import get_interpolated_poses_many
 
 
-@dataclass
-class CameraPath:
-    """A camera path."""
-
-    cameras: List[Camera]
-
-
-def get_interpolated_camera_path(camera_a: PinholeCamera, camera_b: PinholeCamera, steps: int) -> CameraPath:
+def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
     """Generate a camera path between two cameras.
 
     Args:
@@ -48,38 +34,24 @@ def get_interpolated_camera_path(camera_a: PinholeCamera, camera_b: PinholeCamer
         steps: The number of steps to interpolate between the two cameras.
 
     Returns:
-        CameraPath: A camera path.
+        A new set of cameras along a path.
     """
-    device = camera_a.device
-    Ka = camera_a.get_intrinsics_matrix().cpu().numpy()
-    pose_a = camera_a.get_camera_to_world_h().cpu().numpy()
-    Kb = camera_b.get_intrinsics_matrix().cpu().numpy()
-    pose_b = camera_b.get_camera_to_world_h().cpu().numpy()
-    poses = [pose_a, pose_b]
-    Ks = [Ka, Kb]
+    Ks = cameras.get_intrinsics_matrices().cpu().numpy()
+    poses = cameras.camera_to_worlds().cpu().numpy()
     poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
 
-    cameras = []
-    for pose, K in zip(poses, Ks):
-        intrinsics = get_intrinsics_from_intrinsics_matrix(K).to(device).float()
-        # TODO: this makes cx and cy an integer, but this code should be fixed
-        # it was added to avoid floating point errors when rescaling and the image resolution
-        # being different per rendered image in a camera path
-        intrinsics[:2] = torch.round(intrinsics[:2])
-        camera_to_world = torch.from_numpy(pose[:3]).to(device).float()
-        camera = get_camera(intrinsics, camera_to_world, camera_index=camera_a.camera_index)
-        cameras.append(camera)
-    return CameraPath(cameras=cameras)
+    cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], camera_to_worlds=poses)
+    return cameras
 
 
 def get_spiral_path(
-    camera: PinholeCamera,
+    camera: Cameras,
     steps: int = 30,
     radius: Optional[float] = None,
     radiuses: Optional[Tuple[float]] = None,
     rots: int = 2,
     zrate: float = 0.5,
-) -> CameraPath:
+) -> Cameras:
     """
     Returns a list of camera in a sprial trajectory.
 
@@ -92,7 +64,7 @@ def get_spiral_path(
         zrate: How much to change the z position of the camera.
 
     Returns:
-        CameraPath: A spiral camera path.
+        A spiral camera path.
     """
 
     assert radius is not None or radiuses is not None, "Either radius or radiuses must be specified."
@@ -104,12 +76,14 @@ def get_spiral_path(
         raise ValueError("Only one of radius or radiuses must be specified.")
 
     # TODO: don't hardcode this. pass this in
-    up = camera.camera_to_world[:3, 2]  # scene is z up
+    up = camera.camera_to_worlds[0, :3, 2]  # scene is z up
     # up = camera.camera_to_world[:3, 1] # this will rotate 90 degrees
-    focal = min(camera.fx, camera.fy)
+    focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
-    c2wh_global = camera.get_camera_to_world_h()
+    c2w = camera.camera_to_worlds[0]
+    ones = torch.tensor([0, 0, 0, 1], device=c2w.device)[None]
+    c2wh_global = torch.cat([c2w, ones], dim=0)
 
     local_c2whs = []
     for theta in torch.linspace(0.0, 2.0 * torch.pi * rots, steps + 1)[:-1]:
@@ -122,11 +96,9 @@ def get_spiral_path(
         c2wh = torch.cat([c2w, ones], dim=0)
         local_c2whs.append(c2wh)
 
-    cameras = []
+    new_c2ws = []
     for local_c2wh in local_c2whs:
-        cam = copy.deepcopy(camera)
         c2wh = torch.matmul(c2wh_global, local_c2wh)
-        cam.camera_to_world = c2wh[:3, :4]
-        cameras.append(cam)
+        new_c2ws.append(c2wh[:3, :4])
 
-    return CameraPath(cameras=cameras)
+    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx, cy=camera.cy, camera_to_worlds=new_c2ws)

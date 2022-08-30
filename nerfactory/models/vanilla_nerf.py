@@ -16,22 +16,24 @@
 Implementation of vanilla nerf.
 """
 
+from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import torch
-from omegaconf import DictConfig
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import base as cfg
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -56,23 +58,14 @@ class NeRFModel(Model):
 
     def __init__(
         self,
-        near_plane: float = 2.0,
-        far_plane: float = 6.0,
-        num_coarse_samples: int = 64,
-        num_importance_samples: int = 128,
-        enable_density_field: bool = False,
-        density_field_config: Optional[DictConfig] = None,
+        config: cfg.ModelConfig,
         **kwargs,
     ) -> None:
-        self.near_plane = near_plane
-        self.far_plane = far_plane
-        self.num_coarse_samples = num_coarse_samples
-        self.num_importance_samples = num_importance_samples
         self.field_coarse = None
         self.field_fine = None
+
         super().__init__(
-            enable_density_field=enable_density_field,
-            density_field_config=density_field_config,
+            config=config,
             **kwargs,
         )
 
@@ -106,8 +99,10 @@ class NeRFModel(Model):
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.num_coarse_samples, density_field=self.density_field)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_importance_samples, density_field=self.density_field)
+        self.sampler_uniform = UniformSampler(
+            num_samples=self.config.num_coarse_samples, density_field=self.density_field
+        )
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples, density_field=self.density_field)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -121,6 +116,12 @@ class NeRFModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+        # colliders
+        if self.config.enable_collider:
+            self.collider = NearFarCollider(
+                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
+            )
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -191,14 +192,14 @@ class NeRFModel(Model):
         depth_coarse = visualization.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
-            near_plane=self.near_plane,
-            far_plane=self.far_plane,
+            near_plane=self.config.collider_params["near_plane"],
+            far_plane=self.config.collider_params["far_plane"],
         )
         depth_fine = visualization.apply_depth_colormap(
             outputs["depth_fine"],
             accumulation=outputs["accumulation_fine"],
-            near_plane=self.near_plane,
-            far_plane=self.far_plane,
+            near_plane=self.config.collider_params["near_plane"],
+            far_plane=self.config.collider_params["far_plane"],
         )
 
         combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)

@@ -20,14 +20,11 @@ data:
 
 #### Visualize dataset
 
-You can use `notebooks/visualize_dataset.ipynb` to see how your formatted dataset looks. This code will load a dataset from a yaml config, show the camera poses, and visualize rays with the specified collider in the config. TODO: add a better visualization with images too
-
-![visualize_dataset](media/creating_dataset_visualize_dataset.png)
-
+TODO
 
 #### Supported datasets
 
-We include support for a set of standard dataset formats. 
+We include support for a set of standard dataset formats.
 
 ###### Blender Synthetic
 
@@ -66,3 +63,19 @@ Download
 ```yaml
 dataset_format: mipnerf_360
 ```
+
+###### Record3D
+
+```{button-link} https://record3d.app/
+:color: primary
+:outline:
+Download
+```
+
+```yaml
+dataset_format: record_3d
+```
+
+Directly import dataset recorded from a >= iPhone 12 Pro using the Record3D app.
+
+Record a video and export with the `EXR + JPG sequence` format. Unzip export and `rgb` folder before training.
