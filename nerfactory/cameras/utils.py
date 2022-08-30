@@ -18,9 +18,11 @@ Camera transformation helper code.
 """
 
 import math
+from typing import Tuple
 
 import numpy as np
 import torch
+from torchtyping import TensorType
 
 _EPS = np.finfo(float).eps * 4.0
 
@@ -257,24 +259,30 @@ def get_interpolated_K(KA, KB, steps=10):
     return Ks
 
 
-def get_interpolated_poses_many(list_of_poses, list_of_Ks, steps_per_transition=10):
-    """
+def get_interpolated_poses_many(
+    poses: TensorType["num_poses", 3, 4],
+    Ks: TensorType["num_poses", 3, 3],
+    steps_per_transition=10,
+) -> Tuple[TensorType["num_poses", 3, 4], TensorType["num_poses", 3, 3]]:
+    """Return interpolated poses for many camera poses.
+
     Args:
-        list_of_poses
-        steps
-        distances_per_step
+        poses: list of camera poses
+        Ks: list of camera intrinsics
+        steps_per_transition: number of steps per transition
+
     Returns:
+        tuple of new poses and intrinsics
     """
     traj = []
     Ks = []
-    for idx in range(len(list_of_poses) - 1):
-        poseA = list_of_poses[idx]
-        poseB = list_of_poses[idx + 1]
-        # steps = int(np.linalg.norm(poseA[:3,3] - poseB[:3,3], ord=2) / distance_per_step)
+    for idx in range(poses.shape[0] - 1):
+        poseA = poses[idx]
+        poseB = poses[idx + 1]
         posesAB = get_interpolated_poses(poseA, poseB, steps=steps_per_transition)
         traj += posesAB
-        Ks += get_interpolated_K(list_of_Ks[idx], list_of_Ks[idx + 1], steps_per_transition)
-    return traj, Ks
+        Ks += get_interpolated_K(Ks[idx], Ks[idx + 1], steps_per_transition)
+    return torch.stack(traj, dim=0), torch.stack(Ks, dim=0)
 
 
 def get_swirl_poses(pose):

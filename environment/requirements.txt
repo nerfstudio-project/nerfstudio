@@ -16,6 +16,7 @@ matplotlib
 mediapy
 msgpack
 msgpack_numpy
+numpy-quaternion
 opencv-python
 plotly==5.7.0
 protobuf==3.20.0

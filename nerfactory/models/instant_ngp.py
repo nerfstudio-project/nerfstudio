@@ -68,7 +68,7 @@ class NGPModel(Model):
 
     def populate_misc_modules(self):
         # samplers
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_field)
+        self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
 
         # losses
         self.rgb_loss = MSELoss()

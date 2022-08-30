@@ -22,7 +22,7 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 
-from nerfactory.cameras.cameras import Camera, get_camera
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.dataloaders.image_dataset import ImageDataset
 from nerfactory.utils.misc import get_dict_to_torch
@@ -34,16 +34,14 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
     def __init__(
         self,
         image_dataset: ImageDataset,
-        intrinsics,
-        camera_to_world,
+        cameras,
         num_rays_per_chunk: int,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
         super().__init__()
         self.image_dataset = image_dataset
-        self.intrinsics = intrinsics
-        self.camera_to_world = camera_to_world
+        self.cameras = cameras
         self.num_rays_per_chunk = num_rays_per_chunk
         self.device = device
         self.kwargs = kwargs
@@ -57,18 +55,24 @@ class EvalDataloader:  # pylint: disable=too-few-public-methods
     def __next__(self) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data"""
 
-    def get_camera(self, image_idx) -> Camera:
+    def get_camera(self, image_idx) -> Cameras:
         """Get camera for the given image index"""
-        intrinsics = self.intrinsics[image_idx].to(self.device)
-        camera_to_world = self.camera_to_world[image_idx].to(self.device)
-        camera = get_camera(intrinsics, camera_to_world, camera_index=image_idx)
+        camera = Cameras(
+            fx=self.cameras.fx[image_idx],
+            fy=self.cameras.fy[image_idx],
+            cx=self.cameras.cx,
+            cy=self.cameras.cy,
+            camera_to_worlds=self.cameras.camera_to_worlds[image_idx],
+            distortion_params=self.cameras.distortion_params[image_idx],
+            camera_type=self.cameras.camera_type,
+        )
         return camera
 
     def get_data_from_image_idx(self, image_idx) -> Tuple[RayBundle, Dict]:
         """Returns the data for a specific image index."""
-        camera = self.get_camera(image_idx)
-        ray_bundle = camera.get_camera_ray_bundle(device=self.device)
+        ray_bundle = self.cameras.generate_rays(camera_indices=image_idx)
         ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
+        ray_bundle.camera_indices = torch.Tensor([image_idx])[..., None].int()
         batch = self.image_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device)
         return ray_bundle, batch
@@ -80,8 +84,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
     def __init__(
         self,
         image_dataset: ImageDataset,
-        intrinsics,
-        camera_to_world,
+        cameras: Cameras,
         num_rays_per_chunk: int,
         image_indices: Optional[Tuple[int]] = None,
         device: Union[torch.device, str] = "cpu",
@@ -92,7 +95,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
             image_dataset: ImageDataset to load data from
             image_indices: List of image indices to load data from. If None, then use all images.
         """
-        super().__init__(image_dataset, intrinsics, camera_to_world, num_rays_per_chunk, device, **kwargs)
+        super().__init__(image_dataset, cameras, num_rays_per_chunk, device, **kwargs)
         if image_indices is None:
             self.image_indices = list(range(len(image_dataset)))
         else:
@@ -120,13 +123,12 @@ class RandIndicesEvalDataloader(EvalDataloader):
     def __init__(
         self,
         image_dataset: ImageDataset,
-        intrinsics,
-        camera_to_world,
+        cameras: Cameras,
         num_rays_per_chunk: int,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
-        super().__init__(image_dataset, intrinsics, camera_to_world, num_rays_per_chunk, device, **kwargs)
+        super().__init__(image_dataset, cameras, num_rays_per_chunk, device, **kwargs)
         self.count = 0
 
     def __iter__(self):
@@ -135,7 +137,7 @@ class RandIndicesEvalDataloader(EvalDataloader):
 
     def __next__(self):
         if self.count < 1:
-            image_indices = range(len(self.camera_to_world))
+            image_indices = range(self.cameras.size)
             image_idx = random.choice(image_indices)
             ray_bundle, batch = self.get_data_from_image_idx(image_idx)
             self.count += 1
