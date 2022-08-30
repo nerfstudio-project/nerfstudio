@@ -1,4 +1,4 @@
-name: Tests.
+name: Core Tests.
 
 on:
   push:
