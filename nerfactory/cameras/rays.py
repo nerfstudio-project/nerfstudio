@@ -239,14 +239,14 @@ class RayBundle(TensorDataclass):
         else:
             camera_indices = None
 
-        expanded_metadata = self[..., None, :].metadata  # TODO: This needs its own function to not waste compute
+        shaped_raybundle_fields = self[..., None]
 
         frustums = Frustums(
-            origins=self.origins[..., None, :],  # [..., 1, 3]
-            directions=self.directions[..., None, :],  # [..., 1, 3]
+            origins=shaped_raybundle_fields.origins,  # [..., 1, 3]
+            directions=shaped_raybundle_fields.directions,  # [..., 1, 3]
             starts=bin_starts,  # [..., N_samples, 1]
             ends=bin_ends,  # [..., N_samples, 1]
-            pixel_area=self.pixel_area[..., None, :],  # [..., 1, 1]
+            pixel_area=shaped_raybundle_fields.pixel_area,  # [..., 1, 1]
         ).to(device)
 
         ray_samples = RaySamples(
@@ -254,7 +254,7 @@ class RayBundle(TensorDataclass):
             camera_indices=camera_indices,  # [..., 1, 1]
             valid_mask=valid_mask,  # [..., N_samples, 1]
             deltas=deltas,  # [..., N_samples, 1]
-            metadata=expanded_metadata,
+            metadata=shaped_raybundle_fields.metadata,
         )
 
         return ray_samples
