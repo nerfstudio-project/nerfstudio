@@ -9,6 +9,12 @@
 <p align="center"> The all-in-one repo for NeRFs </p>
 
 <p align="center">
+    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
+        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
+    </a>
+    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml'>
+        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml/badge.svg' alt='Viewer build Status' />
+    </a>
     <a href='https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest'>
         <img src='https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest&token=2c5ba6bdd52600523fa8a8513170ae7170fd927a8c9dfbcf7c03af7ede551f96' alt='Documentation Status' />
     </a>
