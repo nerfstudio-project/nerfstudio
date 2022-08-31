@@ -282,7 +282,8 @@ class LearnableCamerasDataloader(VanillaDataloader):  # pylint: disable=abstract
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         params_dict = {}
-        params_dict["camera_params"] = [self.train_ray_generator.camera_to_world_delta]
+        if self.train_ray_generator.camera_to_world_delta.requires_grad:
+            params_dict["camera_params"] = [self.train_ray_generator.camera_to_world_delta]
         return params_dict
 
 

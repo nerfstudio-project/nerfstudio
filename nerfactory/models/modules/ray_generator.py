@@ -53,7 +53,6 @@ class RayGenerator(nn.Module):
         self.camera_class = get_camera_model(self.num_intrinsics_params)
         camera = self.camera_class(*self.intrinsics[camera_index].tolist())
         self.image_coords = nn.Parameter(camera.get_image_coords(), requires_grad=False)
-        self.register_full_backward_hook(self.backward_hook)
 
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         """Index into the cameras to generate the rays.
@@ -66,7 +65,7 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         intrinsics = self.intrinsics[c]
         camera_to_world = self.camera_to_world[c]
-        camera_to_world += self.camera_to_world_delta[c] # will be a no-op if no trainable poses.
+        camera_to_world += self.camera_to_world_delta[c]  # will be a no-op if no trainable poses.
         coords = self.image_coords[y, x]
 
         ray_bundle = self.camera_class.generate_rays(
@@ -74,7 +73,3 @@ class RayGenerator(nn.Module):
         )
         ray_bundle.camera_indices = c[..., None]  # ["num_rays",1]
         return ray_bundle
-
-    def backward_hook(self, module, grad_input, grad_output):
-        print("ALEX:", grad_input, grad_output)
-        # raise AssertionError("IT WORKS!")
