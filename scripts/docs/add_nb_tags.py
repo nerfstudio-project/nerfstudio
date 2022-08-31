@@ -35,19 +35,30 @@ def main(check: bool = False):
     for ipath in notebooks:
         ntbk = nbf.read(ipath, nbf.NO_CONVERT)
 
-        missing_metadata = False
+        incorrect_metadata = False
         for cell in ntbk.cells:
             cell_tags = cell.get("metadata", {}).get("tags", [])
+            found_keys = []
+            found_tags = []
             for key, val in text_search_dict.items():
-                if key in cell["source"]:
-                    if val not in cell_tags:
-                        missing_metadata = True
-                        cell_tags.append(val)
-            if len(cell_tags) > 0:
-                cell["metadata"]["tags"] = cell_tags
-        if missing_metadata:
+                if key in cell.source:
+                    found_keys.append(key)
+                    found_tags.append(val)
+
+            if len(found_keys) > 1:
+                print_yellow(f"Found multiple tags {found_keys} for {ipath}")
+                sys.exit(1)
+
+            if len(cell_tags) != len(found_tags):
+                incorrect_metadata = True
+            elif len(cell_tags) == 1 and len(found_keys) == 1:
+                if found_tags[0] != cell_tags[0]:
+                    incorrect_metadata = True
+
+            cell["metadata"]["tags"] = found_tags
+        if incorrect_metadata:
             if check:
-                print_yellow(f"{ipath} is missing metadata. Call `python scripts.docs.add_nb_tags.py` to add it.")
+                print_yellow(f"{ipath} has incorrect metadata. Call `python scripts.docs.add_nb_tags.py` to add it.")
                 any_missing = True
             else:
                 print(f"Adding metadata to {ipath}")
