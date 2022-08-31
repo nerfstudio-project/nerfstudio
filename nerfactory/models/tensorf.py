@@ -82,7 +82,9 @@ class TensoRFModel(Model):
     ) -> List[TrainingCallback]:
 
         # the callback that we want to run every X iterations after the training iteration
-        def reinitialize_optimizer(self, training_callback_attributes: TrainingCallbackAttributes, step: int):
+        def reinitialize_optimizer(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
             resolution = self.upsampling_steps.pop(0)
 
             # upsample the position and direction grids
@@ -182,16 +184,16 @@ class TensoRFModel(Model):
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
         image = batch["image"].to(device)
+        assert isinstance(self.field.position_encoding, TensorVMEncoding)
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
         plane_coef = self.field.position_encoding.plane_coef
         line_coef = self.field.position_encoding.line_coef
 
-        feature_loss = self.feature_loss(plane_coef, torch.zeros(plane_coef.size()).to(device)) + self.feature_loss(  # type: ignore
-            line_coef, torch.zeros(line_coef.size()).to(device)  # type: ignore
-        )
+        plane_feature_loss = self.feature_loss(plane_coef, torch.zeros_like(plane_coef))
+        line_feature_loss = self.feature_loss(line_coef, torch.zeros_like(line_coef))
 
-        loss_dict = {"rgb_loss": rgb_loss, "feature_loss": feature_loss}
+        loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 

@@ -41,7 +41,11 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import TrainingCallback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 class NeRFModel(Model):
@@ -70,21 +74,19 @@ class NeRFModel(Model):
         )
 
     def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
+        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
     ) -> List[TrainingCallback]:
         if self.field_coarse is None:
             raise ValueError("populate fields must be called before get_training_callbacks.")
-
-        callbacks = []
-        if self.density_field is not None:
-            callbacks = [
-                TrainingCallback(
-                    update_every_num_iters=self.density_field.update_every_num_iters,
-                    func=self.density_field.update_density_grid,
-                    density_eval_func=self.field_coarse.density_fn,
-                )
-            ]
-        return callbacks  # type: ignore
+        assert self.density_field is not None
+        return [
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                update_every_num_iters=self.density_field.update_every_num_iters,
+                func=self.density_field.update_density_grid,
+                kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
+            )
+        ]
 
     def populate_fields(self):
         """Set the fields."""

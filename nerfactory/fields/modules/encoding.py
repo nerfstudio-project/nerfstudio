@@ -366,6 +366,9 @@ class TensorVMEncoding(Encoding):
         init_scale: Initialization scale. Defaults to 0.1.
     """
 
+    plane_coef: TensorType[3, "num_components", "resolution", "resolution"]
+    line_coef: TensorType[3, "num_components", "resolution", 1]
+
     def __init__(
         self,
         resolution: int = 128,

@@ -32,6 +32,7 @@ from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageData
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.models.modules.ray_generator import RayGenerator
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import IterableWrapper
 
 
@@ -178,7 +179,7 @@ class Dataloader(nn.Module):
         raise NotImplementedError
 
     def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
+        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks to be used during training."""
         return []
