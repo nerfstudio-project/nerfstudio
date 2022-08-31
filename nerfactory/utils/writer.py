@@ -323,8 +323,9 @@ class LocalWriter(Writer):
         self.max_log_size = config.max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
-        self.banner_len = 0 if banner_messages is None else len(banner_messages)
+        self.banner_len = 0 if banner_messages is None else len(banner_messages) + 1
         if banner_messages:
+            self.past_mssgs.extend(["-" * 100])
             self.past_mssgs.extend(banner_messages)
         self.has_printed = False
 
@@ -338,7 +339,8 @@ class LocalWriter(Writer):
         if step > 0:
             if not self.has_printed and self.max_log_size:
                 logging.info(
-                    "Printing max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` to disable line wrapping.",
+                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` \
+                        to disable line wrapping.\x1b[0m",
                     self.max_log_size,
                 )
             latest_map, new_key = self._consolidate_events()
@@ -402,7 +404,7 @@ class LocalWriter(Writer):
 
             for i, mssg in enumerate(self.past_mssgs):
                 pad_len = len(max(self.past_mssgs, key=len))
-                style = "\033[2;30;45m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len else ""
-                print(f"{style}{mssg:{padding}<{pad_len}} \033[0;0m")
+                style = "\x1b[6;30;42m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len + 1 else ""
+                print(f"{style}{mssg:{padding}<{pad_len}} \x1b[0m")
         else:
             print(curr_mssg)
