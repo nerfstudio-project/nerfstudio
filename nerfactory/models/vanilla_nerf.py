@@ -69,7 +69,9 @@ class NeRFModel(Model):
             **kwargs,
         )
 
-    def get_training_callbacks(self) -> List[TrainingCallback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         if self.field_coarse is None:
             raise ValueError("populate fields must be called before get_training_callbacks.")
 

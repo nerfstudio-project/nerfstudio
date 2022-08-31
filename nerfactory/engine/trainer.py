@@ -34,7 +34,11 @@ from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import profiler, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
@@ -122,7 +126,7 @@ class Trainer:
             for step in range(self.start_step, self.start_step + num_iterations):
 
                 # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t0:
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
 
                     # training callbacks before the training iteration
                     for callback in self.callbacks:

@@ -63,7 +63,7 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "--config-name=graph_tensorf.yaml"
+        "tensorf"
       ]
     },
     {

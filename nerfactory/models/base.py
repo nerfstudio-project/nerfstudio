@@ -31,7 +31,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import get_masked_dict, is_not_none
 
 

@@ -26,6 +26,8 @@ from nerfactory.configs.base import (
     NerfWModelConfig,
     OptimizerConfig,
     PipelineConfig,
+    SchedulerConfig,
+    TensoRFModelConfig,
     TrainerConfig,
 )
 from nerfactory.models.mipnerf import MipNerfModel
@@ -101,4 +103,27 @@ base_configs["semantic_nerf"] = Config(
 base_configs["vanilla_nerf"] = Config(
     method_name="vanilla_nerf",
     pipeline=PipelineConfig(dataloader=BlenderDataloaderConfig(), model=ModelConfig(_target=NeRFModel)),
+)
+
+base_configs["tensorf"] = Config(
+    method_name="tensorf",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=PipelineConfig(
+        dataloader=BlenderDataloaderConfig(),
+        model=TensoRFModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": OptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
+        },
+        "position_encoding": {
+            "optimizer": OptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+        },
+        "direction_encoding": {
+            "optimizer": OptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+        },
+    },
 )

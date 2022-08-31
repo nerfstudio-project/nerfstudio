@@ -35,7 +35,7 @@ from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import TrainingCallback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 
 
 class NGPModel(Model):
@@ -51,7 +51,9 @@ class NGPModel(Model):
         self.field = None
         super().__init__(config=config, **kwargs)
 
-    def get_training_callbacks(self) -> List[TrainingCallback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         assert self.density_field is not None
         return [
             TrainingCallback(
