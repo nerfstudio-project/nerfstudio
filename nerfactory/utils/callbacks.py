@@ -18,6 +18,7 @@ Callback code used for training iterations
 
 from dataclasses import InitVar, dataclass
 from enum import Enum, auto
+from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
 
 
@@ -63,7 +64,7 @@ class TrainingCallback:
         kwargs: Optional[Dict] = None,
     ):
         assert (
-            "step" in func.__code__.co_varnames
+            "step" in signature(func).parameters.keys()
         ), f"'step: int' must be an argument in the callback function 'func': {func.__name__}"
         self.where_to_run = where_to_run
         self.update_every_num_iters = update_every_num_iters
