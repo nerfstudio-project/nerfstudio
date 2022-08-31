@@ -9,6 +9,12 @@
 <p align="center"> The all-in-one repo for NeRFs </p>
 
 <p align="center">
+    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
+        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
+    </a>
+    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml'>
+        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml/badge.svg' alt='Viewer build Status' />
+    </a>
     <a href='https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest'>
         <img src='https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest&token=2c5ba6bdd52600523fa8a8513170ae7170fd927a8c9dfbcf7c03af7ede551f96' alt='Documentation Status' />
     </a>
@@ -64,9 +70,6 @@ pip install -r environment/requirements.txt
 # Install nerfactory as a library
 pip install -e .
 
-# Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
-python setup.py develop
-
 # Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
@@ -95,17 +98,33 @@ Download the original [NeRF dataset](https://drive.google.com/drive/folders/128y
 To run with all the defaults, e.g. vanilla nerf method with the blender lego image
 
 ```
+# To see what models are available.
+python scripts/run_train.py --help
+
 # Run a vanilla nerf model.
-python scripts/run_train.py
+python scripts/run_train.py vanilla_nerf
 
 # Run a faster version with instant ngp using tcnn (without the viewer).
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml
-
-# Run with the viewer. However, you'll have to start the viewer server first. (See the docs.)
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
+python scripts/run_train.py instant_ngp
 ```
 
-With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments.
+#### 3.x Training a model with the viewer
+
+Make sure to forward a port for the websocket to localhost. The default port is 7007, which you should be expose to localhost:7007.
+
+```bash
+# with the default port
+python scripts/run_train.py instant_ngp --viewer.enable
+
+# with a specified websocket port
+python scripts/run_train.py instant_ngp --viewer.enable --viewer.websocket-port=7008
+
+# with the viewer bridge server as a separate process
+# in one terminal, start the bridge server:
+viewer-bridge-server # or equivalently, python scripts/run_viewer_bridge_server.py
+# in another terminal, start training:
+python scripts/run_train.py instant_ngp --viewer.enable --viewer.no-launch-bridge-server
+```
 
 #### 4. Visualizing training runs
 
@@ -116,13 +135,6 @@ We support multiple methods to visualize training, the default configuration use
 
 We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/viewer.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
 
-To enable add the following to your config:
-
-```
-viewer:
-  enable: true
-```
-
 </details>
 
 <details>
@@ -130,12 +142,8 @@ viewer:
 
 If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
-```
+```bash
 tensorboard --logdir outputs
-
-# or the following
-export TENSORBOARD_PORT=<port>
-bash environment/run_tensorboard.sh
 ```
 
 </details>
@@ -156,7 +164,7 @@ logging:
 #### 5. Rendering a trajectories during inference
 
 ```
-python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.mp4 --config-name=graph_instant_ngp.yaml --checkpoint-dir=outputs/blender_lego/instant_ngp/2022-07-07_230905/checkpoints
+python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml--traj=spiral --output-path=output.mp4
 ```
 
 #### 6. In-depth guide

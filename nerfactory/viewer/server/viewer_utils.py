@@ -25,7 +25,7 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
-from nerfactory.cameras.cameras import get_camera, get_intrinsics_from_intrinsics_matrix
+from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.image_dataset import ImageDataset
@@ -34,6 +34,7 @@ from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
+from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
 
@@ -188,9 +189,29 @@ class VisualizerState:
         self.config = config
 
         self.vis = None
+        self.viewer_url = None
         if self.config.enable:
-            zmq_url = self.config.zmq_url
-            self.vis = Viewer(zmq_url=zmq_url)
+            if self.config.launch_bridge_server:
+                # start the viewer bridge server
+                zmq_port = int(self.config.zmq_url.split(":")[-1])
+                websocket_port = self.config.websocket_port
+                run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
+                # TODO(ethan): move this into the writer such that it's at the bottom
+                # of the logging stack and easy to see and click
+                # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
+                print("\n")
+                self.viewer_url = (
+                    f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
+                )
+                viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
+                pub_open_viewer_instructions_string = f'[Public] Open the viewer at "{self.viewer_url}"'
+                dev_open_viewer_instructions_string = f'[Local] Open the viewer at "{viewer_url_local}"'
+                print("-" * len(pub_open_viewer_instructions_string))
+                print(pub_open_viewer_instructions_string)
+                print(dev_open_viewer_instructions_string)
+                print("-" * len(pub_open_viewer_instructions_string))
+                print("\n")
+            self.vis = Viewer(zmq_url=self.config.zmq_url)
         else:
             logging.info("Continuing without viewer.")
 
@@ -225,9 +246,9 @@ class VisualizerState:
         image_indices = range(len(image_dataset))
         for idx in image_indices:
             image = image_dataset[idx]["image"]
-            camera = get_camera(dataset_inputs.intrinsics[idx], dataset_inputs.camera_to_world[idx], None)
             bgr = image[..., [2, 1, 0]]
-            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera.to_json(image=bgr, resize_shape=(100, 100)))
+            camera_json = dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
         json_ = dataset_inputs.scene_bounds.to_json()
@@ -451,9 +472,17 @@ class VisualizerState:
             ],
             dim=0,
         )
-        intrinsics = get_intrinsics_from_intrinsics_matrix(intrinsics_matrix)
-        camera = get_camera(intrinsics, camera_to_world)
-        camera_ray_bundle = camera.get_camera_ray_bundle(device=graph.device)
+
+        camera = Cameras(
+            fx=intrinsics_matrix[0, 0],
+            fy=intrinsics_matrix[1, 1],
+            cx=intrinsics_matrix[0, 2],
+            cy=intrinsics_matrix[1, 2],
+            camera_to_worlds=camera_to_world[None, ...],
+        )
+        camera = camera.to(graph.device)
+
+        camera_ray_bundle = camera.generate_rays(camera_indices=0)
         camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
@@ -477,10 +506,3 @@ class VisualizerState:
             stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
             self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
             self._update_viewer_stats(render_duration, image_height)
-
-
-def get_default_vis() -> Viewer:
-    """Returns the default Visualizer."""
-    zmq_url = "tcp://0.0.0.0:6000"
-    viewer = Viewer(zmq_url=zmq_url)
-    return viewer

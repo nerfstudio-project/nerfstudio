@@ -14,11 +14,10 @@
 
 """Base Configs"""
 
-import enum
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import torch
 
@@ -112,6 +111,14 @@ class LocalWriterConfig(InstantiateConfig):
     relative_log_dir: Path = Path("./")
     log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
+    def setup(self, banner_messages: Optional[List[str]] = None, **kwargs) -> Any:
+        """Instantiate local writer
+
+        Args:
+            banner_messages: List of strings that always print at the bottom of screen. Defaults to None.
+        """
+        return self._target(self, banner_messages=banner_messages, **kwargs)
+
 
 @dataclass
 class LoggingConfig(PrintableConfig):
@@ -172,7 +179,7 @@ class BlenderDatasetConfig(InstantiateConfig):
     """Blender dataset config"""
 
     _target: Type = Blender
-    data_directory: str = "data/blender/lego"
+    data_directory: Path = Path("data/blender/lego")
     scale_factor: float = 1.0
     alpha_color: str = "white"
     downscale_factor: int = 1
@@ -191,7 +198,7 @@ class FriendsDatasetConfig(InstantiateConfig):
     """Friends dataset config"""
 
     _target: Type = Friends
-    data_directory: str = "data/friends/TBBT-big_living_room"
+    data_directory: Path = Path("data/friends/TBBT-big_living_room")
 
 
 @dataclass
@@ -208,7 +215,7 @@ class MipNerf360DatasetConfig(InstantiateConfig):
     """Mipnerf 360 dataset config"""
 
     _target: Type = Mipnerf360
-    data_directory: str = "data/mipnerf_360/garden"
+    data_directory: Path = Path("data/mipnerf_360/garden")
 
 
 @dataclass
@@ -252,6 +259,7 @@ class InstantNGPModelConfig(ModelConfig):
     enable_collider: bool = False
     field_implementation: Literal["torch", "tcnn"] = "torch"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
+    num_samples: int = 1024  # instead of course/fine samples
 
 
 @dataclass
@@ -295,6 +303,8 @@ class ViewerConfig(PrintableConfig):
 
     enable: bool = False
     zmq_url: str = "tcp://127.0.0.1:6000"
+    launch_bridge_server: bool = True
+    websocket_port: int = 7007
     min_render_image_height: int = 64
     max_render_image_height: int = 1024
     num_rays_per_chunk: int = 4096
@@ -331,33 +341,6 @@ class SchedulerConfig(InstantiateConfig):
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 
 
-class MethodType(enum.Enum):
-    """Enum for the method type."""
-
-    PSNR = enum.auto()
-    TRAJ = enum.auto()
-
-
-class TrajectoryType(enum.Enum):
-    """Enum for the trajectory type."""
-
-    SPIRAL = enum.auto()
-    INTERP = enum.auto()
-
-
-@dataclass
-class EvalConfig(PrintableConfig):
-    """Boiler plate config for running eval"""
-
-    checkpoint_dir: Optional[Path] = None
-    rendered_output_name: Optional[str] = None
-    method: MethodType = MethodType.PSNR
-    traj: TrajectoryType = TrajectoryType.SPIRAL
-    output_filename: Path = Path("output.json")
-    rendered_resolution_scaling_factor: float = 1.0
-    load_config: Optional[Path] = None  # optionally load config file from training
-
-
 @dataclass
 class Config(PrintableConfig):
     """Full config contents"""
@@ -378,7 +361,6 @@ class Config(PrintableConfig):
         }
     )
     viewer: ViewerConfig = ViewerConfig()
-    eval: Optional[EvalConfig] = None
 
     def __post_init__(self):
         """Convert logging directories to more specific filepaths"""

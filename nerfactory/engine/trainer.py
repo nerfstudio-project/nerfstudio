@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import os
 import typing
 from pathlib import Path
 from typing import Any, Dict, List
@@ -85,14 +84,19 @@ class Trainer:
         self.pipeline: Pipeline
         self.optimizers: Optimizers
         self.start_step = 0
-        # logging variables
-        writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
-        profiler.setup_profiler(config.logging)
         # visualizer variable
+        banner_messages = None
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
+        if config.viewer.enable:
+            banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # training callbacks
         self.callbacks: List[TrainingCallback]
+        # logging variables
+        writer.setup_event_writers(
+            config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
+        )
+        profiler.setup_profiler(config.logging)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
@@ -170,8 +174,8 @@ class Trainer:
         load_dir = self.config.trainer.load_dir
         load_step = self.config.trainer.load_step
         if load_dir is not None and load_step is not None:
-            load_path = os.path.join(load_dir, f"step-{load_step:09d}.ckpt")
-            assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+            load_path = load_dir / f"step-{load_step:09d}.ckpt"
+            assert load_path.exists(), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
             self.start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
