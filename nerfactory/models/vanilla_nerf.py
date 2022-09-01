@@ -85,7 +85,7 @@ class NeRFModel(Model):
                     where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                     update_every_num_iters=self.density_field.update_every_num_iters,
                     func=self.density_field.update_density_grid,
-                    kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
+                    kwargs={"density_eval_func": self.field_coarse.density_fn},  # type: ignore
                 )
             ]
         return callbacks

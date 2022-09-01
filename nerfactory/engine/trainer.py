@@ -138,6 +138,11 @@ class Trainer:
                         )
 
                     loss_metric_dict = self.train_iteration(step)
+
+                    # training callbacks after the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
+
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
