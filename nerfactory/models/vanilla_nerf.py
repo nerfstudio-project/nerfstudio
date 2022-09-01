@@ -78,15 +78,17 @@ class NeRFModel(Model):
     ) -> List[TrainingCallback]:
         if self.field_coarse is None:
             raise ValueError("populate fields must be called before get_training_callbacks.")
-        assert self.density_field is not None
-        return [
-            TrainingCallback(
-                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                update_every_num_iters=self.density_field.update_every_num_iters,
-                func=self.density_field.update_density_grid,
-                kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
-            )
-        ]
+        callbacks = []
+        if self.density_field is not None:
+            callbacks = [
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=self.density_field.update_every_num_iters,
+                    func=self.density_field.update_density_grid,
+                    kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
+                )
+            ]
+        return callbacks
 
     def populate_fields(self):
         """Set the fields."""
