@@ -120,6 +120,9 @@ class Trainer:
 
     def train(self) -> None:
         """Train the model."""
+        assert self.pipeline.dataloader.train_datasetinputs is not None, "Missing DatasetInputs"
+        assert self.pipeline.dataloader.train_image_dataset is not None, "Missing ImageDataset"
+
         self.visualizer_state.init_scene(
             image_dataset=self.pipeline.dataloader.train_image_dataset,
             dataset_inputs=self.pipeline.dataloader.train_datasetinputs,

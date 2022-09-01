@@ -1,14 +1,4 @@
 <p align="center">
-    <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
-    <img alt="nerfactory" src="docs/_static/imgs/logo.png" width="400">
-    </picture>
-</p>
-
-<p align="center"> The all-in-one repo for NeRFs </p>
-
-<p align="center">
     <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
         <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
     </a>
@@ -26,9 +16,27 @@
     <a href="https://badge.fury.io/py/nerfactory"><img src="https://badge.fury.io/py/nerfactory.svg" alt="PyPI version" height="18"></a>
 </p>
 
+<p align="center">
+    <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
+    <img alt="nerfactory" src="docs/_static/imgs/logo.png" width="400">
+    </picture>
+</p>
+
+<p align="center"> The all-in-one repo for NeRFs </p>
+
+<p align="center">
+    <picture>
+    <a herf="http://www.nerfactory.com/"><img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
+    </picture>
+    <picture>
+    <a herf="https://viewer.nerfactory.com/"><img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
+    </picture>
+</p>
+
 - [Quickstart](#quickstart)
 - [Supported Features](#supported-features)
-- [Benchmarked Model Architectures](#benchmarked-model-architectures)
 
 # Quickstart
 
@@ -177,8 +185,6 @@ We provide the following support strucutures to make life easier for getting sta
 
 If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!
 
-#### :metal: Support for [Hydra](https://hydra.cc/) config structure
-
 #### :metal: Support for multiple logging interfaces
 
 #### :metal: Built-in support for profiling code
@@ -186,11 +192,3 @@ If you are looking for a feature that is not currently supported, please do not 
 #### :metal: Benchmarking scripts
 
 #### :metal: Speed up your code with Tiny Cuda NN
-
-# Benchmarked Model Architectures
-
-| Method                                                                            | PSNR                     |
-| --------------------------------------------------------------------------------- | ------------------------ |
-| [NeRF](https://arxiv.org/abs/2003.08934)                                          | :hourglass_flowing_sand: |
-| [instant NGP](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) | :hourglass_flowing_sand: |
-| [Mip NeRF](https://arxiv.org/abs/2103.13415)                                      | :hourglass_flowing_sand: |

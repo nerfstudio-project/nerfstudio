@@ -1,6 +1,6 @@
 # Contributing to nerfactory workflow
 
-The project is set up for development in VSCode, we reccomend using it if you plan to contribute.
+The project is set up for development in VSCode, we recommend using it if you plan to contribute.
 
 ## TLDR
 
@@ -11,7 +11,7 @@ The project is set up for development in VSCode, we reccomend using it if you pl
 | Docs            | Sphinx |
 | Docstring style | Google |
 
-## Commiting
+## Committing
 
 1. Make your modifications
 2. Perform local checks
@@ -57,7 +57,7 @@ Run the following to build the documentation:
 python scripts/docs/build_docs.py
 ```
 
-Rerun `make html` when documentation changes are made, `make clean` is necissary if the documentation structure changes.
+Rerun `make html` when documentation changes are made, `make clean` is necessary if the documentation structure changes.
 
 ### Notebooks
 
@@ -66,7 +66,7 @@ We support jupyter notbooks in our documentation. To improve the readability, th
 | Tag           | Effect                                               |
 | ------------- | ---------------------------------------------------- |
 | # HIDDEN      | Hide code block and output                           |
-| # COLLAPSED   | Collapse the code in a dropdown but show the restuls |
+| # COLLAPSED   | Collapse the code in a dropdown but show the results |
 | # OUTPUT_ONLY | Only show the cell's output                          |
 
 ### Auto build

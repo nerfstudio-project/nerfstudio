@@ -50,6 +50,8 @@ class NGPModel(Model):
         kwargs: additional params to pass up to the parent class model
     """
 
+    config: cfg.InstantNGPModelConfig
+
     def __init__(self, config: cfg.InstantNGPModelConfig, **kwargs) -> None:
         assert config.field_implementation in field_implementation_to_class
         self.field = None

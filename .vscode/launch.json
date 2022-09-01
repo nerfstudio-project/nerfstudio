@@ -57,9 +57,7 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": [
-        "tensorf"
-      ]
+      "args": ["tensorf"]
     },
     {
       "name": "Python: run_train nerfw (gpu)",

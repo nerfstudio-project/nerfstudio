@@ -76,6 +76,7 @@ class Pipeline(nn.Module):
         self.dataloader: Dataloader = config.dataloader.setup(device=device, test_mode=test_mode)
         self.dataloader.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
+        assert self.dataloader.train_datasetinputs is not None, "Missing DatasetInputs"
         self.model: Model = config.model.setup(scene_bounds=self.dataloader.train_datasetinputs.scene_bounds)
         self.model.to(device)
 
@@ -101,7 +102,9 @@ class Pipeline(nn.Module):
         from the dataloader and feed it to the model's forward function"""
         self.eval()
         # NOTE(ethan): next_eval() is not being used right now
+        assert self.dataloader.eval_dataloader is not None
         for camera_ray_bundle, batch in self.dataloader.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
