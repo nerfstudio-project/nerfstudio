@@ -1,5 +1,6 @@
 #datgui {
-  position: absolute;
-  top: 2px;
-  left: 2px;
+  position: fixed;
+  top: 100px;
+  right: 100px;
+  z-index: 1000;
 }

@@ -14,10 +14,13 @@ import { drawCamera, drawSceneBounds } from './drawing';
 
 const msgpack = require('msgpack-lite');
 
+const SCENE_BOUNDS_NAME = 'Scene Bounds';
+const CAMERAS_NAME = "Training Cameras";
+
 // manages setting up the scene and other logic for keeping state in sync with the server
 export default function SetupScene() {
   let scene = null;
-  let gui = null;
+  // let gui = null;
   let sceneTree = null;
 
   // the websocket context
@@ -28,11 +31,11 @@ export default function SetupScene() {
   scene = new THREE.Scene();
 
   // GUI
-  gui = new GUI();
-  gui.domElement.id = 'datgui';
-  const sceneFolder = gui.addFolder('Scene');
-  sceneFolder.open();
-  sceneTree = new SceneNode(scene, sceneFolder);
+  // gui = new GUI({ autoPlace: false });
+  // gui.domElement.id = 'datgui';
+  // const sceneFolder = gui.addFolder('Scene');
+  // sceneFolder.open();
+  sceneTree = new SceneNode(scene);
 
   // add objects to the the scene tree
   const setObject = (path, object) => {
@@ -64,9 +67,9 @@ export default function SetupScene() {
   const fn_value_scene_bounds = (previous, current) => {
     if (current !== null) {
       const line = drawSceneBounds(current);
-      setObject(['Scene Bounds'], line);
+      setObject([SCENE_BOUNDS_NAME], line);
     } else {
-      deleteObject(['Scene Bounds']);
+      deleteObject([SCENE_BOUNDS_NAME]);
     }
   };
   subscribe_to_changes(selector_fn_scene_bounds, fn_value_scene_bounds);
@@ -92,18 +95,18 @@ export default function SetupScene() {
           // keys_valid.push(key);
           const json = current[key];
           const camera = drawCamera(json);
-          setObject(['Cameras', key], camera);
+          setObject([CAMERAS_NAME, key], camera);
         }
       }
       for (const key of prev) {
         // invalid so delete
         if (!curr.has(key) || current[key] === null) {
           // keys_invalid.push(key);
-          deleteObject(['Cameras', key]);
+          deleteObject([CAMERAS_NAME, key]);
         }
       }
     } else {
-      deleteObject(['Cameras']);
+      deleteObject([CAMERAS_NAME]);
     }
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
@@ -123,5 +126,6 @@ export default function SetupScene() {
     });
   }, []); // empty dependency array means only run once
 
-  return scene;
+  // console.log(gui.domElement);
+  return sceneTree;
 }

@@ -1,0 +1,19 @@
+// Your variable overrides
+$sidebar-color: #b71f0b !default;
+$sidebar-width: 100% !default;
+
+@import '~react-pro-sidebar/dist/scss/styles.scss';
+
+.Leva-container > div {
+  top: 300px;
+  right: 100px;
+}
+
+.Scene-container {
+  height: 500px;
+}
+
+.StatusPanel {
+  display: block;
+  // background-color: red;
+}
