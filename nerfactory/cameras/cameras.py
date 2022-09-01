@@ -58,6 +58,8 @@ class Cameras:
         fy: Union[TensorType["num_cameras"], float],
         cx: float,
         cy: float,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
         distortion_params: Optional[TensorType["num_cameras", 6]] = None,
         camera_type: CameraType = CameraType.PERSPECTIVE,
     ):
@@ -75,8 +77,8 @@ class Cameras:
             self.distortion_params = distortion_params.broadcast_to((self._num_cameras, 6))
         else:
             self.distortion_params = None
-        self._image_heights = int(self.cy * 2)
-        self._image_widths = int(self.cx * 2)
+        self._image_heights = int(self.cy * 2) if height is None else height
+        self._image_widths = int(self.cx * 2) if width is None else width
         self.camera_type = camera_type
 
     @property
@@ -114,6 +116,8 @@ class Cameras:
             fy=self.fy.to(device),
             cx=self.cx,
             cy=self.cy,
+            width=self.image_width,
+            height=self.image_height,
             distortion_params=distortion_params,
             camera_type=self.camera_type,
         )
@@ -271,7 +275,9 @@ class Cameras:
         Args:
             scaling_factor: Scaling factor to apply to the output resolution.
         """
-        self.fx *= scaling_factor
-        self.fy *= scaling_factor
-        self.cx *= scaling_factor
-        self.cy *= scaling_factor
+        self.fx = self.fx * scaling_factor
+        self.fy = self.fy * scaling_factor
+        self.cx = self.cx * scaling_factor
+        self.cy = self.cy * scaling_factor
+        self._image_heights = int(self._image_heights * scaling_factor)
+        self._image_widths = int(self._image_widths * scaling_factor)
