@@ -76,9 +76,9 @@ class Model(nn.Module):
         """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
-    def get_training_callbacks(
+    def get_training_callbacks(  # pylint:disable=no-self-use
         self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
-    ) -> List[TrainingCallback]:  # pylint:disable=no-self-use
+    ) -> List[TrainingCallback]:
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
 

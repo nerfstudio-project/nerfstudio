@@ -178,7 +178,7 @@ class Dataloader(nn.Module):
         """
         raise NotImplementedError
 
-    def get_training_callbacks(
+    def get_training_callbacks(  # pylint:disable=no-self-use
         self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks to be used during training."""
