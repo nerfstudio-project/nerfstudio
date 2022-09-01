@@ -129,7 +129,9 @@ base_configs["tensorf"] = Config(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        dataloader=BlenderDataloaderConfig(),
+        dataloader=VanillaDataloaderConfig(
+            train_dataset=BlenderDatasetConfig(),
+        ),
         model=TensoRFModelConfig(),
     ),
     optimizers={
