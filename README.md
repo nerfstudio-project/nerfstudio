@@ -27,12 +27,12 @@
 <p align="center"> The all-in-one repo for NeRFs </p>
 
 <p align="center">
-    <picture>
-    <a herf="http://www.nerfactory.com/"><img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
-    </picture>
-    <picture>
-    <a herf="https://viewer.nerfactory.com/"><img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
-    </picture>
+    <a href="http://www.nerfactory.com/">
+        <img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
+    </a>
+    <a href="https://viewer.nerfactory.com/">
+        <img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
+    </a>
 </p>
 
 - [Quickstart](#quickstart)
