@@ -14,6 +14,8 @@
 
 """Base Configs"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -22,8 +24,14 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.dataloaders.base import Dataloader, VanillaDataloader
-from nerfactory.dataloaders.datasets import Blender, Dataset, Friends, Mipnerf360
+from nerfactory.dataloaders.base import VanillaDataloader
+from nerfactory.dataloaders.datasets import (
+    Blender,
+    Dataset,
+    Friends,
+    InstantNGP,
+    Mipnerf360,
+)
 from nerfactory.models.base import Model
 from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
@@ -160,21 +168,7 @@ class DatasetConfig(InstantiateConfig):
 
 
 @dataclass
-class DataloaderConfig(InstantiateConfig):
-    """Configuration for dataloader instantiation"""
-
-    _target: Type = Dataloader
-    image_dataset_type: str = "rgb"
-    train_dataset: InstantiateConfig = DatasetConfig()
-    train_num_rays_per_batch: int = 1024
-    train_num_images_to_sample_from: int = -1
-    eval_dataset: Optional[InstantiateConfig] = None
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    eval_num_rays_per_chunk: int = 4096
-
-
-@dataclass
-class BlenderDatasetConfig(InstantiateConfig):
+class BlenderDatasetConfig(DatasetConfig):
     """Blender dataset config"""
 
     _target: Type = Blender
@@ -185,15 +179,7 @@ class BlenderDatasetConfig(InstantiateConfig):
 
 
 @dataclass
-class BlenderDataloaderConfig(DataloaderConfig):
-    """Blender dataloader config"""
-
-    _target: Type = VanillaDataloader
-    train_dataset: InstantiateConfig = BlenderDatasetConfig()
-
-
-@dataclass
-class FriendsDatasetConfig(InstantiateConfig):
+class FriendsDatasetConfig(DatasetConfig):
     """Friends dataset config"""
 
     _target: Type = Friends
@@ -201,28 +187,61 @@ class FriendsDatasetConfig(InstantiateConfig):
 
 
 @dataclass
-class FriendsDataloaderConfig(DataloaderConfig):
-    """Friends dataloader config"""
-
-    _target: Type = VanillaDataloader
-    train_dataset: InstantiateConfig = FriendsDatasetConfig()
-    image_dataset_type: str = "panoptic"
-
-
-@dataclass
-class MipNerf360DatasetConfig(InstantiateConfig):
+class MipNerf360DatasetConfig(DatasetConfig):
     """Mipnerf 360 dataset config"""
 
     _target: Type = Mipnerf360
     data_directory: Path = Path("data/mipnerf_360/garden")
+    downscale_factor: int = 1
+    val_skip: int = 8
+    auto_scale: bool = True
+    aabb_scale = 4
 
 
 @dataclass
-class MipNerf360DataloaderConfig(DataloaderConfig):
-    """Mipnerf 360 dataloader config"""
+class Record3DDatasetConfig(DatasetConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = Mipnerf360
+    data_directory: Path = Path("data/record3d/garden")
+    downscale_factor: int = 1
+    val_skip: int = 8
+    aabb_scale = 4.0
+    max_dataset_size: int = 150
+
+
+@dataclass
+class VanillaDataloaderConfig(InstantiateConfig):
+    """Configuration for dataloader instantiation"""
 
     _target: Type = VanillaDataloader
-    train_dataset: InstantiateConfig = MipNerf360DatasetConfig()
+    train_dataset: DatasetConfig = BlenderDatasetConfig()
+    image_dataset_type: str = "rgb"
+    train_num_rays_per_batch: int = 1024
+    train_num_images_to_sample_from: int = -1
+    eval_dataset: Optional[InstantiateConfig] = None
+    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
+    eval_num_rays_per_chunk: int = 4096
+
+
+@dataclass
+class FriendsDataloaderConfig(VanillaDataloaderConfig):
+    """Friends dataloader config"""
+
+    _target: Type = VanillaDataloader
+    train_dataset: DatasetConfig = FriendsDatasetConfig()
+    image_dataset_type: str = "panoptic"
+
+
+@dataclass
+class InstantNGPDatasetConfig(DatasetConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = InstantNGP
+    data_directory: Path = Path("data/ours/posterv2")
+    scale_factor: float = 1.0
+    downscale_factor: int = 1
+    scene_scale: float = 0.33
 
 
 # Model related configs
@@ -280,7 +299,7 @@ class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    dataloader: DataloaderConfig = DataloaderConfig()
+    dataloader: VanillaDataloaderConfig = VanillaDataloaderConfig()
     model: ModelConfig = ModelConfig()
 
 
