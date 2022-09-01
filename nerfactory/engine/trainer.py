@@ -138,6 +138,11 @@ class Trainer:
                         )
 
                     loss_metric_dict = self.train_iteration(step)
+
+                    # training callbacks after the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
+
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
@@ -229,11 +234,6 @@ class Trainer:
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
         self.optimizers.scheduler_step_all(step)
-
-        torch.cuda.empty_cache()
-        # training callbacks after the training iteration
-        for callback in self.callbacks:
-            callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss
