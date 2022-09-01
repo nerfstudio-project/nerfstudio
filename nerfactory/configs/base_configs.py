@@ -19,16 +19,17 @@ Put all the method implementations in one location.
 from typing import Dict
 
 from nerfactory.configs.base import (
-    BlenderDataManagerConfig,
+    BlenderDataParserConfig,
     Config,
     FriendsDataManagerConfig,
     InstantNGPModelConfig,
-    MipNerf360DataManagerConfig,
+    MipNerf360DataParserConfig,
     ModelConfig,
     NerfWModelConfig,
     OptimizerConfig,
     PipelineConfig,
     TrainerConfig,
+    VanillaDataManagerConfig,
 )
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
@@ -40,7 +41,11 @@ base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        dataloader=BlenderDataManagerConfig(train_num_rays_per_batch=8192, eval_num_rays_per_chunk=8192),
+        dataloader=VanillaDataManagerConfig(
+            train_dataset=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=InstantNGPModelConfig(),
     ),
     optimizers={
@@ -56,7 +61,11 @@ base_configs["mipnerf_360"] = Config(
     method_name="mipnerf_360",
     trainer=TrainerConfig(steps_per_test=200),
     pipeline=PipelineConfig(
-        dataloader=MipNerf360DataManagerConfig(),
+        dataloader=VanillaDataManagerConfig(
+            train_dataset=MipNerf360DataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=ModelConfig(
             _target=MipNerf360Model,
             collider_params={"near_plane": 0.5, "far_plane": 20.0},
@@ -70,7 +79,11 @@ base_configs["mipnerf_360"] = Config(
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
-        dataloader=BlenderDataManagerConfig(),
+        dataloader=VanillaDataManagerConfig(
+            train_dataset=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=ModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -102,5 +115,10 @@ base_configs["semantic_nerf"] = Config(
 
 base_configs["vanilla_nerf"] = Config(
     method_name="vanilla_nerf",
-    pipeline=PipelineConfig(dataloader=BlenderDataManagerConfig(), model=ModelConfig(_target=NeRFModel)),
+    pipeline=PipelineConfig(
+        dataloader=VanillaDataManagerConfig(
+            train_dataset=BlenderDataParserConfig(),
+        ),
+        model=ModelConfig(_target=NeRFModel),
+    ),
 )

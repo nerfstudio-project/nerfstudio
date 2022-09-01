@@ -199,11 +199,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     only the constructor is likely to change in the future, or maybe passing in step number to the
     next_train and next_eval functions."""
 
-    config: cfg.DataManagerConfig
+    config: cfg.VanillaDataManagerConfig
 
     def __init__(
         self,
-        config: cfg.DataManagerConfig,
+        config: cfg.VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
         world_size: int = 1,

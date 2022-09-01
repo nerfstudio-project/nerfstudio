@@ -14,6 +14,8 @@
 
 """Base Configs"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -22,8 +24,14 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.dataloaders.base import DataManager, VanillaDataManager
-from nerfactory.dataloaders.data_parsers import Blender, DataParser, Friends, Mipnerf360
+from nerfactory.dataloaders.base import VanillaDataManager
+from nerfactory.dataloaders.data_parsers import (
+    Blender,
+    DataParser,
+    Friends,
+    InstantNGP,
+    Mipnerf360,
+)
 from nerfactory.models.base import Model
 from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
@@ -160,21 +168,7 @@ class DataParserConfig(InstantiateConfig):
 
 
 @dataclass
-class DataManagerConfig(InstantiateConfig):
-    """Configuration for dataloader instantiation"""
-
-    _target: Type = DataManager
-    image_dataset_type: str = "rgb"
-    train_dataset: InstantiateConfig = DataParserConfig()
-    train_num_rays_per_batch: int = 1024
-    train_num_images_to_sample_from: int = -1
-    eval_dataset: Optional[InstantiateConfig] = None
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    eval_num_rays_per_chunk: int = 4096
-
-
-@dataclass
-class BlenderDataParserConfig(InstantiateConfig):
+class BlenderDataParserConfig(DataParserConfig):
     """Blender dataset config"""
 
     _target: Type = Blender
@@ -185,15 +179,7 @@ class BlenderDataParserConfig(InstantiateConfig):
 
 
 @dataclass
-class BlenderDataManagerConfig(DataManagerConfig):
-    """Blender dataloader config"""
-
-    _target: Type = VanillaDataManager
-    train_dataset: InstantiateConfig = BlenderDataParserConfig()
-
-
-@dataclass
-class FriendsDataParserConfig(InstantiateConfig):
+class FriendsDataParserConfig(DataParserConfig):
     """Friends dataset config"""
 
     _target: Type = Friends
@@ -201,28 +187,61 @@ class FriendsDataParserConfig(InstantiateConfig):
 
 
 @dataclass
-class FriendsDataManagerConfig(DataManagerConfig):
-    """Friends dataloader config"""
-
-    _target: Type = VanillaDataManager
-    train_dataset: InstantiateConfig = FriendsDataParserConfig()
-    image_dataset_type: str = "panoptic"
-
-
-@dataclass
-class MipNerf360DataParserConfig(InstantiateConfig):
+class MipNerf360DataParserConfig(DataParserConfig):
     """Mipnerf 360 dataset config"""
 
     _target: Type = Mipnerf360
     data_directory: Path = Path("data/mipnerf_360/garden")
+    downscale_factor: int = 1
+    val_skip: int = 8
+    auto_scale: bool = True
+    aabb_scale = 4
 
 
 @dataclass
-class MipNerf360DataManagerConfig(DataManagerConfig):
-    """Mipnerf 360 dataloader config"""
+class InstantNGPDataParserConfig(DataParserConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = InstantNGP
+    data_directory: Path = Path("data/ours/posterv2")
+    scale_factor: float = 1.0
+    downscale_factor: int = 1
+    scene_scale: float = 0.33
+
+
+@dataclass
+class Record3DDataParserConfig(DataParserConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = Mipnerf360
+    data_directory: Path = Path("data/record3d/garden")
+    downscale_factor: int = 1
+    val_skip: int = 8
+    aabb_scale = 4.0
+    max_dataset_size: int = 150
+
+
+@dataclass
+class VanillaDataManagerConfig(InstantiateConfig):
+    """Configuration for dataloader instantiation"""
 
     _target: Type = VanillaDataManager
-    train_dataset: InstantiateConfig = MipNerf360DataParserConfig()
+    train_dataset: DataParserConfig = BlenderDataParserConfig()
+    image_dataset_type: str = "rgb"
+    train_num_rays_per_batch: int = 1024
+    train_num_images_to_sample_from: int = -1
+    eval_dataset: Optional[InstantiateConfig] = None
+    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
+    eval_num_rays_per_chunk: int = 4096
+
+
+@dataclass
+class FriendsDataManagerConfig(VanillaDataManagerConfig):
+    """Friends dataloader config"""
+
+    _target: Type = VanillaDataManager
+    train_dataset: DataParserConfig = FriendsDataParserConfig()
+    image_dataset_type: str = "panoptic"
 
 
 # Model related configs
@@ -280,7 +299,7 @@ class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    dataloader: DataManagerConfig = DataManagerConfig()
+    dataloader: VanillaDataManagerConfig = VanillaDataManagerConfig()
     model: ModelConfig = ModelConfig()
 
 
