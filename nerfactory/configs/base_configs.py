@@ -22,7 +22,6 @@ from nerfactory.configs.base import (
     BlenderDatasetConfig,
     Config,
     FriendsDataloaderConfig,
-    InstantNGPDatasetConfig,
     InstantNGPModelConfig,
     MipNerf360DatasetConfig,
     ModelConfig,
@@ -43,7 +42,7 @@ base_configs["instant_ngp"] = Config(
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
         dataloader=VanillaDataloaderConfig(
-            train_dataset=InstantNGPDatasetConfig(),
+            train_dataset=BlenderDatasetConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
