@@ -29,11 +29,14 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import profiler, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
@@ -76,8 +79,6 @@ class Trainer:
         if self.device == "cpu":
             self.mixed_precision = False
             logging.warning("Mixed precision is disabled for CPU training.")
-        # dataset variables
-        self.dataset_inputs_train: DatasetInputs
         # model variables
         self.pipeline: Pipeline
         self.optimizers: Optimizers
@@ -89,7 +90,7 @@ class Trainer:
             banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # training callbacks
-        self.callbacks: List[Callback]
+        self.callbacks: List[TrainingCallback]
         # logging variables
         writer.setup_event_writers(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
@@ -113,8 +114,9 @@ class Trainer:
             )
             dist.barrier(device_ids=[self.local_rank])
 
-        # TODO(ethan): do this for pipeline, not pipeline.model
-        self.callbacks = self.pipeline.model.get_training_callbacks()
+        self.callbacks = self.pipeline.get_training_callbacks(
+            TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler, pipeline=self.pipeline)
+        )
 
     def train(self) -> None:
         """Train the model."""
@@ -126,10 +128,17 @@ class Trainer:
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
 
-                # Note: if visualizer used, the rendering of the visualizer will be included in the iteration train time
+                # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
+
+                    # training callbacks before the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(
+                            step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
+                        )
+
                     loss_metric_dict = self.train_iteration(step)
-                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
+                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
                 train_num_rays_per_batch = self.config.pipeline.dataloader.train_num_rays_per_batch
@@ -219,10 +228,7 @@ class Trainer:
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
-
         self.optimizers.scheduler_step_all(step)
-        for callback in self.callbacks:
-            callback.after_step(step)
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss

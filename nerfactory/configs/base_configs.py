@@ -28,6 +28,8 @@ from nerfactory.configs.base import (
     NerfWModelConfig,
     OptimizerConfig,
     PipelineConfig,
+    SchedulerConfig,
+    TensoRFModelConfig,
     TrainerConfig,
     VanillaDataloaderConfig,
 )
@@ -121,4 +123,29 @@ base_configs["vanilla_nerf"] = Config(
         ),
         model=ModelConfig(_target=NeRFModel),
     ),
+)
+
+base_configs["tensorf"] = Config(
+    method_name="tensorf",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=PipelineConfig(
+        dataloader=VanillaDataloaderConfig(
+            train_dataset=BlenderDatasetConfig(),
+        ),
+        model=TensoRFModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": OptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
+        },
+        "position_encoding": {
+            "optimizer": OptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+        },
+        "direction_encoding": {
+            "optimizer": OptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+        },
+    },
 )

@@ -366,13 +366,21 @@ class TensorVMEncoding(Encoding):
         init_scale: Initialization scale. Defaults to 0.1.
     """
 
-    def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
+    plane_coef: TensorType[3, "num_components", "resolution", "resolution"]
+    line_coef: TensorType[3, "num_components", "resolution", 1]
+
+    def __init__(
+        self,
+        resolution: int = 128,
+        num_components: int = 24,
+        init_scale: float = 0.1,
+    ) -> None:
         super().__init__(in_dim=3)
 
         self.resolution = resolution
         self.num_components = num_components
 
-        # TODO Learning rates should be different for these
+        # TODO(terrance): Learning rates should be different for these
         self.plane_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, resolution)))
         self.line_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, 1)))
 
@@ -404,14 +412,12 @@ class TensorVMEncoding(Encoding):
         Args:
             resolution: Target resolution.
         """
-
-        self.plane_coef.data = F.interpolate(
+        plane_coef = F.interpolate(
             self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
         )
-        self.line_coef.data = F.interpolate(
-            self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True
-        )
-
+        line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
+        # TODO(ethan): are these torch.nn.Parameters needed?
+        self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
         self.resolution = resolution
 
 

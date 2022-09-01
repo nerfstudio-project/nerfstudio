@@ -35,7 +35,11 @@ from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 class NGPModel(Model):
@@ -51,13 +55,16 @@ class NGPModel(Model):
         self.field = None
         super().__init__(config=config, **kwargs)
 
-    def get_training_callbacks(self) -> List[Callback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         assert self.density_field is not None
         return [
-            Callback(
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 update_every_num_iters=self.density_field.update_every_num_iters,
                 func=self.density_field.update_density_grid,
-                density_eval_func=self.field.density_fn,  # type: ignore
+                kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
             )
         ]
 
