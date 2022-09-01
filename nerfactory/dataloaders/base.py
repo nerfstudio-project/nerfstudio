@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import nn
@@ -27,10 +27,11 @@ from torch.nn import Parameter
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.eval import FixedIndicesEvalDataloader
+from nerfactory.dataloaders.eval import EvalDataloader, FixedIndicesEvalDataloader
 from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
 from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
+from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import IterableWrapper
@@ -71,19 +72,27 @@ class Dataloader(nn.Module):
         get_eval_iterable: utility that gets a clean pythonic iterator for your eval data
 
     Args:
-        use_train (bool): whether this dataloader is being used for training
-        use_eval (bool): whether this dataloader is being used for evaluation
+        use_train: whether this dataloader is being used for training
+        use_eval: whether this dataloader is being used for evaluation
 
     Attributes:
         use_train (bool): whether or not we are using train
         use_eval (bool): whether or not we are using eval
         train_count (int): the step number of our train iteration, needs to be incremented manually
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
+        train_datasetinputs (DatasetInputs): the inputs for the train dataset
+        eval_datasetinputs (DatasetInputs): the inputs for the eval dataset
+        train_image_dataset (ImageDataset): the image dataset for the train dataset
 
-        Additional attributes specific to each subclass are defined in the setuo_train and setup_eval
+        Additional attributes specific to each subclass are defined in the setup_train and setup_eval
         functions.
 
     """
+
+    train_datasetinputs: Optional[DatasetInputs] = None
+    eval_datasetinputs: Optional[DatasetInputs] = None
+    train_image_dataset: Optional[ImageDataset] = None
+    eval_dataloader: Optional[EvalDataloader] = None
 
     def __init__(self, use_train: bool, use_eval: bool):
         """Constructor for the Dataloader class.
@@ -223,18 +232,21 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         else:
             logging.info("No eval dataset specified so using train dataset for eval.")
             dataset_eval = dataset_train
-        self.config.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
-        self.eval_cameras = self.config.eval_datasetinputs.cameras.to(device)
+        self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
+        self.eval_cameras = self.eval_datasetinputs.cameras.to(device)
         use_train = self.train_datasetinputs is not None
-        use_eval = self.config.eval_datasetinputs is not None
+        use_eval = self.eval_datasetinputs is not None
         super().__init__(use_train, use_eval)
 
     def setup_train(self):
         """Sets up the dataloader for training"""
+        assert self.train_datasetinputs is not None
         if self.config.image_dataset_type == "rgb":
             self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
         elif self.config.image_dataset_type == "panoptic":
             self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
+        else:
+            raise ValueError(f"Unknown image dataset type {self.config.image_dataset_type}")
         self.train_image_sampler = CacheImageSampler(
             self.train_image_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
@@ -246,10 +258,11 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
 
     def setup_eval(self):
         """Sets up the dataloader for evaluation"""
+        assert self.eval_datasetinputs is not None
         if self.config.image_dataset_type == "rgb":
-            self.eval_image_dataset = ImageDataset(**self.config.eval_datasetinputs.as_dict())
+            self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
         elif self.config.image_dataset_type == "panoptic":
-            self.eval_image_dataset = PanopticImageDataset(**self.config.eval_datasetinputs.as_dict())
+            self.eval_image_dataset = PanopticImageDataset(**self.eval_datasetinputs.as_dict())
         self.eval_dataloader = FixedIndicesEvalDataloader(
             image_dataset=self.eval_image_dataset,
             cameras=self.eval_cameras,
@@ -272,5 +285,6 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         """Returns the next batch of data from the eval dataloader.
         The RayBundle should be shaped like an image."""
         self.eval_count += 1
+        assert self.eval_dataloader is not None, "Must setup eval dataloader before calling next_eval"
         camera_ray_bundle, batch = next(self.eval_dataloader)
         return camera_ray_bundle, batch
