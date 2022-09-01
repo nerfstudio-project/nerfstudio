@@ -276,7 +276,7 @@ class InstantNGPModelConfig(ModelConfig):
     _target: Type = NGPModel
     enable_density_field: bool = True
     enable_collider: bool = False
-    field_implementation: Literal["torch", "tcnn"] = "torch"  # torch, tcnn, ...
+    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     num_samples: int = 1024  # instead of course/fine samples
 
