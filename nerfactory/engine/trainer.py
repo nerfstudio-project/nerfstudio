@@ -19,14 +19,11 @@ from __future__ import annotations
 
 import functools
 import logging
-import typing
 from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
-import torch.distributed as dist
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import DatasetInputs
@@ -102,19 +99,18 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = self.config.pipeline.setup(device=self.device, test_mode=test_mode)
+        self.pipeline: Pipeline = self.config.pipeline.setup(
+            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+        )
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 
-        if self.world_size > 1:
-            self.pipeline = typing.cast(
-                Pipeline, typing.cast(Pipeline, DDP(self.pipeline, device_ids=[self.local_rank]))
-            )
-            dist.barrier(device_ids=[self.local_rank])
-
         # TODO(ethan): do this for pipeline, not pipeline.model
-        self.callbacks = self.pipeline.model.get_training_callbacks()
+        if self.world_size > 1:
+            self.callbacks = self.pipeline.model.module.get_training_callbacks()
+        else:
+            self.callbacks = self.pipeline.model.get_training_callbacks()
 
     def train(self) -> None:
         """Train the model."""

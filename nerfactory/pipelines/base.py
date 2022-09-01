@@ -17,14 +17,17 @@ Abstracts for the Pipeline class.
 """
 from __future__ import annotations
 
+import typing
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional
 
+import torch.distributed as dist
 from torch import nn
 from torch.nn import Parameter
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.base import Dataloader
+from nerfactory.dataloaders.base import DataManager
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler
 
@@ -70,18 +73,29 @@ class Pipeline(nn.Module):
         self.model (Model): The model that will be used
     """
 
-    def __init__(self, config: cfg.PipelineConfig, device: str, test_mode: bool = False):
+    def __init__(
+        self, config: cfg.PipelineConfig, device: str, test_mode: bool = False, world_size: int = 1, local_rank: int = 0
+    ):
         super().__init__()
-        self.dataloader: Dataloader = config.dataloader.setup(device=device, test_mode=test_mode)
+        self.dataloader: DataManager = config.dataloader.setup(
+            device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
+        )
         self.dataloader.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         self.model: Model = config.model.setup(scene_bounds=self.dataloader.train_datasetinputs.scene_bounds)
         self.model.to(device)
 
+        self.world_size = world_size
+        if world_size > 1:
+            self.model = typing.cast(
+                Model, typing.cast(Model, DDP(self.model, device_ids=[local_rank], find_unused_parameters=True))
+            )
+            dist.barrier(device_ids=[local_rank])
+
     @property
     def device(self):
         """Returns the device that the model is on."""
-        return self.model.device
+        return self.model.module.device if self.world_size > 1 else self.model.device
 
     @abstractmethod
     @profiler.time_function
@@ -89,6 +103,8 @@ class Pipeline(nn.Module):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the dataloader and interfacing with the
         Model class, feeding the data to the model's forward function."""
+        if self.world_size > 1:
+            self.dataloader.sampler.set_epoch(step)
         ray_bundle, batch = self.dataloader.next_train()
         model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
         return model_outputs, loss_dict, metrics_dict
@@ -102,8 +118,12 @@ class Pipeline(nn.Module):
         # NOTE(ethan): next_eval() is not being used right now
         for camera_ray_bundle, batch in self.dataloader.eval_dataloader:
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
-            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
+            if self.world_size > 1:
+                outputs = self.model.module.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                psnr = self.model.module.log_test_image_outputs(image_idx, step, batch, outputs)
+            else:
+                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
         # TODO(ethan): this function should probably return something?
         self.train()
 
@@ -123,6 +143,9 @@ class Pipeline(nn.Module):
             A list of dictionaries containing the pipeline's param groups.
         """
         dataloader_params = self.dataloader.get_param_groups()
-        model_params = self.model.get_param_groups()
+        if self.world_size > 1:
+            model_params = self.model.module.get_param_groups()
+        else:
+            model_params = self.model.get_param_groups()
         # TODO(ethan): assert that key names don't overlap
         return {**dataloader_params, **model_params}

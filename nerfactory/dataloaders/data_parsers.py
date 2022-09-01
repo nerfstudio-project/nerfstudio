@@ -51,7 +51,7 @@ from nerfactory.utils.misc import get_hash_str_from_dict
 
 
 @dataclass
-class Dataset:
+class DataParser:
     """A dataset."""
 
     @abstractmethod
@@ -125,7 +125,7 @@ class Dataset:
 
 
 @dataclass
-class Blender(Dataset):
+class Blender(DataParser):
     """Blender Dataset
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
 
@@ -136,7 +136,7 @@ class Blender(Dataset):
         downscale_factor: How much to downscale images. Defaults to 1.
     """
 
-    def __init__(self, config: cfg.BlenderDatasetConfig):
+    def __init__(self, config: cfg.BlenderDataParserConfig):
         super().__init__()
         self.config = config
         self.data_directory: Path = config.data_directory
@@ -194,7 +194,7 @@ class Blender(Dataset):
 
 
 @dataclass
-class InstantNGP(Dataset):
+class InstantNGP(DataParser):
     """Instant NGP Dataset
 
     Args:
@@ -278,7 +278,7 @@ class InstantNGP(Dataset):
 
 
 @dataclass
-class Mipnerf360(Dataset):
+class Mipnerf360(DataParser):
     """MipNeRF 360 Dataset
 
     Args:
@@ -404,7 +404,7 @@ class Mipnerf360(Dataset):
 
 
 @dataclass
-class Record3D(Dataset):
+class Record3D(DataParser):
     """Record3D Dataset
 
     Args:
@@ -528,7 +528,7 @@ class Record3D(Dataset):
 
 
 @dataclass
-class Friends(Dataset):
+class Friends(DataParser):
     """Friends Dataset
 
     Args:
