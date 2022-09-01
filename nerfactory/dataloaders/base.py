@@ -196,11 +196,11 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     only the constructor is likely to change in the future, or maybe passing in step number to the
     next_train and next_eval functions."""
 
-    config: cfg.DataloaderConfig
+    config: cfg.VanillaDataloaderConfig
 
     def __init__(
         self,
-        config: cfg.DataloaderConfig,
+        config: cfg.VanillaDataloaderConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
         **kwargs,  # pylint: disable=unused-argument

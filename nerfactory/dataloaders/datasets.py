@@ -27,6 +27,7 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
+from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.colmap_utils import (
@@ -53,6 +54,10 @@ from nerfactory.utils.misc import get_hash_str_from_dict
 @dataclass
 class Dataset:
     """A dataset."""
+
+    def __init__(self, config: cfg.DatasetConfig):
+        super().__init__()
+        self.config = config
 
     @abstractmethod
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
@@ -137,8 +142,7 @@ class Blender(Dataset):
     """
 
     def __init__(self, config: cfg.BlenderDatasetConfig):
-        super().__init__()
-        self.config = config
+        super().__init__(config=config)
         self.data_directory: Path = config.data_directory
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
@@ -175,12 +179,14 @@ class Blender(Dataset):
 
         cameras = Cameras(
             camera_to_worlds=camera_to_world,
-            fx=focal_length / self.downscale_factor,
-            fy=focal_length / self.downscale_factor,
-            cx=cx / self.downscale_factor,
-            cy=cy / self.downscale_factor,
+            fx=focal_length,
+            fy=focal_length,
+            cx=cx,
+            cy=cy,
             camera_type=CameraType.PERSPECTIVE,
         )
+
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
@@ -204,14 +210,11 @@ class InstantNGP(Dataset):
         scene_scale: How much to scale the scene. Defaults to 0.33
     """
 
-    data_directory: Path
-    scale_factor: float = 1.0
-    downscale_factor: int = 1
-    scene_scale: float = 0.33
+    config: cfg.InstantNGPDatasetConfig
 
     def _generate_dataset_inputs(self, split="train"):
 
-        abs_dir = get_absolute_path(self.data_directory)
+        abs_dir = get_absolute_path(self.config.data_directory)
 
         meta = load_from_json(abs_dir / "transforms.json")
         image_filenames = []
@@ -233,20 +236,22 @@ class InstantNGP(Dataset):
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
         poses = np.array(poses).astype(np.float32)
-        poses[:3, 3] *= self.scene_scale
+        poses[:3, 3] *= self.config.scene_scale
 
-        img_0 = imageio.imread(image_filenames[0])
-        image_height, image_width = img_0.shape[:2]
-        camera_angle_x = float(meta["camera_angle_x"])
-        focal_length = 0.5 * image_width / np.tan(0.5 * camera_angle_x)
+        fx = float(meta["fl_x"])
+        fy = float(meta["fl_y"])
+        cx = float(meta["cx"])
+        cy = float(meta["cy"])
+        k1 = float(meta["k1"])
+        k2 = float(meta["k2"])
+        p1 = float(meta["p1"])
+        p2 = float(meta["p2"])
+        image_height = int(meta["h"])
+        image_width = int(meta["w"])
 
-        cx = image_width / 2.0
-        cy = image_height / 2.0
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
-        num_cameras = len(image_filenames)
-        num_intrinsics_params = 3
-        intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
-        intrinsics *= torch.tensor([cx, cy, focal_length])
+
+        distortion_params = camera_utils.get_distortion_params(k1=k1, k2=k2, p1=p1, p2=p2)
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
@@ -258,18 +263,23 @@ class InstantNGP(Dataset):
         )
 
         cameras = Cameras(
-            fx=focal_length / self.downscale_factor,
-            fy=focal_length / self.downscale_factor,
-            cx=cx / self.downscale_factor,
-            cy=cy / self.downscale_factor,
+            fx=fx,
+            fy=fy,
+            cx=cx,
+            cy=cy,
+            distortion_params=distortion_params,
+            height=image_height,
+            width=image_width,
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
+
         # TODO(ethan): add alpha background color
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.downscale_factor,
+            downscale_factor=self.config.downscale_factor,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )
@@ -289,11 +299,7 @@ class Mipnerf360(Dataset):
         aabb_scale: Scene scale, Defaults to 1.0.
     """
 
-    data_directory: Path
-    downscale_factor: int = 1
-    val_skip: int = 8
-    auto_scale: bool = True
-    aabb_scale = 4
+    config: cfg.MipNerf360DatasetConfig
 
     @classmethod
     def normalize_orientation(cls, poses: np.ndarray):
@@ -318,10 +324,10 @@ class Mipnerf360(Dataset):
         return poses_orig
 
     def _generate_dataset_inputs(self, split="train"):
-        abs_dir = get_absolute_path(self.data_directory)
+        abs_dir = get_absolute_path(self.config.data_directory)
         image_dir = "images"
-        if self.downscale_factor > 1:
-            image_dir += f"_{self.downscale_factor}"
+        if self.config.downscale_factor > 1:
+            image_dir += f"_{self.config.downscale_factor}"
         image_dir = abs_dir / image_dir
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
@@ -343,7 +349,7 @@ class Mipnerf360(Dataset):
         if num_images != poses.shape[0]:
             raise RuntimeError(f"Different number of images ({num_images}), and poses ({poses.shape[0]})")
 
-        idx_test = np.arange(num_images)[:: self.val_skip]
+        idx_test = np.arange(num_images)[:: self.config.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
         idx = idx_train if split == "train" else idx_test
 
@@ -354,7 +360,7 @@ class Mipnerf360(Dataset):
         image_height, image_width = img_0.shape[:2]
 
         poses[:, :2, 4] = np.array([image_height, image_width])
-        poses[:, 2, 4] = poses[:, 2, 4] * 1.0 / self.downscale_factor
+        poses[:, 2, 4] = poses[:, 2, 4] * 1.0 / self.config.downscale_factor
 
         # Reorder pose to match our convention
         poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
@@ -363,7 +369,7 @@ class Mipnerf360(Dataset):
         poses = self.normalize_orientation(poses)
 
         # Scale factor used in mipnerf
-        if self.auto_scale:
+        if self.config.auto_scale:
             scale_factor = 1 / (np.min(bounds) * 0.75)
             poses[:, :3, 3] *= scale_factor
             bounds *= scale_factor
@@ -381,17 +387,19 @@ class Mipnerf360(Dataset):
         intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
-        aabb = torch.tensor([[-4, -4, -4], [4, 4, 4]], dtype=torch.float32) * self.aabb_scale
+        aabb = torch.tensor([[-4, -4, -4], [4, 4, 4]], dtype=torch.float32) * self.config.aabb_scale
         scene_bounds = SceneBounds(aabb=aabb)
 
         cameras = Cameras(
-            fx=focal_length / self.downscale_factor,
-            fy=focal_length / self.downscale_factor,
-            cx=cx / self.downscale_factor,
-            cy=cy / self.downscale_factor,
+            fx=focal_length,
+            fy=focal_length,
+            cx=cx,
+            cy=cy,
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
+
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
@@ -416,14 +424,10 @@ class Record3D(Dataset):
             more, images will be sampled approximately evenly. Defaults to 150.
     """
 
-    data_directory: Path
-    downscale_factor: int = 1
-    val_skip: int = 8
-    aabb_scale = 4.0
-    max_dataset_size: int = 150
+    config: cfg.Record3DDatasetConfig
 
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
-        abs_dir = get_absolute_path(self.data_directory)
+        abs_dir = get_absolute_path(self.config.data_directory)
 
         image_dir = abs_dir / "rgb"
 
@@ -448,10 +452,10 @@ class Record3D(Dataset):
             axis=-1,
         ).astype(np.float32)
 
-        if num_images > self.max_dataset_size:
+        if num_images > self.config.max_dataset_size:
             # Evenly select max_dataset_size images from dataset, including first
             # and last indices.
-            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
+            idx = np.round(np.linspace(0, num_images - 1, self.config.max_dataset_size)).astype(int)
             poses = poses[idx]
             image_filenames = image_filenames[idx]
             num_images = len(image_filenames)
@@ -474,7 +478,7 @@ class Record3D(Dataset):
         )
         poses = rotation_matrix @ poses
 
-        idx_test = np.arange(num_images)[:: self.val_skip]
+        idx_test = np.arange(num_images)[:: self.config.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
         idx = idx_train if split == "train" else idx_test
         if num_images != poses.shape[0]:
@@ -504,22 +508,24 @@ class Record3D(Dataset):
         intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
-        # scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.aabb_scale)
-        aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.aabb_scale
+        # scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.config.aabb_scale)
+        aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.config.aabb_scale
         scene_bounds = SceneBounds(aabb=aabb)
 
         cameras = Cameras(
-            fx=focal_length / self.downscale_factor,
-            fy=focal_length / self.downscale_factor,
-            cx=cx / self.downscale_factor,
-            cy=cy / self.downscale_factor,
+            fx=focal_length,
+            fy=focal_length,
+            cx=cx,
+            cy=cy,
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
 
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
+
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.downscale_factor,
+            downscale_factor=self.config.downscale_factor,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )
