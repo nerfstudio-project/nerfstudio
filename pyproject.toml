@@ -8,7 +8,7 @@ version = "0.0.0"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python",
@@ -72,6 +72,9 @@ viewer-bridge-server = "nerfactory.viewer.server.server:run_viewer_bridge_server
 dependency_links = [
     "https://download.pytorch.org/whl/cu113"
 ]
+
+[tool.setuptools.packages.find]
+include = ["nerfactory"]
 
 # black
 [tool.black]
