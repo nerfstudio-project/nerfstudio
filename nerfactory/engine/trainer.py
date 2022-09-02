@@ -83,14 +83,19 @@ class Trainer:
         self.pipeline: Pipeline
         self.optimizers: Optimizers
         self.start_step = 0
-        # logging variables
-        writer.setup_event_writers(config.logging, max_iter=config.trainer.max_num_iterations)
-        profiler.setup_profiler(config.logging)
         # visualizer variable
+        banner_messages = None
         self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
+        if config.viewer.enable:
+            banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # training callbacks
         self.callbacks: List[Callback]
+        # logging variables
+        writer.setup_event_writers(
+            config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
+        )
+        profiler.setup_profiler(config.logging)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.

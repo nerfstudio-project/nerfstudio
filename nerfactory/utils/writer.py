@@ -22,7 +22,7 @@ import logging
 from abc import abstractmethod
 from pathlib import Path
 from time import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 import imageio
 import numpy as np
@@ -137,11 +137,14 @@ def write_out_storage():
 
 
 @check_main_thread
-def setup_event_writers(config: cfg.LoggingConfig, max_iter: int) -> None:
+def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config"""
     for writer_type_config in config.writer:
         if writer_type_config.enable:
-            curr_writer = writer_type_config.setup()
+            if isinstance(writer_type_config, cfg.LocalWriterConfig):
+                curr_writer = writer_type_config.setup(banner_messages=banner_messages)
+            else:
+                curr_writer = writer_type_config.setup()
             EVENT_WRITERS.append(curr_writer)
             logging.info("logging info to: %s", writer_type_config.log_dir)
 
@@ -309,7 +312,7 @@ def _format_time(seconds):
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, config: cfg.LocalWriterConfig):
+    def __init__(self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None):
         """
         Args:
             stats_to_track (ListConfig): the names of stats that should be logged.
@@ -320,6 +323,9 @@ class LocalWriter(Writer):
         self.max_log_size = config.max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
+        self.banner_len = 0 if banner_messages is None else len(banner_messages)
+        if banner_messages:
+            self.past_mssgs.extend(banner_messages)
         self.has_printed = False
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
@@ -330,6 +336,11 @@ class LocalWriter(Writer):
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
         if step > 0:
+            if not self.has_printed and self.max_log_size:
+                logging.info(
+                    "Printing max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` to disable line wrapping.",
+                    self.max_log_size,
+                )
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)
             self._print_stats(latest_map)
@@ -348,7 +359,7 @@ class LocalWriter(Writer):
     def _update_header(self, latest_map, new_key):
         """helper to handle the printing of the header labels"""
         full_log_cond = not self.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
-        capped_log_cond = self.max_log_size and (len(self.past_mssgs) <= 2 or new_key)
+        capped_log_cond = self.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
         if full_log_cond or capped_log_cond:
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
@@ -359,7 +370,7 @@ class LocalWriter(Writer):
             if full_log_cond or not self.has_printed:
                 print(mssg)
                 print("-" * len(mssg))
-                self.has_printed = True
+                # self.has_printed = True
 
     def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format"""
@@ -379,14 +390,19 @@ class LocalWriter(Writer):
 
         # update the history buffer
         if self.max_log_size:
-            cursor_idx = len(self.past_mssgs)
-            if len(self.past_mssgs[2:]) >= self.max_log_size:
+            if not self.has_printed:
+                cursor_idx = len(self.past_mssgs) - self.banner_len
+                self.has_printed = True
+            else:
+                cursor_idx = len(self.past_mssgs)
+            if len(self.past_mssgs[2:]) - self.banner_len >= self.max_log_size:
                 self.past_mssgs.pop(2)
-            self.past_mssgs.append(curr_mssg)
+            self.past_mssgs.insert(len(self.past_mssgs) - self.banner_len, curr_mssg)
             _cursorup(cursor_idx)
 
-            for mssg in self.past_mssgs:
-                pad_len = len(self.past_mssgs[0])
-                print(f"{mssg:{padding}<{pad_len}}")
+            for i, mssg in enumerate(self.past_mssgs):
+                pad_len = len(max(self.past_mssgs, key=len))
+                style = "\033[2;30;45m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len else ""
+                print(f"{style}{mssg:{padding}<{pad_len}} \033[0;0m")
         else:
             print(curr_mssg)

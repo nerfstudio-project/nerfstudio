@@ -1,4 +1,4 @@
-name: Check code for formating and run tests.
+name: Core Tests.
 
 on:
   push:

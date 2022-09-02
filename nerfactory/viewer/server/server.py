@@ -15,6 +15,7 @@
 """Server bridge to faciliate interactions between python backend and javascript front end"""
 
 
+import argparse
 import sys
 from typing import Callable, List, Optional, Tuple
 
@@ -164,31 +165,39 @@ class ZMQWebSocketBridge:
     """ZMQ web socket bridge class
 
     Args:
-        zmq_url: zmq url to connect to. Defaults to None.
+        zmq_port: zmq port to connect to. Defaults to None.
         host: host of server. Defaults to "127.0.0.1".
         websocket_port: websocket port to connect to. Defaults to None.
     """
 
     context = zmq.Context()
 
-    def __init__(self, zmq_url: Optional[str] = None, host: str = "127.0.0.1", websocket_port: Optional[int] = None):
+    def __init__(
+        self,
+        zmq_port: Optional[int] = None,
+        host: str = "127.0.0.1",
+        websocket_address: str = "0.0.0.0",
+        websocket_port: Optional[int] = None,
+    ):
         self.host = host
+        self.websocket_address = websocket_address
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
         self.pcs = set()
         self.video_tracks = set()
 
-        if zmq_url is None:
+        if zmq_port is None:
 
             def f(port):
                 return self.setup_zmq(f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{port:d}")
 
             (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(f, DEFAULT_ZMQ_PORT)
         else:
+            zmq_url = f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{zmq_port:d}"
             self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
-        listen_kwargs = {}
+        listen_kwargs = {"address": self.websocket_address}
 
         if websocket_port is None:
             _, self.websocket_port = find_available_port(self.app.listen, DEFAULT_WEBSOCKET_PORT, **listen_kwargs)
@@ -196,11 +205,12 @@ class ZMQWebSocketBridge:
             self.app.listen(websocket_port, **listen_kwargs)
             self.websocket_port = websocket_port
 
+        self.websocket_url = f"{self.websocket_address}:{self.websocket_port}"
         self.state_tree = get_tree(StateNode)
 
     def __str__(self) -> str:
         class_name = self.__class__.__name__
-        return f"{class_name} using zmq_url={self.zmq_url} and websocket_port={self.websocket_port}"
+        return f'{class_name} using zmq_url="{self.zmq_url}" and websocket_url="{self.websocket_url}"'
 
     def make_app(self):
         """Create a tornado application for the websocket server."""
@@ -273,7 +283,7 @@ class ZMQWebSocketBridge:
         Args:
             websocket: websocket to send information over
         """
-        print("Sending entire scene state on websocket connect (i.e,. a page refresh).")
+        print("Sending entire scene state due to websocket connection established.")
         for path, node in walk("", self.state_tree):
             if node.data is not None:
                 command = {"type": "write", "path": path, "data": node.data}
@@ -284,6 +294,19 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def start_server_as_subprocess(zmq_url=None):
-    """Starts the ZMQWebSocketBridge server as a subprocess."""
-    raise NotImplementedError()
+def run_viewer_bridge_server():
+    """Run the viewer bridge server"""
+    parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
+    parser.add_argument("--zmq-port", "-z", type=int, nargs="?", default=6000)
+    parser.add_argument("--websocket-port", "-wp", type=int, nargs="?", default=7007)
+    args = parser.parse_args()
+    bridge = ZMQWebSocketBridge(zmq_port=args.zmq_port, websocket_port=args.websocket_port)
+    print(bridge)
+    try:
+        bridge.run()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    run_viewer_bridge_server()
