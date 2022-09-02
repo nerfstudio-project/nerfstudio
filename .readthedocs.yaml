@@ -9,7 +9,7 @@ version: 2
 build:
   os: ubuntu-20.04
   tools:
-    python: "3.9"
+    python: '3.9'
     # You can also specify other tool versions:
     # nodejs: "16"
     # rust: "1.55"
@@ -27,7 +27,11 @@ sphinx:
 # Optionally declare the Python requirements required to build your docs
 python:
   install:
-  - requirements: environment/requirements.txt
-  - requirements: docs/requirements.txt
-  - method: pip
-    path: .
+    # Equivalent to 'pip install .'
+    - method: pip
+      path: .
+    # Equivalent to 'pip install .[docs]'
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs

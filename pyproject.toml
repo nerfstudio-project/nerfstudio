@@ -8,17 +8,73 @@ version = "0.0.0"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python",
+]
+dependencies = [
+    "aiohttp==3.8.1",
+    "aiortc==1.3.2",
+    "av==9.2.0",
+    "black[jupyter]==22.3.0",
+    "dcargs>=0.2.6",
+    "ninja==1.10.2.3",
+    "functorch==0.2.1",
+    "h5py>=2.9.0",
+    "hydra-colorlog==1.2.0",
+    "hydra-core==1.2.0",
+    "imageio==2.21.1",
+    "ipywidgets>=7.6",
+    "jupyterlab==3.3.4",
+    "kaleido==0.2.1",
+    "matplotlib==3.5.3",
+    "mediapy==1.1.0",
+    "msgpack==1.0.4",
+    "msgpack_numpy==0.4.8",
+    "numpy-quaternion",
+    "opencv-python==4.6.0.66",
+    "plotly==5.7.0",
+    "protobuf==3.20.0",
+    "pylint==2.13.4",
+    "pytest==7.1.2",
+    "python-socketio==5.7.1",
+    "tensorboard==2.9.0",
+    "torch==1.12.1",
+    "torchmetrics[image]==0.8.2",
+    "torchtyping>=0.1.4",
+    "torchvision>=0.12.0",
+    "tqdm==4.64.0",
+    "u-msgpack-python>=2.4.1",
+    "wandb==0.13.2"
 ]
 
 [project.urls]
 "Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
 
+[project.optional-dependencies]
+docs = [
+    "furo==2022.4.7",
+    "readthedocs-sphinx-search==0.1.2",
+    "myst-nb==0.16.0",
+    "nbformat==5.4.0",
+    "sphinx==4.5.0",
+    "sphinxemoji==0.2.0",
+    "sphinx-copybutton==0.5.0",
+    "sphinx-design==0.2.0"
+]
+
 [project.scripts]
 viewer-bridge-server = "nerfactory.viewer.server.server:run_viewer_bridge_server"
+
+[options]
+# equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
+dependency_links = [
+    "https://download.pytorch.org/whl/cu113"
+]
+
+[tool.setuptools.packages.find]
+include = ["nerfactory"]
 
 # black
 [tool.black]

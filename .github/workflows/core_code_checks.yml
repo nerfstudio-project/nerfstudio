@@ -22,10 +22,10 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ${{ env.pythonLocation }}
-          key: ${{ env.pythonLocation }}-${{ hashFiles('setup.py') }}-${{ hashFiles('dev-requirements.txt') }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
       - name: Install dependencies
         run: |
-          pip install --upgrade --upgrade-strategy eager -r environment/requirements.txt -e .
+          pip install --upgrade --upgrade-strategy eager -e .
       - name: Run license checks
         run: |
           ./scripts/licensing/license_headers.sh --check
