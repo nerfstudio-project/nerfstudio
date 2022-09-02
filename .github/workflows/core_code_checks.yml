@@ -22,7 +22,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ${{ env.pythonLocation }}
-          key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.py') }}
+          key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
       - name: Install dependencies
         run: |
           pip install --upgrade --upgrade-strategy eager -e .
