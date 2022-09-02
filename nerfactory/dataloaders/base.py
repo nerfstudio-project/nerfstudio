@@ -262,13 +262,18 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             raise ValueError(f"Unknown image dataset type {self.config.image_dataset_type}")
 
         if self.world_size > 1:
+            self.sampler = DistributedSampler(
+                self.train_image_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
             self.train_image_dataloader = CacheImageDataloader(
                 self.train_image_dataset,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
                 device=self.device,
                 num_workers=self.world_size * 4,
                 pin_memory=True,
+                sampler=self.sampler,
             )  # TODO(ethan): pass this in
+
         else:
             self.train_image_dataloader = CacheImageDataloader(
                 self.train_image_dataset,
@@ -290,11 +295,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         elif self.config.image_dataset_type == "panoptic":
             self.eval_image_dataset = PanopticImageDataset(**self.eval_datasetinputs.as_dict())
-
-        if self.world_size > 1:
-            self.sampler = DistributedSampler(
-                self.train_image_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
-            )
 
         self.eval_dataloader = FixedIndicesEvalDataloader(
             image_dataset=self.eval_image_dataset,

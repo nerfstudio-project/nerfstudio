@@ -145,7 +145,10 @@ class Pipeline(nn.Module):
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
         data_manager_callbacks = self.data_manager.get_training_callbacks(training_callback_attributes)
-        model_callbacks = self.model.get_training_callbacks(training_callback_attributes)
+        if self.world_size > 1:
+            model_callbacks = self.model.module.get_training_callbacks(training_callback_attributes)
+        else:
+            model_callbacks = self.model.get_training_callbacks(training_callback_attributes)
         callbacks = data_manager_callbacks + model_callbacks
         return callbacks
 
