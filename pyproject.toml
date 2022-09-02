@@ -20,7 +20,7 @@ dependencies = [
     "black[jupyter]==22.3.0",
     "dcargs>=0.2.6",
     "ninja==1.10.2.3",
-    "functorch==0.2.0",
+    "functorch==0.2.1",
     "h5py>=2.9.0",
     "hydra-colorlog==1.2.0",
     "hydra-core==1.2.0",
