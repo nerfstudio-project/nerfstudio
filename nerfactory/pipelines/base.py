@@ -27,7 +27,7 @@ from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.base import DataManager
+from nerfactory.data_managers.base import DataManager
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes

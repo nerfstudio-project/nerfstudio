@@ -24,12 +24,12 @@ def set_reduced_config(config: cfg.Config):
     # switch to using the vanilla ImageDataset class
     config.pipeline.data_manager.image_dataset_type = "rgb"
 
-    config.pipeline.data_manager.train_dataset = cfg.BlenderDataParserConfig(
+    config.pipeline.data_manager.train_data_parser = cfg.BlenderDataParserConfig(
         data_directory=Path("tests/data/lego_test"), downscale_factor=16
     )
     config.pipeline.data_manager.train_num_images_to_sample_from = 1
     config.pipeline.data_manager.train_num_rays_per_batch = 4
-    config.pipeline.data_manager.eval_dataset = cfg.BlenderDataParserConfig(
+    config.pipeline.data_manager.eval_data_parser = cfg.BlenderDataParserConfig(
         data_directory=Path("tests/data/lego_test"), downscale_factor=16
     )
 

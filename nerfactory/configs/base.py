@@ -24,8 +24,8 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.dataloaders.base import VanillaDataManager
-from nerfactory.dataloaders.data_parsers import (
+from nerfactory.data_managers.base import VanillaDataManager
+from nerfactory.data_managers.data_parsers import (
     Blender,
     DataParser,
     Friends,
@@ -227,11 +227,11 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Configuration for data manager instantiation"""
 
     _target: Type = VanillaDataManager
-    train_dataset: DataParserConfig = BlenderDataParserConfig()
+    train_data_parser: DataParserConfig = BlenderDataParserConfig()
     image_dataset_type: str = "rgb"
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
-    eval_dataset: Optional[InstantiateConfig] = None
+    eval_data_parser: Optional[InstantiateConfig] = None
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
@@ -241,7 +241,7 @@ class FriendsDataManagerConfig(VanillaDataManagerConfig):
     """Friends data manager config"""
 
     _target: Type = VanillaDataManager
-    train_dataset: DataParserConfig = FriendsDataParserConfig()
+    train_data_parser: DataParserConfig = FriendsDataParserConfig()
     image_dataset_type: str = "panoptic"
 
 
