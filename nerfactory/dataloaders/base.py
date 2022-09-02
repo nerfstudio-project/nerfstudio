@@ -24,12 +24,16 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from torch import nn
 from torch.nn import Parameter
+from torch.utils.data.distributed import DistributedSampler
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.eval import EvalDataloader, FixedIndicesEvalDataloader
+from nerfactory.dataloaders.image_dataloader import (
+    CacheImageDataloader,
+    EvalDataloader,
+    FixedIndicesEvalDataloader,
+)
 from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
-from nerfactory.dataloaders.image_sampler import CacheImageSampler
 from nerfactory.dataloaders.pixel_sampler import PixelSampler
 from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.models.modules.ray_generator import RayGenerator
@@ -37,17 +41,17 @@ from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttribu
 from nerfactory.utils.misc import IterableWrapper
 
 
-class Dataloader(nn.Module):
-    """Generic dataloader's abstract class
+class DataManager(nn.Module):
+    """Generic data manager's abstract class
 
-    This version of the dataloader is designed be a monolithic way to load data and latents,
+    This version of the data manager is designed be a monolithic way to load data and latents,
     especially since this may contain learnable parameters which need to be shared across the train
-    and test dataloaders. The idea is that we have setup methods for train and eval separately and
+    and test data managers. The idea is that we have setup methods for train and eval separately and
     this can be a combined train/eval if you want.
 
     Usage:
     To get data, use the next_train and next_eval functions.
-    This dataloader's next_train and next_eval methods will return 2 things:
+    This data manager's next_train and next_eval methods will return 2 things:
         1. A Raybundle: This will contain the rays we are sampling, with latents and
             conditionals attached (everything needed at inference)
         2. A "batch" of auxilury information: This will contain the mask, the ground truth
@@ -72,8 +76,8 @@ class Dataloader(nn.Module):
         get_eval_iterable: utility that gets a clean pythonic iterator for your eval data
 
     Args:
-        use_train: whether this dataloader is being used for training
-        use_eval: whether this dataloader is being used for evaluation
+        use_train: whether this data manager is being used for training
+        use_eval: whether this data manager is being used for evaluation
 
     Attributes:
         use_train (bool): whether or not we are using train
@@ -95,9 +99,9 @@ class Dataloader(nn.Module):
     eval_dataloader: Optional[EvalDataloader] = None
 
     def __init__(self, use_train: bool, use_eval: bool):
-        """Constructor for the Dataloader class.
+        """Constructor for the DataManager class.
 
-        Subclassed Dataloaders will likely need to override this constructor.
+        Subclassed DataManagers will likely need to override this constructor.
 
         If you aren't manually calling the setup_train and setup_eval functions from an overriden
         constructor, that you call super().__init__(use_train, use_eval) BEFORE you initialize any
@@ -140,10 +144,10 @@ class Dataloader(nn.Module):
         as __iter__ and __next__ methods respectivley.
 
         This basically is just a little utility if you want to do something like:
-        |    for ray_bundle, batch in dataloader.get_train_iterable():
+        |    for ray_bundle, batch in data_manager.get_train_iterable():
         |        <eval code here>
         since the returned IterableWrapper is just an iterator with the __iter__ and __next__
-        methods (methods bound to our Dataloader instance in this case) specified in the constructor.
+        methods (methods bound to our DataManager instance in this case) specified in the constructor.
         """
         return IterableWrapper(self.iter_train, self.next_train, length)
 
@@ -152,38 +156,38 @@ class Dataloader(nn.Module):
         as __iter__ and __next__ methods respectivley.
 
         This basically is just a little utility if you want to do something like:
-        |    for ray_bundle, batch in dataloader.get_eval_iterable():
+        |    for ray_bundle, batch in data_manager.get_eval_iterable():
         |        <eval code here>
         since the returned IterableWrapper is just an iterator with the __iter__ and __next__
-        methods (methods bound to our Dataloader instance in this case) specified in the constructor.
+        methods (methods bound to our DataManager instance in this case) specified in the constructor.
         """
         return IterableWrapper(self.iter_eval, self.next_eval, length)
 
     @abstractmethod
     def setup_train(self):
-        """Sets up the dataloader for training.
+        """Sets up the data manager for training.
 
         Here you will define any subclass specific object attributes from the attribute"""
         raise NotImplementedError
 
     @abstractmethod
     def setup_eval(self):
-        """Sets up the dataloader for evaluation"""
+        """Sets up the data manager for evaluation"""
         raise NotImplementedError
 
     @abstractmethod
     def next_train(self) -> Tuple:
-        """Returns the next batch of data from the train dataloader.
+        """Returns the next batch of data from the train data manager.
 
-        This will be a tuple of all the information that this dataloader outputs.
+        This will be a tuple of all the information that this data manager outputs.
         """
         raise NotImplementedError
 
     @abstractmethod
     def next_eval(self) -> Tuple:
-        """Returns the next batch of data from the eval dataloader.
+        """Returns the next batch of data from the eval data manager.
 
-        This will be a tuple of all the information that this dataloader outputs.
+        This will be a tuple of all the information that this data manager outputs.
         """
         raise NotImplementedError
 
@@ -195,16 +199,16 @@ class Dataloader(nn.Module):
 
     @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
-        """Get the param groups for the dataloader.
+        """Get the param groups for the data manager.
 
         Returns:
-            A list of dictionaries containing the dataloader's param groups.
+            A list of dictionaries containing the data manager's param groups.
         """
         return {}
 
 
-class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
-    """Basic stored dataloader implementation.
+class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
+    """Basic stored data manager implementation.
 
     This is pretty much a port over from our old dataloading utilities, and is a little jank
     under the hood. We may clean this up a little bit under the hood with more standard dataloading
@@ -212,17 +216,22 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
     only the constructor is likely to change in the future, or maybe passing in step number to the
     next_train and next_eval functions."""
 
-    config: cfg.VanillaDataloaderConfig
+    config: cfg.VanillaDataManagerConfig
 
     def __init__(
         self,
-        config: cfg.VanillaDataloaderConfig,
+        config: cfg.VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
+        world_size: int = 1,
+        local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument
     ):
         self.config = config
         self.device = device
+        self.world_size = world_size
+        self.local_rank = local_rank
+        self.sampler = None
 
         dataset_train = config.train_dataset.setup()
         self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
@@ -239,43 +248,68 @@ class VanillaDataloader(Dataloader):  # pylint: disable=abstract-method
         super().__init__(use_train, use_eval)
 
     def setup_train(self):
-        """Sets up the dataloader for training"""
+        """Sets up the data manager for training"""
         assert self.train_datasetinputs is not None
         if self.config.image_dataset_type == "rgb":
-            self.train_image_dataset = ImageDataset(**self.train_datasetinputs.as_dict())
+            self.train_image_dataset = ImageDataset(
+                image_filenames=self.train_datasetinputs.image_filenames,
+                downscale_factor=self.train_datasetinputs.downscale_factor,
+                alpha_color=self.train_datasetinputs.alpha_color,
+            )
         elif self.config.image_dataset_type == "panoptic":
             self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
         else:
             raise ValueError(f"Unknown image dataset type {self.config.image_dataset_type}")
-        self.train_image_sampler = CacheImageSampler(
-            self.train_image_dataset,
-            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-            device=self.device,
-        )  # TODO(ethan): pass this in
-        self.iter_train_image_sampler = iter(self.train_image_sampler)
+
+        if self.world_size > 1:
+            self.train_image_dataloader = CacheImageDataloader(
+                self.train_image_dataset,
+                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+            )  # TODO(ethan): pass this in
+        else:
+            self.train_image_dataloader = CacheImageDataloader(
+                self.train_image_dataset,
+                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                device=self.device,
+            )
+        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_ray_generator = RayGenerator(self.train_cameras)
 
     def setup_eval(self):
-        """Sets up the dataloader for evaluation"""
+        """Sets up the data manager for evaluation"""
         assert self.eval_datasetinputs is not None
         if self.config.image_dataset_type == "rgb":
-            self.eval_image_dataset = ImageDataset(**self.eval_datasetinputs.as_dict())
+            self.eval_image_dataset = ImageDataset(
+                image_filenames=self.eval_datasetinputs.image_filenames,
+                downscale_factor=self.eval_datasetinputs.downscale_factor,
+                alpha_color=self.eval_datasetinputs.alpha_color,
+            )
         elif self.config.image_dataset_type == "panoptic":
             self.eval_image_dataset = PanopticImageDataset(**self.eval_datasetinputs.as_dict())
+
+        if self.world_size > 1:
+            self.sampler = DistributedSampler(
+                self.train_image_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+
         self.eval_dataloader = FixedIndicesEvalDataloader(
             image_dataset=self.eval_image_dataset,
             cameras=self.eval_cameras,
             num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
             image_indices=self.config.eval_image_indices,
             device=self.device,
+            num_workers=0 if self.world_size == 1 else self.world_size * 4,
         )
 
     def next_train(self) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader.
         The RayBundle can be shaped in whatever way."""
         self.train_count += 1
-        image_batch = next(self.iter_train_image_sampler)
+        image_batch = next(self.iter_train_image_dataloader)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)

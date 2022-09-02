@@ -164,7 +164,6 @@ def launch(
                 config,
                 timeout,
             ),
-            join=False,
         )
         assert process_context is not None
         try:

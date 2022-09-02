@@ -19,14 +19,11 @@ from __future__ import annotations
 
 import functools
 import logging
-import typing
 from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
-import torch.distributed as dist
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
@@ -103,29 +100,26 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = self.config.pipeline.setup(device=self.device, test_mode=test_mode)
+        self.pipeline: Pipeline = self.config.pipeline.setup(
+            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+        )
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 
-        if self.world_size > 1:
-            self.pipeline = typing.cast(
-                Pipeline, typing.cast(Pipeline, DDP(self.pipeline, device_ids=[self.local_rank]))
-            )
-            dist.barrier(device_ids=[self.local_rank])
-
+        # TODO(ethan): do this for pipeline, not pipeline.model
         self.callbacks = self.pipeline.get_training_callbacks(
             TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler, pipeline=self.pipeline)
         )
 
     def train(self) -> None:
         """Train the model."""
-        assert self.pipeline.dataloader.train_datasetinputs is not None, "Missing DatasetInputs"
-        assert self.pipeline.dataloader.train_image_dataset is not None, "Missing ImageDataset"
+        assert self.pipeline.data_manager.train_datasetinputs is not None, "Missing DatasetInputs"
+        assert self.pipeline.data_manager.train_image_dataset is not None, "Missing ImageDataset"
 
         self.visualizer_state.init_scene(
-            image_dataset=self.pipeline.dataloader.train_image_dataset,
-            dataset_inputs=self.pipeline.dataloader.train_datasetinputs,
+            image_dataset=self.pipeline.data_manager.train_image_dataset,
+            dataset_inputs=self.pipeline.data_manager.train_datasetinputs,
         )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
@@ -149,7 +143,7 @@ class Trainer:
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
-                train_num_rays_per_batch = self.config.pipeline.dataloader.train_num_rays_per_batch
+                train_num_rays_per_batch = self.config.pipeline.data_manager.train_num_rays_per_batch
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:

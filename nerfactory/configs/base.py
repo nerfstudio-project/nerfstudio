@@ -24,10 +24,10 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.dataloaders.base import VanillaDataloader
-from nerfactory.dataloaders.datasets import (
+from nerfactory.dataloaders.base import VanillaDataManager
+from nerfactory.dataloaders.data_parsers import (
     Blender,
-    Dataset,
+    DataParser,
     Friends,
     InstantNGP,
     Mipnerf360,
@@ -162,14 +162,14 @@ class TrainerConfig(PrintableConfig):
 
 # Dataset related configs
 @dataclass
-class DatasetConfig(InstantiateConfig):
+class DataParserConfig(InstantiateConfig):
     """Basic dataset config"""
 
-    _target: Type = Dataset
+    _target: Type = DataParser
 
 
 @dataclass
-class BlenderDatasetConfig(DatasetConfig):
+class BlenderDataParserConfig(DataParserConfig):
     """Blender dataset config"""
 
     _target: Type = Blender
@@ -180,7 +180,7 @@ class BlenderDatasetConfig(DatasetConfig):
 
 
 @dataclass
-class FriendsDatasetConfig(DatasetConfig):
+class FriendsDataParserConfig(DataParserConfig):
     """Friends dataset config"""
 
     _target: Type = Friends
@@ -188,7 +188,7 @@ class FriendsDatasetConfig(DatasetConfig):
 
 
 @dataclass
-class MipNerf360DatasetConfig(DatasetConfig):
+class MipNerf360DataParserConfig(DataParserConfig):
     """Mipnerf 360 dataset config"""
 
     _target: Type = Mipnerf360
@@ -200,7 +200,18 @@ class MipNerf360DatasetConfig(DatasetConfig):
 
 
 @dataclass
-class Record3DDatasetConfig(DatasetConfig):
+class InstantNGPDataParserConfig(DataParserConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = InstantNGP
+    data_directory: Path = Path("data/ours/posterv2")
+    scale_factor: float = 1.0
+    downscale_factor: int = 1
+    scene_scale: float = 0.33
+
+
+@dataclass
+class Record3DDataParserConfig(DataParserConfig):
     """Mipnerf 360 dataset config"""
 
     _target: Type = Mipnerf360
@@ -212,11 +223,11 @@ class Record3DDatasetConfig(DatasetConfig):
 
 
 @dataclass
-class VanillaDataloaderConfig(InstantiateConfig):
-    """Configuration for dataloader instantiation"""
+class VanillaDataManagerConfig(InstantiateConfig):
+    """Configuration for data manager instantiation"""
 
-    _target: Type = VanillaDataloader
-    train_dataset: DatasetConfig = BlenderDatasetConfig()
+    _target: Type = VanillaDataManager
+    train_dataset: DataParserConfig = BlenderDataParserConfig()
     image_dataset_type: str = "rgb"
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
@@ -226,23 +237,12 @@ class VanillaDataloaderConfig(InstantiateConfig):
 
 
 @dataclass
-class FriendsDataloaderConfig(VanillaDataloaderConfig):
-    """Friends dataloader config"""
+class FriendsDataManagerConfig(VanillaDataManagerConfig):
+    """Friends data manager config"""
 
-    _target: Type = VanillaDataloader
-    train_dataset: DatasetConfig = FriendsDatasetConfig()
+    _target: Type = VanillaDataManager
+    train_dataset: DataParserConfig = FriendsDataParserConfig()
     image_dataset_type: str = "panoptic"
-
-
-@dataclass
-class InstantNGPDatasetConfig(DatasetConfig):
-    """Mipnerf 360 dataset config"""
-
-    _target: Type = InstantNGP
-    data_directory: Path = Path("data/ours/posterv2")
-    scale_factor: float = 1.0
-    downscale_factor: int = 1
-    scene_scale: float = 0.33
 
 
 # Model related configs
@@ -311,7 +311,7 @@ class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    dataloader: VanillaDataloaderConfig = VanillaDataloaderConfig()
+    data_manager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     model: ModelConfig = ModelConfig()
 
 

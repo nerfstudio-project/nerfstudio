@@ -144,6 +144,7 @@ class Model(nn.Module):
 
         This outputs different things depending on the configuration of the model and whether or not
         the batch is provided (whether or not we are training basically)."""
+
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
