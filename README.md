@@ -57,11 +57,8 @@ conda activate nerfactory
 # Clone the repo
 git clone git@github.com:plenoptix/nerfactory.git
 
-# Install dependencies
+# Install dependencies and nerfactory as a library
 cd nerfactory
-pip install -r requirements.txt
-
-# Install nerfactory as a library
 pip install -e .
 
 # Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then

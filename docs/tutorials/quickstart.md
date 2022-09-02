@@ -31,14 +31,7 @@ Clone the repo
 git clone git@github.com:plenoptix/nerfactory.git
 ```
 
-Install dependencies
-
-```bash
-cd nerfactory
-pip install -r requirements.txt
-```
-
-Install nerfactory as a library
+Install dependencies and nerfactory as a library
 
 ```bash
 pip install -e .

@@ -40,7 +40,7 @@ In order to merge changes to the code base, all of these checks must be passing.
 To install the required packages:
 
 ```bash
-pip install -r docs/requirements.txt
+pip install -e .[docs]
 ```
 
 You may also need to install [pandoc](https://pandoc.org/). If you are using `conda` you can run the following:
