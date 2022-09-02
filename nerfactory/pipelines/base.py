@@ -42,9 +42,9 @@ class Pipeline(nn.Module):
     class should be 1:1 with a pipeline that can act as a standardized interface and hide
     differences in how each model takes in and outputs data.
 
-    This class's function is to hide the dataloader and model classes from the trainer,
+    This class's function is to hide the data manager and model classes from the trainer,
     worrying about:
-    1) Fetching data with the dataloader
+    1) Fetching data with the data manager
     2) Feeding the model the data and fetching the loss
     Hopefully this provides a higher level interface for the trainer to use, and
     simplifying the model classes, which each may have different forward() methods
@@ -53,23 +53,23 @@ class Pipeline(nn.Module):
 
     TODO: For visualizer functionality to be added down the line, we should make sure
     that we are still abstracting away the Model from the end user. The visualizer function
-    should probably be done by adding a new iterator on the base dataloader that will
+    should probably be done by adding a new iterator on the base data manager that will
     talk to the actual visualizer. This is probably ideal to have the visualizer be
-    primarily located in the dataloader (first because it makes sense as the
+    primarily located in the data manager (first because it makes sense as the
     visualizers main job in this context is to feed in data for the model to load)
     so that we can have an easier time ensuring that the visualizer is always
     returning the same formatted data as for in train / eval. All this is pending changes to
-    be done in the future... but just bear in mind that if learned parameters are in the dataloader,
+    be done in the future... but just bear in mind that if learned parameters are in the data manager,
     the visualizer may have to use those parameters as well.
 
 
     Args:
         model: The model to be used in the pipeline.
-        dataloader: The dataloader to be used in the pipeline.
+        data_manager: The data_manager to be used in the pipeline.
         loss_coefficients: A dictionary of loss coefficients that will be used
 
     Attributes:
-        self.dataloader (Dataloader): The dataloader that will be used
+        self.data_manager (DataManager): The data manager that will be used
         self.model (Model): The model that will be used
     """
 
@@ -77,12 +77,12 @@ class Pipeline(nn.Module):
         self, config: cfg.PipelineConfig, device: str, test_mode: bool = False, world_size: int = 1, local_rank: int = 0
     ):
         super().__init__()
-        self.dataloader: DataManager = config.dataloader.setup(
+        self.data_manager: DataManager = config.data_manager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        self.dataloader.to(device)
+        self.data_manager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
-        self.model: Model = config.model.setup(scene_bounds=self.dataloader.train_datasetinputs.scene_bounds)
+        self.model: Model = config.model.setup(scene_bounds=self.data_manager.train_datasetinputs.scene_bounds)
         self.model.to(device)
 
         self.world_size = world_size
@@ -101,11 +101,11 @@ class Pipeline(nn.Module):
     @profiler.time_function
     def get_train_loss_dict(self, step: Optional[int] = None):
         """This function gets your training loss dict. This will be responsible for
-        getting the next batch of data from the dataloader and interfacing with the
+        getting the next batch of data from the DataManager and interfacing with the
         Model class, feeding the data to the model's forward function."""
         if self.world_size > 1:
-            self.dataloader.sampler.set_epoch(step)
-        ray_bundle, batch = self.dataloader.next_train()
+            self.data_manager.sampler.set_epoch(step)
+        ray_bundle, batch = self.data_manager.next_train()
         model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
         return model_outputs, loss_dict, metrics_dict
 
@@ -113,10 +113,10 @@ class Pipeline(nn.Module):
     @profiler.time_function
     def get_eval_loss_dict(self, step: Optional[int] = None):
         """This function gets your evaluation loss dict. It needs to get the data
-        from the dataloader and feed it to the model's forward function"""
+        from the DataManager and feed it to the model's forward function"""
         self.eval()
         # NOTE(ethan): next_eval() is not being used right now
-        for camera_ray_bundle, batch in self.dataloader.eval_dataloader:
+        for camera_ray_bundle, batch in self.data_manager.eval_dataloader:
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             if self.world_size > 1:
                 outputs = self.model.module.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
@@ -142,10 +142,10 @@ class Pipeline(nn.Module):
         Returns:
             A list of dictionaries containing the pipeline's param groups.
         """
-        dataloader_params = self.dataloader.get_param_groups()
+        data_manager_params = self.data_manager.get_param_groups()
         if self.world_size > 1:
             model_params = self.model.module.get_param_groups()
         else:
             model_params = self.model.get_param_groups()
         # TODO(ethan): assert that key names don't overlap
-        return {**dataloader_params, **model_params}
+        return {**data_manager_params, **model_params}

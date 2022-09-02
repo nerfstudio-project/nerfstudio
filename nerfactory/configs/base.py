@@ -223,7 +223,7 @@ class Record3DDataParserConfig(DataParserConfig):
 
 @dataclass
 class VanillaDataManagerConfig(InstantiateConfig):
-    """Configuration for dataloader instantiation"""
+    """Configuration for data manager instantiation"""
 
     _target: Type = VanillaDataManager
     train_dataset: DataParserConfig = BlenderDataParserConfig()
@@ -237,7 +237,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
 
 @dataclass
 class FriendsDataManagerConfig(VanillaDataManagerConfig):
-    """Friends dataloader config"""
+    """Friends data manager config"""
 
     _target: Type = VanillaDataManager
     train_dataset: DataParserConfig = FriendsDataParserConfig()
@@ -299,7 +299,7 @@ class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    dataloader: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    data_manager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     model: ModelConfig = ModelConfig()
 
 

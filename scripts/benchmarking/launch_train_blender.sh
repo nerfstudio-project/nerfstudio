@@ -55,7 +55,7 @@ for dataset in ${DATASETS[@]}; do
     python scripts/run_train.py \
            ${config_name} \
            --logging.writer.2.no-enable \
-           --pipeline.dataloader.train-dataset.data-directory=data/blender/${dataset} \
+           --pipeline.data_manager.train-dataset.data-directory=data/blender/${dataset} \
            --experiment-name=blender_${dataset}_${tag} \
            --trainer.model-dir=nerfactory_models/ \
            --trainer.steps-per-save=16000 \

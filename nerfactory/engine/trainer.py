@@ -115,8 +115,8 @@ class Trainer:
     def train(self) -> None:
         """Train the model."""
         self.visualizer_state.init_scene(
-            image_dataset=self.pipeline.dataloader.train_image_dataset,
-            dataset_inputs=self.pipeline.dataloader.train_datasetinputs,
+            image_dataset=self.pipeline.data_manager.train_image_dataset,
+            dataset_inputs=self.pipeline.data_manager.train_datasetinputs,
         )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
@@ -128,7 +128,7 @@ class Trainer:
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
 
-                train_num_rays_per_batch = self.config.pipeline.dataloader.train_num_rays_per_batch
+                train_num_rays_per_batch = self.config.pipeline.data_manager.train_num_rays_per_batch
                 writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:

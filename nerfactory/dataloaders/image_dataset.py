@@ -39,7 +39,6 @@ class ImageDataset(Dataset):
         image_filenames: List[Path],
         downscale_factor: int = 1,
         alpha_color: Optional[TensorType[3]] = None,
-        **kwargs,
     ):
         """_summary_
 
@@ -53,7 +52,6 @@ class ImageDataset(Dataset):
         self.image_filenames = image_filenames
         self.downscale_factor = downscale_factor
         self.alpha_color = alpha_color
-        self.kwargs = kwargs
 
     def __len__(self):
         return len(self.image_filenames)
