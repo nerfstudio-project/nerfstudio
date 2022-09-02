@@ -30,6 +30,7 @@ from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.base import DataManager
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 
 
 class Pipeline(nn.Module):
@@ -82,6 +83,7 @@ class Pipeline(nn.Module):
         )
         self.data_manager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
+        assert self.data_manager.train_datasetinputs is not None, "Missing DatasetInputs"
         self.model: Model = config.model.setup(scene_bounds=self.data_manager.train_datasetinputs.scene_bounds)
         self.model.to(device)
 
@@ -116,7 +118,9 @@ class Pipeline(nn.Module):
         from the DataManager and feed it to the model's forward function"""
         self.eval()
         # NOTE(ethan): next_eval() is not being used right now
+        assert self.data_manager.eval_dataloader is not None
         for camera_ray_bundle, batch in self.data_manager.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             if self.world_size > 1:
                 outputs = self.model.module.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
@@ -135,6 +139,15 @@ class Pipeline(nn.Module):
         """Load the checkpoint from the given path"""
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         self.load_state_dict(state)  # type: ignore
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        """Returns the training callbacks from both the Dataloader and the Model."""
+        data_manager_callbacks = self.data_manager.get_training_callbacks(training_callback_attributes)
+        model_callbacks = self.model.get_training_callbacks(training_callback_attributes)
+        callbacks = data_manager_callbacks + model_callbacks
+        return callbacks
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Get the param groups for the pipeline.

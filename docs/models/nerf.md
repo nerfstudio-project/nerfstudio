@@ -18,7 +18,7 @@ python scripts/run_train.py --config-name=graph_vanilla_nerf.yaml
 
 ### Overview
 
-If you have arrived to this site, it is likely that you have atleast heard of NeRFs. This page will discuss the original NeRF paper, _"NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"_ by Mildenhall, Srinivasan, Tancik et al. (2020). For most tasks, using the original NeRF model is likely not a good choice and hence we provide implementations of various other NeRF related models. It is however useful to understand how NeRF's work as most follow ups follow a similar structure.
+If you have arrived to this site, it is likely that you have at least heard of NeRFs. This page will discuss the original NeRF paper, _"NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis"_ by Mildenhall, Srinivasan, Tancik et al. (2020). For most tasks, using the original NeRF model is likely not a good choice and hence we provide implementations of various other NeRF related models. It is however useful to understand how NeRF's work as most follow ups follow a similar structure.
 
 The goal is to optimize a volumetric representation of a scene that can be rendered from novel viewpoints. This representation is optimized from a set of images and associated camera poses.
 
@@ -42,7 +42,7 @@ If any of the following assumptions are broken, the reconstructions may fail com
 :class: only-dark
 ```
 
-Here is an overview pipeline for NeRF, we will walk though each component in this guide.
+Here is an overview pipeline for NeRF, we will walk through each component in this guide.
 
 ### Field Representation
 
@@ -81,7 +81,7 @@ field_fine = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
 
 #### Positional Encoding
 
-An extra trick is necessary to making the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../model_components/visualize_encoders.ipynb).
+An extra trick is necessary to make the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../model_components/visualize_encoders.ipynb).
 
 ```python
 from nerfactory.fields.modules.encoding import NeRFEncoding
@@ -137,7 +137,7 @@ rgb = renderer_rgb(
 :class: only-dark
 ```
 
-How we sample points along rays in space is an important design decision. Various sampling strategies can be used which are dicussed in detail in the [Ray Samplers](../model_components/visualize_samplers.ipynb) guide. In NeRF we take advantage of a hierarchical sampling scheme that first uses a _uniform sampler_ and is followed by a _PDF sampler_. The uniform sampler distributes samples evenly between a predefined distance range from the camera. These are then used to compute an initial render of the scene. The renderer optionally produces _weights_ for each sample that correlate with how important each sample was to the final renderer. The PDF sampler uses these _weights_ to generate a new set of samples that are biased to regions of higher weight. In practice, these regions are near the surface of the object.
+How we sample points along rays in space is an important design decision. Various sampling strategies can be used which are discussed in detail in the [Ray Samplers](../model_components/visualize_samplers.ipynb) guide. In NeRF we take advantage of a hierarchical sampling scheme that first uses a _uniform sampler_ and is followed by a _PDF sampler_. The uniform sampler distributes samples evenly between a predefined distance range from the camera. These are then used to compute an initial render of the scene. The renderer optionally produces _weights_ for each sample that correlate with how important each sample was to the final renderer. The PDF sampler uses these _weights_ to generate a new set of samples that are biased to regions of higher weight. In practice, these regions are near the surface of the object.
 
 Associated code:
 
@@ -153,9 +153,8 @@ weights_coarse = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadN
 ray_samples_pdf = sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
 ```
 
-
 ```{warning}
-Described above is specific to scenes that have known bounds (ie. the Blender Sythetic dataset). For unbounded scenes, the original NeRF paper uses Normalized Device Coordinates (NDC) to warp space, along with a _linear in disparity_ sampler. We do not support NDC, for unbounded scenes consider using [Spatial Distortions](../model_components/visualize_spatial_distortions.ipynb).
+Described above is specific to scenes that have known bounds (ie. the Blender Synthetic dataset). For unbounded scenes, the original NeRF paper uses Normalized Device Coordinates (NDC) to warp space, along with a _linear in disparity_ sampler. We do not support NDC, for unbounded scenes consider using [Spatial Distortions](../model_components/visualize_spatial_distortions.ipynb).
 ```
 
 ```{tip}
