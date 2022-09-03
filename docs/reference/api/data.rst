@@ -10,21 +10,21 @@ Data Parsers
    :members:
    :show-inheritance:
 
-Image Dataset
+Datasets
 ----------------
 
-.. automodule:: nerfactory.data_managers.image_dataset
+.. automodule:: nerfactory.data_managers.datasets
    :members:
    :show-inheritance:
 
-Image Dataloader
+Dataloaders
 ----------------
 
-.. automodule:: nerfactory.data_managers.image_dataloader
+.. automodule:: nerfactory.data_managers.dataloaders
    :members:
    :show-inheritance:
 
-Pixel Sampler
+Pixel Samplers
 ----------------
 
 .. automodule:: nerfactory.data_managers.pixel_sampler

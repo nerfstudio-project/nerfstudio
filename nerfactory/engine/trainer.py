@@ -114,13 +114,9 @@ class Trainer:
 
     def train(self) -> None:
         """Train the model."""
-        assert self.pipeline.data_manager.train_datasetinputs is not None, "Missing DatasetInputs"
-        assert self.pipeline.data_manager.train_image_dataset is not None, "Missing ImageDataset"
+        assert self.pipeline.data_manager.train_input_dataset is not None, "Missing DatasetInputs"
 
-        self.visualizer_state.init_scene(
-            image_dataset=self.pipeline.data_manager.train_image_dataset,
-            dataset_inputs=self.pipeline.data_manager.train_datasetinputs,
-        )
+        self.visualizer_state.init_scene(dataset=self.pipeline.data_manager.train_input_dataset)
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
