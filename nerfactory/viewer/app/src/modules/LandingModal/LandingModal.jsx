@@ -43,11 +43,15 @@ export default function LandingModel() {
         aria-describedby="modal-modal-description"
       >
         <Box className="LandingModal-box">
-          {/* <Box sx={style}> */}
-          <Typography id="modal-modal-title" variant="h6" component="h2">
-            Welcome to the Nerfactory Viewer!
+          <Typography id="modal-modal-title" component="div">
+            Welcome to the Nerfactory Viewer!{' '}
+            <img style={{ height: 37, margin: 'auto' }} src="/favicon.png" />
           </Typography>
-          <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+          <Typography
+            id="modal-modal-description"
+            component="div"
+            sx={{ mt: 2 }}
+          >
             <div className="LandingModel-content">
               <b>Getting Started</b>
               <p>{text_1}</p>

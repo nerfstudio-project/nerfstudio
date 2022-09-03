@@ -45,14 +45,18 @@ $banner-color: #84c3ff4d;
   bottom: 0;
 }
 
+$mysidebar-width: 500px;
+
+$custom-border: solid 1px #ddd;
+
 .MySideBar {
   position: absolute;
   background-color: #f0f0f080;
   top: 0;
-  width: 500px;
+  width: $mysidebar-width;
   right: 0;
   bottom: 0;
-  border: solid 1px #ddd;
+  border: $custom-border;
   z-index: 999;
   text-align: center;
 }
@@ -79,7 +83,9 @@ $sidebar-width: 100% !default;
   display: block;
   // height: 170px;
 }
+
 .StatusPanel-title {
+  margin: 5px;
   text-align: center;
   font-size: 1em;
   font-weight: bold;
@@ -136,33 +142,20 @@ $background-paper-color: #fff;
 
 // ------------------------------------
 // Camera Vie
+// }
 
+.canvas-container-main,
 .WebRTCVideo {
   position: absolute;
   top: 0px;
-  right: 0px;
+  right: $mysidebar-width;
   bottom: 0px;
   left: 0px;
+  border: $custom-border;
 }
 
 .WebRTCVideo-video {
   width: 100%;
   height: 100%;
   object-fit: fill;
-}
-
-.canvas-container-main {
-  position: absolute;
-  top: 0px;
-  right: 0px;
-  bottom: 0px;
-  left: 0px;
-}
-
-.canvas-container-main canvas {
-  position: fixed;
-  top: 0px;
-  right: 0px;
-  bottom: 0px;
-  left: 0px;
 }

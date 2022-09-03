@@ -6,7 +6,10 @@ import WebSocketUrlField from '../WebSocketUrlField';
 import { useContext } from 'react';
 import { useSelector } from 'react-redux';
 
-export default function StatusPanel() {
+export default function StatusPanel(props) {
+
+  const sceneTree = props.sceneTree;
+
   const isWebsocketConnected = useSelector(
     (state) => state.websocketState.isConnected,
   );
@@ -18,6 +21,14 @@ export default function StatusPanel() {
   const vis_train_ratio = useSelector(
     (state) => state.renderingState.vis_train_ratio,
   );
+
+  // simple toggle button
+  const [value, setValue] = React.useState(1);
+  const handleChange = () => {
+    setValue(!value);
+  };
+  const scene_button = value ? "Hide Scene" : "Show Scene";
+  sceneTree.object.visible = value;
 
   return (
     <div className="StatusPanel">
@@ -37,6 +48,14 @@ export default function StatusPanel() {
         style={{ textTransform: 'none' }}
       >
         WebRTC Connected
+      </Button>
+      <Button
+        className="StatusPanel-button"
+        variant="outlined"
+        onClick={handleChange}
+        style={{ textTransform: 'none' }}
+      >
+        {scene_button}
       </Button>
       <WebSocketUrlField />
       <div className="StatusPanel-metrics">
