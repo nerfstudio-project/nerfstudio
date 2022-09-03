@@ -1,10 +1,11 @@
 // Much of this code comes from or is inspired by:
 // https://www.pluralsight.com/guides/using-web-sockets-in-your-reactredux-app
 
-import React, { createContext } from 'react';
+import React, { createContext, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
+import { subscribe_to_changes } from '../../subscriber';
 
 const WebSocketContext = createContext(null);
 
@@ -23,13 +24,6 @@ function getParam(param_name) {
 
 function getWebsocketEndpoint() {
   const endpoint = getParam('websocket_url');
-  console.log('websocket url: ', endpoint);
-  if (endpoint === undefined) {
-    const message =
-      'Please set the websocket endpoint. The format should look like "<viewer_url>?websocket_url=localhost:<port>". E.g., "https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:7007".';
-    window.alert(message);
-    return '';
-  }
   return endpoint;
 }
 
@@ -39,11 +33,29 @@ export default function WebSocketContextFunction({ children }) {
   let socket;
   let ws;
 
-  // should look like e.g., "ws://<localhost:port>"
-  const websocketEndpoint = getWebsocketEndpoint();
+  useEffect(() => {
+    // should look like e.g., "ws://<localhost:port>"
+    const websocket_url_from_argument = getWebsocketEndpoint();
+    console.log(websocket_url_from_argument);
+    if (websocket_url_from_argument !== undefined) {
+      dispatch({
+        type: 'write',
+        path: 'websocketState/websocket_url',
+        data: websocket_url_from_argument,
+      });
+    }
+  }, []);
+
+  console.log('here!!');
+
+  const websocket_url = useSelector(
+    (state) => state.websocketState.websocket_url,
+  );
 
   const connect = () => {
-    socket = new WebSocket(`ws://${websocketEndpoint}/`);
+    const url = `ws://${websocket_url}/`;
+    console.log(url);
+    socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
@@ -60,9 +72,6 @@ export default function WebSocketContextFunction({ children }) {
         path: 'websocketState/isConnected',
         data: false,
       });
-      setTimeout(() => {
-        connect();
-      }, 1000);
     };
 
     socket.onerror = (err) => {
@@ -74,6 +83,17 @@ export default function WebSocketContextFunction({ children }) {
       socket.close();
     };
   };
+
+  // const selector_fn = (state) => {
+  //   return state.websocketState.websocket_url;
+  // };
+  // const action_fn = (previous, current) => {
+  //   if (socket) {
+  //     socket.close();
+  //   }
+  //   connect();
+  // };
+  // subscribe_to_changes(selector_fn, action_fn);
 
   if (!socket) {
     connect();

@@ -1,5 +1,3 @@
-import './ViewerWindow.css';
-
 import * as THREE from 'three';
 
 import React, { useContext, useEffect, useRef } from 'react';
@@ -107,10 +105,10 @@ export default function ViewerWindow(props) {
   // }, [field_of_view]);
 
   return (
-    <div>
+    <>
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
       <div className="canvas-container-main" ref={myRef} />
-    </div>
+    </>
   );
 }

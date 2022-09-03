@@ -1,5 +1,3 @@
-import './Sidebar.scss';
-
 import * as React from 'react';
 
 import {
@@ -15,20 +13,17 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-// import { UIOutliner } from 'three/editor/js/libs/ui.three.js';
-// import { Editor } from '../../libs/three.js/editor/js/Editor.js';
+import CameraPanel from '../CameraPanel';
 import { Leva } from 'leva';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
 import { Object3D } from 'three';
 import { Resizable } from 're-resizable';
-import { SidebarScene } from '../../libs/three.js/editor/js/Sidebar.Scene.js';
+import StatusPanel from '../StatusPanel';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { object } from 'prop-types';
-
-// import './SidebarCustom.scss';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -62,18 +57,6 @@ function a11yProps(index: number) {
     'aria-controls': `simple-tabpanel-${index}`,
   };
 }
-
-const style = {
-  position: 'absolute',
-  top: '0px',
-  right: '0px',
-  display: 'block', // flex
-  alignItems: 'center',
-  justifyContent: 'center',
-  border: 'solid 1px #ddd',
-  background: '#f0f0f080', // with alpha transparency set
-  zIndex: 999,
-};
 
 function Editor() {
   this.scene = null;
@@ -130,49 +113,6 @@ function ClickableList(props) {
   );
 }
 
-function StatusPanel() {
-  const websocket = useContext(WebSocketContext).socket;
-  const isWebsocketConnected = useSelector(
-    (state) => state.websocketState.isConnected,
-  );
-  const isWebrtcConnected = useSelector(
-    (state) => state.webrtcState.isConnected,
-  );
-  let eval_fps = useSelector((state) => state.renderingState.eval_fps);
-  let train_eta = useSelector((state) => state.renderingState.train_eta);
-  let vis_train_ratio = useSelector(
-    (state) => state.renderingState.vis_train_ratio,
-  );
-
-  return (
-    <div className="StatusPanel">
-      <Button
-        variant="contained"
-        disabled={!isWebsocketConnected}
-        style={{ textTransform: 'none' }}
-      >
-        Websocket Connected
-      </Button>
-      <br></br>
-      <br></br>
-      <Button
-        variant="contained"
-        disabled={!isWebrtcConnected}
-        style={{ textTransform: 'none' }}
-      >
-        WebRTC Connected
-      </Button>
-      <br></br>
-      <br></br>
-      <span>Eval FPS: {eval_fps}</span>
-      <br></br>
-      <span>Train ETA: {train_eta}</span>
-      <br></br>
-      <span>Time Allocation: {vis_train_ratio}</span>
-    </div>
-  );
-}
-
 export function BasicTabs(props) {
   const sceneTree = props.sceneTree;
   // const scene = sceneTree.object;
@@ -190,14 +130,9 @@ export function BasicTabs(props) {
   }, []);
 
   return (
-    <Resizable
-      style={style}
-      defaultSize={{
-        width: 500,
-        height: 1000,
-      }}
-    >
-      <StatusPanel></StatusPanel>
+    <div>
+      <StatusPanel />
+      <hr></hr>
       <Box sx={{ width: '100%' }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs
@@ -222,14 +157,13 @@ export function BasicTabs(props) {
           </div>
         </TabPanel>
         <TabPanel value={value} index={2}>
-          TODO: create a camera path panel
-
-          list of cameras
+          <CameraPanel />
         </TabPanel>
+
         <TabPanel value={value} index={3}>
           TODO: add a logging panel
         </TabPanel>
       </Box>
-    </Resizable>
+    </div>
   );
 }

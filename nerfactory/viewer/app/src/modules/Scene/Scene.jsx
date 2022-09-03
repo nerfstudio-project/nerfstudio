@@ -1,5 +1,3 @@
-import './Scene.css';
-
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
