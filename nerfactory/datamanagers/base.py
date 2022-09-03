@@ -73,13 +73,8 @@ class DataManager(nn.Module):
         next_eval: will be called on __next__() for the eval iterator
         get_eval_iterable: utility that gets a clean pythonic iterator for your eval data
 
-    Args:
-        use_train: whether this data manager is being used for training
-        use_eval: whether this data manager is being used for evaluation
 
     Attributes:
-        use_train (bool): whether or not we are using train
-        use_eval (bool): whether or not we are using eval
         train_count (int): the step number of our train iteration, needs to be incremented manually
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
         train_input_dataset (InputDataset): the input dataset for the train dataset
@@ -93,7 +88,7 @@ class DataManager(nn.Module):
     train_input_dataset: Optional[InputDataset] = None
     eval_input_dataset: Optional[InputDataset] = None
 
-    def __init__(self, use_train: bool, use_eval: bool):
+    def __init__(self):
         """Constructor for the DataManager class.
 
         Subclassed DataManagers will likely need to override this constructor.
@@ -103,14 +98,11 @@ class DataManager(nn.Module):
         nn.Modules or nn.Parameters, but AFTER you've already set all the attributes you need
         for the setup functions."""
         super().__init__()
-        self.use_train = use_train
-        self.use_eval = use_eval
         self.train_count = 0
         self.eval_count = 0
-        assert use_train or use_eval
-        if use_train:
+        if self.train_input_dataset and self.train_input_dataset.inputs:
             self.setup_train()
-        if use_eval:
+        if self.eval_input_dataset and self.eval_input_dataset.inputs:
             self.setup_eval()
 
     def forward(self):
@@ -233,9 +225,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             config.eval_data_parser = config.train_data_parser
         self.train_input_dataset = InputDataset(config.train_data_parser, split="train")
         self.eval_input_dataset = InputDataset(config.eval_data_parser, split="val" if not test_mode else "test")
-        use_train = self.train_input_dataset.inputs is not None
-        use_eval = self.eval_input_dataset.inputs is not None
-        super().__init__(use_train, use_eval)
+        super().__init__()
 
     def setup_train(self):
         """Sets up the data loaders for training"""
