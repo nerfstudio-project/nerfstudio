@@ -31,6 +31,7 @@ from nerfactory.dataloaders.data_parsers import (
     Friends,
     InstantNGP,
     Mipnerf360,
+    Record3D,
 )
 from nerfactory.models.base import Model
 from nerfactory.models.instant_ngp import NGPModel
@@ -214,7 +215,7 @@ class InstantNGPDataParserConfig(DataParserConfig):
 class Record3DDataParserConfig(DataParserConfig):
     """Mipnerf 360 dataset config"""
 
-    _target: Type = Mipnerf360
+    _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
     downscale_factor: int = 1
     val_skip: int = 8
@@ -385,6 +386,7 @@ class Config(PrintableConfig):
         """Convert logging directories to more specific filepaths"""
         dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
-        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
+        if self.trainer.model_dir is None:
+            self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
