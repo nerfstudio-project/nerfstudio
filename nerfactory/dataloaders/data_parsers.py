@@ -434,11 +434,12 @@ class Record3D(DataParser):
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
-        ext = ".jpg"
         image_filenames = []
         for f in image_dir.iterdir():
-            image_filenames.append(image_dir / f)
-        image_filenames = sorted(image_filenames, key=lambda fn: int(fn.name[: -len(ext)]))
+            if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
+                image_filenames.append(image_dir / f)
+
+        image_filenames = sorted(image_filenames, key=lambda fn: int(fn.stem))
         image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
