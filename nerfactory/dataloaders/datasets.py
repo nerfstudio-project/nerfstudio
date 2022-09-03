@@ -286,14 +286,14 @@ class Mipnerf360(Dataset):
         downscale_factor: How much to downscale images. Defaults to 1.
         val_skip: 1/val_skip images to use for validation. Defaults to 8.
         auto_scale: Scale based on pose bounds. Defaults to True.
-        aabb_scale: Scene scale, Defaults to 1.0.
+        aabb_scale: Scene scale, Defaults to 4.0.
     """
 
     data_directory: Path
     downscale_factor: int = 1
     val_skip: int = 8
     auto_scale: bool = True
-    aabb_scale = 4
+    aabb_scale: float = 4.0
 
     @classmethod
     def normalize_orientation(cls, poses: np.ndarray):

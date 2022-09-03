@@ -23,7 +23,13 @@ import torch
 
 from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.dataloaders.base import Dataloader, VanillaDataloader
-from nerfactory.dataloaders.datasets import Blender, Dataset, Friends, Mipnerf360
+from nerfactory.dataloaders.datasets import (
+    Blender,
+    Dataset,
+    Friends,
+    Mipnerf360,
+    Record3D,
+)
 from nerfactory.models.base import Model
 from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
@@ -223,6 +229,24 @@ class MipNerf360DataloaderConfig(DataloaderConfig):
 
     _target: Type = VanillaDataloader
     train_dataset: InstantiateConfig = MipNerf360DatasetConfig()
+
+
+@dataclass
+class Record3DDatasetConfig(InstantiateConfig):
+    """Record3D dataset config"""
+
+    _target: Type = Record3D
+    data_directory: Path = Path("data/record3d/EXR_RGBD")
+    downscale_factor: int = 1
+    max_dataset_size: int = 150
+
+
+@dataclass
+class Record3DDataloaderConfig(DataloaderConfig):
+    """Record3D dataloader config"""
+
+    _target: Type = VanillaDataloader
+    train_dataset: InstantiateConfig = Record3DDatasetConfig()
 
 
 # Model related configs
