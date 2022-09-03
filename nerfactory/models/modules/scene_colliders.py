@@ -23,7 +23,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.data_managers.structs import SceneBounds
+from nerfactory.datamanagers.structs import SceneBounds
 
 
 class SceneBoundsCollider(nn.Module):

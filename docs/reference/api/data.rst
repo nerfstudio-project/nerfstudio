@@ -6,34 +6,34 @@ Data
 Data Parsers
 ----------------
 
-.. automodule:: nerfactory.data_managers.data_parsers
+.. automodule:: nerfactory.datamanagers.data_parsers
    :members:
    :show-inheritance:
 
 Datasets
 ----------------
 
-.. automodule:: nerfactory.data_managers.datasets
+.. automodule:: nerfactory.datamanagers.datasets
    :members:
    :show-inheritance:
 
 Dataloaders
 ----------------
 
-.. automodule:: nerfactory.data_managers.dataloaders
+.. automodule:: nerfactory.datamanagers.dataloaders
    :members:
    :show-inheritance:
 
 Pixel Samplers
 ----------------
 
-.. automodule:: nerfactory.data_managers.pixel_sampler
+.. automodule:: nerfactory.datamanagers.pixel_sampler
    :members:
    :show-inheritance:
 
 Structures
 ----------------
 
-.. automodule:: nerfactory.data_managers.structs
+.. automodule:: nerfactory.datamanagers.structs
    :members:
    :show-inheritance:

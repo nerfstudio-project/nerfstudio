@@ -26,12 +26,12 @@ import torch
 from nerfactory.configs.utils import to_immutable_dict
 
 # data instances
-from nerfactory.data_managers.base import VanillaDataManager
-from nerfactory.data_managers.data_parsers.base import DataParser
-from nerfactory.data_managers.data_parsers.blender_parser import Blender
-from nerfactory.data_managers.data_parsers.friends_parser import Friends
-from nerfactory.data_managers.data_parsers.instant_ngp_parser import InstantNGP
-from nerfactory.data_managers.data_parsers.mipnerf_parser import Mipnerf360
+from nerfactory.datamanagers.base import VanillaDataManager
+from nerfactory.datamanagers.data_parsers.base import DataParser
+from nerfactory.datamanagers.data_parsers.blender_parser import Blender
+from nerfactory.datamanagers.data_parsers.friends_parser import Friends
+from nerfactory.datamanagers.data_parsers.instant_ngp_parser import InstantNGP
+from nerfactory.datamanagers.data_parsers.mipnerf_parser import Mipnerf360
 
 # model instances
 from nerfactory.models.base import Model
@@ -311,7 +311,7 @@ class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    data_manager: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     model: ModelConfig = ModelConfig()
 
 

@@ -28,7 +28,7 @@ import torch
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.data_managers.datasets import InputDataset
+from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
