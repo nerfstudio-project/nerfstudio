@@ -30,16 +30,16 @@ from scipy.spatial.transform import Rotation
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.colmap_utils import (
-    read_cameras_binary,
-    read_images_binary,
-    read_pointsTD_binary,
-)
 from nerfactory.dataloaders.structs import (
     DatasetInputs,
     PointCloud,
     SceneBounds,
     Semantics,
+)
+from nerfactory.utils.colmap_utils import (
+    read_cameras_binary,
+    read_images_binary,
+    read_pointsTD_binary,
 )
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
