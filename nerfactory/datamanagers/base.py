@@ -94,7 +94,7 @@ class DataManager(nn.Module):
         Subclassed DataManagers will likely need to override this constructor.
 
         If you aren't manually calling the setup_train and setup_eval functions from an overriden
-        constructor, that you call super().__init__(use_train, use_eval) BEFORE you initialize any
+        constructor, that you call super().__init__() BEFORE you initialize any
         nn.Modules or nn.Parameters, but AFTER you've already set all the attributes you need
         for the setup functions."""
         super().__init__()
@@ -220,11 +220,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.local_rank = local_rank
         self.sampler = None
 
-        if config.eval_data_parser is None:
+        if config.eval_dataparser is None:
             logging.info("No eval dataset specified so using train dataset for eval.")
-            config.eval_data_parser = config.train_data_parser
-        self.train_input_dataset = InputDataset(config.train_data_parser, split="train")
-        self.eval_input_dataset = InputDataset(config.eval_data_parser, split="val" if not test_mode else "test")
+            config.eval_dataparser = config.train_dataparser
+        self.train_input_dataset = InputDataset(config.train_dataparser, split="train")
+        self.eval_input_dataset = InputDataset(config.eval_dataparser, split="val" if not test_mode else "test")
         super().__init__()
 
     def setup_train(self):

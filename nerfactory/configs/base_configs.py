@@ -44,7 +44,7 @@ base_configs["instant_ngp"] = Config(
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_data_parser=BlenderDataParserConfig(),
+            train_dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
@@ -64,7 +64,7 @@ base_configs["mipnerf_360"] = Config(
     trainer=TrainerConfig(steps_per_test=200),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_data_parser=MipNerf360DataParserConfig(),
+            train_dataparser=MipNerf360DataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
@@ -82,7 +82,7 @@ base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_data_parser=BlenderDataParserConfig(),
+            train_dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
@@ -119,7 +119,7 @@ base_configs["vanilla_nerf"] = Config(
     method_name="vanilla_nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_data_parser=BlenderDataParserConfig(),
+            train_dataparser=BlenderDataParserConfig(),
         ),
         model=ModelConfig(_target=NeRFModel),
     ),
@@ -130,7 +130,7 @@ base_configs["tensorf"] = Config(
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_data_parser=BlenderDataParserConfig(),
+            train_dataparser=BlenderDataParserConfig(),
         ),
         model=TensoRFModelConfig(),
     ),

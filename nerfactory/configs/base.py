@@ -27,11 +27,11 @@ from nerfactory.configs.utils import to_immutable_dict
 
 # data instances
 from nerfactory.datamanagers.base import VanillaDataManager
-from nerfactory.datamanagers.data_parsers.base import DataParser
-from nerfactory.datamanagers.data_parsers.blender_parser import Blender
-from nerfactory.datamanagers.data_parsers.friends_parser import Friends
-from nerfactory.datamanagers.data_parsers.instant_ngp_parser import InstantNGP
-from nerfactory.datamanagers.data_parsers.mipnerf_parser import Mipnerf360
+from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.blender_parser import Blender
+from nerfactory.datamanagers.dataparsers.friends_parser import Friends
+from nerfactory.datamanagers.dataparsers.instant_ngp_parser import InstantNGP
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import Mipnerf360
 
 # model instances
 from nerfactory.models.base import Model
@@ -229,10 +229,10 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Configuration for data manager instantiation"""
 
     _target: Type = VanillaDataManager
-    train_data_parser: DataParserConfig = BlenderDataParserConfig()
+    train_dataparser: DataParserConfig = BlenderDataParserConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
-    eval_data_parser: Optional[InstantiateConfig] = None
+    eval_dataparser: Optional[InstantiateConfig] = None
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
@@ -242,7 +242,7 @@ class FriendsDataManagerConfig(VanillaDataManagerConfig):
     """Friends data manager config"""
 
     _target: Type = VanillaDataManager
-    train_data_parser: DataParserConfig = FriendsDataParserConfig()
+    train_dataparser: DataParserConfig = FriendsDataParserConfig()
 
 
 # Model related configs

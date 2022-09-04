@@ -6,7 +6,7 @@ Data
 Data Parsers
 ----------------
 
-.. automodule:: nerfactory.datamanagers.data_parsers
+.. automodule:: nerfactory.datamanagers.dataparsers
    :members:
    :show-inheritance:
 
