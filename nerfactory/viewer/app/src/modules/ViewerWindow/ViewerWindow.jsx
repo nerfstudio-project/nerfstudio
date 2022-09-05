@@ -58,11 +58,7 @@ export default function ViewerWindow(props) {
 
   const sendCamera = () => {
     // update the camera information in the python server
-    console.log("send camera!");
-    console.log(websocket);
-    console.log(camera);
     if (websocket.readyState === WebSocket.OPEN) {
-      console.log('sending camera!');
       const cmd = 'write';
       const path = 'renderingState/camera';
       const data = {
@@ -75,10 +71,7 @@ export default function ViewerWindow(props) {
     }
   };
 
-  // set a timelout to keep sending the camera!
-
-  // setInterval(sendCamera, 1000);
-
+  // keep sending the camera often
   useEffect(() => {
     const refreshIntervalId = setInterval(sendCamera, 100);
     return () => {
@@ -93,7 +86,6 @@ export default function ViewerWindow(props) {
     camera.current.updateProjectionMatrix();
     cameraControls.update();
     renderer.render(scene, camera.current);
-    // sendCamera();
     stats.update();
   };
 
@@ -147,6 +139,7 @@ export default function ViewerWindow(props) {
 
   // updates the field of view inside the ref to avoid rerendering so often
   useEffect(() => {
+    console.log("use effect!");
     field_of_view_ref.current = field_of_view;
   }, [field_of_view]);
 

@@ -37,20 +37,20 @@ export default function WebSocketContextFunction({ children }) {
   let socket;
   let ws;
 
-  // useEffect(() => {
-  //   // should look like e.g., "ws://<localhost:port>"
-  //   const websocket_url_from_argument = getWebsocketEndpoint();
-  //   console.log(websocket_url_from_argument);
-  //   if (websocket_url_from_argument !== undefined) {
-  //     dispatch({
-  //       type: 'write',
-  //       path: 'websocketState/websocket_url',
-  //       data: websocket_url_from_argument,
-  //     });
-  //   } else {
-  //     // otherwise open up the getting started modal
-  //   }
-  // }, []);
+  useEffect(() => {
+    // should look like e.g., "ws://<localhost:port>"
+    const websocket_url_from_argument = getWebsocketEndpoint();
+    console.log(websocket_url_from_argument);
+    if (websocket_url_from_argument !== undefined) {
+      dispatch({
+        type: 'write',
+        path: 'websocketState/websocket_url',
+        data: websocket_url_from_argument,
+      });
+    } else {
+      // otherwise open up the getting started modal
+    }
+  }, []);
 
   // console.log('here!!');
 

@@ -1,4 +1,5 @@
 import { FaBeer, FaGem, FaHeart } from 'react-icons/fa';
+import { SceneTreeWebSocketListener, get_scene_tree } from './modules/Scene/Scene';
 
 import { BasicTabs } from './modules/Sidebar/Sidebar';
 import Box from '@mui/material/Box';
@@ -11,7 +12,6 @@ import MenuItem from '@mui/material/MenuItem';
 import React from 'react';
 import { RenderControls } from './modules/ConfigPanel/ConfigPanel';
 import { Resizable } from 're-resizable';
-import SetupScene from './modules/Scene/Scene';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
@@ -65,12 +65,18 @@ function Banner() {
 }
 
 export default function App() {
-  const sceneTree = SetupScene();
 
-  const resize_handles = ['se'];
+  // The scene tree won't rerender but it will listener to changes
+  // from the redux store and draw three.js objects.
+  const sceneTree = get_scene_tree();
 
   return (
     <div className="App">
+      {/*
+      Code that listens for websocket 'write' messages and updates the redux store.
+      */}
+      <SceneTreeWebSocketListener />
+      {/* ----- */}
       <Banner />
       <div className="App-body">
         <div className="MySideBar">

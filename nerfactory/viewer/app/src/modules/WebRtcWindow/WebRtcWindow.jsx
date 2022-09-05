@@ -172,12 +172,17 @@ export default function WebRtcWindow() {
     });
 
     // kill the webrtc connection on dismount!
-    // return () => {
-    //   console.log("inside th dismount for webRTC");
-    //   if (pcRef.current !== null) {
-    //     pcRef.current.close();
-    //   }
-    // }
+    return () => {
+      console.log('inside the dismount for webRTC');
+      if (pcRef.current !== null) {
+        dispatch({
+          type: 'write',
+          path: 'webrtcState/isConnected',
+          data: false,
+        });
+        pcRef.current.close();
+      }
+    };
   }, [websocket]); // dependency to call this whenever the websocket changes
 
   return (

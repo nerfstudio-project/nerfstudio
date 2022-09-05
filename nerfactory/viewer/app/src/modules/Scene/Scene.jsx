@@ -15,24 +15,10 @@ const msgpack = require('msgpack-lite');
 const SCENE_BOUNDS_NAME = 'Scene Bounds';
 const CAMERAS_NAME = 'Training Cameras';
 
-// manages setting up the scene and other logic for keeping state in sync with the server
-export default function SetupScene() {
+export function get_scene_tree() {
   let scene = null;
-  // let gui = null;
   let sceneTree = null;
-
-  // the websocket context
-  const socket = useContext(WebSocketContext).socket;
-  const dispatch = useDispatch();
-
-  // Scene
   scene = new THREE.Scene();
-
-  // GUI
-  // gui = new GUI({ autoPlace: false });
-  // gui.domElement.id = 'datgui';
-  // const sceneFolder = gui.addFolder('Scene');
-  // sceneFolder.open();
   sceneTree = new SceneNode(scene);
 
   // add objects to the the scene tree
@@ -109,6 +95,14 @@ export default function SetupScene() {
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
 
+  return sceneTree;
+}
+
+// manages setting up the scene and other logic for keeping state in sync with the server
+export function SceneTreeWebSocketListener() {
+  const socket = useContext(WebSocketContext).socket;
+  const dispatch = useDispatch();
+
   useEffect(() => {
     socket.addEventListener('message', (originalCmd) => {
       // set the remote description when the offer is received
@@ -123,6 +117,4 @@ export default function SetupScene() {
       }
     });
   }, [socket]); // dependency to call this whenever the websocket changes
-
-  return sceneTree;
 }
