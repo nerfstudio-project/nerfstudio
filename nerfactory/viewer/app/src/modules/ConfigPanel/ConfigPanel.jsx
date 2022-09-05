@@ -8,13 +8,8 @@ const msgpack = require('msgpack-lite');
 
 export function RenderControls() {
   // connection status indicators
+  console.log("\n\nRenderingControls\n\n");
   const websocket = useContext(WebSocketContext).socket;
-  const isWebsocketConnected = useSelector(
-    (state) => state.websocketState.isConnected,
-  );
-  const isWebrtcConnected = useSelector(
-    (state) => state.webrtcState.isConnected,
-  );
   const isTraining = useSelector((state) => state.renderingState.isTraining);
   const outputOptions = useSelector(
     (state) => state.renderingState.output_options,
@@ -36,11 +31,6 @@ export function RenderControls() {
   );
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
-  );
-  let eval_fps = useSelector((state) => state.renderingState.eval_fps);
-  let train_eta = useSelector((state) => state.renderingState.train_eta);
-  let vis_train_ratio = useSelector(
-    (state) => state.renderingState.vis_train_ratio,
   );
 
   const dispatch = useDispatch();
@@ -267,6 +257,11 @@ export function RenderControls() {
       field_of_view,
     ],
   );
+
+  // setInterval(() => {
+  //   console.log("Delayed for 1 second.");
+  //   console.log(websocket);
+  // }, "1000")
 
   useEffect(() => {
     setControls({ min_resolution });

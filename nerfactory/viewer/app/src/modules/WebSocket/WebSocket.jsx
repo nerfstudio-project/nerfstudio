@@ -1,7 +1,7 @@
 // Much of this code comes from or is inspired by:
 // https://www.pluralsight.com/guides/using-web-sockets-in-your-reactredux-app
 
-import React, { createContext, useEffect } from 'react';
+import React, { createContext, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import PropTypes from 'prop-types';
@@ -28,33 +28,39 @@ function getWebsocketEndpoint() {
 }
 
 export default function WebSocketContextFunction({ children }) {
+  console.log('WebSocketContextFunction');
+
   const dispatch = useDispatch();
 
+  // let socket_ref = useRef(null);
+  // let socket = socket_ref.current;
   let socket;
   let ws;
 
-  useEffect(() => {
-    // should look like e.g., "ws://<localhost:port>"
-    const websocket_url_from_argument = getWebsocketEndpoint();
-    console.log(websocket_url_from_argument);
-    if (websocket_url_from_argument !== undefined) {
-      dispatch({
-        type: 'write',
-        path: 'websocketState/websocket_url',
-        data: websocket_url_from_argument,
-      });
-    }
-  }, []);
+  // useEffect(() => {
+  //   // should look like e.g., "ws://<localhost:port>"
+  //   const websocket_url_from_argument = getWebsocketEndpoint();
+  //   console.log(websocket_url_from_argument);
+  //   if (websocket_url_from_argument !== undefined) {
+  //     dispatch({
+  //       type: 'write',
+  //       path: 'websocketState/websocket_url',
+  //       data: websocket_url_from_argument,
+  //     });
+  //   } else {
+  //     // otherwise open up the getting started modal
+  //   }
+  // }, []);
 
-  console.log('here!!');
+  // console.log('here!!');
 
+  // this code will rerender anytime the webosocket changes now
   const websocket_url = useSelector(
     (state) => state.websocketState.websocket_url,
   );
 
   const connect = () => {
     const url = `ws://${websocket_url}/`;
-    console.log(url);
     socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
@@ -67,6 +73,7 @@ export default function WebSocketContextFunction({ children }) {
 
     socket.onclose = () => {
       // when closed, the websocket will try to reconnect every second
+      console.log("closed");
       dispatch({
         type: 'write',
         path: 'websocketState/isConnected',
@@ -82,25 +89,46 @@ export default function WebSocketContextFunction({ children }) {
       );
       socket.close();
     };
+    return socket;
   };
 
   // const selector_fn = (state) => {
   //   return state.websocketState.websocket_url;
   // };
   // const action_fn = (previous, current) => {
-  //   if (socket) {
-  //     socket.close();
-  //   }
-  //   connect();
+  //   const websocket_url = current;
+  //   console.log(socket);
+  //   connect(websocket_url);
   // };
   // subscribe_to_changes(selector_fn, action_fn);
 
-  if (!socket) {
-    connect();
-    ws = {
-      socket,
+  useEffect(() => {
+
+    console.log("component mounted");
+    
+    // cleanup function to close the websocket
+    return () => {
+      console.log("calling cleanup!!!");
+      socket.close();
     };
-  }
+  }, [websocket_url]);
+
+  // if (!socket) {
+  //   console.log("inside here");
+  //   socket = connect();
+  //   ws = {
+  //     socket: socket,
+  //   };
+  // } else {
+  //   console.log('else of socket.');
+  // }
+
+  console.log("INSIDE THE PROVIDER");
+
+  connect();
+  ws = {
+    socket
+  };
 
   return (
     <WebSocketContext.Provider value={ws}>{children}</WebSocketContext.Provider>

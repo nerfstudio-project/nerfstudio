@@ -30,8 +30,9 @@ export default function ViewerWindow(props) {
     (state) => state.renderingState.field_of_view,
   );
   const field_of_view_ref = useRef(field_of_view);
-
-  let camera = null;
+  
+  const camera = useRef(null);
+  // let camera = camera_ref.current;
   let cameraControls = null;
   let renderer = null;
   let viewportWidth = null;
@@ -50,34 +51,49 @@ export default function ViewerWindow(props) {
   const handleResize = () => {
     viewportWidth = getViewportWidth();
     viewportHeight = getViewportHeight();
-    camera.aspect = viewportWidth / viewportHeight;
-    camera.updateProjectionMatrix();
+    camera.current.aspect = viewportWidth / viewportHeight;
+    camera.current.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
   };
 
   const sendCamera = () => {
     // update the camera information in the python server
+    console.log("send camera!");
+    console.log(websocket);
+    console.log(camera);
     if (websocket.readyState === WebSocket.OPEN) {
+      console.log('sending camera!');
       const cmd = 'write';
       const path = 'renderingState/camera';
       const data = {
         type: cmd,
         path,
-        data: camera.toJSON(),
+        data: camera.current.toJSON(),
       };
       const message = msgpack.encode(data);
       websocket.send(message);
     }
   };
 
+  // set a timelout to keep sending the camera!
+
+  // setInterval(sendCamera, 1000);
+
+  useEffect(() => {
+    const refreshIntervalId = setInterval(sendCamera, 100);
+    return () => {
+      clearInterval(refreshIntervalId);
+    };
+  }, [websocket]);
+
   const update = () => {
     requestAnimationFrame(update);
     handleResize();
-    camera.fov = field_of_view_ref.current;
-    camera.updateProjectionMatrix();
+    camera.current.fov = field_of_view_ref.current;
+    camera.current.updateProjectionMatrix();
     cameraControls.update();
-    renderer.render(scene, camera);
-    sendCamera();
+    renderer.render(scene, camera.current);
+    // sendCamera();
     stats.update();
   };
 
@@ -90,16 +106,16 @@ export default function ViewerWindow(props) {
     stats = createStats();
     myRef.current.append(stats.domElement);
 
-    camera = new THREE.PerspectiveCamera(
+    camera.current = new THREE.PerspectiveCamera(
       field_of_view_ref.current,
       viewportWidth / viewportHeight,
       0.01,
       100,
     );
-    camera.position.x = 5;
-    camera.position.y = -5;
-    camera.position.z = 5;
-    camera.up = new THREE.Vector3(0, 0, 1);
+    camera.current.position.x = 5;
+    camera.current.position.y = -5;
+    camera.current.position.z = 5;
+    camera.current.up = new THREE.Vector3(0, 0, 1);
 
     renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -110,7 +126,7 @@ export default function ViewerWindow(props) {
 
     myRef.current.append(renderer.domElement);
     // add camera controls
-    cameraControls = new OrbitControls(camera, renderer.domElement);
+    cameraControls = new OrbitControls(camera.current, renderer.domElement);
     cameraControls.rotateSpeed = 2.0;
     cameraControls.zoomSpeed = 0.3;
     cameraControls.panSpeed = 0.2;
@@ -120,11 +136,18 @@ export default function ViewerWindow(props) {
     cameraControls.dampingFactor = 1.0;
     cameraControls.update();
     update();
+
+    // return () => {
+    //   const div = myRef.current;
+    //   console.log(div);
+    //   div.removeChild(div.lastChild);
+    //   div.removeChild(div.lastChild);
+    // };
   }, []);
 
   // updates the field of view inside the ref to avoid rerendering so often
   useEffect(() => {
-    console.log((field_of_view_ref.current = field_of_view));
+    field_of_view_ref.current = field_of_view;
   }, [field_of_view]);
 
   return (

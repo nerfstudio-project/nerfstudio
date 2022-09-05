@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 
-import { useDispatch } from 'react-redux';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+import { useDispatch } from 'react-redux';
 
 const WebRtcContext = createContext(null);
 const msgpack = require('msgpack-lite');
@@ -83,6 +83,15 @@ export default function WebRtcWindow() {
         });
       }
     };
+
+    pc.onclose = () => {
+      dispatch({
+        type: 'write',
+        path: 'webrtcState/isConnected',
+        data: false,
+      });
+    };
+
     return pc;
   };
 
@@ -161,7 +170,15 @@ export default function WebRtcWindow() {
       console.log('[webrtc] starting process');
       sendOffer();
     });
-  }, []); // empty dependency array means only run once
+
+    // kill the webrtc connection on dismount!
+    // return () => {
+    //   console.log("inside th dismount for webRTC");
+    //   if (pcRef.current !== null) {
+    //     pcRef.current.close();
+    //   }
+    // }
+  }, [websocket]); // dependency to call this whenever the websocket changes
 
   return (
     <div className="WebRTCVideo">

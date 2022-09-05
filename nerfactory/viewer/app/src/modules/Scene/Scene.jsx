@@ -1,19 +1,19 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
+import { drawCamera, drawSceneBounds } from './drawing';
 import { useContext, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
 
 import { GUI } from 'dat.gui';
 import SceneNode from '../../SceneNode';
-import { subscribe_to_changes } from '../../subscriber';
 import { WebSocketContext } from '../WebSocket/WebSocket';
-import { drawCamera, drawSceneBounds } from './drawing';
+import { subscribe_to_changes } from '../../subscriber';
+import { useDispatch } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
 
 const SCENE_BOUNDS_NAME = 'Scene Bounds';
-const CAMERAS_NAME = "Training Cameras";
+const CAMERAS_NAME = 'Training Cameras';
 
 // manages setting up the scene and other logic for keeping state in sync with the server
 export default function SetupScene() {
@@ -122,8 +122,7 @@ export default function SetupScene() {
         });
       }
     });
-  }, []); // empty dependency array means only run once
+  }, [socket]); // dependency to call this whenever the websocket changes
 
-  // console.log(gui.domElement);
   return sceneTree;
 }
