@@ -98,11 +98,10 @@ def run_command(cmd, return_output=False) -> Optional[str]:
             _print_red(f"Got: {output}")
             sys.exit(1)
         return output
-    else:
-        rc = subprocess.run(cmd, shell=True, check=True).returncode
-        if rc != 0:
-            _print_red(f"Error running command: {cmd}")
-            sys.exit(1)
+    rc = subprocess.run(cmd, shell=True, check=True).returncode
+    if rc != 0:
+        _print_red(f"Error running command: {cmd}")
+        sys.exit(1)
     return None
 
 
@@ -114,8 +113,8 @@ def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target
         output_dir: Path to the output directory.
         fps: Frames per second.
     """
-    # os.system(f"ffmpeg -i {video_path} -qscale:v 2 -r {fps} {output_dir}/frame_%05d.png")
-    cmd = f"ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 {video_path}"
+    cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
+        -show_entries stream=nb_read_packets -of csv=p=0 {video_path}"
     output = run_command(cmd, return_output=True)
     assert output is not None
     num_frames = int(output)
@@ -134,7 +133,6 @@ def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target
 
     ffmpeg_cmd += f" {out_filename}"
 
-    # print(ffmpeg_cmd)
     run_command(ffmpeg_cmd)
 
 
@@ -209,6 +207,10 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> N
         w2c = np.concatenate([rotation, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
         c2w = np.linalg.inv(w2c)
+        # Convert from COLMAP's camera coordinate system to ours
+        c2w[0:3, 1:3] *= -1
+        c2w = c2w[np.array([1, 0, 2, 3]), :]
+        c2w[2, :] *= -1
 
         name = f"./images/{im_data.name}"
 
