@@ -10,8 +10,11 @@ from typing import Literal, Optional
 
 import dcargs
 import numpy as np
+from rich.console import Console
 
 from nerfactory.utils import colmap_utils
+
+CONSOLE = Console()
 
 
 class CameraType(Enum):
@@ -27,28 +30,11 @@ CAMERA_MODELS = {
 }
 
 
-def _print_red(text):
-    """Prints text in red."""
-    print(f"\033[91m{text}\033[00m")
-
-
-def _print_green(text):
-    """Prints text in green."""
-    print(f"\033[92m{text}\033[00m")
-
-
-def _print_section_header(text):
-    """Prints a section header."""
-    _print_green("=" * 80)
-    _print_green(text)
-    _print_green("=" * 80)
-
-
 def check_ffmpeg_installed():
     """Checks if ffmpeg is installed."""
     ffmpeg_path = which("ffmpeg")
     if ffmpeg_path is None:
-        _print_red("Could not find ffmpeg. Please install ffmpeg.")
+        CONSOLE.print("[bold red]Could not find ffmpeg. Please install ffmpeg.")
         print("See https://ffmpeg.org/download.html for installation instructions.")
         print("ffmpeg is only necissary if using videos as input.")
         sys.exit(1)
@@ -58,7 +44,7 @@ def check_colmap_installed():
     """Checks if colmap is installed."""
     colmap_path = which("colmap")
     if colmap_path is None:
-        _print_red("Could not find COLMAP. Please install COLMAP.")
+        CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
         print("See https://colmap.github.io/install.html for installation instructions.")
         sys.exit(1)
 
@@ -73,49 +59,45 @@ def get_colmap_version(default_version=3.8) -> float:
     Returns:
         The version of COLMAP.
     """
-    output = run_command("colmap", return_output=True)
+    output = run_command("colmap", verbose=False)
     assert output is not None
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
             return float(line.split(" ")[1])
-    _print_red(f"Could not find COLMAP version. Using default {default_version}")
+    CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
     return default_version
 
 
-def run_command(cmd, return_output=False) -> Optional[str]:
+def run_command(cmd, verbose=False) -> Optional[str]:
     """Runs a command and returns the output.
 
     Args:
         cmd: Command to run.
-        return_output: If True, returns the output of the command.
+        verbose: If True, logs the output of the command.
     Returns:
         The output of the command if return_output is True, otherwise None.
     """
-    if return_output:
-        rc, output = subprocess.getstatusoutput(cmd)
-        if rc != 0:
-            _print_red(f"Error running command: {cmd}")
-            _print_red(f"Got: {output}")
-            sys.exit(1)
-        return output
-    rc = subprocess.run(cmd, shell=True, check=True).returncode
-    if rc != 0:
-        _print_red(f"Error running command: {cmd}")
+    out = subprocess.run(cmd, capture_output=not verbose, shell=True, check=True)
+    if out.returncode != 0:
+        CONSOLE.print(f"[bold red]Error running command: {cmd}")
         sys.exit(1)
-    return None
+    if out.stdout is not None:
+        return out.stdout.decode("utf-8")
+    return out
 
 
-def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target: int):
+def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False) -> None:
     """Converts a video into a sequence of images.
 
     Args:
         video_path: Path to the video.
         output_dir: Path to the output directory.
-        fps: Frames per second.
+        num_frames_target: Number of frames to extract.
+        verbose: If True, logs the output of the command.
     """
     cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
         -show_entries stream=nb_read_packets -of csv=p=0 {video_path}"
-    output = run_command(cmd, return_output=True)
+    output = run_command(cmd, verbose=False)
     assert output is not None
     num_frames = int(output)
     print("Number of frames in video:", num_frames)
@@ -129,14 +111,43 @@ def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target
     if spacing > 1:
         ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
     else:
-        _print_red("Can't satify requested number of frames. Extracting all frames.")
+        CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
     ffmpeg_cmd += f" {out_filename}"
 
-    run_command(ffmpeg_cmd)
+    run_command(ffmpeg_cmd, verbose=verbose)
 
 
-def run_colmap(image_dir: Path, colmap_dir: Path, camera_model: CameraType, gpu: bool = True) -> None:
+def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> None:
+    """Downscales the images in the directory. Uses FFMPEG.
+
+    Args:
+        image_dir: Path to the directory containing the images.
+        num_downscales: Number of times to downscale the images. Downscales by 2 each time.
+        verbose: If True, logs the output of the command.
+    """
+    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
+    for downscale_factor in downscale_factors:
+        assert downscale_factor > 1
+        assert isinstance(downscale_factor, int)
+        downscale_dir = image_dir.parent / f"images_{downscale_factor}"
+        downscale_dir.mkdir(parents=True, exist_ok=True)
+        ffmpeg_cmd = [
+            f"ffmpeg -i {image_dir}/frame_%05d.png ",
+            f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+            f"{downscale_dir}/frame_%05d.png",
+        ]
+        ffmpeg_cmd = " ".join(ffmpeg_cmd)
+        run_command(ffmpeg_cmd, verbose=verbose)
+
+
+def run_colmap(
+    image_dir: Path,
+    colmap_dir: Path,
+    camera_model: CameraType,
+    gpu: bool = True,
+    verbose: bool = False,
+) -> None:
     """Runs COLMAP on the images.
 
     Args:
@@ -144,6 +155,7 @@ def run_colmap(image_dir: Path, colmap_dir: Path, camera_model: CameraType, gpu:
         colmap_dir: Path to the output directory.
         camera_model: Camera model to use.
         gpu: If True, use GPU.
+        verbose: If True, logs the output of the command.
     """
 
     colmap_version = get_colmap_version()
@@ -158,7 +170,12 @@ def run_colmap(image_dir: Path, colmap_dir: Path, camera_model: CameraType, gpu:
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
-    run_command(feature_extractor_cmd)
+    if not verbose:
+        with CONSOLE.status("[bold yellow]Running COLMAP feature extractor...", spinner="moon"):
+            run_command(feature_extractor_cmd, verbose=verbose)
+    else:
+        run_command(feature_extractor_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done extracting COLMAP features.")
 
     # Feature matching
     feature_matcher_cmd = [
@@ -167,7 +184,12 @@ def run_colmap(image_dir: Path, colmap_dir: Path, camera_model: CameraType, gpu:
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
-    run_command(feature_matcher_cmd)
+    if not verbose:
+        with CONSOLE.status("[bold yellow]Running COLMAP feature matcher...", spinner="runner"):
+            run_command(feature_matcher_cmd, verbose=verbose)
+    else:
+        run_command(feature_matcher_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
 
     # Bundle adjustment
     sparse_dir = colmap_dir / "sparse"
@@ -182,7 +204,15 @@ def run_colmap(image_dir: Path, colmap_dir: Path, camera_model: CameraType, gpu:
         bundle_adjuster_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
 
     bundle_adjuster_cmd = " ".join(bundle_adjuster_cmd)
-    run_command(bundle_adjuster_cmd)
+    if not verbose:
+        with CONSOLE.status(
+            "[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
+            spinner="clock",
+        ):
+            run_command(bundle_adjuster_cmd, verbose=verbose)
+    else:
+        run_command(bundle_adjuster_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
 
 
 def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> None:
@@ -238,29 +268,6 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> N
         json.dump(out, f, indent=4)
 
 
-def downscale_images(image_dir: Path, num_downscales: int) -> None:
-    """Downscales the images in the directory.
-
-    Args:
-        image_dir: Path to the directory containing the images.
-        num_downscales: Number of times to downscale the images. Downscales by 2 each time.
-    """
-    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
-    for downscale_factor in downscale_factors:
-        # Downscale images with ffmpeg
-        assert downscale_factor > 1
-        assert isinstance(downscale_factor, int)
-        downscale_dir = image_dir.parent / f"images_{downscale_factor}"
-        downscale_dir.mkdir(parents=True, exist_ok=True)
-        ffmpeg_cmd = [
-            f"ffmpeg -i {image_dir}/frame_%05d.png ",
-            f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-            f"{downscale_dir}/frame_%05d.png",
-        ]
-        ffmpeg_cmd = " ".join(ffmpeg_cmd)
-        run_command(ffmpeg_cmd)
-
-
 def main(
     data: Path,
     output_dir: Path,
@@ -268,6 +275,7 @@ def main(
     camera_type: Literal["perspective", "fisheye"] = "perspective",
     num_downscales: int = 0,
     gpu: bool = True,
+    verbose: bool = False,
 ):
     """Process images or videos into a Nerfactory dataset.
 
@@ -286,6 +294,7 @@ def main(
         num_downscales: Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
             will downscale the images by 2x, 4x, and 8x.
         gpu: If True, use GPU.
+        verbose: If True, print extra logging.
     """
 
     print(data)
@@ -298,26 +307,34 @@ def main(
     image_dir.mkdir(parents=True, exist_ok=True)
 
     if data.is_file():
-        _print_section_header("Converting video into images.")
-        convert_video_to_images(data, image_dir=image_dir, num_frames_target=num_frames_target)
+        if not verbose:
+            with CONSOLE.status("[bold yellow]Converting video to images...", spinner="bouncingBall"):
+                convert_video_to_images(data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose)
+        else:
+            convert_video_to_images(data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
     if num_downscales > 0:
-        _print_section_header("Downscaling images.")
-        downscale_images(image_dir, num_downscales)
+        if not verbose:
+            with CONSOLE.status("[bold yellow]Downscaling images...", spinner="growVertical"):
+                downscale_images(image_dir, num_downscales, verbose=verbose)
+        else:
+            downscale_images(image_dir, num_downscales, verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done downscaling images.")
 
-    _print_section_header("Running Colmap.")
     colmap_dir = output_dir / "colmap"
     colmap_dir.mkdir(parents=True, exist_ok=True)
 
     camera_model = CAMERA_MODELS[camera_type]
-    run_colmap(image_dir=image_dir, colmap_dir=colmap_dir, camera_model=camera_model, gpu=gpu)
+    run_colmap(image_dir=image_dir, colmap_dir=colmap_dir, camera_model=camera_model, gpu=gpu, verbose=verbose)
 
-    _print_section_header("Saving output to JSON.")
-    colmap_to_json(
-        cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-        images_path=colmap_dir / "sparse" / "0" / "images.bin",
-        output_dir=output_dir,
-    )
+    with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+        colmap_to_json(
+            cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
+            images_path=colmap_dir / "sparse" / "0" / "images.bin",
+            output_dir=output_dir,
+        )
+    CONSOLE.log("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
 
 if __name__ == "__main__":
