@@ -122,7 +122,6 @@ function transpose(matrix) {
 export function drawCamera(camera): THREE.Object3D {
   const group = new THREE.Group();
 
-  // console.log(camera);
   console.assert(
     camera.type === 'PinholeCamera',
     'The camera should be a PinholeCamera',

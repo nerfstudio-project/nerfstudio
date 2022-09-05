@@ -1,14 +1,13 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-import { drawCamera, drawSceneBounds } from './drawing';
 import { useContext, useEffect } from 'react';
+import { useDispatch } from 'react-redux';
+import { drawCamera, drawSceneBounds } from './drawing';
 
-import { GUI } from 'dat.gui';
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
-import { useDispatch } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
 

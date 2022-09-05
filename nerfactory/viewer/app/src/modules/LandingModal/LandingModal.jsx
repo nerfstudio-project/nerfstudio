@@ -1,24 +1,16 @@
 import * as React from 'react';
 
-import { Box, Button, Modal, TextField, Typography } from '@mui/material';
-import { useDispatch, useSelector } from 'react-redux';
+import { Box, Button, Modal, Typography } from '@mui/material';
 
 import WebSocketUrlField from '../WebSocketUrlField';
 
-const style = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 400, // 400
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-};
 
-export default function LandingModel() {
-  const [open, setOpen] = React.useState(true);
+interface LandingModalProps {
+  initial_state: object
+}
+
+export default function LandingModel(props: LandingModalProps) {
+  const [open, setOpen] = React.useState(props.initial_state);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
@@ -45,7 +37,7 @@ export default function LandingModel() {
         <Box className="LandingModal-box">
           <Typography id="modal-modal-title" component="div">
             Welcome to the Nerfactory Viewer!{' '}
-            <img style={{ height: 37, margin: 'auto' }} src="/favicon.png" />
+            <img style={{ height: 37, margin: 'auto' }} src="/favicon.png" alt="The favicon."/>
           </Typography>
           <Typography
             id="modal-modal-description"

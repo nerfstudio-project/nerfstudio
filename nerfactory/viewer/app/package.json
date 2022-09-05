@@ -15,6 +15,7 @@
     "classnames": "^2.3.1",
     "dat.gui": "^0.7.9",
     "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-unused-imports": "^2.0.0",
     "leva": "^0.9.29",
     "msgpack-lite": "^0.1.26",
     "prop-types": "^15.8.1",

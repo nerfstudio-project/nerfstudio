@@ -1,12 +1,15 @@
 import * as React from 'react';
 
 import Button from '@mui/material/Button';
-import { WebSocketContext } from '../WebSocket/WebSocket';
-import WebSocketUrlField from '../WebSocketUrlField';
-import { useContext } from 'react';
 import { useSelector } from 'react-redux';
+import WebSocketUrlField from '../../WebSocketUrlField';
 
-export default function StatusPanel(props) {
+
+interface StatusPanelProps {
+  sceneTree: object
+}
+
+export default function StatusPanel(props: StatusPanelProps) {
 
   const sceneTree = props.sceneTree;
 

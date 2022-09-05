@@ -45,15 +45,14 @@ $banner-color: #84c3ff4d;
   bottom: 0;
 }
 
-$mysidebar-width: 500px;
-
+$SidePanel-width: 500px;
 $custom-border: solid 1px #ddd;
 
-.MySideBar {
+.SidePanel {
   position: absolute;
   background-color: #f0f0f080;
   top: 0;
-  width: $mysidebar-width;
+  width: $SidePanel-width;
   right: 0;
   bottom: 0;
   border: $custom-border;
@@ -148,7 +147,7 @@ $background-paper-color: #fff;
 .WebRTCVideo {
   position: absolute;
   top: 0px;
-  right: $mysidebar-width;
+  right: $SidePanel-width;
   bottom: 0px;
   left: 0px;
   border: $custom-border;

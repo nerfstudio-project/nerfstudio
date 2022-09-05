@@ -2,8 +2,6 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-const dat = require('dat.gui');
-
 function dispose(object) {
   if (!object) {
     return;

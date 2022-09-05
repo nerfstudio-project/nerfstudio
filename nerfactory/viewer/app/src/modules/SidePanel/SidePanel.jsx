@@ -1,32 +1,23 @@
+/* eslint-disable react/jsx-props-no-spreading */
+
 import * as React from 'react';
 
-import {
-  FaBeer,
-  FaCloud,
-  FaHeart,
-  FaLightbulb,
-  FaTractor,
-} from 'react-icons/fa';
+import { FaLightbulb, FaTractor } from 'react-icons/fa';
 import { Menu, MenuItem, ProSidebar, SubMenu } from 'react-pro-sidebar';
-import { useContext, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import CameraPanel from '../CameraPanel';
 import { Leva } from 'leva';
-import LevaTheme from '../ConfigPanel/leva_theme.json';
-import { Object3D } from 'three';
-import { Resizable } from 're-resizable';
-import StatusPanel from '../StatusPanel';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { WebSocketContext } from '../WebSocket/WebSocket';
-import { object } from 'prop-types';
+import { useEffect } from 'react';
+import StatusPanel from './StatusPanel';
+import SceneNode from '../../SceneNode';
+import LevaTheme from '../ConfigPanel/leva_theme.json';
+import CameraPanel from './CameraPanel';
 
 interface TabPanelProps {
-  children?: React.ReactNode;
+  children: React.ReactNode;
   index: number;
   value: number;
 }
@@ -59,11 +50,12 @@ function a11yProps(index: number) {
   };
 }
 
-function Editor() {
-  this.scene = null;
+interface ListItemProps {
+  name: object;
+  object: object;
 }
 
-function ListItem(props) {
+function ListItem(props: ListItemProps) {
   const name = props.name;
   const object = props.object;
 
@@ -71,18 +63,17 @@ function ListItem(props) {
   object.visible = value;
 
   function handleClick() {
-    console.log('handle click!');
-    console.log(object);
     setValue(!value);
   }
 
-  console.log(object.name);
-  console.log(object);
-
-  return <button onClick={handleClick}>{name}</button>;
+  return <button type="button" onClick={handleClick}>{name}</button>;
 }
 
-function ClickableList(props) {
+interface ClickableListProps {
+  sceneTree: object
+}
+
+function ClickableList(props: ClickableListProps) {
   const sceneTree = props.sceneTree;
 
   const get_menu_items = (name: String, scene_node: SceneNode) => {
@@ -91,21 +82,20 @@ function ClickableList(props) {
     if (num_children === 0) {
       return (
         <MenuItem icon={<FaLightbulb />}>
-          <ListItem name={name} object={scene_node.object}></ListItem>
+          <ListItem name={name} object={scene_node.object} />
         </MenuItem>
       );
     }
     return (
-      <SubMenu title={name} icon={<FaTractor />} defaultOpen={true}>
+      <SubMenu title={name} icon={<FaTractor />} defaultOpen>
         {Object.keys(scene_node.children).map((key) =>
-          get_menu_items((name = key), scene_node.children[key]),
+          get_menu_items(key, scene_node.children[key]),
         )}
       </SubMenu>
     );
   };
 
   const menu_items = get_menu_items('Scene', sceneTree);
-  console.log(menu_items);
 
   return (
     <ProSidebar>
@@ -114,9 +104,12 @@ function ClickableList(props) {
   );
 }
 
-export function BasicTabs(props) {
+interface BasicTabsProps {
+  sceneTree: object
+}
+
+export function BasicTabs(props: BasicTabsProps) {
   const sceneTree = props.sceneTree;
-  // const scene = sceneTree.object;
 
   const [value, setValue] = React.useState(0);
 
@@ -133,7 +126,7 @@ export function BasicTabs(props) {
   return (
     <div>
       <StatusPanel sceneTree={sceneTree} />
-      <hr></hr>
+      <hr />
       <Box sx={{ width: '100%' }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs
@@ -154,7 +147,7 @@ export function BasicTabs(props) {
         </TabPanel>
         <TabPanel value={value} index={1}>
           <div className="Scene-container">
-            <ClickableList sceneTree={sceneTree}></ClickableList>
+            <ClickableList sceneTree={sceneTree} />
           </div>
         </TabPanel>
         <TabPanel value={value} index={2}>

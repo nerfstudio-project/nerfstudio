@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
-import React, { useContext, useEffect, useRef } from 'react';
-
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stats from 'stats.js';
-import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
-import { WebSocketContext } from '../WebSocket/WebSocket';
 import { useSelector } from 'react-redux';
+import React, { useContext, useEffect, useRef } from 'react';
+import { WebSocketContext } from '../WebSocket/WebSocket';
+import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+
 
 const msgpack = require('msgpack-lite');
 
@@ -32,7 +32,6 @@ export default function ViewerWindow(props) {
   const field_of_view_ref = useRef(field_of_view);
   
   const camera = useRef(null);
-  // let camera = camera_ref.current;
   let cameraControls = null;
   let renderer = null;
   let viewportWidth = null;
@@ -73,7 +72,9 @@ export default function ViewerWindow(props) {
 
   // keep sending the camera often
   useEffect(() => {
-    const refreshIntervalId = setInterval(sendCamera, 100);
+    const fps = 60;
+    const interval = 1000 / fps;
+    const refreshIntervalId = setInterval(sendCamera, interval);
     return () => {
       clearInterval(refreshIntervalId);
     };
@@ -91,7 +92,6 @@ export default function ViewerWindow(props) {
 
   // this is run once
   useEffect(() => {
-    console.log('\n\ncalling use effect\n\n');
     viewportWidth = getViewportWidth();
     viewportHeight = getViewportHeight();
 
@@ -129,17 +129,10 @@ export default function ViewerWindow(props) {
     cameraControls.update();
     update();
 
-    // return () => {
-    //   const div = myRef.current;
-    //   console.log(div);
-    //   div.removeChild(div.lastChild);
-    //   div.removeChild(div.lastChild);
-    // };
   }, []);
 
   // updates the field of view inside the ref to avoid rerendering so often
   useEffect(() => {
-    console.log("use effect!");
     field_of_view_ref.current = field_of_view;
   }, [field_of_view]);
 

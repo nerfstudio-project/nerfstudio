@@ -8,7 +8,6 @@ const msgpack = require('msgpack-lite');
 
 export function RenderControls() {
   // connection status indicators
-  console.log("\n\nRenderingControls\n\n");
   const websocket = useContext(WebSocketContext).socket;
   const isTraining = useSelector((state) => state.renderingState.isTraining);
   const outputOptions = useSelector(
@@ -258,11 +257,6 @@ export function RenderControls() {
       websocket // need to re-render when websocket changes to use the new websocket
     ],
   );
-
-  // setInterval(() => {
-  //   console.log("Delayed for 1 second.");
-  //   console.log(websocket);
-  // }, "1000")
 
   useEffect(() => {
     setControls({ min_resolution });

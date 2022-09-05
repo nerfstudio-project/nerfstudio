@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 
-import { WebSocketContext } from '../WebSocket/WebSocket';
 import { useDispatch } from 'react-redux';
+import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const WebRtcContext = createContext(null);
 const msgpack = require('msgpack-lite');
@@ -36,7 +36,7 @@ export default function WebRtcWindow() {
           username: 'openrelayproject',
           credential: 'openrelayproject',
         },
-        // extra STUN server(s):
+        // Extra STUN and TURN server(s):
         // {
         //   urls: 'stun:stun.l.google.com:19302',
         // },
@@ -171,9 +171,8 @@ export default function WebRtcWindow() {
       sendOffer();
     });
 
-    // kill the webrtc connection on dismount!
+    // kill the webrtc connection on dismount
     return () => {
-      console.log('inside the dismount for webRTC');
       if (pcRef.current !== null) {
         dispatch({
           type: 'write',

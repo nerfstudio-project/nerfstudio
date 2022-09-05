@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Box, Button, Modal, TextField, Typography } from '@mui/material';
+import { TextField } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function WebSocketUrlField() {
@@ -10,7 +10,6 @@ export default function WebSocketUrlField() {
   );
   const dispatch = useDispatch();
   const websocket_url_onchange = (event) => {
-    console.log(event.target.value);
     const value = event.target.value;
     dispatch({
       type: 'write',

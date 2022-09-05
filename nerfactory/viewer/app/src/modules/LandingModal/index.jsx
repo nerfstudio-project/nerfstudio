@@ -1,1 +1,3 @@
-export { default } from './LandingModal';
+import LandingModel from './LandingModal';
+
+export default LandingModel;
