@@ -37,20 +37,16 @@ class ImageDataset(Dataset):
     def __init__(
         self,
         image_filenames: List[Path],
-        downscale_factor: int = 1,
         alpha_color: Optional[TensorType[3]] = None,
     ):
         """_summary_
 
         Args:
             image_filenames (List[str]): List of image filenames
-            downscale_factor (int, optional): How much to downscale the image. Defaults to 1.
             alpha_color (TensorType[3], optional): Sets transparent regions to specified color, otherwise black.
         """
         super().__init__()
-        assert isinstance(downscale_factor, int)
         self.image_filenames = image_filenames
-        self.downscale_factor = downscale_factor
         self.alpha_color = alpha_color
 
     def __len__(self):
@@ -67,19 +63,6 @@ class ImageDataset(Dataset):
         """
         image_filename = self.image_filenames[image_idx]
         pil_image = Image.open(image_filename)
-        if self.downscale_factor != 1.0:
-            image_width, image_height = pil_image.size
-            if image_width % self.downscale_factor != 0:
-                raise ValueError(
-                    f"Image width {image_width} is not divisible by downscale_factor {self.downscale_factor}"
-                )
-            if image_height % self.downscale_factor != 0:
-                raise ValueError(
-                    f"Image height {image_height} is not divisible by downscale_factor {self.downscale_factor}"
-                )
-            pil_image = pil_image.resize(
-                (image_width // self.downscale_factor, image_height // self.downscale_factor), Image.BILINEAR
-            )
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
         assert image.dtype == np.uint8
@@ -134,24 +117,17 @@ class PanopticImageDataset(ImageDataset):
         self,
         semantics: Semantics,
         image_filenames: List[Path],
-        downscale_factor: int = 1,
         alpha_color: Optional[TensorType[3]] = None,
         **kwargs,
     ):
         self.semantics = semantics
         self.person_index = self.semantics.thing_classes.index("person")
-        super().__init__(image_filenames, downscale_factor, alpha_color, **kwargs)
+        super().__init__(image_filenames, alpha_color, **kwargs)
 
     def get_mask(self, image_idx):
         """Mask out the people. Valid only where there aren't people."""
         thing_image_filename = self.semantics.thing_filenames[image_idx]
         pil_image = Image.open(thing_image_filename)
-        if self.downscale_factor != 1.0:
-            image_width, image_height = pil_image.size
-            # the use of NEAREST is important for semantic classes
-            pil_image = pil_image.resize(
-                (image_width // self.downscale_factor, image_height // self.downscale_factor), Image.NEAREST
-            )
         thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
         mask = (thing_semantics != self.person_index).to(torch.float32)  # 1 where valid
         return mask
@@ -159,11 +135,5 @@ class PanopticImageDataset(ImageDataset):
     def get_semantics(self, image_idx):
         stuff_image_filename = self.semantics.stuff_filenames[image_idx]
         pil_image = Image.open(stuff_image_filename)
-        if self.downscale_factor != 1.0:
-            image_width, image_height = pil_image.size
-            # the use of NEAREST is important for semantic classes
-            pil_image = pil_image.resize(
-                (image_width // self.downscale_factor, image_height // self.downscale_factor), Image.NEAREST
-            )
         stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
         return stuff_semantics

@@ -25,13 +25,11 @@ def set_reduced_config(config: cfg.Config):
     config.pipeline.data_manager.image_dataset_type = "rgb"
 
     config.pipeline.data_manager.train_dataset = cfg.BlenderDataParserConfig(
-        data_directory=Path("tests/data/lego_test"), downscale_factor=16
+        data_directory=Path("tests/data/lego_test")
     )
     config.pipeline.data_manager.train_num_images_to_sample_from = 1
     config.pipeline.data_manager.train_num_rays_per_batch = 4
-    config.pipeline.data_manager.eval_dataset = cfg.BlenderDataParserConfig(
-        data_directory=Path("tests/data/lego_test"), downscale_factor=16
-    )
+    config.pipeline.data_manager.eval_dataset = cfg.BlenderDataParserConfig(data_directory=Path("tests/data/lego_test"))
 
     # reduce model factors
     config.pipeline.model.num_coarse_samples = 4

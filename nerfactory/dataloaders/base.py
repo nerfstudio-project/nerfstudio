@@ -253,7 +253,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         if self.config.image_dataset_type == "rgb":
             self.train_image_dataset = ImageDataset(
                 image_filenames=self.train_datasetinputs.image_filenames,
-                downscale_factor=self.train_datasetinputs.downscale_factor,
                 alpha_color=self.train_datasetinputs.alpha_color,
             )
         elif self.config.image_dataset_type == "panoptic":
@@ -290,7 +289,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         if self.config.image_dataset_type == "rgb":
             self.eval_image_dataset = ImageDataset(
                 image_filenames=self.eval_datasetinputs.image_filenames,
-                downscale_factor=self.eval_datasetinputs.downscale_factor,
                 alpha_color=self.eval_datasetinputs.alpha_color,
             )
         elif self.config.image_dataset_type == "panoptic":
