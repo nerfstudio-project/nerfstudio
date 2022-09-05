@@ -30,16 +30,16 @@ from scipy.spatial.transform import Rotation
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.colmap_utils import (
-    read_cameras_binary,
-    read_images_binary,
-    read_pointsTD_binary,
-)
 from nerfactory.dataloaders.structs import (
     DatasetInputs,
     PointCloud,
     SceneBounds,
     Semantics,
+)
+from nerfactory.utils.colmap_utils import (
+    read_cameras_binary,
+    read_images_binary,
+    read_pointsTD_binary,
 )
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
@@ -126,6 +126,83 @@ class DataParser:
             logging.info("Cache file not found. Generating and saving dataset to cache.")
             dataset_inputs = self._generate_dataset_inputs(split=split)
             self.save_dataset_inputs_to_cache(split)
+        return dataset_inputs
+
+
+@dataclass
+class Nerfactory(DataParser):
+    """Nerfactory Dataset
+
+    Args:
+        data_directory: Location of data
+        scale_factor: How much to scale the camera origins by.
+        downscale_factor: How much to downscale images. Defaults to 1.
+        scene_scale: How much to scale the scene. Defaults to 0.33
+    """
+
+    config: cfg.InstantNGPDataParserConfig
+
+    def _generate_dataset_inputs(self, split="train"):
+
+        abs_dir = get_absolute_path(self.config.data_directory)
+
+        meta = load_from_json(abs_dir / "transforms.json")
+        image_filenames = []
+        poses = []
+        num_skipped_image_filenames = 0
+        for frame in meta["frames"]:
+            fname = abs_dir / Path(frame["file_path"])
+            if not fname:
+                num_skipped_image_filenames += 1
+            else:
+                image_filenames.append(fname)
+                poses.append(np.array(frame["transform_matrix"]))
+        if num_skipped_image_filenames >= 0:
+            logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+        assert (
+            len(image_filenames) != 0
+        ), """
+        No image files found. 
+        You should check the file_paths in the transforms.json file to make sure they are correct.
+        """
+        poses = np.array(poses).astype(np.float32)
+        poses[:3, 3] *= self.config.scene_scale
+
+        camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
+
+        distortion_params = camera_utils.get_distortion_params(
+            k1=float(meta["k1"]), k2=float(meta["k2"]), p1=float(meta["p1"]), p2=float(meta["p2"])
+        )
+
+        # in x,y,z order
+        # assumes that the scene is centered at the origin
+        aabb_scale = 16
+        scene_bounds = SceneBounds(
+            aabb=torch.tensor(
+                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+            )
+        )
+
+        cameras = Cameras(
+            fx=float(meta["fl_x"]),
+            fy=float(meta["fl_y"]),
+            cx=float(meta["cx"]),
+            cy=float(meta["cy"]),
+            distortion_params=distortion_params,
+            height=int(meta["h"]),
+            width=int(meta["w"]),
+            camera_to_worlds=camera_to_world,
+            camera_type=CameraType.PERSPECTIVE,
+        )
+
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
+
+        dataset_inputs = DatasetInputs(
+            image_filenames=image_filenames,
+            downscale_factor=self.config.downscale_factor,
+            cameras=cameras,
+            scene_bounds=scene_bounds,
+        )
         return dataset_inputs
 
 
@@ -238,20 +315,11 @@ class InstantNGP(DataParser):
         poses = np.array(poses).astype(np.float32)
         poses[:3, 3] *= self.config.scene_scale
 
-        fx = float(meta["fl_x"])
-        fy = float(meta["fl_y"])
-        cx = float(meta["cx"])
-        cy = float(meta["cy"])
-        k1 = float(meta["k1"])
-        k2 = float(meta["k2"])
-        p1 = float(meta["p1"])
-        p2 = float(meta["p2"])
-        image_height = int(meta["h"])
-        image_width = int(meta["w"])
-
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 
-        distortion_params = camera_utils.get_distortion_params(k1=k1, k2=k2, p1=p1, p2=p2)
+        distortion_params = camera_utils.get_distortion_params(
+            k1=float(meta["k1"]), k2=float(meta["k2"]), p1=float(meta["p1"]), p2=float(meta["p2"])
+        )
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
@@ -263,13 +331,13 @@ class InstantNGP(DataParser):
         )
 
         cameras = Cameras(
-            fx=fx,
-            fy=fy,
-            cx=cx,
-            cy=cy,
+            fx=float(meta["fl_x"]),
+            fy=float(meta["fl_y"]),
+            cx=float(meta["cx"]),
+            cy=float(meta["cy"]),
             distortion_params=distortion_params,
-            height=image_height,
-            width=image_width,
+            height=int(meta["h"]),
+            width=int(meta["w"]),
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
