@@ -95,9 +95,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         print("opened:", self, file=sys.stderr)
         self.bridge.send_scene(self)
 
-    def on_close(self):
-        print("WebSocket closed")
-
     async def on_message(self, message: bytearray):  # pylint: disable=invalid-overridden-method
         """On reception of message from the websocket,
         parses the message and calls the appropriate function based on the type of command
