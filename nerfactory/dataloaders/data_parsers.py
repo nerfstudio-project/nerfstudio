@@ -140,7 +140,7 @@ class Nerfactory(DataParser):
         scene_scale: How much to scale the scene. Defaults to 0.33
     """
 
-    config: cfg.InstantNGPDataParserConfig
+    config: cfg.NerfactoryDataParserConfig
 
     def _generate_dataset_inputs(self, split="train"):
 
@@ -152,6 +152,10 @@ class Nerfactory(DataParser):
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
             fname = abs_dir / Path(frame["file_path"])
+            if self.config.downscale_factor > 1:
+                fname = abs_dir / f"images_{self.config.downscale_factor}" / Path(frame["file_path"]).name
+            else:
+                fname = abs_dir / Path(frame["file_path"])
             if not fname:
                 num_skipped_image_filenames += 1
             else:
@@ -199,7 +203,6 @@ class Nerfactory(DataParser):
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.config.downscale_factor,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )
@@ -215,7 +218,6 @@ class Blender(DataParser):
         data_directory: Location of data
         alpha_color: Sets transparent regions to specified color, otherwise black.
         scale_factor: How much to scale the camera origins by.
-        downscale_factor: How much to downscale images. Defaults to 1.
     """
 
     def __init__(self, config: cfg.BlenderDataParserConfig):
@@ -223,7 +225,6 @@ class Blender(DataParser):
         self.data_directory: Path = config.data_directory
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
-        self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):
         if self.alpha_color is not None:
@@ -263,12 +264,9 @@ class Blender(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
-
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            downscale_factor=self.downscale_factor,
             alpha_color=alpha_color_tensor,
             scene_bounds=scene_bounds,
         )
@@ -283,7 +281,6 @@ class InstantNGP(DataParser):
     Args:
         data_directory: Location of data
         scale_factor: How much to scale the camera origins by.
-        downscale_factor: How much to downscale images. Defaults to 1.
         scene_scale: How much to scale the scene. Defaults to 0.33
     """
 
@@ -342,12 +339,9 @@ class InstantNGP(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
-
         # TODO(ethan): add alpha background color
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.config.downscale_factor,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )
@@ -428,7 +422,7 @@ class Mipnerf360(DataParser):
         image_height, image_width = img_0.shape[:2]
 
         poses[:, :2, 4] = np.array([image_height, image_width])
-        poses[:, 2, 4] = poses[:, 2, 4] * 1.0 / self.config.downscale_factor
+        poses[:, 2, 4] = poses[:, 2, 4]
 
         # Reorder pose to match our convention
         poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
@@ -471,7 +465,6 @@ class Mipnerf360(DataParser):
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=1,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )
@@ -485,7 +478,6 @@ class Record3D(DataParser):
 
     Args:
         data_directory: Location of data
-        downscale_factor: How much to downscale images. Defaults to 1.
         val_skip: 1/val_skip images to use for validation. Defaults to 8.
         aabb_scale: Scene scale, Defaults to 4.0.
         max_dataset_size: Max number of images to train on. If the dataset has
@@ -590,11 +582,8 @@ class Record3D(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
-
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.config.downscale_factor,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )
@@ -608,13 +597,11 @@ class Friends(DataParser):
 
     Args:
         data_directory: Location of data
-        downscale_factor: How much to downscale images. Defaults to 1.
         include_semantics: whether or not to include the semantics. Defaults to False.
         include_point_cloud: whether or not to include the point cloud. Defaults to False.
     """
 
     data_directory: Path
-    downscale_factor: int = 1
     include_semantics: bool = True
     include_point_cloud: bool = False
 
@@ -732,17 +719,16 @@ class Friends(DataParser):
             point_cloud.rgb = rgb
 
         cameras = Cameras(
-            fx=focal_lengths / self.downscale_factor,
-            fy=focal_lengths / self.downscale_factor,
-            cx=cx / self.downscale_factor,
-            cy=cy / self.downscale_factor,
+            fx=focal_lengths,
+            fy=focal_lengths,
+            cx=cx,
+            cy=cy,
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.downscale_factor,
             cameras=cameras,
             semantics=semantics,
             point_cloud=point_cloud,

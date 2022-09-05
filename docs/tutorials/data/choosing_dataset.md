@@ -9,12 +9,10 @@ data:
   dataset_inputs_train:
     data_directory: data/instant_ngp/fox
     dataset_format: instant_ngp
-    downscale_factor: 1
     alpha_color: white
   dataset_inputs_eval:
     data_directory: data/instant_ngp/fox
     dataset_format: instant_ngp
-    downscale_factor: 1
     alpha_color: white
 ```
 

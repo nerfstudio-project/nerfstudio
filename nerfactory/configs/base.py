@@ -189,7 +189,6 @@ class BlenderDataParserConfig(DataParserConfig):
     data_directory: Path = Path("data/blender/lego")
     scale_factor: float = 1.0
     alpha_color: str = "white"
-    downscale_factor: int = 1
 
 
 @dataclass
@@ -219,7 +218,6 @@ class InstantNGPDataParserConfig(DataParserConfig):
     _target: Type = InstantNGP
     data_directory: Path = Path("data/ours/posterv2")
     scale_factor: float = 1.0
-    downscale_factor: int = 1
     scene_scale: float = 0.33
 
 
@@ -229,7 +227,6 @@ class Record3DDataParserConfig(DataParserConfig):
 
     _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
-    downscale_factor: int = 1
     val_skip: int = 8
     aabb_scale = 4.0
     max_dataset_size: int = 150

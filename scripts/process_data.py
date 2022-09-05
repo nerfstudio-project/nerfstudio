@@ -238,11 +238,35 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> N
         json.dump(out, f, indent=4)
 
 
+def downscale_images(image_dir: Path, num_downscales: int) -> None:
+    """Downscales the images in the directory.
+
+    Args:
+        image_dir: Path to the directory containing the images.
+        num_downscales: Number of times to downscale the images. Downscales by 2 each time.
+    """
+    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
+    for downscale_factor in downscale_factors:
+        # Downscale images with ffmpeg
+        assert downscale_factor > 1
+        assert isinstance(downscale_factor, int)
+        downscale_dir = image_dir.parent / f"images_{downscale_factor}"
+        downscale_dir.mkdir(parents=True, exist_ok=True)
+        ffmpeg_cmd = [
+            f"ffmpeg -i {image_dir}/frame_%05d.png ",
+            f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+            f"{downscale_dir}/frame_%05d.png",
+        ]
+        ffmpeg_cmd = " ".join(ffmpeg_cmd)
+        run_command(ffmpeg_cmd)
+
+
 def main(
     data: Path,
     output_dir: Path,
     num_frames_target: int,
     camera_type: Literal["perspective", "fisheye"] = "perspective",
+    num_downscales: int = 0,
     gpu: bool = True,
 ):
     """Process images or videos into a Nerfactory dataset.
@@ -259,6 +283,8 @@ def main(
         output_dir: Path to the output directory.
         num_frames: Target number of frames to use for the dataset, results may not be exact.
         camera_type: Camera model to use.
+        num_downscales: Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+            will downscale the images by 2x, 4x, and 8x.
         gpu: If True, use GPU.
     """
 
@@ -274,6 +300,10 @@ def main(
     if data.is_file():
         _print_section_header("Converting video into images.")
         convert_video_to_images(data, image_dir=image_dir, num_frames_target=num_frames_target)
+
+    if num_downscales > 0:
+        _print_section_header("Downscaling images.")
+        downscale_images(image_dir, num_downscales)
 
     _print_section_header("Running Colmap.")
     colmap_dir = output_dir / "colmap"
