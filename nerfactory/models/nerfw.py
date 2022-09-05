@@ -45,6 +45,8 @@ from nerfactory.utils import colors, misc, visualization, writer
 class NerfWModel(Model):
     """NeRF-W model"""
 
+    config: cfg.NerfWModelConfig
+
     def __init__(
         self,
         config: cfg.NerfWModelConfig,

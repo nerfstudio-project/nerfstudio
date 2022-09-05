@@ -30,7 +30,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.dataloaders.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import get_masked_dict, is_not_none
 
 
@@ -76,7 +76,9 @@ class Model(nn.Module):
         """Returns the device that the model is on."""
         return self.device_indicator_param.device
 
-    def get_training_callbacks(self) -> List[Callback]:  # pylint:disable=no-self-use
+    def get_training_callbacks(  # pylint:disable=no-self-use
+        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    ) -> List[TrainingCallback]:
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
 
@@ -92,7 +94,6 @@ class Model(nn.Module):
                 update_every_num_iters=self.config.density_field_params["update_every_num_iters"],
             )
 
-    @abstractmethod
     def populate_fields(self):
         """Set the fields."""
 
@@ -143,6 +144,7 @@ class Model(nn.Module):
 
         This outputs different things depending on the configuration of the model and whether or not
         the batch is provided (whether or not we are training basically)."""
+
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]

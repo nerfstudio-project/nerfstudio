@@ -68,7 +68,7 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
 
 
 def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
-    """Helper function to evaluate the pipeline on a dataloader.
+    """Helper function to evaluate the pipeline on a DataManager.
 
     Args:
         pipeline (Pipeline): Pipeline to evaluate
@@ -79,7 +79,7 @@ def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
     avg_psnr = 0
     avg_rays_per_sec = 0
     avg_fps = 0
-    for step, (camera_ray_bundle, batch) in tqdm(enumerate(pipeline.dataloader.eval_dataloader)):
+    for step, (camera_ray_bundle, batch) in tqdm(enumerate(pipeline.data_manager.eval_dataloader)):
         with TimeWriter(writer=None, name=None, write=False) as t:
             with torch.no_grad():
                 image_idx = int(camera_ray_bundle.camera_indices[0, 0])
@@ -142,9 +142,9 @@ def _eval_setup(config_path: Path) -> Tuple[cfg.Config, Pipeline, Path]:
     # load checkpoints from wherever they were saved
     # TODO: expose the ability to choose an arbitrary checkpoint
     config.trainer.load_dir = config.trainer.model_dir
-    config.pipeline.dataloader.eval_image_indices = None
+    config.pipeline.data_manager.eval_image_indices = None
 
-    # setup pipeline (which includes the dataloaders)
+    # setup pipeline (which includes the DataManager)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pipeline = config.pipeline.setup(device=device, test_mode=True)
     assert isinstance(pipeline, Pipeline)
@@ -210,11 +210,11 @@ class RenderTrajectory:
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
-            camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
+            camera_start = pipeline.data_manager.eval_dataloader.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "interp":
-            cameras = pipeline.dataloader.eval_dataloader.get_camera(image_idx=[0, 10])
+            cameras = pipeline.data_manager.eval_dataloader.get_camera(image_idx=[0, 10])
             camera_path = get_interpolated_camera_path(cameras, steps=30)
         else:
             assert_never(self.traj)
@@ -225,7 +225,7 @@ class RenderTrajectory:
             output_filename=self.output_path,
             rendered_output_name=self.rendered_output_name,
             rendered_resolution_scaling_factor=self.rendered_resolution_scaling_factor,
-            num_rays_per_chunk=config.pipeline.dataloader.eval_num_rays_per_chunk,
+            num_rays_per_chunk=config.pipeline.data_manager.eval_num_rays_per_chunk,
         )
 
 

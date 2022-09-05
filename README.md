@@ -1,14 +1,10 @@
 <p align="center">
-    <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
-    <img alt="nerfactory" src="docs/_static/imgs/logo.png" width="400">
-    </picture>
-</p>
-
-<p align="center"> The all-in-one repo for NeRFs </p>
-
-<p align="center">
+    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
+        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
+    </a>
+    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml'>
+        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml/badge.svg' alt='Viewer build Status' />
+    </a>
     <a href='https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest'>
         <img src='https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest&token=2c5ba6bdd52600523fa8a8513170ae7170fd927a8c9dfbcf7c03af7ede551f96' alt='Documentation Status' />
     </a>
@@ -20,9 +16,27 @@
     <a href="https://badge.fury.io/py/nerfactory"><img src="https://badge.fury.io/py/nerfactory.svg" alt="PyPI version" height="18"></a>
 </p>
 
+<p align="center">
+    <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
+    <img alt="nerfactory" src="docs/_static/imgs/logo.png" width="400">
+    </picture>
+</p>
+
+<p align="center"> The all-in-one repo for NeRFs </p>
+
+<p align="center">
+    <a href="http://www.nerfactory.com/">
+        <img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
+    </a>
+    <a href="https://viewer.nerfactory.com/">
+        <img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
+    </a>
+</p>
+
 - [Quickstart](#quickstart)
 - [Supported Features](#supported-features)
-- [Benchmarked Model Architectures](#benchmarked-model-architectures)
 
 # Quickstart
 
@@ -57,15 +71,9 @@ conda activate nerfactory
 # Clone the repo
 git clone git@github.com:plenoptix/nerfactory.git
 
-# Install dependencies
+# Install dependencies and nerfactory as a library
 cd nerfactory
-pip install -r environment/requirements.txt
-
-# Install nerfactory as a library
 pip install -e .
-
-# Install library with CUDA support. Change setup.py to `USE_CUDA = True` and then
-python setup.py develop
 
 # Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
@@ -95,17 +103,33 @@ Download the original [NeRF dataset](https://drive.google.com/drive/folders/128y
 To run with all the defaults, e.g. vanilla nerf method with the blender lego image
 
 ```
+# To see what models are available.
+python scripts/run_train.py --help
+
 # Run a vanilla nerf model.
-python scripts/run_train.py
+python scripts/run_train.py vanilla_nerf
 
 # Run a faster version with instant ngp using tcnn (without the viewer).
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml
-
-# Run with the viewer. However, you'll have to start the viewer server first. (See the docs.)
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
+python scripts/run_train.py instant_ngp
 ```
 
-With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments.
+#### 3.x Training a model with the viewer
+
+Make sure to forward a port for the websocket to localhost. The default port is 7007, which you should be expose to localhost:7007.
+
+```bash
+# with the default port
+python scripts/run_train.py instant_ngp --viewer.enable
+
+# with a specified websocket port
+python scripts/run_train.py instant_ngp --viewer.enable --viewer.websocket-port=7008
+
+# with the viewer bridge server as a separate process
+# in one terminal, start the bridge server:
+viewer-bridge-server # or equivalently, python scripts/run_viewer_bridge_server.py
+# in another terminal, start training:
+python scripts/run_train.py instant_ngp --viewer.enable --viewer.no-launch-bridge-server
+```
 
 #### 4. Visualizing training runs
 
@@ -116,13 +140,6 @@ We support multiple methods to visualize training, the default configuration use
 
 We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/viewer.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
 
-To enable add the following to your config:
-
-```
-viewer:
-  enable: true
-```
-
 </details>
 
 <details>
@@ -130,12 +147,8 @@ viewer:
 
 If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
-```
+```bash
 tensorboard --logdir outputs
-
-# or the following
-export TENSORBOARD_PORT=<port>
-bash environment/run_tensorboard.sh
 ```
 
 </details>
@@ -169,8 +182,6 @@ We provide the following support strucutures to make life easier for getting sta
 
 If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!
 
-#### :metal: Support for [Hydra](https://hydra.cc/) config structure
-
 #### :metal: Support for multiple logging interfaces
 
 #### :metal: Built-in support for profiling code
@@ -178,11 +189,3 @@ If you are looking for a feature that is not currently supported, please do not 
 #### :metal: Benchmarking scripts
 
 #### :metal: Speed up your code with Tiny Cuda NN
-
-# Benchmarked Model Architectures
-
-| Method                                                                            | PSNR                     |
-| --------------------------------------------------------------------------------- | ------------------------ |
-| [NeRF](https://arxiv.org/abs/2003.08934)                                          | :hourglass_flowing_sand: |
-| [instant NGP](https://nvlabs.github.io/instant-ngp/assets/mueller2022instant.pdf) | :hourglass_flowing_sand: |
-| [Mip NeRF](https://arxiv.org/abs/2103.13415)                                      | :hourglass_flowing_sand: |

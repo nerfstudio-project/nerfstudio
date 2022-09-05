@@ -14,19 +14,30 @@
 
 """Base Configs"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.dataloaders.base import Dataloader, VanillaDataloader
-from nerfactory.dataloaders.datasets import Blender, Dataset, Friends, Mipnerf360
+from nerfactory.dataloaders.base import VanillaDataManager
+from nerfactory.dataloaders.data_parsers import (
+    Blender,
+    DataParser,
+    Friends,
+    InstantNGP,
+    Mipnerf360,
+    Nerfactory,
+    Record3D,
+)
 from nerfactory.models.base import Model
 from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
+from nerfactory.models.tensorf import TensoRFModel
 from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
@@ -110,6 +121,14 @@ class LocalWriterConfig(InstantiateConfig):
     relative_log_dir: Path = Path("./")
     log_dir: Optional[Path] = None  # full log dir path to be dynamically set
 
+    def setup(self, banner_messages: Optional[List[str]] = None, **kwargs) -> Any:
+        """Instantiate local writer
+
+        Args:
+            banner_messages: List of strings that always print at the bottom of screen. Defaults to None.
+        """
+        return self._target(self, banner_messages=banner_messages, **kwargs)
+
 
 @dataclass
 class LoggingConfig(PrintableConfig):
@@ -145,19 +164,81 @@ class TrainerConfig(PrintableConfig):
 
 # Dataset related configs
 @dataclass
-class DatasetConfig(InstantiateConfig):
+class DataParserConfig(InstantiateConfig):
     """Basic dataset config"""
 
-    _target: Type = Dataset
+    _target: Type = DataParser
 
 
 @dataclass
-class DataloaderConfig(InstantiateConfig):
-    """Configuration for dataloader instantiation"""
+class NerfactoryDataParserConfig(DataParserConfig):
+    """Nerfactory dataset config"""
 
-    _target: Type = Dataloader
+    _target: Type = Nerfactory
+    data_directory: Path = Path("data/ours/posterv2")
+    scale_factor: float = 1.0
+    downscale_factor: int = 1
+    scene_scale: float = 0.33
+
+
+@dataclass
+class BlenderDataParserConfig(DataParserConfig):
+    """Blender dataset config"""
+
+    _target: Type = Blender
+    data_directory: Path = Path("data/blender/lego")
+    scale_factor: float = 1.0
+    alpha_color: str = "white"
+
+
+@dataclass
+class FriendsDataParserConfig(DataParserConfig):
+    """Friends dataset config"""
+
+    _target: Type = Friends
+    data_directory: Path = Path("data/friends/TBBT-big_living_room")
+
+
+@dataclass
+class MipNerf360DataParserConfig(DataParserConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = Mipnerf360
+    data_directory: Path = Path("data/mipnerf_360/garden")
+    downscale_factor: int = 1
+    val_skip: int = 8
+    auto_scale: bool = True
+    aabb_scale = 4
+
+
+@dataclass
+class InstantNGPDataParserConfig(DataParserConfig):
+    """Instant-NGP dataset config"""
+
+    _target: Type = InstantNGP
+    data_directory: Path = Path("data/ours/posterv2")
+    scale_factor: float = 1.0
+    scene_scale: float = 0.33
+
+
+@dataclass
+class Record3DDataParserConfig(DataParserConfig):
+    """Mipnerf 360 dataset config"""
+
+    _target: Type = Record3D
+    data_directory: Path = Path("data/record3d/garden")
+    val_skip: int = 8
+    aabb_scale = 4.0
+    max_dataset_size: int = 150
+
+
+@dataclass
+class VanillaDataManagerConfig(InstantiateConfig):
+    """Configuration for data manager instantiation"""
+
+    _target: Type = VanillaDataManager
+    train_dataset: DataParserConfig = BlenderDataParserConfig()
     image_dataset_type: str = "rgb"
-    train_dataset: InstantiateConfig = DatasetConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataset: Optional[InstantiateConfig] = None
@@ -166,55 +247,12 @@ class DataloaderConfig(InstantiateConfig):
 
 
 @dataclass
-class BlenderDatasetConfig(InstantiateConfig):
-    """Blender dataset config"""
+class FriendsDataManagerConfig(VanillaDataManagerConfig):
+    """Friends data manager config"""
 
-    _target: Type = Blender
-    data_directory: str = "data/blender/lego"
-    scale_factor: float = 1.0
-    alpha_color: str = "white"
-    downscale_factor: int = 1
-
-
-@dataclass
-class BlenderDataloaderConfig(DataloaderConfig):
-    """Blender dataloader config"""
-
-    _target: Type = VanillaDataloader
-    train_dataset: InstantiateConfig = BlenderDatasetConfig()
-
-
-@dataclass
-class FriendsDatasetConfig(InstantiateConfig):
-    """Friends dataset config"""
-
-    _target: Type = Friends
-    data_directory: str = "data/friends/TBBT-big_living_room"
-
-
-@dataclass
-class FriendsDataloaderConfig(DataloaderConfig):
-    """Friends dataloader config"""
-
-    _target: Type = VanillaDataloader
-    train_dataset: InstantiateConfig = FriendsDatasetConfig()
+    _target: Type = VanillaDataManager
+    train_dataset: DataParserConfig = FriendsDataParserConfig()
     image_dataset_type: str = "panoptic"
-
-
-@dataclass
-class MipNerf360DatasetConfig(InstantiateConfig):
-    """Mipnerf 360 dataset config"""
-
-    _target: Type = Mipnerf360
-    data_directory: str = "data/mipnerf_360/garden"
-
-
-@dataclass
-class MipNerf360DataloaderConfig(DataloaderConfig):
-    """Mipnerf 360 dataloader config"""
-
-    _target: Type = VanillaDataloader
-    train_dataset: InstantiateConfig = MipNerf360DatasetConfig()
 
 
 # Model related configs
@@ -266,13 +304,24 @@ class NerfWModelConfig(ModelConfig):
     uncertainty_min: float = 0.03
 
 
+@dataclass
+class TensoRFModelConfig(ModelConfig):
+    """TensoRF model config"""
+
+    _target: Type = TensoRFModel
+    init_resolution: int = 128
+    final_resolution: int = 200
+    upsampling_iters: Tuple[int, ...] = (5000, 5500, 7000)
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "feature_loss": 8e-5})
+
+
 # Pipeline related configs
 @dataclass
 class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    dataloader: DataloaderConfig = DataloaderConfig()
+    data_manager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     model: ModelConfig = ModelConfig()
 
 
@@ -283,6 +332,8 @@ class ViewerConfig(PrintableConfig):
 
     enable: bool = False
     zmq_url: str = "tcp://127.0.0.1:6000"
+    launch_bridge_server: bool = True
+    websocket_port: int = 7007
     min_render_image_height: int = 64
     max_render_image_height: int = 1024
     num_rays_per_chunk: int = 4096
@@ -344,6 +395,7 @@ class Config(PrintableConfig):
         """Convert logging directories to more specific filepaths"""
         dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
-        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
+        if self.trainer.model_dir is None:
+            self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
