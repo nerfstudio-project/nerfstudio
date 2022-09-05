@@ -136,8 +136,9 @@ class Nerfactory(DataParser):
     Args:
         data_directory: Location of data
         scale_factor: How much to scale the camera origins by.
-        downscale_factor: How much to downscale images. Defaults to 1.
-        scene_scale: How much to scale the scene. Defaults to 0.33
+        downscale_factor: How much to downscale images.
+        scene_scale: How much to scale the scene.
+        orientation_method: The method to use for orientation. Either "pca" or "up".
     """
 
     config: cfg.NerfactoryDataParserConfig
@@ -169,10 +170,12 @@ class Nerfactory(DataParser):
         No image files found. 
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
-        poses = np.array(poses).astype(np.float32)
-        poses[:3, 3] *= self.config.scene_scale
+        poses = torch.from_numpy(np.array(poses).astype(np.float32))
+        poses = camera_utils.auto_orient_poses(poses, method=self.config.orientation_method)
 
-        camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
+        # Scale poses
+        scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
+        poses[:, :3, 3] *= scale_factor
 
         distortion_params = camera_utils.get_distortion_params(
             k1=float(meta["k1"]), k2=float(meta["k2"]), p1=float(meta["p1"]), p2=float(meta["p2"])
@@ -180,7 +183,7 @@ class Nerfactory(DataParser):
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
-        aabb_scale = 16
+        aabb_scale = self.config.scene_scale
         scene_bounds = SceneBounds(
             aabb=torch.tensor(
                 [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
@@ -195,7 +198,7 @@ class Nerfactory(DataParser):
             distortion_params=distortion_params,
             height=int(meta["h"]),
             width=int(meta["w"]),
-            camera_to_worlds=camera_to_world,
+            camera_to_worlds=poses[:, :3, :4],
             camera_type=CameraType.PERSPECTIVE,
         )
 

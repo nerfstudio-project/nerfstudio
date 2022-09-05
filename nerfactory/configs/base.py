@@ -178,7 +178,8 @@ class NerfactoryDataParserConfig(DataParserConfig):
     data_directory: Path = Path("data/ours/posterv2")
     scale_factor: float = 1.0
     downscale_factor: int = 1
-    scene_scale: float = 0.33
+    scene_scale: float = 4.0
+    orientation_method: Literal["pca", "up"] = "up"
 
 
 @dataclass
