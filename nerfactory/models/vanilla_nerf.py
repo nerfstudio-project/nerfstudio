@@ -33,7 +33,6 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -90,9 +89,11 @@ class NeRFModel(Model):
             ]
         return callbacks
 
-    def populate_fields(self):
-        """Set the fields."""
+    def populate_modules(self):
+        """Set the fields and modules"""
+        super().populate_modules()
 
+        # fields
         position_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
         )
@@ -103,7 +104,6 @@ class NeRFModel(Model):
         self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
         self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
 
-    def populate_misc_modules(self):
         # samplers
         self.sampler_uniform = UniformSampler(
             num_samples=self.config.num_coarse_samples, density_field=self.density_field
@@ -122,12 +122,6 @@ class NeRFModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
-
-        # colliders
-        if self.config.enable_collider:
-            self.collider = NearFarCollider(
-                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
-            )
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
