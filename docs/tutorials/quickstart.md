@@ -31,14 +31,7 @@ Clone the repo
 git clone git@github.com:plenoptix/nerfactory.git
 ```
 
-Install dependencies
-
-```bash
-cd nerfactory
-pip install -r environment/requirements.txt
-```
-
-Install nerfactory as a library
+Install dependencies and nerfactory as a library
 
 ```bash
 pip install -e .
@@ -106,19 +99,12 @@ Additionally, if you run everything with the default configuration, by default, 
 tensorboard --logdir outputs
 ```
 
-Or the following:
-
-```bash
-export TENSORBOARD_PORT=<port>
-bash environment/run_tensorboard.sh
-```
-
 # Rendering a Trajectory
 
 To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../tooling/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
-python scripts/run_eval.py --method=traj --traj=spiral --output-filename=output.mp4 --config-name=graph_instant_ngp.yaml trainer.resume_train.load_dir=outputs/blender_lego/instant_ngp/2022-07-07_230905/checkpoints
+python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
 ```
 
 Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based visualizer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.

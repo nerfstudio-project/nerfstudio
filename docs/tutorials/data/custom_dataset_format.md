@@ -12,7 +12,6 @@ class DatasetInputs:
     """Dataset inputs are used to initialize datasets and the NeRF graph."""
 
     image_filenames: List[str]
-    downscale_factor: int = 1
     intrinsics: torch.tensor = None
     camera_to_world: torch.tensor = None
     mask_filenames: List[str] = None
@@ -26,7 +25,6 @@ class DatasetInputs:
 # See `nerfactory/data/format/instant_ngp.py` for the code.
 def load_instant_ngp_data(
     basedir: str,
-    downscale_factor: int = 1,
     split: str = "train", camera_translation_scalar=0.33
 ) -> DatasetInputs:
     """Returns a DatasetInputs struct."""
@@ -42,7 +40,6 @@ def get_dataset_inputs(
     data_directory: str,
     dataset_format: str,
     split: str,
-    downscale_factor: int = 1,
     alpha_color: Optional[Union[str, list, ListConfig]] = None,
 ) -> DatasetInputs:
     """Makes a call to `load_<dataset_format>_data` and returns a DatasetInputs struct."""

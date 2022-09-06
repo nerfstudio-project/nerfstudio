@@ -15,6 +15,9 @@
 """
 Ray generator.
 """
+
+from __future__ import annotations
+
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -96,7 +99,7 @@ class AABBBoxCollider(SceneBoundsCollider):
 class NearFarCollider(SceneBoundsCollider):
     """Sets the nears and fars with fixed values."""
 
-    def __init__(self, near_plane, far_plane, **kwargs) -> None:
+    def __init__(self, near_plane: float, far_plane: float, **kwargs) -> None:
         self.near_plane = near_plane
         self.far_plane = far_plane
         super().__init__(**kwargs)

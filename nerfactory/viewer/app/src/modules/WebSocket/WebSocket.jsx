@@ -1,42 +1,29 @@
 // Much of this code comes from or is inspired by:
 // https://www.pluralsight.com/guides/using-web-sockets-in-your-reactredux-app
 
-import React, { createContext } from 'react';
+import React, { createContext, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
 
 const WebSocketContext = createContext(null);
 
 export { WebSocketContext };
 
-function getWebsocketEndpointFromUrl(url: string) {
-  const splitUrl = url.split('?');
-  if (splitUrl.length !== 2) {
-    window.alert("There should be exactly one '?' in the url.");
-    return '';
-  }
-  const endpoint = splitUrl.pop();
-  if (endpoint === '') {
-    const message =
-      'Please set the websocket endpoint. E.g., a correct URL may be: http://localhost:4000?localhost:8051';
-    window.alert(message);
-    return '';
-  }
-  return endpoint;
-}
-
 export default function WebSocketContextFunction({ children }) {
   const dispatch = useDispatch();
+  let ws = null;
+  let socket = null;
 
-  let socket;
-  let ws;
-
-  // should look like ws://localhost:8051
-  const websocketEndpoint = getWebsocketEndpointFromUrl(window.location.href);
+  // this code will rerender anytime the webosocket changes now
+  const websocket_url = useSelector(
+    (state) => state.websocketState.websocket_url,
+  );
+  console.log(websocket_url);
 
   const connect = () => {
-    socket = new WebSocket(`ws://${websocketEndpoint}/`);
+    const url = `ws://${websocket_url}/`;
+    socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
@@ -53,9 +40,6 @@ export default function WebSocketContextFunction({ children }) {
         path: 'websocketState/isConnected',
         data: false,
       });
-      setTimeout(() => {
-        connect();
-      }, 1000);
     };
 
     socket.onerror = (err) => {
@@ -66,14 +50,20 @@ export default function WebSocketContextFunction({ children }) {
       );
       socket.close();
     };
+    return socket;
   };
 
-  if (!socket) {
-    connect();
-    ws = {
-      socket,
+  useEffect(() => {
+    // cleanup function to close the websocket on rerender
+    return () => {
+      socket.close();
     };
-  }
+  }, [websocket_url]);
+
+  connect();
+  ws = {
+    socket,
+  };
 
   return (
     <WebSocketContext.Provider value={ws}>{children}</WebSocketContext.Provider>

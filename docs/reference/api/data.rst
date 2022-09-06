@@ -3,6 +3,13 @@
 Data
 ============
 
+Data Parsers
+----------------
+
+.. automodule:: nerfactory.dataloaders.data_parsers
+   :members:
+   :show-inheritance:
+
 Image Dataset
 ----------------
 
@@ -10,10 +17,10 @@ Image Dataset
    :members:
    :show-inheritance:
 
-Image Sampler
+Image Dataloader
 ----------------
 
-.. automodule:: nerfactory.dataloaders.image_sampler
+.. automodule:: nerfactory.dataloaders.image_dataloader
    :members:
    :show-inheritance:
 

@@ -15,24 +15,23 @@
 """
 Generic Writer class
 """
-
+from __future__ import annotations
 
 import enum
-import os
-import sys
+import logging
 from abc import abstractmethod
+from pathlib import Path
 from time import time
-from typing import Dict
+from typing import Dict, List, Optional
 
 import imageio
 import numpy as np
 import torch
 import wandb
-from omegaconf import ListConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-from nerfactory.utils.config import LoggingConfig
+from nerfactory.configs import base as cfg
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
 
@@ -138,16 +137,16 @@ def write_out_storage():
 
 
 @check_main_thread
-def setup_event_writers(config: LoggingConfig, max_iter: int) -> None:
+def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config"""
-    for writer_type in config.writer:
-        writer_class = getattr(sys.modules[__name__], writer_type)
-        writer_config = config.writer[writer_type]
-        if writer_type == "LocalWriter":
-            curr_writer = writer_class(writer_config.log_dir, writer_config.stats_to_track, writer_config.max_log_size)
-        else:
-            curr_writer = writer_class(writer_config.log_dir)
-        EVENT_WRITERS.append(curr_writer)
+    for writer_type_config in config.writer:
+        if writer_type_config.enable:
+            if isinstance(writer_type_config, cfg.LocalWriterConfig):
+                curr_writer = writer_type_config.setup(banner_messages=banner_messages)
+            else:
+                curr_writer = writer_type_config.setup()
+            EVENT_WRITERS.append(curr_writer)
+            logging.info("logging info to: %s", writer_type_config.log_dir)
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
@@ -159,7 +158,7 @@ def setup_event_writers(config: LoggingConfig, max_iter: int) -> None:
 class Writer:
     """Writer class"""
 
-    def __init__(self, log_dir: str):
+    def __init__(self, log_dir: Optional[Path]):
         self.log_dir = log_dir
 
     @abstractmethod
@@ -228,9 +227,9 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, log_dir: str):
-        super().__init__(log_dir)
-        wandb.init(dir=log_dir)
+    def __init__(self, config: cfg.WandbWriterConfig):
+        super().__init__(config.log_dir)
+        wandb.init(dir=config.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -256,9 +255,9 @@ class WandbWriter(Writer):
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, log_dir: str):
-        super().__init__(log_dir)
-        self.tb_writer = SummaryWriter(log_dir=self.log_dir)
+    def __init__(self, config: cfg.TensorboardWriterConfig):
+        super().__init__(config.log_dir)
+        self.tb_writer = SummaryWriter(log_dir=config.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         """_summary_
@@ -313,27 +312,37 @@ def _format_time(seconds):
 class LocalWriter(Writer):
     """Local Writer Class"""
 
-    def __init__(self, log_dir: str, stats_to_track: ListConfig, max_log_size: int = 0):
+    def __init__(self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None):
         """
         Args:
             stats_to_track (ListConfig): the names of stats that should be logged.
             max_log size (int): max number of lines that will be logged to teminal.
         """
-        super().__init__(log_dir)
-        self.stats_to_track = [EventName[name].value for name in stats_to_track]
-        self.max_log_size = max_log_size
+        super().__init__(config.log_dir)
+        self.stats_to_track = [name.value for name in config.stats_to_track]
+        self.max_log_size = config.max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
+        self.banner_len = 0 if banner_messages is None else len(banner_messages) + 1
+        if banner_messages:
+            self.past_mssgs.extend(["-" * 100])
+            self.past_mssgs.extend(banner_messages)
         self.has_printed = False
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        if name in self.stats_to_track:
+        if name in self.stats_to_track and self.log_dir:
             image = to8b(image)
-            image_path = os.path.join(self.log_dir, f"{name}.jpg")
+            image_path = self.log_dir / f"{name}.jpg"
             imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
         if step > 0:
+            if not self.has_printed and self.max_log_size:
+                logging.info(
+                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` \
+                        to disable line wrapping.\x1b[0m",
+                    self.max_log_size,
+                )
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)
             self._print_stats(latest_map)
@@ -352,7 +361,7 @@ class LocalWriter(Writer):
     def _update_header(self, latest_map, new_key):
         """helper to handle the printing of the header labels"""
         full_log_cond = not self.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
-        capped_log_cond = self.max_log_size and (len(self.past_mssgs) <= 2 or new_key)
+        capped_log_cond = self.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
         if full_log_cond or capped_log_cond:
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
@@ -363,7 +372,7 @@ class LocalWriter(Writer):
             if full_log_cond or not self.has_printed:
                 print(mssg)
                 print("-" * len(mssg))
-                self.has_printed = True
+                # self.has_printed = True
 
     def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format"""
@@ -383,14 +392,19 @@ class LocalWriter(Writer):
 
         # update the history buffer
         if self.max_log_size:
-            cursor_idx = len(self.past_mssgs)
-            if len(self.past_mssgs[2:]) >= self.max_log_size:
+            if not self.has_printed:
+                cursor_idx = len(self.past_mssgs) - self.banner_len
+                self.has_printed = True
+            else:
+                cursor_idx = len(self.past_mssgs)
+            if len(self.past_mssgs[2:]) - self.banner_len >= self.max_log_size:
                 self.past_mssgs.pop(2)
-            self.past_mssgs.append(curr_mssg)
+            self.past_mssgs.insert(len(self.past_mssgs) - self.banner_len, curr_mssg)
             _cursorup(cursor_idx)
 
-            for mssg in self.past_mssgs:
-                pad_len = len(self.past_mssgs[0])
-                print(f"{mssg:{padding}<{pad_len}}")
+            for i, mssg in enumerate(self.past_mssgs):
+                pad_len = len(max(self.past_mssgs, key=len))
+                style = "\x1b[6;30;42m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len + 1 else ""
+                print(f"{style}{mssg:{padding}<{pad_len}} \x1b[0m")
         else:
             print(curr_mssg)

@@ -1,28 +1,34 @@
 """
 run_eval.py
 """
-import enum
+from __future__ import annotations
+
+import dataclasses
 import json
+import logging
 import os
-from typing import Dict, List, Optional
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Literal, Tuple, Union
 
 import dcargs
 import mediapy as media
 import torch
-from hydra import compose, initialize
-from omegaconf import DictConfig
+import yaml
 from tqdm import tqdm
+from typing_extensions import assert_never
 
 from nerfactory.cameras.camera_paths import (
-    CameraPath,
     get_interpolated_camera_path,
     get_spiral_path,
 )
-from nerfactory.pipelines.base import Pipeline, setup_pipeline
-from nerfactory.utils import io as io_utils
-from nerfactory.utils.config import setup_config
+from nerfactory.cameras.cameras import Cameras
+from nerfactory.configs import base as cfg
+from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
+
+logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 
 def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
@@ -39,7 +45,7 @@ def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
     return (step * prev_avg + new_val) / (step + 1)
 
 
-def _load_checkpoint(config: DictConfig, pipeline: Pipeline) -> str:
+def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     """Helper function to load checkpointed pipeline
 
     Args:
@@ -53,16 +59,16 @@ def _load_checkpoint(config: DictConfig, pipeline: Pipeline) -> str:
         load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
         load_step = config.load_step
-    load_path = os.path.join(config.load_dir, f"step-{load_step:09d}.ckpt")
-    assert os.path.exists(load_path), f"Checkpoint {load_path} does not exist"
+    load_path = config.load_dir / f"step-{load_step:09d}.ckpt"
+    assert load_path.exists(), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
     pipeline.load_pipeline(loaded_state["pipeline"])
     print(f"done loading checkpoint from {load_path}")
     return load_path
 
 
-def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
-    """Helper function to evaluate the pipeline on a dataloader.
+def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
+    """Helper function to evaluate the pipeline on a DataManager.
 
     Args:
         pipeline (Pipeline): Pipeline to evaluate
@@ -73,7 +79,7 @@ def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
     avg_psnr = 0
     avg_rays_per_sec = 0
     avg_fps = 0
-    for step, (camera_ray_bundle, batch) in tqdm(enumerate(pipeline.dataloader.eval_dataloader)):
+    for step, (camera_ray_bundle, batch) in tqdm(enumerate(pipeline.data_manager.eval_dataloader)):
         with TimeWriter(writer=None, name=None, write=False) as t:
             with torch.no_grad():
                 image_idx = int(camera_ray_bundle.camera_indices[0, 0])
@@ -85,10 +91,10 @@ def render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
     return {"avg psnr": avg_psnr, "avg rays per sec": avg_rays_per_sec, "avg fps": avg_fps}
 
 
-def render_trajectory_video(
+def _render_trajectory_video(
     pipeline: Pipeline,
-    camera_path: CameraPath,
-    output_filename: str,
+    cameras: Cameras,
+    output_filename: Path,
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
     num_rays_per_chunk: int = 4096,
@@ -97,7 +103,7 @@ def render_trajectory_video(
 
     Args:
         pipeline: Pipeline to evaluate with.
-        camera_path: Index of the image to render.
+        cameras: Cameras to render.
         output_filename: Name of the output file.
         rendered_output_name: Name of the renderer output to use.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
@@ -106,9 +112,9 @@ def render_trajectory_video(
     """
     print("Creating trajectory video.")
     images = []
-    for camera in tqdm(camera_path.cameras):
-        camera.rescale_output_resolution(rendered_resolution_scaling_factor)
-        camera_ray_bundle = camera.get_camera_ray_bundle().to(pipeline.device)
+    cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
+    for camera_idx in tqdm(range(cameras.size)):
+        camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
         camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
@@ -120,63 +126,51 @@ def render_trajectory_video(
     media.write_video(output_filename, images, fps=fps)
 
 
-class MethodType(enum.Enum):
-    """Enum for the method type."""
-
-    PSNR = enum.auto()
-    TRAJ = enum.auto()
-
-
-class TrajectoryType(enum.Enum):
-    """Enum for the trajectory type."""
-
-    SPIRAL = enum.auto()
-    INTERP = enum.auto()
-
-
-def main(
-    config_name: str,
-    checkpoint_dir: str,
-    rendered_output_name: str,
-    method: MethodType = MethodType.PSNR,
-    traj: TrajectoryType = TrajectoryType.SPIRAL,
-    output_filename: str = "output.json",
-    rendered_resolution_scaling_factor: float = 1.0,
-    config_overrides: Optional[List[str]] = None,
-):
-    """Evaluate trained model. This evaluation can either render a trajectory or compute the eval psnr.
+def _eval_setup(config_path: Path) -> Tuple[cfg.Config, Pipeline, Path]:
+    """Shared setup for loading a saved pipeline for evaluation.
 
     Args:
-        config_name: Name of the config file to use.
-        checkpoint_dir: Directory to load the checkpoint from.
-        rendered_output_name: Name of the renderer output to use (rgb, depth, etc.).
-        method: Method to use for evaluation. PSNR computes metrics, TRAJ renders a trajectory.
-        traj: Trajectory to render.
-        output_filename: Name of the output file.
-        rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
-            Defaults to 1.0.
-        config_overrides: List of strings to override config values.
+        config_path: Path to config YAML file.
+
+    Returns:
+        Loaded config, pipeline module, and corresponding checkpoint.
     """
+    # load save config
+    config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
+    assert isinstance(config, cfg.Config)
 
-    config_path = "../configs"
-    initialize(version_base="1.2", config_path=config_path)
-    config_overrides = config_overrides or []
-    config = compose(config_name, overrides=config_overrides)
+    # load checkpoints from wherever they were saved
+    # TODO: expose the ability to choose an arbitrary checkpoint
+    config.trainer.load_dir = config.trainer.model_dir
+    config.pipeline.data_manager.eval_image_indices = None
 
-    config.trainer.resume_train.load_dir = checkpoint_dir
-    config.pipeline.dataloader.eval_image_indices = None
-    config = setup_config(config)  # converting to typed config
-
+    # setup pipeline (which includes the DataManager)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # setup pipeline (which includes the dataloaders)
-    pipeline = setup_pipeline(config.pipeline, device=device, test_mode=True)
+    pipeline = config.pipeline.setup(device=device, test_mode=True)
+    assert isinstance(pipeline, Pipeline)
     pipeline.eval()
-    # load checkpointed information
-    checkpoint_name = _load_checkpoint(config.trainer.resume_train, pipeline)
 
-    if method == MethodType.PSNR:
-        assert output_filename.endswith(".json")
-        stats_dict = render_stats_dict(pipeline)
+    # load checkpointed information
+    checkpoint_path = _load_checkpoint(config.trainer, pipeline)
+
+    return config, pipeline, checkpoint_path
+
+
+@dataclass
+class ComputePSNR:
+    """Load a checkpoint, compute some PSNR metrics, and save to a JSON."""
+
+    # Path to config YAML file.
+    load_config: Path
+    # Name of the output file.
+    output_path: Path = Path("output.json")
+
+    def main(self) -> None:
+        """Main function."""
+        config, pipeline, checkpoint_path = _eval_setup(self.load_config)
+
+        assert self.output_path.suffix == ".json"
+        stats_dict = _render_stats_dict(pipeline)
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
         avg_fps = stats_dict["avg fps"]
@@ -184,36 +178,64 @@ def main(
         print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
         print(f"Avg. FPS: {avg_fps:0.4f}")
         # save output to some file
-        io_utils.make_dir(output_filename)
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
         benchmark_info = {
-            "config_name": config_name,
-            "checkpoint": checkpoint_name,
+            "experiment_name": config.experiment_name,
+            "method_name": config.method_name,
+            "checkpoint": str(checkpoint_path),
             "results": stats_dict,
         }
-        with open(output_filename, "w", encoding="utf8") as f:
-            json.dump(benchmark_info, f, indent=2)
-        print(f"Saved results to: {output_filename}")
+        self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
+        print(f"Saved results to: {self.output_path}")
 
-    elif method == MethodType.TRAJ:
-        assert output_filename.endswith(".mp4")
+
+@dataclasses.dataclass
+class RenderTrajectory:
+    """Load a checkpoint, render a trajectory, and save to a video file."""
+
+    # Path to config YAML file.
+    load_config: Path
+    # Name of the renderer output to use. rgb, depth, etc.
+    rendered_output_name: str = "rgb"
+    #  Trajectory to render.
+    traj: Literal["spiral", "interp"] = "spiral"
+    # Scaling factor to apply to the camera image resolution.
+    rendered_resolution_scaling_factor: float = 1.0
+    # Name of the output file.
+    output_path: Path = Path("output.mp4")
+
+    def main(self) -> None:
+        """Main function."""
+        config, pipeline, _ = _eval_setup(self.load_config)
+
         # TODO(ethan): use camera information from parsing args
-        if traj == TrajectoryType.SPIRAL:
-            camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
+        if self.traj == "spiral":
+            camera_start = pipeline.data_manager.eval_dataloader.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-        elif traj == TrajectoryType.INTERP:
-            camera_start = pipeline.dataloader.eval_dataloader.get_camera(image_idx=0)
-            camera_end = pipeline.dataloader.eval_dataloader.get_camera(image_idx=10)
-            camera_path = get_interpolated_camera_path(camera_start, camera_end, steps=30)
-        render_trajectory_video(
+        elif self.traj == "interp":
+            cameras = pipeline.data_manager.eval_dataloader.get_camera(image_idx=[0, 10])
+            camera_path = get_interpolated_camera_path(cameras, steps=30)
+        else:
+            assert_never(self.traj)
+
+        _render_trajectory_video(
             pipeline,
             camera_path,
-            output_filename=output_filename,
-            rendered_output_name=rendered_output_name,
-            rendered_resolution_scaling_factor=rendered_resolution_scaling_factor,
-            num_rays_per_chunk=pipeline.dataloader.eval_num_rays_per_chunk,
+            output_filename=self.output_path,
+            rendered_output_name=self.rendered_output_name,
+            rendered_resolution_scaling_factor=self.rendered_resolution_scaling_factor,
+            num_rays_per_chunk=config.pipeline.data_manager.eval_num_rays_per_chunk,
         )
 
 
 if __name__ == "__main__":
-    dcargs.cli(main)
+    # A Union over dataclass types will create a subcommand for each type.
+    #
+    # TODO: it would make sense to split this script up into separate scripts.
+    # - To reduce duplicate code, some "upstream" refactor could also simplify the
+    #   shared `_load_checkpoint()` and `_eval_setup()` helpers. The high-level
+    #   operations implemented by each seem fairly universal; ideally the checkpoint
+    #   loading logic, for example, would be the same as what's used for loading a
+    #   checkpoint when resuming a training run.
+    dcargs.cli(Union[ComputePSNR, RenderTrajectory]).main()
