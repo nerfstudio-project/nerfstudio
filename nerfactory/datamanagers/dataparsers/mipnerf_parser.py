@@ -101,7 +101,7 @@ class Mipnerf360(DataParser):
         image_height, image_width = img_0.shape[:2]
 
         poses[:, :2, 4] = np.array([image_height, image_width])
-        poses[:, 2, 4] = poses[:, 2, 4] * 1.0 / self.config.downscale_factor
+        poses[:, 2, 4] = poses[:, 2, 4]
 
         # Reorder pose to match our convention
         poses = np.concatenate([poses[:, :, 1:2], -poses[:, :, 0:1], poses[:, :, 2:]], axis=-1)
@@ -144,7 +144,6 @@ class Mipnerf360(DataParser):
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=1,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )

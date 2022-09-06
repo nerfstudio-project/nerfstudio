@@ -32,6 +32,8 @@ from nerfactory.datamanagers.dataparsers.blender_parser import Blender
 from nerfactory.datamanagers.dataparsers.friends_parser import Friends
 from nerfactory.datamanagers.dataparsers.instant_ngp_parser import InstantNGP
 from nerfactory.datamanagers.dataparsers.mipnerf_parser import Mipnerf360
+from nerfactory.datamanagers.dataparsers.nerfactory_parser import Nerfactory
+from nerfactory.datamanagers.dataparsers.record3d_parser import Record3D
 
 # model instances
 from nerfactory.models.base import Model
@@ -171,6 +173,18 @@ class DataParserConfig(InstantiateConfig):
 
 
 @dataclass
+class NerfactoryDataParserConfig(DataParserConfig):
+    """Nerfactory dataset config"""
+
+    _target: Type = Nerfactory
+    data_directory: Path = Path("data/ours/posterv2")
+    scale_factor: float = 1.0
+    downscale_factor: int = 1
+    scene_scale: float = 4.0
+    orientation_method: Literal["pca", "up"] = "up"
+
+
+@dataclass
 class BlenderDataParserConfig(DataParserConfig):
     """Blender dataset config"""
 
@@ -178,7 +192,6 @@ class BlenderDataParserConfig(DataParserConfig):
     data_directory: Path = Path("data/blender/lego")
     scale_factor: float = 1.0
     alpha_color: str = "white"
-    downscale_factor: int = 1
 
 
 @dataclass
@@ -203,12 +216,11 @@ class MipNerf360DataParserConfig(DataParserConfig):
 
 @dataclass
 class InstantNGPDataParserConfig(DataParserConfig):
-    """Mipnerf 360 dataset config"""
+    """Instant-NGP dataset config"""
 
     _target: Type = InstantNGP
     data_directory: Path = Path("data/ours/posterv2")
     scale_factor: float = 1.0
-    downscale_factor: int = 1
     scene_scale: float = 0.33
 
 
@@ -216,9 +228,8 @@ class InstantNGPDataParserConfig(DataParserConfig):
 class Record3DDataParserConfig(DataParserConfig):
     """Mipnerf 360 dataset config"""
 
-    _target: Type = Mipnerf360
+    _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
-    downscale_factor: int = 1
     val_skip: int = 8
     aabb_scale = 4.0
     max_dataset_size: int = 150
@@ -385,6 +396,7 @@ class Config(PrintableConfig):
         """Convert logging directories to more specific filepaths"""
         dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
-        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
+        if self.trainer.model_dir is None:
+            self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir

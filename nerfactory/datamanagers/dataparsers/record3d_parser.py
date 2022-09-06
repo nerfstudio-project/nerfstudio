@@ -35,7 +35,6 @@ class Record3D(DataParser):
 
     Args:
         data_directory: Location of data
-        downscale_factor: How much to downscale images. Defaults to 1.
         val_skip: 1/val_skip images to use for validation. Defaults to 8.
         aabb_scale: Scene scale, Defaults to 4.0.
         max_dataset_size: Max number of images to train on. If the dataset has
@@ -52,11 +51,12 @@ class Record3D(DataParser):
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
-        ext = ".jpg"
         image_filenames = []
         for f in image_dir.iterdir():
-            image_filenames.append(image_dir / f)
-        image_filenames = sorted(image_filenames, key=lambda fn: int(fn.name[: -len(ext)]))
+            if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
+                image_filenames.append(image_dir / f)
+
+        image_filenames = sorted(image_filenames, key=lambda fn: int(fn.stem))
         image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
@@ -139,11 +139,8 @@ class Record3D(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
-
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.config.downscale_factor,
             cameras=cameras,
             scene_bounds=scene_bounds,
         )

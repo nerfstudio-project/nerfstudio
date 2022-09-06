@@ -32,7 +32,9 @@ from nerfactory.utils.misc import get_hash_str_from_dict
 class DataParser:
     """A dataset."""
 
-    config: cfg.DataParserConfig
+    def __init__(self, config: cfg.DataParserConfig):
+        super().__init__()
+        self.config = config
 
     @abstractmethod
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
@@ -56,8 +58,10 @@ class DataParser:
             DatasetInputs
         """
         if use_preprocessing_cache:
-            return self._get_dataset_inputs_from_cache(split)
-        return self._generate_dataset_inputs(split)
+            dataset_inputs = self._get_dataset_inputs_from_cache(split)
+        else:
+            dataset_inputs = self._generate_dataset_inputs(split)
+        return dataset_inputs
 
     def _get_cache_filename(self, split: str) -> Path:
         """Creates a cache filename from the dataset inputs arguments.

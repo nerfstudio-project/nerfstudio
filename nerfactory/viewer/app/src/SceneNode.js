@@ -2,17 +2,6 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-const dat = require('dat.gui');
-
-function remove_folders(gui) {
-  for (const name of Object.keys(gui.__folders)) {
-    const folder = gui.__folders[name];
-    remove_folders(folder);
-    dat.dom.dom.unbind(window, 'resize', folder.__resizeHandler);
-    gui.removeFolder(folder);
-  }
-}
-
 function dispose(object) {
   if (!object) {
     return;
@@ -38,19 +27,16 @@ function dispose(object) {
 }
 
 export default class SceneNode {
-  constructor(object, folder) {
+  constructor(object) {
     this.object = object;
-    this.folder = folder;
     this.children = {};
-    this.create_controls();
     for (const c of this.object.children) {
       this.add_child(c);
     }
   }
 
   add_child(object) {
-    const f = this.folder.addFolder(object.name);
-    const node = new SceneNode(object, f);
+    const node = new SceneNode(object);
     this.children[object.name] = node;
     return node;
   }
@@ -72,19 +58,6 @@ export default class SceneNode {
       child = this.create_child(name);
     }
     return child.find(path.slice(1));
-  }
-
-  create_controls() {
-    if (this.vis_controller !== undefined) {
-      this.folder.domElement.removeChild(this.vis_controller.domElement);
-    }
-    this.vis_controller = new dat.controllers.BooleanController(
-      this.object,
-      'visible',
-    );
-    this.folder.domElement.prepend(this.vis_controller.domElement);
-    this.vis_controller.domElement.style.height = '0';
-    this.vis_controller.domElement.style.float = 'right';
   }
 
   set_property(property, value) {
@@ -116,7 +89,6 @@ export default class SceneNode {
     this.object.parent.remove(this.object);
     this.object = object;
     parent.add(object);
-    this.create_controls();
   }
 
   dispose_recursive() {
@@ -136,8 +108,6 @@ export default class SceneNode {
       if (child !== undefined) {
         child.dispose_recursive();
         parent.object.remove(child.object);
-        remove_folders(child.folder);
-        parent.folder.removeFolder(child.folder);
         delete parent.children[name];
       }
     }

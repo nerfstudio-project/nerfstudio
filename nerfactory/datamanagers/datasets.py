@@ -33,17 +33,17 @@ from nerfactory.utils.misc import is_not_none
 
 
 class InputDataset(Dataset):
-    """Dataset that stores all the possible input information (images, semantics, masks, etc.)"""
+    """Dataset that returns images."""
 
     def __init__(self, config: Union[cfg.DataParserConfig, cfg.InstantiateConfig], split: str):
         """_summary_
 
         Args:
-            config: specifies the dataparser that knows how to load in the dataset
+            image_filenames (List[str]): List of image filenames
+            alpha_color (TensorType[3], optional): Sets transparent regions to specified color, otherwise black.
         """
         super().__init__()
         self.inputs: DatasetInputs = config.setup().get_dataset_inputs(split=split)
-        assert isinstance(self.inputs.downscale_factor, int)
 
     def __len__(self):
         return len(self.inputs.image_filenames)
@@ -59,20 +59,6 @@ class InputDataset(Dataset):
         """
         image_filename = self.inputs.image_filenames[image_idx]
         pil_image = Image.open(image_filename)
-        if self.inputs.downscale_factor != 1.0:
-            image_width, image_height = pil_image.size
-            if image_width % self.inputs.downscale_factor != 0:
-                raise ValueError(
-                    f"Image width {image_width} is not divisible by downscale_factor {self.inputs.downscale_factor}"
-                )
-            if image_height % self.inputs.downscale_factor != 0:
-                raise ValueError(
-                    f"Image height {image_height} is not divisible by downscale_factor {self.inputs.downscale_factor}"
-                )
-            pil_image = pil_image.resize(
-                (image_width // self.inputs.downscale_factor, image_height // self.inputs.downscale_factor),
-                Image.BILINEAR,
-            )
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
         assert image.dtype == np.uint8
@@ -91,18 +77,11 @@ class InputDataset(Dataset):
 
     @abstractmethod
     def get_mask(self, image_idx: int) -> Union[TensorType["image_height", "image_width", 1], None]:
-        """Mask out the people. Valid only where there aren't people."""
+        """Returns a mask, which indicates which pixels are valid to use with nerf."""
         if self.inputs.semantics:
             person_index = self.inputs.semantics.thing_classes.index("person")
             thing_image_filename = self.inputs.semantics.thing_filenames[image_idx]
             pil_image = Image.open(thing_image_filename)
-            if self.inputs.downscale_factor != 1.0:
-                image_width, image_height = pil_image.size
-                # the use of NEAREST is important for semantic classes
-                pil_image = pil_image.resize(
-                    (image_width // self.inputs.downscale_factor, image_height // self.inputs.downscale_factor),
-                    Image.NEAREST,
-                )
             thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
             mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
             return mask
@@ -114,19 +93,12 @@ class InputDataset(Dataset):
         if self.inputs.semantics:
             stuff_image_filename = self.inputs.semantics.stuff_filenames[image_idx]
             pil_image = Image.open(stuff_image_filename)
-            if self.inputs.downscale_factor != 1.0:
-                image_width, image_height = pil_image.size
-                # the use of NEAREST is important for semantic classes
-                pil_image = pil_image.resize(
-                    (image_width // self.inputs.downscale_factor, image_height // self.inputs.downscale_factor),
-                    Image.NEAREST,
-                )
             stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
             return stuff_semantics
         return None
 
     def get_data(self, image_idx) -> Dict:
-        """Returns the data as a dictionary."""
+        """Returns the ImageDataset data as a dictionary."""
         image = self.get_image(image_idx)
         mask = self.get_mask(image_idx)
         semantics = self.get_semantics(image_idx)

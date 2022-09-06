@@ -121,7 +121,6 @@ class DatasetInputs:
 
     image_filenames: List[Path]
     cameras: Cameras
-    downscale_factor: int = 1
     mask_filenames: Optional[List[Path]] = None
     depth_filenames: Optional[List[Path]] = None
     scene_bounds: SceneBounds = SceneBounds()

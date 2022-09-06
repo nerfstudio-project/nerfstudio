@@ -22,17 +22,17 @@ import numpy as np
 import torch
 
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.datamanagers.colmap_utils import (
-    read_cameras_binary,
-    read_images_binary,
-    read_pointsTD_binary,
-)
 from nerfactory.datamanagers.dataparsers.base import DataParser
 from nerfactory.datamanagers.structs import (
     DatasetInputs,
     PointCloud,
     SceneBounds,
     Semantics,
+)
+from nerfactory.utils.colmap_utils import (
+    read_cameras_binary,
+    read_images_binary,
+    read_points3d_binary,
 )
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
@@ -43,13 +43,11 @@ class Friends(DataParser):
 
     Args:
         data_directory: Location of data
-        downscale_factor: How much to downscale images. Defaults to 1.
         include_semantics: whether or not to include the semantics. Defaults to False.
         include_point_cloud: whether or not to include the point cloud. Defaults to False.
     """
 
     data_directory: Path
-    downscale_factor: int = 1
     include_semantics: bool = True
     include_point_cloud: bool = False
 
@@ -157,7 +155,7 @@ class Friends(DataParser):
         # NOTE(ethan): this will be common across the different splits.
         point_cloud = PointCloud()
         if self.include_point_cloud:
-            points_3d = read_pointsTD_binary(abs_dir / "colmap" / "points3D.bin")
+            points_3d = read_points3d_binary(abs_dir / "colmap" / "points3D.bin")
             xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()])).float()
             rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()])).float()
             xyz_h = torch.cat([xyz, torch.ones_like(xyz[..., :1])], -1)
@@ -167,17 +165,16 @@ class Friends(DataParser):
             point_cloud.rgb = rgb
 
         cameras = Cameras(
-            fx=focal_lengths / self.downscale_factor,
-            fy=focal_lengths / self.downscale_factor,
-            cx=cx / self.downscale_factor,
-            cy=cy / self.downscale_factor,
+            fx=focal_lengths,
+            fy=focal_lengths,
+            cx=cx,
+            cy=cy,
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
-            downscale_factor=self.downscale_factor,
             cameras=cameras,
             semantics=semantics,
             point_cloud=point_cloud,

@@ -39,7 +39,6 @@ class Blender(DataParser):
         data_directory: Location of data
         alpha_color: Sets transparent regions to specified color, otherwise black.
         scale_factor: How much to scale the camera origins by.
-        downscale_factor: How much to downscale images. Defaults to 1.
     """
 
     def __init__(self, config: cfg.BlenderDataParserConfig):
@@ -47,7 +46,6 @@ class Blender(DataParser):
         self.data_directory: Path = config.data_directory
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
-        self.downscale_factor: int = config.downscale_factor
 
     def _generate_dataset_inputs(self, split="train"):
         if self.alpha_color is not None:
@@ -87,12 +85,9 @@ class Blender(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
-
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            downscale_factor=self.downscale_factor,
             alpha_color=alpha_color_tensor,
             scene_bounds=scene_bounds,
         )

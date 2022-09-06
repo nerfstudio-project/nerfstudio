@@ -10,19 +10,19 @@ from nerfactory.utils.tensor_dataclass import TensorDataclass
 
 
 @dataclass
-class TestNestedClass(TensorDataclass):
+class DummyNestedClass(TensorDataclass):
     """Dummy dataclass"""
 
     x: torch.Tensor
 
 
 @dataclass
-class TestTensorDataclass(TensorDataclass):
+class DummyTensorDataclass(TensorDataclass):
     """Dummy dataclass"""
 
     a: torch.Tensor
     b: torch.Tensor
-    c: TestNestedClass = None
+    c: DummyNestedClass = None
 
 
 def test_init():
@@ -44,19 +44,19 @@ def test_broadcasting():
 
     a = torch.ones((4, 6, 3))
     b = torch.ones((6, 2))
-    tensor_dataclass = TestTensorDataclass(a=a, b=b)
+    tensor_dataclass = DummyTensorDataclass(a=a, b=b)
     assert tensor_dataclass.b.shape == (4, 6, 2)
 
     a = torch.ones((4, 6, 3))
     b = torch.ones(2)
-    tensor_dataclass = TestTensorDataclass(a=a, b=b)
+    tensor_dataclass = DummyTensorDataclass(a=a, b=b)
     assert tensor_dataclass.b.shape == (4, 6, 2)
 
     # Invalid broadcasting
     a = torch.ones((4, 6, 3))
     b = torch.ones((3, 2))
     with pytest.raises(RuntimeError):
-        tensor_dataclass = TestTensorDataclass(a=a, b=b)
+        tensor_dataclass = DummyTensorDataclass(a=a, b=b)
 
 
 def test_tensor_ops():
@@ -64,7 +64,7 @@ def test_tensor_ops():
 
     a = torch.ones((4, 6, 3))
     b = torch.ones((6, 2))
-    tensor_dataclass = TestTensorDataclass(a=a, b=b)
+    tensor_dataclass = DummyTensorDataclass(a=a, b=b)
 
     assert tensor_dataclass.shape == (4, 6)
     assert tensor_dataclass.a.shape == (4, 6, 3)
@@ -96,7 +96,7 @@ def test_tensor_ops():
     assert tensor_dataclass[0, ...].shape == (6,)
     assert tensor_dataclass[0, ...].a.shape == (6, 3)
 
-    tensor_dataclass = TestTensorDataclass(a=torch.ones((2, 3, 4, 5)), b=torch.ones((4, 5)))
+    tensor_dataclass = DummyTensorDataclass(a=torch.ones((2, 3, 4, 5)), b=torch.ones((4, 5)))
     assert tensor_dataclass[0, ...].shape == (3, 4)
     assert tensor_dataclass[0, ...].a.shape == (3, 4, 5)
     assert tensor_dataclass[0, ..., 0].shape == (3,)
@@ -113,8 +113,8 @@ def test_nested_class():
 
     a = torch.ones((4, 6, 3))
     b = torch.ones((6, 2))
-    c = TestNestedClass(x=torch.ones(6, 5))
-    tensor_dataclass = TestTensorDataclass(a=a, b=b, c=c)
+    c = DummyNestedClass(x=torch.ones(6, 5))
+    tensor_dataclass = DummyTensorDataclass(a=a, b=b, c=c)
 
     assert tensor_dataclass.shape == (4, 6)
     assert tensor_dataclass.a.shape == (4, 6, 3)
@@ -143,7 +143,7 @@ def test_nested_class():
 
 def test_iter():
     """Test iterating over tensor dataclass"""
-    tensor_dataclass = TestTensorDataclass(a=torch.ones((3, 4, 5)), b=torch.ones((3, 4, 5)))
+    tensor_dataclass = DummyTensorDataclass(a=torch.ones((3, 4, 5)), b=torch.ones((3, 4, 5)))
     for batch in tensor_dataclass:
         assert batch.shape == (4,)
         assert batch.a.shape == (4, 5)
