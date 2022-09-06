@@ -24,6 +24,7 @@ export default function WebSocketUrlField() {
       variant="outlined"
       value={websocket_url}
       onChange={websocket_url_onchange}
+      size="small"
     />
   );
 }

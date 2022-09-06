@@ -130,7 +130,6 @@ export function RenderControls() {
   };
 
   const [, setControls] = useControls(
-    'Rendering Controls',
     () => ({
       // isTraining
       'Pause Training': button(
