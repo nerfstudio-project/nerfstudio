@@ -39,7 +39,7 @@ from nerfactory.dataloaders.structs import (
 from nerfactory.utils.colmap_utils import (
     read_cameras_binary,
     read_images_binary,
-    read_pointsTD_binary,
+    read_points3d_binary,
 )
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import (
@@ -712,7 +712,7 @@ class Friends(DataParser):
         # NOTE(ethan): this will be common across the different splits.
         point_cloud = PointCloud()
         if self.include_point_cloud:
-            points_3d = read_pointsTD_binary(abs_dir / "colmap" / "points3D.bin")
+            points_3d = read_points3d_binary(abs_dir / "colmap" / "points3D.bin")
             xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()])).float()
             rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()])).float()
             xyz_h = torch.cat([xyz, torch.ones_like(xyz[..., :1])], -1)
