@@ -13,19 +13,30 @@
 # limitations under the License.
 
 """CUDA Functions"""
+from typing import Callable
+
 import torch
 from torch.cuda.amp import custom_bwd, custom_fwd
 
-from nerfactory.cuda.backend import _C
 
-packbits = _C.packbits
-ray_aabb_intersect = _C.ray_aabb_intersect
-morton3D = _C.morton3D
-morton3D_invert = _C.morton3D_invert
-raymarching = _C.raymarching
-volumetric_rendering_forward = _C.volumetric_rendering_forward
-volumetric_rendering_backward = _C.volumetric_rendering_backward
-occupancy_query = _C.occupancy_query
+def _make_lazy_cuda(name: str) -> Callable:
+    def call_cuda(*args, **kwargs):
+        # pylint: disable=import-outside-toplevel
+        from nerfactory.cuda.backend import _C
+
+        return getattr(_C, name)(*args, **kwargs)
+
+    return call_cuda
+
+
+packbits = _make_lazy_cuda("packbits")
+ray_aabb_intersect = _make_lazy_cuda("ray_aabb_intersect")
+morton3D = _make_lazy_cuda("morton3D")
+morton3D_invert = _make_lazy_cuda("morton3D_invert")
+raymarching = _make_lazy_cuda("raymarching")
+volumetric_rendering_forward = _make_lazy_cuda("volumetric_rendering_forward")
+volumetric_rendering_backward = _make_lazy_cuda("volumetric_rendering_backward")
+occupancy_query = _make_lazy_cuda("occupancy_query")
 
 # pylint: disable=abstract-method,arguments-differ
 class VolumeRenderer(torch.autograd.Function):
