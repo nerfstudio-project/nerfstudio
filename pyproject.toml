@@ -54,6 +54,7 @@ dependencies = [
 "Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
 
 [project.optional-dependencies]
+# for building the docs
 docs = [
     "furo==2022.4.7",
     "readthedocs-sphinx-search==0.1.2",
@@ -63,6 +64,11 @@ docs = [
     "sphinxemoji==0.2.0",
     "sphinx-copybutton==0.5.0",
     "sphinx-design==0.2.0"
+]
+# for deploying the viewer with github actions
+viewer_deploy = [
+    "dcargs>=0.2.6",
+    "sshconf==0.2.5"
 ]
 
 [project.scripts]
