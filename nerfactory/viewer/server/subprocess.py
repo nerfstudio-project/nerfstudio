@@ -18,14 +18,21 @@ Code to use the viewer as a subprocess.
 
 import atexit
 import os
+import signal
 import subprocess
 import sys
-from typing import Optional
+import threading
+import time
+from typing import Union
+
+from rich.console import Console
 
 from nerfactory.viewer.server import server
 
+CONSOLE = Console()
 
-def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, log_filename: Optional[str] = None):
+
+def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, log_filename: Union[str, None]):
     """Runs the viewer bridge server as a subprocess.
 
     Args:
@@ -53,4 +60,26 @@ def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, l
         process.kill()
         process.wait()
 
+    def poll_process():
+        """
+        Continually check to see if the viewer bridge server process is still running and has not failed.
+        If it fails, alert the user and exit the entire program.
+        """
+        while process.poll() is None:
+            time.sleep(0.5)
+        string = f"\nThe viewer bridge server subprocess failed. Please check the log file {log_filename}.\n"
+        string += (
+            "You likely have to modify --viewer.zmq-url and/or --viewer.websocket-port in the "
+            "config to avoid conflicting ports.\n"
+        )
+        string += "Try modifying --viewer.zmq-url tcp://127.0.0.1:6000 --viewer.websocket-port 7007\n"
+        CONSOLE.print(f"[bold red]{string}")
+        cleanup(process)
+        # This exists the entire program. sys.exit() will only kill the thread that this runs in.
+        os.kill(os.getpid(), signal.SIGKILL)
+
+    # continually check to see if the process stopped
+    t1 = threading.Thread(target=poll_process)
+    t1.daemon = True
+    t1.start()
     atexit.register(cleanup, process)
