@@ -65,11 +65,6 @@ docs = [
     "sphinx-copybutton==0.5.0",
     "sphinx-design==0.2.0"
 ]
-# for deploying the viewer with github actions
-viewer_deploy = [
-    "dcargs>=0.2.6",
-    "sshconf==0.2.5"
-]
 
 [project.scripts]
 viewer-bridge-server = "nerfactory.viewer.server.server:run_viewer_bridge_server"

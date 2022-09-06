@@ -54,7 +54,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install -e .[viewer_deploy]
+          pip install -r ./nerfactory/viewer/app/requirements.txt
 
       - name: Download artifact
         uses: actions/download-artifact@v2
