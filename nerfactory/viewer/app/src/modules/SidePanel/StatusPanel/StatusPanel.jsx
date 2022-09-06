@@ -1,7 +1,9 @@
 import * as React from 'react';
 
 import Button from '@mui/material/Button';
+import { ButtonGroup } from '@mui/material';
 import { useSelector } from 'react-redux';
+import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import WebSocketUrlField from '../../WebSocketUrlField';
 
 interface StatusPanelProps {
@@ -33,28 +35,34 @@ export default function StatusPanel(props: StatusPanelProps) {
 
   return (
     <div className="StatusPanel">
-      <div className="StatusPanel-title">Status Panel</div>
-      <Button
-        className="StatusPanel-button"
+      <ButtonGroup
+        className="StatusPanel-button-group"
         variant="contained"
-        disabled={!isWebsocketConnected}
-        style={{ textTransform: 'none' }}
+        aria-label="outlined button group"
       >
-        Websocket Connected
-      </Button>
-      <Button
-        className="StatusPanel-button"
-        variant="contained"
-        disabled={!isWebrtcConnected}
-        style={{ textTransform: 'none' }}
-      >
-        WebRTC Connected
-      </Button>
-      <Button
-        className="StatusPanel-button"
+        <Button
+          className="StatusPanel-button"
+          variant="contained"
+          disabled={!isWebsocketConnected}
+          style={{ textTransform: 'none' }}
+        >
+          Websocket Connected
+        </Button>
+        <Button
+          className="StatusPanel-button"
+          variant="contained"
+          disabled={!isWebrtcConnected}
+          style={{ textTransform: 'none' }}
+        >
+          WebRTC Connected
+        </Button>
+      </ButtonGroup>
+      <Button // button with view in ar icon
+        className="StatusPanel-hide-scene-button"
         variant="outlined"
         onClick={handleChange}
         style={{ textTransform: 'none' }}
+        startIcon={<ViewInArIcon />}
       >
         {scene_button}
       </Button>

@@ -4,6 +4,8 @@ import { useDispatch } from 'react-redux';
 import Button from '@mui/material/Button';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import LandingModal from '../LandingModal';
 
 function getParam(param_name) {
@@ -77,6 +79,34 @@ export default function Banner() {
       <Button className="banner-button" variant="outlined" size="small">
         Download Desktop App
       </Button>
+      <Button // button with view in ar icon
+        className="banner-button"
+        variant="outlined"
+        startIcon={<GitHubIcon />}
+        target="_blank"
+        href="https://github.com/plenoptix/nerfactory"
+        size="small"
+      >
+        Github
+      </Button>
+      <Button // button with view in ar icon
+        className="banner-button"
+        variant="outlined"
+        startIcon={<DescriptionRoundedIcon />}
+        target="_blank"
+        href="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/"
+        size="small"
+      >
+        Documentation
+      </Button>
+
+      <div className="banner-logo">
+        <img
+          style={{ height: 30, margin: 'auto' }}
+          src="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/_images/logo-dark.png"
+          alt="The favicon."
+        />
+      </div>
     </div>
   );
 }

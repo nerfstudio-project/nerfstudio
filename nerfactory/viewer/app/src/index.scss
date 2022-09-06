@@ -20,13 +20,13 @@ code {
 }
 
 $base-color1: #292d39;
-$base-color2: #181c20;
-$base-color3: #373c4b;
+$base-color2: #222831;
+$base-color3: #393e46;
 $accent-color1: #db5200;
 $accent-color2: #ff8600;
-$accent-color3: #ffd65c;
+$accent-color3: #ffd369;
 $highlight-color1: #606980;
-$highlight-color2: #d1d4db;
+$highlight-color2: #eeeeee;
 $highlight-color3: #ffffff;
 
 .banner {
@@ -42,6 +42,12 @@ $highlight-color3: #ffffff;
   .banner-button {
     margin: 10px;
     float: left;
+  }
+
+  .banner-logo {
+    margin: 10px;
+    margin-right: 120px;
+    float: right;
   }
 }
 
@@ -85,7 +91,7 @@ $custom-border: solid 1px $base-color1;
 }
 
 // Your variable overrides
-$sidebar-color: #b71f0b !default;
+$sidebar-color: $accent-color3 !default;
 $sidebar-width: 100% !default;
 @import '~react-pro-sidebar/dist/scss/styles.scss';
 
@@ -93,18 +99,16 @@ $sidebar-width: 100% !default;
 // Status Panel styling
 .StatusPanel {
   display: block;
+  background-color: $base-color1;
   // height: 170px;
 }
 
-.StatusPanel-title {
-  margin: 5px;
-  text-align: center;
-  font-size: 1em;
-  font-weight: bold;
+.StatusPanel .StatusPanel-button-group {
+  margin: 12px;
 }
 
-.StatusPanel .StatusPanel-button {
-  margin: 20px;
+.StatusPanel .StatusPanel-hide-scene-button {
+  margin: 12px;
 }
 
 .StatusPanel .WebSocketUrlField {
@@ -114,14 +118,18 @@ $sidebar-width: 100% !default;
 }
 
 .StatusPanel-metrics {
-  background-color: $base-color1;
+  background-color: $base-color2;
+  margin: 5px;
+  padding: 10px;
 }
 
 .StatusPanel-metrics div {
   position: relative;
-  font-size: 16px;
+  font-size: 14px;
   display: block;
   text-align: left;
+  margin-top: 3px;
+  margin-left: 5px;
 }
 
 // ------------------------------------

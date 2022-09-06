@@ -1,14 +1,14 @@
 {
   "colors": {
     "elevation1": "#292d39",
-    "elevation2": "#181c20",
-    "elevation3": "#373c4b",
-    "accent1": "#db5200",
-    "accent2": "#ff8600",
+    "elevation2": "#222831",
+    "elevation3": "#393E46",
+    "accent1": "#ffc640",
+    "accent2": "#FFD369",
     "accent3": "#ffd65c",
-    "highlight1": "#606980",
-    "highlight2": "#d1d4db",
-    "highlight3": "#ffffff",
+    "highlight1": "#d1d4db",
+    "highlight2": "#EEEEEE",
+    "highlight3": "#222831",
     "vivid1": "#ffcc00"
   },
   "radii": {

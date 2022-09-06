@@ -2,11 +2,11 @@ import { createTheme } from '@mui/material/styles';
 
 export const appTheme = createTheme({
   palette: {
-    primary: { main: '#d1d4db' },
-    secondary: { main: '#ffd65c' },
+    primary: { main: '#EEEEEE' },
+    secondary: { main: '#FFD369' },
     text: {
-      primary: '#d1d4db',
-      secondary: '#ff8600',
+      primary: '#EEEEEE',
+      secondary: '#FFD369',
     },
   },
   components: {
@@ -14,23 +14,51 @@ export const appTheme = createTheme({
       styleOverrides: {
         root: {
           '& label': {
-            color: '#606980',
+            color: '#999999',
           },
           '& label.Mui-focused': {
-            color: '#ff8600',
+            color: '#FFD369',
           },
           '& .MuiOutlinedInput-root': {
             '& fieldset': {
-              borderColor: '#373c4b',
+              borderColor: '#555555',
             },
             '&:hover fieldset': {
-              borderColor: '#606980',
-              borderWidth: '0.15rem',
+              borderColor: '#dddddd',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#ff8600',
+              borderColor: '#FFD369',
             },
           },
+        },
+      },
+    },
+    MuiButtonBase: {
+      defaultProps: {
+        disableRipple: true, // No more ripple, on the whole application 💣!
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          '&.Mui-disabled': {
+            color: '#999999',
+            backgroundColor: '#393e46',
+          },
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          fontSize: '.8rem',
+        },
+      },
+    },
+    MuiDivider: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#555555',
         },
       },
     },
