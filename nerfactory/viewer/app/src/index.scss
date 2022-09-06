@@ -19,7 +19,15 @@ code {
   height: 100vh;
 }
 
-$banner-color: #84c3ff4d;
+$base-color1: #292d39;
+$base-color2: #181c20;
+$base-color3: #373c4b;
+$accent-color1: #db5200;
+$accent-color2: #ff8600;
+$accent-color3: #ffd65c;
+$highlight-color1: #606980;
+$highlight-color2: #d1d4db;
+$highlight-color3: #ffffff;
 
 .banner {
   position: absolute;
@@ -29,7 +37,7 @@ $banner-color: #84c3ff4d;
   height: 50px;
   width: 100%;
   z-index: 1000;
-  background-color: $banner-color;
+  background-color: $base-color2;
 
   .banner-button {
     margin: 10px;
@@ -45,12 +53,13 @@ $banner-color: #84c3ff4d;
   bottom: 0;
 }
 
-$SidePanel-width: 500px;
-$custom-border: solid 1px #ddd;
+$SidePanel-width: 400px;
+$custom-border: solid 1px $base-color1;
 
 .SidePanel {
   position: absolute;
-  background-color: #f0f0f080;
+  background-color: $base-color2;
+  color: $highlight-color2;
   top: 0;
   width: $SidePanel-width;
   right: 0;
@@ -65,6 +74,10 @@ $custom-border: solid 1px #ddd;
   margin: auto;
   width: 100%;
   padding: 10px;
+}
+
+.simple-tabpanel-0 {
+  padding: 100px;
 }
 
 .Scene-container {
@@ -101,7 +114,7 @@ $sidebar-width: 100% !default;
 }
 
 .StatusPanel-metrics {
-  background-color: $banner-color;
+  background-color: $base-color1;
 }
 
 .StatusPanel-metrics div {
@@ -117,15 +130,13 @@ $sidebar-width: 100% !default;
 //   display: block;
 // }
 
-$background-paper-color: #fff;
-
 .LandingModal-box {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 400px; // 400
-  background-color: $background-paper-color;
+  background-color: $base-color2;
   border: 2px solid #000;
   //   box-shadow: 24px 24px;
   padding: 32px;
