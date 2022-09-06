@@ -22,7 +22,7 @@ from torch import nn
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.structs import Semantics
+from nerfactory.datamanagers.structs import Semantics
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField

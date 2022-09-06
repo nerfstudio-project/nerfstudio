@@ -24,16 +24,18 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.dataloaders.base import VanillaDataManager
-from nerfactory.dataloaders.data_parsers import (
-    Blender,
-    DataParser,
-    Friends,
-    InstantNGP,
-    Mipnerf360,
-    Nerfactory,
-    Record3D,
-)
+
+# data instances
+from nerfactory.datamanagers.base import VanillaDataManager
+from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.blender_parser import Blender
+from nerfactory.datamanagers.dataparsers.friends_parser import Friends
+from nerfactory.datamanagers.dataparsers.instant_ngp_parser import InstantNGP
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import Mipnerf360
+from nerfactory.datamanagers.dataparsers.nerfactory_parser import Nerfactory
+from nerfactory.datamanagers.dataparsers.record3d_parser import Record3D
+
+# model instances
 from nerfactory.models.base import Model
 from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
@@ -238,11 +240,10 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Configuration for data manager instantiation"""
 
     _target: Type = VanillaDataManager
-    train_dataset: DataParserConfig = BlenderDataParserConfig()
-    image_dataset_type: str = "rgb"
+    train_dataparser: DataParserConfig = BlenderDataParserConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
-    eval_dataset: Optional[InstantiateConfig] = None
+    eval_dataparser: Optional[InstantiateConfig] = None
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
@@ -252,8 +253,7 @@ class FriendsDataManagerConfig(VanillaDataManagerConfig):
     """Friends data manager config"""
 
     _target: Type = VanillaDataManager
-    train_dataset: DataParserConfig = FriendsDataParserConfig()
-    image_dataset_type: str = "panoptic"
+    train_dataparser: DataParserConfig = FriendsDataParserConfig()
 
 
 # Model related configs
@@ -322,7 +322,7 @@ class PipelineConfig(InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = Pipeline
-    data_manager: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
     model: ModelConfig = ModelConfig()
 
 
