@@ -20,9 +20,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from PIL import Image
 
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.datamanagers.structs import (
     DatasetInputs,
     PointCloud,
@@ -35,6 +37,21 @@ from nerfactory.utils.colmap_utils import (
     read_points3d_binary,
 )
 from nerfactory.utils.io import get_absolute_path, load_from_json
+
+
+def get_semantics_and_masks(self: InputDataset, image_idx: int):
+    """function to process additional semantics and mask information"""
+    # handle mask
+    person_index = self.inputs.additional_inputs["semantics"].thing_classes.index("person")
+    thing_image_filename = self.inputs.additional_inputs["semantics"].thing_filenames[image_idx]
+    pil_image = Image.open(thing_image_filename)
+    thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+    mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
+    # handle semantics
+    stuff_image_filename = self.inputs.additional_inputs["semantics"].stuff_filenames[image_idx]
+    pil_image = Image.open(stuff_image_filename)
+    stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+    return {"mask": mask, "semantics": stuff_semantics}
 
 
 @dataclass
@@ -176,8 +193,8 @@ class Friends(DataParser):
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            semantics=semantics,
             point_cloud=point_cloud,
             scene_bounds=scene_bounds,
+            additional_inputs={"semantics": {"data": semantics, "func": get_semantics_and_masks}},
         )
         return dataset_inputs

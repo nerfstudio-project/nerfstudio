@@ -17,7 +17,6 @@ Some dataset code.
 """
 from __future__ import annotations
 
-from abc import abstractmethod
 from typing import Dict, Union
 
 import numpy as np
@@ -75,42 +74,17 @@ class InputDataset(Dataset):
             image = image[:, :, :3]
         return image
 
-    @abstractmethod
-    def get_mask(self, image_idx: int) -> Union[TensorType["image_height", "image_width", 1], None]:
-        """Returns a mask, which indicates which pixels are valid to use with nerf."""
-        if self.inputs.semantics:
-            person_index = self.inputs.semantics.thing_classes.index("person")
-            thing_image_filename = self.inputs.semantics.thing_filenames[image_idx]
-            pil_image = Image.open(thing_image_filename)
-            thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-            mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
-            return mask
-        return None
-
-    @abstractmethod
-    def get_semantics(self, image_idx: int) -> Union[TensorType["image_height", "image_width", "num_classes"], None]:
-        """Returns an image with semantic class values."""
-        if self.inputs.semantics:
-            stuff_image_filename = self.inputs.semantics.stuff_filenames[image_idx]
-            pil_image = Image.open(stuff_image_filename)
-            stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-            return stuff_semantics
-        return None
-
     def get_data(self, image_idx) -> Dict:
         """Returns the ImageDataset data as a dictionary."""
         image = self.get_image(image_idx)
-        mask = self.get_mask(image_idx)
-        semantics = self.get_semantics(image_idx)
         data = {"image_idx": image_idx}
         assert is_not_none(image)
         data["image"] = image
-        if mask is not None:
-            assert mask.shape[:2] == image.shape[:2]
-            data["mask"] = mask
-        if semantics is not None:
-            assert semantics.shape[:2] == image.shape[:2]
-            data["semantics"] = semantics
+        for _, data_func_dict in self.inputs.additional_inputs.items():
+            assert "func" in data_func_dict, "Missing function to process data: specify `func` in `additional_inputs`"
+            func = data_func_dict["func"]
+            assert "data" in data_func_dict, "No data to process: specify `data` in `additional_inputs`"
+            data.update(func(data_func_dict["data"]))
         return data
 
     def __getitem__(self, image_idx):
