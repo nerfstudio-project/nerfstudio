@@ -4,7 +4,6 @@ import { TextField } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function WebSocketUrlField() {
-
   const websocket_url = useSelector(
     (state) => state.websocketState.websocket_url,
   );

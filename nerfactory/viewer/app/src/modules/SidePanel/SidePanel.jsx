@@ -66,11 +66,15 @@ function ListItem(props: ListItemProps) {
     setValue(!value);
   }
 
-  return <button type="button" onClick={handleClick}>{name}</button>;
+  return (
+    <button type="button" onClick={handleClick}>
+      {name}
+    </button>
+  );
 }
 
 interface ClickableListProps {
-  sceneTree: object
+  sceneTree: object;
 }
 
 function ClickableList(props: ClickableListProps) {
@@ -105,7 +109,7 @@ function ClickableList(props: ClickableListProps) {
 }
 
 interface BasicTabsProps {
-  sceneTree: object
+  sceneTree: object;
 }
 
 export function BasicTabs(props: BasicTabsProps) {

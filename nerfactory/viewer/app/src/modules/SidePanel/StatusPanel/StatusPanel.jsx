@@ -4,13 +4,11 @@ import Button from '@mui/material/Button';
 import { useSelector } from 'react-redux';
 import WebSocketUrlField from '../../WebSocketUrlField';
 
-
 interface StatusPanelProps {
-  sceneTree: object
+  sceneTree: object;
 }
 
 export default function StatusPanel(props: StatusPanelProps) {
-
   const sceneTree = props.sceneTree;
 
   const isWebsocketConnected = useSelector(
@@ -30,7 +28,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const handleChange = () => {
     setValue(!value);
   };
-  const scene_button = value ? "Hide Scene" : "Show Scene";
+  const scene_button = value ? 'Hide Scene' : 'Show Scene';
   sceneTree.object.visible = value;
 
   return (

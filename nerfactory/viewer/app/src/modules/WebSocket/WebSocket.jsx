@@ -62,7 +62,7 @@ export default function WebSocketContextFunction({ children }) {
 
   connect();
   ws = {
-    socket
+    socket,
   };
 
   return (

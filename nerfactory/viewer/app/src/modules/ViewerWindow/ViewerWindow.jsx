@@ -7,7 +7,6 @@ import React, { useContext, useEffect, useRef } from 'react';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 
-
 const msgpack = require('msgpack-lite');
 
 function createStats() {
@@ -30,7 +29,7 @@ export default function ViewerWindow(props) {
     (state) => state.renderingState.field_of_view,
   );
   const field_of_view_ref = useRef(field_of_view);
-  
+
   const camera = useRef(null);
   let cameraControls = null;
   let renderer = null;
@@ -128,7 +127,6 @@ export default function ViewerWindow(props) {
     cameraControls.dampingFactor = 1.0;
     cameraControls.update();
     update();
-
   }, []);
 
   // updates the field of view inside the ref to avoid rerendering so often

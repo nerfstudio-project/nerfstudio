@@ -254,7 +254,7 @@ export function RenderControls() {
       min_resolution,
       max_resolution,
       field_of_view,
-      websocket // need to re-render when websocket changes to use the new websocket
+      websocket, // need to re-render when websocket changes to use the new websocket
     ],
   );
 

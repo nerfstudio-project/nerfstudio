@@ -4,9 +4,8 @@ import { Box, Button, Modal, Typography } from '@mui/material';
 
 import WebSocketUrlField from '../WebSocketUrlField';
 
-
 interface LandingModalProps {
-  initial_state: object
+  initial_state: object;
 }
 
 export default function LandingModel(props: LandingModalProps) {
@@ -37,7 +36,11 @@ export default function LandingModel(props: LandingModalProps) {
         <Box className="LandingModal-box">
           <Typography id="modal-modal-title" component="div">
             Welcome to the Nerfactory Viewer!{' '}
-            <img style={{ height: 37, margin: 'auto' }} src="/favicon.png" alt="The favicon."/>
+            <img
+              style={{ height: 37, margin: 'auto' }}
+              src="/favicon.png"
+              alt="The favicon."
+            />
           </Typography>
           <Typography
             id="modal-modal-description"
