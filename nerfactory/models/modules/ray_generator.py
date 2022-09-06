@@ -18,6 +18,7 @@ Ray generator.
 from torch import nn
 from torchtyping import TensorType
 
+from nerfactory.cameras.camera_optimizers import PoseOptimizer
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 
@@ -31,9 +32,10 @@ class RayGenerator(nn.Module):
         camera_to_world: Camera to world transformation matrix.
     """
 
-    def __init__(self, cameras: Cameras) -> None:
+    def __init__(self, cameras: Cameras, pose_optimizer: PoseOptimizer = PoseOptimizer()) -> None:
         super().__init__()
         self.cameras = cameras
+        self.pose_optimizer = pose_optimizer
         self.image_coords = nn.Parameter(cameras.get_image_coords(), requires_grad=False)
 
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
@@ -47,9 +49,12 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         coords = self.image_coords[y, x]
 
+        camera_to_camera_opt = self.pose_optimizer(c)
+
         ray_bundle = self.cameras.generate_rays(
             camera_indices=c,
             coords=coords,
+            camera_to_camera_opt=camera_to_camera_opt,
         )
         ray_bundle.camera_indices = c[..., None]  # ["num_rays",1]
         return ray_bundle

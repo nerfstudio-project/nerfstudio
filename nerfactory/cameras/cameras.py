@@ -136,7 +136,7 @@ class Cameras:
         self,
         camera_indices: Union[TensorType["num_rays":...], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
-        camera_to_world_delta: Optional[TensorType["num_rays":..., 3, 4]] = None,
+        camera_to_camera_opt: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
@@ -147,7 +147,7 @@ class Cameras:
         Args:
             camera_indices: Indices of the cameras to generate rays for.
             coords: Coordinates of the pixels to generate rays for. If None, the full image will be rendered.
-            camera_to_world_delta: Optional delta for the camera to world matrices.
+            camera_to_camera_opt: Optional transform to optimized camera to world matrices.
             distortion_params_delta: Optional delta for the distortion parameters.
 
         Returns:
@@ -200,8 +200,8 @@ class Cameras:
             raise ValueError(f"Camera type {self.camera_type} not supported.")
 
         c2w = self.camera_to_worlds[camera_indices]
-        if camera_to_world_delta is not None:
-            c2w = c2w + camera_to_world_delta
+        if camera_to_camera_opt is not None:
+            c2w = c2w @ camera_to_camera_opt
         rotation = c2w[..., :3, :3]  # (..., 3, 3)
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1

@@ -30,16 +30,11 @@ from torchtyping import TensorType
 class PoseOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
 
-    def __init__(self) -> None:
-        super().__init__()
-        # maybe some other stuff?
-
     def forward(
         self,
-        c2w: TensorType["num_cameras", 3, 4],
-        indices: Optional[TensorType["num_cameras"]] = None,
+        indices: TensorType["num_cameras"],
     ) -> TensorType["num_cameras", 3, 4]:
-        return c2w  # no-op
+        return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op
 
 
 class SE3(PoseOptimizer):
