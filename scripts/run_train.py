@@ -14,6 +14,7 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import yaml
+from rich.console import Console
 
 from nerfactory.configs import base as cfg
 from nerfactory.configs.utils import cli_from_base_configs
@@ -192,6 +193,8 @@ def main(config: cfg.Config) -> None:
 
 
 if __name__ == "__main__":
+    console = Console(width=120)
+
     from nerfactory.configs.base_configs import base_configs
 
     instantiated_config = cli_from_base_configs(base_configs)
@@ -199,9 +202,10 @@ if __name__ == "__main__":
         logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")
         instantiated_config = yaml.load(instantiated_config.trainer.load_config.read_text(), Loader=yaml.Loader)
 
-    # print and save config
-    logging.info("Printing current config setup")
-    logging.info(instantiated_config)
+    console.rule("Config")
+    console.print(instantiated_config)
+    console.rule("")
+
     assert instantiated_config.base_dir is not None
     instantiated_config.base_dir.mkdir(parents=True, exist_ok=True)
     config_yaml_path = instantiated_config.base_dir / "config.yml"
