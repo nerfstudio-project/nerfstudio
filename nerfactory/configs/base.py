@@ -114,7 +114,6 @@ class LocalWriterConfig(InstantiateConfig):
     _target: Type = writer.LocalWriter
     enable: bool = False
     stats_to_track: Tuple[writer.EventName, ...] = (
-        writer.EventName.ITER_LOAD_TIME,
         writer.EventName.ITER_TRAIN_TIME,
         writer.EventName.RAYS_PER_SEC,
         writer.EventName.CURR_TEST_PSNR,
