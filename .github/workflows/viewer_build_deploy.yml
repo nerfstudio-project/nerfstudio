@@ -84,4 +84,4 @@ jobs:
       # # TODO(ethan): move the current version to an older folder
       # - run: ssh github_action_remote_machine 'mv /home/eweb0124/build /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'
 
-      - run: python run_deploy.py --ssh-key-string "$SSH_KEY" --local_folder ./nerfactory/viewer/app/build
+      - run: python ./nerfactory/viewer/app/run_deploy.py --ssh-key-string "$SSH_KEY" --local_folder ./nerfactory/viewer/app/build

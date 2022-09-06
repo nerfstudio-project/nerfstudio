@@ -17,13 +17,14 @@ Code for handling the version of the application.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
 
+from typing import Optional
 from os.path import expanduser
 
 import dcargs
 from sshconf import empty_ssh_config_file, read_ssh_config
 
 
-def get_version(old_version: None):
+def get_version(old_version: Optional[str] = None):
     return "22-09-06-1"
 
 def main(
