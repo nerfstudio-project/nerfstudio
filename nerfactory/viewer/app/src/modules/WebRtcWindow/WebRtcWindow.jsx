@@ -36,7 +36,7 @@ export default function WebRtcWindow() {
           username: 'openrelayproject',
           credential: 'openrelayproject',
         },
-        // extra STUN server(s):
+        // Extra STUN and TURN server(s):
         // {
         //   urls: 'stun:stun.l.google.com:19302',
         // },
@@ -83,6 +83,15 @@ export default function WebRtcWindow() {
         });
       }
     };
+
+    pc.onclose = () => {
+      dispatch({
+        type: 'write',
+        path: 'webrtcState/isConnected',
+        data: false,
+      });
+    };
+
     return pc;
   };
 
@@ -161,7 +170,19 @@ export default function WebRtcWindow() {
       console.log('[webrtc] starting process');
       sendOffer();
     });
-  }, []); // empty dependency array means only run once
+
+    // kill the webrtc connection on dismount
+    return () => {
+      if (pcRef.current !== null) {
+        dispatch({
+          type: 'write',
+          path: 'webrtcState/isConnected',
+          data: false,
+        });
+        pcRef.current.close();
+      }
+    };
+  }, [websocket]); // dependency to call this whenever the websocket changes
 
   return (
     <div className="WebRTCVideo">

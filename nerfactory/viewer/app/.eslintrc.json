@@ -17,7 +17,11 @@
     "ecmaVersion": "latest",
     "sourceType": "module"
   },
-  "plugins": ["react", "@typescript-eslint"],
+  "plugins": [
+    "react",
+    "@typescript-eslint",
+    "unused-imports"
+  ],
   "rules": {
     "arrow-body-style": "off",
     "camelcase": "off",
@@ -25,6 +29,7 @@
     "no-alert": "off",
     "no-console": "off",
     "prefer-destructuring": "off",
-    "react/destructuring-assignment": "off"
+    "react/destructuring-assignment": "off",
+    "unused-imports/no-unused-imports-ts": 2
   }
 }

@@ -1,49 +1,29 @@
 // Much of this code comes from or is inspired by:
 // https://www.pluralsight.com/guides/using-web-sockets-in-your-reactredux-app
 
-import React, { createContext } from 'react';
+import React, { createContext, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 import PropTypes from 'prop-types';
-import { useDispatch } from 'react-redux';
 
 const WebSocketContext = createContext(null);
 
 export { WebSocketContext };
 
-function getParam(param_name) {
-  // https://stackoverflow.com/questions/831030/how-to-get-get-request-parameters-in-javascript
-  const params = new RegExp(
-    `[?&]${encodeURIComponent(param_name)}=([^&]*)`,
-  ).exec(window.location.href);
-  if (params === null) {
-    return undefined;
-  }
-  return decodeURIComponent(params[1]);
-}
-
-function getWebsocketEndpoint() {
-  const endpoint = getParam('websocket_url');
-  console.log('websocket url: ', endpoint);
-  if (endpoint === undefined) {
-    const message =
-      'Please set the websocket endpoint. The format should look like "<viewer_url>?websocket_url=localhost:<port>". E.g., "https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:7007".';
-    window.alert(message);
-    return '';
-  }
-  return endpoint;
-}
-
 export default function WebSocketContextFunction({ children }) {
   const dispatch = useDispatch();
+  let ws = null;
+  let socket = null;
 
-  let socket;
-  let ws;
-
-  // should look like e.g., "ws://<localhost:port>"
-  const websocketEndpoint = getWebsocketEndpoint();
+  // this code will rerender anytime the webosocket changes now
+  const websocket_url = useSelector(
+    (state) => state.websocketState.websocket_url,
+  );
+  console.log(websocket_url);
 
   const connect = () => {
-    socket = new WebSocket(`ws://${websocketEndpoint}/`);
+    const url = `ws://${websocket_url}/`;
+    socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
@@ -60,9 +40,6 @@ export default function WebSocketContextFunction({ children }) {
         path: 'websocketState/isConnected',
         data: false,
       });
-      setTimeout(() => {
-        connect();
-      }, 1000);
     };
 
     socket.onerror = (err) => {
@@ -73,14 +50,20 @@ export default function WebSocketContextFunction({ children }) {
       );
       socket.close();
     };
+    return socket;
   };
 
-  if (!socket) {
-    connect();
-    ws = {
-      socket,
+  useEffect(() => {
+    // cleanup function to close the websocket on rerender
+    return () => {
+      socket.close();
     };
-  }
+  }, [websocket_url]);
+
+  connect();
+  ws = {
+    socket
+  };
 
   return (
     <WebSocketContext.Provider value={ws}>{children}</WebSocketContext.Provider>

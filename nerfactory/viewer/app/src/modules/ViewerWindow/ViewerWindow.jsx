@@ -1,62 +1,57 @@
-import './ViewerWindow.css';
-
 import * as THREE from 'three';
 
-import React, { useContext, useEffect, useRef } from 'react';
-import { useSelector } from 'react-redux';
-
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+import Stats from 'stats.js';
+import { useSelector } from 'react-redux';
+import React, { useContext, useEffect, useRef } from 'react';
 import { WebSocketContext } from '../WebSocket/WebSocket';
+import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+
 
 const msgpack = require('msgpack-lite');
+
+function createStats() {
+  const stats = new Stats();
+  stats.setMode(0);
+  stats.domElement.style.position = 'absolute';
+  stats.domElement.style.left = '0';
+  stats.domElement.style.top = '0';
+  return stats;
+}
 
 // manages a camera and the web rtc stream...
 export default function ViewerWindow(props) {
   // eslint-disable-next-line react/prop-types
   const scene = props.scene;
-  let cameraControls = null;
+
   const myRef = useRef(null);
   const websocket = useContext(WebSocketContext).socket;
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
+  const field_of_view_ref = useRef(field_of_view);
+  
+  const camera = useRef(null);
+  let cameraControls = null;
+  let renderer = null;
+  let viewportWidth = null;
+  let viewportHeight = null;
+  let stats = null;
 
   const getViewportWidth = () => {
-    return window.innerWidth - (window.innerWidth % 2);
+    const width = myRef.current.clientWidth;
+    return width - (width % 2);
   };
 
   const getViewportHeight = () => {
-    return window.innerHeight;
+    return myRef.current.clientHeight;
   };
-
-  let viewportWidth = getViewportWidth();
-  let viewportHeight = getViewportHeight();
-
-  const camera = new THREE.PerspectiveCamera(
-    field_of_view,
-    viewportWidth / viewportHeight,
-    0.01,
-    100,
-  );
-  camera.position.x = 5;
-  camera.position.y = -5;
-  camera.position.z = 5;
-  camera.up = new THREE.Vector3(0, 0, 1);
-
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-  });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(viewportWidth, viewportHeight);
-  renderer.domElement.style.border = '1px solid black';
 
   const handleResize = () => {
     viewportWidth = getViewportWidth();
     viewportHeight = getViewportHeight();
-    camera.aspect = viewportWidth / viewportHeight;
-    camera.updateProjectionMatrix();
+    camera.current.aspect = viewportWidth / viewportHeight;
+    camera.current.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
   };
 
@@ -68,27 +63,62 @@ export default function ViewerWindow(props) {
       const data = {
         type: cmd,
         path,
-        data: camera.toJSON(),
+        data: camera.current.toJSON(),
       };
       const message = msgpack.encode(data);
       websocket.send(message);
     }
   };
 
+  // keep sending the camera often
+  useEffect(() => {
+    const fps = 60;
+    const interval = 1000 / fps;
+    const refreshIntervalId = setInterval(sendCamera, interval);
+    return () => {
+      clearInterval(refreshIntervalId);
+    };
+  }, [websocket]);
+
   const update = () => {
-    handleResize();
-    camera.updateProjectionMatrix();
-    cameraControls.update();
     requestAnimationFrame(update);
-    renderer.render(scene, camera);
-    sendCamera();
+    handleResize();
+    camera.current.fov = field_of_view_ref.current;
+    camera.current.updateProjectionMatrix();
+    cameraControls.update();
+    renderer.render(scene, camera.current);
+    stats.update();
   };
 
-  // similar to componentDidMount
+  // this is run once
   useEffect(() => {
+    viewportWidth = getViewportWidth();
+    viewportHeight = getViewportHeight();
+
+    stats = createStats();
+    myRef.current.append(stats.domElement);
+
+    camera.current = new THREE.PerspectiveCamera(
+      field_of_view_ref.current,
+      viewportWidth / viewportHeight,
+      0.01,
+      100,
+    );
+    camera.current.position.x = 5;
+    camera.current.position.y = -5;
+    camera.current.position.z = 5;
+    camera.current.up = new THREE.Vector3(0, 0, 1);
+
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+    });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(viewportWidth, viewportHeight);
+
     myRef.current.append(renderer.domElement);
     // add camera controls
-    cameraControls = new OrbitControls(camera, renderer.domElement);
+    cameraControls = new OrbitControls(camera.current, renderer.domElement);
     cameraControls.rotateSpeed = 2.0;
     cameraControls.zoomSpeed = 0.3;
     cameraControls.panSpeed = 0.2;
@@ -98,19 +128,19 @@ export default function ViewerWindow(props) {
     cameraControls.dampingFactor = 1.0;
     cameraControls.update();
     update();
+
   }, []);
 
-  // useEffect(() => {
-  //   camera.fov = field_of_view;
-  //   console.log(field_of_view);
-  //   camera.updateProjectionMatrix();
-  // }, [field_of_view]);
+  // updates the field of view inside the ref to avoid rerendering so often
+  useEffect(() => {
+    field_of_view_ref.current = field_of_view;
+  }, [field_of_view]);
 
   return (
-    <div>
+    <>
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
       <div className="canvas-container-main" ref={myRef} />
-    </div>
+    </>
   );
 }
