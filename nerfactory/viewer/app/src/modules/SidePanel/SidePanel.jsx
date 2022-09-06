@@ -35,7 +35,7 @@ function TabPanel(props: TabPanelProps) {
       {...other}
     >
       {value === index && (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, padding: 0 }}>
           <Typography component="div">{children}</Typography>
         </Box>
       )}
@@ -146,7 +146,13 @@ export function BasicTabs(props: BasicTabsProps) {
         </Box>
         <TabPanel value={value} index={0}>
           <div className="Leva-container">
-            <Leva className="Leva-panel" theme={LevaTheme} titleBar={false} />
+            <Leva
+              className="Leva-panel"
+              theme={LevaTheme}
+              titleBar={false}
+              fill
+              flat
+            />
           </div>
         </TabPanel>
         <TabPanel value={value} index={1}>

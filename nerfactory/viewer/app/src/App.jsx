@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import { appTheme } from './themes/theme.ts';
 import { BasicTabs } from './modules/SidePanel/SidePanel';
 import {
   SceneTreeWebSocketListener,
@@ -15,20 +17,23 @@ export default function App() {
   const sceneTree = get_scene_tree();
 
   return (
-    <div className="App">
-      {/*
+    <ThemeProvider theme={appTheme}>
+      <CssBaseline enableColorScheme />
+      <div className="App">
+        {/*
       Code that listens for websocket 'write' messages and updates the redux store.
       */}
-      <SceneTreeWebSocketListener />
-      {/* ----- */}
-      <Banner />
-      <div className="App-body">
-        <div className="SidePanel">
-          <BasicTabs sceneTree={sceneTree} />
+        <SceneTreeWebSocketListener />
+        {/* ----- */}
+        <Banner />
+        <div className="App-body">
+          <div className="SidePanel">
+            <BasicTabs sceneTree={sceneTree} />
+          </div>
+          <RenderControls />
+          <ViewerWindow scene={sceneTree.object} />
         </div>
-        <RenderControls />
-        <ViewerWindow scene={sceneTree.object} />
       </div>
-    </div>
+    </ThemeProvider>
   );
 }
