@@ -27,7 +27,7 @@ from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.base import DataManager
+from nerfactory.datamanagers.base import DataManager
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
@@ -66,11 +66,11 @@ class Pipeline(nn.Module):
 
     Args:
         model: The model to be used in the pipeline.
-        data_manager: The data_manager to be used in the pipeline.
+        datamanager: The datamanager to be used in the pipeline.
         loss_coefficients: A dictionary of loss coefficients that will be used
 
     Attributes:
-        self.data_manager (DataManager): The data manager that will be used
+        self.datamanager (DataManager): The data manager that will be used
         self.model (Model): The model that will be used
     """
 
@@ -78,13 +78,13 @@ class Pipeline(nn.Module):
         self, config: cfg.PipelineConfig, device: str, test_mode: bool = False, world_size: int = 1, local_rank: int = 0
     ):
         super().__init__()
-        self.data_manager: DataManager = config.data_manager.setup(
+        self.datamanager: DataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
-        self.data_manager.to(device)
+        self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
-        assert self.data_manager.train_datasetinputs is not None, "Missing DatasetInputs"
-        self.model: Model = config.model.setup(scene_bounds=self.data_manager.train_datasetinputs.scene_bounds)
+        assert self.datamanager.train_input_dataset is not None, "Missing input dataset"
+        self.model: Model = config.model.setup(scene_bounds=self.datamanager.train_input_dataset.inputs.scene_bounds)
         self.model.to(device)
 
         self.world_size = world_size
@@ -106,8 +106,8 @@ class Pipeline(nn.Module):
         getting the next batch of data from the DataManager and interfacing with the
         Model class, feeding the data to the model's forward function."""
         if self.world_size > 1:
-            self.data_manager.sampler.set_epoch(step)
-        ray_bundle, batch = self.data_manager.next_train()
+            self.datamanager.sampler.set_epoch(step)
+        ray_bundle, batch = self.datamanager.next_train()
         model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
         return model_outputs, loss_dict, metrics_dict
 
@@ -118,8 +118,8 @@ class Pipeline(nn.Module):
         from the DataManager and feed it to the model's forward function"""
         self.eval()
         # NOTE(ethan): next_eval() is not being used right now
-        assert self.data_manager.eval_dataloader is not None
-        for camera_ray_bundle, batch in self.data_manager.eval_dataloader:
+        assert self.datamanager.eval_dataloader is not None
+        for camera_ray_bundle, batch in self.datamanager.eval_dataloader:
             assert camera_ray_bundle.camera_indices is not None
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             if self.world_size > 1:
@@ -144,12 +144,12 @@ class Pipeline(nn.Module):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
-        data_manager_callbacks = self.data_manager.get_training_callbacks(training_callback_attributes)
+        datamanager_callbacks = self.datamanager.get_training_callbacks(training_callback_attributes)
         if self.world_size > 1:
             model_callbacks = self.model.module.get_training_callbacks(training_callback_attributes)
         else:
             model_callbacks = self.model.get_training_callbacks(training_callback_attributes)
-        callbacks = data_manager_callbacks + model_callbacks
+        callbacks = datamanager_callbacks + model_callbacks
         return callbacks
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -158,10 +158,10 @@ class Pipeline(nn.Module):
         Returns:
             A list of dictionaries containing the pipeline's param groups.
         """
-        data_manager_params = self.data_manager.get_param_groups()
+        datamanager_params = self.datamanager.get_param_groups()
         if self.world_size > 1:
             model_params = self.model.module.get_param_groups()
         else:
             model_params = self.model.get_param_groups()
         # TODO(ethan): assert that key names don't overlap
-        return {**data_manager_params, **model_params}
+        return {**datamanager_params, **model_params}

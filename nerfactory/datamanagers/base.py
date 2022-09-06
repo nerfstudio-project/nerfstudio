@@ -28,14 +28,12 @@ from torch.utils.data.distributed import DistributedSampler
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.image_dataloader import (
+from nerfactory.datamanagers.dataloaders import (
     CacheImageDataloader,
-    EvalDataloader,
     FixedIndicesEvalDataloader,
 )
-from nerfactory.dataloaders.image_dataset import ImageDataset, PanopticImageDataset
-from nerfactory.dataloaders.pixel_sampler import PixelSampler
-from nerfactory.dataloaders.structs import DatasetInputs
+from nerfactory.datamanagers.datasets import InputDataset
+from nerfactory.datamanagers.pixel_sampler import PixelSampler
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import IterableWrapper
@@ -75,47 +73,36 @@ class DataManager(nn.Module):
         next_eval: will be called on __next__() for the eval iterator
         get_eval_iterable: utility that gets a clean pythonic iterator for your eval data
 
-    Args:
-        use_train: whether this data manager is being used for training
-        use_eval: whether this data manager is being used for evaluation
 
     Attributes:
-        use_train (bool): whether or not we are using train
-        use_eval (bool): whether or not we are using eval
         train_count (int): the step number of our train iteration, needs to be incremented manually
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
-        train_datasetinputs (DatasetInputs): the inputs for the train dataset
-        eval_datasetinputs (DatasetInputs): the inputs for the eval dataset
-        train_image_dataset (ImageDataset): the image dataset for the train dataset
+        train_input_dataset (InputDataset): the input dataset for the train dataset
+        eval_input_dataset (InputDataset): the input dataset for the eval dataset
 
         Additional attributes specific to each subclass are defined in the setup_train and setup_eval
         functions.
 
     """
 
-    train_datasetinputs: Optional[DatasetInputs] = None
-    eval_datasetinputs: Optional[DatasetInputs] = None
-    train_image_dataset: Optional[ImageDataset] = None
-    eval_dataloader: Optional[EvalDataloader] = None
+    train_input_dataset: Optional[InputDataset] = None
+    eval_input_dataset: Optional[InputDataset] = None
 
-    def __init__(self, use_train: bool, use_eval: bool):
+    def __init__(self):
         """Constructor for the DataManager class.
 
         Subclassed DataManagers will likely need to override this constructor.
 
         If you aren't manually calling the setup_train and setup_eval functions from an overriden
-        constructor, that you call super().__init__(use_train, use_eval) BEFORE you initialize any
+        constructor, that you call super().__init__() BEFORE you initialize any
         nn.Modules or nn.Parameters, but AFTER you've already set all the attributes you need
         for the setup functions."""
         super().__init__()
-        self.use_train = use_train
-        self.use_eval = use_eval
         self.train_count = 0
         self.eval_count = 0
-        assert use_train or use_eval
-        if use_train:
+        if self.train_input_dataset and self.train_input_dataset.inputs:
             self.setup_train()
-        if use_eval:
+        if self.eval_input_dataset and self.eval_input_dataset.inputs:
             self.setup_eval()
 
     def forward(self):
@@ -144,7 +131,7 @@ class DataManager(nn.Module):
         as __iter__ and __next__ methods respectivley.
 
         This basically is just a little utility if you want to do something like:
-        |    for ray_bundle, batch in data_manager.get_train_iterable():
+        |    for ray_bundle, batch in datamanager.get_train_iterable():
         |        <eval code here>
         since the returned IterableWrapper is just an iterator with the __iter__ and __next__
         methods (methods bound to our DataManager instance in this case) specified in the constructor.
@@ -156,7 +143,7 @@ class DataManager(nn.Module):
         as __iter__ and __next__ methods respectivley.
 
         This basically is just a little utility if you want to do something like:
-        |    for ray_bundle, batch in data_manager.get_eval_iterable():
+        |    for ray_bundle, batch in datamanager.get_eval_iterable():
         |        <eval code here>
         since the returned IterableWrapper is just an iterator with the __iter__ and __next__
         methods (methods bound to our DataManager instance in this case) specified in the constructor.
@@ -233,70 +220,43 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.local_rank = local_rank
         self.sampler = None
 
-        dataset_train = config.train_dataset.setup()
-        self.train_datasetinputs = dataset_train.get_dataset_inputs(split="train")
-        self.train_cameras = self.train_datasetinputs.cameras.to(device)
-        if config.eval_dataset is not None:
-            dataset_eval = config.eval_dataset.setup()
-        else:
+        if config.eval_dataparser is None:
             logging.info("No eval dataset specified so using train dataset for eval.")
-            dataset_eval = dataset_train
-        self.eval_datasetinputs = dataset_eval.get_dataset_inputs(split="val" if not test_mode else "test")
-        self.eval_cameras = self.eval_datasetinputs.cameras.to(device)
-        use_train = self.train_datasetinputs is not None
-        use_eval = self.eval_datasetinputs is not None
-        super().__init__(use_train, use_eval)
+            config.eval_dataparser = config.train_dataparser
+        self.train_input_dataset = InputDataset(config.train_dataparser, split="train")
+        self.eval_input_dataset = InputDataset(config.eval_dataparser, split="val" if not test_mode else "test")
+        super().__init__()
 
     def setup_train(self):
-        """Sets up the data manager for training"""
-        assert self.train_datasetinputs is not None
-        if self.config.image_dataset_type == "rgb":
-            self.train_image_dataset = ImageDataset(
-                image_filenames=self.train_datasetinputs.image_filenames,
-                alpha_color=self.train_datasetinputs.alpha_color,
-            )
-        elif self.config.image_dataset_type == "panoptic":
-            self.train_image_dataset = PanopticImageDataset(**self.train_datasetinputs.as_dict())
-        else:
-            raise ValueError(f"Unknown image dataset type {self.config.image_dataset_type}")
-
+        """Sets up the data loaders for training"""
+        assert self.train_input_dataset is not None
         if self.world_size > 1:
             self.sampler = DistributedSampler(
-                self.train_image_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+                self.train_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
             self.train_image_dataloader = CacheImageDataloader(
-                self.train_image_dataset,
+                self.train_input_dataset,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
                 device=self.device,
                 num_workers=self.world_size * 4,
                 pin_memory=True,
                 sampler=self.sampler,
             )  # TODO(ethan): pass this in
-
         else:
             self.train_image_dataloader = CacheImageDataloader(
-                self.train_image_dataset,
+                self.train_input_dataset,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
                 device=self.device,
             )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_ray_generator = RayGenerator(self.train_cameras)
+        self.train_ray_generator = RayGenerator(self.train_input_dataset.inputs.cameras.to(self.device))
 
     def setup_eval(self):
-        """Sets up the data manager for evaluation"""
-        assert self.eval_datasetinputs is not None
-        if self.config.image_dataset_type == "rgb":
-            self.eval_image_dataset = ImageDataset(
-                image_filenames=self.eval_datasetinputs.image_filenames,
-                alpha_color=self.eval_datasetinputs.alpha_color,
-            )
-        elif self.config.image_dataset_type == "panoptic":
-            self.eval_image_dataset = PanopticImageDataset(**self.eval_datasetinputs.as_dict())
-
+        """Sets up the data loader for evaluation"""
+        assert self.eval_input_dataset is not None
         self.eval_dataloader = FixedIndicesEvalDataloader(
-            image_dataset=self.eval_image_dataset,
-            cameras=self.eval_cameras,
+            input_dataset=self.eval_input_dataset,
             num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
             image_indices=self.config.eval_image_indices,
             device=self.device,
