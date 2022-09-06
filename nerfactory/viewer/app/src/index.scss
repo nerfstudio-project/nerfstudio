@@ -1,0 +1,160 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  height: 100%;
+  overflow: hidden;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+.App {
+  position: relative;
+  height: 100vh;
+}
+
+$banner-color: #84c3ff4d;
+
+.banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  width: 100%;
+  z-index: 1000;
+  background-color: $banner-color;
+
+  .banner-button {
+    margin: 10px;
+    float: left;
+  }
+}
+
+.App-body {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+$SidePanel-width: 500px;
+$custom-border: solid 1px #ddd;
+
+.SidePanel {
+  position: absolute;
+  background-color: #f0f0f080;
+  top: 0;
+  width: $SidePanel-width;
+  right: 0;
+  bottom: 0;
+  border: $custom-border;
+  z-index: 999;
+  text-align: center;
+}
+
+.Leva-container > div {
+  position: relative;
+  margin: auto;
+  width: 100%;
+  padding: 10px;
+}
+
+.Scene-container {
+  height: 500px;
+}
+
+// Your variable overrides
+$sidebar-color: #b71f0b !default;
+$sidebar-width: 100% !default;
+@import '~react-pro-sidebar/dist/scss/styles.scss';
+
+// ------------------------------------
+// Status Panel styling
+.StatusPanel {
+  display: block;
+  // height: 170px;
+}
+
+.StatusPanel-title {
+  margin: 5px;
+  text-align: center;
+  font-size: 1em;
+  font-weight: bold;
+}
+
+.StatusPanel .StatusPanel-button {
+  margin: 20px;
+}
+
+.StatusPanel .WebSocketUrlField {
+  // display: block;
+  // float: left;
+  margin: 10px;
+}
+
+.StatusPanel-metrics {
+  background-color: $banner-color;
+}
+
+.StatusPanel-metrics div {
+  position: relative;
+  font-size: 16px;
+  display: block;
+  text-align: left;
+}
+
+// ------------------------------------
+// Landing Modal styling
+// .LandingModal {
+//   display: block;
+// }
+
+$background-paper-color: #fff;
+
+.LandingModal-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px; // 400
+  background-color: $background-paper-color;
+  border: 2px solid #000;
+  //   box-shadow: 24px 24px;
+  padding: 32px;
+}
+
+.LandingModal-box .WebSocketUrlField {
+  width: 100%;
+}
+
+.LandingModal-box .LandingModal-button {
+  margin: 3px;
+}
+
+// ------------------------------------
+// Camera Vie
+// }
+
+.canvas-container-main,
+.WebRTCVideo {
+  position: absolute;
+  top: 0px;
+  right: $SidePanel-width;
+  bottom: 0px;
+  left: 0px;
+  border: $custom-border;
+}
+
+.WebRTCVideo-video {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}

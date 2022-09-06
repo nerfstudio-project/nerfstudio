@@ -1,38 +1,24 @@
-import './Scene.css';
-
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
 import { useContext, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
-
-import { GUI } from 'dat.gui';
-import SceneNode from '../../SceneNode';
-import { subscribe_to_changes } from '../../subscriber';
-import { WebSocketContext } from '../WebSocket/WebSocket';
 import { drawCamera, drawSceneBounds } from './drawing';
+
+import SceneNode from '../../SceneNode';
+import { WebSocketContext } from '../WebSocket/WebSocket';
+import { subscribe_to_changes } from '../../subscriber';
 
 const msgpack = require('msgpack-lite');
 
-// manages setting up the scene and other logic for keeping state in sync with the server
-export default function SetupScene() {
+const SCENE_BOUNDS_NAME = 'Scene Bounds';
+const CAMERAS_NAME = 'Training Cameras';
+
+export function get_scene_tree() {
   let scene = null;
-  let gui = null;
   let sceneTree = null;
-
-  // the websocket context
-  const socket = useContext(WebSocketContext).socket;
-  const dispatch = useDispatch();
-
-  // Scene
   scene = new THREE.Scene();
-
-  // GUI
-  gui = new GUI();
-  gui.domElement.id = 'datgui';
-  const sceneFolder = gui.addFolder('Scene');
-  sceneFolder.open();
-  sceneTree = new SceneNode(scene, sceneFolder);
+  sceneTree = new SceneNode(scene);
 
   // add objects to the the scene tree
   const setObject = (path, object) => {
@@ -64,9 +50,9 @@ export default function SetupScene() {
   const fn_value_scene_bounds = (previous, current) => {
     if (current !== null) {
       const line = drawSceneBounds(current);
-      setObject(['Scene Bounds'], line);
+      setObject([SCENE_BOUNDS_NAME], line);
     } else {
-      deleteObject(['Scene Bounds']);
+      deleteObject([SCENE_BOUNDS_NAME]);
     }
   };
   subscribe_to_changes(selector_fn_scene_bounds, fn_value_scene_bounds);
@@ -92,21 +78,29 @@ export default function SetupScene() {
           // keys_valid.push(key);
           const json = current[key];
           const camera = drawCamera(json);
-          setObject(['Cameras', key], camera);
+          setObject([CAMERAS_NAME, key], camera);
         }
       }
       for (const key of prev) {
         // invalid so delete
         if (!curr.has(key) || current[key] === null) {
           // keys_invalid.push(key);
-          deleteObject(['Cameras', key]);
+          deleteObject([CAMERAS_NAME, key]);
         }
       }
     } else {
-      deleteObject(['Cameras']);
+      deleteObject([CAMERAS_NAME]);
     }
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
+
+  return sceneTree;
+}
+
+// manages setting up the scene and other logic for keeping state in sync with the server
+export function SceneTreeWebSocketListener() {
+  const socket = useContext(WebSocketContext).socket;
+  const dispatch = useDispatch();
 
   useEffect(() => {
     socket.addEventListener('message', (originalCmd) => {
@@ -121,7 +115,5 @@ export default function SetupScene() {
         });
       }
     });
-  }, []); // empty dependency array means only run once
-
-  return scene;
+  }, [socket]); // dependency to call this whenever the websocket changes
 }
