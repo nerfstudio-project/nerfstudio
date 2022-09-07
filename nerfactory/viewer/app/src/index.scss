@@ -103,8 +103,13 @@ $sidebar-width: 100% !default;
   // height: 170px;
 }
 
+.StatusPanel .StatusPanel-play-button {
+  width: 90%;
+  margin: 10px;
+}
+
 .StatusPanel .StatusPanel-button-group {
-  margin: 12px;
+  margin: 10px;
 }
 
 .StatusPanel .StatusPanel-hide-scene-button {
