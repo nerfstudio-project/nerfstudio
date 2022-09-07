@@ -59,6 +59,7 @@ def main(
     print()
 
     # save the ssh key to a file
+    os.system("mkdir ~/.ssh")
     os.system(f"echo {ssh_key_string} >> {ssh_key_filename}")
     os.system(f"chmod 400 {ssh_key_filename}")
 
