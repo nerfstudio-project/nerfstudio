@@ -24,6 +24,7 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
+from rich import print  # pylint: disable=redefined-builtin
 
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
@@ -195,16 +196,14 @@ class VisualizerState:
                 zmq_port = int(self.config.zmq_url.split(":")[-1])
                 websocket_port = self.config.websocket_port
                 run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
-                # TODO(ethan): move this into the writer such that it's at the bottom
-                # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
                 print("\n")
                 self.viewer_url = (
                     f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
                 )
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
-                pub_open_viewer_instructions_string = f'[Public] Open the viewer at "{self.viewer_url}"'
-                dev_open_viewer_instructions_string = f'[Local] Open the viewer at "{viewer_url_local}"'
+                pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
+                dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
                 print("-" * len(pub_open_viewer_instructions_string))
                 print(pub_open_viewer_instructions_string)
                 print(dev_open_viewer_instructions_string)

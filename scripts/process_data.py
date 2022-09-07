@@ -1,12 +1,12 @@
 """Processes a video or image sequence to a nerfactory compatible dataset."""
 
 import json
+import shutil
 import subprocess
 import sys
 from enum import Enum
 from pathlib import Path
-from shutil import which
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 
 import dcargs
 import numpy as np
@@ -14,7 +14,7 @@ from rich.console import Console
 
 from nerfactory.utils import colmap_utils
 
-CONSOLE = Console()
+CONSOLE = Console(width=120)
 
 
 class CameraType(Enum):
@@ -32,7 +32,7 @@ CAMERA_MODELS = {
 
 def check_ffmpeg_installed():
     """Checks if ffmpeg is installed."""
-    ffmpeg_path = which("ffmpeg")
+    ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path is None:
         CONSOLE.print("[bold red]Could not find ffmpeg. Please install ffmpeg.")
         print("See https://ffmpeg.org/download.html for installation instructions.")
@@ -42,7 +42,7 @@ def check_ffmpeg_installed():
 
 def check_colmap_installed():
     """Checks if colmap is installed."""
-    colmap_path = which("colmap")
+    colmap_path = shutil.which("colmap")
     if colmap_path is None:
         CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
         print("See https://colmap.github.io/install.html for installation instructions.")
@@ -86,7 +86,9 @@ def run_command(cmd, verbose=False) -> Optional[str]:
     return out
 
 
-def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False) -> None:
+def convert_video_to_images(
+    video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False
+) -> Tuple[int, int]:
     """Converts a video into a sequence of images.
 
     Args:
@@ -94,7 +96,16 @@ def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
         verbose: If True, logs the output of the command.
+    Returns:
+        A tuple containing the number of frames in the video and the number of frames extracted.
     """
+
+    # delete existing images in folder
+    for img in image_dir.glob("*.png"):
+        if verbose:
+            CONSOLE.log(f"Deleting {img}")
+        img.unlink()
+
     cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
         -show_entries stream=nb_read_packets -of csv=p=0 {video_path}"
     output = run_command(cmd, verbose=False)
@@ -117,6 +128,27 @@ def convert_video_to_images(video_path: Path, image_dir: Path, num_frames_target
 
     run_command(ffmpeg_cmd, verbose=verbose)
 
+    return num_frames, len(list(image_dir.glob("*.png")))
+
+
+def copy_images(data, image_dir, verbose) -> int:
+    """Copy images from a directory to a new directory.
+
+    Args:
+        data: Path to the directory of images.
+        image_dir: Path to the output directory.
+        verbose: If True, print extra logging.
+    Returns:
+        The number of images copied.
+    """
+    image_paths = sorted(data.glob("*"))
+    for i, image_path in enumerate(image_paths):
+        if verbose:
+            CONSOLE.log(f"Copying image {i + 1} of {len(image_paths)}...")
+        shutil.copy(image_path, image_dir / f"frame_{i:05d}{image_path.suffix}")
+
+    return len(image_paths)
+
 
 def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> None:
     """Downscales the images in the directory. Uses FFMPEG.
@@ -132,10 +164,11 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         assert isinstance(downscale_factor, int)
         downscale_dir = image_dir.parent / f"images_{downscale_factor}"
         downscale_dir.mkdir(parents=True, exist_ok=True)
+        file_type = image_dir.glob("frame_*").__next__().suffix
         ffmpeg_cmd = [
-            f"ffmpeg -i {image_dir}/frame_%05d.png ",
+            f"ffmpeg -i {image_dir}/frame_%05d{file_type} ",
             f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-            f"{downscale_dir}/frame_%05d.png",
+            f"{downscale_dir}/frame_%05d{file_type}",
         ]
         ffmpeg_cmd = " ".join(ffmpeg_cmd)
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -159,6 +192,8 @@ def run_colmap(
     """
 
     colmap_version = get_colmap_version()
+
+    (colmap_dir / "database.db").unlink(missing_ok=True)
 
     # Feature extraction
     feature_extractor_cmd = [
@@ -215,13 +250,16 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
 
 
-def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> None:
+def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
     Args:
         cameras_path: Path to the cameras.bin file.
         images_path: Path to the images.bin file.
         output_dir: Path to the output directory.
+
+    Returns:
+        The number of registered images.
     """
 
     cameras = colmap_utils.read_cameras_binary(cameras_path)
@@ -267,20 +305,23 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> N
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
 
+    return len(frames)
+
 
 def main(
     data: Path,
     output_dir: Path,
-    num_frames_target: int,
+    num_frames_target: int = 300,
     camera_type: Literal["perspective", "fisheye"] = "perspective",
     num_downscales: int = 0,
+    skip_colmap: bool = False,
     gpu: bool = True,
     verbose: bool = False,
 ):
     """Process images or videos into a Nerfactory dataset.
 
     This script does the following:
-    1) Converts video into images (if video is provided).
+    1) Converts the video into images (if video is provided).
     2) Scales images to a specified size.
     3) Calculates and stores the sharpness of each image.
     4) Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
@@ -306,13 +347,31 @@ def main(
     image_dir = output_dir / "images"
     image_dir.mkdir(parents=True, exist_ok=True)
 
+    summary_log = []
+
     if data.is_file():
         if not verbose:
             with CONSOLE.status("[bold yellow]Converting video to images...", spinner="bouncingBall"):
-                convert_video_to_images(data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose)
+                num_vid_frames, num_frames = convert_video_to_images(
+                    data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose
+                )
         else:
-            convert_video_to_images(data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose)
+            num_vid_frames, num_frames = convert_video_to_images(
+                data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose
+            )
+        summary_log.append(f"Starting with {num_vid_frames} video frames")
+        summary_log.append(f"We extracted {num_frames} images")
         CONSOLE.log("[bold green]:tada: Done converting video to images.")
+    else:
+        if num_frames_target is not None:
+            CONSOLE.log("[bold yellow]Warning: num_frames_target is ignored when data is a directory of images.")
+        if not verbose:
+            with CONSOLE.status("[bold yellow]Copying images...", spinner="bouncingBall"):
+                num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
+        else:
+            num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
+        CONSOLE.log("[bold green]:tada: Done copying images.")
+        summary_log.append(f"Starting with {num_frames} images")
 
     if num_downscales > 0:
         if not verbose:
@@ -321,20 +380,28 @@ def main(
         else:
             downscale_images(image_dir, num_downscales, verbose=verbose)
         CONSOLE.log("[bold green]:tada: Done downscaling images.")
+        downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
+        downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
+        summary_log.append(f"We downsampled the images by {downscale_text}")
 
-    colmap_dir = output_dir / "colmap"
-    colmap_dir.mkdir(parents=True, exist_ok=True)
+    if not skip_colmap:
+        colmap_dir = output_dir / "colmap"
+        colmap_dir.mkdir(parents=True, exist_ok=True)
 
-    camera_model = CAMERA_MODELS[camera_type]
-    run_colmap(image_dir=image_dir, colmap_dir=colmap_dir, camera_model=camera_model, gpu=gpu, verbose=verbose)
+        camera_model = CAMERA_MODELS[camera_type]
+        run_colmap(image_dir=image_dir, colmap_dir=colmap_dir, camera_model=camera_model, gpu=gpu, verbose=verbose)
 
-    with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
-        colmap_to_json(
-            cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-            images_path=colmap_dir / "sparse" / "0" / "images.bin",
-            output_dir=output_dir,
-        )
-    CONSOLE.log("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+        with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+            num_matched_frames = colmap_to_json(
+                cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
+                images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                output_dir=output_dir,
+            )
+            summary_log.append(f"Colmap matched {num_matched_frames} images")
+    CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+    for summary in summary_log:
+        CONSOLE.print(summary, justify="center")
 
 
 if __name__ == "__main__":
