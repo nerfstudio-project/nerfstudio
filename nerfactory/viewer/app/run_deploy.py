@@ -32,7 +32,7 @@ def get_version(old_version: Optional[str] = None):
 
 def main(
     branch_name: str = "",
-    ssh_key_string: str = "empty string",
+    ssh_key_string: str = "",
     ssh_key_filename: str = " ~/.ssh/github_actions_user_key_filename",
     hostname_or_ip_address: str = "34.102.68.79",
     local_folder: str = "temp",
@@ -93,6 +93,9 @@ def main(
 
     target_path = "/path/to/folder/{version_new}"
     symlink_path = "/path/to/folder/latest"
+
+    os.system("""ssh github_action_remote_machine 'rm -rf /home/eweb0124/build'""")
+    os.system("""ssh github_action_remote_machine 'mkdir /home/eweb0124/viewer/branch/temp'""")
 
     print("target path")
     print(target_path)
