@@ -321,7 +321,7 @@ def main(
     """Process images or videos into a Nerfactory dataset.
 
     This script does the following:
-    1) Converts video into images (if video is provided).
+    1) Converts the video into images (if video is provided).
     2) Scales images to a specified size.
     3) Calculates and stores the sharpness of each image.
     4) Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
