@@ -18,6 +18,7 @@ We use the library sshconf (https://github.com/sorend/sshconf) for working with 
 """
 from pathlib import Path
 import os
+import subprocess
 
 from typing import Optional
 from os.path import expanduser
@@ -26,19 +27,27 @@ import dcargs
 from sshconf import empty_ssh_config_file, read_ssh_config
 
 
+def run_cmd(cmd: str):
+    """Run the command"""
+    print("cmd:", cmd)
+    print("output:")
+    subprocess.Popen(cmd, shell=True).wait()
+
+
 def get_version(old_version: Optional[str] = None):
     return "22-09-06-1"
 
 
 def main(
     branch_name: str = "",
-    ssh_key_string: str = "",
+    ssh_key_string: Optional[str] = None,
     ssh_key_filename: str = " ~/.ssh/github_actions_user_key_filename",
     hostname_or_ip_address: str = "34.102.68.79",
     local_folder: str = "/home/eweb0124/build",
     remote_folder: str = "/home/eweb0124/viewer",
     host: str = "viewer_deploy_host",
     user: str = "eweb0124",
+    version_filename: str = "version.txt",
 ):
     """Copy a local folder to a remote machine and handle versioning.
 
@@ -59,9 +68,11 @@ def main(
     print()
 
     # save the ssh key to a file
-    os.system("mkdir ~/.ssh")
-    os.system(f"echo {ssh_key_string} >> {ssh_key_filename}")
-    os.system(f"chmod 400 {ssh_key_filename}")
+    run_cmd("mkdir ~/.ssh")
+    if ssh_key_string:
+        run_cmd(f"""rm -f {ssh_key_filename}""")
+        run_cmd(f"""echo "{ssh_key_string}" >> {ssh_key_filename}""")
+        run_cmd(f"chmod 400 {ssh_key_filename}")
 
     # setup the config in ~/.ssh/config
     config_filename = expanduser("~/.ssh/config")
@@ -85,24 +96,32 @@ def main(
         StrictHostKeyChecking="No",
     )
 
-    os.system("cat ~/.ssh/config")
+    run_cmd("cat ~/.ssh/config")
 
     # save the config file
     config.save()
 
     # get the version of master
-    version_master = "22-09-2021-0"
+    f = open(version_filename)
+    version_master = f.read().strip()
+    f.close()
+
     version_new = get_version(version_master)
 
-    target_path = "/path/to/folder/{version_new}"
+    version = version_master
+
+    print(version)
+
+    target_path = "/path/to/folder/{version}"
     symlink_path = "/path/to/folder/latest"
 
-    os.system(f"""ssh {host} 'rm -rf /home/eweb0124/build'""")
-    os.system(f"""scp -r {local_folder} {host}:/home/eweb0124/""")
-    os.system(f"""ssh {host} 'mkdir {remote_folder}/branch/temp'""")
+    # write to the /home/eweb0124/build folder
+    run_cmd(f"""ssh {host} 'rm -rf /home/eweb0124/build'""")
+    run_cmd(f"""scp -r {local_folder} {host}:/home/eweb0124/build""")
+    run_cmd(f"""ssh {host} 'mv /home/eweb0124/build {remote_folder}/{version}'""")
 
-    print("target path")
-    print(target_path)
+    # print("target path")
+    # print(target_path)
 
 
 if __name__ == "__main__":
