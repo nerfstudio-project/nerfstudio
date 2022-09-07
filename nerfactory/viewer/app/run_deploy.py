@@ -17,6 +17,7 @@ Code for handling the version of the application.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
 from pathlib import Path
+import os
 
 from typing import Optional
 from os.path import expanduser
@@ -57,9 +58,9 @@ def main(
     print("user", user)
     print()
 
-    # TODO: write the ssh_key to a file
-    # 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
-    # chmod 400 ~/.ssh/github_actions_user_key_filename
+    # save the ssh key to a file
+    os.system(f"echo {ssh_key_string} >> {ssh_key_filename}")
+    os.system(f"chmod 400 {ssh_key_filename}")
 
     # setup the config in ~/.ssh/config
     config_filename = expanduser("~/.ssh/config")
