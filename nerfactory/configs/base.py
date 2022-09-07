@@ -199,6 +199,7 @@ class FriendsDataParserConfig(DataParserConfig):
 
     _target: Type = Friends
     data_directory: Path = Path("data/friends/TBBT-big_living_room")
+    include_semantics: bool = True
 
 
 @dataclass
@@ -302,6 +303,9 @@ class NerfWModelConfig(ModelConfig):
     num_coarse_samples: int = 64
     num_importance_samples: int = 64
     uncertainty_min: float = 0.03
+    num_images: int = 10000  # TODO: don't hardcode this
+    appearance_embedding_dim: int = 48
+    transient_embedding_dim: int = 16
 
 
 @dataclass

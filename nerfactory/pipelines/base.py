@@ -84,7 +84,9 @@ class Pipeline(nn.Module):
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_input_dataset is not None, "Missing input dataset"
-        self.model: Model = config.model.setup(scene_bounds=self.datamanager.train_input_dataset.inputs.scene_bounds)
+        self.model: Model = config.model.setup(
+            scene_bounds=self.datamanager.train_input_dataset.dataset_inputs.scene_bounds
+        )
         self.model.to(device)
 
         self.world_size = world_size
