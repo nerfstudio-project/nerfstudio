@@ -44,7 +44,16 @@ def main(
         hostname_or_ip_address: The hostname or ip_address of the remote machine.
     """
 
-    print("Branch name:", branch_name)
+    print()
+    print("branch_name", branch_name)
+    print("ssh_key_string", ssh_key_string)
+    print("ssh_key_filename", ssh_key_filename)
+    print("hostname_or_ip_address", hostname_or_ip_address)
+    print("local_folder", local_folder)
+    print("remote_folder", remote_folder)
+    print("host", host)
+    print("user", user)
+    print()
 
     # TODO: write the ssh_key to a file
     # 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
