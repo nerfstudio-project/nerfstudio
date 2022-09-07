@@ -118,11 +118,15 @@ def main(
     # write to the /home/eweb0124/build folder
     run_cmd(f"""ssh {host} 'rm -rf /home/eweb0124/build'""")
     run_cmd(f"""scp -r {local_folder} {host}:/home/eweb0124/build""")
+
+    # move the build folder to the correct location
+    run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/{version}'""")
     run_cmd(f"""ssh {host} 'mv /home/eweb0124/build {remote_folder}/{version}'""")
 
     # update the symlink of latest
     run_cmd(f"""ssh {host} 'rm {remote_folder}/latest'""")
     run_cmd(f"""ssh {host} 'ln -s {remote_folder}/{version} {remote_folder}/latest'""")
+
 
 if __name__ == "__main__":
     dcargs.cli(main)
