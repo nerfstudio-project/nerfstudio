@@ -85,6 +85,8 @@ def main(
         StrictHostKeyChecking="No",
     )
 
+    os.system("cat ~/.ssh/config")
+
     # save the config file
     config.save()
 
