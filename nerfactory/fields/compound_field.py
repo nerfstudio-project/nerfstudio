@@ -19,13 +19,12 @@
 
 # from typing import Optional, Tuple
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 from torch.nn.parameter import Parameter
 
 from nerfactory.cameras.rays import RaySamples
-from nerfactory.datamanagers.structs import SceneBounds
 
 # from nerfactory.fields.base import Field
 from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
@@ -57,7 +56,7 @@ def get_normalized_directions(directions):
     return (directions + 1.0) / 2.0
 
 
-class TCNNCombinedField(TCNNInstantNGPField):
+class TCNNCompoundField(TCNNInstantNGPField):
     """NeRF Field"""
 
     def __init__(
@@ -73,21 +72,21 @@ class TCNNCombinedField(TCNNInstantNGPField):
         super().__init__(self, aabb)
         self.spatial_distortion = spatial_distortion
 
-    def get_density(self, ray_samples: RaySamples):
-        """Computes and returns the densities."""
-        positions = self.spatial_distortion(ray_samples.frustums.get_positions())
-        positions_flat = positions.view(-1, 3)
-        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
-        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+    # def get_density(self, ray_samples: RaySamples):
+    #     """Computes and returns the densities."""
+    #     positions = self.spatial_distortion(ray_samples.frustums.get_positions())
+    #     positions_flat = positions.view(-1, 3)
+    #     h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+    #     density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
-        # Rectifying the density with an exponential is much more stable than a ReLU or
-        # softplus, because it enables high post-activation (float32) density outputs
-        # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation.to(positions))
-        return density, base_mlp_out
+    #     # Rectifying the density with an exponential is much more stable than a ReLU or
+    #     # softplus, because it enables high post-activation (float32) density outputs
+    #     # from smaller internal (float16) parameters.
+    #     density = trunc_exp(density_before_activation.to(positions))
+    #     return density, base_mlp_out
 
 
-class TorchCombinedField(NeRFField):
+class TorchCompoundField(NeRFField):
     """
     PyTorch implementation of the instant-ngp field.
     """
@@ -117,4 +116,4 @@ class TorchCombinedField(NeRFField):
         self.aabb = Parameter(aabb, requires_grad=False)
 
 
-field_implementation_to_class = {"tcnn": TCNNCombinedField, "torch": TorchCombinedField}
+field_implementation_to_class = {"tcnn": TCNNCompoundField, "torch": TorchCompoundField}

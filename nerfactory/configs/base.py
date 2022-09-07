@@ -37,6 +37,7 @@ from nerfactory.datamanagers.dataparsers.record3d_parser import Record3D
 
 # model instances
 from nerfactory.models.base import Model
+from nerfactory.models.compound import CompoundModel
 from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
 from nerfactory.models.tensorf import TensoRFModel
@@ -292,6 +293,18 @@ class InstantNGPModelConfig(ModelConfig):
 
 
 @dataclass
+class CompoundModelConfig(ModelConfig):
+    """Compound Model Config"""
+
+    _target: Type = CompoundModel
+    enable_density_field: bool = True
+    enable_collider: bool = False
+    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
+    num_samples: int = 1024  # instead of course/fine samples
+
+
+@dataclass
 class NerfWModelConfig(ModelConfig):
     """NerfW model config"""
 
@@ -333,7 +346,7 @@ class ViewerConfig(PrintableConfig):
     enable: bool = False
     zmq_url: str = "tcp://127.0.0.1:6000"
     launch_bridge_server: bool = True
-    websocket_port: int = 7007
+    websocket_port: int = 7001
     min_render_image_height: int = 64
     max_render_image_height: int = 1024
     num_rays_per_chunk: int = 4096

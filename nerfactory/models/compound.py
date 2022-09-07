@@ -13,8 +13,9 @@
 # limitations under the License.
 
 """
-Implementation of Combined Model.
 """
+
+from __future__ import annotations
 
 from typing import Dict, List
 
@@ -26,48 +27,56 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
-class NGPModel(Model):
-    """Instant NGP model
+class CompoundModel(Model):
+    """Compound model
 
     Args:
         field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
         kwargs: additional params to pass up to the parent class model
     """
 
-    def __init__(self, field_implementation="torch", **kwargs) -> None:
-        assert field_implementation in field_implementation_to_class
-        self.field_implementation = field_implementation
-        self.field = None
-        super().__init__(**kwargs)
+    config: cfg.CompoundModelConfig
 
-    def get_training_callbacks(self) -> List[Callback]:
+    def __init__(self, config: cfg.CompoundModelConfig, **kwargs) -> None:
+        assert config.field_implementation in field_implementation_to_class
+        self.field = None
+        super().__init__(config=config, **kwargs)
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
         assert self.density_field is not None
         return [
-            Callback(
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 update_every_num_iters=self.density_field.update_every_num_iters,
                 func=self.density_field.update_density_grid,
-                density_eval_func=self.field.density_fn,  # type: ignore
+                kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
             )
         ]
 
-    def populate_fields(self):
-        """Set the fields."""
+    def populate_modules(self):
+        """Set the fields and modules."""
+        super().populate_modules()
         # torch or tiny-cuda-nn version
-        self.field = field_implementation_to_class[self.field_implementation](self.scene_bounds.aabb)
+        self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-    def populate_misc_modules(self):
         # samplers
-        # change this to diff sampler? 
-        self.sampler = NGPSpacedSampler(num_samples=1024, density_field=self.density_field)
+        self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -76,6 +85,8 @@ class NGPModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+        # no colliders default
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
