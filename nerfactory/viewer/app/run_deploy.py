@@ -16,6 +16,7 @@
 Code for deploying the built viewer folder to a server and handing versioning.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
+import json
 import os
 import subprocess
 from os.path import expanduser
@@ -42,7 +43,7 @@ def main(
     remote_folder: str = "/home/eweb0124/viewer",
     host: str = "viewer_deploy_host",
     user: str = "eweb0124",
-    version_filename: str = "version.txt",
+    package_json_filename: str = "package.json",
     increment_version: str = "False",
 ):
     """Copy a local folder to a remote machine and handle versioning.
@@ -51,8 +52,6 @@ def main(
         ssh_key: The private ssh key needed to ssh.
         hostname_or_ip_address: The hostname or ip_address of the remote machine.
     """
-
-    increment_version = bool(increment_version)
 
     print()
     print("branch_name", branch_name)
@@ -63,7 +62,7 @@ def main(
     print("remote_folder", remote_folder)
     print("host", host)
     print("user", user)
-    print("version_filename", version_filename)
+    print("package_json_filename", package_json_filename)
     print("increment_version", increment_version)
     print()
 
@@ -102,16 +101,17 @@ def main(
     # save the config file
     config.save()
 
-    # get the version of master
-    f = open(version_filename, "r", encoding="utf-8")  # pylint: disable=consider-using-with
-    version_current = f.read().strip()
-    f.close()
+    # get the version
+    with open(package_json_filename, "r", encoding="utf-8") as f:
+        package_json = json.load(f)
 
     # TODO: add logic to increment the version number
-    if increment_version:
+    if increment_version == "True":
         raise NotImplementedError()
     else:
-        version = version_current
+        version = package_json["version"]
+
+    print(f"\nusing version: {version}")
 
     # write to the /home/eweb0124/build folder
     run_cmd(f"""ssh {host} 'rm -rf /home/eweb0124/build'""")

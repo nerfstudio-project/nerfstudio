@@ -93,6 +93,6 @@ jobs:
             --branch-name ${{ env.BRANCH_NAME }} \
             --ssh-key-string "$SSH_KEY" \
             --local-folder ./nerfactory/viewer/app/build \
-            --version-filename ./nerfactory/viewer/app/version.txt \
+            --package-json-filename ./nerfactory/viewer/app/package.json \
             --increment-version "False"
       - run: cat ~/.ssh/config
