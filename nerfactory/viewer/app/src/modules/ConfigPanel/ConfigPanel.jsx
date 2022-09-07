@@ -1,4 +1,4 @@
-import { button, buttonGroup, useControls } from 'leva';
+import { buttonGroup, useControls } from 'leva';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -9,7 +9,6 @@ const msgpack = require('msgpack-lite');
 export function RenderControls() {
   // connection status indicators
   const websocket = useContext(WebSocketContext).socket;
-  const isTraining = useSelector((state) => state.renderingState.isTraining);
   const outputOptions = useSelector(
     (state) => state.renderingState.output_options,
   );
@@ -131,53 +130,6 @@ export function RenderControls() {
 
   const [, setControls] = useControls(
     () => ({
-      // isTraining
-      'Pause Training': button(
-        () => {
-          // write locally to store
-          dispatch({
-            type: 'write',
-            path: 'renderingState/isTraining',
-            data: false,
-          });
-          // write to server
-          const cmd = 'write';
-          const path = 'renderingState/isTraining';
-          const data = {
-            type: cmd,
-            path,
-            data: false,
-          };
-          const message = msgpack.encode(data);
-          websocket.send(message);
-        },
-        {
-          disabled: !isTraining,
-        },
-      ),
-      'Resume Training': button(
-        () => {
-          // write locally to store
-          dispatch({
-            type: 'write',
-            path: 'renderingState/isTraining',
-            data: true,
-          });
-          // write to server
-          const cmd = 'write';
-          const path = 'renderingState/isTraining';
-          const data = {
-            type: cmd,
-            path,
-            data: true,
-          };
-          const message = msgpack.encode(data);
-          websocket.send(message);
-        },
-        {
-          disabled: isTraining,
-        },
-      ),
       // output_options
       output_options: {
         label: 'Output Render',
@@ -245,7 +197,6 @@ export function RenderControls() {
       }),
     }),
     [
-      isTraining,
       outputOptions,
       outputChoice,
       colormapOptions,
@@ -265,7 +216,6 @@ export function RenderControls() {
     setControls({ 'Camera FoV': field_of_view });
   }, [
     setControls,
-    isTraining,
     outputOptions,
     outputChoice,
     colormapOptions,

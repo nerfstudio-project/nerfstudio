@@ -2,15 +2,24 @@ import * as React from 'react';
 
 import Button from '@mui/material/Button';
 import { ButtonGroup } from '@mui/material';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import PauseIcon from '@mui/icons-material/Pause';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import WebSocketUrlField from '../../WebSocketUrlField';
+
+import { WebSocketContext } from '../../WebSocket/WebSocket';
+
+const msgpack = require('msgpack-lite');
 
 interface StatusPanelProps {
   sceneTree: object;
 }
 
 export default function StatusPanel(props: StatusPanelProps) {
+  const dispatch = useDispatch();
+  const websocket = React.useContext(WebSocketContext).socket;
+  const isTraining = useSelector((state) => state.renderingState.isTraining);
   const sceneTree = props.sceneTree;
 
   const isWebsocketConnected = useSelector(
@@ -30,33 +39,51 @@ export default function StatusPanel(props: StatusPanelProps) {
   const handleChange = () => {
     setValue(!value);
   };
+
+  const handlePlayChange = () => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/isTraining',
+      data: !isTraining,
+    });
+    // write to server
+    const cmd = 'write';
+    const path = 'renderingState/isTraining';
+    const data = {
+      type: cmd,
+      path,
+      data: !isTraining,
+    };
+    const message = msgpack.encode(data);
+    websocket.send(message);
+  };
   const scene_button = value ? 'Hide Scene' : 'Show Scene';
+  const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
+  const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
+
+  const websocket_connected_text = isWebsocketConnected
+    ? 'Server Connected'
+    : 'Server Disconnected';
+  const webrtc_connected_text = isWebrtcConnected
+    ? 'Render Connected'
+    : 'Render Disconnected';
+  const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
+  const webrtc_connected_color = isWebrtcConnected ? 'suceess' : 'error';
   sceneTree.object.visible = value;
 
   return (
     <div className="StatusPanel">
-      <ButtonGroup
-        className="StatusPanel-button-group"
+      <Button // button with view in ar icon
+        className="StatusPanel-play-button"
         variant="contained"
-        aria-label="outlined button group"
+        color="secondary"
+        onClick={handlePlayChange}
+        disabled={!isWebsocketConnected}
+        style={{}}
+        startIcon={training_icon}
       >
-        <Button
-          className="StatusPanel-button"
-          variant="contained"
-          disabled={!isWebsocketConnected}
-          style={{ textTransform: 'none' }}
-        >
-          Websocket Connected
-        </Button>
-        <Button
-          className="StatusPanel-button"
-          variant="contained"
-          disabled={!isWebrtcConnected}
-          style={{ textTransform: 'none' }}
-        >
-          WebRTC Connected
-        </Button>
-      </ButtonGroup>
+        {is_training_text}
+      </Button>
       <Button // button with view in ar icon
         className="StatusPanel-hide-scene-button"
         variant="outlined"
@@ -78,6 +105,26 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>Time Allocation:</b> {vis_train_ratio}
         </div>
       </div>
+      <ButtonGroup
+        className="StatusPanel-button-group"
+        variant="text"
+        aria-label="text button group"
+      >
+        <Button
+          className="StatusPanel-button"
+          color={websocket_connected_color}
+          style={{ textTransform: 'none' }}
+        >
+          {websocket_connected_text}
+        </Button>
+        <Button
+          className="StatusPanel-button"
+          color={webrtc_connected_color}
+          style={{ textTransform: 'none' }}
+        >
+          {webrtc_connected_text}
+        </Button>
+      </ButtonGroup>
     </div>
   );
 }
