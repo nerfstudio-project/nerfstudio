@@ -333,6 +333,7 @@ class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
     enable: bool = False
+    train: bool = True
     zmq_url: str = "tcp://127.0.0.1:6000"
     launch_bridge_server: bool = True
     websocket_port: int = 7007
