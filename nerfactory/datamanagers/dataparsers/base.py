@@ -16,13 +16,10 @@
 
 from __future__ import annotations
 
-import dataclasses
-import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
 
-from nerfactory.configs import base as cfg
+import nerfactory.configs.base as cfg
 from nerfactory.datamanagers.structs import DatasetInputs
 
 

@@ -43,12 +43,11 @@ base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        # datamanager=VanillaDataManagerConfig(
-        #     train_dataparser=BlenderDataParserConfig(),
-        #     train_num_rays_per_batch=8192,
-        #     eval_num_rays_per_chunk=8192,
-        # ),
-        datamanager=FriendsDataManagerConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=InstantNGPModelConfig(),
     ),
     optimizers={

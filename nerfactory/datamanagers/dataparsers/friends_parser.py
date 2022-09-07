@@ -26,18 +26,7 @@ from rich.console import Console
 import nerfactory.configs.base as cfg
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.datamanagers.dataparsers.base import DataParser
-from nerfactory.datamanagers.datasets import InputDataset
-from nerfactory.datamanagers.structs import (
-    DatasetInputs,
-    PointCloud,
-    SceneBounds,
-    Semantics,
-)
-from nerfactory.utils.colmap_utils import (
-    read_cameras_binary,
-    read_images_binary,
-    read_points3d_binary,
-)
+from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds, Semantics
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
 CONSOLE = Console()
@@ -86,7 +75,7 @@ class Friends(DataParser):
         aabb = bbox  # rename to aabb because it's an axis-aligned bounding box
         return torch.from_numpy(aabb).float(), torch.from_numpy(transposed_point_cloud_transform).float()
 
-    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=too-many-statements
+    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=unused-argument
 
         abs_dir = get_absolute_path(self.config.data_directory)
 
