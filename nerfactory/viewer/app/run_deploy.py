@@ -16,6 +16,7 @@
 Code for handling the version of the application.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
+from pathlib import Path
 
 from typing import Optional
 from os.path import expanduser
@@ -27,13 +28,14 @@ from sshconf import empty_ssh_config_file, read_ssh_config
 def get_version(old_version: Optional[str] = None):
     return "22-09-06-1"
 
+
 def main(
     branch_name: str = "",
     ssh_key_string: str = "empty string",
     ssh_key_filename: str = " ~/.ssh/github_actions_user_key_filename",
     hostname_or_ip_address: str = "34.102.68.79",
     local_folder: str = "temp",
-    remote_folder: str ="temp", 
+    remote_folder: str = "temp",
     host: str = "viewer_deploy_host",
     user: str = "eweb0124",
 ):
@@ -60,12 +62,14 @@ def main(
     # chmod 400 ~/.ssh/github_actions_user_key_filename
 
     # setup the config in ~/.ssh/config
+    config_filename = expanduser("~/.ssh/config")
+    Path(config_filename).parent.mkdir(exist_ok=True)
     try:
-        config = read_ssh_config(expanduser("~/.ssh/config"))
+        config = read_ssh_config(config_filename)
     except FileNotFoundError:
         config = empty_ssh_config_file()
-        config.write(expanduser("~/.ssh/config"))
-        config = read_ssh_config(expanduser("~/.ssh/config"))
+        config.write(config_filename)
+        config = read_ssh_config(config_filename)
 
     # add the host if it doesn't exist
     if not config.host(host):
