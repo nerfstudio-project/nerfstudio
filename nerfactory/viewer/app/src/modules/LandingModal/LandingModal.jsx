@@ -34,14 +34,13 @@ export default function LandingModel(props: LandingModalProps) {
         aria-describedby="modal-modal-description"
       >
         <Box className="LandingModal-box">
-          <Typography id="modal-modal-title" component="div">
-            Welcome to the Nerfactory Viewer!{' '}
+          <center>
             <img
               style={{ height: 37, margin: 'auto' }}
-              src="/favicon.png"
+              src="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/_images/logo-dark.png"
               alt="The favicon."
             />
-          </Typography>
+          </center>
           <Typography
             id="modal-modal-description"
             component="div"
@@ -55,25 +54,6 @@ export default function LandingModel(props: LandingModalProps) {
               </p>
               <WebSocketUrlField />
               <p>{text_2}</p>
-              <b>Other Resources:</b>
-              <Button
-                className="LandingModal-button"
-                variant="outlined"
-                href="https://github.com/plenoptix/nerfactory"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub
-              </Button>
-              <Button
-                className="LandingModal-button"
-                variant="outlined"
-                href="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/index.html"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Documentation
-              </Button>
             </div>
           </Typography>
         </Box>

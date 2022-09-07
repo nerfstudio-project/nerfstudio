@@ -43,8 +43,8 @@ base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        data_manager=VanillaDataManagerConfig(
-            train_dataset=BlenderDataParserConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
@@ -63,8 +63,8 @@ base_configs["mipnerf_360"] = Config(
     method_name="mipnerf_360",
     trainer=TrainerConfig(steps_per_test=200),
     pipeline=PipelineConfig(
-        data_manager=VanillaDataManagerConfig(
-            train_dataset=MipNerf360DataParserConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=MipNerf360DataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
@@ -81,8 +81,8 @@ base_configs["mipnerf_360"] = Config(
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
-        data_manager=VanillaDataManagerConfig(
-            train_dataset=BlenderDataParserConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),
@@ -98,14 +98,14 @@ base_configs["mipnerf"] = Config(
 base_configs["nerfw"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
-    pipeline=PipelineConfig(data_manager=FriendsDataManagerConfig(), model=NerfWModelConfig()),
+    pipeline=PipelineConfig(datamanager=FriendsDataManagerConfig(), model=NerfWModelConfig()),
 )
 
 base_configs["semantic_nerf"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="semantic_nerf",
     pipeline=PipelineConfig(
-        data_manager=FriendsDataManagerConfig(),
+        datamanager=FriendsDataManagerConfig(),
         model=ModelConfig(
             _target=SemanticNerfModel,
             loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
@@ -118,8 +118,8 @@ base_configs["semantic_nerf"] = Config(
 base_configs["vanilla_nerf"] = Config(
     method_name="vanilla_nerf",
     pipeline=PipelineConfig(
-        data_manager=VanillaDataManagerConfig(
-            train_dataset=BlenderDataParserConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
         ),
         model=ModelConfig(_target=NeRFModel),
     ),
@@ -129,8 +129,8 @@ base_configs["tensorf"] = Config(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        data_manager=VanillaDataManagerConfig(
-            train_dataset=BlenderDataParserConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
         ),
         model=TensoRFModelConfig(),
     ),

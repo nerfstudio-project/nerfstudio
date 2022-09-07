@@ -81,6 +81,7 @@ class Field(nn.Module):
         if valid_mask is not None:
             # Hacky handling of empty masks. Tests on a single ray but doesn't use results
             if not valid_mask.any():
+                # TODO: Can we just throw an exception here? If not we need to update this to include some fake metadata
                 ray_samples = RaySamples(frustums=Frustums.get_mock_frustum().to(valid_mask.device))
             else:
                 ray_samples = ray_samples.apply_masks()

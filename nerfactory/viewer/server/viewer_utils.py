@@ -24,12 +24,12 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
+from rich import print  # pylint: disable=redefined-builtin
 
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.image_dataset import ImageDataset
-from nerfactory.dataloaders.structs import DatasetInputs
+from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
@@ -195,7 +195,6 @@ class VisualizerState:
                 # start the viewer bridge server
                 zmq_port = int(self.config.zmq_url.split(":")[-1])
                 websocket_port = self.config.websocket_port
-
                 self.config.log_filename.parent.mkdir(exist_ok=True)
                 run_viewer_bridge_server_as_subprocess(
                     zmq_port, websocket_port, log_filename=str(self.config.log_filename)
@@ -208,8 +207,8 @@ class VisualizerState:
                     f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
                 )
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
-                pub_open_viewer_instructions_string = f'[Public] Open the viewer at "{self.viewer_url}"'
-                dev_open_viewer_instructions_string = f'[Local] Open the viewer at "{viewer_url_local}"'
+                pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
+                dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
                 print("-" * len(pub_open_viewer_instructions_string))
                 print(pub_open_viewer_instructions_string)
                 print(dev_open_viewer_instructions_string)
@@ -234,12 +233,11 @@ class VisualizerState:
 
         self.outputs_set = False
 
-    def init_scene(self, image_dataset: ImageDataset, dataset_inputs: DatasetInputs) -> None:
+    def init_scene(self, dataset: InputDataset) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
-            image_dataset: dataset to render in the scene
-            dataset_inputs: inputs to the image dataset and ray generator
+            dataset: dataset to render in the scene
         """
 
         # clear the current scene
@@ -247,15 +245,15 @@ class VisualizerState:
         self.vis["sceneState/cameras"].delete()
 
         # draw the training cameras and images
-        image_indices = range(len(image_dataset))
+        image_indices = range(len(dataset))
         for idx in image_indices:
-            image = image_dataset[idx]["image"]
+            image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            camera_json = dataset.inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
-        json_ = dataset_inputs.scene_bounds.to_json()
+        json_ = dataset.inputs.scene_bounds.to_json()
         self.vis["sceneState/sceneBounds"].write(json_)
 
         # set the properties of the camera

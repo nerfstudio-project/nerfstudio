@@ -5,12 +5,18 @@ import * as React from 'react';
 import { FaLightbulb, FaTractor } from 'react-icons/fa';
 import { Menu, MenuItem, ProSidebar, SubMenu } from 'react-pro-sidebar';
 
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
+import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
+import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+
 import Box from '@mui/material/Box';
 import { Leva } from 'leva';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useEffect } from 'react';
+import Divider from '@mui/material/Divider';
 import StatusPanel from './StatusPanel';
 import SceneNode from '../../SceneNode';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
@@ -130,7 +136,7 @@ export function BasicTabs(props: BasicTabsProps) {
   return (
     <div>
       <StatusPanel sceneTree={sceneTree} />
-      <hr />
+      <Divider />
       <Box sx={{ width: '100%' }}>
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs
@@ -138,10 +144,26 @@ export function BasicTabs(props: BasicTabsProps) {
             onChange={handleChange}
             aria-label="basic tabs example"
           >
-            <Tab label="Controls" {...a11yProps(0)} />
-            <Tab label="Scene" {...a11yProps(1)} />
-            <Tab label="Camera Path" {...a11yProps(2)} />
-            <Tab label="Logs" {...a11yProps(3)} />
+            <Tab
+              icon={<TuneRoundedIcon />}
+              label="Controls"
+              {...a11yProps(0)}
+            />
+            <Tab
+              icon={<WidgetsRoundedIcon />}
+              label="Scene"
+              {...a11yProps(1)}
+            />
+            <Tab
+              icon={<CameraAltRoundedIcon />}
+              label="Render"
+              {...a11yProps(2)}
+            />
+            <Tab
+              icon={<ReceiptLongRoundedIcon />}
+              label="Logs"
+              {...a11yProps(3)}
+            />
           </Tabs>
         </Box>
         <TabPanel value={value} index={0}>
