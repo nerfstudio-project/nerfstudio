@@ -115,8 +115,10 @@ class LocalWriterConfig(InstantiateConfig):
     enable: bool = False
     stats_to_track: Tuple[writer.EventName, ...] = (
         writer.EventName.ITER_TRAIN_TIME,
-        writer.EventName.RAYS_PER_SEC,
+        writer.EventName.TRAIN_RAYS_PER_SEC,
         writer.EventName.CURR_TEST_PSNR,
+        writer.EventName.VIS_RAYS_PER_SEC,
+        writer.EventName.TEST_RAYS_PER_SEC,
     )
     max_log_size: int = 10
     relative_log_dir: Path = Path("./")

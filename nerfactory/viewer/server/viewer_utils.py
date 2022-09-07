@@ -31,9 +31,9 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
-from nerfactory.utils import profiler, visualization
+from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
-from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
+from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
@@ -230,6 +230,7 @@ class VisualizerState:
         self.check_done_render = True
         self.last_render_time = time.time()
         self.min_wait_time = 0.5  # 1.0 is on high side and will cause lag
+        self.step = 0
 
         self.outputs_set = False
 
@@ -272,6 +273,7 @@ class VisualizerState:
         """
 
         is_training = self.vis["renderingState/isTraining"].read()
+        self.step = step
 
         if is_training is None or is_training:
             # in training mode, render every few steps
@@ -391,13 +393,16 @@ class VisualizerState:
         image = (image_output).astype("uint8")
         self.vis.set_image(image)
 
-    def _update_viewer_stats(self, render_time: float, image_height: int) -> None:
+    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
 
         Args:
             render_time: total time spent rendering current view
             image_height: resolution of the current view
         """
+        writer.put_time(
+            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
+        )
         is_training = self.vis["renderingState/isTraining"].read()
         if is_training is None or is_training:
             # process the  current rendering fps
@@ -491,20 +496,18 @@ class VisualizerState:
 
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
-        start_time = time.time()
-        check_thread.start()
-        render_thread.start()
-        try:
-            render_thread.join()
-            check_thread.join()
-        except Exception:  # pylint: disable=broad-except
-            pass
-        render_duration = time.time() - start_time
 
+        with TimeWriter(None, None, write=False) as vis_t:
+            check_thread.start()
+            render_thread.start()
+            try:
+                render_thread.join()
+                check_thread.join()
+            except Exception:  # pylint: disable=broad-except
+                pass
         graph.train()
-
         outputs = render_thread.vis_outputs
         if outputs is not None:
             stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
             self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
-            self._update_viewer_stats(render_duration, image_height)
+            self._update_viewer_stats(vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height)

@@ -18,7 +18,7 @@ logging:
         LocalWriter:
             log_dir: "./"
             stats_to_track:
-                [ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
+                [ITER_TRAIN_TIME, TRAIN_RAYS_PER_SEC, CURR_TEST_PSNR]
             max_log_size: 10 
 ```
 
@@ -46,7 +46,7 @@ WandbWriter:
 LocalWriter:
     log_dir: "./" # if images are saved, where the images would be saved
     stats_to_track: 
-        [ITER_TRAIN_TIME, RAYS_PER_SEC, CURR_TEST_PSNR]
+        [ITER_TRAIN_TIME, TRAIN_RAYS_PER_SEC, CURR_TEST_PSNR]
     max_log_size: 10 
 ```
 

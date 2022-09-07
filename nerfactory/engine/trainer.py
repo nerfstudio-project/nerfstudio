@@ -122,7 +122,7 @@ class Trainer:
             for step in range(self.start_step, self.start_step + num_iterations):
 
                 # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
                     # training callbacks before the training iteration
                     for callback in self.callbacks:
@@ -136,11 +136,8 @@ class Trainer:
                     for callback in self.callbacks:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
-                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
+                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
                         self.visualizer_state.update_scene(step, self.pipeline.model)
-
-                train_num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
-                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
@@ -148,9 +145,26 @@ class Trainer:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
                 if step % self.config.trainer.steps_per_test == 0:
                     self.pipeline.get_eval_loss_dict(step=step)
+                self._update_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
 
         self._write_out_storage(num_iterations)
+
+    def _update_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
+        """Performs update on rays/sec calclation for training
+
+        Args:
+            train_t: timer object carrying time to execute total training iteration
+            vis_t: timer object carrying time to execute visualization step
+            step: current step
+        """
+        train_num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
+        writer.put_time(
+            name=EventName.TRAIN_RAYS_PER_SEC,
+            duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
+            step=step,
+            avg_over_steps=True,
+        )
 
     def _write_out_storage(self, step: int) -> None:
         """Perform writes only during appropriate time steps
