@@ -28,6 +28,7 @@ def get_version(old_version: Optional[str] = None):
     return "22-09-06-1"
 
 def main(
+    branch_name: str = "",
     ssh_key_string: str = "empty string",
     ssh_key_filename: str = " ~/.ssh/github_actions_user_key_filename",
     hostname_or_ip_address: str = "34.102.68.79",
@@ -42,6 +43,8 @@ def main(
         ssh_key: The private ssh key needed to ssh.
         hostname_or_ip_address: The hostname or ip_address of the remote machine.
     """
+
+    print("Branch name:", branch_name)
 
     # TODO: write the ssh_key to a file
     # 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
