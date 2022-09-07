@@ -68,23 +68,22 @@ export default function StatusPanel(props: StatusPanelProps) {
     ? 'Render Connected'
     : 'Render Disconnected';
   const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
-  const webrtc_connected_color = isWebrtcConnected ? 'suceess' : 'error';
+  const webrtc_connected_color = isWebrtcConnected ? 'success' : 'error';
   sceneTree.object.visible = value;
 
   return (
     <div className="StatusPanel">
-      <Button // button with view in ar icon
+      <Button
         className="StatusPanel-play-button"
         variant="contained"
         color="secondary"
         onClick={handlePlayChange}
         disabled={!isWebsocketConnected}
-        style={{}}
         startIcon={training_icon}
       >
         {is_training_text}
       </Button>
-      <Button // button with view in ar icon
+      <Button
         className="StatusPanel-hide-scene-button"
         variant="outlined"
         onClick={handleChange}
