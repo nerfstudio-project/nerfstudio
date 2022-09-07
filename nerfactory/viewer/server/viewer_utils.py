@@ -195,7 +195,12 @@ class VisualizerState:
                 # start the viewer bridge server
                 zmq_port = int(self.config.zmq_url.split(":")[-1])
                 websocket_port = self.config.websocket_port
-                run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
+                self.config.log_filename.parent.mkdir(exist_ok=True)
+                run_viewer_bridge_server_as_subprocess(
+                    zmq_port, websocket_port, log_filename=str(self.config.log_filename)
+                )
+                # TODO(ethan): move this into the writer such that it's at the bottom
+                # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
                 print("\n")
                 self.viewer_url = (

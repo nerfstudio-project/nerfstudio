@@ -334,6 +334,7 @@ class PipelineConfig(InstantiateConfig):
 class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
+    log_filename: Optional[Path] = None
     enable: bool = False
     zmq_url: str = "tcp://127.0.0.1:6000"
     launch_bridge_server: bool = True
@@ -403,3 +404,5 @@ class Config(PrintableConfig):
             self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
+        if self.viewer.log_filename is None:
+            self.viewer.log_filename = self.base_dir / "viewer_log_filename.txt"
