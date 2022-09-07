@@ -68,9 +68,11 @@ class NerfWModel(Model):
         self.transient_embedding_dim = 16
         super().__init__(config=config, **kwargs)
 
-    def populate_fields(self):
-        """Set the fields."""
+    def populate_modules(self):
+        """Set the fields and modules"""
+        super().populate_modules()
 
+        # setting up fields
         position_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
         )
@@ -87,7 +89,6 @@ class NerfWModel(Model):
             transient_embedding_dim=self.transient_embedding_dim,
         )
 
-    def populate_misc_modules(self):
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
         self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples)

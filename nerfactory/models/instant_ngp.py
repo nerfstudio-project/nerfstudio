@@ -70,12 +70,12 @@ class NGPModel(Model):
             )
         ]
 
-    def populate_fields(self):
-        """Set the fields."""
+    def populate_modules(self):
+        """Set the fields and modules."""
+        super().populate_modules()
         # torch or tiny-cuda-nn version
         self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-    def populate_misc_modules(self):
         # samplers
         self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
 

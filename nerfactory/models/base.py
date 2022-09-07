@@ -30,6 +30,7 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
+from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import get_masked_dict, is_not_none
 
@@ -64,9 +65,7 @@ class Model(nn.Module):
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
-        self.populate_density_field()
-        self.populate_fields()
-        self.populate_misc_modules()  # populate the modules
+        self.populate_modules()  # populate the modules
         self.callbacks = None
         # to keep track of which device the nn.Module is on
         self.device_indicator_param = nn.Parameter(torch.empty(0))
@@ -82,10 +81,12 @@ class Model(nn.Module):
         """Returns a list of callbacks that run functions at the specified training iterations."""
         return []
 
-    def populate_density_field(self):
-        """Set the scene density field to use."""
-        if self.config.enable_density_field:
+    def populate_modules(self):
+        """Set the necessary modules to get the network working."""
+        # default instantiates optional modules that are common among many networks
+        # NOTE: call `super().populate_modules()` in subclasses
 
+        if self.config.enable_density_field:
             self.density_field = DensityGrid(
                 center=self.config.density_field_params["center"],
                 base_scale=self.config.density_field_params["base_scale"],
@@ -93,13 +94,10 @@ class Model(nn.Module):
                 resolution=self.config.density_field_params["resolution"],
                 update_every_num_iters=self.config.density_field_params["update_every_num_iters"],
             )
-
-    def populate_fields(self):
-        """Set the fields."""
-
-    @abstractmethod
-    def populate_misc_modules(self):
-        """Initializes any additional modules that are part of the network."""
+        if self.config.enable_collider:
+            self.collider = NearFarCollider(
+                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
+            )
 
     @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
