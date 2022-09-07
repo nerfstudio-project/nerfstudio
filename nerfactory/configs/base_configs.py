@@ -149,3 +149,22 @@ base_configs["tensorf"] = Config(
         },
     },
 )
+
+base_configs["combined"] = Config(
+    method_name="combined",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
+        model=InstantNGPModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+)

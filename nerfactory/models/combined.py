@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Implementation of Instant NGP.
+Implementation of Combined Model.
 """
 
 from typing import Dict, List
