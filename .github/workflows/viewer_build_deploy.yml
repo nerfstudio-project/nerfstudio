@@ -77,6 +77,9 @@ jobs:
         id: changed-files-for-dir1
         uses: tj-actions/changed-files@v29.0.3
         with:
+          branch: ${{ steps.branch-name.outputs.base_ref_branch }} # Get the last successful commit on master or main branch
+          workflow_id: 'test.yml'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           path: nerfactory/viewer/app
 
       - name: List all added files in dir1
