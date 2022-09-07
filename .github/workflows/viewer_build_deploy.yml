@@ -94,5 +94,5 @@ jobs:
             --ssh-key-string "$SSH_KEY" \
             --local-folder ./nerfactory/viewer/app/build \
             --version-filename ./nerfactory/viewer/app/version.txt \
-            --increment-version False
+            --no-increment-version
       - run: cat ~/.ssh/config
