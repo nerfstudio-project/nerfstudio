@@ -91,7 +91,6 @@ export default function ViewerWindow(props) {
 
   // this is run once
   useEffect(() => {
-    
     viewportWidth = getViewportWidth();
     viewportHeight = getViewportHeight();
 
