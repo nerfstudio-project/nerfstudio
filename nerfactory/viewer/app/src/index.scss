@@ -19,7 +19,15 @@ code {
   height: 100vh;
 }
 
-$banner-color: #84c3ff4d;
+$base-color1: #292d39;
+$base-color2: #222831;
+$base-color3: #393e46;
+$accent-color1: #db5200;
+$accent-color2: #ff8600;
+$accent-color3: #ffd369;
+$highlight-color1: #606980;
+$highlight-color2: #eeeeee;
+$highlight-color3: #ffffff;
 
 .banner {
   position: absolute;
@@ -29,11 +37,17 @@ $banner-color: #84c3ff4d;
   height: 50px;
   width: 100%;
   z-index: 1000;
-  background-color: $banner-color;
+  background-color: $base-color2;
 
   .banner-button {
     margin: 10px;
     float: left;
+  }
+
+  .banner-logo {
+    margin: 10px;
+    margin-right: 120px;
+    float: right;
   }
 }
 
@@ -45,12 +59,13 @@ $banner-color: #84c3ff4d;
   bottom: 0;
 }
 
-$SidePanel-width: 500px;
-$custom-border: solid 1px #ddd;
+$SidePanel-width: 400px;
+$custom-border: solid 1px $base-color1;
 
 .SidePanel {
   position: absolute;
-  background-color: #f0f0f080;
+  background-color: $base-color2;
+  color: $highlight-color2;
   top: 0;
   width: $SidePanel-width;
   right: 0;
@@ -67,12 +82,16 @@ $custom-border: solid 1px #ddd;
   padding: 10px;
 }
 
+.simple-tabpanel-0 {
+  padding: 100px;
+}
+
 .Scene-container {
   height: 500px;
 }
 
 // Your variable overrides
-$sidebar-color: #b71f0b !default;
+$sidebar-color: $accent-color3 !default;
 $sidebar-width: 100% !default;
 @import '~react-pro-sidebar/dist/scss/styles.scss';
 
@@ -80,18 +99,21 @@ $sidebar-width: 100% !default;
 // Status Panel styling
 .StatusPanel {
   display: block;
+  background-color: $base-color1;
   // height: 170px;
 }
 
-.StatusPanel-title {
-  margin: 5px;
-  text-align: center;
-  font-size: 1em;
-  font-weight: bold;
+.StatusPanel .StatusPanel-play-button {
+  width: 90%;
+  margin: 10px;
 }
 
-.StatusPanel .StatusPanel-button {
-  margin: 20px;
+.StatusPanel .StatusPanel-button-group {
+  margin: 10px;
+}
+
+.StatusPanel .StatusPanel-hide-scene-button {
+  margin: 12px;
 }
 
 .StatusPanel .WebSocketUrlField {
@@ -101,14 +123,18 @@ $sidebar-width: 100% !default;
 }
 
 .StatusPanel-metrics {
-  background-color: $banner-color;
+  background-color: $base-color2;
+  margin: 5px;
+  padding: 10px;
 }
 
 .StatusPanel-metrics div {
   position: relative;
-  font-size: 16px;
+  font-size: 14px;
   display: block;
   text-align: left;
+  margin-top: 3px;
+  margin-left: 5px;
 }
 
 // ------------------------------------
@@ -117,15 +143,13 @@ $sidebar-width: 100% !default;
 //   display: block;
 // }
 
-$background-paper-color: #fff;
-
 .LandingModal-box {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 400px; // 400
-  background-color: $background-paper-color;
+  background-color: $base-color2;
   border: 2px solid #000;
   //   box-shadow: 24px 24px;
   padding: 32px;

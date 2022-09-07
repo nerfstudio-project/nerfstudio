@@ -21,15 +21,14 @@ def set_reduced_config(config: cfg.Config):
     config.machine.num_gpus = 0
     config.trainer.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
-    # switch to using the vanilla ImageDataset class
-    config.pipeline.data_manager.image_dataset_type = "rgb"
-
-    config.pipeline.data_manager.train_dataset = cfg.BlenderDataParserConfig(
+    config.pipeline.datamanager.train_dataparser = cfg.BlenderDataParserConfig(
         data_directory=Path("tests/data/lego_test")
     )
-    config.pipeline.data_manager.train_num_images_to_sample_from = 1
-    config.pipeline.data_manager.train_num_rays_per_batch = 4
-    config.pipeline.data_manager.eval_dataset = cfg.BlenderDataParserConfig(data_directory=Path("tests/data/lego_test"))
+    config.pipeline.datamanager.train_num_images_to_sample_from = 1
+    config.pipeline.datamanager.train_num_rays_per_batch = 4
+    config.pipeline.datamanager.eval_dataparser = cfg.BlenderDataParserConfig(
+        data_directory=Path("tests/data/lego_test")
+    )
 
     # reduce model factors
     config.pipeline.model.num_coarse_samples = 4
