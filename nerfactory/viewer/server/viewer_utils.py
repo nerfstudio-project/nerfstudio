@@ -493,7 +493,7 @@ class VisualizerState:
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
 
-        with TimeWriter(writer, EventName.VIS_RAYS_PER_SEC) as vis_t:
+        with TimeWriter(None, None, write=False) as vis_t:
             check_thread.start()
             render_thread.start()
             try:

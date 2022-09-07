@@ -152,7 +152,7 @@ class Trainer:
 
     def _update_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
         """Performs update on rays/sec calclation for training
-        
+
         Args:
             train_t: timer object carrying time to execute total training iteration
             vis_t: timer object carrying time to execute visualization step

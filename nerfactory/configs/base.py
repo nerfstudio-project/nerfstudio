@@ -118,6 +118,7 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.TRAIN_RAYS_PER_SEC,
         writer.EventName.CURR_TEST_PSNR,
         writer.EventName.VIS_RAYS_PER_SEC,
+        writer.EventName.TEST_RAYS_PER_SEC,
     )
     max_log_size: int = 10
     relative_log_dir: Path = Path("./")

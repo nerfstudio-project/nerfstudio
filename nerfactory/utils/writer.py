@@ -50,6 +50,7 @@ class EventName(enum.Enum):
     ITER_VIS_TIME = "Visualizer Rendering (time)"
     ETA = "ETA (time)"
     TRAIN_RAYS_PER_SEC = "Train Rays / Sec"
+    TEST_RAYS_PER_SEC = "Test Rays / Sec"
     VIS_RAYS_PER_SEC = "Vis Rays / Sec"
     CURR_TEST_PSNR = "Test PSNR"
 
