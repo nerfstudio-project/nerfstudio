@@ -16,26 +16,21 @@
 Code for handling the version of the application.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
-from pathlib import Path
 import os
 import subprocess
-
-from typing import Optional
 from os.path import expanduser
+from pathlib import Path
+from typing import Optional
 
 import dcargs
 from sshconf import empty_ssh_config_file, read_ssh_config
 
 
 def run_cmd(cmd: str):
-    """Run the command"""
+    """Run a command in the terminal."""
     print("cmd:", cmd)
     print("output:")
     subprocess.Popen(cmd, shell=True).wait()
-
-
-def get_version(old_version: Optional[str] = None):
-    return "22-09-06-1"
 
 
 def main(
@@ -48,6 +43,7 @@ def main(
     host: str = "viewer_deploy_host",
     user: str = "eweb0124",
     version_filename: str = "version.txt",
+    increment_version: bool = False,
 ):
     """Copy a local folder to a remote machine and handle versioning.
 
@@ -65,6 +61,8 @@ def main(
     print("remote_folder", remote_folder)
     print("host", host)
     print("user", user)
+    print("version_filename", version_filename)
+    print("increment_version", increment_version)
     print()
 
     # save the ssh key to a file
@@ -96,24 +94,22 @@ def main(
         StrictHostKeyChecking="No",
     )
 
+    # show that the config is correct
     run_cmd("cat ~/.ssh/config")
 
     # save the config file
     config.save()
 
     # get the version of master
-    f = open(version_filename)
-    version_master = f.read().strip()
+    f = open(version_filename, "r", encoding="utf-8")  # pylint: disable=consider-using-with
+    version_current = f.read().strip()
     f.close()
 
-    version_new = get_version(version_master)
-
-    version = version_master
-
-    print(version)
-
-    target_path = "/path/to/folder/{version}"
-    symlink_path = "/path/to/folder/latest"
+    # TODO: add logic to increment the version number
+    if increment_version:
+        raise NotImplementedError()
+    else:
+        version = version_current
 
     # write to the /home/eweb0124/build folder
     run_cmd(f"""ssh {host} 'rm -rf /home/eweb0124/build'""")

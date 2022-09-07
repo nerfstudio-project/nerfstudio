@@ -72,6 +72,9 @@ jobs:
         shell: bash
         run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
 
+      # TODO: detect file or scheme changes of the viewer and only
+      # increment the version.txt file when there is a change.
+      # Update the version.txt code and push to master when things change.
       # https://github.com/marketplace/actions/changed-files
       - name: Run changed-files with defaults on the dir1
         id: changed-files-for-dir1
@@ -85,22 +88,11 @@ jobs:
             echo "$file was modified"
           done
 
-      # - run: mkdir ~/.ssh
-      # - run: 'echo "$SSH_KEY" >> ~/.ssh/github_actions_user_key_filename'
-      # - run: chmod 400 ~/.ssh/github_actions_user_key_filename
-      # - run: echo -e "Host github_action_remote_machine\n\tUser eweb0124\n\tHostname 34.102.68.79\n\tIdentityFile ~/.ssh/github_actions_user_key_filename\n\tStrictHostKeyChecking No" >> ~/.ssh/config
-      # - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/build'
-      # # ${{ env.BRANCH_NAME }} is the branch name
-      # - run: ssh github_action_remote_machine 'mkdir -p /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'
-      # - run: ssh github_action_remote_machine 'rm -rf /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'
-      # - run: scp -r ./nerfactory/viewer/app/build github_action_remote_machine:/home/eweb0124/
-      # # TODO(ethan): move the current version to an older folder
-      # - run: ssh github_action_remote_machine 'mv /home/eweb0124/build /home/eweb0124/viewer/branch/${{ env.BRANCH_NAME }}'
-
       - run: |
           python ./nerfactory/viewer/app/run_deploy.py \
             --branch-name ${{ env.BRANCH_NAME }} \
             --ssh-key-string "$SSH_KEY" \
             --local-folder ./nerfactory/viewer/app/build \
             --version-filename ./nerfactory/viewer/app/version.txt
+            --increment-version False
       - run: cat ~/.ssh/config
