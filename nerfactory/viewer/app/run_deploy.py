@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Code for handling the version of the application.
+Code for deploying the built viewer folder to a server and handing versioning.
 We use the library sshconf (https://github.com/sorend/sshconf) for working with the ssh config file.
 """
 import os
@@ -43,7 +43,7 @@ def main(
     host: str = "viewer_deploy_host",
     user: str = "eweb0124",
     version_filename: str = "version.txt",
-    increment_version: bool = False,
+    increment_version: str = "False",
 ):
     """Copy a local folder to a remote machine and handle versioning.
 
@@ -51,6 +51,8 @@ def main(
         ssh_key: The private ssh key needed to ssh.
         hostname_or_ip_address: The hostname or ip_address of the remote machine.
     """
+
+    increment_version = bool(increment_version)
 
     print()
     print("branch_name", branch_name)
