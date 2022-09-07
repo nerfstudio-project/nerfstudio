@@ -201,6 +201,7 @@ class FriendsDataParserConfig(DataParserConfig):
 
     _target: Type = Friends
     data_directory: Path = Path("data/friends/TBBT-big_living_room")
+    include_semantics: bool = True
 
 
 @dataclass
@@ -304,6 +305,9 @@ class NerfWModelConfig(ModelConfig):
     num_coarse_samples: int = 64
     num_importance_samples: int = 64
     uncertainty_min: float = 0.03
+    num_images: int = 10000  # TODO: don't hardcode this
+    appearance_embedding_dim: int = 48
+    transient_embedding_dim: int = 16
 
 
 @dataclass
@@ -332,6 +336,7 @@ class PipelineConfig(InstantiateConfig):
 class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
+    log_filename: Optional[Path] = None
     enable: bool = False
     train: bool = True
     zmq_url: str = "tcp://127.0.0.1:6000"
@@ -402,3 +407,5 @@ class Config(PrintableConfig):
             self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
+        if self.viewer.log_filename is None:
+            self.viewer.log_filename = self.base_dir / "viewer_log_filename.txt"

@@ -100,9 +100,9 @@ class DataManager(nn.Module):
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
-        if self.train_input_dataset and self.train_input_dataset.inputs:
+        if self.train_input_dataset and self.train_input_dataset.dataset_inputs:
             self.setup_train()
-        if self.eval_input_dataset and self.eval_input_dataset.inputs:
+        if self.eval_input_dataset and self.eval_input_dataset.dataset_inputs:
             self.setup_eval()
 
     def forward(self):
@@ -250,7 +250,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_ray_generator = RayGenerator(self.train_input_dataset.inputs.cameras.to(self.device))
+        self.train_ray_generator = RayGenerator(self.train_input_dataset.dataset_inputs.cameras.to(self.device))
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""

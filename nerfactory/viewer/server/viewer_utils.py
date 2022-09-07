@@ -24,6 +24,7 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
+from rich import print  # pylint: disable=redefined-builtin
 
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
@@ -194,7 +195,10 @@ class VisualizerState:
                 # start the viewer bridge server
                 zmq_port = int(self.config.zmq_url.split(":")[-1])
                 websocket_port = self.config.websocket_port
-                run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
+                self.config.log_filename.parent.mkdir(exist_ok=True)
+                run_viewer_bridge_server_as_subprocess(
+                    zmq_port, websocket_port, log_filename=str(self.config.log_filename)
+                )
                 # TODO(ethan): move this into the writer such that it's at the bottom
                 # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
@@ -203,8 +207,8 @@ class VisualizerState:
                     f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
                 )
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
-                pub_open_viewer_instructions_string = f'[Public] Open the viewer at "{self.viewer_url}"'
-                dev_open_viewer_instructions_string = f'[Local] Open the viewer at "{viewer_url_local}"'
+                pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
+                dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
                 print("-" * len(pub_open_viewer_instructions_string))
                 print(pub_open_viewer_instructions_string)
                 print(dev_open_viewer_instructions_string)
@@ -245,11 +249,11 @@ class VisualizerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
-        json_ = dataset.inputs.scene_bounds.to_json()
+        json_ = dataset.dataset_inputs.scene_bounds.to_json()
         self.vis["sceneState/sceneBounds"].write(json_)
 
         # set the initial state whether to train or not
