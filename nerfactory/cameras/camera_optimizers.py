@@ -37,7 +37,7 @@ class PoseOptimizer(nn.Module):
         return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op
 
 
-class SE3(PoseOptimizer):
+class BARFOptimizer(PoseOptimizer):
     def __init__(self, num_cameras: int, noise_variance: float = 0.01) -> None:
         super().__init__()
         self.num_cameras = num_cameras
@@ -102,9 +102,7 @@ class SE3(PoseOptimizer):
         ret[:, :, 3:] += se3_1[:, :, :3] @ se3_2[:, :, 3:]
         return ret
 
-    def forward(
-        self, c2w: TensorType["num_cameras", 3, 4], indices: Optional[TensorType["num_cameras"]] = None
-    ) -> TensorType["num_cameras", 3, 4]:
+    def forward(self, indices: Optional[TensorType["num_cameras"]] = None) -> TensorType["num_cameras", 3, 4]:
 
         pose_noise = self.pose_noise[indices]
         pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])

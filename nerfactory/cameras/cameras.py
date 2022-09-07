@@ -27,6 +27,7 @@ from torch.nn.functional import normalize
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.utils.math import pose_multiply
 
 
 class CameraType(Enum):
@@ -201,7 +202,7 @@ class Cameras:
 
         c2w = self.camera_to_worlds[camera_indices]
         if camera_to_camera_opt is not None:
-            c2w = c2w @ camera_to_camera_opt
+            c2w = pose_multiply(c2w, camera_to_camera_opt)
         rotation = c2w[..., :3, :3]  # (..., 3, 3)
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1

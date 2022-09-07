@@ -192,3 +192,16 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """
 
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
+
+
+def pose_4x4(pose: TensorType[..., 3, 4]):
+    """Convert 3x4 pose matrices to a 4x4 with the addition of a homogeneous coordinate."""
+    constants = torch.zeros_like(pose[..., :1, :])
+    constants[..., :, 3] = 1
+    return torch.cat([pose, constants], dim=-2)
+
+
+def pose_multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]):
+    """Multiply two pose matrices, A @ B."""
+    assert pose_a.shape[0] == pose_b.shape[0]
+    return (pose_4x4(pose_a) @ pose_4x4(pose_b))[..., 3, 4]
