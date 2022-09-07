@@ -16,16 +16,11 @@
 
 from __future__ import annotations
 
-import dataclasses
-import logging
 from abc import abstractmethod
 from dataclasses import dataclass
-from pathlib import Path
 
-from nerfactory.configs import base as cfg
+import nerfactory.configs.base as cfg
 from nerfactory.datamanagers.structs import DatasetInputs
-from nerfactory.utils.io import get_absolute_path, load_from_pkl, write_to_pkl
-from nerfactory.utils.misc import get_hash_str_from_dict
 
 
 @dataclass
@@ -47,60 +42,14 @@ class DataParser:
             DatasetInputs
         """
 
-    def get_dataset_inputs(self, split: str = "train", use_preprocessing_cache: bool = False) -> DatasetInputs:
+    def get_dataset_inputs(self, split: str = "train") -> DatasetInputs:
         """Returns the dataset inputs for the given split.
 
         Args:
             split: Which dataset split to generate.
-            use_preprocessing_cache: Whether to use the cached dataset inputs. Defaults to False.
 
         Returns:
             DatasetInputs
         """
-        if use_preprocessing_cache:
-            dataset_inputs = self._get_dataset_inputs_from_cache(split)
-        else:
-            dataset_inputs = self._generate_dataset_inputs(split)
-        return dataset_inputs
-
-    def _get_cache_filename(self, split: str) -> Path:
-        """Creates a cache filename from the dataset inputs arguments.
-
-        Args:
-            split: Which dataset split to generate filename for.
-
-        Returns:
-            filename for cache.
-        """
-        dataset_config_hash = get_hash_str_from_dict(dataclasses.asdict(self))
-        dataset_config_hash_filename = get_absolute_path(
-            f"cache/dataset_inputs/{dataset_config_hash}-{split}.pkl"
-        ).parent.mkdir()
-        assert dataset_config_hash_filename is not None, "dataset hash is None"
-        return dataset_config_hash_filename
-
-    def save_dataset_inputs_to_cache(self, split: str):
-        """Saves the dataset inputs to cache.
-
-        Args:
-            split: Which dataset split to save.
-        """
-        dataset_inputs = self.get_dataset_inputs(split=split)
-        dataset_config_hash_filename = self._get_cache_filename(split)
-        write_to_pkl(dataset_config_hash_filename, dataset_inputs)
-
-    def _get_dataset_inputs_from_cache(self, split: str) -> DatasetInputs:
-        """Loads the dataset inputs from cache. If the cache does not exist, it will be created.
-
-        Args:
-            split: Which dataset split to load.
-        """
-        dataset_config_hash_filename = self._get_cache_filename(split)
-        if dataset_config_hash_filename.exists():
-            logging.info("Loading dataset from cache.")
-            dataset_inputs = load_from_pkl(dataset_config_hash_filename)
-        else:
-            logging.info("Cache file not found. Generating and saving dataset to cache.")
-            dataset_inputs = self._generate_dataset_inputs(split=split)
-            self.save_dataset_inputs_to_cache(split)
+        dataset_inputs = self._generate_dataset_inputs(split)
         return dataset_inputs

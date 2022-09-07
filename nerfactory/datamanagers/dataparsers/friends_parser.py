@@ -21,34 +21,27 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
+from rich.console import Console
 
+import nerfactory.configs.base as cfg
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.datamanagers.dataparsers.base import DataParser
-from nerfactory.datamanagers.datasets import InputDataset
-from nerfactory.datamanagers.structs import (
-    DatasetInputs,
-    PointCloud,
-    SceneBounds,
-    Semantics,
-)
-from nerfactory.utils.colmap_utils import (
-    read_cameras_binary,
-    read_images_binary,
-    read_points3d_binary,
-)
+from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds, Semantics
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
+CONSOLE = Console()
 
-def get_semantics_and_masks(self: InputDataset, image_idx: int):
+
+def get_semantics_and_masks(semantics: Semantics, image_idx: int):
     """function to process additional semantics and mask information"""
     # handle mask
-    person_index = self.inputs.additional_inputs["semantics"].thing_classes.index("person")
-    thing_image_filename = self.inputs.additional_inputs["semantics"].thing_filenames[image_idx]
+    person_index = semantics.thing_classes.index("person")
+    thing_image_filename = semantics.thing_filenames[image_idx]
     pil_image = Image.open(thing_image_filename)
     thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
     mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
     # handle semantics
-    stuff_image_filename = self.inputs.additional_inputs["semantics"].stuff_filenames[image_idx]
+    stuff_image_filename = semantics.stuff_filenames[image_idx]
     pil_image = Image.open(stuff_image_filename)
     stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
     return {"mask": mask, "semantics": stuff_semantics}
@@ -56,17 +49,9 @@ def get_semantics_and_masks(self: InputDataset, image_idx: int):
 
 @dataclass
 class Friends(DataParser):
-    """Friends Dataset
+    """Friends Dataset"""
 
-    Args:
-        data_directory: Location of data
-        include_semantics: whether or not to include the semantics. Defaults to False.
-        include_point_cloud: whether or not to include the point cloud. Defaults to False.
-    """
-
-    data_directory: Path
-    include_semantics: bool = True
-    include_point_cloud: bool = False
+    config: cfg.FriendsDataParserConfig
 
     @classmethod
     def _get_aabb_and_transform(cls, basedir):
@@ -90,62 +75,53 @@ class Friends(DataParser):
         aabb = bbox  # rename to aabb because it's an axis-aligned bounding box
         return torch.from_numpy(aabb).float(), torch.from_numpy(transposed_point_cloud_transform).float()
 
-    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=too-many-statements
+    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=unused-argument
 
-        abs_dir = get_absolute_path(self.data_directory)
+        abs_dir = get_absolute_path(self.config.data_directory)
 
-        images_data = read_images_binary(abs_dir / "colmap" / "images.bin")
-        # `image_path` is only the end of the filename, including the extension e.g., `.jpg`
-        image_paths = sorted((abs_dir / "images").iterdir())
+        cameras_json = load_from_json(abs_dir / "cameras.json")
+        frames = cameras_json["frames"]
+        bbox = torch.tensor(cameras_json["bbox"])
 
-        image_path_to_image_id = {}
-        image_id_to_image_path = {}
-        for v in images_data.values():
-            image_path_to_image_id[v.name] = v.id
-            image_id_to_image_path[v.id] = v.name
-        # TODO: handle the splits differently
-        image_filenames = [abs_dir / "images" / image_path for image_path in image_paths]
+        image_filenames = []
+        fx = []
+        fy = []
+        cx = []
+        cy = []
+        camera_to_worlds = []
+        for frame in frames:
+            # unpack data
+            image_filename = abs_dir / "images" / frame["image_name"]
+            intrinsics = torch.tensor(frame["intrinsics"])
+            camtoworld = torch.tensor(frame["camtoworld"])[:3]
+            # append data
+            image_filenames.append(image_filename)
+            fx.append(intrinsics[0, 0])
+            fy.append(intrinsics[1, 1])
+            cx.append(intrinsics[0, 2])
+            cy.append(intrinsics[1, 2])
+            camera_to_worlds.append(camtoworld)
+        fx = torch.stack(fx)
+        fy = torch.stack(fy)
+        cx = torch.stack(cx)
+        cy = torch.stack(cy)
+        camera_to_worlds = torch.stack(camera_to_worlds)
+
+        # rotate the cameras and box 90 degrees about the x axis to put the z axis up
+        rotation = torch.tensor([[1, 0, 0], [0, 0, -1], [0, 1, 0]], dtype=torch.float32)
+        camera_to_worlds[:, :3] = rotation @ camera_to_worlds[:, :3]
+        bbox = (rotation @ bbox.T).T
 
         # -- set the bounding box ---
-        aabb, transposed_point_cloud_transform = self._get_aabb_and_transform(abs_dir)
-        scene_bounds_original = SceneBounds(aabb=aabb)
-        # for shifting and rescale accoding to scene bounds
-        box_center = scene_bounds_original.get_center()
-        box_scale_factor = 5.0 / scene_bounds_original.get_diagonal_length()  # the target diagonal length
-        scene_bounds = scene_bounds_original.get_centered_and_scaled_scene_bounds(box_scale_factor)
-
-        # --- intrinsics ---
-        cameras_data = read_cameras_binary(abs_dir / "colmap" / "cameras.bin")
-        focal_lengths = []
-        for image_path in image_paths:
-            cam = cameras_data[image_path_to_image_id[image_path]]
-            assert len(cam.params) == 3
-            focal_lengths.append(cam.params[0])  # f (fx and fy)
-        focal_lengths = torch.stack(focal_lengths, dim=0)
-
-        cam = cameras_data[image_path_to_image_id[image_paths[0]]]
-        cx = cam.params[1]  # cx
-        cy = cam.params[2]  # cy
-
-        # --- camera_to_world (extrinsics) ---
-        camera_to_world = []
-        bottom_row = np.array([0, 0, 0, 1.0]).reshape(1, 4)
-        for image_path in image_paths:
-            image_data = images_data[image_path_to_image_id[image_path]]
-            rot = image_data.qvec2rotmat()
-            trans = image_data.tvec.reshape(3, 1)
-            c2w = np.concatenate([np.concatenate([rot, trans], 1), bottom_row], 0)
-            camera_to_world.append(c2w)
-        camera_to_world = torch.tensor(np.array(camera_to_world)).float()
-        camera_to_world = torch.inverse(camera_to_world)
-        camera_to_world[..., 1:3] *= -1
-        camera_to_world = transposed_point_cloud_transform @ camera_to_world
-        camera_to_world = camera_to_world[:, :3]
-        camera_to_world[..., 3] = (camera_to_world[..., 3] - box_center) * box_scale_factor  # center and rescale
+        scene_bounds = SceneBounds(aabb=bbox)
+        # # for shifting and rescale accoding to scene bounds
+        # box_center = scene_bounds_original.get_center()
+        # box_scale_factor = 5.0 / scene_bounds_original.get_diagonal_length()  # the target diagonal length
+        # scene_bounds = scene_bounds_original.get_centered_and_scaled_scene_bounds(box_scale_factor)
 
         # --- semantics ---
         semantics = None
-        if self.include_semantics:
+        if self.config.include_semantics:
             thing_filenames = [
                 Path(str(image_filename).replace("/images/", "/segmentations/thing/").replace(".jpg", ".png"))
                 for image_filename in image_filenames
@@ -168,32 +144,21 @@ class Friends(DataParser):
                 thing_filenames=thing_filenames,
             )
 
-        # Possibly include the sparse point cloud from COLMAP in the dataset inputs.
-        # NOTE(ethan): this will be common across the different splits.
-        point_cloud = PointCloud()
-        if self.include_point_cloud:
-            points_3d = read_points3d_binary(abs_dir / "colmap" / "points3D.bin")
-            xyz = torch.tensor(np.array([p_value.xyz for p_id, p_value in points_3d.items()])).float()
-            rgb = torch.tensor(np.array([p_value.rgb for p_id, p_value in points_3d.items()])).float()
-            xyz_h = torch.cat([xyz, torch.ones_like(xyz[..., :1])], -1)
-            xyz = (xyz_h @ transposed_point_cloud_transform.T)[..., :3]
-            xyz = (xyz - box_center) * box_scale_factor  # center and rescale
-            point_cloud.xyz = xyz
-            point_cloud.rgb = rgb
+        assert torch.all(cx[0] == cx), "Not all cameras have the same cx. Our Cameras class does not support this."
+        assert torch.all(cy[0] == cy), "Not all cameras have the same cy. Our Cameras class does not support this."
 
         cameras = Cameras(
-            fx=focal_lengths,
-            fy=focal_lengths,
-            cx=cx,
-            cy=cy,
-            camera_to_worlds=camera_to_world,
+            fx=fx,
+            fy=fy,
+            cx=float(cx[0]),
+            cy=float(cy[0]),
+            camera_to_worlds=camera_to_worlds,
             camera_type=CameraType.PERSPECTIVE,
         )
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            point_cloud=point_cloud,
             scene_bounds=scene_bounds,
             additional_inputs={"semantics": {"data": semantics, "func": get_semantics_and_masks}},
         )

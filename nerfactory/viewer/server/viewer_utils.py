@@ -244,11 +244,11 @@ class VisualizerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
-        json_ = dataset.inputs.scene_bounds.to_json()
+        json_ = dataset.dataset_inputs.scene_bounds.to_json()
         self.vis["sceneState/sceneBounds"].write(json_)
 
         # set the properties of the camera

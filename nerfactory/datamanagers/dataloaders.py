@@ -117,7 +117,7 @@ class EvalDataloader(DataLoader):
         **kwargs,
     ):
         self.input_dataset = input_dataset
-        self.cameras = input_dataset.inputs.cameras.to(device)
+        self.cameras = input_dataset.dataset_inputs.cameras.to(device)
         self.num_rays_per_chunk = num_rays_per_chunk
         self.device = device
         self.kwargs = kwargs

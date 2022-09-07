@@ -63,9 +63,6 @@ class NerfWModel(Model):
         """
         self.field_coarse = None
         self.field_fine = None
-        self.num_images = 10000  # TODO(ethan): fix this
-        self.appearance_embedding_dim = 48
-        self.transient_embedding_dim = 16
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
@@ -82,11 +79,11 @@ class NerfWModel(Model):
 
         self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
         self.field_fine = VanillaNerfWField(
-            num_images=self.num_images,
+            num_images=self.config.num_images,
             position_encoding=position_encoding,
             direction_encoding=direction_encoding,
-            appearance_embedding_dim=self.appearance_embedding_dim,
-            transient_embedding_dim=self.transient_embedding_dim,
+            appearance_embedding_dim=self.config.appearance_embedding_dim,
+            transient_embedding_dim=self.config.transient_embedding_dim,
         )
 
         # samplers
@@ -123,7 +120,7 @@ class NerfWModel(Model):
         if ray_bundle.camera_indices is not None:
             # TODO(ethan): remove this check
             assert (
-                torch.max(ray_bundle.camera_indices) < self.num_images
+                torch.max(ray_bundle.camera_indices) < self.config.num_images
             ), "num_images must be greater than the largest camera index"
 
         if self.field_coarse is None or self.field_fine is None:
