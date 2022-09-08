@@ -36,6 +36,16 @@ class CameraType(Enum):
     FISHEYE = auto()
 
 
+CAMERA_MODEL_TO_TYPE = {
+    "SIMPLE_PINHOLE": CameraType.PERSPECTIVE,
+    "PINHOLE": CameraType.PERSPECTIVE,
+    "SIMPLE_RADIAL": CameraType.PERSPECTIVE,
+    "RADIAL": CameraType.PERSPECTIVE,
+    "OPENCV": CameraType.PERSPECTIVE,
+    "OPENCV_FISHEYE": CameraType.FISHEYE,
+}
+
+
 class Cameras:
     """Dataset inputs for the image dataset and the ray generator.
 

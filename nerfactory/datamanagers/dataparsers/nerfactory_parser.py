@@ -22,7 +22,7 @@ import numpy as np
 import torch
 
 from nerfactory.cameras import utils as camera_utils
-from nerfactory.cameras.cameras import Cameras, CameraType
+from nerfactory.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataparsers.base import DataParser
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
@@ -77,10 +77,6 @@ class Nerfactory(DataParser):
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
         poses[:, :3, 3] *= scale_factor
 
-        distortion_params = camera_utils.get_distortion_params(
-            k1=float(meta["k1"]), k2=float(meta["k2"]), p1=float(meta["p1"]), p2=float(meta["p2"])
-        )
-
         # in x,y,z order
         # assumes that the scene is centered at the origin
         aabb_scale = self.config.scene_scale
@@ -88,6 +84,20 @@ class Nerfactory(DataParser):
             aabb=torch.tensor(
                 [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
             )
+        )
+
+        if "camera_model" in meta:
+            camera_type = CAMERA_MODEL_TO_TYPE[meta["camera_model"]]
+        else:
+            camera_type = CameraType.PERSPECTIVE
+
+        distortion_params = camera_utils.get_distortion_params(
+            k1=float(meta["k1"]) if "k1" in meta else 0.0,
+            k2=float(meta["k2"]) if "k2" in meta else 0.0,
+            k3=float(meta["k3"]) if "k3" in meta else 0.0,
+            k4=float(meta["k4"]) if "k4" in meta else 0.0,
+            p1=float(meta["p1"]) if "p1" in meta else 0.0,
+            p2=float(meta["p2"]) if "p2" in meta else 0.0,
         )
 
         cameras = Cameras(
@@ -99,7 +109,7 @@ class Nerfactory(DataParser):
             height=int(meta["h"]),
             width=int(meta["w"]),
             camera_to_worlds=poses[:, :3, :4],
-            camera_type=CameraType.PERSPECTIVE,
+            camera_type=camera_type,
         )
 
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
