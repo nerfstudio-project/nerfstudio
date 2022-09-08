@@ -24,7 +24,7 @@ from torchtyping import TensorType
 
 def to4x4(pose: TensorType[..., 3, 4]) -> TensorType[..., 4, 4]:
     """Convert 3x4 pose matrices to a 4x4 with the addition of a homogeneous coordinate."""
-    constants = torch.zeros_like(pose[..., :1, :])
+    constants = torch.zeros_like(pose[..., :1, :], device=pose.device)
     constants[..., :, 3] = 1
     return torch.cat([pose, constants], dim=-2)
 
