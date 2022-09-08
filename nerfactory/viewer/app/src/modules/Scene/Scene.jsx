@@ -1,13 +1,13 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-import { useContext, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
 import { drawCamera, drawSceneBounds } from './drawing';
+import { useContext, useEffect } from 'react';
 
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
+import { useDispatch } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
 
@@ -27,6 +27,16 @@ export function get_scene_tree() {
   const deleteObject = (path) => {
     sceneTree.delete(path);
   };
+
+  // Main camera
+  const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+  setObject(['Main Camera'], main_camera);
+  // const helper = new THREE.CameraHelper( main_camera );
+  // setObject(['Main Camera Helper'], helper);
+
+  setInterval(() => {
+    console.log(main_camera);
+  }, 1000);
 
   // Axes
   const axes = new THREE.AxesHelper(5);

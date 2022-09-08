@@ -21,6 +21,7 @@ function createStats() {
 // manages a camera and the web rtc stream...
 export default function ViewerWindow(props) {
   // eslint-disable-next-line react/prop-types
+  const sceneTree = props.sceneTree;
   const scene = props.scene;
 
   const myRef = useRef(null);
@@ -30,12 +31,18 @@ export default function ViewerWindow(props) {
   );
   const field_of_view_ref = useRef(field_of_view);
 
-  const camera = useRef(null);
+  // const camera = useRef(null);
+  console.log(sceneTree);
+  // let camera = sceneTree.find(['Main Camera', '<object>']).object;
+  console.log(sceneTree.find(['Main Camera', '<object>']).object);
   let cameraControls = null;
   let renderer = null;
   let viewportWidth = null;
   let viewportHeight = null;
   let stats = null;
+
+
+  let camera = sceneTree.find(['Main Camera', '<object>']).object;
 
   const getViewportWidth = () => {
     const width = myRef.current.clientWidth;
@@ -49,20 +56,23 @@ export default function ViewerWindow(props) {
   const handleResize = () => {
     viewportWidth = getViewportWidth();
     viewportHeight = getViewportHeight();
-    camera.current.aspect = viewportWidth / viewportHeight;
-    camera.current.updateProjectionMatrix();
+    camera.aspect = viewportWidth / viewportHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
   };
 
   const sendCamera = () => {
     // update the camera information in the python server
+    // console.log(sceneTree.find(['Main Camera', '<object>']).object.matrix.elements);
+    // console.log(elements);
+    // console.log(camera.matrix.elements);
     if (websocket.readyState === WebSocket.OPEN) {
       const cmd = 'write';
       const path = 'renderingState/camera';
       const data = {
         type: cmd,
         path,
-        data: camera.current.toJSON(),
+        data: camera.toJSON(),
       };
       const message = msgpack.encode(data);
       websocket.send(message);
@@ -71,7 +81,7 @@ export default function ViewerWindow(props) {
 
   // keep sending the camera often
   useEffect(() => {
-    const fps = 60;
+    const fps = 24;
     const interval = 1000 / fps;
     const refreshIntervalId = setInterval(sendCamera, interval);
     return () => {
@@ -82,10 +92,10 @@ export default function ViewerWindow(props) {
   const update = () => {
     requestAnimationFrame(update);
     handleResize();
-    camera.current.fov = field_of_view_ref.current;
-    camera.current.updateProjectionMatrix();
+    camera.fov = field_of_view_ref.current;
+    camera.updateProjectionMatrix();
     cameraControls.update();
-    renderer.render(scene, camera.current);
+    renderer.render(scene, camera);
     stats.update();
   };
 
@@ -97,16 +107,16 @@ export default function ViewerWindow(props) {
     stats = createStats();
     myRef.current.append(stats.domElement);
 
-    camera.current = new THREE.PerspectiveCamera(
-      field_of_view_ref.current,
-      viewportWidth / viewportHeight,
-      0.01,
-      100,
-    );
-    camera.current.position.x = 5;
-    camera.current.position.y = -5;
-    camera.current.position.z = 5;
-    camera.current.up = new THREE.Vector3(0, 0, 1);
+    // camera = new THREE.PerspectiveCamera(
+    //   field_of_view_ref.current,
+    //   viewportWidth / viewportHeight,
+    //   0.01,
+    //   100,
+    // );
+    camera.position.x = 5;
+    camera.position.y = -5;
+    camera.position.z = 5;
+    camera.up = new THREE.Vector3(0, 0, 1);
 
     renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -117,7 +127,7 @@ export default function ViewerWindow(props) {
 
     myRef.current.append(renderer.domElement);
     // add camera controls
-    cameraControls = new OrbitControls(camera.current, renderer.domElement);
+    cameraControls = new OrbitControls(camera, renderer.domElement);
     cameraControls.rotateSpeed = 2.0;
     cameraControls.zoomSpeed = 0.3;
     cameraControls.panSpeed = 0.2;

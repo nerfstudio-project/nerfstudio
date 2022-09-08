@@ -164,8 +164,17 @@ $sidebar-width: 100% !default;
 }
 
 // ------------------------------------
-// Camera Vie
-// }
+// Camera Pane
+
+#CameraPanel-add-camera-button {
+  margin: 4px;
+}
+
+.CameraList-row {
+  padding: 4px;
+  border: solid 0.1px $highlight-color1;
+  text-align: left;
+}
 
 .canvas-container-main,
 .WebRTCVideo {

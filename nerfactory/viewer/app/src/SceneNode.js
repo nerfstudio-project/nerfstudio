@@ -60,6 +60,10 @@ export default class SceneNode {
     return child.find(path.slice(1));
   }
 
+  find_object(path) {
+    return this.find(path.concat(['<object>'])).object;
+  }
+
   set_property(property, value) {
     if (property === 'position') {
       this.object.position.set(value[0], value[1], value[2]);

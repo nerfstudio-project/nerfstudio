@@ -40,11 +40,9 @@ function TabPanel(props: TabPanelProps) {
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3, padding: 0 }}>
-          <Typography component="div">{children}</Typography>
-        </Box>
-      )}
+      <Box sx={{ p: 3, padding: 0 }}>
+        <Typography component="div">{children}</Typography>
+      </Box>
     </div>
   );
 }
@@ -183,7 +181,7 @@ export function BasicTabs(props: BasicTabsProps) {
           </div>
         </TabPanel>
         <TabPanel value={value} index={2}>
-          <CameraPanel />
+          <CameraPanel sceneTree={sceneTree} />
         </TabPanel>
 
         <TabPanel value={value} index={3}>
