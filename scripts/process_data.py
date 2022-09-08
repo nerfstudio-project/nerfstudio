@@ -17,7 +17,7 @@ from nerfactory.utils import colmap_utils
 CONSOLE = Console(width=120)
 
 
-class CameraType(Enum):
+class CameraModel(Enum):
     """Enum for camera types."""
 
     OPENCV = "OPENCV"
@@ -25,8 +25,8 @@ class CameraType(Enum):
 
 
 CAMERA_MODELS = {
-    "perspective": CameraType.OPENCV,
-    "fisheye": CameraType.OPENCV_FISHEYE,
+    "perspective": CameraModel.OPENCV,
+    "fisheye": CameraModel.OPENCV_FISHEYE,
 }
 
 
@@ -143,6 +143,7 @@ def copy_images(data, image_dir, verbose) -> int:
     """
     image_paths = sorted(data.glob("*"))
     for i, image_path in enumerate(image_paths):
+        i = i + 1  # 1-indexed
         if verbose:
             CONSOLE.log(f"Copying image {i + 1} of {len(image_paths)}...")
         shutil.copy(image_path, image_dir / f"frame_{i:05d}{image_path.suffix}")
@@ -152,6 +153,8 @@ def copy_images(data, image_dir, verbose) -> int:
 
 def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> None:
     """Downscales the images in the directory. Uses FFMPEG.
+
+    Assumes images are named frame_00001.png, frame_00002.png, etc.
 
     Args:
         image_dir: Path to the directory containing the images.
@@ -177,7 +180,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
 def run_colmap(
     image_dir: Path,
     colmap_dir: Path,
-    camera_model: CameraType,
+    camera_model: CameraModel,
     gpu: bool = True,
     verbose: bool = False,
 ) -> None:
@@ -250,13 +253,14 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
 
 
-def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> int:
+def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
     Args:
         cameras_path: Path to the cameras.bin file.
         images_path: Path to the images.bin file.
         output_dir: Path to the output directory.
+        camera_model: Camera model used.
 
     Returns:
         The number of registered images.
@@ -291,16 +295,33 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> i
     out = {
         "fl_x": float(camera_params[0]),
         "fl_y": float(camera_params[1]),
-        "k1": float(camera_params[4]),
-        "k2": float(camera_params[5]),
-        "p1": float(camera_params[6]),
-        "p2": float(camera_params[7]),
         "cx": float(camera_params[2]),
         "cy": float(camera_params[3]),
         "w": cameras[1].width,
         "h": cameras[1].height,
-        "frames": frames,
+        "camera_model": camera_model.value,
     }
+
+    if camera_model == CameraModel.OPENCV:
+        out.update(
+            {
+                "k1": float(camera_params[4]),
+                "k2": float(camera_params[5]),
+                "p1": float(camera_params[6]),
+                "p2": float(camera_params[7]),
+            }
+        )
+    if camera_model == CameraModel.OPENCV_FISHEYE:
+        out.update(
+            {
+                "k1": float(camera_params[4]),
+                "k2": float(camera_params[5]),
+                "k3": float(camera_params[6]),
+                "k4": float(camera_params[7]),
+            }
+        )
+
+    out["frames"] = frames
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
@@ -308,6 +329,7 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path) -> i
     return len(frames)
 
 
+# pylint: disable=too-many-statements
 def main(
     data: Path,
     output_dir: Path,
@@ -334,6 +356,7 @@ def main(
         camera_type: Camera model to use.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
             will downscale the images by 2x, 4x, and 8x.
+        skip_colmap: If True, skips COLMAP and generates transforms.json if possible.
         gpu: If True, use GPU.
         verbose: If True, print extra logging.
     """
@@ -384,24 +407,30 @@ def main(
         downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
         summary_log.append(f"We downsampled the images by {downscale_text}")
 
+    camera_model = CAMERA_MODELS[camera_type]
+    colmap_dir = output_dir / "colmap"
     if not skip_colmap:
-        colmap_dir = output_dir / "colmap"
         colmap_dir.mkdir(parents=True, exist_ok=True)
 
-        camera_model = CAMERA_MODELS[camera_type]
         run_colmap(image_dir=image_dir, colmap_dir=colmap_dir, camera_model=camera_model, gpu=gpu, verbose=verbose)
 
+    if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
         with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
             num_matched_frames = colmap_to_json(
                 cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
                 images_path=colmap_dir / "sparse" / "0" / "images.bin",
                 output_dir=output_dir,
+                camera_model=camera_model,
             )
             summary_log.append(f"Colmap matched {num_matched_frames} images")
+    else:
+        CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
+
     CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
     for summary in summary_log:
         CONSOLE.print(summary, justify="center")
+    CONSOLE.rule()
 
 
 if __name__ == "__main__":
