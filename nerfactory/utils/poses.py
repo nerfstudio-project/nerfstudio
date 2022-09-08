@@ -33,7 +33,7 @@ def inverse(pose: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
     """Invert provided pose matrix."""
     R = pose[..., :3, :3]
     t = pose[..., :3, 3:]
-    R_inverse = R.transpose(-2, -1)
+    R_inverse = R.transpose(-2, -1)  #  pylint: disable=invalid-name
     t_inverse = -R_inverse.matmul(t)
     return torch.cat([R_inverse, t_inverse], dim=-1)
 
