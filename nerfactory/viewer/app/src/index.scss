@@ -176,6 +176,9 @@ $sidebar-width: 100% !default;
   text-align: left;
 }
 
+// ------------------------------------
+// Viewer Window
+
 .canvas-container-main,
 .WebRTCVideo {
   position: absolute;
@@ -190,4 +193,22 @@ $sidebar-width: 100% !default;
   width: 100%;
   height: 100%;
   object-fit: fill;
+}
+
+$viewer_button_size: 100px;
+
+.ViewerWindow-buttons {
+  position: absolute;
+  margin: 10px;
+  top: 0px;
+  right: $SidePanel-width;
+  z-index: 1000;
+  width: $viewer_button_size;
+  background-color: $base-color1;
+}
+
+.ViewerWindow-iconbutton {
+  border: solid 1px red;
+  width: 100%;
+  height: $viewer_button_size;
 }

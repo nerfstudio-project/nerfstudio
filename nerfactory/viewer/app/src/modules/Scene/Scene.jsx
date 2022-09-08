@@ -34,9 +34,9 @@ export function get_scene_tree() {
   // const helper = new THREE.CameraHelper( main_camera );
   // setObject(['Main Camera Helper'], helper);
 
-  setInterval(() => {
-    console.log(main_camera);
-  }, 1000);
+  // setInterval(() => {
+  //   console.log(main_camera);
+  // }, 1000);
 
   // Axes
   const axes = new THREE.AxesHelper(5);

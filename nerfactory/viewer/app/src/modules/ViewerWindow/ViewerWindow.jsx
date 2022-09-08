@@ -1,13 +1,27 @@
 import * as THREE from 'three';
 
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Stats from 'stats.js';
-import { useSelector } from 'react-redux';
 import React, { useContext, useEffect, useRef } from 'react';
-import { WebSocketContext } from '../WebSocket/WebSocket';
+
+import DeleteIcon from '@mui/icons-material/Delete';
+import IconButton from '@mui/material/IconButton';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+// https://mui.com/material-ui/material-icons/?theme=Sharp
+import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
+import PublicSharpIcon from '@mui/icons-material/PublicSharp';
+// import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
+// import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
+// import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import Stats from 'stats.js';
+import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+import { WebSocketContext } from '../WebSocket/WebSocket';
+import { useSelector } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
+import { Button, Slider } from '@mui/material';
 
 function createStats() {
   const stats = new Stats();
@@ -16,6 +30,36 @@ function createStats() {
   stats.domElement.style.left = '0';
   stats.domElement.style.top = '0';
   return stats;
+}
+
+function TransformIcons() {
+  // toggle back and forth between local and global transform
+  const [world, setWorld] = React.useState(false);
+
+  const toggleLocal = () => {
+    setWorld(!world);
+  };
+
+  return (
+    <div>
+      <Button className="ViewerWindow-iconbutton" variant="outlined">
+        {/* translate */}
+        <OpenWithIcon />
+      </Button>
+      <Button className="ViewerWindow-iconbutton" variant="outlined">
+        {/* rotate */}
+        <SyncOutlinedIcon />
+      </Button>
+      <Button
+        className="ViewerWindow-iconbutton"
+        variant="outlined"
+        onClick={toggleLocal}
+      >
+        {/* global vs local space */}
+        {world ? <PublicSharpIcon /> : <PublicOffSharpIcon />}
+      </Button>
+    </div>
+  );
 }
 
 // manages a camera and the web rtc stream...
@@ -36,11 +80,11 @@ export default function ViewerWindow(props) {
   // let camera = sceneTree.find(['Main Camera', '<object>']).object;
   console.log(sceneTree.find(['Main Camera', '<object>']).object);
   let cameraControls = null;
+  let transformsControls = null;
   let renderer = null;
   let viewportWidth = null;
   let viewportHeight = null;
   let stats = null;
-
 
   let camera = sceneTree.find(['Main Camera', '<object>']).object;
 
@@ -136,7 +180,34 @@ export default function ViewerWindow(props) {
     cameraControls.enableDamping = true;
     cameraControls.dampingFactor = 1.0;
     cameraControls.update();
+
+    transformsControls = new TransformControls(camera, renderer.domElement);
+
+    const texture = new THREE.TextureLoader().load('textures/water.jpg');
+    const geometry = new THREE.BoxGeometry(2, 2, 2);
+    const material = new THREE.MeshLambertMaterial({
+      map: texture,
+      transparent: true,
+    });
+
+    const mesh = new THREE.Mesh(geometry);
+    scene.add(mesh);
+
+    transformsControls.attach(mesh);
+    scene.add(transformsControls);
+
+    // console.log('mesh');
+    // let path = ['Mesh'];
+    // sceneTree.find(path.concat(['<object>'])).set_object(mesh);
+
+    transformsControls.addEventListener('dragging-changed', function (event) {
+      cameraControls.enabled = !event.value;
+    });
+
+    console.log(cameraControls);
+
     update();
+    // cameraControls.addEventListener('change', update);
   }, []);
 
   // updates the field of view inside the ref to avoid rerendering so often
@@ -149,6 +220,9 @@ export default function ViewerWindow(props) {
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
       <div className="canvas-container-main" ref={myRef} />
+      <div className="ViewerWindow-buttons">
+        <TransformIcons></TransformIcons>
+      </div>
     </>
   );
 }
