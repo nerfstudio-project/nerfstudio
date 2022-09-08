@@ -168,10 +168,11 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         downscale_dir = image_dir.parent / f"images_{downscale_factor}"
         downscale_dir.mkdir(parents=True, exist_ok=True)
         file_type = image_dir.glob("frame_*").__next__().suffix
+        filename = f"frame_%05d{file_type}"
         ffmpeg_cmd = [
-            f"ffmpeg -i {image_dir}/frame_%05d{file_type} ",
+            f"ffmpeg -i {image_dir / filename} ",
             f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-            f"{downscale_dir}/frame_%05d{file_type}",
+            f"{downscale_dir / filename}",
         ]
         ffmpeg_cmd = " ".join(ffmpeg_cmd)
         run_command(ffmpeg_cmd, verbose=verbose)
@@ -201,7 +202,7 @@ def run_colmap(
     # Feature extraction
     feature_extractor_cmd = [
         "colmap feature_extractor",
-        f"--database_path {colmap_dir}/database.db",
+        f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         "--ImageReader.single_camera 1",
         f"--ImageReader.camera_model {camera_model.value}",
@@ -218,7 +219,7 @@ def run_colmap(
     # Feature matching
     feature_matcher_cmd = [
         "colmap exhaustive_matcher",
-        f"--database_path {colmap_dir}/database.db",
+        f"--database_path {colmap_dir / 'database.db'}",
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
@@ -234,7 +235,7 @@ def run_colmap(
     sparse_dir.mkdir(parents=True, exist_ok=True)
     bundle_adjuster_cmd = [
         "colmap mapper",
-        f"--database_path {colmap_dir}/database.db",
+        f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
     ]
@@ -284,10 +285,10 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
 
-        name = f"./images/{im_data.name}"
+        name = Path(f"./images/{im_data.name}")
 
         frame = {
-            "file_path": name,
+            "file_path": str(name),
             "transform_matrix": c2w.tolist(),
         }
         frames.append(frame)
