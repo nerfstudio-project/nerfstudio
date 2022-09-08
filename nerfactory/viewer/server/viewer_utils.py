@@ -234,13 +234,12 @@ class VisualizerState:
 
         self.outputs_set = False
 
-    def init_scene(self, dataset: InputDataset) -> None:
+    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
             dataset: dataset to render in the scene
         """
-
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
         self.vis["sceneState/cameras"].delete()
@@ -256,6 +255,9 @@ class VisualizerState:
         # draw the scene bounds (i.e., the bounding box)
         json_ = dataset.dataset_inputs.scene_bounds.to_json()
         self.vis["sceneState/sceneBounds"].write(json_)
+
+        # set the initial state whether to train or not
+        self.vis["renderingState/isTraining"].write(start_train)
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -284,7 +286,7 @@ class VisualizerState:
             local_step = step
             run_loop = not is_training
             while run_loop:
-                if self._is_render_step(local_step):
+                if self._is_render_step(local_step) and step > 0:
                     self._render_image_in_viewer(graph)
                 is_training = self.vis["renderingState/isTraining"].read()
                 run_loop = not is_training

@@ -116,7 +116,9 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
 
-        self.visualizer_state.init_scene(dataset=self.pipeline.datamanager.train_input_dataset)
+        self.visualizer_state.init_scene(
+            dataset=self.pipeline.datamanager.train_input_dataset, start_train=self.config.viewer.train
+        )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
