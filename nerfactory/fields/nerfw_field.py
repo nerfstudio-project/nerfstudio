@@ -130,11 +130,12 @@ class VanillaNerfWField(Field):
         encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
-        embedded_appearance = self.embedding_appearance(ray_samples.camera_indices.squeeze())
+        camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
+        embedded_appearance = self.embedding_appearance(camera_indices)
         mlp_in = torch.cat([density_embedding, encoded_dir, embedded_appearance], dim=-1)  # type: ignore
         mlp_head_out = self.mlp_head(mlp_in)
         outputs[self.field_head_rgb.field_head_name] = self.field_head_rgb(mlp_head_out)  # static rgb
-        embedded_transient = self.embedding_transient(ray_samples.camera_indices.squeeze())
+        embedded_transient = self.embedding_transient(camera_indices)
         transient_mlp_in = torch.cat([density_embedding, embedded_transient], dim=-1)  # type: ignore
         transient_mlp_out = self.mlp_transient(transient_mlp_in)
         outputs[self.field_head_transient_uncertainty.field_head_name] = self.field_head_transient_uncertainty(

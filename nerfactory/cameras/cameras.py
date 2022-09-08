@@ -36,6 +36,16 @@ class CameraType(Enum):
     FISHEYE = auto()
 
 
+CAMERA_MODEL_TO_TYPE = {
+    "SIMPLE_PINHOLE": CameraType.PERSPECTIVE,
+    "PINHOLE": CameraType.PERSPECTIVE,
+    "SIMPLE_RADIAL": CameraType.PERSPECTIVE,
+    "RADIAL": CameraType.PERSPECTIVE,
+    "OPENCV": CameraType.PERSPECTIVE,
+    "OPENCV_FISHEYE": CameraType.FISHEYE,
+}
+
+
 class Cameras:
     """Dataset inputs for the image dataset and the ray generator.
 
@@ -220,7 +230,17 @@ class Cameras:
         dy = torch.sqrt(torch.sum((directions - directions_stack[2]) ** 2, dim=-1))
         pixel_area = dx * dy
 
-        return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
+        if not isinstance(camera_indices, torch.Tensor):
+            ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to((self._num_cameras)).to(self.device)
+        else:
+            ray_bundle_camera_indices = camera_indices
+
+        return RayBundle(
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area[..., None],
+            camera_indices=ray_bundle_camera_indices,
+        )
 
     def to_json(
         self,

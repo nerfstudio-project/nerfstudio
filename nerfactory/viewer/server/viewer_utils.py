@@ -24,15 +24,16 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
+from rich import print  # pylint: disable=redefined-builtin
 
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
-from nerfactory.utils import profiler, visualization
+from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
-from nerfactory.utils.writer import GLOBAL_BUFFER, EventName
+from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
@@ -194,7 +195,10 @@ class VisualizerState:
                 # start the viewer bridge server
                 zmq_port = int(self.config.zmq_url.split(":")[-1])
                 websocket_port = self.config.websocket_port
-                run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port)
+                self.config.log_filename.parent.mkdir(exist_ok=True)
+                run_viewer_bridge_server_as_subprocess(
+                    zmq_port, websocket_port, log_filename=str(self.config.log_filename)
+                )
                 # TODO(ethan): move this into the writer such that it's at the bottom
                 # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
@@ -203,8 +207,8 @@ class VisualizerState:
                     f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
                 )
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
-                pub_open_viewer_instructions_string = f'[Public] Open the viewer at "{self.viewer_url}"'
-                dev_open_viewer_instructions_string = f'[Local] Open the viewer at "{viewer_url_local}"'
+                pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
+                dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
                 print("-" * len(pub_open_viewer_instructions_string))
                 print(pub_open_viewer_instructions_string)
                 print(dev_open_viewer_instructions_string)
@@ -226,16 +230,16 @@ class VisualizerState:
         self.check_done_render = True
         self.last_render_time = time.time()
         self.min_wait_time = 0.5  # 1.0 is on high side and will cause lag
+        self.step = 0
 
         self.outputs_set = False
 
-    def init_scene(self, dataset: InputDataset) -> None:
+    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
             dataset: dataset to render in the scene
         """
-
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
         self.vis["sceneState/cameras"].delete()
@@ -245,12 +249,15 @@ class VisualizerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
-        json_ = dataset.inputs.scene_bounds.to_json()
+        json_ = dataset.dataset_inputs.scene_bounds.to_json()
         self.vis["sceneState/sceneBounds"].write(json_)
+
+        # set the initial state whether to train or not
+        self.vis["renderingState/isTraining"].write(start_train)
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -268,6 +275,7 @@ class VisualizerState:
         """
 
         is_training = self.vis["renderingState/isTraining"].read()
+        self.step = step
 
         if is_training is None or is_training:
             # in training mode, render every few steps
@@ -278,7 +286,7 @@ class VisualizerState:
             local_step = step
             run_loop = not is_training
             while run_loop:
-                if self._is_render_step(local_step):
+                if self._is_render_step(local_step) and step > 0:
                     self._render_image_in_viewer(graph)
                 is_training = self.vis["renderingState/isTraining"].read()
                 run_loop = not is_training
@@ -387,13 +395,16 @@ class VisualizerState:
         image = (image_output).astype("uint8")
         self.vis.set_image(image)
 
-    def _update_viewer_stats(self, render_time: float, image_height: int) -> None:
+    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
 
         Args:
             render_time: total time spent rendering current view
             image_height: resolution of the current view
         """
+        writer.put_time(
+            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
+        )
         is_training = self.vis["renderingState/isTraining"].read()
         if is_training is None or is_training:
             # process the  current rendering fps
@@ -487,20 +498,18 @@ class VisualizerState:
 
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
-        start_time = time.time()
-        check_thread.start()
-        render_thread.start()
-        try:
-            render_thread.join()
-            check_thread.join()
-        except Exception:  # pylint: disable=broad-except
-            pass
-        render_duration = time.time() - start_time
 
+        with TimeWriter(None, None, write=False) as vis_t:
+            check_thread.start()
+            render_thread.start()
+            try:
+                render_thread.join()
+                check_thread.join()
+            except Exception:  # pylint: disable=broad-except
+                pass
         graph.train()
-
         outputs = render_thread.vis_outputs
         if outputs is not None:
             stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
             self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
-            self._update_viewer_stats(render_duration, image_height)
+            self._update_viewer_stats(vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height)
