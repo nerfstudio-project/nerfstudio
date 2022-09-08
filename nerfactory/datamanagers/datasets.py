@@ -83,8 +83,8 @@ class InputDataset(Dataset):
         for _, data_func_dict in self.dataset_inputs.additional_inputs.items():
             assert "func" in data_func_dict, "Missing function to process data: specify `func` in `additional_inputs`"
             func = data_func_dict["func"]
-            assert "data" in data_func_dict, "No data to process: specify `data` in `additional_inputs`"
-            data.update(func(data_func_dict["data"], image_idx))
+            assert "kwargs" in data_func_dict, "No data to process: specify `kwargs` in `additional_inputs`"
+            data.update(func(image_idx, **data_func_dict["kwargs"]))
         return data
 
     def __getitem__(self, image_idx):

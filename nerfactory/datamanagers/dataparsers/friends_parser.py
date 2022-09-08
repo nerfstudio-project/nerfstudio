@@ -32,7 +32,7 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 CONSOLE = Console()
 
 
-def get_semantics_and_masks(semantics: Semantics, image_idx: int):
+def get_semantics_and_masks(image_idx: int, semantics: Semantics):
     """function to process additional semantics and mask information"""
     # handle mask
     person_index = semantics.thing_classes.index("person")
@@ -160,6 +160,6 @@ class Friends(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_bounds=scene_bounds,
-            additional_inputs={"semantics": {"data": semantics, "func": get_semantics_and_masks}},
+            additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
         )
         return dataset_inputs
