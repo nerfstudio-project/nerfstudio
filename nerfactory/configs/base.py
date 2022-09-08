@@ -21,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
+import dcargs
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
@@ -241,11 +242,15 @@ class Record3DDataParserConfig(DataParserConfig):
 class VanillaDataManagerConfig(InstantiateConfig):
     """Configuration for data manager instantiation"""
 
+    # Note: eval_dataparser is annotated with Fixed[] to prevent dcargs from trying to
+    # convert Optional[InstantiateConfig] into subcommands for choosing between None and
+    # InstantiateConfig.
+
     _target: Type = VanillaDataManager
     train_dataparser: DataParserConfig = BlenderDataParserConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
-    eval_dataparser: Optional[InstantiateConfig] = None
+    eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
