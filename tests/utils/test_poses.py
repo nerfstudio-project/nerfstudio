@@ -79,3 +79,19 @@ def test_inverse():
         poses.multiply(pose, pose_inv),
         unit_pose,
     )
+
+
+def test_normalize():
+    """Test 3D pose normalization"""
+    pose = torch.ones((2, 3, 4))
+    pose[:, :3, :3] = torch.eye(3)
+    pose[0, :3, 3] = torch.tensor([2.0, 0.0, -2.0])
+    pose[1, :3, 3] = torch.tensor([1.0, 1.0, 1.0])
+
+    pose_scaled = poses.normalize(pose)
+
+    assert pose_scaled.shape == pose.shape
+    assert torch.max(pose_scaled[:, :3, 3]) <= 1.0
+
+    assert torch.equal(pose_scaled[0, :3, 3], torch.tensor([1.0, 0.0, -1.0]))
+    assert torch.equal(pose_scaled[1, :3, 3], torch.tensor([0.5, 0.5, 0.5]))

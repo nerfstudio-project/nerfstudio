@@ -65,3 +65,18 @@ def multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]) -> Te
     R = R1.matmul(R2)
     t = t1 + R1.matmul(t2)
     return torch.cat([R, t], dim=-1)
+
+
+def normalize(poses: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
+    """Normalize the XYZs of poses to fit within a unit cube ([-1, 1]). Note: This operation is not in-place.
+
+    Args:
+        poses (TensorType[..., 3, 4]): A collection of poses to be normalized.
+
+    Returns;
+        TensorType[..., 3, 4]: Normalized collection of poses.
+    """
+    pose_copy = torch.clone(poses)
+    pose_copy[..., :3, 3] /= torch.max(torch.abs(poses[..., :3, 3]))
+
+    return pose_copy
