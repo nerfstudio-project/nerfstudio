@@ -122,3 +122,16 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 ```
 pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
+
+* [Installation errors, File "setup.py" not found](pip-install-error)
+
+(pip-install-error)=
+#### Installation errors, File "setup.py" not found
+
+When installing dependencies and nerfactory with `pip install -e .`, you run into: `ERROR: File "setup.py" not found. Directory cannot be installed in editable mode`
+
+**Solution**:
+This can be fixed by upgrading pip to the latest version:
+```
+python -m pip install --upgrade pip
+```
