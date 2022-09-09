@@ -36,7 +36,7 @@ def to4x4(pose: TensorType[..., 3, 4]) -> TensorType[..., 4, 4]:
 
 def inverse(pose: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
     """Invert provided pose matrix.
-    
+
     Args:
         pose (TensorType[..., 3, 4]): Camera pose without homogenous coordinate.
 
@@ -52,11 +52,11 @@ def inverse(pose: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
 
 def multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
     """Multiply two pose matrices, A @ B.
-    
+
     Args:
         pose_a (TensorType[..., 3, 4]): Left pose matrix, usually a transformation applied to the right.
         pose_b (TensorType[..., 3, 4]): Right pose matrix, usually a camera pose that will be tranformed by pose_a.
-    
+
     Returns:
         TensorType[..., 3, 4]: Camera pose matrix where pose_a was applied to pose_b.
     """
