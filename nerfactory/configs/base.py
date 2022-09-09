@@ -228,12 +228,12 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
 @dataclass
 class Record3DDataParserConfig(DataParserConfig):
-    """Mipnerf 360 dataset config"""
+    """Record3D dataset config"""
 
     _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
     val_skip: int = 8
-    aabb_scale = 4.0
+    aabb_scale: float = 4.0
     max_dataset_size: int = 150
 
 

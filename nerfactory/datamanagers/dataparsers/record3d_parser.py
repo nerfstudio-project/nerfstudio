@@ -24,7 +24,6 @@ from scipy.spatial.transform import Rotation
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataparsers.base import DataParser
-from nerfactory.datamanagers.dataparsers.mipnerf_parser import Mipnerf360
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
@@ -78,23 +77,9 @@ class Record3D(DataParser):
             image_filenames = image_filenames[idx]
             num_images = len(image_filenames)
 
-        # Normalization similar to Mipnerf360
-        poses = Mipnerf360.normalize_orientation(poses)
-
         bottom = np.reshape([0, 0, 0, 1.0], [1, 4])
         bottom = np.tile(np.reshape(bottom, [1, 1, 4]), [poses.shape[0], 1, 1])
         poses = np.concatenate([poses[:, :3, :4], bottom], -2).astype(np.float32)
-
-        rotation_matrix = np.array(
-            [
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 0.0, -1.0, 0.0],
-                [0.0, 1.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0, 1.0],
-            ],
-            dtype=np.float32,
-        )
-        poses = rotation_matrix @ poses
 
         idx_test = np.arange(num_images)[:: self.config.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
@@ -107,6 +92,7 @@ class Record3D(DataParser):
 
         # Centering poses
         poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, 3], axis=0)
+        poses[:, :3, 3] /= np.max(np.abs(poses[:, :3, 3]))  # normalize poses
 
         camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
 
