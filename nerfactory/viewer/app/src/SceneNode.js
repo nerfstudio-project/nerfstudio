@@ -87,6 +87,10 @@ export default class SceneNode {
     );
   }
 
+  set_object_from_path(path, object) {
+    this.find(path.concat(['<object>'])).set_object(object);
+  }
+
   set_object(object) {
     const parent = this.object.parent;
     this.dispose_recursive();

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 
+import { Button, Slider } from '@mui/material';
 import React, { useContext, useEffect, useRef } from 'react';
 
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -21,7 +22,6 @@ import { WebSocketContext } from '../WebSocket/WebSocket';
 import { useSelector } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
-import { Button, Slider } from '@mui/material';
 
 function createStats() {
   const stats = new Stats();
@@ -32,21 +32,36 @@ function createStats() {
   return stats;
 }
 
-function TransformIcons() {
+function TransformIcons(props) {
+  const sceneTree = props.sceneTree;
+  const transform_controls = sceneTree.find_object(['Transform Controls']);
   // toggle back and forth between local and global transform
-  const [world, setWorld] = React.useState(false);
+  const [world, setWorld] = React.useState(true);
 
   const toggleLocal = () => {
+    transform_controls.setSpace(world ? 'local' : 'world');
     setWorld(!world);
   };
 
   return (
     <div>
-      <Button className="ViewerWindow-iconbutton" variant="outlined">
+      <Button
+        className="ViewerWindow-iconbutton"
+        onClick={() => {
+          transform_controls.setMode('translate');
+        }}
+        variant="outlined"
+      >
         {/* translate */}
         <OpenWithIcon />
       </Button>
-      <Button className="ViewerWindow-iconbutton" variant="outlined">
+      <Button
+        className="ViewerWindow-iconbutton"
+        onClick={() => {
+          transform_controls.setMode('rotate');
+        }}
+        variant="outlined"
+      >
         {/* rotate */}
         <SyncOutlinedIcon />
       </Button>
@@ -182,19 +197,20 @@ export default function ViewerWindow(props) {
     cameraControls.update();
 
     transformsControls = new TransformControls(camera, renderer.domElement);
+    sceneTree.set_object_from_path(['Transform Controls'], transformsControls);
 
-    const texture = new THREE.TextureLoader().load('textures/water.jpg');
-    const geometry = new THREE.BoxGeometry(2, 2, 2);
-    const material = new THREE.MeshLambertMaterial({
-      map: texture,
-      transparent: true,
-    });
+    // const texture = new THREE.TextureLoader().load('textures/water.jpg');
+    // const geometry = new THREE.BoxGeometry(2, 2, 2);
+    // const material = new THREE.MeshLambertMaterial({
+    //   map: texture,
+    //   transparent: true,
+    // });
 
-    const mesh = new THREE.Mesh(geometry);
-    scene.add(mesh);
+    // const mesh = new THREE.Mesh(geometry);
+    // scene.add(mesh);
 
-    transformsControls.attach(mesh);
-    scene.add(transformsControls);
+    // transformsControls.attach(mesh);
+    // scene.add(transformsControls);
 
     // console.log('mesh');
     // let path = ['Mesh'];
@@ -221,7 +237,7 @@ export default function ViewerWindow(props) {
       <WebRtcWindow />
       <div className="canvas-container-main" ref={myRef} />
       <div className="ViewerWindow-buttons">
-        <TransformIcons></TransformIcons>
+        <TransformIcons sceneTree={sceneTree}></TransformIcons>
       </div>
     </>
   );

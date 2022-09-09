@@ -166,14 +166,51 @@ $sidebar-width: 100% !default;
 // ------------------------------------
 // Camera Pane
 
-#CameraPanel-add-camera-button {
+.CameraPanel {
+}
+
+.CameraPanel-top-button {
+  display: inline-block;
   margin: 4px;
+  margin-top: 8px;
+}
+
+.CameraPanel-slider-container {
+  margin-top: 40px;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.CameraPanel-slider-button-container {
+  margin-bottom: 10px;
+
+  button {
+    margin: 4px;
+  }
+}
+
+.CameraList-container {
+  position: relative;
+  height: 600px;
+  overflow: scroll;
+  border: solid 1px $highlight-color1;
+  padding: 2px;
 }
 
 .CameraList-row {
   padding: 4px;
-  border: solid 0.1px $highlight-color1;
+  border: solid 1px $highlight-color1;
   text-align: left;
+}
+
+.CameraList-row-buttons {
+  display: inline-block;
+  float: right;
+}
+
+.CameraList-row-time-interval {
+  text-align: center;
+  margin: 10px;
 }
 
 // ------------------------------------

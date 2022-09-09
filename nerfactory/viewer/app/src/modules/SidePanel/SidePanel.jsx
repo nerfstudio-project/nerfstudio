@@ -119,17 +119,11 @@ interface BasicTabsProps {
 export function BasicTabs(props: BasicTabsProps) {
   const sceneTree = props.sceneTree;
 
-  const [value, setValue] = React.useState(0);
+  const [value, setValue] = React.useState(2);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
-
-  // set the panel pane index
-  useEffect(() => {
-    const panel_index = 0;
-    setValue(panel_index);
-  }, []);
 
   return (
     <div>
