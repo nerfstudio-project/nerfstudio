@@ -79,6 +79,9 @@ pip install -e .
 # Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
+# Experimental: install tab completion for nerfactory (bash & zsh)
+python scripts/completions/configure.py install
+
 # Run the test cases
 pytest tests
 ```
