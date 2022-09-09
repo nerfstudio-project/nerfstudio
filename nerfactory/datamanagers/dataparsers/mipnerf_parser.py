@@ -21,7 +21,6 @@ import imageio
 import numpy as np
 import torch
 
-import nerfactory.utils.poses as pose_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataparsers.base import DataParser
@@ -51,15 +50,17 @@ class Mipnerf360(DataParser):
             poses: Numpy array of poses.
         """
         poses_orig = poses.copy()
+        bottom = np.reshape([0, 0, 0, 1.0], [1, 4])
         center = poses[:, :3, 3].mean(0)
         vec2 = poses[:, :3, 2].sum(0) / np.linalg.norm(poses[:, :3, 2].sum(0))
         up = poses[:, :3, 1].sum(0)
         vec0 = np.cross(up, vec2) / np.linalg.norm(np.cross(up, vec2))
         vec1 = np.cross(vec2, vec0) / np.linalg.norm(np.cross(vec2, vec0))
         c2w = np.stack([vec0, vec1, vec2, center], -1)  # [3, 4]
-        c2w = pose_utils.to4x4(c2w)
-        poses = pose_utils.to4x4(poses[:, :3, :4])
-        poses = pose_utils.multiply(pose_utils.inverse(c2w), poses)
+        c2w = np.concatenate([c2w[:3, :4], bottom], -2)  # [4, 4]
+        bottom = np.tile(np.reshape(bottom, [1, 1, 4]), [poses.shape[0], 1, 1])  # [BS, 1, 4]
+        poses = np.concatenate([poses[:, :3, :4], bottom], -2)  # [BS, 4, 4]
+        poses = np.linalg.inv(c2w) @ poses
         poses_orig[:, :3, :4] = poses[:, :3, :4]
         return poses_orig
 

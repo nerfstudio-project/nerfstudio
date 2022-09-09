@@ -21,7 +21,6 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
-import nerfactory.utils.poses as pose_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataparsers.base import DataParser
@@ -91,10 +90,11 @@ class Record3D(DataParser):
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 0.0, -1.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
             ],
             dtype=np.float32,
         )
-        poses = pose_utils.multiply(rotation_matrix, poses)
+        poses = rotation_matrix @ poses
 
         idx_test = np.arange(num_images)[:: self.config.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
