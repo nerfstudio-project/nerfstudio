@@ -18,7 +18,7 @@ Camera Models
 import base64
 import math
 from enum import Enum, auto
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 import cv2
 import torch
