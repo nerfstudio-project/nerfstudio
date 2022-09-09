@@ -34,13 +34,8 @@ git clone git@github.com:plenoptix/nerfactory.git
 Install dependencies and nerfactory as a library
 
 ```bash
+python -m pip install --upgrade pip
 pip install -e .
-```
-
-Install library with CUDA development support. Change setup.py to `USE_CUDA = True` and then
-
-```bash
-python setup.py develop
 ```
 
 Install tiny-cuda-nn (tcnn) to use with the graph_instant_ngp.yaml config
