@@ -1,9 +1,6 @@
-# Nerfactory completions for bash
+# Nerfactory completions for bash.
 #
-# This can be sourced in your .bashrc:
-#
-#     source ~/nerfactory/scripts/completions/setup.bash
-#
+# This should generally be installed automatically by `install.py`.
 
 completions_dir="$(dirname "$BASH_SOURCE")"/bash
 

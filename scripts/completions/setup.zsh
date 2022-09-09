@@ -1,9 +1,6 @@
 # Nerfactory completions for zsh.
 #
-# This can be sourced in your .zshrc:
-#
-#     source ~/nerfactory/scripts/completions/setup.zsh
-#
+# This should generally be installed automatically by `install.py`.
 
 completions_dir="${0:a:h}"/zsh
 
