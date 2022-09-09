@@ -249,7 +249,7 @@ class VisualizerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, resize_shape=(100, 100))
+            camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene bounds (i.e., the bounding box)
@@ -390,9 +390,8 @@ class VisualizerState:
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
-        selected_output = self._apply_colormap(outputs, stuff_colors).cpu().numpy()
-        image_output = selected_output * 255
-        image = (image_output).astype("uint8")
+        selected_output = (self._apply_colormap(outputs, stuff_colors) * 255).type(torch.uint8)
+        image = selected_output.cpu().numpy()
         self.vis.set_image(image)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int) -> None:
