@@ -79,10 +79,6 @@ class Record3D(DataParser):
             image_filenames = image_filenames[idx]
             num_images = len(image_filenames)
 
-        bottom = np.reshape([0, 0, 0, 1.0], [1, 4])
-        bottom = np.tile(np.reshape(bottom, [1, 1, 4]), [poses.shape[0], 1, 1])
-        poses = np.concatenate([poses[:, :3, :4], bottom], -2).astype(np.float32)
-
         idx_test = np.arange(num_images)[:: self.config.val_skip]
         idx_train = np.array([i for i in np.arange(num_images) if i not in idx_test])
         idx = idx_train if split == "train" else idx_test
