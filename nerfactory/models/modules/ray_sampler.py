@@ -253,10 +253,6 @@ class PDFSampler(Sampler):
         self.include_original = include_original
         self.histogram_padding = histogram_padding
 
-<<<<<<< HEAD
-    # @torch.no_grad()
-=======
->>>>>>> 3a142324446388813f48f0b7b5e419f82ebdc056
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
