@@ -41,14 +41,6 @@ class Model(nn.Module):
     subclassed for custom NeRF model.
 
     TODO:
-
-    Args:
-        scene_bounds: Bounds of target scene.
-        loss_coefficients: Loss specific weights.
-        enable_collider: Whether to create a scene collider to filter rays.
-        collider_config: Configuration of scene collider.
-        enable_density_field: Whether to create a density field to filter samples.
-        density_field_config: Configuration of density field.
     """
 
     config: cfg.ModelConfig

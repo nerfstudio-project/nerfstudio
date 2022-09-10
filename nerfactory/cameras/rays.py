@@ -48,15 +48,15 @@ class Frustums(TensorDataclass):
         """Calulates "center" position of frustum. Not weighted by mass.
 
         Returns:
-            TensorType[..., 3]: xyz positions.
+            xyz positions.
         """
         return self.origins + self.directions * (self.starts + self.ends) / 2
 
     def get_gaussian_blob(self) -> Gaussians:
-        """Calculates of guassian approximation of conical frustum.
+        """Calculates guassian approximation of conical frustum.
 
         Resturns:
-            Gaussians: Conical frustums approximated by gaussian distribution.
+            Conical frustums approximated by gaussian distribution.
         """
         # Cone radius is set such that the square pixel_area matches the cone area.
         cone_radius = torch.sqrt(self.pixel_area) / 1.7724538509055159  # r = sqrt(pixel_area / pi)
@@ -73,7 +73,7 @@ class Frustums(TensorDataclass):
         """Helper function to generate a placeholder frustum.
 
         Returns:
-            Frustums: A size 1 frustum with meaningless values.
+            A size 1 frustum with meaningless values.
         """
         return Frustums(
             origins=torch.ones((1, 3)).to(device),
@@ -93,7 +93,7 @@ class RaySamples(TensorDataclass):
         camera_indices: Camera index.
         valid_mask: Rays that are valid.
         deltas: "width" of each sample.
-        ts: sample-camera distance of each sample.
+        metadata: addtional information relevant to generating ray samples
     """
 
     frustums: Frustums
@@ -106,10 +106,10 @@ class RaySamples(TensorDataclass):
         """Return weights based on predicted densities
 
         Args:
-            densities (TensorType[..., "num_samples", 1]): Predicted densities for samples along ray
+            densities: Predicted densities for samples along ray
 
         Returns:
-            TensorType[..., "num_samples", 1]: Weights for each sample
+            Weights for each sample
         """
 
         delta_density = self.deltas * densities
@@ -134,14 +134,18 @@ class RaySamples(TensorDataclass):
         return weights
 
     def set_valid_mask(self, valid_mask: TensorType[..., "num_samples"]) -> None:
-        """Sets valid mask"""
+        """Sets valid mask
+
+        Args:
+            valid_mask: the mask to use
+        """
         self.valid_mask = valid_mask
 
     def apply_masks(self) -> "RaySamples":
         """Use valid_mask to mask samples.
 
         Returns:
-            RaySamples: New set of masked samples.
+            New set of masked samples.
         """
         if self.valid_mask is not None:
             return self[self.valid_mask[..., 0]]
@@ -179,7 +183,7 @@ class RayBundle(TensorDataclass):
         """Sets all of the the camera indices to a specific camera index.
 
         Args:
-            camera_index (int): Camera index.
+            camera_index: Camera index.
         """
         self.camera_indices = torch.ones_like(self.origins[..., 0:1]).long() * camera_index
 
@@ -191,10 +195,10 @@ class RayBundle(TensorDataclass):
         """Returns a RayBundle as a subset of rays.
 
         Args:
-            num_rays (int): Number of rays in output RayBundle
+            num_rays: Number of rays in output RayBundle
 
         Returns:
-            RayBundle: RayBundle with subset of rays.
+            RayBundle with subset of rays.
         """
         assert num_rays <= len(self)
         indices = random.sample(range(len(self)), k=num_rays)
@@ -204,11 +208,11 @@ class RayBundle(TensorDataclass):
         """Flattens RayBundle and extracts chunk given start and end indicies.
 
         Args:
-            start_idx (int): Start index of RayBundle chunk.
-            end_idx (int): End index of RayBundle chunk.
+            start_idx: Start index of RayBundle chunk.
+            end_idx: End index of RayBundle chunk.
 
         Returns:
-            RayBundle: Flattened RayBundle with end_idx-start_idx rays.
+            Flattened RayBundle with end_idx-start_idx rays.
 
         """
         return self.flatten()[start_idx:end_idx]
@@ -216,17 +220,14 @@ class RayBundle(TensorDataclass):
     def get_ray_samples(
         self, bin_starts: TensorType["bs":..., "num_samples", 1], bin_ends: TensorType["bs":..., "num_samples", 1]
     ) -> RaySamples:
-        """Produces samples for each ray by projection points along the ray direction.
-
-        Currently samples uniformly.
-
+        """Produces samples for each ray by projection points along the ray direction. Currently samples uniformly.
 
         Args:
-            bin_starts (TensorType[..., "num_samples", 1]): Distance from origin to start of bin.
-            bin_ends (TensorType[..., "num_samples", 1]): Distance from origin to end of bin.
+            bin_starts: Distance from origin to start of bin.
+            bin_ends: Distance from origin to end of bin.
 
         Returns:
-            RaySamples: Samples projected along ray.
+            Samples projected along ray.
         """
         device = self.origins.device
 

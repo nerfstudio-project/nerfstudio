@@ -30,7 +30,11 @@ T = TypeVar("T")
 def cli_from_base_configs(base_library: Dict[str, T]) -> T:
     """Populate an instance of `cls`, where the first positional argument is used to
     select from a library of named base configs. See
-    https://brentyi.github.io/dcargs/examples/06_base_configs/ for more details."""
+    https://brentyi.github.io/dcargs/examples/06_base_configs/ for more details.
+
+    Args:
+        base_library: the full library of configs to load from
+    """
 
     # Get base configuration name from the first positional argument.
     if len(sys.argv) < 2 or sys.argv[1] not in base_library:

@@ -201,7 +201,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     under the hood. We may clean this up a little bit under the hood with more standard dataloading
     components that can be strung together, but it can be just used as a black box for now since
     only the constructor is likely to change in the future, or maybe passing in step number to the
-    next_train and next_eval functions."""
+    next_train and next_eval functions.
+
+    Args:
+        config: the DataManagerConfig used to instantiate class
+    """
 
     config: cfg.VanillaDataManagerConfig
 

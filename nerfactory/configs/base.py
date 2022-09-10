@@ -77,7 +77,15 @@ class InstantiateConfig(PrintableConfig):  # pylint: disable=too-few-public-meth
 # Machine related configs
 @dataclass
 class MachineConfig(PrintableConfig):
-    """Configuration of machine setup"""
+    """Configuration of machine setup
+
+    Args:
+        seed: random seed initilization
+        num_gpus: total number of gpus available for train/eval
+        num_machines: total number of distributed machines available (for DDP)
+        machine_rank: current machine's rank (for DDP)
+        dist_url: distributed connection point (for DDP)
+    """
 
     seed: int = 42
     num_gpus: int = 1
@@ -89,7 +97,14 @@ class MachineConfig(PrintableConfig):
 # Logging related configs
 @dataclass
 class TensorboardWriterConfig(InstantiateConfig):
-    """Tensorboard Writer config"""
+    """Tensorboard Writer config
+
+    Args:
+        _target: target class to instantiate
+        enable: if True enables tensorboard logging, else disables
+        relative_log_dir: relative path to save all tensorboard events
+        log_dir: auto populated absolute path to saved tensorboard events [Do not set!]
+    """
 
     _target: Type = writer.TensorboardWriter
     enable: bool = False
@@ -99,7 +114,14 @@ class TensorboardWriterConfig(InstantiateConfig):
 
 @dataclass
 class WandbWriterConfig(InstantiateConfig):
-    """WandDB Writer config"""
+    """WandDB Writer config
+
+    Args:
+        _target: target class to instantiate
+        enable: if True enables wandb logging, else disables
+        relative_log_dir: relative path to save all wandb events
+        log_dir: auto populated absolute path to saved wandb events [Do not set!]
+    """
 
     _target: Type = writer.WandbWriter
     enable: bool = False
@@ -109,7 +131,16 @@ class WandbWriterConfig(InstantiateConfig):
 
 @dataclass
 class LocalWriterConfig(InstantiateConfig):
-    """Local Writer config"""
+    """Local Writer config
+
+    Args:
+        _target: target class to instantiate
+        enable: if True enables local logging, else disables
+        stats_to_track: specifies which stats will be logged/printed to terminal
+        max_log_size: maximum number of rows to print before wrapping. if 0, will print everything.
+        relative_log_dir: relative local path to save all events
+        log_dir: auto populated absolute local path to saved events [Do not set!]
+    """
 
     _target: Type = writer.LocalWriter
     enable: bool = False
@@ -135,7 +166,16 @@ class LocalWriterConfig(InstantiateConfig):
 
 @dataclass
 class LoggingConfig(PrintableConfig):
-    """Configuration of loggers and profilers"""
+    """Configuration of loggers and profilers
+
+    Args:
+        steps_per_log: number of steps between logging stats
+        max_buffer_size: maximum history size to keep for computing running averages of stats.
+            e.g. if 20, averages will be computed over past 20 occurances.
+        writer: list of all supported writers. Can turn on/off writers by specifying enable.
+        enable_profiler: whether to enable profiling code; prints speed of functions at the end of a program.
+            profiler logs run times of functions and prints at end of training
+    """
 
     steps_per_log: int = 10
     max_buffer_size: int = 20
@@ -144,14 +184,25 @@ class LoggingConfig(PrintableConfig):
         WandbWriterConfig(enable=False),
         LocalWriterConfig(enable=True),
     )
-    # profiler logs run times of functions and prints at end of training
     enable_profiler: bool = True
 
 
 # Trainer related configs
 @dataclass
 class TrainerConfig(PrintableConfig):
-    """Configuration for training regimen"""
+    """Configuration for training regimen
+
+    Args:
+        steps_per_save: number of steps between saves
+        steps_per_test: number of steps between eval
+        max_num_iterations: maximum number of iterations to run
+        mixed_precision: whether or not to use mixed precision for training
+        relative_model_dir: relative path to save all checkpoints
+        model_dir: auto populated absolute path to saved checkpoints [Do not set!]
+        load_dir: optionally specify a pre-trained model directory to load from
+        load_step: optionally specify model step to load from; if none, will find most recent model in load_dir
+        load_config: optionally specify a pre-defined config to load from
+    """
 
     steps_per_save: int = 1000
     steps_per_test: int = 500
@@ -168,14 +219,27 @@ class TrainerConfig(PrintableConfig):
 # Dataset related configs
 @dataclass
 class DataParserConfig(InstantiateConfig):
-    """Basic dataset config"""
+    """Basic dataset config
+
+    Args:
+        _target: target class to instantiate
+    """
 
     _target: Type = DataParser
 
 
 @dataclass
 class NerfactoryDataParserConfig(DataParserConfig):
-    """Nerfactory dataset config"""
+    """Nerfactory dataset config
+
+    Args:
+        _target: target class to instantiate
+        data_directory: directory specifying location of data
+        scale_factor: How much to scale the camera origins by.
+        downscale_factor: How much to downscale images. Defaults to 1.
+        scene_scale: How much to scale the scene. Defaults to 0.33
+        orientation_method: The method to use for orientation. Either "pca" or "up".
+    """
 
     _target: Type = Nerfactory
     data_directory: Path = Path("data/ours/posterv2")
@@ -187,7 +251,14 @@ class NerfactoryDataParserConfig(DataParserConfig):
 
 @dataclass
 class BlenderDataParserConfig(DataParserConfig):
-    """Blender dataset config"""
+    """Blender dataset config
+
+    Args:
+        _target: target class to instantiate
+        data_directory: directory specifying location of data
+        scale_factor: How much to scale the camera origins by.
+        alpha_color: alpha color of background
+    """
 
     _target: Type = Blender
     data_directory: Path = Path("data/blender/lego")
@@ -197,7 +268,13 @@ class BlenderDataParserConfig(DataParserConfig):
 
 @dataclass
 class FriendsDataParserConfig(DataParserConfig):
-    """Friends dataset config"""
+    """Friends dataset config
+
+    Args:
+        _target: target class to instantiate
+        data_directory: directory specifying location of data
+        include_semantics: whether or not to include loading of semantics data
+    """
 
     _target: Type = Friends
     data_directory: Path = Path("data/friends/TBBT-big_living_room")
@@ -206,7 +283,16 @@ class FriendsDataParserConfig(DataParserConfig):
 
 @dataclass
 class MipNerf360DataParserConfig(DataParserConfig):
-    """Mipnerf 360 dataset config"""
+    """Mipnerf 360 dataset config
+
+    Args:
+        _target: target class to instantiate
+        data_directory: directory specifying location of data
+        downscale_factor: How much to downscale images. Defaults to 1.
+        val_skip: 1/val_skip images to use for validation. Defaults to 8.
+        auto_scale: Scale based on pose bounds. Defaults to True.
+        aabb_scale: Scene scale, Defaults to 1.0.
+    """
 
     _target: Type = Mipnerf360
     data_directory: Path = Path("data/mipnerf_360/garden")
@@ -218,7 +304,13 @@ class MipNerf360DataParserConfig(DataParserConfig):
 
 @dataclass
 class InstantNGPDataParserConfig(DataParserConfig):
-    """Instant-NGP dataset config"""
+    """Instant-NGP dataset config
+
+    Args:
+        data_directory: directory specifying location of data
+        scale_factor: How much to scale the camera origins by.
+        scene_scale: How much to scale the scene. Defaults to 0.33
+    """
 
     _target: Type = InstantNGP
     data_directory: Path = Path("data/ours/posterv2")
@@ -228,7 +320,15 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
 @dataclass
 class Record3DDataParserConfig(DataParserConfig):
-    """Mipnerf 360 dataset config"""
+    """Mipnerf 360 dataset config
+
+    Args:
+        data_directory: Location of data
+        val_skip: 1/val_skip images to use for validation. Defaults to 8.
+        aabb_scale: Scene scale, Defaults to 4.0.
+        max_dataset_size: Max number of images to train on. If the dataset has
+            more, images will be sampled approximately evenly. Defaults to 150.
+    """
 
     _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
@@ -239,7 +339,19 @@ class Record3DDataParserConfig(DataParserConfig):
 
 @dataclass
 class VanillaDataManagerConfig(InstantiateConfig):
-    """Configuration for data manager instantiation"""
+    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
+    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
+    train/eval data at each iteration
+
+    Args:
+        _target: target class to instantiate
+        train_dataparser: specifies the dataparser used to unpack the data
+        train_num_rays_per_batch: number of rays per batch to use per training iteration
+        train_num_images_to_sample_from: number of images to sample during training iteration
+        eval_dataparser: optionally specify different dataparser to use during eval; if None, uses train_dataparser
+        eval_image_indices: specifies the image indices to use during eval; if None, uses all
+        eval_num_rays_per_chunk: specifies number of rays per chunk during eval
+    """
 
     _target: Type = VanillaDataManager
     train_dataparser: DataParserConfig = BlenderDataParserConfig()
@@ -252,7 +364,12 @@ class VanillaDataManagerConfig(InstantiateConfig):
 
 @dataclass
 class FriendsDataManagerConfig(VanillaDataManagerConfig):
-    """Friends data manager config"""
+    """Friends data manager config
+
+    Args:
+        _target: target class to instantiate
+        train_dataparser: specifies the dataparser used to unpack the data
+    """
 
     _target: Type = VanillaDataManager
     train_dataparser: DataParserConfig = FriendsDataParserConfig()
@@ -261,7 +378,19 @@ class FriendsDataManagerConfig(VanillaDataManagerConfig):
 # Model related configs
 @dataclass
 class ModelConfig(InstantiateConfig):
-    """Configuration for model instantiation"""
+    """Configuration for model instantiation
+
+    Args:
+        _target: target class to instantiate
+        enable_collider: Whether to create a scene collider to filter rays.
+        collider_params: parameters to instantiate scene collider with
+        loss_coefficients: Loss specific weights.
+        num_coarse_samples: Number of samples in coarse field evaluation. Defaults to 64,
+        num_importance_samples: Number of samples in fine field evaluation. Defaults to 128,
+        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
+        enable_density_field: Whether to create a density field to filter samples.
+        density_field_params: parameters to instantiate density field with
+    """
 
     _target: Type = Model
     enable_collider: bool = True
@@ -284,19 +413,42 @@ class ModelConfig(InstantiateConfig):
 
 @dataclass
 class InstantNGPModelConfig(ModelConfig):
-    """Instant NGP Model Config"""
+    """Instant NGP Model Config
+
+    Args:
+        _target: target class to instantiate
+        enable_collider: Whether to create a scene collider to filter rays.
+        loss_coefficients: Loss specific weights.
+        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
+        enable_density_field: Whether to create a density field to filter samples.
+        num_samples: Number of samples in field evaluation. Defaults to 1024,
+    """
 
     _target: Type = NGPModel
-    enable_density_field: bool = True
     enable_collider: bool = False
-    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
+    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
+    enable_density_field: bool = True
     num_samples: int = 1024  # instead of course/fine samples
 
 
 @dataclass
 class NerfWModelConfig(ModelConfig):
-    """NerfW model config"""
+    """NerfW model config
+
+    Args:
+        _target: target class to instantiate
+        loss_coefficients: Loss specific weights.
+        num_coarse_samples: Number of samples in coarse field evaluation. Defaults to 64,
+        num_importance_samples: Number of samples in fine field evaluation. Defaults to 128,
+        uncertainty_min (float, optional): This is added to the end of the uncertainty
+                rendering operation. It's called 'beta_min' in other repos.
+                This avoids calling torch.log() on a zero value, which would be undefined.
+                Defaults to 0.03.
+        num_images: How many images exist in the dataset.
+        appearance_embedding_dim: Dimension of appearance embedding. Defaults to 48.
+        transient_embedding_dim: Dimension of transient embedding. Defaults to 16.
+    """
 
     _target: Type = NerfWModel
     loss_coefficients: Dict[str, float] = to_immutable_dict(
@@ -312,7 +464,15 @@ class NerfWModelConfig(ModelConfig):
 
 @dataclass
 class TensoRFModelConfig(ModelConfig):
-    """TensoRF model config"""
+    """TensoRF model config
+
+    Args:
+        _target: target class to instantiate
+        init_resolution: initial render resolution
+        final_resolution: final render resolution
+        upsampling_iters: specifies a list of iteration step numbers to perform upsampling
+        loss_coefficients: Loss specific weights.
+    """
 
     _target: Type = TensoRFModel
     init_resolution: int = 128
@@ -324,7 +484,13 @@ class TensoRFModelConfig(ModelConfig):
 # Pipeline related configs
 @dataclass
 class PipelineConfig(InstantiateConfig):
-    """Configuration for pipeline instantiation"""
+    """Configuration for pipeline instantiation
+
+    Args:
+        _target: target class to instantiate
+        datamanager: specifies the datamanager config
+        model: specifies the model config
+    """
 
     _target: Type = Pipeline
     datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
@@ -334,16 +500,25 @@ class PipelineConfig(InstantiateConfig):
 # Viewer related configs
 @dataclass
 class ViewerConfig(PrintableConfig):
-    """Configuration for viewer instantiation"""
+    """Configuration for viewer instantiation
+
+    Args:
+        log_filename: Filename to use for the log file. Defaults to None. If None, no log file is created.
+        enable: whether to enable viewer
+        start_train: whether to immediately start training upon loading viewer
+            if False, will just visualize dataset but you can toggle training in viewer
+        zmq_url: the zmq port to connect to for communication
+        launch_bridge_server: whether or not to launch the zmq bridge server
+        websocket_port: the default websocket port to connect to
+        num_rays_per_chunk: number of rays per chunk to render with visualizer
+    """
 
     log_filename: Optional[Path] = None
     enable: bool = False
-    train: bool = True
+    start_train: bool = True
     zmq_url: str = "tcp://127.0.0.1:6000"
     launch_bridge_server: bool = True
     websocket_port: int = 7007
-    min_render_image_height: int = 64
-    max_render_image_height: int = 1024
     num_rays_per_chunk: int = 4096
 
 

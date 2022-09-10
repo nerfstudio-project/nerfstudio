@@ -33,7 +33,12 @@ CONSOLE = Console()
 
 
 def get_semantics_and_masks(image_idx: int, semantics: Semantics):
-    """function to process additional semantics and mask information"""
+    """function to process additional semantics and mask information
+
+    Args:
+        image_idx: specific image index to work with
+        semantics: semantics data
+    """
     # handle mask
     person_index = semantics.thing_classes.index("person")
     thing_image_filename = semantics.thing_filenames[image_idx]
@@ -55,7 +60,11 @@ class Friends(DataParser):
 
     @classmethod
     def _get_aabb_and_transform(cls, basedir):
-        """Returns the aabb and pointcloud transform from the threejs.json file."""
+        """Returns the aabb and pointcloud transform from the threejs.json file.
+
+        Args:
+            basedir: base directory to load from
+        """
         filename = basedir / "threejs.json"
         assert filename.exists()
         data = load_from_json(filename)
