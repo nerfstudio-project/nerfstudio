@@ -26,7 +26,6 @@ from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 
-from nerfactory.cameras.camera_optimizers import CameraOptimizer
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataloaders import (
