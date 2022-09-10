@@ -21,10 +21,12 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
+from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataparsers.base import DataParser
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
+from nerfactory.utils import poses as pose_utils
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
@@ -90,11 +92,24 @@ class Record3D(DataParser):
         image_filenames = image_filenames[idx]
         poses = poses[idx]
 
-        # Centering poses
-        poses[:, :3, 3] = poses[:, :3, 3] - np.mean(poses[:, :3, 3], axis=0)
-        poses[:, :3, 3] /= np.max(np.abs(poses[:, :3, 3]))  # normalize poses
+        # convert to Tensors
+        poses = torch.from_numpy(poses[:, :3, :4])
 
-        camera_to_world = torch.from_numpy(poses[:, :3, :4])  # camera to world transform
+        # convert OpenGL to instantNGP coordinate system
+        rotation_matrix = torch.zeros_like(poses)
+        rotation_matrix[:, :3, :3] = torch.tensor(
+            [
+                [0.0, 0.0, 1.0],
+                [-1.0, 0.0, 0.0],
+                [0.0, -1.0, 0.0],
+            ]
+        )
+        poses = pose_utils.multiply(rotation_matrix, poses)
+        poses = camera_utils.auto_orient_poses(pose_utils.to4x4(poses), method="pca")[:, :3, :4]
+
+        # Centering poses
+        poses[:, :3, 3] = poses[:, :3, 3] - torch.mean(poses[:, :3, 3], dim=0)
+        poses = pose_utils.normalize(poses)
 
         # Camera intrinsics
         K = np.array(metadata_dict["K"]).reshape((3, 3)).T
@@ -121,7 +136,7 @@ class Record3D(DataParser):
             fy=focal_length,
             cx=cx,
             cy=cy,
-            camera_to_worlds=camera_to_world,
+            camera_to_worlds=poses,
             camera_type=CameraType.PERSPECTIVE,
         )
 
