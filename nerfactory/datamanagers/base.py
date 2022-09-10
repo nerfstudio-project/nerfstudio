@@ -26,7 +26,10 @@ from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 
+<<<<<<< HEAD
 from nerfactory.cameras.camera_optimizers import BARFOptimizer
+=======
+>>>>>>> 3a142324446388813f48f0b7b5e419f82ebdc056
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataloaders import (
@@ -251,7 +254,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
+<<<<<<< HEAD
         self.train_camera_optimizer = BARFOptimizer(self.train_input_dataset.dataset_inputs.cameras._num_cameras, self.device)  # add config stuff here?
+=======
+        self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
+            num_cameras=self.train_input_dataset.dataset_inputs.cameras.size, device=self.device
+        )
+>>>>>>> 3a142324446388813f48f0b7b5e419f82ebdc056
         self.train_ray_generator = RayGenerator(
             self.train_input_dataset.dataset_inputs.cameras.to(self.device),
             self.train_camera_optimizer,

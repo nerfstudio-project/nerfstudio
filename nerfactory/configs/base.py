@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 import dcargs
 import torch
 
+from nerfactory.cameras.camera_optimizers import BARFOptimizer, CameraOptimizer
 from nerfactory.configs.utils import to_immutable_dict
 
 # data instances
@@ -234,8 +235,24 @@ class Record3DDataParserConfig(DataParserConfig):
     _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
     val_skip: int = 8
-    aabb_scale = 4.0
+    aabb_scale: float = 4.0
     max_dataset_size: int = 150
+
+
+# Camera Optimization related configs
+@dataclass
+class CameraOptimizerConfig(InstantiateConfig):
+    """Default camera optimizer config. Note: This is a no-op class and will not optimize cameras."""
+
+    _target: Type = CameraOptimizer
+
+
+@dataclass
+class BARFPoseOptimizerConfig(CameraOptimizerConfig):
+    """BARF camera optimizer."""
+
+    _target: Type = BARFOptimizer
+    noise_variance: float = 0.01
 
 
 @dataclass
@@ -248,6 +265,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
 
     _target: Type = VanillaDataManager
     train_dataparser: DataParserConfig = BlenderDataParserConfig()
+    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
@@ -261,13 +279,6 @@ class FriendsDataManagerConfig(VanillaDataManagerConfig):
 
     _target: Type = VanillaDataManager
     train_dataparser: DataParserConfig = FriendsDataParserConfig()
-
-
-@dataclass
-class CameraOptimizedDataManagerConfig(VanillaDataManagerConfig):
-    """Vanilla data manager config with camera cptimization"""
-    _target: Type = VanillaDataManager
-    train_camera_optimizer: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
 
 
 # Model related configs
