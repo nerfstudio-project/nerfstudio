@@ -17,6 +17,7 @@ import TextField from '@mui/material/TextField';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { get_curve_object_from_cameras } from './curve';
+import { useEffect } from 'react';
 
 function set_camera_position(camera, matrix) {
   const mat = new THREE.Matrix4();
@@ -95,20 +96,18 @@ export default function CameraPanel(props) {
   const camera_main = sceneTree.find_object(['Main Camera']);
   const [cameras, setCameras] = React.useState([]);
 
+  const [slider_value, set_slider_value] = React.useState(0);
   const [is_playing, setIsPlaying] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
 
   const transform_controls = sceneTree.find_object(['Transform Controls']);
 
+  // TODO: add listener to reupdate when the Camera Path changes
+
   const add_camera = () => {
     let camera_main_copy = camera_main.clone();
-    // sceneTree.find(path.concat(['<object>'])).set_object(camera_main_copy);
     const newlist = cameras.concat(camera_main_copy);
-
-    // also draw stuff
-
-    let path = ['Camera Path'];
     camera_main_copy.far = camera_main_copy.near + 0.1;
     const helper = new THREE.CameraHelper(camera_main_copy);
     // camera
@@ -141,77 +140,79 @@ export default function CameraPanel(props) {
       .set_object(threejs_object);
   }
 
-  let marks = [];
+  const marks = [];
   for (let i = 0; i < cameras.length; i++) {
-    // let camera = cameras[i];
     marks.push({ value: i, label: i.toString() });
   }
 
-  // const marks = [
-  //   {
-  //     value: 0,
-  //     label: '0°C',
-  //   },
-  //   {
-  //     value: 0.5,
-  //     // label: '20°C',
-  //   },
-  //   {
-  //     value: 0.7,
-  //     // label: '37°C',
-  //   },
-  //   {
-  //     value: 1,
-  //     label: '100°C',
-  //   },
-  // ];
-
   const handle_slider_change = (event, value) => {
-    // console.log("event");
-    // console.log(event);
-    // console.log(value);
-
-    // create the matrix...
-    // const mat = new THREE.Matrix4();
-
-    // interpolate to get the points
-    const position = curve_object.curve_positions.getPoint(
-      value / cameras.length,
-    );
-    const up = curve_object.curve_ups.getPoint(value / cameras.length);
-    const lookat = curve_object.curve_lookats.getPoint(value / cameras.length);
-
-    // create a copy of the vector up
-    const up_copy = up.clone();
-    const cross = up_copy.cross(lookat);
-    console.log(cross);
-
-    console.log('position');
-    console.log(up);
-    console.log(position);
-    console.log(lookat);
-
-    up.normalize();
-    lookat.normalize();
-    cross.normalize();
-
-    // create the rotation matrix
-    // mat.set(
-    //   lookat.x,
-    //   lookat.y,
-
-    const mat = new THREE.Matrix4();
-    mat.set(
-      cross.x, up.x, lookat.x, position.x,
-      cross.y, up.y, lookat.y, position.y,
-      cross.z, up.z, lookat.z, position.z 
-    );
-
-    // round to the nearest integer
-    const index = Math.round(value);
-    // set_camera_position(camera_main, cameras[index].matrix);
-    set_camera_position(camera_main, mat);
+    set_slider_value(value);
   };
+
+  // when the slider changes, update the main camera position
+  useEffect(() => {
+    if (cameras.length > 1) {
+      // interpolate to get the points
+      const position = curve_object.curve_positions.getPoint(
+        slider_value / (cameras.length - 1.0),
+      );
+      const up = curve_object.curve_ups.getPoint(slider_value / cameras.length);
+      const lookat = curve_object.curve_lookats.getPoint(
+        slider_value / cameras.length,
+      );
+
+      // create a copy of the vector up
+      const up_copy = up.clone();
+      const cross = up_copy.cross(lookat);
+
+      up.normalize();
+      lookat.normalize();
+      cross.normalize();
+
+      // create the camera transform matrix
+      const mat = new THREE.Matrix4();
+      mat.set(
+        cross.x,
+        up.x,
+        lookat.x,
+        position.x,
+        cross.y,
+        up.y,
+        lookat.y,
+        position.y,
+        cross.z,
+        up.z,
+        lookat.z,
+        position.z,
+      );
+      set_camera_position(camera_main, mat);
+    }
+  }, [slider_value]);
+
+  const total_num_steps = seconds * fps;
+  const step_size = (cameras.length - 1) / total_num_steps;
+  const slider_min = 0;
+  const slider_max = Math.max(0, cameras.length - 1);
+
+  // call this function whenever slider state changes
+  useEffect(() => {
+    if (is_playing) {
+      const interval = setInterval(() => {
+        console.log(slider_value);
+        set_slider_value((prev) => prev + step_size);
+        console.log('inside set interval\n\n');
+      }, 1000 / fps);
+      return () => clearInterval(interval);
+    }
+  }, [is_playing]);
+
+  // make sure to pause if the slider reaches the end
+  useEffect(() => {
+    if (slider_value >= slider_max) {
+      set_slider_value(slider_max);
+      setIsPlaying(false);
+    }
+  }, [slider_value]);
 
   return (
     <div className="CameraPanel">
@@ -227,31 +228,59 @@ export default function CameraPanel(props) {
       </div>
       <div className="CameraPanel-slider-container">
         <Slider
-          defaultValue={0}
-          step={0.001}
-          valueLabelDisplay="auto"
+          value={slider_value}
+          step={step_size}
+          valueLabelDisplay="on"
           marks={marks}
-          min={0}
-          max={Math.max(0, cameras.length - 1)}
+          min={slider_min}
+          max={slider_max}
           disabled={cameras.length < 2}
           onChange={handle_slider_change}
-          valueLabelDisplay="on"
         />
       </div>
       <div className="CameraPanel-slider-button-container">
-        <Button variant="outlined">
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setIsPlaying(false);
+            set_slider_value(slider_min);
+          }}
+        >
           <FirstPageIcon />
         </Button>
-        <Button variant="outlined">
+        <Button
+          variant="outlined"
+          onClick={() => set_slider_value(slider_value - step_size)}
+        >
           <ArrowBackIosNewIcon />
         </Button>
-        <Button variant="outlined" onClick={() => setIsPlaying(!is_playing)}>
-          {is_playing ? <PauseIcon /> : <PlayArrowIcon />}
-        </Button>
-        <Button variant="outlined">
+
+        {!is_playing ? (
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setIsPlaying(true);
+            }}
+          >
+            <PlayArrowIcon />
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setIsPlaying(false);
+            }}
+          >
+            <PauseIcon />
+          </Button>
+        )}
+        <Button
+          variant="outlined"
+          onClick={() => set_slider_value(slider_value + step_size)}
+        >
           <ArrowForwardIosIcon />
         </Button>
-        <Button variant="outlined">
+        <Button variant="outlined" onClick={() => set_slider_value(slider_max)}>
           <LastPageIcon />
         </Button>
       </div>
