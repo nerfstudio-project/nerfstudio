@@ -19,16 +19,19 @@ Put all the method implementations in one location.
 from typing import Dict
 
 from nerfactory.configs.base import (
-    BlenderDataloaderConfig,
+    BlenderDataParserConfig,
     Config,
-    FriendsDataloaderConfig,
+    FriendsDataManagerConfig,
     InstantNGPModelConfig,
-    MipNerf360DataloaderConfig,
+    MipNerf360DataParserConfig,
     ModelConfig,
     NerfWModelConfig,
     OptimizerConfig,
     PipelineConfig,
+    SchedulerConfig,
+    TensoRFModelConfig,
     TrainerConfig,
+    VanillaDataManagerConfig,
 )
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
@@ -40,7 +43,11 @@ base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        dataloader=BlenderDataloaderConfig(train_num_rays_per_batch=8192, eval_num_rays_per_chunk=8192),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=InstantNGPModelConfig(),
     ),
     optimizers={
@@ -56,7 +63,11 @@ base_configs["mipnerf_360"] = Config(
     method_name="mipnerf_360",
     trainer=TrainerConfig(steps_per_test=200),
     pipeline=PipelineConfig(
-        dataloader=MipNerf360DataloaderConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=MipNerf360DataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=ModelConfig(
             _target=MipNerf360Model,
             collider_params={"near_plane": 0.5, "far_plane": 20.0},
@@ -70,7 +81,11 @@ base_configs["mipnerf_360"] = Config(
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
-        dataloader=BlenderDataloaderConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
         model=ModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -83,14 +98,14 @@ base_configs["mipnerf"] = Config(
 base_configs["nerfw"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
-    pipeline=PipelineConfig(dataloader=FriendsDataloaderConfig(), model=NerfWModelConfig()),
+    pipeline=PipelineConfig(datamanager=FriendsDataManagerConfig(), model=NerfWModelConfig()),
 )
 
 base_configs["semantic_nerf"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="semantic_nerf",
     pipeline=PipelineConfig(
-        dataloader=FriendsDataloaderConfig(),
+        datamanager=FriendsDataManagerConfig(),
         model=ModelConfig(
             _target=SemanticNerfModel,
             loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
@@ -102,5 +117,35 @@ base_configs["semantic_nerf"] = Config(
 
 base_configs["vanilla_nerf"] = Config(
     method_name="vanilla_nerf",
-    pipeline=PipelineConfig(dataloader=BlenderDataloaderConfig(), model=ModelConfig(_target=NeRFModel)),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+        ),
+        model=ModelConfig(_target=NeRFModel),
+    ),
+)
+
+base_configs["tensorf"] = Config(
+    method_name="tensorf",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+        ),
+        model=TensoRFModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": OptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
+        },
+        "position_encoding": {
+            "optimizer": OptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+        },
+        "direction_encoding": {
+            "optimizer": OptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+        },
+    },
 )

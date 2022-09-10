@@ -1,6 +1,6 @@
 # Models
 
-We provide a set of preimplemented nerfactory models. One of the goals of nerfactory is to modularize the various NeRF techniques as much as possible. As a result, many of the techniqes from these preimplemented models can be mixed.
+We provide a set of pre implemented nerfactory models. One of the goals of nerfactory is to modularize the various NeRF techniques as much as possible. As a result, many of the techniques from these pre-implemented models can be mixed.
 
 ## Running a model
 
@@ -12,7 +12,7 @@ python scripts/run_train.py --config-name MODEL_CONFIG
 
 ## Guides
 
-In addition to their implementations, we have provided guides that walk through each of these method. 
+In addition to their implementations, we have provided guides that walk through each of these method.
 
 ```{toctree}
     :maxdepth: 1

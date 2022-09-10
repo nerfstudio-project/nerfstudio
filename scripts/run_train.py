@@ -9,14 +9,15 @@ import traceback
 from datetime import timedelta
 from typing import Any, Callable, Optional
 
+import dcargs
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import yaml
+from rich.console import Console
 
 from nerfactory.configs import base as cfg
-from nerfactory.configs.utils import cli_from_base_configs
 from nerfactory.engine.trainer import train_loop
 from nerfactory.utils import comms, profiler
 
@@ -164,7 +165,6 @@ def launch(
                 config,
                 timeout,
             ),
-            join=False,
         )
         assert process_context is not None
         try:
@@ -182,6 +182,22 @@ def launch(
 
 def main(config: cfg.Config) -> None:
     """Main function."""
+
+    if config.trainer.load_config:
+        logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
+        config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
+
+    console = Console(width=120)
+    console.rule("Config")
+    console.print(config)
+    console.rule("")
+
+    assert config.base_dir is not None
+    config.base_dir.mkdir(parents=True, exist_ok=True)
+    config_yaml_path = config.base_dir / "config.yml"
+    logging.info(f"Saving config to: {config_yaml_path}")
+    config_yaml_path.write_text(yaml.dump(config), "utf8")
+
     launch(
         train_loop,
         config.machine.num_gpus,
@@ -193,19 +209,10 @@ def main(config: cfg.Config) -> None:
 
 
 if __name__ == "__main__":
+
     from nerfactory.configs.base_configs import base_configs
 
-    instantiated_config = cli_from_base_configs(base_configs)
-    if instantiated_config.trainer.load_config:
-        logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")
-        instantiated_config = yaml.load(instantiated_config.trainer.load_config.read_text(), Loader=yaml.Loader)
-
-    # print and save config
-    logging.info("Printing current config setup")
-    logging.info(instantiated_config)
-    assert instantiated_config.base_dir is not None
-    instantiated_config.base_dir.mkdir(parents=True, exist_ok=True)
-    config_yaml_path = instantiated_config.base_dir / "config.yml"
-    logging.info(f"Saving config to: {config_yaml_path}")
-    config_yaml_path.write_text(yaml.dump(instantiated_config), "utf8")
+    # Create a subcommand for each base config.
+    SubcommandType = dcargs.extras.subcommand_type_from_defaults(base_configs)
+    instantiated_config = dcargs.cli(SubcommandType)
     main(config=instantiated_config)

@@ -33,7 +33,6 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
@@ -41,7 +40,11 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 class NeRFModel(Model):
@@ -69,24 +72,28 @@ class NeRFModel(Model):
             **kwargs,
         )
 
-    def get_training_callbacks(self) -> List[Callback]:
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+    ) -> List[TrainingCallback]:
         if self.field_coarse is None:
             raise ValueError("populate fields must be called before get_training_callbacks.")
-
         callbacks = []
         if self.density_field is not None:
             callbacks = [
-                Callback(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                     update_every_num_iters=self.density_field.update_every_num_iters,
                     func=self.density_field.update_density_grid,
-                    density_eval_func=self.field_coarse.density_fn,
+                    kwargs={"density_eval_func": self.field_coarse.density_fn},  # type: ignore
                 )
             ]
-        return callbacks  # type: ignore
+        return callbacks
 
-    def populate_fields(self):
-        """Set the fields."""
+    def populate_modules(self):
+        """Set the fields and modules"""
+        super().populate_modules()
 
+        # fields
         position_encoding = NeRFEncoding(
             in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
         )
@@ -97,7 +104,6 @@ class NeRFModel(Model):
         self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
         self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
 
-    def populate_misc_modules(self):
         # samplers
         self.sampler_uniform = UniformSampler(
             num_samples=self.config.num_coarse_samples, density_field=self.density_field
@@ -116,12 +122,6 @@ class NeRFModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
-
-        # colliders
-        if self.config.enable_collider:
-            self.collider = NearFarCollider(
-                near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
-            )
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}

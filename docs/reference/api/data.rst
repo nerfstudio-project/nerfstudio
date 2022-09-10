@@ -3,30 +3,37 @@
 Data
 ============
 
-Image Dataset
+Data Parsers
 ----------------
 
-.. automodule:: nerfactory.dataloaders.image_dataset
+.. automodule:: nerfactory.datamanagers.dataparsers
    :members:
    :show-inheritance:
 
-Image Sampler
+Datasets
 ----------------
 
-.. automodule:: nerfactory.dataloaders.image_sampler
+.. automodule:: nerfactory.datamanagers.datasets
    :members:
    :show-inheritance:
 
-Pixel Sampler
+Dataloaders
 ----------------
 
-.. automodule:: nerfactory.dataloaders.pixel_sampler
+.. automodule:: nerfactory.datamanagers.dataloaders
+   :members:
+   :show-inheritance:
+
+Pixel Samplers
+----------------
+
+.. automodule:: nerfactory.datamanagers.pixel_sampler
    :members:
    :show-inheritance:
 
 Structures
 ----------------
 
-.. automodule:: nerfactory.dataloaders.structs
+.. automodule:: nerfactory.datamanagers.structs
    :members:
    :show-inheritance:

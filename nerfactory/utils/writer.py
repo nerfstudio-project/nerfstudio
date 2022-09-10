@@ -45,12 +45,13 @@ class EventName(enum.Enum):
     """Names of possible events that can be logged via Local Writer for convenience.
     see config/logging/default_logging.yaml"""
 
-    ITER_LOAD_TIME = "Data Load (time)"
     ITER_TRAIN_TIME = "Train Iter (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
     ITER_VIS_TIME = "Visualizer Rendering (time)"
     ETA = "ETA (time)"
-    RAYS_PER_SEC = "Rays / Sec"
+    TRAIN_RAYS_PER_SEC = "Train Rays / Sec"
+    TEST_RAYS_PER_SEC = "Test Rays / Sec"
+    VIS_RAYS_PER_SEC = "Vis Rays / Sec"
     CURR_TEST_PSNR = "Test PSNR"
 
 

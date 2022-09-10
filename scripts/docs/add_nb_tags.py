@@ -5,6 +5,9 @@ from glob import glob
 
 import dcargs
 import nbformat as nbf
+from rich.console import Console
+
+console = Console(width=120)
 
 
 def main(check: bool = False):
@@ -28,8 +31,6 @@ def main(check: bool = False):
         "# COLLAPSED": "hide-input",  # Hide the input w/ a button to show
     }
 
-    print_yellow = lambda x: print(f"\033[33m{x}\033[0m")  # print in yellow
-
     # Search through each notebook and look for the text, add a tag if necessary
     any_missing = False
     for ipath in notebooks:
@@ -46,7 +47,7 @@ def main(check: bool = False):
                     found_tags.append(val)
 
             if len(found_keys) > 1:
-                print_yellow(f"Found multiple tags {found_keys} for {ipath}")
+                console.print(f"[bold yellow]Found multiple tags {found_keys} for {ipath}")
                 sys.exit(1)
 
             if len(cell_tags) != len(found_tags):
@@ -58,14 +59,16 @@ def main(check: bool = False):
             cell["metadata"]["tags"] = found_tags
         if incorrect_metadata:
             if check:
-                print_yellow(f"{ipath} has incorrect metadata. Call `python scripts.docs.add_nb_tags.py` to add it.")
+                console.print(
+                    f"[bold yellow]{ipath} has incorrect metadata. Call `python scripts.docs.add_nb_tags.py` to add it."
+                )
                 any_missing = True
             else:
                 print(f"Adding metadata to {ipath}")
                 nbf.write(ntbk, ipath)
 
     if not any_missing:
-        print("All notebooks have correct metadata.")
+        console.print("[green]All notebooks have correct metadata.")
 
     if check and any_missing:
         sys.exit(1)

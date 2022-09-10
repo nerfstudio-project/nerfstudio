@@ -1,4 +1,4 @@
-import { button, buttonGroup, useControls } from 'leva';
+import { buttonGroup, useControls } from 'leva';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -9,13 +9,6 @@ const msgpack = require('msgpack-lite');
 export function RenderControls() {
   // connection status indicators
   const websocket = useContext(WebSocketContext).socket;
-  const isWebsocketConnected = useSelector(
-    (state) => state.websocketState.isConnected,
-  );
-  const isWebrtcConnected = useSelector(
-    (state) => state.webrtcState.isConnected,
-  );
-  const isTraining = useSelector((state) => state.renderingState.isTraining);
   const outputOptions = useSelector(
     (state) => state.renderingState.output_options,
   );
@@ -36,11 +29,6 @@ export function RenderControls() {
   );
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
-  );
-  let eval_fps = useSelector((state) => state.renderingState.eval_fps);
-  let train_eta = useSelector((state) => state.renderingState.train_eta);
-  let vis_train_ratio = useSelector(
-    (state) => state.renderingState.vis_train_ratio,
   );
 
   const dispatch = useDispatch();
@@ -141,55 +129,7 @@ export function RenderControls() {
   };
 
   const [, setControls] = useControls(
-    'Rendering Controls',
     () => ({
-      // isTraining
-      'Pause Training': button(
-        () => {
-          // write locally to store
-          dispatch({
-            type: 'write',
-            path: 'renderingState/isTraining',
-            data: false,
-          });
-          // write to server
-          const cmd = 'write';
-          const path = 'renderingState/isTraining';
-          const data = {
-            type: cmd,
-            path,
-            data: false,
-          };
-          const message = msgpack.encode(data);
-          websocket.send(message);
-        },
-        {
-          disabled: !isTraining,
-        },
-      ),
-      'Resume Training': button(
-        () => {
-          // write locally to store
-          dispatch({
-            type: 'write',
-            path: 'renderingState/isTraining',
-            data: true,
-          });
-          // write to server
-          const cmd = 'write';
-          const path = 'renderingState/isTraining';
-          const data = {
-            type: cmd,
-            path,
-            data: true,
-          };
-          const message = msgpack.encode(data);
-          websocket.send(message);
-        },
-        {
-          disabled: isTraining,
-        },
-      ),
       // output_options
       output_options: {
         label: 'Output Render',
@@ -214,17 +154,17 @@ export function RenderControls() {
         label: 'Min Res.',
         value: min_resolution,
         min: 10,
-        max: 100,
+        max: 256,
         step: 1,
         onChange: (v) => {
           set_min_resolution(v);
         },
       },
       ' ': buttonGroup({
-        '25px': () => setControls({ min_resolution: 25 }),
-        '50px': () => setControls({ min_resolution: 50 }),
-        '75px': () => setControls({ min_resolution: 75 }),
-        '100px': () => setControls({ min_resolution: 100 }),
+        '32px': () => setControls({ min_resolution: 32 }),
+        '64px': () => setControls({ min_resolution: 64 }),
+        '128px': () => setControls({ min_resolution: 128 }),
+        '256px': () => setControls({ min_resolution: 256 }),
       }),
       max_resolution: {
         label: 'Max Res.',
@@ -252,12 +192,11 @@ export function RenderControls() {
       'Train Speed': buttonGroup({
         Fast: () => setControls({ min_resolution: 10, max_resolution: 10 }),
         Balanced: () =>
-          setControls({ min_resolution: 50, max_resolution: 512 }),
-        Slow: () => setControls({ min_resolution: 100, max_resolution: 1024 }),
+          setControls({ min_resolution: 128, max_resolution: 512 }),
+        Slow: () => setControls({ min_resolution: 258, max_resolution: 1024 }),
       }),
     }),
     [
-      isTraining,
       outputOptions,
       outputChoice,
       colormapOptions,
@@ -265,44 +204,7 @@ export function RenderControls() {
       min_resolution,
       max_resolution,
       field_of_view,
-    ],
-  );
-
-  const [, setState] = useControls(
-    'Rendering Monitor',
-    () => ({
-      // WebSocket isConnected
-      // button does nothing except be an indicator
-      'WebSocket Connected': button(() => {}, {
-        disabled: !isWebsocketConnected,
-      }),
-      // webRTC isConnected
-      // button does nothing except be an indicator
-      'WebRTC Connected': button(() => {}, {
-        disabled: !isWebrtcConnected,
-      }),
-      eval_fps: {
-        label: 'Eval FPS',
-        value: eval_fps,
-        disabled: true,
-      },
-      train_eta: {
-        label: 'Train ETA',
-        value: train_eta,
-        disabled: true,
-      },
-      vis_train_ratio: {
-        label: 'Time Allocation',
-        value: vis_train_ratio,
-        disabled: true,
-      },
-    }),
-    [
-      isWebsocketConnected,
-      isWebrtcConnected,
-      eval_fps,
-      train_eta,
-      vis_train_ratio,
+      websocket, // need to re-render when websocket changes to use the new websocket
     ],
   );
 
@@ -314,7 +216,6 @@ export function RenderControls() {
     setControls({ 'Camera FoV': field_of_view });
   }, [
     setControls,
-    isTraining,
     outputOptions,
     outputChoice,
     colormapOptions,
@@ -323,27 +224,6 @@ export function RenderControls() {
     max_resolution,
     field_of_view,
   ]);
-
-  useEffect(() => {}, [setState, isWebsocketConnected, isWebrtcConnected]);
-
-  useEffect(() => {
-    websocket.addEventListener('message', (originalCmd) => {
-      // set the remote description when the offer is received
-      const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
-      if (cmd.path === '/renderingState/eval_fps') {
-        eval_fps = cmd.data;
-        setState({ eval_fps });
-      }
-      if (cmd.path === '/renderingState/train_eta') {
-        train_eta = cmd.data;
-        setState({ train_eta });
-      }
-      if (cmd.path === '/renderingState/vis_train_ratio') {
-        vis_train_ratio = cmd.data;
-        setState({ vis_train_ratio });
-      }
-    });
-  }, []);
 
   return null;
 }

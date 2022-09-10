@@ -3,6 +3,7 @@ import { split_path } from './utils';
 const initialState = {
   // the websocket connection state
   websocketState: {
+    websocket_url: 'localhost:7007',
     isConnected: false,
   },
   // the webrtc connection state
@@ -17,7 +18,7 @@ const initialState = {
     output_choice: 'rgb', // the selected output
     colormap_options: ['default'], // populated by the output choice
     colormap_choice: 'default', // the selected colormap
-    minResolution: 50,
+    minResolution: 128,
     maxResolution: 512,
     field_of_view: 80,
     eval_fps: 'Paused',

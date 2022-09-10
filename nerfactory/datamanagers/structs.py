@@ -18,13 +18,13 @@ Dataset input structures.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Cameras
-from nerfactory.cameras.rays import RayBundle
+from nerfactory.configs.utils import to_immutable_dict
 
 
 @dataclass
@@ -122,53 +122,12 @@ class DatasetInputs:
 
     image_filenames: List[Path]
     cameras: Cameras
-    downscale_factor: int = 1
-    mask_filenames: Optional[List[Path]] = None
-    depth_filenames: Optional[List[Path]] = None
-    scene_bounds: SceneBounds = SceneBounds()
-    semantics: Optional[Semantics] = None
-    point_cloud: PointCloud = PointCloud()
     alpha_color: Optional[TensorType[3]] = None
+    scene_bounds: SceneBounds = SceneBounds()
+    point_cloud: PointCloud = PointCloud()
+    # we support additional input information/formats including mask/depth/semantics.
+    additional_inputs: Dict[str, Any] = to_immutable_dict({})
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
         return vars(self)
-
-
-@dataclass
-class DataloaderOutputs:
-    """A container for data that is not specific to any dataset. It should be everything
-    needed by the renderer and loss calculation. Different datasets and models will probably
-    need to subclass from this differently, since different Field modules will require different
-    data.
-
-    Args:
-        rays (RayBundle): The rays for the image.
-        ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
-    """
-
-    rays: RayBundle  # Raybundle and the cameras will be merged into one thing in a later PR
-    cameras: torch.Tensor
-    ground_truth_pixels: Optional[TensorType["num_pixels", 3]] = None
-
-    def check_inputs(self, expected_attr: Dict):
-        """This will check to make sure that the expected attributes exist.
-
-        This will exist in any subclassed version of this"""
-        for attr in expected_attr:
-            assert hasattr(self, attr)
-
-
-@dataclass
-class ModelOutputs:
-    """A container for outputs from the model.
-
-    This will be passed into the loss function along with the base data container. It should be
-    subclassed for when your model outputs different things.
-
-    Args:
-        rays (RayBundle): The rays for the image.
-        ground_truth_pixels (TensorType["num_pixels", 3]): The ground truth pixels for the image.
-    """
-
-    rendered_pixels: Optional[TensorType["num_pixels", 3]] = None

@@ -17,7 +17,7 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 from torchtyping import TensorType
@@ -100,6 +100,7 @@ class RaySamples(TensorDataclass):
     camera_indices: Optional[TensorType["bs":..., 1]] = None
     valid_mask: Optional[TensorType["bs":..., 1]] = None
     deltas: Optional[TensorType["bs":..., 1]] = None
+    metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities
@@ -160,6 +161,7 @@ class RayBundle(TensorDataclass):
         fars: Rays Distance along ray to stop sampling
         valid_mask: Rays that are valid
         num_rays_per_chunk: Number of rays per chunk
+        metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
     """
 
     # TODO(ethan): make sure the sizes with ... are correct
@@ -171,6 +173,7 @@ class RayBundle(TensorDataclass):
     fars: Optional[TensorType[..., 1]] = None
     valid_mask: Optional[TensorType[..., 1, bool]] = None
     num_rays_per_chunk: int = 128
+    metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.
@@ -215,6 +218,8 @@ class RayBundle(TensorDataclass):
     ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction.
 
+        Currently samples uniformly.
+
 
         Args:
             bin_starts (TensorType[..., "num_samples", 1]): Distance from origin to start of bin.
@@ -235,12 +240,14 @@ class RayBundle(TensorDataclass):
         else:
             camera_indices = None
 
+        shaped_raybundle_fields = self[..., None]
+
         frustums = Frustums(
-            origins=self.origins[..., None, :],  # [..., 1, 3]
-            directions=self.directions[..., None, :],  # [..., 1, 3]
+            origins=shaped_raybundle_fields.origins,  # [..., 1, 3]
+            directions=shaped_raybundle_fields.directions,  # [..., 1, 3]
             starts=bin_starts,  # [..., N_samples, 1]
             ends=bin_ends,  # [..., N_samples, 1]
-            pixel_area=self.pixel_area[..., None, :],  # [..., 1, 1]
+            pixel_area=shaped_raybundle_fields.pixel_area,  # [..., 1, 1]
         ).to(device)
 
         ray_samples = RaySamples(
@@ -248,6 +255,7 @@ class RayBundle(TensorDataclass):
             camera_indices=camera_indices,  # [..., 1, 1]
             valid_mask=valid_mask,  # [..., N_samples, 1]
             deltas=deltas,  # [..., N_samples, 1]
+            metadata=shaped_raybundle_fields.metadata,
         )
 
         return ray_samples

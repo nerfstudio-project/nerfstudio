@@ -19,21 +19,21 @@ from __future__ import annotations
 
 import functools
 import logging
-import typing
 from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
-import torch.distributed as dist
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
-from nerfactory.dataloaders.structs import DatasetInputs
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import profiler, writer
-from nerfactory.utils.callbacks import Callback
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfactory.utils.decorators import check_main_thread
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
@@ -76,8 +76,6 @@ class Trainer:
         if self.device == "cpu":
             self.mixed_precision = False
             logging.warning("Mixed precision is disabled for CPU training.")
-        # dataset variables
-        self.dataset_inputs_train: DatasetInputs
         # model variables
         self.pipeline: Pipeline
         self.optimizers: Optimizers
@@ -89,7 +87,7 @@ class Trainer:
             banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # training callbacks
-        self.callbacks: List[Callback]
+        self.callbacks: List[TrainingCallback]
         # logging variables
         writer.setup_event_writers(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
@@ -102,38 +100,46 @@ class Trainer:
         Args:
             test_mode (bool, optional): Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = self.config.pipeline.setup(device=self.device, test_mode=test_mode)
+        self.pipeline: Pipeline = self.config.pipeline.setup(
+            device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
+        )
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 
-        if self.world_size > 1:
-            self.pipeline = typing.cast(
-                Pipeline, typing.cast(Pipeline, DDP(self.pipeline, device_ids=[self.local_rank]))
-            )
-            dist.barrier(device_ids=[self.local_rank])
-
         # TODO(ethan): do this for pipeline, not pipeline.model
-        self.callbacks = self.pipeline.model.get_training_callbacks()
+        self.callbacks = self.pipeline.get_training_callbacks(
+            TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler, pipeline=self.pipeline)
+        )
 
     def train(self) -> None:
         """Train the model."""
+        assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
+
         self.visualizer_state.init_scene(
-            image_dataset=self.pipeline.dataloader.train_image_dataset,
-            dataset_inputs=self.pipeline.dataloader.train_datasetinputs,
+            dataset=self.pipeline.datamanager.train_input_dataset, start_train=self.config.viewer.train
         )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
 
-                # Note: if visualizer used, the rendering of the visualizer will be included in the iteration train time
-                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as t:
-                    loss_metric_dict = self.train_iteration(step)
-                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as t:
-                        self.visualizer_state.update_scene(step, self.pipeline.model)
+                # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
+                with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
-                train_num_rays_per_batch = self.config.pipeline.dataloader.train_num_rays_per_batch
-                writer.put_scalar(name=EventName.RAYS_PER_SEC, scalar=train_num_rays_per_batch / t.duration, step=step)
+                    # training callbacks before the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(
+                            step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
+                        )
+
+                    loss_metric_dict = self.train_iteration(step)
+
+                    # training callbacks after the training iteration
+                    for callback in self.callbacks:
+                        callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
+
+                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
+                        self.visualizer_state.update_scene(step, self.pipeline.model)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
@@ -141,9 +147,26 @@ class Trainer:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
                 if step % self.config.trainer.steps_per_test == 0:
                     self.pipeline.get_eval_loss_dict(step=step)
+                self._update_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
 
         self._write_out_storage(num_iterations)
+
+    def _update_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
+        """Performs update on rays/sec calclation for training
+
+        Args:
+            train_t: timer object carrying time to execute total training iteration
+            vis_t: timer object carrying time to execute visualization step
+            step: current step
+        """
+        train_num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
+        writer.put_time(
+            name=EventName.TRAIN_RAYS_PER_SEC,
+            duration=train_num_rays_per_batch / (train_t.duration - vis_t.duration),
+            step=step,
+            avg_over_steps=True,
+        )
 
     def _write_out_storage(self, step: int) -> None:
         """Perform writes only during appropriate time steps
@@ -219,10 +242,7 @@ class Trainer:
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
         self.grad_scaler.update()
-
         self.optimizers.scheduler_step_all(step)
-        for callback in self.callbacks:
-            callback.after_step(step)
 
         # Merging loss and metrics dict into a single output.
         loss_dict["loss"] = loss
