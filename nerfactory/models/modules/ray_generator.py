@@ -32,7 +32,7 @@ class RayGenerator(nn.Module):
         camera_to_world: Camera to world transformation matrix.
     """
 
-    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer = CameraOptimizer()) -> None:
+    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
         super().__init__()
         self.cameras = cameras
         self.pose_optimizer = pose_optimizer

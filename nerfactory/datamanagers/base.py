@@ -251,7 +251,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = CameraOptimizer()  # add config stuff here?
+        self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
+            num_cameras=self.train_input_dataset.dataset_inputs.cameras.size, device=self.device
+        )
         self.train_ray_generator = RayGenerator(
             self.train_input_dataset.dataset_inputs.cameras.to(self.device),
             self.train_camera_optimizer,
