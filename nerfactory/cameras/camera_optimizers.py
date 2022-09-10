@@ -20,28 +20,32 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
+from typing import Optional
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
+    def __init__(self, num_cameras: int, device: torch.device) -> None:
+        super().__init__()
+        self.device = device
+        self.num_cameras = num_cameras
 
     def forward(
         self,
         indices: TensorType["num_cameras"],
     ) -> TensorType["num_cameras", 3, 4]:
-        return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op
+        return torch.eye(indices.shape[0], 4, device=self.device)[..., :3, :4]
 
 
 class BARFOptimizer(CameraOptimizer):
-    def __init__(self, num_cameras: int, noise_variance: float = 0.01) -> None:
-        super().__init__()
-        self.num_cameras = num_cameras
-        pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), noise_variance)
+    def __init__(self, num_cameras: int, device: torch.device, noise_variance: float = 0.05) -> None:
+        super().__init__(num_cameras, device)
+        pose_noise = torch.normal(torch.zeros(self.num_cameras, 6, device=device), noise_variance)
         self.pose_noise = nn.Parameter(self.exp_map(pose_noise), requires_grad=False)
-        self.pose_adjustment = nn.Embedding(self.num_cameras, 6)
+        self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
         nn.init.zeros_(self.pose_adjustment.weight)
 
     @classmethod
-    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", ...]:
+    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
         tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
         tangent_vector_ang = tangent_vector[:, 3:].view(-1, 3, 1)
 
@@ -97,7 +101,6 @@ class BARFOptimizer(CameraOptimizer):
         return ret
 
     def forward(self, indices: Optional[TensorType["num_cameras"]] = None) -> TensorType["num_cameras", 3, 4]:
-
         pose_noise = self.pose_noise[indices]
         pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])
         c2c_prime = self.compose(pose_noise, pose_adjustment)
