@@ -21,6 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
+import dcargs
 import torch
 
 from nerfactory.configs.utils import to_immutable_dict
@@ -115,8 +116,10 @@ class LocalWriterConfig(InstantiateConfig):
     enable: bool = False
     stats_to_track: Tuple[writer.EventName, ...] = (
         writer.EventName.ITER_TRAIN_TIME,
-        writer.EventName.RAYS_PER_SEC,
+        writer.EventName.TRAIN_RAYS_PER_SEC,
         writer.EventName.CURR_TEST_PSNR,
+        writer.EventName.VIS_RAYS_PER_SEC,
+        writer.EventName.TEST_RAYS_PER_SEC,
     )
     max_log_size: int = 10
     relative_log_dir: Path = Path("./")
@@ -199,6 +202,7 @@ class FriendsDataParserConfig(DataParserConfig):
 
     _target: Type = Friends
     data_directory: Path = Path("data/friends/TBBT-big_living_room")
+    include_semantics: bool = True
 
 
 @dataclass
@@ -238,11 +242,15 @@ class Record3DDataParserConfig(DataParserConfig):
 class VanillaDataManagerConfig(InstantiateConfig):
     """Configuration for data manager instantiation"""
 
+    # Note: eval_dataparser is annotated with Fixed[] to prevent dcargs from trying to
+    # convert Optional[InstantiateConfig] into subcommands for choosing between None and
+    # InstantiateConfig.
+
     _target: Type = VanillaDataManager
     train_dataparser: DataParserConfig = BlenderDataParserConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
-    eval_dataparser: Optional[InstantiateConfig] = None
+    eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     eval_num_rays_per_chunk: int = 4096
 
@@ -302,6 +310,9 @@ class NerfWModelConfig(ModelConfig):
     num_coarse_samples: int = 64
     num_importance_samples: int = 64
     uncertainty_min: float = 0.03
+    num_images: int = 10000  # TODO: don't hardcode this
+    appearance_embedding_dim: int = 48
+    transient_embedding_dim: int = 16
 
 
 @dataclass
@@ -330,13 +341,15 @@ class PipelineConfig(InstantiateConfig):
 class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
+    log_filename: Optional[Path] = None
     enable: bool = False
+    train: bool = True
     zmq_url: str = "tcp://127.0.0.1:6000"
     launch_bridge_server: bool = True
     websocket_port: int = 7007
     min_render_image_height: int = 64
     max_render_image_height: int = 1024
-    num_rays_per_chunk: int = 4096
+    num_rays_per_chunk: int = 32768
 
 
 # Optimizer related configs
@@ -399,3 +412,5 @@ class Config(PrintableConfig):
             self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
+        if self.viewer.log_filename is None:
+            self.viewer.log_filename = self.base_dir / "viewer_log_filename.txt"

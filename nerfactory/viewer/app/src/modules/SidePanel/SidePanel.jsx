@@ -15,7 +15,6 @@ import { Leva } from 'leva';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import StatusPanel from './StatusPanel';
 import SceneNode from '../../SceneNode';
@@ -40,11 +39,9 @@ function TabPanel(props: TabPanelProps) {
       // eslint-disable-next-line react/jsx-props-no-spreading
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3, padding: 0 }}>
-          <Typography component="div">{children}</Typography>
-        </Box>
-      )}
+      <Box sx={{ p: 3, padding: 0 }}>
+        <Typography component="div">{children}</Typography>
+      </Box>
     </div>
   );
 }
@@ -121,17 +118,11 @@ interface BasicTabsProps {
 export function BasicTabs(props: BasicTabsProps) {
   const sceneTree = props.sceneTree;
 
-  const [value, setValue] = React.useState(0);
+  const [value, setValue] = React.useState(2);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
   };
-
-  // set the panel pane index
-  useEffect(() => {
-    const panel_index = 0;
-    setValue(panel_index);
-  }, []);
 
   return (
     <div>
@@ -183,7 +174,7 @@ export function BasicTabs(props: BasicTabsProps) {
           </div>
         </TabPanel>
         <TabPanel value={value} index={2}>
-          <CameraPanel />
+          <CameraPanel sceneTree={sceneTree} />
         </TabPanel>
 
         <TabPanel value={value} index={3}>

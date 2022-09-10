@@ -1,11 +1,18 @@
 import * as THREE from 'three';
 
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Stats from 'stats.js';
-import { useSelector } from 'react-redux';
 import React, { useContext, useEffect, useRef } from 'react';
-import { WebSocketContext } from '../WebSocket/WebSocket';
+
+import { Button } from '@mui/material';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
+import PublicSharpIcon from '@mui/icons-material/PublicSharp';
+import Stats from 'stats.js';
+import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import { useSelector } from 'react-redux';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
 
@@ -18,9 +25,54 @@ function createStats() {
   return stats;
 }
 
+function TransformIcons(props) {
+  const sceneTree = props.sceneTree;
+  const transform_controls = sceneTree.find_object(['Transform Controls']);
+  // toggle back and forth between local and global transform
+  const [world, setWorld] = React.useState(true);
+
+  const toggleLocal = () => {
+    transform_controls.setSpace(world ? 'local' : 'world');
+    setWorld(!world);
+  };
+
+  return (
+    <div>
+      <Button
+        className="ViewerWindow-iconbutton"
+        onClick={() => {
+          transform_controls.setMode('translate');
+        }}
+        variant="outlined"
+      >
+        {/* translate */}
+        <OpenWithIcon />
+      </Button>
+      <Button
+        className="ViewerWindow-iconbutton"
+        onClick={() => {
+          transform_controls.setMode('rotate');
+        }}
+        variant="outlined"
+      >
+        {/* rotate */}
+        <SyncOutlinedIcon />
+      </Button>
+      <Button
+        className="ViewerWindow-iconbutton"
+        variant="outlined"
+        onClick={toggleLocal}
+      >
+        {world ? <PublicSharpIcon /> : <PublicOffSharpIcon />}
+      </Button>
+    </div>
+  );
+}
+
 // manages a camera and the web rtc stream...
 export default function ViewerWindow(props) {
   // eslint-disable-next-line react/prop-types
+  const sceneTree = props.sceneTree;
   const scene = props.scene;
 
   const myRef = useRef(null);
@@ -30,12 +82,14 @@ export default function ViewerWindow(props) {
   );
   const field_of_view_ref = useRef(field_of_view);
 
-  const camera = useRef(null);
   let cameraControls = null;
+  let transformsControls = null;
   let renderer = null;
   let viewportWidth = null;
   let viewportHeight = null;
   let stats = null;
+
+  const camera = sceneTree.find(['Main Camera', '<object>']).object;
 
   const getViewportWidth = () => {
     const width = myRef.current.clientWidth;
@@ -49,8 +103,8 @@ export default function ViewerWindow(props) {
   const handleResize = () => {
     viewportWidth = getViewportWidth();
     viewportHeight = getViewportHeight();
-    camera.current.aspect = viewportWidth / viewportHeight;
-    camera.current.updateProjectionMatrix();
+    camera.aspect = viewportWidth / viewportHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
   };
 
@@ -62,7 +116,7 @@ export default function ViewerWindow(props) {
       const data = {
         type: cmd,
         path,
-        data: camera.current.toJSON(),
+        data: camera.toJSON(),
       };
       const message = msgpack.encode(data);
       websocket.send(message);
@@ -71,7 +125,7 @@ export default function ViewerWindow(props) {
 
   // keep sending the camera often
   useEffect(() => {
-    const fps = 60;
+    const fps = 24;
     const interval = 1000 / fps;
     const refreshIntervalId = setInterval(sendCamera, interval);
     return () => {
@@ -82,10 +136,10 @@ export default function ViewerWindow(props) {
   const update = () => {
     requestAnimationFrame(update);
     handleResize();
-    camera.current.fov = field_of_view_ref.current;
-    camera.current.updateProjectionMatrix();
+    camera.fov = field_of_view_ref.current;
+    camera.updateProjectionMatrix();
     cameraControls.update();
-    renderer.render(scene, camera.current);
+    renderer.render(scene, camera);
     stats.update();
   };
 
@@ -97,16 +151,16 @@ export default function ViewerWindow(props) {
     stats = createStats();
     myRef.current.append(stats.domElement);
 
-    camera.current = new THREE.PerspectiveCamera(
-      field_of_view_ref.current,
-      viewportWidth / viewportHeight,
-      0.01,
-      100,
-    );
-    camera.current.position.x = 5;
-    camera.current.position.y = -5;
-    camera.current.position.z = 5;
-    camera.current.up = new THREE.Vector3(0, 0, 1);
+    // camera = new THREE.PerspectiveCamera(
+    //   field_of_view_ref.current,
+    //   viewportWidth / viewportHeight,
+    //   0.01,
+    //   100,
+    // );
+    camera.position.x = 5;
+    camera.position.y = -5;
+    camera.position.z = 5;
+    camera.up = new THREE.Vector3(0, 0, 1);
 
     renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -117,7 +171,7 @@ export default function ViewerWindow(props) {
 
     myRef.current.append(renderer.domElement);
     // add camera controls
-    cameraControls = new OrbitControls(camera.current, renderer.domElement);
+    cameraControls = new OrbitControls(camera, renderer.domElement);
     cameraControls.rotateSpeed = 2.0;
     cameraControls.zoomSpeed = 0.3;
     cameraControls.panSpeed = 0.2;
@@ -126,7 +180,16 @@ export default function ViewerWindow(props) {
     cameraControls.enableDamping = true;
     cameraControls.dampingFactor = 1.0;
     cameraControls.update();
+
+    transformsControls = new TransformControls(camera, renderer.domElement);
+    sceneTree.set_object_from_path(['Transform Controls'], transformsControls);
+
+    transformsControls.addEventListener('dragging-changed', (event) => {
+      cameraControls.enabled = !event.value;
+    });
+
     update();
+    // cameraControls.addEventListener('change', update);
   }, []);
 
   // updates the field of view inside the ref to avoid rerendering so often
@@ -139,6 +202,9 @@ export default function ViewerWindow(props) {
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
       <div className="canvas-container-main" ref={myRef} />
+      <div className="ViewerWindow-buttons">
+        <TransformIcons sceneTree={sceneTree} />
+      </div>
     </>
   );
 }

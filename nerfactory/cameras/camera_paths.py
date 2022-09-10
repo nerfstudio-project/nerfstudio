@@ -21,6 +21,7 @@ from typing import Optional, Tuple
 import torch
 
 import nerfactory.cameras.utils as camera_utils
+import nerfactory.utils.poses as pose_utils
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.utils import get_interpolated_poses_many
 
@@ -82,8 +83,7 @@ def get_spiral_path(
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
     c2w = camera.camera_to_worlds[0]
-    ones = torch.tensor([0, 0, 0, 1], device=c2w.device)[None]
-    c2wh_global = torch.cat([c2w, ones], dim=0)
+    c2wh_global = pose_utils.to4x4(c2w)
 
     local_c2whs = []
     for theta in torch.linspace(0.0, 2.0 * torch.pi * rots, steps + 1)[:-1]:
@@ -92,8 +92,7 @@ def get_spiral_path(
         )
         lookat = center - target
         c2w = camera_utils.viewmatrix(lookat, up, center)
-        ones = torch.tensor([0, 0, 0, 1], device=c2w.device)[None]
-        c2wh = torch.cat([c2w, ones], dim=0)
+        c2wh = pose_utils.to4x4(c2w)
         local_c2whs.append(c2wh)
 
     new_c2ws = []

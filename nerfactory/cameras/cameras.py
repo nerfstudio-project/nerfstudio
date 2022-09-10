@@ -18,11 +18,11 @@ Camera Models
 import base64
 import math
 from enum import Enum, auto
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 import cv2
-import numpy as np
 import torch
+import torchvision
 from torch.nn.functional import normalize
 from torchtyping import TensorType
 
@@ -34,6 +34,16 @@ class CameraType(Enum):
 
     PERSPECTIVE = auto()
     FISHEYE = auto()
+
+
+CAMERA_MODEL_TO_TYPE = {
+    "SIMPLE_PINHOLE": CameraType.PERSPECTIVE,
+    "PINHOLE": CameraType.PERSPECTIVE,
+    "SIMPLE_RADIAL": CameraType.PERSPECTIVE,
+    "RADIAL": CameraType.PERSPECTIVE,
+    "OPENCV": CameraType.PERSPECTIVE,
+    "OPENCV_FISHEYE": CameraType.FISHEYE,
+}
 
 
 class Cameras:
@@ -220,20 +230,30 @@ class Cameras:
         dy = torch.sqrt(torch.sum((directions - directions_stack[2]) ** 2, dim=-1))
         pixel_area = dx * dy
 
-        return RayBundle(origins=origins, directions=directions, pixel_area=pixel_area[..., None])
+        if not isinstance(camera_indices, torch.Tensor):
+            ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to((self._num_cameras)).to(self.device)
+        else:
+            ray_bundle_camera_indices = camera_indices
+
+        return RayBundle(
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area[..., None],
+            camera_indices=ray_bundle_camera_indices,
+        )
 
     def to_json(
         self,
         camera_idx: int,
         image: Optional[TensorType["height", "width", 2]] = None,
-        resize_shape: Optional[Tuple[int, int]] = None,
+        max_size: Optional[int] = None,
     ) -> Dict:
         """Convert a camera to a json dictionary.
 
         Args:
             camera_idx (int): Index of the camera to convert.
             image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
-            resize_shape: Shape to resize the image to. Defaults to None.
+            max_size: Max size to resize the image to. Defaults to None.
 
         Returns:
             A JSON representation of the camera
@@ -248,11 +268,14 @@ class Cameras:
             "camera_index": camera_idx,
         }
         if image is not None:
-            image_uint8 = (image * 255).detach().cpu().numpy().astype(np.uint8)
-            if resize_shape:
-                image_uint8 = cv2.resize(image_uint8, resize_shape)
-            data = cv2.imencode(".png", image_uint8)[1].tobytes()
-            json_["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
+            image_uint8 = (image * 255).detach().type(torch.uint8)
+            if max_size is not None:
+                image_uint8 = image_uint8.permute(2, 0, 1)
+                image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size)  # type: ignore
+                image_uint8 = image_uint8.permute(1, 2, 0)
+            image_uint8 = image_uint8.cpu().numpy()
+            data = cv2.imencode(".jpg", image_uint8)[1].tobytes()
+            json_["image"] = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 
     def get_intrinsics_matrices(self) -> TensorType["num_cameras", 3, 3]:

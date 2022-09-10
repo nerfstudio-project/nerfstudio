@@ -18,12 +18,13 @@ Dataset input structures.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import torch
 from torchtyping import TensorType
 
 from nerfactory.cameras.cameras import Cameras
+from nerfactory.configs.utils import to_immutable_dict
 
 
 @dataclass
@@ -121,12 +122,11 @@ class DatasetInputs:
 
     image_filenames: List[Path]
     cameras: Cameras
-    mask_filenames: Optional[List[Path]] = None
-    depth_filenames: Optional[List[Path]] = None
-    scene_bounds: SceneBounds = SceneBounds()
-    semantics: Optional[Semantics] = None
-    point_cloud: PointCloud = PointCloud()
     alpha_color: Optional[TensorType[3]] = None
+    scene_bounds: SceneBounds = SceneBounds()
+    point_cloud: PointCloud = PointCloud()
+    # we support additional input information/formats including mask/depth/semantics.
+    additional_inputs: Dict[str, Any] = to_immutable_dict({})
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
