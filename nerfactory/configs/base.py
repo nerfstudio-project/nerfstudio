@@ -349,7 +349,7 @@ class ViewerConfig(PrintableConfig):
     websocket_port: int = 7007
     min_render_image_height: int = 64
     max_render_image_height: int = 1024
-    num_rays_per_chunk: int = 4096
+    num_rays_per_chunk: int = 32768
 
 
 # Optimizer related configs
