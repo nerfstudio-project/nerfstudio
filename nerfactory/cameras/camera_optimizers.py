@@ -17,11 +17,11 @@ Pose and Intrinsics Optimizers
 """
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torchtyping import TensorType
 
 
-class PoseOptimizer(nn.Module):
+class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
 
     def forward(
@@ -31,7 +31,7 @@ class PoseOptimizer(nn.Module):
         return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op
 
 
-class BARFOptimizer(PoseOptimizer):
+class BARFOptimizer(CameraOptimizer):
     def __init__(self, num_cameras: int, noise_variance: float = 0.01) -> None:
         super().__init__()
         self.num_cameras = num_cameras

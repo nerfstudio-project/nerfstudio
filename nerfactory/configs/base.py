@@ -263,6 +263,13 @@ class FriendsDataManagerConfig(VanillaDataManagerConfig):
     train_dataparser: DataParserConfig = FriendsDataParserConfig()
 
 
+@dataclass
+class CameraOptimizedDataManagerConfig(VanillaDataManagerConfig):
+    """Vanilla data manager config with camera cptimization"""
+    _target: Type = VanillaDataManager
+    train_camera_optimizer: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
+
+
 # Model related configs
 @dataclass
 class ModelConfig(InstantiateConfig):

@@ -18,7 +18,7 @@ Ray generator.
 from torch import nn
 from torchtyping import TensorType
 
-from nerfactory.cameras.camera_optimizers import PoseOptimizer
+from nerfactory.cameras.camera_optimizers import CameraOptimizer
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 
@@ -32,7 +32,7 @@ class RayGenerator(nn.Module):
         camera_to_world: Camera to world transformation matrix.
     """
 
-    def __init__(self, cameras: Cameras, pose_optimizer: PoseOptimizer = PoseOptimizer()) -> None:
+    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer = CameraOptimizer()) -> None:
         super().__init__()
         self.cameras = cameras
         self.pose_optimizer = pose_optimizer
