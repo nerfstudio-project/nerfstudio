@@ -16,7 +16,10 @@ import glob
 import os
 from subprocess import DEVNULL, call
 
+from rich import console
 from torch.utils.cpp_extension import load
+
+console = console.Console()
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,12 +41,15 @@ else:
 
 extra_cflags = ["-O2"]
 extra_cuda_cflags = ["-O2"]
-_C = load(
-    name="nerfactory_extension",
-    sources=sources,
-    extra_cflags=extra_cflags,
-    extra_cuda_cflags=extra_cuda_cflags,
-    verbose=True,
-)
+
+with console.status(
+    "[bold yellow]Setting up CUDA (This may take a few minutes the first time)", spinner="bouncingBall"
+):
+    _C = load(
+        name="nerfactory_extension",
+        sources=sources,
+        extra_cflags=extra_cflags,
+        extra_cuda_cflags=extra_cuda_cflags,
+    )
 
 __all__ = ["_C"]
