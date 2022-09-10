@@ -15,15 +15,9 @@
 """
 Pose and Intrinsics Optimizers
 """
-from abc import abstractclassmethod
-from enum import Enum, auto
-from typing import Dict, Optional, Tuple, Union
 
-import cv2
-import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.functional import normalize
 from torchtyping import TensorType
 
 
@@ -106,7 +100,5 @@ class BARFOptimizer(PoseOptimizer):
 
         pose_noise = self.pose_noise[indices]
         pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])
-        pose_adjusted = self.compose(pose_noise, pose_adjustment)
-
-        camera_to_world_adjusted = self.compose(c2w, pose_adjusted)
-        return camera_to_world_adjusted
+        c2c_prime = self.compose(pose_noise, pose_adjustment)
+        return c2c_prime
