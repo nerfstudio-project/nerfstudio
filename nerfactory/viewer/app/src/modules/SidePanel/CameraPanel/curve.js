@@ -2,6 +2,16 @@
 
 import * as THREE from 'three';
 
+function get_curve(list_of_3d_vectors) {
+  // TODO: add some hyperparameters to this function
+  const curve = new THREE.CatmullRomCurve3(
+    list_of_3d_vectors,
+    false,
+    'catmullrom',
+  );
+  return curve;
+}
+
 export function get_curve_object_from_cameras(cameras) {
   const positions = [];
   const lookats = [];
@@ -10,31 +20,40 @@ export function get_curve_object_from_cameras(cameras) {
   console.log(cameras);
   for (let i = 0; i < cameras.length; i++) {
     const camera = cameras[i];
+
+    const up = new THREE.Vector3(0, 1, 0); // y is up in local space
+    const lookat = new THREE.Vector3(0, 0, -1); // -z is forward in local space
+    up.applyQuaternion(camera.quaternion);
+    lookat.applyQuaternion(camera.quaternion);
+
     positions.push(camera.position);
-    // lookats.push(camera.lookat);
-    ups.push(camera.up);
+    ups.push(up);
+    lookats.push(lookat);
+
+    console.log(cameras);
+    console.log(ups);
   }
 
-  let curve = null;
-  if (positions.length < 2) {
-    curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-10, 0, 10),
-      new THREE.Vector3(-5, 5, 5),
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(5, -5, 5),
-      new THREE.Vector3(10, 0, 10),
-    ]);
-  } else {
-    curve = new THREE.CatmullRomCurve3(positions);
-  }
+  let curve_positions = null;
+  let curve_lookats = null;
+  let curve_ups = null;
+  let threejs_object = null;
 
-  const points = curve.getPoints(50);
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  curve_positions = get_curve(positions);
+  curve_lookats = get_curve(lookats);
+  curve_ups = get_curve(ups);
 
-  const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+  // const points = curve.getPoints(50);
+  // const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  // const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+  // threejs_object = new THREE.Line(geometry, material);
 
-  // Create the final object to add to the scene
-  const curveObject = new THREE.Line(geometry, material);
+  const curve_object = {
+    curve_positions: curve_positions,
+    curve_lookats: curve_lookats,
+    curve_ups: curve_ups,
+    // threejs_object: curveObject,
+  };
 
-  return curveObject;
+  return curve_object;
 }

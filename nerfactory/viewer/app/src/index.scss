@@ -208,9 +208,11 @@ $sidebar-width: 100% !default;
   float: right;
 }
 
-.CameraList-row-time-interval {
+.CameraList-row-time-interval > div {
+  display: inline-block;
   text-align: center;
   margin: 10px;
+  width: 100px;
 }
 
 // ------------------------------------
