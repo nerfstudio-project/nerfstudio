@@ -1,10 +1,6 @@
-"""Script for automatically configuring completion scripts for bash and zsh.
-
-Generates and installs completions by default, or uninstalls them if the --uninstall
-flag is passed in.
-"""
-
+"""Configuration script for setting up tab completion for nerfactory in bash and zsh."""
 import concurrent.futures
+import itertools
 import os
 import pathlib
 import random
@@ -12,7 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Literal
+from typing import List, Literal, Tuple
 
 import dcargs
 from rich.console import Console
@@ -47,6 +43,8 @@ def _generate_completion(script_path: pathlib.Path, target_dir: pathlib.Path, sh
     Returns:
         Success flag.
     """
+    # Note: the naming here is flexible we manually source all completions, but is
+    # designed to be consistent with bash/zsh standards.
     target_path = target_dir / (script_path.name if shell == "bash" else "_" + script_path.name.replace(".", "_"))
     assert not target_path.exists()
     out = subprocess.run(
@@ -54,16 +52,15 @@ def _generate_completion(script_path: pathlib.Path, target_dir: pathlib.Path, sh
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf8",
+        check=True,
     )
-    if out.returncode != 0:
-        return False
     target_path.write_text(out.stdout)
-    CONSOLE.log(f"[dim green]Wrote {shell} completions for {script_path.name} to {target_path}")
+    CONSOLE.log(f":heavy_check_mark: Wrote: {target_path}")
     return True
 
 
 def _exclamation() -> str:
-    return random.choice(["Cool", "Nice", "Neat", "Wow", "Great", "Exciting"]) + "!"
+    return random.choice(["Cool", "Nice", "Neat", "Great", "Exciting"]) + "!"
 
 
 def _update_rc(
@@ -76,23 +73,15 @@ def _update_rc(
     Args:
         completions_dir: Path to location of this script.
         shell: Shell to install completion scripts for.
+        mode: Install or uninstall completions.
     """
-
-    # Try to locate the user's bashrc or zshrc.
-    if "HOME" not in os.environ:
-        CONSOLE.log(f"[bold red]No home directory found.")
-        return
-    rc_path = pathlib.Path(os.environ["HOME"]) / f".{shell}rc"
-    if not rc_path.exists():
-        CONSOLE.log(f"[bold yellow]{rc_path.name} not found, skipping.")
-        return
 
     # Install or uninstall `source_line`.
     source_line = f"\nsource {completions_dir / 'setup'}.{shell}"
-
+    rc_path = pathlib.Path(os.environ["HOME"]) / f".{shell}rc"
     if mode == "install":
         if source_line in rc_path.read_text():
-            CONSOLE.log(f"[bold green]Completions already look installed in your {rc_path.name}. {_exclamation()}")
+            CONSOLE.log(f":call_me_hand: Completions are already installed in {rc_path}. {_exclamation()}")
             return
 
         if not Confirm.ask(f"[bold yellow]Install to {rc_path}?", default=True):
@@ -100,25 +89,51 @@ def _update_rc(
             return
 
         rc_path.write_text(rc_path.read_text() + source_line)
-        CONSOLE.log(f"[bold green]Completion installed to {rc_path}. {_exclamation()}")
+        CONSOLE.log(f":stars: Completions installed to {rc_path}. {_exclamation()} Open a new shell to try them out.")
 
     elif mode == "uninstall":
         if source_line not in rc_path.read_text():
-            CONSOLE.log(f"[bold green]No completions to uninstall from {rc_path.name}.")
+            CONSOLE.log(f":heavy_check_mark: No completions to uninstall from {rc_path.name}.")
             return
 
         if not Confirm.ask(f"[bold yellow]Uninstall from {rc_path}?", default=True):
-            CONSOLE.log(f"[bold red]Skipping uninstall for {rc_path.name}.")
+            CONSOLE.log(f"[dim red]Skipping uninstall for {rc_path.name}.")
             return
 
         rc_path.write_text(rc_path.read_text().replace(source_line, ""))
-        CONSOLE.log(f"[bold green]Completion uninstalled from {rc_path}. {_exclamation()}")
+        CONSOLE.log(f":broom: Completion uninstalled from {rc_path}. {_exclamation()}")
 
     else:
         assert_never(mode)
 
 
-def main(mode: Literal["install", "uninstall"], /):
+def main(
+    mode: Literal["install", "uninstall"],
+    shells: List[Literal["zsh", "bash"]] = ["zsh", "bash"],
+    /,
+) -> None:
+    """Main script.
+
+    Args:
+        mode: Choose between installing or uninstalling completions.
+        shells: Shell(s) to install or uninstall.
+    """
+
+    if "HOME" not in os.environ:
+        CONSOLE.log("[bold red]$HOME is not set. Exiting.")
+        return
+
+    # Try to locate the user's bashrc or zshrc.
+    shells_found = []
+    for shell in shells:
+        rc_path = pathlib.Path(os.environ["HOME"]) / f".{shell}rc"
+        if not rc_path.exists():
+            CONSOLE.log(f":eyes: {rc_path.name} not found, skipping.")
+        else:
+            CONSOLE.log(f":mag: Found {rc_path.name}!")
+            shells_found.append(shell)
+    shells = shells_found
+
     # Get scripts/ directory.
     completions_dir = pathlib.Path(__file__).absolute().parent
     scripts_dir = completions_dir.parent
@@ -127,17 +142,16 @@ def main(mode: Literal["install", "uninstall"], /):
 
     # Generate completion for each dcargs script.
     concurrent_executor = concurrent.futures.ThreadPoolExecutor()
-    shell: Literal["zsh", "bash"]
-    for shell in ("zsh", "bash"):
-
+    results = []
+    for shell in shells:
         # Get + reset target directory for each shell type.
         target_dir = completions_dir / shell
         if target_dir.exists():
             assert target_dir.is_dir()
             shutil.rmtree(target_dir, ignore_errors=True)
-            CONSOLE.log(f"[bold]Deleted existing completion directory: {target_dir}.")
+            CONSOLE.log(f":broom: Deleted existing completion directory: {target_dir}.")
 
-        # Generate completions if in install mode.
+        # Install mode: queue completion generation.
         if mode == "install":
             target_dir.mkdir()
 
@@ -147,17 +161,20 @@ def main(mode: Literal["install", "uninstall"], /):
             assert len(set(script_names)) == len(script_names)
 
             # Generate + write completion scripts.
-            with CONSOLE.status(f"[bold]Generating {shell} completions...", spinner="bouncingBall"):
-                assert all(
-                    concurrent_executor.map(
-                        lambda script_path: _generate_completion(script_path, target_dir, shell),
-                        script_paths,
-                    )
-                ), "One or more completion generations failed."
-            CONSOLE.log(f"[bold]Finish generating {shell} completions!")
+            results.append(
+                concurrent_executor.map(
+                    lambda script_path: _generate_completion(script_path, target_dir, shell),
+                    script_paths,
+                )
+            )
+
+    # Wait for all generation jobs to finish!
+    if mode == "install":
+        with CONSOLE.status(f"[bold]:writing_hand:  Generating completions...", spinner="bouncingBall"):
+            assert all(itertools.chain(*results))
 
     # Install or uninstall from bashrc/zshrc.
-    for shell in ("zsh", "bash"):
+    for shell in shells:
         _update_rc(completions_dir, shell, mode)
 
 
