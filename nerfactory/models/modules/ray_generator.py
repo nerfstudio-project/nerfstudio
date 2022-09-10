@@ -29,8 +29,8 @@ class RayGenerator(nn.Module):
     This class will store the intrinsics and extrinsics parameters of the cameras.
 
     Args:
-        intrinsics: The intrinsics parameters.
-        camera_to_world: Camera to world transformation matrix.
+        cameras: Cameras object, containing all camera information.
+        pose_optimizer: pose optimization module, for optimizing noisy camera intrisics/extrinsics.
     """
 
     def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:

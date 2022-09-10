@@ -27,14 +27,12 @@ from nerfactory.configs import base as cfg
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
-    def __init__(self, num_cameras: int, device: torch.device) -> None:
-        super().__init__()
-        self.device = device
-        self.num_cameras = num_cameras
+
+    config: cfg.CameraOptimizerConfig
 
     def __init__(
         self,
-        config: Union[cfg.CameraOptimizerConfig, cfg.InstantiateConfig],
+        config: cfg.CameraOptimizerConfig,
         num_cameras: int,
         device: int,
         **kwargs,  # pylint: disable=unused-argument
@@ -48,10 +46,19 @@ class CameraOptimizer(nn.Module):
         self,
         indices: TensorType["num_cameras"],
     ) -> TensorType["num_cameras", 3, 4]:
-        return torch.eye(indices.shape[0], 4, device=self.device)[..., :3, :4]
+        """Indexing into camera adjustments.
+
+        Args:
+            indices (TensorType["num_cameras"]):
+
+        """
+        return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op
 
 
 class BARFOptimizer(CameraOptimizer):
+
+    config: cfg.BARFPoseOptimizerConfig
+
     def __init__(self, config: cfg.BARFPoseOptimizerConfig, num_cameras: int, device: int) -> None:
         super().__init__(config, num_cameras, device)
         self.noise_variance = config.noise_variance
@@ -116,12 +123,7 @@ class BARFOptimizer(CameraOptimizer):
         ret[:, :, 3:] += se3_1[:, :, :3] @ se3_2[:, :, 3:]
         return ret
 
-<<<<<<< HEAD
-    def forward(self, indices: Optional[TensorType["num_cameras"]] = None) -> TensorType["num_cameras", 3, 4]:
-=======
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
-
->>>>>>> 3a142324446388813f48f0b7b5e419f82ebdc056
         pose_noise = self.pose_noise[indices]
         pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])
         c2c_prime = self.compose(pose_noise, pose_adjustment)
