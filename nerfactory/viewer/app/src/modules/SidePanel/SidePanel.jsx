@@ -15,7 +15,6 @@ import { Leva } from 'leva';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { useEffect } from 'react';
 import Divider from '@mui/material/Divider';
 import StatusPanel from './StatusPanel';
 import SceneNode from '../../SceneNode';

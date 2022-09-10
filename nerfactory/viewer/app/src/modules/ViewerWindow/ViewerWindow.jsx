@@ -1,25 +1,18 @@
 import * as THREE from 'three';
 
-import { Button, Slider } from '@mui/material';
 import React, { useContext, useEffect, useRef } from 'react';
 
-import DeleteIcon from '@mui/icons-material/Delete';
-import IconButton from '@mui/material/IconButton';
+import { Button } from '@mui/material';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-// https://mui.com/material-ui/material-icons/?theme=Sharp
 import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
 import PublicSharpIcon from '@mui/icons-material/PublicSharp';
-// import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
-// import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
-// import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import Stats from 'stats.js';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import { useSelector } from 'react-redux';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 import { WebSocketContext } from '../WebSocket/WebSocket';
-import { useSelector } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
 
@@ -70,7 +63,6 @@ function TransformIcons(props) {
         variant="outlined"
         onClick={toggleLocal}
       >
-        {/* global vs local space */}
         {world ? <PublicSharpIcon /> : <PublicOffSharpIcon />}
       </Button>
     </div>
@@ -90,10 +82,6 @@ export default function ViewerWindow(props) {
   );
   const field_of_view_ref = useRef(field_of_view);
 
-  // const camera = useRef(null);
-  console.log(sceneTree);
-  // let camera = sceneTree.find(['Main Camera', '<object>']).object;
-  console.log(sceneTree.find(['Main Camera', '<object>']).object);
   let cameraControls = null;
   let transformsControls = null;
   let renderer = null;
@@ -101,7 +89,7 @@ export default function ViewerWindow(props) {
   let viewportHeight = null;
   let stats = null;
 
-  let camera = sceneTree.find(['Main Camera', '<object>']).object;
+  const camera = sceneTree.find(['Main Camera', '<object>']).object;
 
   const getViewportWidth = () => {
     const width = myRef.current.clientWidth;
@@ -122,9 +110,6 @@ export default function ViewerWindow(props) {
 
   const sendCamera = () => {
     // update the camera information in the python server
-    // console.log(sceneTree.find(['Main Camera', '<object>']).object.matrix.elements);
-    // console.log(elements);
-    // console.log(camera.matrix.elements);
     if (websocket.readyState === WebSocket.OPEN) {
       const cmd = 'write';
       const path = 'renderingState/camera';
@@ -199,28 +184,9 @@ export default function ViewerWindow(props) {
     transformsControls = new TransformControls(camera, renderer.domElement);
     sceneTree.set_object_from_path(['Transform Controls'], transformsControls);
 
-    // const texture = new THREE.TextureLoader().load('textures/water.jpg');
-    // const geometry = new THREE.BoxGeometry(2, 2, 2);
-    // const material = new THREE.MeshLambertMaterial({
-    //   map: texture,
-    //   transparent: true,
-    // });
-
-    // const mesh = new THREE.Mesh(geometry);
-    // scene.add(mesh);
-
-    // transformsControls.attach(mesh);
-    // scene.add(transformsControls);
-
-    // console.log('mesh');
-    // let path = ['Mesh'];
-    // sceneTree.find(path.concat(['<object>'])).set_object(mesh);
-
-    transformsControls.addEventListener('dragging-changed', function (event) {
+    transformsControls.addEventListener('dragging-changed', (event) => {
       cameraControls.enabled = !event.value;
     });
-
-    console.log(cameraControls);
 
     update();
     // cameraControls.addEventListener('change', update);
@@ -237,7 +203,7 @@ export default function ViewerWindow(props) {
       <WebRtcWindow />
       <div className="canvas-container-main" ref={myRef} />
       <div className="ViewerWindow-buttons">
-        <TransformIcons sceneTree={sceneTree}></TransformIcons>
+        <TransformIcons sceneTree={sceneTree} />
       </div>
     </>
   );
