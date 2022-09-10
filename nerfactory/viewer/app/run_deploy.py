@@ -117,13 +117,21 @@ def main(
     run_cmd(f"""ssh {host} 'rm -rf /home/eweb0124/build'""")
     run_cmd(f"""scp -r {local_folder} {host}:/home/eweb0124/build""")
 
-    # move the build folder to the correct location
-    run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/{version}'""")
-    run_cmd(f"""ssh {host} 'mv /home/eweb0124/build {remote_folder}/{version}'""")
-
     # update the symlink of latest
-    run_cmd(f"""ssh {host} 'rm {remote_folder}/latest'""")
-    run_cmd(f"""ssh {host} 'ln -s {remote_folder}/{version} {remote_folder}/latest'""")
+    if branch_name == "master":
+
+        # move the build folder to the correct location
+        run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/{version}'""")
+        run_cmd(f"""ssh {host} 'cp -R /home/eweb0124/build {remote_folder}/{version}'""")
+
+        run_cmd(f"""ssh {host} 'rm {remote_folder}/latest'""")
+        run_cmd(f"""ssh {host} 'ln -s {remote_folder}/{version} {remote_folder}/latest'""")
+
+    # otherwise just move to some branch folder
+    else:
+        updated_branch_name = branch_name.replace("/", "-")
+        run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/branch/{updated_branch_name}'""")
+        run_cmd(f"""ssh {host} 'cp -R /home/eweb0124/build {remote_folder}/branch/{updated_branch_name}'""")
 
 
 if __name__ == "__main__":
