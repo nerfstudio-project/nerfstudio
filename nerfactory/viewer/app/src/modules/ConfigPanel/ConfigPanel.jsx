@@ -154,17 +154,17 @@ export function RenderControls() {
         label: 'Min Res.',
         value: min_resolution,
         min: 10,
-        max: 100,
+        max: 256,
         step: 1,
         onChange: (v) => {
           set_min_resolution(v);
         },
       },
       ' ': buttonGroup({
-        '25px': () => setControls({ min_resolution: 25 }),
-        '50px': () => setControls({ min_resolution: 50 }),
-        '75px': () => setControls({ min_resolution: 75 }),
-        '100px': () => setControls({ min_resolution: 100 }),
+        '32px': () => setControls({ min_resolution: 32 }),
+        '64px': () => setControls({ min_resolution: 64 }),
+        '128px': () => setControls({ min_resolution: 128 }),
+        '256px': () => setControls({ min_resolution: 256 }),
       }),
       max_resolution: {
         label: 'Max Res.',
@@ -192,8 +192,8 @@ export function RenderControls() {
       'Train Speed': buttonGroup({
         Fast: () => setControls({ min_resolution: 10, max_resolution: 10 }),
         Balanced: () =>
-          setControls({ min_resolution: 50, max_resolution: 512 }),
-        Slow: () => setControls({ min_resolution: 100, max_resolution: 1024 }),
+          setControls({ min_resolution: 128, max_resolution: 512 }),
+        Slow: () => setControls({ min_resolution: 258, max_resolution: 1024 }),
       }),
     }),
     [
