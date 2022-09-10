@@ -5,12 +5,12 @@ view_dataset.py
 import logging
 from datetime import timedelta
 
+import dcargs
 import torch
 import yaml
 from rich.console import Console
 
 from nerfactory.configs import base as cfg
-from nerfactory.configs.utils import cli_from_base_configs
 from nerfactory.viewer.server import viewer_utils
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
@@ -36,7 +36,8 @@ if __name__ == "__main__":
 
     from nerfactory.configs.base_configs import base_configs
 
-    instantiated_config = cli_from_base_configs(base_configs)
+    SubcommandType = dcargs.extras.subcommand_type_from_defaults(base_configs)
+    instantiated_config = dcargs.cli(SubcommandType)
     if instantiated_config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")
         instantiated_config = yaml.load(instantiated_config.trainer.load_config.read_text(), Loader=yaml.Loader)
