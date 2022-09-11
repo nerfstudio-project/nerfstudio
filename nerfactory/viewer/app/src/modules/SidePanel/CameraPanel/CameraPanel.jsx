@@ -225,6 +225,7 @@ export default function CameraPanel(props) {
           value={slider_value}
           step={step_size}
           valueLabelDisplay="on"
+          valueLabelFormat={slider_value.toFixed(2)}
           marks={marks}
           min={slider_min}
           max={slider_max}
@@ -282,18 +283,35 @@ export default function CameraPanel(props) {
       </div>
       <div className="CameraList-row-time-interval">
         <TextField
-          id="outlined-number"
           label="Seconds"
-          type="number"
-          onChange={(e) => setSeconds(Math.max(1, e.target.value))}
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setSeconds(e.target.value);
+            }
+          }}
           value={seconds}
+          error={seconds <= 0}
+          helperText={seconds <= 0 ? 'Required' : ''}
+          variant="standard"
         />
         <TextField
-          id="outlined-number"
           label="FPS"
-          type="number"
-          onChange={(e) => setFps(Math.max(1, e.target.value))}
+          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setFps(e.target.value);
+            }
+          }}
           value={fps}
+          error={fps <= 0}
+          helperText={fps <= 0 ? 'Required' : ''}
+          variant="standard"
         />
       </div>
       <div className="CameraList-container">
