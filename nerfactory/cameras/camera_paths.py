@@ -30,8 +30,7 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
     """Generate a camera path between two cameras.
 
     Args:
-        camera_a: The first camera.
-        camera_b: The second camera.
+        cameras: Cameras object containing intrinsics of all cameras.
         steps: The number of steps to interpolate between the two cameras.
 
     Returns:

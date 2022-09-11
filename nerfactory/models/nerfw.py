@@ -43,7 +43,11 @@ from nerfactory.utils import colors, misc, visualization, writer
 
 
 class NerfWModel(Model):
-    """NeRF-W model"""
+    """NeRF-W model
+
+    Args:
+        config: NerfW configuration to instantiate model
+    """
 
     config: cfg.NerfWModelConfig
 

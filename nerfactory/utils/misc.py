@@ -24,8 +24,12 @@ from typing import Any, Callable, Dict, Union
 import torch
 
 
-def get_dict_to_torch(stuff, device: Union[torch.device, str] = "cpu"):
-    """Set everything in the dict to the specified torch device."""
+def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu"):
+    """Set everything in the dict to the specified torch device.
+
+    Args:
+        stuff: things to convert to torch
+    """
     if isinstance(stuff, dict):
         for k, v in stuff.items():
             stuff[k] = get_dict_to_torch(v, device)
@@ -35,8 +39,12 @@ def get_dict_to_torch(stuff, device: Union[torch.device, str] = "cpu"):
     return stuff
 
 
-def get_dict_to_cpu(stuff):
-    """Set everything in the dict to CPU."""
+def get_dict_to_cpu(stuff: Any):
+    """Set everything in the dict to CPU.
+
+    Args:
+        stuff: things to place onto cpu
+    """
     if isinstance(stuff, dict):
         for k, v in stuff.items():
             stuff[k] = get_dict_to_cpu(v)
@@ -46,14 +54,19 @@ def get_dict_to_cpu(stuff):
     return stuff
 
 
-def is_not_none(var):
+def is_not_none(var: Any) -> bool:
     """Return True if the variable var is None."""
     return not isinstance(var, type(None))
 
 
 def get_masked_dict(d, mask):
     """Return a masked dictionary.
-    TODO(ethan): add more asserts/checks so this doesn't have unpredictable behavior."""
+    TODO(ethan): add more asserts/checks so this doesn't have unpredictable behavior.
+
+    Args:
+        d: dict to process
+        mask: mask to apply to values in dictionary
+    """
     masked_dict = {}
     for key, value in d.items():
         masked_dict[key] = value[mask]
@@ -62,7 +75,11 @@ def get_masked_dict(d, mask):
 
 def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
     """MD5 hash of a dictionary. Based on
-    https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html"""
+    https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html
+
+    Args:
+        dictionary: dict to process
+    """
     dhash = hashlib.md5()
     encoded = json.dumps(dictionary, sort_keys=True).encode()
     dhash.update(encoded)
@@ -79,16 +96,16 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
     for.
 
     Args:
-        new_iter (callable): function that will be called instead as the __iter__() function
-        new_next (callable): function that will be called instead as the __next__() function
-        length (int): length of the iterable. If -1, the iterable will be infinite.
+        new_iter: function that will be called instead as the __iter__() function
+        new_next: function that will be called instead as the __next__() function
+        length: length of the iterable. If -1, the iterable will be infinite.
 
 
     Attributes:
-        new_iter (callable): object's pointer to the function we are calling for __iter__()
-        new_next (callable): object's pointer to the function we are calling for __next__()
-        length (int): length of the iterable. If -1, the iterable will be infinite.
-        i (int): current index of the iterable.
+        new_iter: object's pointer to the function we are calling for __iter__()
+        new_next: object's pointer to the function we are calling for __next__()
+        length: length of the iterable. If -1, the iterable will be infinite.
+        i: current index of the iterable.
 
     """
 
@@ -112,7 +129,11 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
 
 
 def human_format(num):
-    """Format a number in a more human readable way"""
+    """Format a number in a more human readable way
+
+    Args:
+        num: number to format
+    """
     units = ["", "K", "M", "B", "T", "P"]
     k = 1000.0
     magnitude = int(floor(log(num, k)))

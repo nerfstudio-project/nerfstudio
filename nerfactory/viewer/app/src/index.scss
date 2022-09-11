@@ -234,7 +234,7 @@ $sidebar-width: 100% !default;
   object-fit: fill;
 }
 
-$viewer_button_size: 100px;
+$viewer_button_size: 50px;
 
 .ViewerWindow-buttons {
   position: absolute;
@@ -243,11 +243,9 @@ $viewer_button_size: 100px;
   right: $SidePanel-width;
   z-index: 1000;
   width: $viewer_button_size;
-  background-color: $base-color1;
+  // background-color: $base-color1;
 }
 
 .ViewerWindow-iconbutton {
-  border: solid 1px red;
-  width: 100%;
-  height: $viewer_button_size;
+  margin-top: 5px;
 }

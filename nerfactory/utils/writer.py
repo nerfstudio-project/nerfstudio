@@ -65,7 +65,12 @@ class EventType(enum.Enum):
 
 @check_main_thread
 def put_image(name, image: TensorType["H", "W", "C"], step: int):
-    """Setter function to place images into the queue to be written out"""
+    """Setter function to place images into the queue to be written out
+
+    Args:
+        image: image to write out
+        step: step associated with image
+    """
     if isinstance(name, EventName):
         name = name.value
 
@@ -74,7 +79,13 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
 
 @check_main_thread
 def put_scalar(name: str, scalar: float, step: int):
-    """Setter function to place scalars into the queue to be written out"""
+    """Setter function to place scalars into the queue to be written out
+
+    Args:
+        name: name of scalar
+        scalar: value
+        step: step associated with scalar
+    """
     if isinstance(name, EventName):
         name = name.value
 
@@ -83,17 +94,27 @@ def put_scalar(name: str, scalar: float, step: int):
 
 @check_main_thread
 def put_dict(name: str, scalar_dict: float, step: int):
-    """Setter function to place a dictionary of scalars into the queue to be written out"""
+    """Setter function to place a dictionary of scalars into the queue to be written out
+
+    Args:
+        name: name of scalar dictionary
+        scalar_dict: values to write out
+        step: step associated with dict
+    """
     EVENT_STORAGE.append({"name": name, "write_type": EventType.DICT, "event": scalar_dict, "step": step})
 
 
 @check_main_thread
 def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True, update_eta: bool = False):
-    """Setter function to place a time element into the queue to be written out
+    """Setter function to place a time element into the queue to be written out.
+    Processes the time info according to the options.
 
-    Processes the time info according to the options:
-    avg_over_steps (bool): if True, calculate and record a running average of the times
-    update_eta (bool): if True, update the ETA. should only be set for the training iterations/s
+    Args:
+        name: name of time item
+        duration: value
+        step: step associated with value
+        avg_over_steps: if True, calculate and record a running average of the times
+        update_eta: if True, update the ETA. should only be set for the training iterations/s
     """
     if isinstance(name, EventName):
         name = name.value
@@ -139,7 +160,13 @@ def write_out_storage():
 
 @check_main_thread
 def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
-    """Initialization of all event writers specified in config"""
+    """Initialization of all event writers specified in config
+
+    Args:
+        config: configuration to instantiate loggers
+        max_iter: maximum number of train iterations
+        banner_messages: list of messages to always display at bottom of screen
+    """
     for writer_type_config in config.writer:
         if writer_type_config.enable:
             if isinstance(writer_type_config, cfg.LocalWriterConfig):
@@ -164,12 +191,12 @@ class Writer:
 
     @abstractmethod
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        """_summary_
+        """method to write out image
 
         Args:
-            name (str): data identifier
-            image (TensorType["H", "W", "C"]): rendered image to write
-            step (int): the time step to log
+            name: data identifier
+            image: rendered image to write
+            step: the time step to log
         """
         raise NotImplementedError
 
@@ -178,8 +205,9 @@ class Writer:
         """Required method to write a single scalar value to the logger
 
         Args:
-            name (str): data identifier
-            step (int): the time step to log
+            name: data identifier
+            scalar: value to write out
+            step: the time step to log
         """
         raise NotImplementedError
 
@@ -188,8 +216,8 @@ class Writer:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
-            scalar_dict (dict): dictionary containing all scalar values with key names and quantities
-            step (int): the time step to log
+            scalar_dict: dictionary containing all scalar values with key names and quantities
+            step: the time step to log
         """
         for name, scalar in scalar_dict.items():
             self.write_scalar(name, scalar, step)
@@ -233,22 +261,10 @@ class WandbWriter(Writer):
         wandb.init(dir=config.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        """_summary_
-
-        Args:
-            name (str): data identifier
-            image (TensorType["H", "W", "C"]): rendered image to write
-        """
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
-        """Wandb method to write a single scalar value to the logger
-
-        Args:
-            name (str): data identifier
-            scalar (float): scalar value to write
-        """
         wandb.log({name: scalar}, step=step)
 
 
@@ -261,22 +277,10 @@ class TensorboardWriter(Writer):
         self.tb_writer = SummaryWriter(log_dir=config.log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        """_summary_
-
-        Args:
-            name (str): data identifier
-            image (TensorType["H", "W", "C"]): rendered image to write
-        """
         image = to8b(image)
         self.tb_writer.add_image(name, image, step, dataformats="HWC")
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
-        """Tensorboard method to write a single scalar value to the logger
-
-        Args:
-            name (str): data identifier
-            scalar (float): scalar value to write
-        """
         self.tb_writer.add_scalar(name, scalar, step)
 
 
@@ -284,7 +288,7 @@ def _cursorup(x: int):
     """utility tool to move the cursor up on the terminal
 
     Args:
-        x (int): amount of lines to move cursor upward
+        x: amount of lines to move cursor upward
     """
     print(f"\r\033[{x}A", end="\x1b[1K\r")
 
@@ -311,14 +315,15 @@ def _format_time(seconds):
 
 @decorate_all([check_main_thread])
 class LocalWriter(Writer):
-    """Local Writer Class"""
+    """Local Writer Class
+    TODO: migrate to prettyprint
+
+    Args:
+        config: configuration to instatiate class
+        banner_messages: list of messages to always display at bottom of screen
+    """
 
     def __init__(self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None):
-        """
-        Args:
-            stats_to_track (ListConfig): the names of stats that should be logged.
-            max_log size (int): max number of lines that will be logged to teminal.
-        """
         super().__init__(config.log_dir)
         self.stats_to_track = [name.value for name in config.stats_to_track]
         self.max_log_size = config.max_log_size
@@ -360,7 +365,12 @@ class LocalWriter(Writer):
         return latest_map, new_key
 
     def _update_header(self, latest_map, new_key):
-        """helper to handle the printing of the header labels"""
+        """helper to handle the printing of the header labels
+
+        Args:
+            latest_map: the most recent dictionary of stats that have been recorded
+            new_key: indicator whether or not there is a new key added to logger
+        """
         full_log_cond = not self.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
         capped_log_cond = self.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
         if full_log_cond or capped_log_cond:
@@ -376,7 +386,12 @@ class LocalWriter(Writer):
                 # self.has_printed = True
 
     def _print_stats(self, latest_map, padding=" "):
-        """helper to print out the stats in a readable format"""
+        """helper to print out the stats in a readable format
+
+        Args:
+            latest_map: the most recent dictionary of stats that have been recorded
+            padding: type of characters to print to pad open space
+        """
         step = GLOBAL_BUFFER["step"]
         fraction_done = step / GLOBAL_BUFFER["max_iter"]
         curr_mssg = f"{step} ({fraction_done*100:.02f}%)"

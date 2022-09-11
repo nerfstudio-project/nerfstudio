@@ -18,7 +18,7 @@ Camera transformation helper code.
 """
 
 import math
-from typing import Literal, Tuple
+from typing import List, Literal, Optional, Tuple
 
 import numpy as np
 import torch
@@ -27,80 +27,31 @@ from torchtyping import TensorType
 _EPS = np.finfo(float).eps * 4.0
 
 
-def unit_vector(data, axis=None, out=None):
+def unit_vector(data, axis: Optional[int] = None) -> np.ndarray:
     """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
-    >>> v0 = np.random.random(3)
-    >>> v1 = unit_vector(v0)
-    >>> np.allclose(v1, v0 / np.linalg.norm(v0))
-    True
-    >>> v0 = np.random.rand(5, 4, 3)
-    >>> v1 = unit_vector(v0, axis=-1)
-    >>> v2 = v0 / np.expand_dims(np.sqrt(np.sum(v0*v0, axis=2)), 2)
-    >>> np.allclose(v1, v2)
-    True
-    >>> v1 = unit_vector(v0, axis=1)
-    >>> v2 = v0 / np.expand_dims(np.sqrt(np.sum(v0*v0, axis=1)), 1)
-    >>> np.allclose(v1, v2)
-    True
-    >>> v1 = np.empty((5, 4, 3))
-    >>> unit_vector(v0, axis=1, out=v1)
-    >>> np.allclose(v1, v2)
-    True
-    >>> list(unit_vector([]))
-    []
-    >>> list(unit_vector([1]))
-    [1.0]
+
+    Args:
+        axis: the axis along which to normalize into unit vector
+        out: where to write out the data to. If None, returns a new np ndarray
     """
-    if out is None:
-        data = np.array(data, dtype=np.float64, copy=True)
-        if data.ndim == 1:
-            data /= math.sqrt(np.dot(data, data))
-            return data
-    else:
-        if out is not data:
-            out[:] = np.array(data, copy=False)
-        data = out
+    data = np.array(data, dtype=np.float64, copy=True)
+    if data.ndim == 1:
+        data /= math.sqrt(np.dot(data, data))
+        return data
     length = np.atleast_1d(np.sum(data * data, axis))
     np.sqrt(length, length)
     if axis is not None:
         length = np.expand_dims(length, axis)
     data /= length
-    if out is None:
-        return data
+    return data
 
 
-def quaternion_from_matrix(matrix, isprecise=False):
+def quaternion_from_matrix(matrix, isprecise: bool = False) -> np.ndarray:
     """Return quaternion from rotation matrix.
-    If isprecise is True, the input matrix is assumed to be a precise rotation
-    matrix and a faster algorithm is used.
-    >>> q = quaternion_from_matrix(np.identity(4), True)
-    >>> np.allclose(q, [1, 0, 0, 0])
-    True
-    >>> q = quaternion_from_matrix(np.diag([1, -1, -1, 1]))
-    >>> np.allclose(q, [0, 1, 0, 0]) or np.allclose(q, [0, -1, 0, 0])
-    True
-    >>> R = rotation_matrix(0.123, (1, 2, 3))
-    >>> q = quaternion_from_matrix(R, True)
-    >>> np.allclose(q, [0.9981095, 0.0164262, 0.0328524, 0.0492786])
-    True
-    >>> R = [[-0.545, 0.797, 0.260, 0], [0.733, 0.603, -0.313, 0],
-    ...      [-0.407, 0.021, -0.913, 0], [0, 0, 0, 1]]
-    >>> q = quaternion_from_matrix(R)
-    >>> np.allclose(q, [0.19069, 0.43736, 0.87485, -0.083611])
-    True
-    >>> R = [[0.395, 0.362, 0.843, 0], [-0.626, 0.796, -0.056, 0],
-    ...      [-0.677, -0.498, 0.529, 0], [0, 0, 0, 1]]
-    >>> q = quaternion_from_matrix(R)
-    >>> np.allclose(q, [0.82336615, -0.13610694, 0.46344705, -0.29792603])
-    True
-    >>> R = random_rotation_matrix()
-    >>> q = quaternion_from_matrix(R)
-    >>> is_same_transform(R, quaternion_matrix(q))
-    True
-    >>> R = euler_matrix(0.0, 0.0, np.pi/2.0)
-    >>> np.allclose(quaternion_from_matrix(R, isprecise=False),
-    ...                quaternion_from_matrix(R, isprecise=True))
-    True
+
+    Args:
+        matrix: rotation matrix to obtain quaternion
+        isprecise: if True, input matrix is assumed to be precise rotation matrix and a faster algorithm is used.
     """
     M = np.array(matrix, dtype=np.float64, copy=False)[:4, :4]
     if isprecise:
@@ -151,21 +102,14 @@ def quaternion_from_matrix(matrix, isprecise=False):
     return q
 
 
-def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
+def quaternion_slerp(quat0, quat1, fraction: float, spin: int = 0, shortestpath: bool = True) -> np.ndarray:
     """Return spherical linear interpolation between two quaternions.
-    >>> q0 = random_quaternion()
-    >>> q1 = random_quaternion()
-    >>> q = quaternion_slerp(q0, q1, 0)
-    >>> np.allclose(q, q0)
-    True
-    >>> q = quaternion_slerp(q0, q1, 1, 1)
-    >>> np.allclose(q, q1)
-    True
-    >>> q = quaternion_slerp(q0, q1, 0.5)
-    >>> angle = math.acos(np.dot(q0, q))
-    >>> (np.allclose(2, math.acos(np.dot(q0, q1)) / angle) or
-         np.allclose(2, math.acos(-np.dot(q0, q1)) / angle))
-    True
+    Args:
+        quat0: first quaternion
+        quat1: second quaternion
+        fraction: how much to interpolate between quat0 vs quat1 (if 0, closer to quat0; if 1, closer to quat1)
+        spin: how much of an additional spin to place on the interpolation
+        shortestpath: whether to return the short or long path to rotation
     """
     q0 = unit_vector(quat0[:4])
     q1 = unit_vector(quat1[:4])
@@ -192,17 +136,11 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     return q0
 
 
-def quaternion_matrix(quaternion):
+def quaternion_matrix(quaternion) -> np.ndarray:
     """Return homogeneous rotation matrix from quaternion.
-    >>> M = quaternion_matrix([0.99810947, 0.06146124, 0, 0])
-    >>> np.allclose(M, rotation_matrix(0.123, [1, 0, 0]))
-    True
-    >>> M = quaternion_matrix([1, 0, 0, 0])
-    >>> np.allclose(M, np.identity(4))
-    True
-    >>> M = quaternion_matrix([0, 1, 0, 0])
-    >>> np.allclose(M, np.diag([1, -1, -1, 1]))
-    True
+
+    Args:
+        quaternion: value to convert to matrix
     """
     q = np.array(quaternion, dtype=np.float64, copy=True)
     n = np.dot(q, q)
@@ -220,13 +158,12 @@ def quaternion_matrix(quaternion):
     )
 
 
-def get_interpolated_poses(poseA, poseB, steps=10):
+def get_interpolated_poses(poseA, poseB, steps: int = 10) -> List[float]:
     """Return interpolation of poses with specified number of steps.
     Args:
-        poseA
-        poseB
-    Return:
-        list of poses
+        poseA: first pose
+        poseB: second pose
+        steps: number of steps the interpolated pose path should contain
     """
 
     quatA = quaternion_from_matrix(poseA[:3, :3])
@@ -245,11 +182,14 @@ def get_interpolated_poses(poseA, poseB, steps=10):
     return posesAB
 
 
-def get_interpolated_K(KA, KB, steps=10):
+def get_interpolated_K(KA, KB, steps: int = 10) -> TensorType[3, 4]:
     """
-    Interpolate between two camera poses.
+    Returns interpolated path between two camera poses with specified number of steps.
+
     Args:
-    Returns:
+        KA: camera matrix 1
+        KB: camera matrix 2
+        steps: number of steps the interpolated pose path should contain
     """
     Ks = []
     ts = np.linspace(0, 1, steps)
@@ -288,7 +228,7 @@ def get_interpolated_poses_many(
 def get_swirl_poses(pose):
     """
     Returns a swirl around the camera poses.
-    # TODO(ethan): add parameters and make this work
+    # TODO(ethan): add parameters and make this work + add docstrings + return type
     """
     N_frames = 30 * 4
     dx = np.linspace(0, 0.03, N_frames)
@@ -302,12 +242,12 @@ def get_swirl_poses(pose):
     return poses
 
 
-def normalize(x):
+def normalize(x) -> TensorType[...]:
     """Returns a normalized vector."""
     return x / torch.linalg.norm(x)
 
 
-def viewmatrix(lookat, up, pos):
+def viewmatrix(lookat, up, pos) -> TensorType[...]:
     """Returns a camera transformation matrix.
 
     Args:
@@ -316,7 +256,7 @@ def viewmatrix(lookat, up, pos):
         pos: The position of the camera.
 
     Returns:
-        torch.Tensor: A camera transformation matrix.
+        A camera transformation matrix.
     """
     vec2 = normalize(lookat)
     vec1_avg = normalize(up)
@@ -333,7 +273,7 @@ def get_distortion_params(
     k4: float = 0.0,
     p1: float = 0.0,
     p2: float = 0.0,
-):
+) -> TensorType[...]:
     """Returns a distortion parameters matrix.
 
     Args:
@@ -349,8 +289,6 @@ def get_distortion_params(
     return torch.Tensor([k1, k2, k3, k4, p1, p2])
 
 
-# Addapted from MultiNeRF
-# https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
 def radial_and_tangential_undistort(
     coords: TensorType["num_coords":..., 2],
     distortion_params: TensorType["num_coords":..., 6],
@@ -358,6 +296,8 @@ def radial_and_tangential_undistort(
     max_iterations=10,
 ) -> TensorType["num_coords":..., 2]:
     """Computes undistorted coords given opencv distortion parameters.
+    Addapted from MultiNeRF
+    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
 
     Args:
         coords: The distorted coordinates.
@@ -389,8 +329,6 @@ def radial_and_tangential_undistort(
     return torch.stack([x, y], dim=-1)
 
 
-# Adapted from MultiNeRF:
-# https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
 def _compute_residual_and_jacobian(
     x: TensorType["num_coords":...],
     y: TensorType["num_coords":...],
@@ -406,6 +344,8 @@ def _compute_residual_and_jacobian(
     TensorType["num_coords":...],
 ]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
+    Adapted from MultiNeRF:
+    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
 
     Args:
         x: The updated x coordinates.

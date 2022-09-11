@@ -31,15 +31,7 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 
 @dataclass
 class Record3D(DataParser):
-    """Record3D Dataset
-
-    Args:
-        data_directory: Location of data
-        val_skip: 1/val_skip images to use for validation. Defaults to 8.
-        aabb_scale: Scene scale, Defaults to 4.0.
-        max_dataset_size: Max number of images to train on. If the dataset has
-            more, images will be sampled approximately evenly. Defaults to 150.
-    """
+    """Record3D Dataset"""
 
     config: cfg.Record3DDataParserConfig
 

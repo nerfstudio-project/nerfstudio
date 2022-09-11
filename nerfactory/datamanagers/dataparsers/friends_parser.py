@@ -33,7 +33,12 @@ CONSOLE = Console()
 
 
 def get_semantics_and_masks(image_idx: int, semantics: Semantics):
-    """function to process additional semantics and mask information"""
+    """function to process additional semantics and mask information
+
+    Args:
+        image_idx: specific image index to work with
+        semantics: semantics data
+    """
     # handle mask
     person_index = semantics.thing_classes.index("person")
     thing_image_filename = semantics.thing_filenames[image_idx]

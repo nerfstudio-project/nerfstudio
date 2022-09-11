@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 import React, { useContext, useEffect, useRef } from 'react';
 
-import { Button } from '@mui/material';
+import { IconButton } from '@mui/material';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
@@ -38,33 +38,33 @@ function TransformIcons(props) {
 
   return (
     <div>
-      <Button
-        className="ViewerWindow-iconbutton"
-        onClick={() => {
-          transform_controls.setMode('translate');
-        }}
-        variant="outlined"
-      >
-        {/* translate */}
-        <OpenWithIcon />
-      </Button>
-      <Button
-        className="ViewerWindow-iconbutton"
-        onClick={() => {
-          transform_controls.setMode('rotate');
-        }}
-        variant="outlined"
-      >
-        {/* rotate */}
-        <SyncOutlinedIcon />
-      </Button>
-      <Button
-        className="ViewerWindow-iconbutton"
-        variant="outlined"
-        onClick={toggleLocal}
-      >
-        {world ? <PublicSharpIcon /> : <PublicOffSharpIcon />}
-      </Button>
+      <div className="ViewerWindow-iconbutton">
+        <IconButton
+          size="large"
+          onClick={() => {
+            transform_controls.setMode('translate');
+          }}
+        >
+          {/* translate */}
+          <OpenWithIcon />
+        </IconButton>
+      </div>
+      <div className="ViewerWindow-iconbutton">
+        <IconButton
+          size="large"
+          onClick={() => {
+            transform_controls.setMode('rotate');
+          }}
+        >
+          {/* rotate */}
+          <SyncOutlinedIcon />
+        </IconButton>
+      </div>
+      <div className="ViewerWindow-iconbutton">
+        <IconButton size="large" onClick={toggleLocal}>
+          {world ? <PublicSharpIcon /> : <PublicOffSharpIcon />}
+        </IconButton>
+      </div>
     </div>
   );
 }

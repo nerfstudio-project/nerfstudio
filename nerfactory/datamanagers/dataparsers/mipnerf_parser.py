@@ -30,15 +30,7 @@ from nerfactory.utils.io import get_absolute_path
 
 @dataclass
 class Mipnerf360(DataParser):
-    """MipNeRF 360 Dataset
-
-    Args:
-        data_directory: Location of data
-        downscale_factor: How much to downscale images. Defaults to 1.
-        val_skip: 1/val_skip images to use for validation. Defaults to 8.
-        auto_scale: Scale based on pose bounds. Defaults to True.
-        aabb_scale: Scene scale, Defaults to 1.0.
-    """
+    """MipNeRF 360 Dataset"""
 
     config: cfg.MipNerf360DataParserConfig
 

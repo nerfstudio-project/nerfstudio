@@ -23,7 +23,7 @@ from nerfactory.cameras.rays import RaySamples
 def distortion_loss(
     ray_samples: RaySamples, densities: TensorType["bs":..., "num_samples", 1]
 ) -> TensorType["bs":..., 1]:
-    """Ray baserd distortion loss proposed in MipNeRF-360.
+    """Ray baserd distortion loss proposed in MipNeRF-360. Returns distortion Loss.
 
     .. math::
 
@@ -36,9 +36,6 @@ def distortion_loss(
     Args:
         ray_samples: Ray samples to compute loss over
         densities: Predicted sample densities
-
-    Returns:
-        Distortion Loss.
     """
 
     # Compute the weight at each sample location

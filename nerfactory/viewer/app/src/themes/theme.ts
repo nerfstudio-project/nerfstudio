@@ -33,12 +33,10 @@ export const appTheme = createTheme({
         },
       },
     },
-    MuiButtonBase: {
-      defaultProps: {
-        disableRipple: true, // No more ripple, on the whole application 💣!
-      },
-    },
     MuiButton: {
+      defaultProps: {
+        disableRipple: true,
+      },
       styleOverrides: {
         root: {
           '&.Mui-disabled': {
@@ -48,6 +46,19 @@ export const appTheme = createTheme({
         },
       },
     },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          color: '#eeeeee',
+          backgroundColor: '#393e46',
+          '&:hover': {
+            color: '#FFD369',
+            backgroundColor: '#555555',
+          },
+        },
+      },
+    },
+
     MuiTab: {
       styleOverrides: {
         root: {
@@ -59,6 +70,28 @@ export const appTheme = createTheme({
       styleOverrides: {
         root: {
           backgroundColor: '#555555',
+        },
+      },
+    },
+    MuiFilledInput: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#393e46',
+          '&:hover': {
+            backgroundColor: '#555555',
+          },
+        },
+      },
+    },
+    MuiInput: {
+      styleOverrides: {
+        root: {
+          '&:before': {
+            borderBottom: '2px solid #555555',
+          },
+          '&:after': {
+            borderBottom: '2px solid #FFD369',
+          },
         },
       },
     },
