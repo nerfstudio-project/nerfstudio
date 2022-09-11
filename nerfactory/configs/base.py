@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 import dcargs
 import torch
@@ -250,6 +250,12 @@ class FriendsDataParserConfig(DataParserConfig):
     """directory specifying location of data"""
     include_semantics: bool = True
     """whether or not to include loading of semantics data"""
+    downscale_factor: int = 8
+    scene_scale: float = 4.0
+    """
+    Sets the bounding cube to have edge length of this size.
+    The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
+    """
 
 
 @dataclass
@@ -266,7 +272,7 @@ class MipNerf360DataParserConfig(DataParserConfig):
     """1/val_skip images to use for validation. Defaults to 8."""
     auto_scale: bool = True
     """Scale based on pose bounds. Defaults to True."""
-    aabb_scale = 4
+    aabb_scale: float = 4
     """Scene scale, Defaults to 1.0."""
 
 
@@ -294,7 +300,7 @@ class Record3DDataParserConfig(DataParserConfig):
     """Location of data"""
     val_skip: int = 8
     """1/val_skip images to use for validation. Defaults to 8."""
-    aabb_scale = 4.0
+    aabb_scale: float = 4.0
     """Scene scale, Defaults to 4.0."""
     max_dataset_size: int = 150
     """Max number of images to train on. If the dataset has
@@ -314,7 +320,14 @@ class VanillaDataManagerConfig(InstantiateConfig):
 
     _target: Type = VanillaDataManager
     """target class to instantiate"""
-    train_dataparser: DataParserConfig = BlenderDataParserConfig()
+    train_dataparser: Union[
+        NerfactoryDataParserConfig,
+        BlenderDataParserConfig,
+        FriendsDataParserConfig,
+        MipNerf360DataParserConfig,
+        InstantNGPDataParserConfig,
+        Record3DDataParserConfig,
+    ] = BlenderDataParserConfig()
     """specifies the dataparser used to unpack the data"""
     train_num_rays_per_batch: int = 1024
     """number of rays per batch to use per training iteration"""

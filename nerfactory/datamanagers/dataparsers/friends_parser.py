@@ -58,32 +58,6 @@ class Friends(DataParser):
 
     config: cfg.FriendsDataParserConfig
 
-    @classmethod
-    def _get_aabb_and_transform(cls, basedir):
-        """Returns the aabb and pointcloud transform from the threejs.json file.
-
-        Args:
-            basedir: base directory to load from
-        """
-        filename = basedir / "threejs.json"
-        assert filename.exists()
-        data = load_from_json(filename)
-
-        # point cloud transformation
-        transposed_point_cloud_transform = np.array(data["object"]["children"][0]["matrix"]).reshape(4, 4).T
-        assert transposed_point_cloud_transform[3, 3] == 1.0
-
-        # bbox transformation
-        bbox_transform = np.array(data["object"]["children"][1]["matrix"]).reshape(4, 4).T
-        w, h, d = data["geometries"][1]["width"], data["geometries"][1]["height"], data["geometries"][1]["depth"]
-        temp = np.array([w, h, d]) / 2.0
-        bbox = np.array([-temp, temp])
-        bbox = np.concatenate([bbox, np.ones_like(bbox[:, 0:1])], axis=1)
-        bbox = (bbox_transform @ bbox.T).T[:, 0:3]
-
-        aabb = bbox  # rename to aabb because it's an axis-aligned bounding box
-        return torch.from_numpy(aabb).float(), torch.from_numpy(transposed_point_cloud_transform).float()
-
     def _generate_dataset_inputs(self, split="train"):  # pylint: disable=unused-argument
 
         abs_dir = get_absolute_path(self.config.data_directory)
@@ -91,6 +65,10 @@ class Friends(DataParser):
         cameras_json = load_from_json(abs_dir / "cameras.json")
         frames = cameras_json["frames"]
         bbox = torch.tensor(cameras_json["bbox"])
+
+        downscale_suffix = f"_{self.config.downscale_factor}" if self.config.downscale_factor != 1 else ""
+        images_folder = f"images{downscale_suffix}"
+        segmentations_folder = f"segmentations{downscale_suffix}"
 
         image_filenames = []
         fx = []
@@ -100,7 +78,7 @@ class Friends(DataParser):
         camera_to_worlds = []
         for frame in frames:
             # unpack data
-            image_filename = abs_dir / "images" / frame["image_name"]
+            image_filename = abs_dir / images_folder / frame["image_name"]
             intrinsics = torch.tensor(frame["intrinsics"])
             camtoworld = torch.tensor(frame["camtoworld"])[:3]
             # append data
@@ -121,22 +99,39 @@ class Friends(DataParser):
         camera_to_worlds[:, :3] = rotation @ camera_to_worlds[:, :3]
         bbox = (rotation @ bbox.T).T
 
-        # -- set the bounding box ---
+        scene_scale = self.config.scene_scale
+
+        # -- set the scene bounds ---
         scene_bounds = SceneBounds(aabb=bbox)
-        # # for shifting and rescale accoding to scene bounds
-        # box_center = scene_bounds_original.get_center()
-        # box_scale_factor = 5.0 / scene_bounds_original.get_diagonal_length()  # the target diagonal length
-        # scene_bounds = scene_bounds_original.get_centered_and_scaled_scene_bounds(box_scale_factor)
+        # center the box and adjust the cameras too
+        center = scene_bounds.get_center()
+        scene_bounds.aabb -= center
+        camera_to_worlds[..., 3] -= center
+        # scale the longest dimension to match the cube size
+        lengths = scene_bounds.aabb[1] - scene_bounds.aabb[0]
+        longest_dim = torch.argmax(lengths)
+        longest_length = lengths[longest_dim]
+        scale = scene_scale / longest_length
+        scene_bounds.aabb = scene_bounds.aabb * scale  # box
+        camera_to_worlds[..., 3] *= scale  # cameras
 
         # --- semantics ---
         semantics = None
         if self.config.include_semantics:
             thing_filenames = [
-                Path(str(image_filename).replace("/images/", "/segmentations/thing/").replace(".jpg", ".png"))
+                Path(
+                    str(image_filename)
+                    .replace(f"/{images_folder}/", f"/{segmentations_folder}/thing/")
+                    .replace(".jpg", ".png")
+                )
                 for image_filename in image_filenames
             ]
             stuff_filenames = [
-                Path(str(image_filename).replace("/images/", "/segmentations/stuff/").replace(".jpg", ".png"))
+                Path(
+                    str(image_filename)
+                    .replace(f"/{images_folder}/", f"/{segmentations_folder}/stuff/")
+                    .replace(".jpg", ".png")
+                )
                 for image_filename in image_filenames
             ]
             panoptic_classes = load_from_json(abs_dir / "panoptic_classes.json")
@@ -164,6 +159,7 @@ class Friends(DataParser):
             camera_to_worlds=camera_to_worlds,
             camera_type=CameraType.PERSPECTIVE,
         )
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
