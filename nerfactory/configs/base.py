@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 import dcargs
 import torch
@@ -203,6 +203,12 @@ class FriendsDataParserConfig(DataParserConfig):
     _target: Type = Friends
     data_directory: Path = Path("data/friends/TBBT-big_living_room")
     include_semantics: bool = True
+    downscale_factor: int = 8
+    scene_scale: float = 4.0
+    """
+    Sets the bounding cube to have edge length of this size.
+    The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
+    """
 
 
 @dataclass
@@ -214,7 +220,7 @@ class MipNerf360DataParserConfig(DataParserConfig):
     downscale_factor: int = 1
     val_skip: int = 8
     auto_scale: bool = True
-    aabb_scale = 4
+    aabb_scale: float = 4
 
 
 @dataclass
@@ -234,7 +240,7 @@ class Record3DDataParserConfig(DataParserConfig):
     _target: Type = Record3D
     data_directory: Path = Path("data/record3d/garden")
     val_skip: int = 8
-    aabb_scale = 4.0
+    aabb_scale: float = 4.0
     max_dataset_size: int = 150
 
 
@@ -247,7 +253,14 @@ class VanillaDataManagerConfig(InstantiateConfig):
     # InstantiateConfig.
 
     _target: Type = VanillaDataManager
-    train_dataparser: DataParserConfig = BlenderDataParserConfig()
+    train_dataparser: Union[
+        NerfactoryDataParserConfig,
+        BlenderDataParserConfig,
+        FriendsDataParserConfig,
+        MipNerf360DataParserConfig,
+        InstantNGPDataParserConfig,
+        Record3DDataParserConfig,
+    ] = BlenderDataParserConfig()
     train_num_rays_per_batch: int = 1024
     train_num_images_to_sample_from: int = -1
     eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None

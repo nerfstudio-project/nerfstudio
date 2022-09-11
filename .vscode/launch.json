@@ -25,7 +25,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["vanilla_nerf"]
+      "args": [
+        "vanilla_nerf"
+      ]
     },
     {
       "name": "Python: run_train (cpu)",
@@ -33,7 +35,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["machine.num_gpus=0"]
+      "args": [
+        "machine.num_gpus=0"
+      ]
     },
     {
       "name": "Python: run_train ngp (gpu)",
@@ -41,7 +45,28 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["instant_ngp"]
+      "args": [
+        "instant_ngp"
+      ]
+    },
+    {
+      "name": "Python: run_train ngp-friends (gpu)",
+      "type": "python",
+      "request": "launch",
+      "program": "scripts/run_train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "instant_ngp",
+        "--viewer.enable",
+        "--viewer.zmq-url=tcp://127.0.0.1:6001",
+        "--viewer.websocket-port=8014",
+        "--trainer.steps_per_save=1000000",
+        "--trainer.steps_per_test=1000000",
+        "--pipeline.model.density-field-params.base-scale=4",
+        "--pipeline.model.density-field-params.num-cascades=1",
+        "pipeline.datamanager.train-dataparser:friends-data-parser-config",
+        "--pipeline.datamanager.train-dataparser.scene-scale=4"
+      ]
     },
     {
       "name": "Python: run_train mipnerf 360 (gpu)",
@@ -49,7 +74,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["mipnerf_360"]
+      "args": [
+        "mipnerf_360"
+      ]
     },
     {
       "name": "Python: run_train tensorf (gpu)",
@@ -57,7 +84,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["tensorf"]
+      "args": [
+        "tensorf"
+      ]
     },
     {
       "name": "Python: run_train nerfw (gpu)",
@@ -67,7 +96,6 @@
       "console": "integratedTerminal",
       "args": [
         "nerfw"
-        // "++data.use_preprocessing_cache=true"
       ]
     },
     {
@@ -76,7 +104,9 @@
       "request": "launch",
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
-      "args": ["semantic_nerf", "++data.use_preprocessing_cache=true"]
+      "args": [
+        "semantic_nerf"
+      ]
     }
   ]
 }
