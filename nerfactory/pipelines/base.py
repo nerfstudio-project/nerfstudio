@@ -66,13 +66,15 @@ class Pipeline(nn.Module):
 
 
     Args:
-        model: The model to be used in the pipeline.
-        datamanager: The datamanager to be used in the pipeline.
-        loss_coefficients: A dictionary of loss coefficients that will be used
+        config: configuration to instantiate pipeline
+        device: location to place model and data
+        test_mode: if True, loads test datset. if False, loads train/eval datasets
+        world_size: total number of machines available
+        local_rank: rank of current machine
 
     Attributes:
-        self.datamanager (DataManager): The data manager that will be used
-        self.model (Model): The model that will be used
+        self.datamanager: The data manager that will be used
+        self.model: The model that will be used
     """
 
     def __init__(
@@ -107,7 +109,11 @@ class Pipeline(nn.Module):
     def get_train_loss_dict(self, step: Optional[int] = None):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the DataManager and interfacing with the
-        Model class, feeding the data to the model's forward function."""
+        Model class, feeding the data to the model's forward function.
+
+        Args:
+            step: current iteration step to update sampler if using DDP (distributed)
+        """
         if self.world_size > 1:
             self.datamanager.sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train()
@@ -118,7 +124,11 @@ class Pipeline(nn.Module):
     @profiler.time_function
     def get_eval_loss_dict(self, step: Optional[int] = None):
         """This function gets your evaluation loss dict. It needs to get the data
-        from the DataManager and feed it to the model's forward function"""
+        from the DataManager and feed it to the model's forward function
+
+        Args:
+            step: current iteration step
+        """
         self.eval()
         # NOTE(ethan): next_eval() is not being used right now
         assert self.datamanager.eval_dataloader is not None
@@ -147,7 +157,11 @@ class Pipeline(nn.Module):
         """Log the test image outputs"""
 
     def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
-        """Load the checkpoint from the given path"""
+        """Load the checkpoint from the given path
+
+        Args:
+            loaded_state: pre-trained model state dict
+        """
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         self.load_state_dict(state)  # type: ignore
 

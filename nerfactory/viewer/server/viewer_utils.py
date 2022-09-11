@@ -239,6 +239,8 @@ class VisualizerState:
 
         Args:
             dataset: dataset to render in the scene
+            start_train: whether to start train when viewer init;
+                if False, only displays dataset until resume train is toggled
         """
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
@@ -303,7 +305,13 @@ class VisualizerState:
         return self.check_interrupt
 
     def _is_render_step(self, step: int, default_steps: int = 2, max_steps: int = 10) -> bool:
-        """dynamically calculate when to render grapic based on resolution of image"""
+        """dynamically calculate when to render grapic based on resolution of image
+
+        Args:
+            step: current train iteration step
+            default_steps: base multiple number of steps
+            max_steps: maximum number of steps in between renders
+        """
         if step != 0:
             if self.res_upscale_factor == 1:
                 return True
@@ -325,6 +333,7 @@ class VisualizerState:
         Args:
             outputs: the output tensors for which to apply colormaps on
             stuff_colors: is only set if colormap is for semantics. Defaults to None.
+            eps: epsilon to handle floating point comparisons
         """
         # default for rgb images
         if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].shape[-1] == 3:
@@ -369,6 +378,7 @@ class VisualizerState:
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
             stuff_colors: is only set if colormap is for semantics. Defaults to None.
+            eps: epsilon to handle floating point comparisons
         """
         if not self.outputs_set:
             self.vis["renderingState/output_options"].write(list(outputs.keys()))
@@ -399,6 +409,7 @@ class VisualizerState:
 
         Args:
             render_time: total time spent rendering current view
+            num_rays: number of rays rendered
             image_height: resolution of the current view
         """
         writer.put_time(
@@ -429,6 +440,9 @@ class VisualizerState:
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
+
+        Args:
+            graph: current checkpoint of model
         """
         # check and perform camera updates
         data = self.vis["renderingState/camera"].read()

@@ -29,49 +29,40 @@ from nerfactory.configs.utils import to_immutable_dict
 
 @dataclass
 class PointCloud:
-    """Dataclass for a point cloud.
-
-    Args:
-        xyz: the 3D points in point cloud
-        rgb: the color of each point in point cloud
-    """
+    """Dataclass for a point cloud."""
 
     xyz: TensorType["num_points", 3] = None
+    """the 3D points in point cloud"""
     rgb: TensorType["num_points", 3] = None
+    """the color of each point in point cloud"""
 
 
 @dataclass
 class Semantics:
-    """Dataclass for semantic labels.
-
-    Args:
-        stuff_filenames: filenames to load "stuff"/background data
-        stuff_classes: class labels for "stuff" data
-        stuff_colors: color mapping for "stuff" classes
-        thing_filenames: filenames to load "thing"/foreground data
-        thing_classes: class labels for "thing" data
-        thing_colors: color mapping for "thing" classes
-    """
+    """Dataclass for semantic labels."""
 
     stuff_filenames: List[Path]
+    """filenames to load "stuff"/background data"""
     stuff_classes: List[str]
+    """class labels for "stuff" data"""
     stuff_colors: torch.Tensor
+    """color mapping for "stuff" classes"""
     thing_filenames: List[Path]
+    """filenames to load "thing"/foreground data"""
     thing_classes: List[str]
+    """class labels for "thing" data"""
     thing_colors: torch.Tensor
+    """color mapping for "thing" classes"""
 
 
 @dataclass
 class SceneBounds:
-    """Data to represent the scene bounds.
-
-    Attributes:
-        aabb: axis-aligned bounding box.
-            aabb[0] is the minimum (x,y,z) point.
-            aabb[1] is the maximum (x,y,z) point.
-    """
+    """Data to represent the scene bounds."""
 
     aabb: TensorType[2, 3] = None
+    """aabb: axis-aligned bounding box.
+    aabb[0] is the minimum (x,y,z) point.
+    aabb[1] is the maximum (x,y,z) point."""
 
     def get_diagonal_length(self):
         """Returns the longest diagonal length."""
@@ -135,26 +126,24 @@ class SceneBounds:
 
 @dataclass
 class DatasetInputs:
-    """Dataset inputs for the image dataset and the ray generator.
-
-    Args:
-        image_filenames: Filenames for the images.
-        cameras: Camera object storing collection of camera information in dataset
-        alpha_color: color of dataset background
-        scene_bounds: scene bounds of dataset
-        additional_inputs: Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
-            {input_name:
-            ... {"func": function to process additional dataset inputs,
-            ... "kwargs": dictionary of data to pass into "func"}
-            }
-    """
+    """Dataset inputs for the image dataset and the ray generator."""
 
     image_filenames: List[Path]
+    """Filenames for the images."""
     cameras: Cameras
+    """Camera object storing collection of camera information in dataset"""
     alpha_color: Optional[TensorType[3]] = None
+    """color of dataset background"""
     scene_bounds: SceneBounds = SceneBounds()
+    """scene bounds of dataset"""
     # we support additional input information/formats including mask/depth/semantics.
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
+    """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
+    {input_name:
+    ... {"func": function to process additional dataset inputs,
+    ... "kwargs": dictionary of data to pass into "func"}
+    }
+    """
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""

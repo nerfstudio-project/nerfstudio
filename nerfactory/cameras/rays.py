@@ -28,21 +28,18 @@ from nerfactory.utils.tensor_dataclass import TensorDataclass
 
 @dataclass
 class Frustums(TensorDataclass):
-    """Describes region of space as a frustum.
-
-    Attributes:
-        origins: xyz coordinate for ray origin.
-        directions: Direction of ray.
-        starts: Where the frustum starts along a ray.
-        ends: Where the frustum ends along a ray.
-        pixel_area: Projected area of pixel a distance 1 away from origin.
-    """
+    """Describes region of space as a frustum."""
 
     origins: TensorType["bs":..., 3]
+    """xyz coordinate for ray origin."""
     directions: TensorType["bs":..., 3]
+    """Direction of ray."""
     starts: TensorType["bs":..., 1]
+    """Where the frustum starts along a ray."""
     ends: TensorType["bs":..., 1]
+    """Where the frustum ends along a ray."""
     pixel_area: TensorType["bs":..., 1]
+    """Projected area of pixel a distance 1 away from origin."""
 
     def get_positions(self) -> TensorType[..., 3]:
         """Calulates "center" position of frustum. Not weighted by mass.
@@ -86,21 +83,18 @@ class Frustums(TensorDataclass):
 
 @dataclass
 class RaySamples(TensorDataclass):
-    """Samples along a ray
-
-    Args:
-        frustums: Frustums along ray.
-        camera_indices: Camera index.
-        valid_mask: Rays that are valid.
-        deltas: "width" of each sample.
-        metadata: addtional information relevant to generating ray samples
-    """
+    """Samples along a ray"""
 
     frustums: Frustums
+    """Frustums along ray."""
     camera_indices: Optional[TensorType["bs":..., 1]] = None
+    """Camera index."""
     valid_mask: Optional[TensorType["bs":..., 1]] = None
+    """Rays that are valid."""
     deltas: Optional[TensorType["bs":..., 1]] = None
+    """"width" of each sample."""
     metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
+    """addtional information relevant to generating ray samples"""
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities
@@ -154,30 +148,27 @@ class RaySamples(TensorDataclass):
 
 @dataclass
 class RayBundle(TensorDataclass):
-    """A bundle of ray parameters.
-
-    Args:
-        origins: Ray origins (XYZ)
-        directions: Unit ray direction vector
-        pixel_area: Projected area of pixel a distance 1 away from origin
-        camera_indices: Camera indices
-        nears: Distance along ray to start sampling
-        fars: Rays Distance along ray to stop sampling
-        valid_mask: Rays that are valid
-        num_rays_per_chunk: Number of rays per chunk
-        metadata: Additional metadata or data needed for interpolation, will mimic shape of rays
-    """
+    """A bundle of ray parameters."""
 
     # TODO(ethan): make sure the sizes with ... are correct
     origins: TensorType[..., 3]
+    """Ray origins (XYZ)"""
     directions: TensorType[..., 3]
+    """Unit ray direction vector"""
     pixel_area: TensorType[..., 1]
+    """Projected area of pixel a distance 1 away from origin"""
     camera_indices: Optional[TensorType[..., 1]] = None
+    """Camera indices"""
     nears: Optional[TensorType[..., 1]] = None
+    """Distance along ray to start sampling"""
     fars: Optional[TensorType[..., 1]] = None
+    """Rays Distance along ray to stop sampling"""
     valid_mask: Optional[TensorType[..., 1, bool]] = None
+    """Rays that are valid"""
     num_rays_per_chunk: int = 128
+    """Number of rays per chunk"""
     metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
+    """Additional metadata or data needed for interpolation, will mimic shape of rays"""
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.

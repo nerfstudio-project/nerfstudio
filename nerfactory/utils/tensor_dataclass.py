@@ -60,7 +60,8 @@ class TensorDataclass:
         """Finishes setting up the TensorDataclass
 
         This will 1) find the broadcasted shape and 2) broadcast all fields to this shape 3)
-        set _shape to be the broadcasted shape."""
+        set _shape to be the broadcasted shape.
+        """
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
@@ -83,10 +84,11 @@ class TensorDataclass:
         """Returns batch shapes of all tensors in a dictionary
 
         Args:
-            dict_ (Dict): The dictionary to get the batch shapes of.
+            dict_: The dictionary to get the batch shapes of.
 
         Returns:
-            list: The batch shapes of all tensors in the dictionary."""
+            The batch shapes of all tensors in the dictionary.
+        """
         batch_shapes = []
         for v in dict_.values():
             if isinstance(v, torch.Tensor):
@@ -101,10 +103,11 @@ class TensorDataclass:
         """Broadcasts all tensors in a dictionary according to batch_shape
 
         Args:
-            dict_ (Dict): The dictionary to broadcast.
+            dict_: The dictionary to broadcast.
 
         Returns:
-            Dict: The broadcasted dictionary."""
+            The broadcasted dictionary.
+        """
         new_dict = {}
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
@@ -161,10 +164,10 @@ class TensorDataclass:
         This should deepcopy as well.
 
         Args:
-            shape (Tuple[int, ...]): The new shape of the tensor dataclass.
+            shape: The new shape of the tensor dataclass.
 
         Returns:
-            TensorDataclass: A new TensorDataclass with the same data but with a new shape.
+            A new TensorDataclass with the same data but with a new shape.
         """
         if isinstance(shape, int):
             shape = (shape,)
@@ -187,10 +190,10 @@ class TensorDataclass:
         meaning it is NOT a deepcopy, and they are still linked.
 
         Args:
-            shape (Tuple[int, ...]): The new shape of the tensor dataclass.
+            shape: The new shape of the tensor dataclass.
 
         Returns:
-            TensorDataclass: A new TensorDataclass with the same data but with a new shape.
+            A new TensorDataclass with the same data but with a new shape.
         """
         return self._apply_fn_to_fields(lambda x: x.broadcast_to((*shape, x.shape[-1])))
 
@@ -201,7 +204,7 @@ class TensorDataclass:
             device: The device to place the tensor dataclass.
 
         Returns:
-            TensorDataclass: A new TensorDataclass with the same data but on the specified device.
+            A new TensorDataclass with the same data but on the specified device.
         """
         return self._apply_fn_to_fields(lambda x: x.to(device))
 
@@ -220,11 +223,11 @@ class TensorDataclass:
         from dataclasses.fields(self) as we do below and in other places.
 
         Args:
-            fn (Callable): The function to apply to tensor fields.
-            dataclass_fn (Optional[Callable]): The function to apply to TensorDataclass fields.
+            fn: The function to apply to tensor fields.
+            dataclass_fn: The function to apply to TensorDataclass fields.
 
         Returns:
-            TensorDataclass: A new TensorDataclass with the same data but with a new shape.
+            A new TensorDataclass with the same data but with a new shape.
         """
 
         new_fields = self._apply_fn_to_dict(
@@ -237,12 +240,12 @@ class TensorDataclass:
         """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_
 
         Args:
-            dict_ (Dict): The dictionary to apply the function to.
-            fn (Callable): The function to apply to tensor fields.
-            dataclass_fn (Optional[Callable]): The function to apply to TensorDataclass fields.
+            dict_: The dictionary to apply the function to.
+            fn: The function to apply to tensor fields.
+            dataclass_fn: The function to apply to TensorDataclass fields.
 
         Returns:
-            Dict: A new dictionary with the same data but with a new shape. Will deep copy"""
+            A new dictionary with the same data but with a new shape. Will deep copy"""
 
         field_names = dict_.keys()
         new_dict = {}
