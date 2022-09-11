@@ -16,6 +16,8 @@
 Pose and Intrinsics Optimizers
 """
 
+from __future__ import annotations
+
 from typing import Union
 
 import torch
@@ -42,7 +44,7 @@ class CameraOptimizer(nn.Module):
         self.num_cameras = num_cameras
         self.device = device
 
-    def forward(
+    def forward(  # pylint: disable=no-self-use
         self,
         indices: TensorType["num_cameras"],
     ) -> TensorType["num_cameras", 3, 4]:
