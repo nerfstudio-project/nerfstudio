@@ -27,6 +27,9 @@ export function RenderControls() {
   const max_resolution = useSelector(
     (state) => state.renderingState.maxResolution,
   );
+  const target_train_util = useSelector(
+    (state) => state.renderingState.targetTrainUtil,
+  );
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
@@ -61,6 +64,25 @@ export function RenderControls() {
       });
       const cmd = 'write';
       const path = 'renderingState/maxResolution';
+      const data = {
+        type: cmd,
+        path,
+        data: value,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  const set_target_train_util = (value) => {
+    if (websocket.readyState === WebSocket.OPEN) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/targetTrainUtil',
+        data: value,
+      });
+      const cmd = 'write';
+      const path = 'renderingState/targetTrainUtil';
       const data = {
         type: cmd,
         path,
@@ -182,6 +204,17 @@ export function RenderControls() {
         '512px': () => setControls({ max_resolution: 512 }),
         '1024px': () => setControls({ max_resolution: 1024 }),
       }),
+      // Dynamic Resolution
+      test: {
+        label: 'Train Util.',
+        value: target_train_util,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        onChange: (v) => {
+          set_target_train_util(v);
+        },
+      },
       'Camera FoV': {
         value: field_of_view,
         onChange: (v) => {
@@ -203,6 +236,7 @@ export function RenderControls() {
       colormapChoice,
       min_resolution,
       max_resolution,
+      target_train_util,
       field_of_view,
       websocket, // need to re-render when websocket changes to use the new websocket
     ],
@@ -222,6 +256,7 @@ export function RenderControls() {
     colormapChoice,
     min_resolution,
     max_resolution,
+    target_train_util,
     field_of_view,
   ]);
 

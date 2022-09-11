@@ -231,6 +231,9 @@ class VisualizerState:
         self.last_render_time = time.time()
         self.min_wait_time = 0.5  # 1.0 is on high side and will cause lag
         self.step = 0
+        self.static_fps = 1
+        self.moving_fps = 24
+        self.camera_moving = False
 
         self.outputs_set = False
 
@@ -268,7 +271,7 @@ class VisualizerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def update_scene(self, step: int, graph: Model) -> None:
+    def update_scene(self, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -281,14 +284,67 @@ class VisualizerState:
 
         if is_training is None or is_training:
             # in training mode, render every few steps
-            if self._is_render_step(step):
-                self._render_image_in_viewer(graph)
+
+            # if self._is_render_step(step):
+            #     self._render_image_in_viewer(graph)
+
+            # check and perform camera updates
+            data = self.vis["renderingState/camera"].read()
+            if data is None:
+                return
+
+            camera_object = data["object"]
+            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.camera_moving = True
+
+            if self.camera_moving:
+                while self.camera_moving:
+
+                    data = self.vis["renderingState/camera"].read()
+                    if data is None:
+                        return
+
+                    camera_object = data["object"]
+                    if self.prev_camera_matrix is not None and np.allclose(
+                        camera_object["matrix"], self.prev_camera_matrix
+                    ):
+                        self.camera_moving = False
+                    else:
+                        self.prev_camera_matrix = camera_object["matrix"]
+                        self.camera_moving = True
+                    print("[green]Camera is moving")
+                    self._render_image_in_viewer(camera_object, graph)
+            else:
+                if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+                    train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+                    target_train_util = self.vis["renderingState/targetTrainUtil"].read()
+                    if target_train_util is None:
+                        target_train_util = 0.9
+
+                    # current_fps = self.moving_fps if self.camera_moving else self.static_fps
+
+                    # target_train_time = target_train_util * 1 / self.static_fps
+                    batches_per_sec = train_rays_per_sec / num_rays_per_batch
+
+                    num_steps = int(1 / self.static_fps * batches_per_sec)
+                    # print(batches_per_sec)
+                else:
+                    num_steps = 1
+
+                # print("----------------", self.camera_moving)
+                if step % num_steps == 0:
+                    self._render_image_in_viewer(camera_object, graph)
+
         else:
             # in pause training mode, enter render loop with set graph
             local_step = step
             run_loop = not is_training
             while run_loop:
-                if self._is_render_step(local_step) and step > 0:
+                # if self._is_render_step(local_step) and step > 0:
+                if step > 0:
                     self._render_image_in_viewer(graph)
                 is_training = self.vis["renderingState/isTraining"].read()
                 run_loop = not is_training
@@ -299,33 +355,36 @@ class VisualizerState:
         Used in conjunction with SetTrace.
         """
         if event == "line":
-            if self.check_interrupt_vis and self.res_upscale_factor > 1:
+            # print("Interrupting render")
+            # if self.check_interrupt_vis and self.res_upscale_factor > 1:
+            if self.check_interrupt_vis and not self.camera_moving:
+                # print("[bold yellow]Interrupting render")
                 self.res_upscale_factor = 1
-                raise IOChangeException
+                # raise IOChangeException
         return self.check_interrupt
 
-    def _is_render_step(self, step: int, default_steps: int = 2, max_steps: int = 10) -> bool:
-        """dynamically calculate when to render grapic based on resolution of image
+    # def _is_render_step(self, step: int, default_steps: int = 2, max_steps: int = 10) -> bool:
+    #     """dynamically calculate when to render grapic based on resolution of image
 
-        Args:
-            step: current train iteration step
-            default_steps: base multiple number of steps
-            max_steps: maximum number of steps in between renders
-        """
-        if step != 0:
-            if self.res_upscale_factor == 1:
-                return True
-            steps_per_render_image = min(default_steps * self.res_upscale_factor, max_steps)
-            steps_condition = step % steps_per_render_image == 0
-            if steps_condition:
-                if self.res_upscale_factor > 3:
-                    if time.time() - self.last_render_time >= self.min_wait_time:
-                        self.last_render_time = time.time()
-                        return True  # if higher res, and minimum wait time achieved
-                    return False  # if higher res, and minimum wait time NOT achieved
-                self.last_render_time = time.time()
-                return True  # if not higher res, but steps met
-        return False  # if init
+    #     Args:
+    #         step: current train iteration step
+    #         default_steps: base multiple number of steps
+    #         max_steps: maximum number of steps in between renders
+    #     """
+    #     if step != 0:
+    #         if self.res_upscale_factor == 1:
+    #             return True
+    #         steps_per_render_image = min(default_steps * self.res_upscale_factor, max_steps)
+    #         steps_condition = step % steps_per_render_image == 0
+    #         if steps_condition:
+    #             if self.res_upscale_factor > 3:
+    #                 if time.time() - self.last_render_time >= self.min_wait_time:
+    #                     self.last_render_time = time.time()
+    #                     return True  # if higher res, and minimum wait time achieved
+    #                 return False  # if higher res, and minimum wait time NOT achieved
+    #             self.last_render_time = time.time()
+    #             return True  # if not higher res, but steps met
+    #     return False  # if init
 
     def _apply_colormap(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
@@ -436,7 +495,7 @@ class VisualizerState:
             self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
 
     @profiler.time_function
-    def _render_image_in_viewer(self, graph: Model) -> None:
+    def _render_image_in_viewer(self, camera_object, graph: Model) -> None:
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
@@ -445,16 +504,18 @@ class VisualizerState:
             graph: current checkpoint of model
         """
         # check and perform camera updates
-        data = self.vis["renderingState/camera"].read()
-        if data is None:
-            return
-        camera_object = data["object"]
-        # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
-        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-            self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
-        else:
-            self.prev_camera_matrix = camera_object["matrix"]
-            self.res_upscale_factor = 1
+        # data = self.vis["renderingState/camera"].read()
+        # if data is None:
+        #     return
+        # camera_object = data["object"]
+        # # hacky way to prevent overflow check to see if < 100; TODO(make less hacky)
+        # if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+        #     self.res_upscale_factor = min(self.res_upscale_factor * 2, 100)
+        #     self.camera_moving = False
+        # else:
+        #     self.prev_camera_matrix = camera_object["matrix"]
+        #     self.res_upscale_factor = 1
+        #     self.camera_moving = True
 
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
@@ -476,11 +537,39 @@ class VisualizerState:
         if min_resolution:
             self.min_resolution = min_resolution
 
-        damped_upsacale_factor = 1 if self.res_upscale_factor < 8 else self.res_upscale_factor
-        image_height = min(
-            self.min_resolution * damped_upsacale_factor,
-            self.max_resolution,
-        )
+        if self.camera_moving:
+            target_train_util = 0
+        else:
+            target_train_util = self.vis["renderingState/targetTrainUtil"].read()
+            if target_train_util is None:
+                target_train_util = 0.9
+        # print(target_train_util)
+        # VIS_RAYS_PER_SEC
+        train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+        if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+            vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
+        else:
+            vis_rays_per_sec = train_rays_per_sec
+
+        current_fps = self.moving_fps if self.camera_moving else self.static_fps
+
+        num_vis_rays = vis_rays_per_sec / current_fps * (1 - target_train_util)
+
+        aspect_ratio = camera_object["aspect"]
+
+        image_height = (num_vis_rays / aspect_ratio) ** 0.5
+        image_height = int(round(image_height, -1))
+
+        print("image_height", image_height)
+        print("camera_move", self.camera_moving)
+        image_height = min(self.max_resolution, image_height)
+        # image_height = min(100, image_height)
+
+        # damped_upsacale_factor = 1 if self.res_upscale_factor < 8 else self.res_upscale_factor
+        # image_height = min(
+        #     self.min_resolution * damped_upsacale_factor,
+        #     self.max_resolution,
+        # )
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
             camera_object, image_height=image_height
         )

@@ -137,7 +137,7 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.TEST_RAYS_PER_SEC,
     )
     """specifies which stats will be logged/printed to terminal"""
-    max_log_size: int = 10
+    max_log_size: int = 100
     """maximum number of rows to print before wrapping. if 0, will print everything."""
     relative_log_dir: Path = Path("./")
     """relative local path to save all events"""
