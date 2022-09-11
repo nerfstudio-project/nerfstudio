@@ -1,11 +1,17 @@
 import * as React from 'react';
 import * as THREE from 'three';
-import { MeshLine, MeshLineMaterial } from 'meshline';
 
 import { Button, Slider } from '@mui/material';
+import { MeshLine, MeshLineMaterial } from 'meshline';
+import {
+  get_curve_object_from_cameras,
+  get_transform_matrix,
+  list_from_threejs_vector_list,
+} from './curve';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { CameraHelper } from './CameraHelper';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import LastPageIcon from '@mui/icons-material/LastPage';
@@ -14,8 +20,6 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useEffect } from 'react';
-import { CameraHelper } from './CameraHelper';
-import { get_curve_object_from_cameras } from './curve';
 
 function set_camera_position(camera, matrix) {
   const mat = new THREE.Matrix4();
@@ -167,30 +171,7 @@ export default function CameraPanel(props) {
         slider_value / cameras.length,
       );
 
-      // create a copy of the vector up
-      const up_copy = up.clone();
-      const cross = up_copy.cross(lookat);
-
-      up.normalize();
-      lookat.normalize();
-      cross.normalize();
-
-      // create the camera transform matrix
-      const mat = new THREE.Matrix4();
-      mat.set(
-        cross.x,
-        up.x,
-        lookat.x,
-        position.x,
-        cross.y,
-        up.y,
-        lookat.y,
-        position.y,
-        cross.z,
-        up.z,
-        lookat.z,
-        position.z,
-      );
+      const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_main, mat);
     }
   }, [slider_value]);
@@ -214,6 +195,64 @@ export default function CameraPanel(props) {
     }
   }, [slider_value]);
 
+  const export_camera_path = () => {
+    // export the camera path
+    // inspired by:
+    // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
+
+    const num_points = fps * seconds;
+    const positions = curve_object.curve_positions.getPoints(num_points);
+    const lookats = curve_object.curve_lookats.getPoints(num_points);
+    const ups = curve_object.curve_ups.getPoints(num_points);
+
+    console.log(positions);
+
+    const camera_path = [];
+
+    for (let i = 0; i < num_points; i += 1) {
+      const position = positions[i];
+      const lookat = lookats[i];
+      const up = ups[i];
+
+      const mat = get_transform_matrix(position, lookat, up);
+      console.log(mat.elements);
+
+      camera_path.push({
+        camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
+        fov: camera_main.fov,
+        aspect: camera_main.aspect,
+      });
+    }
+
+
+    console.log(camera_main.toJSON());
+
+    // const myData
+    const myData = {
+      keyframes: [],
+      camera_path: camera_path,
+      fps: fps,
+      seconds: seconds,
+    };
+
+    // create file in browser
+    const json = JSON.stringify(myData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const href = URL.createObjectURL(blob);
+
+    // create "a" HTLM element with href to file
+    const link = document.createElement('a');
+    link.href = href;
+
+    const filename = 'camera_path.json';
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    // clean up "a" element & remove ObjectURL
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
+  };
+
   return (
     <div className="CameraPanel">
       <div className="CameraPanel-top-button">
@@ -222,7 +261,11 @@ export default function CameraPanel(props) {
         </Button>
       </div>
       <div className="CameraPanel-top-button">
-        <Button className="CameraPanel-top-button" variant="outlined">
+        <Button
+          className="CameraPanel-top-button"
+          variant="outlined"
+          onClick={export_camera_path}
+        >
           Export Path
         </Button>
       </div>
