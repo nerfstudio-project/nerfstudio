@@ -39,7 +39,11 @@ class SceneBoundsCollider(nn.Module):
 
 
 class AABBBoxCollider(SceneBoundsCollider):
-    """Module for colliding rays with the scene bounds to compute near and far values."""
+    """Module for colliding rays with the scene bounds to compute near and far values.
+
+    Args:
+        scene_bounds: scene bounds to apply to dataset
+    """
 
     def __init__(self, scene_bounds: SceneBounds, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -49,12 +53,13 @@ class AABBBoxCollider(SceneBoundsCollider):
     def intersect_with_aabb(
         cls, rays_o: TensorType["num_rays", 3], rays_d: TensorType["num_rays", 3], aabb: TensorType[2, 3]
     ):
-        """_summary_
+        """Returns collection of valid rays within a specified near/far bounding box along with a mask
+        specifying which rays are valid
 
         Args:
-            rays_o (torch.tensor): (num_rays, 3)
-            rays_d (torch.tensor): (num_rays, 3)
-            aabb (torch.tensor): (2, 3) This is [min point (x,y,z), max point (x,y,z)]
+            rays_o: (num_rays, 3) ray origins
+            rays_d: (num_rays, 3) ray directions
+            aabb: (2, 3) This is [min point (x,y,z), max point (x,y,z)]
         """
         # avoid divide by zero
         dir_fraction = 1.0 / (rays_d + 1e-6)
@@ -87,6 +92,9 @@ class AABBBoxCollider(SceneBoundsCollider):
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
         """Intersects the rays with the scene bounds and updates the near and far values.
         Populates nears and fars fields and returns the ray_bundle.
+
+        Args:
+            ray_bundle: specified ray bundle to operate on
         """
         aabb = self.scene_bounds.aabb
         nears, fars, valid_mask = self.intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
@@ -97,7 +105,12 @@ class AABBBoxCollider(SceneBoundsCollider):
 
 
 class NearFarCollider(SceneBoundsCollider):
-    """Sets the nears and fars with fixed values."""
+    """Sets the nears and fars with fixed values.
+
+    Args:
+        near_plane: distance to near plane
+        far_plane: distance to far plane
+    """
 
     def __init__(self, near_plane: float, far_plane: float, **kwargs) -> None:
         self.near_plane = near_plane

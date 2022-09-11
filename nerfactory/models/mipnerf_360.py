@@ -45,7 +45,11 @@ from nerfactory.utils import colors, misc, visualization, writer
 
 
 class MipNerf360Model(Model):
-    """mip-NeRF model"""
+    """mip-NeRF model
+
+    Args:
+        config: MipNerf360 configuration to instantiate model
+    """
 
     def __init__(
         self,

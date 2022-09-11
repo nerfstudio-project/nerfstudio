@@ -38,15 +38,15 @@ class NeRFField(Field):
     """NeRF Field
 
     Args:
-        position_encoding (Encoding, optional): Position encoder. Defaults to Identity(in_dim=3).
-        direction_encoding (Encoding, optional): Direction encoder. Defaults to Identity(in_dim=3).
-        base_mlp_num_layers (int, optional): Number of layers for base MLP. Defaults to 8.
-        base_mlp_layer_width (int, optional): Width of base MLP layers. Defaults to 256.
-        head_mlp_num_layers (int, optional): Number of layer for ourput head MLP. Defaults to 2.
-        head_mlp_layer_width (int, optional): Width of output head MLP layers. Defaults to 128.
-        skip_connections (Tuple, optional): Where to add skip connection in base MLP. Defaults to (4,).
-        use_integrated_encoding (bool, optional): Used integrated samples as encoding input, Defaults to False.
-        spatial_distortion (SpatialDistortion, optional): Spatial distortion. Defaults to None.
+        position_encoding: Position encoder. Defaults to Identity(in_dim=3).
+        direction_encoding: Direction encoder. Defaults to Identity(in_dim=3).
+        base_mlp_num_layers: Number of layers for base MLP. Defaults to 8.
+        base_mlp_layer_width: Width of base MLP layers. Defaults to 256.
+        head_mlp_num_layers: Number of layer for ourput head MLP. Defaults to 2.
+        head_mlp_layer_width: Width of output head MLP layers. Defaults to 128.
+        skip_connections: Where to add skip connection in base MLP. Defaults to (4,).
+        use_integrated_encoding: Used integrated samples as encoding input, Defaults to False.
+        spatial_distortion: Spatial distortion. Defaults to None.
     """
 
     def __init__(

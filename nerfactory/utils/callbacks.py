@@ -31,8 +31,11 @@ class TrainingCallbackAttributes:
 
     # TODO(ethan): type this without circular imports
     optimizers: Optional[InitVar]
+    """optimizers for training"""
     grad_scaler: Optional[InitVar]
+    """gradient scalers"""
     pipeline: Optional[InitVar]
+    """reference to training pipeline"""
 
 
 class TrainingCallbackLocation(Enum):
@@ -48,8 +51,10 @@ class TrainingCallback:
     including at iteration 0. The function is called after the training iteration.
 
     Args:
-        update_every_num_iters: How often to call the function `func`.
+        where_to_run: List of locations for when to run callbak (before/after iteration)
         func: The function that will be called.
+        update_every_num_iters: How often to call the function `func`.
+        iters: Tuple of iteration steps to perform callback
         args: args for the function 'func'.
         kwargs: kwargs for the function 'func'.
     """
@@ -77,7 +82,7 @@ class TrainingCallback:
         """Callback to run after training step
 
         Args:
-            step (int): current iteration step
+            step: current iteration step
         """
         if self.update_every_num_iters is not None:
             if step % self.update_every_num_iters == 0:
@@ -87,6 +92,11 @@ class TrainingCallback:
                 self.func(*self.args, **self.kwargs, step=step)
 
     def run_callback_at_location(self, step: int, location: TrainingCallbackLocation):
-        """Runs the callback if it's supposed to be run at the given location."""
+        """Runs the callback if it's supposed to be run at the given location.
+
+        Args:
+            step: current iteration step
+            location: when to run callback (before/after iteration)
+        """
         if location in self.where_to_run:
             self.run_callback(step=step)

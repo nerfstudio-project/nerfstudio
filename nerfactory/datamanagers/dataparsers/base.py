@@ -25,7 +25,11 @@ from nerfactory.datamanagers.structs import DatasetInputs
 
 @dataclass
 class DataParser:
-    """A dataset."""
+    """A dataset.
+
+    Args:
+        config: datasetparser config containing all information needed to instantiate dataset
+    """
 
     def __init__(self, config: cfg.DataParserConfig):
         super().__init__()
@@ -33,23 +37,23 @@ class DataParser:
 
     @abstractmethod
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
-        """Returns the dataset inputs for the given split.
+        """Abstract method that returns the dataset inputs for the given split.
 
         Args:
-            split: Which dataset split to generate.
+            split: Which dataset split to generate (train/test).
 
         Returns:
-            DatasetInputs
+            DatasetInputs containing data for the specified dataset and split
         """
 
     def get_dataset_inputs(self, split: str = "train") -> DatasetInputs:
         """Returns the dataset inputs for the given split.
 
         Args:
-            split: Which dataset split to generate.
+            split: Which dataset split to generate (train/test).
 
         Returns:
-            DatasetInputs
+            DatasetInputs containing data for the specified dataset and split
         """
         dataset_inputs = self._generate_dataset_inputs(split)
         return dataset_inputs
