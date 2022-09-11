@@ -21,6 +21,7 @@
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-unused-imports": "^2.0.0",
     "leva": "^0.9.29",
+    "meshline": "^2.0.4",
     "msgpack-lite": "^0.1.26",
     "prop-types": "^15.8.1",
     "re-resizable": "^6.9.9",

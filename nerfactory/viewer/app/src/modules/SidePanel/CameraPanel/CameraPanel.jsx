@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as THREE from 'three';
+import { MeshLine, MeshLineMaterial } from 'meshline';
 
 import { Button, Slider } from '@mui/material';
 
@@ -13,6 +14,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useEffect } from 'react';
+import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras } from './curve';
 
 function set_camera_position(camera, matrix) {
@@ -119,7 +121,9 @@ export default function CameraPanel(props) {
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
-      const helper = new THREE.CameraHelper(camera);
+      const helper = new CameraHelper(camera);
+      console.log('HERERE');
+      console.log(helper);
       // camera
       sceneTree.set_object_from_path(
         ['Camera Path', 'Cameras', i.toString(), 'Camera'],
@@ -139,9 +143,11 @@ export default function CameraPanel(props) {
     const num_points = fps * seconds;
     const points = curve_object.curve_positions.getPoints(num_points);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-    const threejs_object = new THREE.Line(geometry, material);
-    sceneTree.set_object_from_path(['Camera Path', 'Curve'], threejs_object);
+    const spline = new MeshLine();
+    spline.setGeometry(geometry);
+    const material = new MeshLineMaterial({ lineWidth: 0.05, color: 0xff5024 });
+    const spline_mesh = new THREE.Mesh(spline.geometry, material);
+    sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
   }
 
   const marks = [];
