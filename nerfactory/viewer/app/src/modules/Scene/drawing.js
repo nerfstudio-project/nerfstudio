@@ -129,7 +129,7 @@ export function drawCamera(camera): THREE.Object3D {
 
   const height = 0.05;
   const displayedFocalLength = height;
-  const width = height * camera.cx / camera.cy;
+  const width = (height * camera.cx) / camera.cy;
   const cameraWireframeObject = getCameraWireframe(
     1.0,
     displayedFocalLength,
