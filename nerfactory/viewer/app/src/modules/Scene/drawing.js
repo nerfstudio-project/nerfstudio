@@ -127,10 +127,9 @@ export function drawCamera(camera): THREE.Object3D {
     'The camera should be a PinholeCamera',
   );
 
-  const height = 0.25;
-  const f = camera.fx;
-  const displayedFocalLength = height / (2.0 * (camera.cy / f));
-  const width = 2.0 * (camera.cx / f) * displayedFocalLength;
+  const height = 0.05;
+  const displayedFocalLength = height;
+  const width = height * camera.cx / camera.cy;
   const cameraWireframeObject = getCameraWireframe(
     1.0,
     displayedFocalLength,
