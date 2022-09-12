@@ -66,16 +66,16 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 <details>
 <summary>Installing Conda</summary>
 
-    This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
+This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
 
-    ```
-    cd /path/to/install/miniconda
+```
+cd /path/to/install/miniconda
 
-    mkdir -p miniconda3
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
-    bash miniconda3/miniconda.sh -b -u -p miniconda3
-    rm -rf miniconda/miniconda.sh
-    ```
+mkdir -p miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
+bash miniconda3/miniconda.sh -b -u -p miniconda3
+rm -rf miniconda/miniconda.sh
+```
 
 </details>
 
