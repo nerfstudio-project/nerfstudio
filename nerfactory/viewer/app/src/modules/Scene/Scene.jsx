@@ -4,13 +4,13 @@ import * as THREE from 'three';
 import { drawCamera, drawSceneBounds } from './drawing';
 import { useContext, useEffect } from 'react';
 
+import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import SceneNode from '../../SceneNode';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
 import { useDispatch } from 'react-redux';
-import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 
 const msgpack = require('msgpack-lite');
 
@@ -20,6 +20,8 @@ const CAMERAS_NAME = 'Training Cameras';
 export function get_scene_tree() {
   const scene = new THREE.Scene();
   const sceneTree = new SceneNode(scene);
+
+  const dispatch = useDispatch();
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
@@ -31,21 +33,17 @@ export function get_scene_tree() {
 
   sceneTree.set_object_from_path(
     ['Cameras', 'Main Camera', 'Helper'],
-    new CameraHelper(main_camera)
+    new CameraHelper(main_camera),
   );
   sceneTree.metadata.camera = main_camera;
 
   // Render camera
   const render_camera = main_camera.clone();
-  sceneTree.set_object_from_path(
-    ['Cameras', 'Render Camera'],
-    render_camera
-  );
+  sceneTree.set_object_from_path(['Cameras', 'Render Camera'], render_camera);
   sceneTree.set_object_from_path(
     ['Cameras', 'Render Camera', 'Helper'],
-    new CameraHelper(render_camera)
+    new CameraHelper(render_camera),
   );
-
 
   // Renderer
   const renderer = new THREE.WebGLRenderer({
@@ -65,6 +63,15 @@ export function get_scene_tree() {
   camera_controls.enableDamping = true;
   camera_controls.dampingFactor = 1.0;
   sceneTree.metadata.camera_controls = camera_controls;
+  camera_controls.addEventListener('change', (event) => {
+    if (sceneTree.metadata.camera === render_camera) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/camera_choice',
+        data: 'Main Camera',
+      });
+    }
+  });
 
   // Listen for changes to the camera
 

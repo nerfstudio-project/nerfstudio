@@ -26,6 +26,7 @@ import { useEffect } from 'react';
 import { useSelector } from 'react-redux';
 
 function set_camera_position(camera, matrix) {
+  // console.log("setting camera position");
   const mat = new THREE.Matrix4();
   mat.fromArray(matrix.elements);
   mat.decompose(camera.position, camera.quaternion, camera.scale);
@@ -81,6 +82,7 @@ export default function CameraPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
   const camera_controls = sceneTree.metadata.camera_controls;
+  const camera_main = sceneTree.find_object(['Cameras', 'Main Camera']);
   const camera_render = sceneTree.find_object(['Cameras', 'Render Camera']);
   const transform_controls = sceneTree.find_object(['Transform Controls']);
 
@@ -101,14 +103,11 @@ export default function CameraPanel(props) {
   );
 
   const add_camera = () => {
-    const camera_main_copy = camera_render.clone();
-    camera_main_copy.far = camera_main_copy.near + 0.1;
+    const camera_main_copy = camera_main.clone();
+    console.log(camera_main_copy.near);
+    console.log(camera_main_copy.far);
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
-
-    // console.log(camera_controls);
-    // console.log(camera_controls.target);
-    // sceneTree.metadata.camera = camera_main_copy;
   };
 
   // force a rerender if the cameras are dragged around
@@ -177,9 +176,9 @@ export default function CameraPanel(props) {
         slider_value / (cameras.length - 1.0),
       );
       const lookat = curve_object.curve_lookats.getPoint(
-        slider_value / cameras.length,
+        slider_value / (cameras.length - 1.0),
       );
-      const up = curve_object.curve_ups.getPoint(slider_value / cameras.length);
+      const up = curve_object.curve_ups.getPoint(slider_value / (cameras.length - 1.0));
 
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);

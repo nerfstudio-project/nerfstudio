@@ -2,12 +2,14 @@
 
 import * as THREE from 'three';
 
+import { Vector3 } from 'three';
+
 function get_curve(list_of_3d_vectors) {
   // TODO: add some hyperparameters to this function
   const curve = new THREE.CatmullRomCurve3(
     list_of_3d_vectors,
     false,
-    'centripetal',
+    'catmullrom',
   );
   return curve;
 }
@@ -25,7 +27,8 @@ export function get_curve_object_from_cameras(cameras) {
     const camera = cameras[i];
 
     const up = new THREE.Vector3(0, 1, 0); // y is up in local space
-    const lookat = new THREE.Vector3(0, 0, -1); // -z is forward in local space
+    const lookat = new THREE.Vector3(0, 0, 1); // z is forward in local space
+
     up.applyQuaternion(camera.quaternion);
     lookat.applyQuaternion(camera.quaternion);
 
@@ -52,7 +55,6 @@ export function get_curve_object_from_cameras(cameras) {
 }
 
 export function get_transform_matrix(position, lookat, up) {
-
   // normalize the vectors
   lookat.normalize();
   up.normalize();

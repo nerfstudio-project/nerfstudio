@@ -30,7 +30,7 @@ class CameraHelper extends THREE.Mesh {
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLineMaterial({
       color: 0x000000,
-      lineWidth: 0.04,
+      lineWidth: 0.01,
     });
 
     const vertices = [];
@@ -106,25 +106,22 @@ class CameraHelper extends THREE.Mesh {
     // we need just camera projection matrix inverse
     // world matrix must be identity
 
+    console.log(_camera.projectionMatrixInverse);
+
     _camera.projectionMatrixInverse.copy(this.camera.projectionMatrixInverse);
-
-    // center
-
-    setPoint('c', pointMap, geometry, _camera, 0, 0, -1);
-    setPoint('t', pointMap, geometry, _camera, 0, 0, 1);
 
     // near
 
-    setPoint('n1', pointMap, geometry, _camera, -w, -h, z);
-    setPoint('n2', pointMap, geometry, _camera, w, -h, z);
-    setPoint('n3', pointMap, geometry, _camera, -w, h, z);
-    setPoint('n4', pointMap, geometry, _camera, w, h, z);
+    setPoint('n1', pointMap, geometry, _camera, -w, -h, -z);
+    setPoint('n2', pointMap, geometry, _camera, w, -h, -z);
+    setPoint('n3', pointMap, geometry, _camera, -w, h, -z);
+    setPoint('n4', pointMap, geometry, _camera, w, h, -z);
 
     // up
 
-    setPoint('u1', pointMap, geometry, _camera, w * 0.7, h * 1.1, z);
-    setPoint('u2', pointMap, geometry, _camera, -w * 0.7, h * 1.1, z);
-    setPoint('u3', pointMap, geometry, _camera, 0, h * 2, z);
+    setPoint('u1', pointMap, geometry, _camera, w * 0.7, h * 1.1, -z);
+    setPoint('u2', pointMap, geometry, _camera, -w * 0.7, h * 1.1, -z);
+    setPoint('u3', pointMap, geometry, _camera, 0, h * 2, -z);
 
     geometry.getAttribute('position').needsUpdate = true;
 

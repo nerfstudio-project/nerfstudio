@@ -123,7 +123,7 @@ export default function ViewerWindow(props) {
 
   // on change, update the camera and controls
   sceneTree.metadata.camera = sceneTree.find_object(['Cameras', camera_choice]);
-  sceneTree.metadata.camera_controls.object = sceneTree.metadata.camera;
+  // sceneTree.metadata.camera_controls.object = sceneTree.metadata.camera;
 
   let viewportWidth = null;
   let viewportHeight = null;
