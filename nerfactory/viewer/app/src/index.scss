@@ -104,8 +104,8 @@ $sidebar-width: 100% !default;
 }
 
 .StatusPanel .StatusPanel-play-button {
-  width: 90%;
-  margin: 10px;
+  width: 100%;
+  padding: 10px;
 }
 
 .StatusPanel .StatusPanel-button-group {
@@ -139,16 +139,13 @@ $sidebar-width: 100% !default;
 
 // ------------------------------------
 // Landing Modal styling
-// .LandingModal {
-//   display: block;
-// }
 
 .LandingModal-box {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 400px; // 400
+  width: 600px; // 400
   background-color: $base-color2;
   border: 2px solid #000;
   //   box-shadow: 24px 24px;
