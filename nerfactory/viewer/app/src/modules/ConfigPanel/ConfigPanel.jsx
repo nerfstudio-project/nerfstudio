@@ -21,36 +21,17 @@ export function RenderControls() {
   const colormapChoice = useSelector(
     (state) => state.renderingState.colormap_choice,
   );
-  const min_resolution = useSelector(
-    (state) => state.renderingState.minResolution,
-  );
   const max_resolution = useSelector(
     (state) => state.renderingState.maxResolution,
+  );
+  const target_train_util = useSelector(
+    (state) => state.renderingState.targetTrainUtil,
   );
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
 
   const dispatch = useDispatch();
-
-  const set_min_resolution = (value) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/minResolution',
-        data: value,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/minResolution';
-      const data = {
-        type: cmd,
-        path,
-        data: value,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
 
   const set_max_resolution = (value) => {
     if (websocket.readyState === WebSocket.OPEN) {
@@ -61,6 +42,25 @@ export function RenderControls() {
       });
       const cmd = 'write';
       const path = 'renderingState/maxResolution';
+      const data = {
+        type: cmd,
+        path,
+        data: value,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  const set_target_train_util = (value) => {
+    if (websocket.readyState === WebSocket.OPEN) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/targetTrainUtil',
+        data: value,
+      });
+      const cmd = 'write';
+      const path = 'renderingState/targetTrainUtil';
       const data = {
         type: cmd,
         path,
@@ -130,6 +130,15 @@ export function RenderControls() {
 
   const [, setControls] = useControls(
     () => ({
+      // training speed
+      'Train Speed': buttonGroup({
+        Fast: () =>
+          setControls({ target_train_util: 0.9, max_resolution: 512 }),
+        Balanced: () =>
+          setControls({ target_train_util: 0.7, max_resolution: 1024 }),
+        Slow: () =>
+          setControls({ target_train_util: 0.1, max_resolution: 2048 }),
+      }),
       // output_options
       output_options: {
         label: 'Output Render',
@@ -149,27 +158,29 @@ export function RenderControls() {
         },
         disabled: colormapOptions.length === 1,
       },
-      // resolution
-      min_resolution: {
-        label: 'Min Res.',
-        value: min_resolution,
-        min: 10,
-        max: 256,
-        step: 1,
+      // FOV
+      'Camera FoV': {
+        value: field_of_view,
         onChange: (v) => {
-          set_min_resolution(v);
+          set_fov(v);
         },
       },
-      ' ': buttonGroup({
-        '32px': () => setControls({ min_resolution: 32 }),
-        '64px': () => setControls({ min_resolution: 64 }),
-        '128px': () => setControls({ min_resolution: 128 }),
-        '256px': () => setControls({ min_resolution: 256 }),
-      }),
+      // Dynamic Resolution
+      target_train_util: {
+        label: 'Train Util.',
+        value: target_train_util,
+        min: 0,
+        max: 1,
+        step: 0.05,
+        onChange: (v) => {
+          set_target_train_util(v);
+        },
+      },
+      // resolution
       max_resolution: {
         label: 'Max Res.',
         value: max_resolution,
-        min: 10,
+        min: 256,
         max: 2048,
         step: 1,
         onChange: (v) => {
@@ -177,23 +188,10 @@ export function RenderControls() {
         },
       },
       '  ': buttonGroup({
-        '128px': () => setControls({ max_resolution: 128 }),
         '256px': () => setControls({ max_resolution: 256 }),
         '512px': () => setControls({ max_resolution: 512 }),
         '1024px': () => setControls({ max_resolution: 1024 }),
-      }),
-      'Camera FoV': {
-        value: field_of_view,
-        onChange: (v) => {
-          set_fov(v);
-        },
-      },
-      // training speed
-      'Train Speed': buttonGroup({
-        Fast: () => setControls({ min_resolution: 10, max_resolution: 10 }),
-        Balanced: () =>
-          setControls({ min_resolution: 128, max_resolution: 512 }),
-        Slow: () => setControls({ min_resolution: 258, max_resolution: 1024 }),
+        '2048px': () => setControls({ max_resolution: 2048 }),
       }),
     }),
     [
@@ -201,15 +199,14 @@ export function RenderControls() {
       outputChoice,
       colormapOptions,
       colormapChoice,
-      min_resolution,
       max_resolution,
+      target_train_util,
       field_of_view,
       websocket, // need to re-render when websocket changes to use the new websocket
     ],
   );
 
   useEffect(() => {
-    setControls({ min_resolution });
     setControls({ max_resolution });
     setControls({ output_options: outputChoice });
     setControls({ colormap_options: colormapChoice });
@@ -220,8 +217,8 @@ export function RenderControls() {
     outputChoice,
     colormapOptions,
     colormapChoice,
-    min_resolution,
     max_resolution,
+    target_train_util,
     field_of_view,
   ]);
 

@@ -118,7 +118,7 @@ interface BasicTabsProps {
 export function BasicTabs(props: BasicTabsProps) {
   const sceneTree = props.sceneTree;
 
-  const [value, setValue] = React.useState(2);
+  const [value, setValue] = React.useState(0);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
