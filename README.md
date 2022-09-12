@@ -36,12 +36,28 @@
 </p>
 
 - [Quickstart](#quickstart)
+- [Learn more](#learn-more)
 - [Supported Features](#supported-features)
+- [See what's possible](#see-whats-possible)
+
+
+# Philosophy
+All-in-one repository for state-of-the-art NeRFs.
+
+Nerfactory provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and visualizing NeRFs. The library supports a **more interpretable implementation of NeRFs by modularizing each component**. With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation.
+
+It’s as simple as plug and play with Nerfactory!
+
+Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
+
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? We welcome any and all contributions!
+
+We hope Nerfactory enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
 # Quickstart
 
 The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene.
-For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please see our [docs](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/quickstart/quick_tour.html).
+For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please refer to our [references](#learn-more).
 
 #### 1. Installation: Setup the environment
 
@@ -50,42 +66,51 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 <details>
 <summary>Installing Conda</summary>
 
-    This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
+This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
 
-    ```
-    cd /path/to/install/miniconda
+```
+cd /path/to/install/miniconda
 
-    mkdir -p miniconda3
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
-    bash miniconda3/miniconda.sh -b -u -p miniconda3
-    rm -rf miniconda/miniconda.sh
-    ```
+mkdir -p miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
+bash miniconda3/miniconda.sh -b -u -p miniconda3
+rm -rf miniconda/miniconda.sh
+```
 
 </details>
 
+Create the python environment
 ```
-# Create the python environment
 conda create --name nerfactory python=3.8.13
 conda activate nerfactory
+```
 
-# Clone the repo
+Clone the repo
+```
 git clone git@github.com:plenoptix/nerfactory.git
-
-# Install dependencies and nerfactory as a library
 cd nerfactory
+```
+
+Install dependencies and nerfactory as a library
+```
 python -m pip install --upgrade pip
 pip install -e .
+```
 
-# Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config
+Install tiny-cuda-nn (tcnn) to run instant_ngp
+```
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
 
-# Run the test cases
+Run the test cases
+```
 pytest tests
 ```
 
 #### 2. Getting the data
 
-Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](docs/tutorials/data_setup.rst).
+Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
 
 ```
 |─ nerfactory/
@@ -134,22 +159,24 @@ python scripts/run_train.py instant_ngp --viewer.enable --viewer.no-launch-bridg
 
 #### 4. Visualizing training runs
 
-We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/logging.html).
+We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/logging_profiling.html).
 
 <details>
 <summary>Real-time Viewer</summary>
 
-We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/viewer.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
+We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/viewer/index.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
+
+To turn on the viewer, simply add the flag `--viewer.enable`.
 
 </details>
 
 <details>
 <summary>Tensorboard</summary>
 
-If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
+If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in your base experiment directory (Default: `outputs/`).
 
 ```bash
-tensorboard --logdir outputs
+tensorboard --logdir outputs/
 ```
 
 </details>
@@ -157,13 +184,7 @@ tensorboard --logdir outputs
 <details>
 <summary>Weights & Biases</summary>
 
-We support logging to weights and biases, to enable add the following to the config:
-
-```
-logging:
-    writer:
-        WandbWriter
-```
+We support logging to weights and biases. To enable wandb logging, add the flag `--logging.writer.1.enable`.
 
 </details>
 
@@ -175,18 +196,36 @@ python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/
 
 #### 6. In-depth guide
 
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/creating_graphs.html).
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/pipelines/index.html).
+
+
+# Learn More
+| Section | Description |
+|-|-|
+| [Documentation](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/) | Full API documentation and tutorials |
+| [Interactive Guides](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/guides/index.html) | Go-to spot for learning how NeRFs and each of its modules work.
+| [Quick tour](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/quickstart_index.html) | Example script on how to navigate Nerfactory from install, train, to test.
+| [Creating pipelines](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/pipelines/index.html) | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules.
+| [Creating datsets](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html) | Have a new dataset? Learn how to use it with Nerfactory.
+| [Mobile Capture to NerF](#) | Step-by-step tutorial on how to create beautiful renders with just your phone.
+| [Contributing](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/reference/contributing.html) | Walk-through for how you can start contributing now.
 
 # Supported Features
 
 We provide the following support strucutures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!
+**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!**
 
-#### :metal: Support for multiple logging interfaces
+* :mag_right: Web-based visualizer that allows you to:
+    * Visualize training in real-time + interact with the scene
+    * Create and render out scenes with custom camera trajectories
+    * View different output types
+    * And more!
+* :pencil2: Support for multiple logging interfaces (Tensorboard, Wandb), code profiling, and other built-in debugging tools
+* :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
+* :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render. Follow our step-by-step tutorial. (TODO: walk-through page on end-to-end pipeline from capture -> render)
 
-#### :metal: Built-in support for profiling code
 
-#### :metal: Benchmarking scripts
-
-#### :metal: Speed up your code with Tiny Cuda NN
+# See what's possible
+TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
+TODO: For more see gallery

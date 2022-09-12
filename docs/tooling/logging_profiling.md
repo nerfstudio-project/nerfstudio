@@ -1,6 +1,5 @@
 # Loggers and Profilers
 
-(logging_support)=
 ## Logging support
 
 We provide integration with multiple logging interfaces to log images and statistics during training. 
@@ -24,7 +23,6 @@ logging:
 
 Currently, we provide support for the following loggers, which can be added to the `logging.writer` section of the config.
 
-(tensorboard)=
 #### Tensorboard
 To log training stats and images with [tensorboard](https://www.tensorflow.org/tensorboard):
 ```
@@ -32,7 +30,6 @@ TensorboardWriter:
     log_dir: "./" # the output path for which the event files are written
 ```
 
-(wnb)=
 #### Weights and Biases
 To log training stats and images with [wandb](https://wandb.ai/site):
 ```
@@ -40,7 +37,6 @@ WandbWriter:
     log_dir: "./" # the output path for which the run files are written
 ```
 
-(local)=
 #### Local writer
 ```
 LocalWriter:
@@ -55,11 +51,9 @@ The `LocalWriter` simply outputs to the terminal. However, you can specify addit
 * `max_log_size`: how much content to print onto the screen (e.g. only print 10 lines on the screen at a time). If 0, will print everything without deleting any previous lines.
 
 
-(code_profiler)=
 ## Code profiling support
 We provide built-in performance profiling capabilities to make it easier for you to debug and assess the performance of your code. 
 
-(inhouse)=
 #### In-house profiler
 You can use our built-in profiler by enabling the profiler in the config:
 
@@ -90,7 +84,6 @@ At termination of training or end of the training run, the profiler will print o
 Use this profiler if there are specific functions that you want to measure the times for.
 
 
-(pyspy)=
 #### Profiling with PySpy
 If you want to profile the entire codebase, we provide functionality to generate flame graphs or get real-time reports using [PySpy](https://github.com/benfred/py-spy).
 
