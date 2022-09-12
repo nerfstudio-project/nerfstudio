@@ -54,7 +54,6 @@ export function get_curve_object_from_cameras(cameras) {
 export function get_transform_matrix(position, lookat, up) {
 
   // normalize the vectors
-  position.normalize();
   lookat.normalize();
   up.normalize();
 

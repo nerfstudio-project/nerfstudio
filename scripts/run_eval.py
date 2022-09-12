@@ -18,10 +18,7 @@ import yaml
 from tqdm import tqdm
 from typing_extensions import assert_never
 
-from nerfactory.cameras.camera_paths import (
-    get_interpolated_camera_path,
-    get_spiral_path,
-)
+from nerfactory.cameras.camera_paths import get_interpolated_camera_path, get_spiral_path, get_path_from_json
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.configs import base as cfg
 from nerfactory.pipelines.base import Pipeline
@@ -98,6 +95,7 @@ def _render_trajectory_video(
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
     num_rays_per_chunk: int = 4096,
+    seconds: float = 5.0,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -109,6 +107,7 @@ def _render_trajectory_video(
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
             Defaults to 1.0.
         num_rays_per_chunk: Number of rays to use per chunk. Defaults to 4096.
+        seconds: Number for the output video. Defaults to 5.0.
     """
     print("Creating trajectory video.")
     images = []
@@ -119,9 +118,9 @@ def _render_trajectory_video(
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         image = outputs[rendered_output_name].cpu().numpy()
+        print(image.shape)
         images.append(image)
 
-    seconds = 5.0
     fps = len(images) / seconds
     media.write_video(output_filename, images, fps=fps)
 
@@ -198,15 +197,25 @@ class RenderTrajectory:
     # Name of the renderer output to use. rgb, depth, etc.
     rendered_output_name: str = "rgb"
     #  Trajectory to render.
-    traj: Literal["spiral", "interp"] = "spiral"
+    traj: Literal["spiral", "interp", "filename"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
-    rendered_resolution_scaling_factor: float = 1.0
+    downscale_factor: int = 1
+    # Filename of the camera path to render.
+    camera_path_filename: Path = Path("camera_path.json")
+    # Height of image to render.
+    image_height: int = 1080
+    # Width of image to render.
+    image_width: int = 1920
     # Name of the output file.
     output_path: Path = Path("output.mp4")
+    # How long the video should be.
+    seconds: float = 5.0
 
     def main(self) -> None:
         """Main function."""
         config, pipeline, _ = _eval_setup(self.load_config)
+
+        seconds = self.seconds
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
@@ -214,8 +223,14 @@ class RenderTrajectory:
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "interp":
-            cameras = pipeline.datamanager.eval_dataloader.get_camera(image_idx=[0, 10])
+            cameras_a = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+            cameras_b = pipeline.datamanager.eval_dataloader.get_camera(image_idx=10)
             camera_path = get_interpolated_camera_path(cameras, steps=30)
+        elif self.traj == "filename":
+            with open(self.camera_path_filename, "r", encoding="utf-8") as f:
+                camera_path = json.load(f)
+            seconds = camera_path["seconds"]
+            camera_path = get_path_from_json(camera_path, self.image_height, self.image_width)
         else:
             assert_never(self.traj)
 
@@ -224,8 +239,9 @@ class RenderTrajectory:
             camera_path,
             output_filename=self.output_path,
             rendered_output_name=self.rendered_output_name,
-            rendered_resolution_scaling_factor=self.rendered_resolution_scaling_factor,
+            rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
             num_rays_per_chunk=config.pipeline.datamanager.eval_num_rays_per_chunk,
+            seconds=seconds,
         )
 
 

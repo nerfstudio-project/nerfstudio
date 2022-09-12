@@ -8,16 +8,20 @@ import {
   get_transform_matrix,
   list_from_threejs_vector_list,
 } from './curve';
+import { useSelector } from 'react-redux';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { CameraHelper } from './CameraHelper';
+import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
+import IconButton from '@mui/material/IconButton';
 import LastPageIcon from '@mui/icons-material/LastPage';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useEffect } from 'react';
 
@@ -91,6 +95,11 @@ export default function CameraPanel(props) {
   const step_size = (cameras.length - 1) / total_num_steps;
   const slider_min = 0;
   const slider_max = Math.max(0, cameras.length - 1);
+
+  // config information
+  const config_filename = useSelector(
+    (state) => state.renderingState.config_filename,
+  );
 
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
@@ -200,7 +209,8 @@ export default function CameraPanel(props) {
     // inspired by:
     // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
 
-    const num_points = fps * seconds;
+    // NOTE: currently assuming these are ints
+    const num_points = parseInt(fps) * parseInt(seconds);
     const positions = curve_object.curve_positions.getPoints(num_points);
     const lookats = curve_object.curve_lookats.getPoints(num_points);
     const ups = curve_object.curve_ups.getPoints(num_points);
@@ -224,15 +234,14 @@ export default function CameraPanel(props) {
       });
     }
 
-
     console.log(camera_main.toJSON());
 
     // const myData
     const myData = {
       keyframes: [],
       camera_path: camera_path,
-      fps: fps,
-      seconds: seconds,
+      fps: parseInt(fps),
+      seconds: parseInt(seconds),
     };
 
     // create file in browser
@@ -253,6 +262,23 @@ export default function CameraPanel(props) {
     URL.revokeObjectURL(href);
   };
 
+  const copy_cmd_to_clipboard = () => {
+    console.log('copy_cmd_to_clipboard');
+    // Copy the text inside the text field
+    // const config_filename =
+    //   'outputs/blender_lego/instant_ngp/2022-09-11_234413/config.yml';
+    const camera_path_filename = 'camera_path.json';
+    const cmd =
+      'python scripts/run_eval.py render-trajectory --load-config ' +
+      config_filename +
+      ' --traj filename --camera-path-filename ' +
+      camera_path_filename +
+      ' --output-path output.mp4';
+    navigator.clipboard.writeText(cmd);
+
+    // send a command of the websocket and get a reply...
+  };
+
   return (
     <div className="CameraPanel">
       <div className="CameraPanel-top-button">
@@ -268,6 +294,20 @@ export default function CameraPanel(props) {
         >
           Export Path
         </Button>
+      </div>
+      <div className="CameraPanel-top-button">
+        {/* <Button
+          className="CameraPanel-top-button"
+          variant="outlined"
+          // onClick={export_camera_path}
+        >
+          <ContentPasteGoIcon />
+        </Button> */}
+        <Tooltip title="Copy Cmd to Clipboard">
+          <IconButton onClick={copy_cmd_to_clipboard}>
+            <ContentPasteGoIcon />
+          </IconButton>
+        </Tooltip>
       </div>
       <div className="CameraPanel-slider-container">
         <Slider

@@ -16,14 +16,17 @@
 Code for camera paths.
 """
 
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
+from pathlib import Path
+import json
 
 import nerfactory.cameras.utils as camera_utils
 import nerfactory.utils.poses as pose_utils
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.utils import get_interpolated_poses_many
+from nerfactory.viewer.server.utils import three_js_perspective_camera_focal_length
 
 
 def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
@@ -75,9 +78,7 @@ def get_spiral_path(
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
 
-    # TODO: don't hardcode this. pass this in
     up = camera.camera_to_worlds[0, :3, 2]  # scene is z up
-    # up = camera.camera_to_world[:3, 1] # this will rotate 90 degrees
     focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
@@ -98,5 +99,44 @@ def get_spiral_path(
     for local_c2wh in local_c2whs:
         c2wh = torch.matmul(c2wh_global, local_c2wh)
         new_c2ws.append(c2wh[:3, :4])
+    new_c2ws = torch.stack(new_c2ws, dim=0)
 
     return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx, cy=camera.cy, camera_to_worlds=new_c2ws)
+
+
+def get_path_from_json(camera_path: Dict[str, Any], image_height: int, image_width: int) -> Cameras:
+    """Takes a camera path dictionary and returns a trajectory as a Camera instance.
+
+    Args:
+        camera_path: A dictionary of the camera path information coming from the viewer.
+
+    Returns:
+        A Cameras instance with the camera path.
+    """
+
+    c2ws = []
+    fxs = []
+    fys = []
+    for camera in camera_path["camera_path"]:
+        # pose
+        c2w = torch.tensor(camera["camera_to_world"]).view(4, 4)[:3]
+        # flip x and z axes
+        c2w[:, 0] *= -1
+        c2w[:, 2] *= -1
+        c2ws.append(c2w)
+        # field of view
+        fov = camera["fov"]
+        focal_length = three_js_perspective_camera_focal_length(fov, image_height)
+        fxs.append(focal_length)
+        fys.append(focal_length)
+
+    camera_to_worlds = torch.stack(c2ws, dim=0)
+    fx = torch.tensor(fxs)
+    fy = torch.tensor(fys)
+    return Cameras(
+        fx=fx,
+        fy=fy,
+        cx=image_width / 2,
+        cy=image_height / 2,
+        camera_to_worlds=camera_to_worlds,
+    )

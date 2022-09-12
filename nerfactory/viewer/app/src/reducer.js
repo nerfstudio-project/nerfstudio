@@ -13,6 +13,7 @@ const initialState = {
   // the rendering state
   renderingState: {
     camera: null, // the camera object used to render the three.js scene
+    config_filename: "temp_config_filename", // the config filename for the current rendering
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output
@@ -25,7 +26,6 @@ const initialState = {
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
   },
-
   // the scene state
   sceneState: {
     sceneBounds: null,
