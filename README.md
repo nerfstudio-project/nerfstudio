@@ -1,4 +1,5 @@
 <p align="center">
+    <a href="https://join.slack.com/t/nerfactory/shared_invite/zt-1fwqsgjgl-OE0VUJWSPtlVtbC5YXKZrg"><img src="https://img.shields.io/badge/Join-Slack-blue.svg"/></a>
     <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
         <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
     </a>
@@ -209,6 +210,7 @@ For a more in-depth tutorial on how to modify/implement your own NeRF Graph, ple
 | [Creating datsets](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html) | Have a new dataset? Learn how to use it with Nerfactory.
 | [Mobile Capture to NerF](#) | Step-by-step tutorial on how to create beautiful renders with just your phone.
 | [Contributing](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/reference/contributing.html) | Walk-through for how you can start contributing now.
+| [Slack](https://join.slack.com/t/nerfactory/shared_invite/zt-1fwqsgjgl-OE0VUJWSPtlVtbC5YXKZrg) | Join our community to discuss more. We would love to hear from you!
 
 # Supported Features
 
