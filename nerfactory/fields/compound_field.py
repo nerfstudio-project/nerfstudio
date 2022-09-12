@@ -25,20 +25,10 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
 from nerfactory.datamanagers.structs import SceneBounds
-
-# from nerfactory.fields.base import Field
 from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.embedding import Embedding
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
-from nerfactory.fields.modules.field_heads import (
-    FieldHeadNames,
-    TransientDensityFieldHead,
-    TransientRGBFieldHead,
-    UncertaintyFieldHead,
-)
-
-# from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
-# from nerfactory.fields.modules.field_heads import FieldHeadNames
+from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import (
     SceneContraction,
     SpatialDistortion,
@@ -70,20 +60,16 @@ class TCNNCompoundField(TCNNInstantNGPField):
         geo_feat_dim=15,
         num_layers_color=3,
         hidden_dim_color=64,
-        # appearance_embedding_dim: int = 48,
-        transient_embedding_dim: int = 16,
+        appearance_embedding_dim: int = 40,
         spatial_distortion: SpatialDistortion = SceneContraction(),
     ) -> None:
         super().__init__(self, aabb)
         self.geo_feat_dim = geo_feat_dim
 
         self.spatial_distortion = spatial_distortion
-
-        # self.appearance_embedding_dim = appearance_embedding_dim
-        self.transient_embedding_dim = transient_embedding_dim
-
-        # self.embedding_appearance = Embedding(num_images, self.appearance_embedding_dim)
-        self.embedding_transient = Embedding(num_images, self.transient_embedding_dim)
+        self.num_images = num_images
+        self.appearance_embedding_dim = appearance_embedding_dim
+        self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
 
         self.aabb = Parameter(aabb, requires_grad=False)
 
@@ -120,20 +106,8 @@ class TCNNCompoundField(TCNNInstantNGPField):
             },
         )
 
-        self.mlp_transient = tcnn.Network(
-            n_input_dims=self.mlp_base.get_out_dim() + self.embedding_transient.get_out_dim(),
-            n_output_dims=hidden_dim // 2,
-            network_config={
-                "otype": "FullyFusedMLP",
-                "activation": "ReLU",
-                "output_activation": "None",
-                "n_neurons": hidden_dim,
-                "n_hidden_layers": 4,
-            },
-        )
-
         self.mlp_head = tcnn.Network(
-            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim,
+            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
             n_output_dims=3,
             network_config={
                 "otype": "FullyFusedMLP",
@@ -144,13 +118,10 @@ class TCNNCompoundField(TCNNInstantNGPField):
             },
         )
 
-        self.field_head_transient_uncertainty = UncertaintyFieldHead(in_dim=self.mlp_transient.get_out_dim())
-        self.field_head_transient_rgb = TransientRGBFieldHead(in_dim=self.mlp_transient.get_out_dim())
-        self.field_head_transient_density = TransientDensityFieldHead(in_dim=self.mlp_transient.get_out_dim())
-
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        positions = self.spatial_distortion(ray_samples.frustums.get_positions())
+        # positions = self.spatial_distortion(ray_samples.frustums.get_positions())
+        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
@@ -164,36 +135,24 @@ class TCNNCompoundField(TCNNInstantNGPField):
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         # TODO: add valid_mask masking!
         # tcnn requires directions in the range [0,1]
-        outputs = {}
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
 
         camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
+        embedded_appearance = self.embedding_appearance(camera_indices)
+
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
 
         if density_embedding is None:
             positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-            h = torch.cat([d, positions.view(-1, 3)], dim=-1)
+            h = torch.cat([d, positions.view(-1, 3), embedded_appearance], dim=-1)
         else:
-            h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+            h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim), embedded_appearance], dim=-1)
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
 
-        outputs[FieldHeadNames.RGB] = rgb  # static rgb
-        embedded_transient = self.embedding_transient(camera_indices)
-        transient_mlp_in = torch.cat([density_embedding, embedded_transient], dim=-1)  # type: ignore
-        transient_mlp_out = self.mlp_transient(transient_mlp_in)
-        outputs[self.field_head_transient_uncertainty.field_head_name] = self.field_head_transient_uncertainty(
-            transient_mlp_out
-        )  # uncertainty
-        outputs[self.field_head_transient_rgb.field_head_name] = self.field_head_transient_rgb(
-            transient_mlp_out
-        )  # transient rgb
-        outputs[self.field_head_transient_density.field_head_name] = self.field_head_transient_density(
-            transient_mlp_out
-        )  # transient density
-        return outputs
+        return {FieldHeadNames.RGB: rgb}
 
 
 class TorchCompoundField(NeRFField):
