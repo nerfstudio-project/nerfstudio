@@ -50,8 +50,10 @@ from nerfactory.utils.callbacks import (
 
 
 class TensoRFModel(Model):
-    """
-    TensoRF Model
+    """TensoRF Model
+
+    Args:
+        config: TensoRF configuration to instantiate model
     """
 
     def __init__(

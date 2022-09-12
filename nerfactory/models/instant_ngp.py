@@ -46,8 +46,7 @@ class NGPModel(Model):
     """Instant NGP model
 
     Args:
-        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
-        kwargs: additional params to pass up to the parent class model
+        config: instant NGP configuration to instantiate model
     """
 
     config: cfg.InstantNGPModelConfig

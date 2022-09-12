@@ -104,8 +104,8 @@ $sidebar-width: 100% !default;
 }
 
 .StatusPanel .StatusPanel-play-button {
-  width: 90%;
-  margin: 10px;
+  width: 100%;
+  padding: 10px;
 }
 
 .StatusPanel .StatusPanel-button-group {
@@ -139,16 +139,13 @@ $sidebar-width: 100% !default;
 
 // ------------------------------------
 // Landing Modal styling
-// .LandingModal {
-//   display: block;
-// }
 
 .LandingModal-box {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 400px; // 400
+  width: 600px; // 400
   background-color: $base-color2;
   border: 2px solid #000;
   //   box-shadow: 24px 24px;
@@ -164,8 +161,59 @@ $sidebar-width: 100% !default;
 }
 
 // ------------------------------------
-// Camera Vie
-// }
+// Camera Pane
+
+.CameraPanel {
+}
+
+.CameraPanel-top-button {
+  display: inline-block;
+  margin: 4px;
+  margin-top: 8px;
+}
+
+.CameraPanel-slider-container {
+  margin-top: 40px;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.CameraPanel-slider-button-container {
+  margin-bottom: 10px;
+
+  button {
+    margin: 4px;
+  }
+}
+
+.CameraList-container {
+  position: relative;
+  height: 600px;
+  overflow: scroll;
+  border: solid 1px $highlight-color1;
+  padding: 2px;
+}
+
+.CameraList-row {
+  padding: 4px;
+  border: solid 1px $highlight-color1;
+  text-align: left;
+}
+
+.CameraList-row-buttons {
+  display: inline-block;
+  float: right;
+}
+
+.CameraList-row-time-interval > div {
+  display: inline-block;
+  text-align: center;
+  margin: 10px;
+  width: 100px;
+}
+
+// ------------------------------------
+// Viewer Window
 
 .canvas-container-main,
 .WebRTCVideo {
@@ -181,4 +229,20 @@ $sidebar-width: 100% !default;
   width: 100%;
   height: 100%;
   object-fit: fill;
+}
+
+$viewer_button_size: 50px;
+
+.ViewerWindow-buttons {
+  position: absolute;
+  margin: 10px;
+  top: 0px;
+  right: $SidePanel-width;
+  z-index: 1000;
+  width: $viewer_button_size;
+  // background-color: $base-color1;
+}
+
+.ViewerWindow-iconbutton {
+  margin-top: 5px;
 }

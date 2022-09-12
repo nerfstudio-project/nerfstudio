@@ -18,11 +18,11 @@ Camera Models
 import base64
 import math
 from enum import Enum, auto
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Union
 
 import cv2
-import numpy as np
 import torch
+import torchvision
 from torch.nn.functional import normalize
 from torchtyping import TensorType
 
@@ -57,6 +57,8 @@ class Cameras:
         fy: Focal length y.
         cx: Principal point x.
         cy: Principal point y.
+        width: Image width.
+        height: Image height.
         distortion_params: OpenCV 6 radial distortion coefficients.
         camera_type: Type of camera model.
     """
@@ -114,10 +116,10 @@ class Cameras:
     def to(self, device: Union[torch.device, str]) -> "Cameras":
         """
         Args:
-            Device to move the camera to.
+            device: Device to move the camera onto
 
         Returns:
-            Cameras: Cameras on the specified device.
+            Cameras on the specified device.
         """
         distortion_params = self.distortion_params.to(device) if self.distortion_params is not None else None
         return Cameras(
@@ -135,10 +137,10 @@ class Cameras:
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
         """
         Args:
-            pixel_offset (float): Offset for each pixel. Defaults to center of pixel (0.5)
+            pixel_offset: Offset for each pixel. Defaults to center of pixel (0.5)
 
         Returns:
-            TensorType["image_height", "image_width", 2]: Grid of image coordinates.
+            Grid of image coordinates.
         """
         image_height = self.image_height
         image_width = self.image_width
@@ -246,14 +248,14 @@ class Cameras:
         self,
         camera_idx: int,
         image: Optional[TensorType["height", "width", 2]] = None,
-        resize_shape: Optional[Tuple[int, int]] = None,
+        max_size: Optional[int] = None,
     ) -> Dict:
         """Convert a camera to a json dictionary.
 
         Args:
-            camera_idx (int): Index of the camera to convert.
+            camera_idx: Index of the camera to convert.
             image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
-            resize_shape: Shape to resize the image to. Defaults to None.
+            max_size: Max size to resize the image to. Defaults to None.
 
         Returns:
             A JSON representation of the camera
@@ -268,11 +270,14 @@ class Cameras:
             "camera_index": camera_idx,
         }
         if image is not None:
-            image_uint8 = (image * 255).detach().cpu().numpy().astype(np.uint8)
-            if resize_shape:
-                image_uint8 = cv2.resize(image_uint8, resize_shape)
-            data = cv2.imencode(".png", image_uint8)[1].tobytes()
-            json_["image"] = str("data:image/png;base64," + base64.b64encode(data).decode("ascii"))
+            image_uint8 = (image * 255).detach().type(torch.uint8)
+            if max_size is not None:
+                image_uint8 = image_uint8.permute(2, 0, 1)
+                image_uint8 = torchvision.transforms.functional.resize(image_uint8, max_size)  # type: ignore
+                image_uint8 = image_uint8.permute(1, 2, 0)
+            image_uint8 = image_uint8.cpu().numpy()
+            data = cv2.imencode(".jpg", image_uint8)[1].tobytes()
+            json_["image"] = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 
     def get_intrinsics_matrices(self) -> TensorType["num_cameras", 3, 3]:

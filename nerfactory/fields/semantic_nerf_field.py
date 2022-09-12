@@ -34,7 +34,18 @@ from nerfactory.fields.modules.mlp import MLP
 
 
 class SemanticNerfField(Field):
-    """Semantic-NeRF field"""
+    """Semantic-NeRF field
+
+    Args:
+        num_semantic_classes: Number of distinct semantic classes.
+        position_encoding: Position encoder. Defaults to Identity(in_dim=3).
+        direction_encoding: Direction encoder. Defaults to Identity(in_dim=3).
+        base_mlp_num_layers: Number of layers for base MLP. Defaults to 8.
+        base_mlp_layer_width: Width of base MLP layers. Defaults to 256.
+        head_mlp_num_layers: Number of layer for ourput head MLP. Defaults to 2.
+        head_mlp_layer_width: Width of output head MLP layers. Defaults to 128.
+        skip_connections: Where to add skip connection in base MLP. Defaults to (4,).
+    """
 
     def __init__(
         self,

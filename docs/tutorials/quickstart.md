@@ -5,16 +5,16 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 <details>
 <summary>Installing Conda</summary>
 
-    This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
+This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
 
-    ```bash
-    cd /path/to/install/miniconda
+```bash
+cd /path/to/install/miniconda
 
-    mkdir -p miniconda3
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
-    bash miniconda3/miniconda.sh -b -u -p miniconda3
-    rm -rf miniconda/miniconda.sh
-    ```
+mkdir -p miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
+bash miniconda3/miniconda.sh -b -u -p miniconda3
+rm -rf miniconda/miniconda.sh
+```
 
 </details>
 
@@ -29,23 +29,20 @@ Clone the repo
 
 ```bash
 git clone git@github.com:plenoptix/nerfactory.git
+cd nerfactory
 ```
 
 Install dependencies and nerfactory as a library
 
 ```bash
+python -m pip install --upgrade pip
 pip install -e .
 ```
 
-Install library with CUDA development support. Change setup.py to `USE_CUDA = True` and then
+Install tiny-cuda-nn (tcnn) to run instant_ngp
 
 ```bash
-python setup.py develop
-```
-
-Install tiny-cuda-nn (tcnn) to use with the graph_instant_ngp.yaml config
-
-```bash
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
@@ -120,5 +117,18 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 
 **Solution**:
 ```
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+```
+
+* [Installation errors, File "setup.py" not found](pip-install-error)
+
+(pip-install-error)=
+#### Installation errors, File "setup.py" not found
+
+When installing dependencies and nerfactory with `pip install -e .`, you run into: `ERROR: File "setup.py" not found. Directory cannot be installed in editable mode`
+
+**Solution**:
+This can be fixed by upgrading pip to the latest version:
+```
+python -m pip install --upgrade pip
 ```

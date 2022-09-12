@@ -28,8 +28,8 @@ class Embedding(FieldModule):
     # TODO: add different types of initializations
 
     Args:
-        in_dim (int): Number of embeddings
-        out_dim (int): Dimension of the embedding vectors
+        in_dim: Number of embeddings
+        out_dim: Dimension of the embedding vectors
     """
 
     def __init__(self, in_dim: int, out_dim: int) -> None:
@@ -42,5 +42,9 @@ class Embedding(FieldModule):
         self.embedding = torch.nn.Embedding(self.in_dim, self.out_dim)
 
     def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
-        """Call forward"""
+        """Call forward
+
+        Args:
+            in_tensor: input tensor to process
+        """
         return self.embedding(in_tensor)
