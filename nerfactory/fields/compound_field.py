@@ -72,18 +72,18 @@ class TCNNCompoundField(TCNNInstantNGPField):
         super().__init__(self, aabb)
         self.spatial_distortion = spatial_distortion
 
-    # def get_density(self, ray_samples: RaySamples):
-    #     """Computes and returns the densities."""
-    #     positions = self.spatial_distortion(ray_samples.frustums.get_positions())
-    #     positions_flat = positions.view(-1, 3)
-    #     h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
-    #     density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+    def get_density(self, ray_samples: RaySamples):
+        """Computes and returns the densities."""
+        positions = self.spatial_distortion(ray_samples.frustums.get_positions())
+        positions_flat = positions.view(-1, 3)
+        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
-    #     # Rectifying the density with an exponential is much more stable than a ReLU or
-    #     # softplus, because it enables high post-activation (float32) density outputs
-    #     # from smaller internal (float16) parameters.
-    #     density = trunc_exp(density_before_activation.to(positions))
-    #     return density, base_mlp_out
+        # Rectifying the density with an exponential is much more stable than a ReLU or
+        # softplus, because it enables high post-activation (float32) density outputs
+        # from smaller internal (float16) parameters.
+        density = trunc_exp(density_before_activation.to(positions))
+        return density, base_mlp_out
 
 
 class TorchCompoundField(NeRFField):
