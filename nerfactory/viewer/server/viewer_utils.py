@@ -200,9 +200,7 @@ class VisualizerState:
                 # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
                 console.line()
-                self.viewer_url = (
-                    f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
-                )
+                self.viewer_url = f"https://viewer.nerfactory.com/latest/?websocket_url=localhost:{websocket_port}"
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
                 pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
                 dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
