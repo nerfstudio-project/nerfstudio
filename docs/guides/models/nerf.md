@@ -108,7 +108,7 @@ dir_enc = NeRFEncoding(
 
 Now that we have a representation of space, we need some way to render new images of it. To accomplish this, we are going to _project_ a ray from the target pixel and evaluate points along that ray. We then rely on classic volumetric rendering techniques [[Kajiya, 1984]](https://dl.acm.org/doi/abs/10.1145/964965.808594) to composite the points into a predicted color. This compositing is similar to what happens in tools like Photoshop when you layer multiple objects of varying opacity on top of each other. The only difference is that NeRF takes into account the differences in spacing between points.
 
-Rending RGB images is not the only type of output render supported. It is possible to render other output types such as depth and semantics. Additional renderers can be found [Here](../reference/api/renderers/index.rst).
+Rending RGB images is not the only type of output render supported. It is possible to render other output types such as depth and semantics. Additional renderers can be found [Here](../../reference/api/renderers/index.rst).
 
 Associated Nerfactory code:
 
