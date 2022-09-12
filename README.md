@@ -110,7 +110,7 @@ pytest tests
 
 #### 2. Getting the data
 
-Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](docs/tutorials/data/index.rst).
+Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
 
 ```
 |─ nerfactory/
@@ -159,12 +159,12 @@ python scripts/run_train.py instant_ngp --viewer.enable --viewer.no-launch-bridg
 
 #### 4. Visualizing training runs
 
-We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](docs/tooling/logging_profiling.md).
+We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/logging_profiling.html).
 
 <details>
 <summary>Real-time Viewer</summary>
 
-We have developed our own Real-time web viewer, more information can be found [here](docs/tutorials/viewer/index.rst). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
+We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/viewer/index.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
 
 To turn on the viewer, simply add the flag `--viewer.enable`.
 
@@ -196,17 +196,17 @@ python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/
 
 #### 6. In-depth guide
 
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/creating_graphs.html).
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/pipelines/index.html).
 
 
 # Learn More
 | Section | Description |
 |-|-|
-| [Documentation](docs/index.rst) | Full API documentation and tutorials |
-| [Interactive Guides](docs/guides/index.rst) | Go-to spot for learning how NeRFs and each of its modules work.
-| [Quick tour](docs/tutorials/quickstart.md) | Example script on how to navigate Nerfactory from install, train, to test.
-| [Creating models](docs/tutorials/pipelines/index.rst) | Learn how to easily build new neural models by using and/or implementing new modules.
-| [Creating datsets](docs/tutorials/data/index.rst) | Have a new dataset? Learn how to use it with Nerfactory.
+| [Documentation](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/) | Full API documentation and tutorials |
+| [Interactive Guides](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/guides/index.html) | Go-to spot for learning how NeRFs and each of its modules work.
+| [Quick tour](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/quickstart_index.html) | Example script on how to navigate Nerfactory from install, train, to test.
+| [Creating pipelines](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/pipelines/index.html) | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules.
+| [Creating datsets](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html) | Have a new dataset? Learn how to use it with Nerfactory.
 | [Mobile Capture to NerF](#) | Step-by-step tutorial on how to create beautiful renders with just your phone.
 | [Contributing](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/reference/contributing.html) | Walk-through for how you can start contributing now.
 

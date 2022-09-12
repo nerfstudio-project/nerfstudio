@@ -3,7 +3,6 @@
 
 We make it easy to benchmark your new NeRF against the standard Blender dataset. 
 
-(train)=
 ## Launching training on Blender dataset
 
 To start, you will need to train your NeRF on each of the blender objects.
@@ -29,7 +28,7 @@ A full example would be:
 
 The script will automatically launch training on all of the items and save the checkpoints in an output directory with the current date and timestamp.
 
-(eval)=
+
 ## Evaluating trained Blender models
 Once you have launched training, and training converges, you can test your method with `scripts/benchmarking/launch_eval_blender.sh`.
 
