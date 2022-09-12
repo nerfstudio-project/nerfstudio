@@ -111,7 +111,13 @@ pytest tests
 
 #### 2. Getting the data
 
-Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
+Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
+
+```
+python scripts/downloads/download_data.py --dataset=blender
+```
+
+Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
 
 ```
 |─ nerfactory/
