@@ -12,8 +12,11 @@ const initialState = {
   },
   // the rendering state
   renderingState: {
-    camera: null, // the camera object used to render the three.js scene
-    config_filename: "temp_config_filename", // the config filename for the current rendering
+    // cameras
+    camera_options: ['Main Camera', 'Render Camera'], // the possible camera names to render the scene
+    camera_choice: 'Main Camera', // the camera being used to render the scene
+
+    config_filename: 'temp_config_filename', // the config filename for the current rendering
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output

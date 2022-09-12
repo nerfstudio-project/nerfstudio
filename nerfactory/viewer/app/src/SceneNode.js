@@ -28,7 +28,8 @@ function dispose(object) {
 
 export default class SceneNode {
   constructor(object) {
-    this.object = object;
+    this.metadata = {}; // relevant metadata for the object
+    this.object = object; // three.js objects
     this.children = {};
     for (const c of this.object.children) {
       this.add_child(c);
@@ -108,7 +109,7 @@ export default class SceneNode {
 
   delete(path) {
     if (path.length === 0) {
-      console.error("Can't delete an empty path");
+      console.error("Can't delete an empty path.");
     } else {
       const parent = this.find(path.slice(0, path.length - 1));
       const name = path[path.length - 1];

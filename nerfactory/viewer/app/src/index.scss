@@ -236,6 +236,14 @@ $sidebar-width: 100% !default;
 
 $viewer_button_size: 50px;
 
+.ViewerWindow-camera-dropdown {
+  position: absolute;
+  margin: 10px;
+  top: 0px;
+  right: $SidePanel-width + $viewer_button_size;
+  z-index: 1000;
+}
+
 .ViewerWindow-buttons {
   position: absolute;
   margin: 10px;
@@ -243,7 +251,6 @@ $viewer_button_size: 50px;
   right: $SidePanel-width;
   z-index: 1000;
   width: $viewer_button_size;
-  // background-color: $base-color1;
 }
 
 .ViewerWindow-iconbutton {

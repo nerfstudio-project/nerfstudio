@@ -8,7 +8,6 @@ import {
   get_transform_matrix,
   list_from_threejs_vector_list,
 } from './curve';
-import { useSelector } from 'react-redux';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
@@ -24,6 +23,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 
 function set_camera_position(camera, matrix) {
   const mat = new THREE.Matrix4();
@@ -78,11 +78,10 @@ function CameraList(props) {
 }
 
 export default function CameraPanel(props) {
-  // unpack props
+  // unpack relevant information
   const sceneTree = props.sceneTree;
-
-  // scene tree objects
-  const camera_main = sceneTree.find_object(['Main Camera']);
+  const camera_controls = sceneTree.metadata.camera_controls;
+  const camera_render = sceneTree.find_object(['Cameras', 'Render Camera']);
   const transform_controls = sceneTree.find_object(['Transform Controls']);
 
   // react state
@@ -102,10 +101,14 @@ export default function CameraPanel(props) {
   );
 
   const add_camera = () => {
-    const camera_main_copy = camera_main.clone();
+    const camera_main_copy = camera_render.clone();
     camera_main_copy.far = camera_main_copy.near + 0.1;
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
+
+    // console.log(camera_controls);
+    // console.log(camera_controls.target);
+    // sceneTree.metadata.camera = camera_main_copy;
   };
 
   // force a rerender if the cameras are dragged around
@@ -134,9 +137,7 @@ export default function CameraPanel(props) {
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
-      const helper = new CameraHelper(camera);
-      console.log('HERERE');
-      console.log(helper);
+      const camera_helper = new CameraHelper(camera);
       // camera
       sceneTree.set_object_from_path(
         ['Camera Path', 'Cameras', i.toString(), 'Camera'],
@@ -145,7 +146,7 @@ export default function CameraPanel(props) {
       // camera helper
       sceneTree.set_object_from_path(
         ['Camera Path', 'Cameras', i.toString(), 'Camera Helper'],
-        helper,
+        camera_helper,
       );
     }
   }, [cameras]);
@@ -181,7 +182,7 @@ export default function CameraPanel(props) {
       const up = curve_object.curve_ups.getPoint(slider_value / cameras.length);
 
       const mat = get_transform_matrix(position, lookat, up);
-      set_camera_position(camera_main, mat);
+      set_camera_position(camera_render, mat);
     }
   }, [slider_value]);
 
@@ -229,12 +230,12 @@ export default function CameraPanel(props) {
 
       camera_path.push({
         camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
-        fov: camera_main.fov,
-        aspect: camera_main.aspect,
+        fov: camera_render.fov,
+        aspect: camera_render.aspect,
       });
     }
 
-    console.log(camera_main.toJSON());
+    console.log(camera_render.toJSON());
 
     // const myData
     const myData = {
@@ -296,13 +297,6 @@ export default function CameraPanel(props) {
         </Button>
       </div>
       <div className="CameraPanel-top-button">
-        {/* <Button
-          className="CameraPanel-top-button"
-          variant="outlined"
-          // onClick={export_camera_path}
-        >
-          <ContentPasteGoIcon />
-        </Button> */}
         <Tooltip title="Copy Cmd to Clipboard">
           <IconButton onClick={copy_cmd_to_clipboard}>
             <ContentPasteGoIcon />
@@ -407,7 +401,7 @@ export default function CameraPanel(props) {
         <CameraList
           sceneTree={sceneTree}
           transform_controls={transform_controls}
-          camera_main={camera_main}
+          camera_main={camera_render}
           cameras={cameras}
           setCameras={setCameras}
         />
