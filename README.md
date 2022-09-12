@@ -36,7 +36,21 @@
 </p>
 
 - [Quickstart](#quickstart)
+- [Educational Resources](#resources)
 - [Supported Features](#supported-features)
+- [See what's possible](#see-whats-possible)
+
+
+# Philosophy
+All-in-one repository for state-of-the-art NeRFs.
+
+Nerfactory provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and visualizing NeRFs. The library supports a **more interpretable implementation of NeRFs by modularizing each component**. With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation.
+
+It’s as simple as plug and play with Nerfactory!
+
+Ontop of our API, we are also commited to providing learning reasources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) the ins-and-outs of all things NeRF.
+
+We hope Nerfactory enables you to build faster :hammer:, learn together :books:, and contribute back to our NeRF community :sparkling_heart:.
 
 # Quickstart
 
@@ -177,16 +191,26 @@ python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/
 
 For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/creating_graphs.html).
 
+
+# Educational Resources 
+TODO: Blurb on learn more
+
 # Supported Features
 
 We provide the following support strucutures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!
+**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!**
 
-#### :metal: Support for multiple logging interfaces
+* :mag_right: Web-based visualizer that allows you to:
+    * Visualize training in real-time + interact with the scene
+    * Create and render out scenes with custom camera trajectories
+    * View different output types
+    * And more!
+* :pencil2: Support for multiple logging interfaces (Tensorboard, Wandb), code profiling, and other built-in debugging tools
+* :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
+* :iphone: Full pipeline support for going from a video on your phone to a full 3D render. Follow our step-by-step tutorial. (TODO: walk-through page on end-to-end pipeline from capture -> render)
 
-#### :metal: Built-in support for profiling code
 
-#### :metal: Benchmarking scripts
-
-#### :metal: Speed up your code with Tiny Cuda NN
+# See what's possible
+TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
+TODO: For more see gallery
