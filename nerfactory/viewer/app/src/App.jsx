@@ -31,7 +31,7 @@ export default function App() {
             <BasicTabs sceneTree={sceneTree} />
           </div>
           <RenderControls />
-          <ViewerWindow scene={sceneTree.object} />
+          <ViewerWindow sceneTree={sceneTree} scene={sceneTree.object} />
         </div>
       </div>
     </ThemeProvider>

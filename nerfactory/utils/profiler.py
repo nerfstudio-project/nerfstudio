@@ -70,9 +70,9 @@ class Profiler:
         """update the profiler dictionary with running averages of durations
 
         Args:
-            func_name (str): the function name that is being profiled
-            start_time (float): the start time when function is called
-            end_time (float): the end time when function terminated
+            func_name: the function name that is being profiled
+            start_time: the start time when function is called
+            end_time: the end time when function terminated
         """
         val = end_time - start_time
         func_dict = self.profiler_dict.get(func_name, {"val": 0, "step": 0})

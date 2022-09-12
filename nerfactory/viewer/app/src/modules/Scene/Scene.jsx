@@ -28,6 +28,10 @@ export function get_scene_tree() {
     sceneTree.delete(path);
   };
 
+  // Main camera
+  const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+  setObject(['Main Camera'], main_camera);
+
   // Axes
   const axes = new THREE.AxesHelper(5);
   setObject(['Axes'], axes);

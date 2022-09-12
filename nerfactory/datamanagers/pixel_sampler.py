@@ -17,15 +17,21 @@ Code for sampling pixels.
 """
 
 import random
+from typing import Dict
 
 import torch
 
 
-def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool = False):
+def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
     """
     Operates on a batch of images and samples pixels to use for generating rays.
     Returns a collated batch which is input to the Graph.
     It will sample only within the valid 'mask' if it's specified.
+
+    Args:
+        batch: batch of images to sample from
+        num_rays_per_batch: number of rays to sample per batch
+        keep_full_image: whether or not to include a reference to the full image in returned batch
     """
     device = batch["image"].device
     num_images, image_height, image_width, _ = batch["image"].shape
@@ -70,14 +76,23 @@ def collate_image_dataset_batch(batch, num_rays_per_batch, keep_full_image: bool
 
 
 class PixelSampler:  # pylint: disable=too-few-public-methods
-    """Samples 'pixel_batch's from 'image_batch's."""
+    """Samples 'pixel_batch's from 'image_batch's.
 
-    def __init__(self, num_rays_per_batch, keep_full_image=False) -> None:
+    Args:
+        num_rays_per_batch: number of rays to sample per batch
+        keep_full_image: whether or not to include a reference to the full image in returned batch
+    """
+
+    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False) -> None:
         self.num_rays_per_batch = num_rays_per_batch
         self.keep_full_image = keep_full_image
 
-    def sample(self, image_batch):
-        """Sample an image batch and return a pixel batch."""
+    def sample(self, image_batch: Dict):
+        """Sample an image batch and return a pixel batch.
+
+        Args:
+            image_batch: batch of images to sample from
+        """
         pixel_batch = collate_image_dataset_batch(
             image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
         )

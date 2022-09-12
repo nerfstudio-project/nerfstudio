@@ -57,6 +57,8 @@ class Cameras:
         fy: Focal length y.
         cx: Principal point x.
         cy: Principal point y.
+        width: Image width.
+        height: Image height.
         distortion_params: OpenCV 6 radial distortion coefficients.
         camera_type: Type of camera model.
     """
@@ -114,10 +116,10 @@ class Cameras:
     def to(self, device: Union[torch.device, str]) -> "Cameras":
         """
         Args:
-            Device to move the camera to.
+            device: Device to move the camera onto
 
         Returns:
-            Cameras: Cameras on the specified device.
+            Cameras on the specified device.
         """
         distortion_params = self.distortion_params.to(device) if self.distortion_params is not None else None
         return Cameras(
@@ -135,10 +137,10 @@ class Cameras:
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
         """
         Args:
-            pixel_offset (float): Offset for each pixel. Defaults to center of pixel (0.5)
+            pixel_offset: Offset for each pixel. Defaults to center of pixel (0.5)
 
         Returns:
-            TensorType["image_height", "image_width", 2]: Grid of image coordinates.
+            Grid of image coordinates.
         """
         image_height = self.image_height
         image_width = self.image_width
@@ -251,7 +253,7 @@ class Cameras:
         """Convert a camera to a json dictionary.
 
         Args:
-            camera_idx (int): Index of the camera to convert.
+            camera_idx: Index of the camera to convert.
             image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
             max_size: Max size to resize the image to. Defaults to None.
 

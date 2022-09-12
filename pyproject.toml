@@ -54,6 +54,7 @@ dependencies = [
 "Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
 
 [project.optional-dependencies]
+# for building the docs
 docs = [
     "furo==2022.4.7",
     "readthedocs-sphinx-search==0.1.2",

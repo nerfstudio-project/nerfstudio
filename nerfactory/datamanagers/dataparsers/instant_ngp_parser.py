@@ -33,13 +33,7 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 
 @dataclass
 class InstantNGP(DataParser):
-    """Instant NGP Dataset
-
-    Args:
-        data_directory: Location of data
-        scale_factor: How much to scale the camera origins by.
-        scene_scale: How much to scale the scene. Defaults to 0.33
-    """
+    """Instant NGP Dataset"""
 
     config: cfg.InstantNGPDataParserConfig
 
