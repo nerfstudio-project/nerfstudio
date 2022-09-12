@@ -166,10 +166,10 @@ export default function CameraPanel(props) {
       const position = curve_object.curve_positions.getPoint(
         slider_value / (cameras.length - 1.0),
       );
-      const up = curve_object.curve_ups.getPoint(slider_value / cameras.length);
       const lookat = curve_object.curve_lookats.getPoint(
         slider_value / cameras.length,
       );
+      const up = curve_object.curve_ups.getPoint(slider_value / cameras.length);
 
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_main, mat);
