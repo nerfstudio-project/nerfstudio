@@ -73,6 +73,7 @@ git clone git@github.com:plenoptix/nerfactory.git
 
 # Install dependencies and nerfactory as a library
 cd nerfactory
+python -m pip install --upgrade pip
 pip install -e .
 
 # Install tiny-cuda-nn (tcnn) and apex to use with the graph_instant_ngp.yaml config

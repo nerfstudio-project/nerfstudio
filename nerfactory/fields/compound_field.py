@@ -179,7 +179,7 @@ class TCNNCompoundField(TCNNInstantNGPField):
         else:
             h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
-        # return {FieldHeadNames.RGB: rgb}
+
         outputs[FieldHeadNames.RGB] = rgb  # static rgb
         embedded_transient = self.embedding_transient(camera_indices)
         transient_mlp_in = torch.cat([density_embedding, embedded_transient], dim=-1)  # type: ignore

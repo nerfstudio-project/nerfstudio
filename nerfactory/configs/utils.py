@@ -18,38 +18,8 @@ Some utility code for configs.
 
 from __future__ import annotations
 
-import sys
 from dataclasses import field
-from typing import Any, Dict, TypeVar
-
-import dcargs
-
-T = TypeVar("T")
-
-
-def cli_from_base_configs(base_library: Dict[str, T]) -> T:
-    """Populate an instance of `cls`, where the first positional argument is used to
-    select from a library of named base configs. See
-    https://brentyi.github.io/dcargs/examples/06_base_configs/ for more details."""
-
-    # Get base configuration name from the first positional argument.
-    if len(sys.argv) < 2 or sys.argv[1] not in base_library:
-        valid_usages = map(lambda k: f"{sys.argv[0]} {k} --help", base_library.keys())
-        raise SystemExit("usage:\n  " + "\n  ".join(valid_usages))
-
-    # Get base configuration from our library, and use it for default CLI parameters.
-    default_instance = base_library[sys.argv[1]]
-
-    return dcargs.cli(
-        type(default_instance),
-        prog=" ".join(sys.argv[:2]),
-        args=sys.argv[2:],
-        default_instance=default_instance,
-        # `avoid_subparsers` will avoid making a subparser for unions when a default is
-        # provided; in this case, it simplifies our CLI but makes it less expressive.
-        avoid_subparsers=True,
-    )
-
+from typing import Any, Dict
 
 # pylint: disable=import-outside-toplevel
 

@@ -32,15 +32,13 @@ from nerfactory.utils.misc import is_not_none
 
 
 class InputDataset(Dataset):
-    """Dataset that returns images."""
+    """Dataset that returns images.
+
+    Args:
+        config: the DataParserConfig used to instantiate class, which in turn is used to load dataset inputs
+    """
 
     def __init__(self, config: Union[cfg.DataParserConfig, cfg.InstantiateConfig], split: str):
-        """_summary_
-
-        Args:
-            image_filenames (List[str]): List of image filenames
-            alpha_color (TensorType[3], optional): Sets transparent regions to specified color, otherwise black.
-        """
         super().__init__()
         self.dataset_inputs: DatasetInputs = config.setup().get_dataset_inputs(split=split)
 
@@ -48,13 +46,10 @@ class InputDataset(Dataset):
         return len(self.dataset_inputs.image_filenames)
 
     def get_numpy_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
-        """Returns the image.
+        """Returns the image of shape (H, W, 3 or 4).
 
         Args:
-            image_idx (int): The image index in the dataset.
-
-        Returns:
-            np.uint8: an image of shape (H, W, 3 or 4)
+            image_idx: The image index in the dataset.
         """
         image_filename = self.dataset_inputs.image_filenames[image_idx]
         pil_image = Image.open(image_filename)
@@ -65,7 +60,11 @@ class InputDataset(Dataset):
         return image
 
     def get_image(self, image_idx: int) -> TensorType["image_height", "image_width", "num_channels"]:
-        """Returns a 3 channel image."""
+        """Returns a 3 channel image.
+
+        Args:
+            image_idx: The image index in the dataset.
+        """
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
         if self.dataset_inputs.alpha_color is not None and image.shape[-1] == 4:
             assert image.shape[-1] == 4
@@ -75,7 +74,11 @@ class InputDataset(Dataset):
         return image
 
     def get_data(self, image_idx) -> Dict:
-        """Returns the ImageDataset data as a dictionary."""
+        """Returns the ImageDataset data as a dictionary.
+
+        Args:
+            image_idx: The image index in the dataset.
+        """
         image = self.get_image(image_idx)
         data = {"image_idx": image_idx}
         assert is_not_none(image)

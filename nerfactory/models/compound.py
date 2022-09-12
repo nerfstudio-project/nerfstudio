@@ -108,6 +108,13 @@ class CompoundModel(Model):
         ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
+
+        weights = ray_samples.get_weights(
+            field_outputs[FieldHeadNames.DENSITY] + field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
+        )
+        weights_static = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        weights_transient = ray_samples.get_weights(field_outputs[FieldHeadNames.TRANSIENT_DENSITY])
+
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
         rgbs_transient = field_outputs[FieldHeadNames.TRANSIENT_RGB]
@@ -133,12 +140,7 @@ class CompoundModel(Model):
 
         # do i use volume renderer in place of all rgb / depth renderers in nerfw?
         opacities_transient = torch.zeros((num_rays, 1), device=device)
-        (
-            _,
-            accumulated_depth_transient,
-            accumulated_color_transient,
-            _,
-        ) = nerfactory_cuda.VolumeRenderer.apply(
+        (_, accumulated_depth_transient, accumulated_color_transient, _,) = nerfactory_cuda.VolumeRenderer.apply(
             packed_info,
             ray_samples.frustums.starts,
             ray_samples.frustums.ends,

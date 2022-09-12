@@ -42,7 +42,11 @@ from nerfactory.utils import colors, misc, visualization, writer
 
 
 class MipNerfModel(Model):
-    """mip-NeRF model"""
+    """mip-NeRF model
+
+    Args:
+        config: MipNerf configuration to instantiate model
+    """
 
     def __init__(
         self,

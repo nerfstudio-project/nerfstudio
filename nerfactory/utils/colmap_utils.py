@@ -47,80 +47,68 @@ import numpy as np
 
 @dataclass
 class CameraModel:
-    """Camera model.
-
-    Attributes:
-        model_id: Model identifier.
-        model_name: Model name.
-        num_params: Number of parameters.
-    """
+    """Camera model"""
 
     model_id: int
+    """Model identifier"""
     model_name: str
+    """Model name"""
     num_params: int
+    """Number of parameters"""
 
 
 @dataclass
 class Camera:
-    """Camera
-
-    Attributes:
-        camera_id: Camera identifier.
-        model: Camera model.
-        width: Image width.
-        height: Image height.
-        params: Camera parameters.
-    """
+    """Camera"""
 
     id: int
+    """Camera identifier"""
     model: str
+    """Camera model"""
     width: int
+    """Image width"""
     height: int
+    """Image height"""
     params: np.ndarray
+    """Camera parameters"""
 
 
 @dataclass
 class Image:
-    """Data the corresponds to a single image.
-
-    Attributes:
-        id: Image identifier.
-        qvec: Quaternion vector.
-        tvec: Translation vector.
-        camera_id: Camera identifier.
-        name: Image name.
-        xys: 2D points.
-        point3D_ids: Point3D identifiers.
-    """
+    """Data the corresponds to a single image"""
 
     id: int
+    """Image identifier"""
     qvec: np.ndarray
+    """Quaternion vector"""
     tvec: np.ndarray
+    """Translation vector"""
     camera_id: int
+    """Camera identifier"""
     name: str
+    """Image name"""
     xys: np.ndarray
+    """2D points"""
     point3d_ids: np.ndarray
+    """Point3D identifiers"""
 
 
 @dataclass
 class Point3D:
-    """Data that corresponds to a single 3D point.
-
-    Attributes:
-        id: Point3D identifier.
-        xyz: 3D point.
-        rgb: Color.
-        error: Reconstruction error.
-        image_ids: Image identifiers.
-        point2d_idxs: Point2D indices.
-    """
+    """Data that corresponds to a single 3D point"""
 
     id: int
+    """Point3D identifier"""
     xyz: np.ndarray
+    """3D point"""
     rgb: np.ndarray
+    """Color"""
     error: float
+    """Reconstruction error"""
     image_ids: np.ndarray
+    """Image identifiers"""
     point2d_idxs: np.ndarray
+    """Point2D indices"""
 
 
 CAMERA_MODELS = [

@@ -31,15 +31,7 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 
 @dataclass
 class Nerfactory(DataParser):
-    """Nerfactory Dataset
-
-    Args:
-        data_directory: Location of data
-        scale_factor: How much to scale the camera origins by.
-        downscale_factor: How much to downscale images.
-        scene_scale: How much to scale the scene.
-        orientation_method: The method to use for orientation. Either "pca" or "up".
-    """
+    """Nerfactory Dataset"""
 
     config: cfg.NerfactoryDataParserConfig
 

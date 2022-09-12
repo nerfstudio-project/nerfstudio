@@ -3,6 +3,10 @@ import subprocess
 import sys
 
 import dcargs
+from rich.console import Console
+from rich.style import Style
+
+console = Console(width=120)
 
 LOCAL_TESTS = ["Run license checks", "Run Black", "Python Pylint", "Test with pytest"]
 
@@ -15,7 +19,7 @@ def run_command(command: str) -> None:
     """
     ret_code = subprocess.call(command, shell=True)
     if ret_code != 0:
-        print(f"\033[31mError: `{command}` failed. Exiting...\033[0m")
+        console.print(f"[bold red]Error: `{command}` failed. Exiting...")
         sys.exit(1)
 
 
@@ -26,22 +30,20 @@ def main(clean_cache: bool = False):
         clean_cache: whether to clean the cache before building docs.
     """
 
-    print_green = lambda x: print(f"\033[32m{x}\033[0m")
-
-    print_green("Adding notebook documentation metadata")
+    console.print("[green]Adding notebook documentation metadata")
     run_command("python scripts/docs/add_nb_tags.py")
 
     # Add checks for building documentation
-    print_green("Building Documentation")
+    console.print("[green]Building Documentation")
     if clean_cache:
         run_command("cd docs/; make clean; make html SPHINXOPTS='-W;'")
     else:
         run_command("cd docs/; make html SPHINXOPTS='-W;'")
 
-    print("\n")
-    print_green("=" * 100)
-    print_green("Done")
-    print_green("=" * 100)
+    console.line()
+    console.rule(characters="=", style=Style(color="green"))
+    console.print("[bold green]Done")
+    console.rule(characters="=", style=Style(color="green"))
 
 
 if __name__ == "__main__":
