@@ -156,7 +156,7 @@ base_configs["compound"] = Config(
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=MipNerf360DataParserConfig(),
+            train_dataparser=BlenderDataParserConfig(),
             train_num_rays_per_batch=8192,
             eval_num_rays_per_chunk=8192,
         ),

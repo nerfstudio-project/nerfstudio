@@ -29,7 +29,7 @@ import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
-from nerfactory.fields.modules.field_heads import FieldHeadNames
+from nerfactory.fields.modules.field_heads import FieldHead, FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
@@ -110,6 +110,8 @@ class CompoundModel(Model):
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
+        rgbs_transient = field_outputs[FieldHeadNames.TRANSIENT_RGB]
+        sigmas_transient = field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
 
         # accumulate all the rays start from zero opacity
         opacities = torch.zeros((num_rays, 1), device=device)
@@ -129,10 +131,30 @@ class CompoundModel(Model):
         accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
         accumulated_color = accumulated_color + colors.WHITE.to(accumulated_color) * (1.0 - accumulated_weight)
 
+        # do i use volume renderer in place of all rgb / depth renderers in nerfw?
+        opacities_transient = torch.zeros((num_rays, 1), device=device)
+        (
+            _,
+            accumulated_depth_transient,
+            accumulated_color_transient,
+            _,
+        ) = nerfactory_cuda.VolumeRenderer.apply(
+            packed_info,
+            ray_samples.frustums.starts,
+            ray_samples.frustums.ends,
+            sigmas_transient.contiguous(),
+            rgbs_transient.contiguous(),
+            opacities_transient,
+        )
+
         outputs = {
             "rgb": accumulated_color,
+            "rgb_static": rgb_static,
             "accumulation": accumulated_weight,
             "depth": accumulated_depth,
+            "depth_static": depth_static,
+            "density_transient": density_transient,
+            "uncertainty": uncertainty,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
