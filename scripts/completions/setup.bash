@@ -1,6 +1,6 @@
 # Nerfactory completions for bash.
 #
-# This should generally be installed automatically by `install.py`.
+# This should generally be installed automatically by `configure.py`.
 
 completions_dir="$(dirname "$BASH_SOURCE")"/bash
 

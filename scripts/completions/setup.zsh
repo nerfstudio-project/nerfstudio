@@ -1,6 +1,6 @@
 # Nerfactory completions for zsh.
 #
-# This should generally be installed automatically by `install.py`.
+# This should generally be installed automatically by `configure.py`.
 
 completions_dir="${0:a:h}"/zsh
 

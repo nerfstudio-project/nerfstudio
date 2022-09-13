@@ -149,3 +149,11 @@ base_configs["tensorf"] = Config(
         },
     },
 )
+
+
+# In base configs: replace the auto-generated timestamp with {timestamp}. This makes the
+# CLI helptext consistent everytime you run a script with --help.
+#
+# Note that when a config is instantiated with dcargs.cli(), the __post_init__ will 
+for config in base_configs.values():
+    config.set_timestamp("{timestamp}")
