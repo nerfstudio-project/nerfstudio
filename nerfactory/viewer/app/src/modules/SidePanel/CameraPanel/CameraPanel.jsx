@@ -97,9 +97,6 @@ export default function CameraPanel(props) {
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
 
-  // const [render_height, setRenderHeight] = React.useState(1080);
-  // const [render_width, setRenderWidth] = React.useState(1920);
-
   const dispatch = useDispatch();
   const render_height = useSelector(
     (state) => state.renderingState.render_height,
@@ -126,6 +123,13 @@ export default function CameraPanel(props) {
       data: value,
     });
   };
+
+  // ui state
+  const [ui_render_height, setUIRenderHeight] = React.useState(render_height);
+  const [ui_render_width, setUIRenderWidth] = React.useState(render_width);
+  const [ui_field_of_view, setUIFieldOfView] = React.useState(field_of_view);
+  const [ui_seconds, setUISeconds] = React.useState(seconds);
+  const [ui_fps, setUIfps] = React.useState(fps);
 
   const total_num_steps = seconds * fps;
   const step_size = (cameras.length - 1) / total_num_steps;
@@ -428,12 +432,21 @@ export default function CameraPanel(props) {
           size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setRenderHeight(parseInt(e.target.value, 10));
+              setUIRenderHeight(e.target.value);
             }
           }}
-          value={render_height}
-          error={render_height <= 0}
-          helperText={render_height <= 0 ? 'Required' : ''}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setRenderHeight(parseInt(e.target.value, 10));
+              } else {
+                setUIRenderHeight(render_height);
+              }
+            }
+          }}
+          value={ui_render_height}
+          error={ui_render_height <= 0}
+          helperText={ui_render_height <= 0 ? 'Required' : ''}
           variant="standard"
         />
         <TextField
@@ -445,12 +458,21 @@ export default function CameraPanel(props) {
           size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setRenderWidth(parseInt(e.target.value, 10));
+              setUIRenderWidth(e.target.value);
             }
           }}
-          value={render_width}
-          error={render_width <= 0}
-          helperText={render_width <= 0 ? 'Required' : ''}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setRenderWidth(parseInt(e.target.value, 10));
+              } else {
+                setUIRenderWidth(render_width);
+              }
+            }
+          }}
+          value={ui_render_width}
+          error={ui_render_width <= 0}
+          helperText={ui_render_width <= 0 ? 'Required' : ''}
           variant="standard"
         />
         <TextField
@@ -459,15 +481,23 @@ export default function CameraPanel(props) {
             inputMode: 'numeric',
             pattern: '[+-]?([0-9]*[.])?[0-9]+',
           }}
-          size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setFOV(parseInt(e.target.value, 10));
+              setUIFieldOfView(e.target.value);
             }
           }}
-          value={field_of_view}
-          error={field_of_view <= 0}
-          helperText={field_of_view <= 0 ? 'Required' : ''}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setFOV(parseInt(e.target.value, 10));
+              } else {
+                setUIFieldOfView(field_of_view);
+              }
+            }
+          }}
+          value={ui_field_of_view}
+          error={ui_field_of_view <= 0}
+          helperText={ui_field_of_view <= 0 ? 'Required' : ''}
           variant="standard"
         />
       </div>
@@ -481,12 +511,21 @@ export default function CameraPanel(props) {
           size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setSeconds(parseInt(e.target.value, 10));
+              setUISeconds(e.target.value);
             }
           }}
-          value={seconds}
-          error={seconds <= 0}
-          helperText={seconds <= 0 ? 'Required' : ''}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setSeconds(e.target.value);
+              } else {
+                setUISeconds(seconds);
+              }
+            }
+          }}
+          value={ui_seconds}
+          error={ui_seconds <= 0}
+          helperText={ui_seconds <= 0 ? 'Required' : ''}
           variant="standard"
         />
         <TextField
@@ -495,12 +534,21 @@ export default function CameraPanel(props) {
           size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setFps(parseInt(e.target.value, 10));
+              setUIfps(e.target.value);
             }
           }}
-          value={fps}
-          error={fps <= 0}
-          helperText={fps <= 0 ? 'Required' : ''}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setFps(e.target.value);
+              } else {
+                setUIfps(fps);
+              }
+            }
+          }}
+          value={ui_fps}
+          error={ui_fps <= 0}
+          helperText={ui_fps <= 0 ? 'Required' : ''}
           variant="standard"
         />
       </div>
