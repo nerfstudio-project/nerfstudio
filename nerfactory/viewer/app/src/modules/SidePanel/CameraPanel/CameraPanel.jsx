@@ -517,7 +517,7 @@ export default function CameraPanel(props) {
           onBlur={(e) => {
             if (e.target.validity.valid) {
               if (e.target.value !== '') {
-                setSeconds(e.target.value);
+                setSeconds(parseInt(e.target.value, 10));
               } else {
                 setUISeconds(seconds);
               }
@@ -540,7 +540,7 @@ export default function CameraPanel(props) {
           onBlur={(e) => {
             if (e.target.validity.valid) {
               if (e.target.value !== '') {
-                setFps(e.target.value);
+                setFps(parseInt(e.target.value, 10));
               } else {
                 setUIfps(fps);
               }
