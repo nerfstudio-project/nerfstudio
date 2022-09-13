@@ -345,8 +345,8 @@ class LocalWriter(Writer):
         if step > 0:
             if not self.has_printed and self.max_log_size:
                 logging.info(
-                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` \
-                        to disable line wrapping.\x1b[0m",
+                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` "
+                    "to disable line wrapping.\x1b[0m",
                     self.max_log_size,
                 )
             latest_map, new_key = self._consolidate_events()

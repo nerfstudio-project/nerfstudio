@@ -2,12 +2,12 @@
 
 The tutorial below shows you how to host the viewer yourself and how you can use it to visualize training.
 
-(nerfactory_bridge)=
+
 #### Connection between nerfactory and the Bridge Server
 
 In the center, we have the Bridge Server, which facilitates the connection between nerfactory code and the Client App. This server runs on the same machine that you are using nerfactory. It has a TCP Request/Reply (REQ/REP) connection that nerfactory can connect to with the Viewer object (left). We use [ZeroMQ](https://zeromq.org/), an open-sourced messaging library, to implement this lightweight TCP connection. The Viewer class can send commands to the Bridge Server and receive replies. The Bridge Server will either dispatch commands to the Client App via a websocket or it will return information stored in the Bridge Server state.
 
-(bridge_client)=
+
 #### Connection between the Bridge Server and the Client App
 
 The connection between the Bridge Server and the Client App works with WebSockets and WebRTC.
@@ -16,10 +16,10 @@ The connection between the Bridge Server and the Client App works with WebSocket
 
 - **WebRTC connection** - We use WebRTC to stream images being rendered from nerfactory. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the nerfactory code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
 
-(getting_started)=
+
 ## Getting started
 
-(bridge)=
+
 #### Running the Bridge Server
 
 The viewer server runs on the same machine that you use for training. The training code will connect to the server with a lightweight TCP connection.
@@ -35,7 +35,7 @@ It should print out something of the form:
 "ZMQWebSocketBridge using zmq_url=tcp://127.0.0.1:6000 and websocket_port=8051"
 ```
 
-(client)=
+
 #### Running the Client App
 
 > We will host the viewer online in the future, but for now we have to run it locally.
@@ -79,7 +79,7 @@ PORT=4000
 ESLINT_NO_DEV_ERRORS=true
 ```
 
-(nerfactory)=
+
 #### Running the nerfactory Code
 
 You can now simply run a training job and visualize progress by enabling the viewer during training:
@@ -90,7 +90,7 @@ python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=t
 
 - **Notebook demo** - See [Programming the viewer](viewer_notebook.ipynb) for an overview for how to interact with the viewer with the Viewer object from nerfactory.
 
-(ack)=
+
 ## Acknowledgements and references
 
 We thank [Robin Deits](https://github.com/rdeits) and other contributors to the following repos, which we've started with and modified and extended for our use.

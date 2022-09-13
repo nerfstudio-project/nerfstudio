@@ -19,20 +19,25 @@ Miscellaneous helper code.
 import hashlib
 import json
 from math import floor, log
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
 
 
-def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu"):
+def get_dict_to_torch(stuff: Any, device: Union[torch.device, str] = "cpu", exclude: Optional[List[str]] = None):
     """Set everything in the dict to the specified torch device.
 
     Args:
         stuff: things to convert to torch
+        device: machine to put the "stuff" on
+        exclude: list of keys to skip over transferring to device
     """
     if isinstance(stuff, dict):
         for k, v in stuff.items():
-            stuff[k] = get_dict_to_torch(v, device)
+            if exclude and k in exclude:
+                stuff[k] = v
+            else:
+                stuff[k] = get_dict_to_torch(v, device)
         return stuff
     if isinstance(stuff, torch.Tensor):
         return stuff.to(device)

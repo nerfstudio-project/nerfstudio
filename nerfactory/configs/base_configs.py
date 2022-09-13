@@ -20,6 +20,7 @@ from typing import Dict
 
 from nerfactory.configs.base import (
     BlenderDataParserConfig,
+    CompoundModelConfig,
     Config,
     FriendsDataManagerConfig,
     InstantNGPModelConfig,
@@ -147,5 +148,24 @@ base_configs["tensorf"] = Config(
             "optimizer": OptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
         },
+    },
+)
+
+base_configs["compound"] = Config(
+    method_name="compound",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=BlenderDataParserConfig(),
+            train_num_rays_per_batch=8192,
+            eval_num_rays_per_chunk=8192,
+        ),
+        model=CompoundModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),
+            "scheduler": None,
+        }
     },
 )

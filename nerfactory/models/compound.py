@@ -12,8 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Implementation of Instant NGP.
+""" Compound model that integrates multiple NeRF Advancements
+
+Features:
+
+    NGP Hash encoding for fast training
+    NGP ray sampler for fast training
+    Spatial contraction for training on large scenes
+    Appearance conditioning
+
+TODO:
+    Pose optimization
+
 """
 
 from __future__ import annotations
@@ -42,16 +52,17 @@ from nerfactory.utils.callbacks import (
 )
 
 
-class NGPModel(Model):
-    """Instant NGP model
+class CompoundModel(Model):
+    """Compound model
 
     Args:
-        config: instant NGP configuration to instantiate model
+        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
+        kwargs: additional params to pass up to the parent class model
     """
 
-    config: cfg.InstantNGPModelConfig
+    config: cfg.CompoundModelConfig
 
-    def __init__(self, config: cfg.InstantNGPModelConfig, **kwargs) -> None:
+    def __init__(self, config: cfg.CompoundModelConfig, **kwargs) -> None:
         assert config.field_implementation in field_implementation_to_class
         self.field = None
         super().__init__(config=config, **kwargs)
@@ -108,6 +119,7 @@ class NGPModel(Model):
         ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
 
         field_outputs = self.field.forward(ray_samples)
+
         rgbs = field_outputs[FieldHeadNames.RGB]
         sigmas = field_outputs[FieldHeadNames.DENSITY]
 
@@ -150,7 +162,7 @@ class NGPModel(Model):
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        image = batch["image"].to(outputs["rgb"].device)
+        image = batch["image"]
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
         depth = visualization.apply_depth_colormap(

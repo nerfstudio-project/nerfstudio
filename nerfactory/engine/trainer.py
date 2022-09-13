@@ -137,7 +137,8 @@ class Trainer:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
-                        self.visualizer_state.update_scene(step, self.pipeline.model)
+                        num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
+                        self.visualizer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)

@@ -45,9 +45,7 @@ Contents
    :hidden:
    :caption: Guides
 
-   models/index
-   model_components/index
-   dataloader_components/index
+   guides/index
 
 .. toctree::
    :hidden:

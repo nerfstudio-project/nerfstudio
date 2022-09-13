@@ -2,7 +2,7 @@
 .. toctree::
     :maxdepth: 1
 
-    hydra.md
+    config.md
     logging_profiling.md
     benchmarking.md
 
