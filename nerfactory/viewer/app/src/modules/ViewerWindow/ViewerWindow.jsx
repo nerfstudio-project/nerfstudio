@@ -1,13 +1,10 @@
 import * as THREE from 'three';
 
 import React, { useContext, useEffect, useRef } from 'react';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import { SelectChangeEvent } from '@mui/material/Select';
 import { useDispatch, useSelector } from 'react-redux';
 
-import FormControl from '@mui/material/FormControl';
-import { IconButton } from '@mui/material';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
+import { IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
 import PublicSharpIcon from '@mui/icons-material/PublicSharp';
@@ -27,11 +24,8 @@ function createStats() {
   return stats;
 }
 
-function CameraDropdown() {
+function CameraToggle() {
   const dispatch = useDispatch();
-  const camera_options = useSelector(
-    (state) => state.renderingState.camera_options,
-  );
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
   );
@@ -44,19 +38,19 @@ function CameraDropdown() {
     });
   };
 
-  const menu_items = camera_options.map((camera_option) => (
-    <MenuItem key={camera_option} value={camera_option}>
-      {camera_option}
-    </MenuItem>
-  ));
-
   return (
-    <FormControl sx={{ m: 1, minWidth: 120 }} size="small">
-      <InputLabel>Camera</InputLabel>
-      <Select value={camera_choice} label="Age" onChange={set_camera_choice}>
-        {menu_items}
-      </Select>
-    </FormControl>
+    <ToggleButtonGroup
+      color="primary"
+      value={camera_choice}
+      exclusive
+      onChange={set_camera_choice}
+      aria-label="camera view"
+      size="small"
+      varient="filled"
+    >
+      <ToggleButton value="Main Camera">Viewport</ToggleButton>
+      <ToggleButton value="Render Camera">Render</ToggleButton>
+    </ToggleButtonGroup>
   );
 }
 
@@ -272,9 +266,10 @@ export default function ViewerWindow(props) {
     <>
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
-      <div className="canvas-container-main" ref={myRef} />
-      <div className="ViewerWindow-camera-dropdown">
-        <CameraDropdown />
+      <div className="canvas-container-main" ref={myRef}>
+        <div className="ViewerWindow-camera-toggle">
+          <CameraToggle />
+        </div>
       </div>
       <div className="ViewerWindow-buttons">
         <TransformIcons sceneTree={sceneTree} />
