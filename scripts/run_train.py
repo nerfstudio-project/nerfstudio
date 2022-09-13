@@ -215,4 +215,5 @@ if __name__ == "__main__":
     # Create a subcommand for each base config.
     SubcommandType = dcargs.extras.subcommand_type_from_defaults(base_configs)
     instantiated_config = dcargs.cli(SubcommandType)
+
     main(config=instantiated_config)

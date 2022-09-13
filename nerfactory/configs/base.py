@@ -308,7 +308,7 @@ class Record3DDataParserConfig(DataParserConfig):
     more, images will be sampled approximately evenly. Defaults to 150."""
 
 
-DataParserSubcommand = dcargs.extras.subcommand_type_from_defaults(
+AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
     {
         "nerfactory-data": NerfactoryDataParserConfig(),
         "blender-data": BlenderDataParserConfig(),
@@ -319,6 +319,8 @@ DataParserSubcommand = dcargs.extras.subcommand_type_from_defaults(
     },
     prefix_names=False,
 )
+"""Union over possible dataparser types, annotated with metadata for dcargs. This is the
+same as the vanilla union, but results in shorter subcommand names."""
 
 
 @dataclass
@@ -334,7 +336,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
 
     _target: Type = VanillaDataManager
     """target class to instantiate"""
-    train_dataparser: DataParserSubcommand = BlenderDataParserConfig()
+    train_dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
     """specifies the dataparser used to unpack the data"""
     train_num_rays_per_batch: int = 1024
     """number of rays per batch to use per training iteration"""
