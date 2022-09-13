@@ -17,4 +17,6 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 
 This pulls up a hosted web-viewer which is the fastest way to get started with visualizing your nerfactory training progress!
 
+![viewer](imgs/bulldozer.png)
+
 If you want to host the viewer locally/yourself, please proceed to "For devleopers" section.
