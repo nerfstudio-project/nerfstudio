@@ -19,6 +19,7 @@ import enum
 import logging
 import sys
 import threading
+import traceback
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -559,8 +560,18 @@ class VisualizerState:
             try:
                 render_thread.join()
                 check_thread.join()
+            except ZeroDivisionError:
+                logging.warning("Screen too small; no rays intersecting scene")
+                traceback.print_exception(*sys.exc_info())
+                return
+            except RuntimeError:
+                del camera_ray_bundle
+                torch.cuda.empty_cache()
+                traceback.print_exception(*sys.exc_info())
+                return
             except Exception:  # pylint: disable=broad-except
                 pass
+
         graph.train()
         outputs = render_thread.vis_outputs
         if outputs is not None:
