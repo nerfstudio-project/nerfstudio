@@ -19,7 +19,6 @@ import enum
 import logging
 import sys
 import threading
-import time
 from typing import Any, Dict, Optional
 
 import numpy as np
