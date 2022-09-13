@@ -120,9 +120,6 @@ def get_path_from_json(camera_path: Dict[str, Any], image_height: int, image_wid
     for camera in camera_path["camera_path"]:
         # pose
         c2w = torch.tensor(camera["camera_to_world"]).view(4, 4)[:3]
-        # flip x and z axes
-        c2w[:, 0] *= -1
-        c2w[:, 2] *= -1
         c2ws.append(c2w)
         # field of view
         fov = camera["fov"]

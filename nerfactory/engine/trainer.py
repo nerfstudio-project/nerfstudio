@@ -80,7 +80,7 @@ class Trainer:
         self.start_step = 0
         # visualizer variable
         banner_messages = None
-        self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
+        self.visualizer_state = viewer_utils.VisualizerState(config.viewer, config_base_dir=self.config.base_dir)
         if config.viewer.enable:
             banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)

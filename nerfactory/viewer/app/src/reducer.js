@@ -10,13 +10,17 @@ const initialState = {
   webrtcState: {
     isConnected: false,
   },
+  // for sending actual commands to the client
+  camera_path_payload: null,
   // the rendering state
   renderingState: {
     // cameras
     camera_options: ['Main Camera', 'Render Camera'], // the possible camera names to render the scene
     camera_choice: 'Main Camera', // the camera being used to render the scene
 
-    config_filename: 'temp_config_filename', // the config filename for the current rendering
+    // camera path information
+    config_base_dir: 'config_base_dir', // the base directory of the config file
+
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output

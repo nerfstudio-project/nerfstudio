@@ -8,6 +8,7 @@ import {
   get_transform_matrix,
   list_from_threejs_vector_list,
 } from './curve';
+import { useContext, useEffect } from 'react';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
@@ -22,8 +23,10 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { useEffect } from 'react';
+import { WebSocketContext } from '../../WebSocket/WebSocket';
 import { useSelector } from 'react-redux';
+
+const msgpack = require('msgpack-lite');
 
 function set_camera_position(camera, matrix) {
   // console.log("setting camera position");
@@ -85,6 +88,12 @@ export default function CameraPanel(props) {
   const camera_main = sceneTree.find_object(['Cameras', 'Main Camera']);
   const camera_render = sceneTree.find_object(['Cameras', 'Render Camera']);
   const transform_controls = sceneTree.find_object(['Transform Controls']);
+
+  // redux store state
+  const config_base_dir = useSelector(
+    (state) => state.renderingState.config_base_dir,
+  );
+  const websocket = useContext(WebSocketContext).socket;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
@@ -178,7 +187,9 @@ export default function CameraPanel(props) {
       const lookat = curve_object.curve_lookats.getPoint(
         slider_value / (cameras.length - 1.0),
       );
-      const up = curve_object.curve_ups.getPoint(slider_value / (cameras.length - 1.0));
+      const up = curve_object.curve_ups.getPoint(
+        slider_value / (cameras.length - 1.0),
+      );
 
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
@@ -204,11 +215,7 @@ export default function CameraPanel(props) {
     }
   }, [slider_value]);
 
-  const export_camera_path = () => {
-    // export the camera path
-    // inspired by:
-    // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
-
+  const get_camera_path = () => {
     // NOTE: currently assuming these are ints
     const num_points = parseInt(fps) * parseInt(seconds);
     const positions = curve_object.curve_positions.getPoints(num_points);
@@ -234,8 +241,6 @@ export default function CameraPanel(props) {
       });
     }
 
-    console.log(camera_render.toJSON());
-
     // const myData
     const myData = {
       keyframes: [],
@@ -243,9 +248,19 @@ export default function CameraPanel(props) {
       fps: parseInt(fps),
       seconds: parseInt(seconds),
     };
+    return myData;
+  };
+
+  const export_camera_path = () => {
+    // export the camera path
+    // inspired by:
+    // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
+
+    const camera_path = get_camera_path();
+    console.log(camera_render.toJSON());
 
     // create file in browser
-    const json = JSON.stringify(myData, null, 2);
+    const json = JSON.stringify(camera_path, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
 
@@ -264,19 +279,36 @@ export default function CameraPanel(props) {
 
   const copy_cmd_to_clipboard = () => {
     console.log('copy_cmd_to_clipboard');
+
+    const camera_path = get_camera_path();
+
     // Copy the text inside the text field
-    // const config_filename =
-    //   'outputs/blender_lego/instant_ngp/2022-09-11_234413/config.yml';
-    const camera_path_filename = 'camera_path.json';
+    const config_filename = config_base_dir + '/config.yml';
+    const camera_path_filename = config_base_dir + '/camera_path.json';
     const cmd =
       'python scripts/run_eval.py render-trajectory --load-config ' +
       config_filename +
       ' --traj filename --camera-path-filename ' +
       camera_path_filename +
-      ' --output-path output.mp4';
+      ' --output-path output.mp4' + 
+      ' --downscale-factor 4';
     navigator.clipboard.writeText(cmd);
 
-    // send a command of the websocket and get a reply...
+    const camera_path_payload = {
+      camera_path_filename: camera_path_filename,
+      camera_path: camera_path,
+    };
+
+    // send a command of the websocket to save the trajectory somewhere!
+    if (websocket.readyState === WebSocket.OPEN) {
+      const data = {
+        type: 'write',
+        path: 'camera_path_payload',
+        data: camera_path_payload,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
   };
 
   return (

@@ -20,7 +20,7 @@ import logging
 import sys
 import threading
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch
@@ -37,6 +37,9 @@ from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
+from pathlib import Path
+
+from nerfactory.utils.io import write_to_json
 
 
 class OutputTypes(str, enum.Enum):
@@ -185,8 +188,9 @@ class VisualizerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig):
+    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[str] = None):
         self.config = config
+        self.config_base_dir = config_base_dir
 
         self.vis = None
         self.viewer_url = None
@@ -242,6 +246,10 @@ class VisualizerState:
             start_train: whether to start train when viewer init;
                 if False, only displays dataset until resume train is toggled
         """
+        # set the config base dir
+        if self.config_base_dir:
+            self.vis["renderingState/config_base_dir"].write(str(self.config_base_dir))
+
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
         self.vis["sceneState/cameras"].delete()
@@ -278,6 +286,15 @@ class VisualizerState:
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
+
+        # check if we should interrupt from a button press?
+        camera_path_payload = self.vis["camera_path_payload"].read()
+        if camera_path_payload:
+            # write to json file
+            camera_path_filename = camera_path_payload["camera_path_filename"]
+            camera_path = camera_path_payload["camera_path"]
+            write_to_json(Path(camera_path_filename), camera_path)
+            self.vis["camera_path_payload"].delete()
 
         if is_training is None or is_training:
             # in training mode, render every few steps
