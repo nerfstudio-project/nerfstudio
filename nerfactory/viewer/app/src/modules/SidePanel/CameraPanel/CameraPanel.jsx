@@ -3,13 +3,11 @@ import * as THREE from 'three';
 
 import { Button, Slider } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
-import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { CameraHelper } from './CameraHelper';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -20,6 +18,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { CameraHelper } from './CameraHelper';
+import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
