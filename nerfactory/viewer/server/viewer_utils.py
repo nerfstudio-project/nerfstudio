@@ -314,6 +314,7 @@ class VisualizerState:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
                     self._render_image_in_viewer(camera_object, graph, is_training)
+                    camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
                 run_loop = not is_training
                 local_step += 1
