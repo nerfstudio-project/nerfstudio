@@ -6,15 +6,14 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 
 ![visualize_dataset](imgs/viewer_figure.png)
 
-
 ## Run hosted web viewer
 
-1. Open the Client App Viewer at ... [https://viewer.nerfactory.com/branch/master/?localhost:8051](https://viewer.nerfactory.com/branch/master/?localhost:8051) but make sure to change `localhost:8051` accordingly.
+1. Open the Client App Viewer at ... [https://viewer.nerfactory.com/latest/?localhost:7007](https://viewer.nerfactory.com/latest/?localhost:8051) but make sure to change `localhost:7007` accordingly.
 
 2. Run training script with viewer enabled. Note that you should only use the viewer with a fast pipeline, such as instant ngp.
-    ```shell
-    python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
-    ```
+   ```shell
+   python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
+   ```
 
 This pulls up a hosted web-viewer which is the fastest way to get started with visualizing your nerfactory training progress!
 

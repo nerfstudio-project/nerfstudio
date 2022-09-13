@@ -146,7 +146,7 @@ class MipNerfModel(Model):
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        image = batch["image"]
+        image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])

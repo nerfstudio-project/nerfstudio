@@ -18,6 +18,7 @@ import yaml
 from rich.console import Console
 
 from nerfactory.configs import base as cfg
+from nerfactory.configs.base_configs import BaseConfigSubcommand
 from nerfactory.engine.trainer import train_loop
 from nerfactory.utils import comms, profiler
 
@@ -209,10 +210,6 @@ def main(config: cfg.Config) -> None:
 
 
 if __name__ == "__main__":
-
-    from nerfactory.configs.base_configs import base_configs
-
-    # Create a subcommand for each base config.
-    SubcommandType = dcargs.extras.subcommand_type_from_defaults(base_configs)
-    config = dcargs.cli(SubcommandType)
+    # Choose a 
+    config = dcargs.cli(BaseConfigSubcommand)
     main(config=config)

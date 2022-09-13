@@ -32,6 +32,7 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
@@ -107,6 +108,7 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
+            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -114,6 +116,7 @@ class RenderThread(threading.Thread):
 
     def join(self, timeout=None):
         threading.Thread.join(self)
+        torch.cuda.empty_cache()
         if self.exc:
             raise self.exc
 
@@ -200,9 +203,7 @@ class VisualizerState:
                 # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
                 console.line()
-                self.viewer_url = (
-                    f"https://viewer.nerfactory.com/branch/master/?websocket_url=localhost:{websocket_port}"
-                )
+                self.viewer_url = f"https://viewer.nerfactory.com/latest/?websocket_url=localhost:{websocket_port}"
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
                 pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
                 dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
@@ -316,6 +317,7 @@ class VisualizerState:
                 # if self._is_render_step(local_step) and step > 0:
                 if step > 0:
                     self._render_image_in_viewer(camera_object, graph, is_training)
+                    camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
                 run_loop = not is_training
                 local_step += 1
