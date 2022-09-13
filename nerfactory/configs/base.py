@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import dcargs
 import torch
@@ -308,6 +308,21 @@ class Record3DDataParserConfig(DataParserConfig):
     more, images will be sampled approximately evenly. Defaults to 150."""
 
 
+AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
+    {
+        "nerfactory-data": NerfactoryDataParserConfig(),
+        "blender-data": BlenderDataParserConfig(),
+        "friends-data": FriendsDataParserConfig(),
+        "mipnerf-360-data": MipNerf360DataParserConfig(),
+        "instant-ngp-data": InstantNGPDataParserConfig(),
+        "record3d-data": Record3DDataParserConfig(),
+    },
+    prefix_names=False,
+)
+"""Union over possible dataparser types, annotated with metadata for dcargs. This is the
+same as the vanilla union, but results in shorter subcommand names."""
+
+
 @dataclass
 class VanillaDataManagerConfig(InstantiateConfig):
     """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
@@ -321,14 +336,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
 
     _target: Type = VanillaDataManager
     """target class to instantiate"""
-    train_dataparser: Union[
-        NerfactoryDataParserConfig,
-        BlenderDataParserConfig,
-        FriendsDataParserConfig,
-        MipNerf360DataParserConfig,
-        InstantNGPDataParserConfig,
-        Record3DDataParserConfig,
-    ] = BlenderDataParserConfig()
+    train_dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
     """specifies the dataparser used to unpack the data"""
     train_num_rays_per_batch: int = 1024
     """number of rays per batch to use per training iteration"""
