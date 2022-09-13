@@ -15,7 +15,6 @@ const initialState = {
   // the rendering state
   renderingState: {
     // cameras
-    camera_options: ['Main Camera', 'Render Camera'], // the possible camera names to render the scene
     camera_choice: 'Main Camera', // the camera being used to render the scene
 
     // camera path information
