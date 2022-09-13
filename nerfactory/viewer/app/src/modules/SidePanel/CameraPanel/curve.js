@@ -8,7 +8,7 @@ function get_curve(list_of_3d_vectors) {
     list_of_3d_vectors,
     false,
     // 'centripetal'
-    'chordal'
+    'chordal',
   );
   return curve;
 }
