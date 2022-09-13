@@ -189,8 +189,9 @@ $sidebar-width: 100% !default;
 
 .CameraList-container {
   position: relative;
-  height: 200px;
+  height: 250px;
   padding: 2px;
+  overflow: auto;
 }
 
 .CameraList-row {
