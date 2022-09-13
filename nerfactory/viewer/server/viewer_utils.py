@@ -32,6 +32,7 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
@@ -415,7 +416,8 @@ class VisualizerState:
                 colormap_options.extend(["depth"])
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
-            self.vis["renderingState/colormap_options"].write(colormap_options)
+            self.vis["renderingState/colormap_options"].write(colormap_options)    
+        outputs = get_dict_to_torch(outputs)
         selected_output = (self._apply_colormap(outputs, stuff_colors) * 255).type(torch.uint8)
         image = selected_output.cpu().numpy()
         self.vis.set_image(image)
