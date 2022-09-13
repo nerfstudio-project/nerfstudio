@@ -115,18 +115,24 @@ export default function ViewerWindow(props) {
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
-  const field_of_view_ref = useRef(field_of_view);
 
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
   );
 
+  // listen to the viewport width
+  const size = new THREE.Vector2();
+  renderer.getSize(size);
+  const [viewport_size, setDimensions] = React.useState({
+    height: size.x,
+    width: size.y,
+  });
+  const viewport_width = viewport_size.width;
+  const viewport_height = viewport_size.height;
+
   // on change, update the camera and controls
   sceneTree.metadata.camera = sceneTree.find_object(['Cameras', camera_choice]);
-  // sceneTree.metadata.camera_controls.object = sceneTree.metadata.camera;
 
-  let viewportWidth = null;
-  let viewportHeight = null;
   let stats = null;
 
   const get_window_width = () => {
@@ -139,8 +145,8 @@ export default function ViewerWindow(props) {
   };
 
   const handleResize = () => {
-    viewportWidth = get_window_width();
-    viewportHeight = get_window_height();
+    const viewportWidth = get_window_width();
+    const viewportHeight = get_window_height();
     sceneTree.metadata.camera.aspect = viewportWidth / viewportHeight;
     sceneTree.metadata.camera.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
@@ -161,6 +167,27 @@ export default function ViewerWindow(props) {
     }
   };
 
+  useEffect(() => {
+    function update_dimensions() {
+      setDimensions({
+        height: get_window_height(),
+        width: get_window_width(),
+      });
+    }
+
+    window.addEventListener('resize', update_dimensions);
+
+    // force a rerender
+    setDimensions({
+      height: get_window_height(),
+      width: get_window_width(),
+    });
+
+    return () => {
+      window.removeEventListener('resize', update_dimensions);
+    };
+  }, []);
+
   // keep sending the camera often
   // rerun this when the websocket changes
   useEffect(() => {
@@ -175,12 +202,10 @@ export default function ViewerWindow(props) {
   const render = () => {
     requestAnimationFrame(render);
     handleResize();
-    sceneTree.metadata.camera.fov = field_of_view_ref.current;
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.camera_controls.update();
     renderer.render(scene, sceneTree.metadata.camera);
     stats.update();
-    // console.log(sceneTree.metadata.camera);
   };
 
   // start the three.js rendering loop
@@ -192,10 +217,44 @@ export default function ViewerWindow(props) {
     render();
   }, []);
 
-  // updates the field of view inside the ref to avoid rerendering so often
+  // updates the current camera with the field of view
   useEffect(() => {
-    field_of_view_ref.current = field_of_view;
+    sceneTree.metadata.camera.fov = field_of_view;
   }, [field_of_view]);
+
+  const render_height = useSelector(
+    (state) => state.renderingState.render_height,
+  );
+  const render_width = useSelector(
+    (state) => state.renderingState.render_width,
+  );
+
+  let crop_w;
+  let crop_h;
+  const render_aspect = render_width / render_height;
+  const viewport_aspect = viewport_width / viewport_height;
+  if (render_aspect > viewport_aspect) {
+    // render width is the limiting factor
+    crop_w = viewport_width;
+    crop_h = viewport_width / render_aspect;
+  } else {
+    // render height is the limiting factor
+    crop_w = viewport_height * render_aspect;
+    crop_h = viewport_height;
+  }
+
+  let display = null;
+  if (camera_choice === 'Main Camera') {
+    display = 'none';
+  } else {
+    display = 'flex';
+  }
+
+  const crop_style = {
+    display,
+    width: crop_w,
+    height: crop_h,
+  };
 
   return (
     <>
@@ -207,6 +266,9 @@ export default function ViewerWindow(props) {
       </div>
       <div className="ViewerWindow-buttons">
         <TransformIcons sceneTree={sceneTree} />
+      </div>
+      <div className="ViewerWindow-render-crop-container">
+        <div className="ViewerWindow-render-crop" style={crop_style} />
       </div>
     </>
   );

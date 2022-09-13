@@ -18,7 +18,11 @@ import yaml
 from tqdm import tqdm
 from typing_extensions import assert_never
 
-from nerfactory.cameras.camera_paths import get_interpolated_camera_path, get_spiral_path, get_path_from_json
+from nerfactory.cameras.camera_paths import (
+    get_interpolated_camera_path,
+    get_path_from_json,
+    get_spiral_path,
+)
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.configs import base as cfg
 from nerfactory.pipelines.base import Pipeline
@@ -118,7 +122,6 @@ def _render_trajectory_video(
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         image = outputs[rendered_output_name].cpu().numpy()
-        print(image.shape)
         images.append(image)
 
     fps = len(images) / seconds
@@ -202,10 +205,6 @@ class RenderTrajectory:
     downscale_factor: int = 1
     # Filename of the camera path to render.
     camera_path_filename: Path = Path("camera_path.json")
-    # Height of image to render.
-    image_height: int = 1080
-    # Width of image to render.
-    image_width: int = 1920
     # Name of the output file.
     output_path: Path = Path("output.mp4")
     # How long the video should be.
@@ -223,14 +222,15 @@ class RenderTrajectory:
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "interp":
-            cameras_a = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
-            cameras_b = pipeline.datamanager.eval_dataloader.get_camera(image_idx=10)
-            camera_path = get_interpolated_camera_path(cameras, steps=30)
+            # cameras_a = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+            # cameras_b = pipeline.datamanager.eval_dataloader.get_camera(image_idx=10)
+            # camera_path = get_interpolated_camera_path(cameras, steps=30)
+            raise NotImplementedError("Interpolated camera path not implemented.")
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
-            camera_path = get_path_from_json(camera_path, self.image_height, self.image_width)
+            camera_path = get_path_from_json(camera_path)
         else:
             assert_never(self.traj)
 

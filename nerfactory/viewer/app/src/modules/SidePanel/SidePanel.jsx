@@ -7,18 +7,18 @@ import { Menu, MenuItem, ProSidebar, SubMenu } from 'react-pro-sidebar';
 
 import Box from '@mui/material/Box';
 import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
-import CameraPanel from './CameraPanel';
 import Divider from '@mui/material/Divider';
 import { Leva } from 'leva';
-import LevaTheme from '../ConfigPanel/leva_theme.json';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-import SceneNode from '../../SceneNode';
-import StatusPanel from './StatusPanel';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import Typography from '@mui/material/Typography';
 import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
+import StatusPanel from './StatusPanel';
+import SceneNode from '../../SceneNode';
+import LevaTheme from '../ConfigPanel/leva_theme.json';
+import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 
 interface TabPanelProps {

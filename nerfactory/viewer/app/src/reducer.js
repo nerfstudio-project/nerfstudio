@@ -20,6 +20,8 @@ const initialState = {
 
     // camera path information
     config_base_dir: 'config_base_dir', // the base directory of the config file
+    render_height: 1080,
+    render_width: 1920,
 
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs

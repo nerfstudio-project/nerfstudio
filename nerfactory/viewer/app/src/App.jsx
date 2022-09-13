@@ -1,4 +1,5 @@
 import { CssBaseline, ThemeProvider } from '@mui/material';
+import React from 'react';
 import {
   SceneTreeWebSocketListener,
   get_scene_tree,
@@ -6,7 +7,6 @@ import {
 
 import Banner from './modules/Banner';
 import { BasicTabs } from './modules/SidePanel/SidePanel';
-import React from 'react';
 import ViewerWindow from './modules/ViewerWindow/ViewerWindow';
 import { appTheme } from './themes/theme.ts';
 

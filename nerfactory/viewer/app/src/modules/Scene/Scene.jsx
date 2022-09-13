@@ -1,16 +1,16 @@
 /* eslint-disable no-restricted-syntax */
 import * as THREE from 'three';
 
-import { drawCamera, drawSceneBounds } from './drawing';
 import { useContext, useEffect } from 'react';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import { useDispatch } from 'react-redux';
+import { drawCamera, drawSceneBounds } from './drawing';
 
 import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import SceneNode from '../../SceneNode';
-import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
-import { useDispatch } from 'react-redux';
 
 const msgpack = require('msgpack-lite');
 
@@ -63,6 +63,10 @@ export function get_scene_tree() {
   camera_controls.enableDamping = true;
   camera_controls.dampingFactor = 1.0;
   sceneTree.metadata.camera_controls = camera_controls;
+
+  // if you drag the screen when the render camera is shown,
+  // then snap back to the main camera
+  // eslint-disable-next-line no-unused-vars
   camera_controls.addEventListener('change', (event) => {
     if (sceneTree.metadata.camera === render_camera) {
       dispatch({

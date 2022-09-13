@@ -3,16 +3,10 @@ import * as THREE from 'three';
 
 import { Button, Slider } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
-import {
-  get_curve_object_from_cameras,
-  get_transform_matrix,
-  list_from_threejs_vector_list,
-} from './curve';
 import { useContext, useEffect } from 'react';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { CameraHelper } from './CameraHelper';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -23,8 +17,13 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { useSelector, useDispatch } from 'react-redux';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
-import { useSelector } from 'react-redux';
+import { CameraHelper } from './CameraHelper';
+import {
+  get_curve_object_from_cameras,
+  get_transform_matrix,
+} from './curve';
 
 const msgpack = require('msgpack-lite');
 
@@ -84,7 +83,6 @@ function CameraList(props) {
 export default function CameraPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
-  const camera_controls = sceneTree.metadata.camera_controls;
   const camera_main = sceneTree.find_object(['Cameras', 'Main Camera']);
   const camera_render = sceneTree.find_object(['Cameras', 'Render Camera']);
   const transform_controls = sceneTree.find_object(['Transform Controls']);
@@ -101,15 +99,36 @@ export default function CameraPanel(props) {
   const [is_playing, setIsPlaying] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
+
+  // const [render_height, setRenderHeight] = React.useState(1080);
+  // const [render_width, setRenderWidth] = React.useState(1920);
+
+  const dispatch = useDispatch();
+  const render_height = useSelector(
+    (state) => state.renderingState.render_height,
+  );
+  const render_width = useSelector(
+    (state) => state.renderingState.render_width,
+  );
+  const setRenderHeight = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/render_height',
+      data: value,
+    });
+  };
+  const setRenderWidth = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/render_width',
+      data: value,
+    });
+  };
+
   const total_num_steps = seconds * fps;
   const step_size = (cameras.length - 1) / total_num_steps;
   const slider_min = 0;
   const slider_max = Math.max(0, cameras.length - 1);
-
-  // config information
-  const config_filename = useSelector(
-    (state) => state.renderingState.config_filename,
-  );
 
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
@@ -217,12 +236,10 @@ export default function CameraPanel(props) {
 
   const get_camera_path = () => {
     // NOTE: currently assuming these are ints
-    const num_points = parseInt(fps) * parseInt(seconds);
+    const num_points = fps * seconds;
     const positions = curve_object.curve_positions.getPoints(num_points);
     const lookats = curve_object.curve_lookats.getPoints(num_points);
     const ups = curve_object.curve_ups.getPoints(num_points);
-
-    console.log(positions);
 
     const camera_path = [];
 
@@ -232,7 +249,6 @@ export default function CameraPanel(props) {
       const up = ups[i];
 
       const mat = get_transform_matrix(position, lookat, up);
-      console.log(mat.elements);
 
       camera_path.push({
         camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
@@ -242,13 +258,15 @@ export default function CameraPanel(props) {
     }
 
     // const myData
-    const myData = {
+    const camera_path_object = {
       keyframes: [],
-      camera_path: camera_path,
-      fps: parseInt(fps),
-      seconds: parseInt(seconds),
+      render_height,
+      render_width,
+      camera_path,
+      fps,
+      seconds
     };
-    return myData;
+    return camera_path_object;
   };
 
   const export_camera_path = () => {
@@ -256,11 +274,11 @@ export default function CameraPanel(props) {
     // inspired by:
     // https://stackoverflow.com/questions/55613438/reactwrite-to-json-file-or-export-download-no-server
 
-    const camera_path = get_camera_path();
+    const camera_path_object = get_camera_path();
     console.log(camera_render.toJSON());
 
     // create file in browser
-    const json = JSON.stringify(camera_path, null, 2);
+    const json = JSON.stringify(camera_path_object, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const href = URL.createObjectURL(blob);
 
@@ -280,23 +298,23 @@ export default function CameraPanel(props) {
   const copy_cmd_to_clipboard = () => {
     console.log('copy_cmd_to_clipboard');
 
-    const camera_path = get_camera_path();
+    const camera_path_object = get_camera_path();
 
     // Copy the text inside the text field
-    const config_filename = config_base_dir + '/config.yml';
-    const camera_path_filename = config_base_dir + '/camera_path.json';
+    const config_filename = `${config_base_dir  }/config.yml`;
+    const camera_path_filename = `${config_base_dir  }/camera_path.json`;
     const cmd =
-      'python scripts/run_eval.py render-trajectory --load-config ' +
-      config_filename +
-      ' --traj filename --camera-path-filename ' +
-      camera_path_filename +
-      ' --output-path output.mp4' + 
-      ' --downscale-factor 4';
+      `python scripts/run_eval.py render-trajectory --load-config ${ 
+      config_filename 
+      } --traj filename --camera-path-filename ${ 
+      camera_path_filename 
+      } --output-path output.mp4` +
+      ` --downscale-factor 4`;
     navigator.clipboard.writeText(cmd);
 
     const camera_path_payload = {
-      camera_path_filename: camera_path_filename,
-      camera_path: camera_path,
+      camera_path_filename,
+      camera_path: camera_path_object,
     };
 
     // send a command of the websocket to save the trajectory somewhere!
@@ -397,6 +415,42 @@ export default function CameraPanel(props) {
       </div>
       <div className="CameraList-row-time-interval">
         <TextField
+          label="Height"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setRenderHeight(parseInt(e.target.value, 10));
+            }
+          }}
+          value={render_height}
+          error={render_height <= 0}
+          helperText={render_height <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+        <TextField
+          label="Width"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setRenderWidth(parseInt(e.target.value, 10));
+            }
+          }}
+          value={render_width}
+          error={render_width <= 0}
+          helperText={render_width <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+      </div>
+      <div className="CameraList-row-time-interval">
+        <TextField
           label="Seconds"
           inputProps={{
             inputMode: 'numeric',
@@ -405,7 +459,7 @@ export default function CameraPanel(props) {
           size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setSeconds(e.target.value);
+              setSeconds(parseInt(e.target.value, 10));
             }
           }}
           value={seconds}
@@ -419,7 +473,7 @@ export default function CameraPanel(props) {
           size="small"
           onChange={(e) => {
             if (e.target.validity.valid) {
-              setFps(e.target.value);
+              setFps(parseInt(e.target.value, 10));
             }
           }}
           value={fps}

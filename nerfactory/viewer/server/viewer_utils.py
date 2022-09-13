@@ -20,6 +20,7 @@ import logging
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -33,13 +34,11 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.io import write_to_json
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
 from nerfactory.viewer.server.visualizer import Viewer
-from pathlib import Path
-
-from nerfactory.utils.io import write_to_json
 
 
 class OutputTypes(str, enum.Enum):

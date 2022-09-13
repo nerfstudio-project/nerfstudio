@@ -19,8 +19,6 @@ Code for camera paths.
 from typing import Any, Dict, Optional, Tuple
 
 import torch
-from pathlib import Path
-import json
 
 import nerfactory.cameras.utils as camera_utils
 import nerfactory.utils.poses as pose_utils
@@ -104,7 +102,7 @@ def get_spiral_path(
     return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx, cy=camera.cy, camera_to_worlds=new_c2ws)
 
 
-def get_path_from_json(camera_path: Dict[str, Any], image_height: int, image_width: int) -> Cameras:
+def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
     """Takes a camera path dictionary and returns a trajectory as a Camera instance.
 
     Args:
@@ -113,6 +111,9 @@ def get_path_from_json(camera_path: Dict[str, Any], image_height: int, image_wid
     Returns:
         A Cameras instance with the camera path.
     """
+
+    image_height = camera_path["render_height"]
+    image_width = camera_path["render_width"]
 
     c2ws = []
     fxs = []
