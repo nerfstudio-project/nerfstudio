@@ -5,21 +5,21 @@ import * as React from 'react';
 import { FaLightbulb, FaTractor } from 'react-icons/fa';
 import { Menu, MenuItem, ProSidebar, SubMenu } from 'react-pro-sidebar';
 
-import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
-import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
-import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-
 import Box from '@mui/material/Box';
+import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
+import Divider from '@mui/material/Divider';
 import { Leva } from 'leva';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import Typography from '@mui/material/Typography';
-import Divider from '@mui/material/Divider';
+import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
 import StatusPanel from './StatusPanel';
 import SceneNode from '../../SceneNode';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
+import { RenderControls } from '../ConfigPanel/ConfigPanel';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -159,6 +159,7 @@ export function BasicTabs(props: BasicTabsProps) {
         </Box>
         <TabPanel value={value} index={0}>
           <div className="Leva-container">
+            <RenderControls />
             <Leva
               className="Leva-panel"
               theme={LevaTheme}
@@ -174,7 +175,10 @@ export function BasicTabs(props: BasicTabsProps) {
           </div>
         </TabPanel>
         <TabPanel value={value} index={2}>
-          <CameraPanel sceneTree={sceneTree} />
+          <CameraPanel
+            sceneTree={sceneTree}
+            // camera_controls={sceneTree.metadata.camera_controls}
+          />
         </TabPanel>
 
         <TabPanel value={value} index={3}>
