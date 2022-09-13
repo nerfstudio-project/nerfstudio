@@ -40,13 +40,12 @@ function CameraList(props) {
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
-    const camera = sceneTree.find([
+    const camera = sceneTree.find_object([
       'Camera Path',
       'Cameras',
       index.toString(),
       'Camera',
-      '<object>',
-    ]).object;
+    ]);
     transform_controls.attach(camera);
   };
 
@@ -138,6 +137,7 @@ export default function CameraPanel(props) {
 
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
+    camera_main_copy.aspect = 1.0;
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     set_camera_position(camera_render, camera_main_copy.matrix);
@@ -169,7 +169,8 @@ export default function CameraPanel(props) {
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
-      const camera_helper = new CameraHelper(camera);
+      // camera.aspect = render_width / render_height;
+      const camera_helper = new CameraHelper(camera, 0xfc0303);
       // camera
       sceneTree.set_object_from_path(
         ['Camera Path', 'Cameras', i.toString(), 'Camera'],
@@ -181,7 +182,7 @@ export default function CameraPanel(props) {
         camera_helper,
       );
     }
-  }, [cameras]);
+  }, [cameras, render_width, render_height]);
 
   // update the camera curve
   const curve_object = get_curve_object_from_cameras(cameras);
@@ -191,7 +192,7 @@ export default function CameraPanel(props) {
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const spline = new MeshLine();
     spline.setGeometry(geometry);
-    const material = new MeshLineMaterial({ lineWidth: 0.05, color: 0xff5024 });
+    const material = new MeshLineMaterial({ lineWidth: 0.01, color: 0xff5024 });
     const spline_mesh = new THREE.Mesh(spline.geometry, material);
     sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
   }
@@ -214,11 +215,10 @@ export default function CameraPanel(props) {
       const up = curve_object.curve_ups.getPoint(
         slider_value / (cameras.length - 1.0),
       );
-
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
     }
-  }, [slider_value]);
+  }, [slider_value, render_height, render_width]);
 
   // call this function whenever slider state changes
   useEffect(() => {

@@ -7,7 +7,8 @@ function get_curve(list_of_3d_vectors) {
   const curve = new THREE.CatmullRomCurve3(
     list_of_3d_vectors,
     false,
-    'catmullrom',
+    // 'centripetal'
+    'chordal'
   );
   return curve;
 }
