@@ -10,9 +10,19 @@ const initialState = {
   webrtcState: {
     isConnected: false,
   },
+  // for sending actual commands to the client
+  camera_path_payload: null,
   // the rendering state
   renderingState: {
-    camera: null, // the camera object used to render the three.js scene
+    // cameras
+    camera_options: ['Main Camera', 'Render Camera'], // the possible camera names to render the scene
+    camera_choice: 'Main Camera', // the camera being used to render the scene
+
+    // camera path information
+    config_base_dir: 'config_base_dir', // the base directory of the config file
+    render_height: 1080,
+    render_width: 1920,
+
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output
@@ -25,7 +35,6 @@ const initialState = {
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
   },
-
   // the scene state
   sceneState: {
     sceneBounds: null,

@@ -2,9 +2,12 @@
 import * as THREE from 'three';
 
 import { useContext, useEffect } from 'react';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { useDispatch } from 'react-redux';
 import { drawCamera, drawSceneBounds } from './drawing';
 
+import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
@@ -15,37 +18,92 @@ const SCENE_BOUNDS_NAME = 'Scene Bounds';
 const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
-  let scene = null;
-  let sceneTree = null;
-  scene = new THREE.Scene();
-  sceneTree = new SceneNode(scene);
+  const scene = new THREE.Scene();
+  const sceneTree = new SceneNode(scene);
 
-  // add objects to the the scene tree
-  const setObject = (path, object) => {
-    sceneTree.find(path.concat(['<object>'])).set_object(object);
-  };
-  const deleteObject = (path) => {
-    sceneTree.delete(path);
-  };
+  const dispatch = useDispatch();
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  setObject(['Main Camera'], main_camera);
+  main_camera.position.x = 5;
+  main_camera.position.y = -5;
+  main_camera.position.z = 5;
+  main_camera.up = new THREE.Vector3(0, 0, 1);
+  sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
+
+  sceneTree.set_object_from_path(
+    ['Cameras', 'Main Camera', 'Helper'],
+    new CameraHelper(main_camera),
+  );
+  sceneTree.metadata.camera = main_camera;
+
+  // Render camera
+  const render_camera = main_camera.clone();
+  sceneTree.set_object_from_path(['Cameras', 'Render Camera'], render_camera);
+  sceneTree.set_object_from_path(
+    ['Cameras', 'Render Camera', 'Helper'],
+    new CameraHelper(render_camera),
+  );
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+  });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  sceneTree.metadata.renderer = renderer;
+
+  // Camera Controls
+  const camera_controls = new OrbitControls(main_camera, renderer.domElement);
+  camera_controls.rotateSpeed = 2.0;
+  camera_controls.zoomSpeed = 0.3;
+  camera_controls.panSpeed = 0.2;
+  camera_controls.target.set(0, 0, 0); // focus point of the controls
+  camera_controls.autoRotate = false;
+  camera_controls.enableDamping = true;
+  camera_controls.dampingFactor = 1.0;
+  sceneTree.metadata.camera_controls = camera_controls;
+
+  // if you drag the screen when the render camera is shown,
+  // then snap back to the main camera
+  // eslint-disable-next-line no-unused-vars
+  camera_controls.addEventListener('change', (event) => {
+    if (sceneTree.metadata.camera === render_camera) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/camera_choice',
+        data: 'Main Camera',
+      });
+    }
+  });
+
+  // Listen for changes to the camera
+
+  // Transform Controls
+  const transformsControls = new TransformControls(
+    main_camera,
+    renderer.domElement,
+  );
+  sceneTree.metadata.transformsControls = transformsControls;
+
+  transformsControls.addEventListener('dragging-changed', (event) => {
+    camera_controls.enabled = !event.value;
+  });
 
   // Axes
   const axes = new THREE.AxesHelper(5);
-  setObject(['Axes'], axes);
+  sceneTree.set_object_from_path(['Axes'], axes);
 
   // Grid
   const grid = new THREE.GridHelper(20, 20);
   grid.rotateX(Math.PI / 2); // rotated to xy plane
-  setObject(['Grid'], grid);
+  sceneTree.set_object_from_path(['Grid'], grid);
 
   // Lights
   const color = 0xffffff;
   const intensity = 1;
   const light = new THREE.AmbientLight(color, intensity);
-  setObject(['Light'], light);
+  sceneTree.set_object_from_path(['Light'], light);
 
   // draw scene bounds
   const selector_fn_scene_bounds = (state) => {
@@ -54,9 +112,9 @@ export function get_scene_tree() {
   const fn_value_scene_bounds = (previous, current) => {
     if (current !== null) {
       const line = drawSceneBounds(current);
-      setObject([SCENE_BOUNDS_NAME], line);
+      sceneTree.set_object_from_path([SCENE_BOUNDS_NAME], line);
     } else {
-      deleteObject([SCENE_BOUNDS_NAME]);
+      sceneTree.delete([SCENE_BOUNDS_NAME]);
     }
   };
   subscribe_to_changes(selector_fn_scene_bounds, fn_value_scene_bounds);
@@ -82,18 +140,18 @@ export function get_scene_tree() {
           // keys_valid.push(key);
           const json = current[key];
           const camera = drawCamera(json);
-          setObject([CAMERAS_NAME, key], camera);
+          sceneTree.set_object_from_path([CAMERAS_NAME, key], camera);
         }
       }
       for (const key of prev) {
         // invalid so delete
         if (!curr.has(key) || current[key] === null) {
           // keys_invalid.push(key);
-          deleteObject([CAMERAS_NAME, key]);
+          sceneTree.delete([CAMERAS_NAME, key]);
         }
       }
     } else {
-      deleteObject([CAMERAS_NAME]);
+      sceneTree.delete([CAMERAS_NAME]);
     }
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
