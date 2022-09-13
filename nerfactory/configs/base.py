@@ -206,8 +206,6 @@ class DataParserConfig(InstantiateConfig):
 
     _target: Type = DataParser
     """_target: target class to instantiate"""
-    image_to_gpu: bool = False
-    """whether to process images on gpu (else cpu)"""
 
 
 @dataclass
