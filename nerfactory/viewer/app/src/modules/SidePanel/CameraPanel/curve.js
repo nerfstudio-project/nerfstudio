@@ -2,7 +2,6 @@
 
 import * as THREE from 'three';
 
-
 function get_curve(list_of_3d_vectors) {
   // TODO: add some hyperparameters to this function
   const curve = new THREE.CatmullRomCurve3(
