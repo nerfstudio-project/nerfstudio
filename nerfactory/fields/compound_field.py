@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-
+Field for compound nerf model, adds scene contraction and image embeddings to instant ngp
 """
 
 
@@ -49,7 +49,7 @@ def get_normalized_directions(directions):
 
 
 class TCNNCompoundField(TCNNInstantNGPField):
-    """NeRF Field"""
+    """Compound Field that uses TCNN"""
 
     def __init__(
         self,
@@ -157,7 +157,7 @@ class TCNNCompoundField(TCNNInstantNGPField):
 
 class TorchCompoundField(NeRFField):
     """
-    PyTorch implementation of the instant-ngp field.
+    PyTorch implementation of the compound field.
     """
 
     def __init__(

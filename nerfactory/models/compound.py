@@ -12,7 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
+""" Compound model that integrates multiple NeRF Advancements
+
+Features:
+
+    NGP Hash encoding for fast training
+    NGP ray sampler for fast training
+    Spatial contraction for training on large scenes
+    Appearance conditioning
+
+TODO:
+    Pose optimization
+
 """
 
 from __future__ import annotations
