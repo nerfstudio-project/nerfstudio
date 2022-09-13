@@ -108,6 +108,7 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
+            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -115,6 +116,7 @@ class RenderThread(threading.Thread):
 
     def join(self, timeout=None):
         threading.Thread.join(self)
+        torch.cuda.empty_cache()
         if self.exc:
             raise self.exc
 
@@ -417,8 +419,7 @@ class VisualizerState:
                 colormap_options.extend(["depth"])
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
-            self.vis["renderingState/colormap_options"].write(colormap_options)    
-        outputs = get_dict_to_torch(outputs)
+            self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, stuff_colors) * 255).type(torch.uint8)
         image = selected_output.cpu().numpy()
         self.vis.set_image(image)
