@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Processes a video or image sequence to a nerfactory compatible dataset."""
 
 import json

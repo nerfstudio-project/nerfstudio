@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 run_train_nerf.py
 """
@@ -210,6 +211,5 @@ def main(config: cfg.Config) -> None:
 
 
 if __name__ == "__main__":
-    # Choose a 
-    config = dcargs.cli(BaseConfigSubcommand)
-    main(config=config)
+    # Choose a base configuration and override values.
+    main(dcargs.cli(BaseConfigSubcommand))

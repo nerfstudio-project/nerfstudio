@@ -49,6 +49,7 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 Experimental: install tab completion for nerfactory (bash and zsh)
 
 ```bash
+# If the CLI changes, we can also re-install to synchronize completions
 python scripts/completion/configure.py install
 ```
 

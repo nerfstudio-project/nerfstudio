@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Download datasets"""
 import zipfile
 from pathlib import Path
