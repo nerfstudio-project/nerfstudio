@@ -18,6 +18,7 @@ import yaml
 from tqdm import tqdm
 from typing_extensions import assert_never
 
+# pylint: disable=unused-import
 from nerfactory.cameras.camera_paths import (
     get_interpolated_camera_path,
     get_path_from_json,
