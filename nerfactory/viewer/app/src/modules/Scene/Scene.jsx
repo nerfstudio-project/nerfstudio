@@ -64,6 +64,17 @@ export function get_scene_tree() {
   camera_controls.dampingFactor = 1.0;
   sceneTree.metadata.camera_controls = camera_controls;
 
+  // Transform Controls
+  const transform_controls = new TransformControls(
+    main_camera,
+    renderer.domElement,
+  );
+  sceneTree.set_object_from_path(['Transform Controls'], transform_controls);
+  transform_controls.addEventListener('dragging-changed', (event) => {
+    // turn off the camera controls while transforming an object
+    camera_controls.enabled = !event.value;
+  });
+
   // if you drag the screen when the render camera is shown,
   // then snap back to the main camera
   // eslint-disable-next-line no-unused-vars
@@ -75,19 +86,7 @@ export function get_scene_tree() {
         data: 'Main Camera',
       });
     }
-  });
-
-  // Listen for changes to the camera
-
-  // Transform Controls
-  const transformsControls = new TransformControls(
-    main_camera,
-    renderer.domElement,
-  );
-  sceneTree.metadata.transformsControls = transformsControls;
-
-  transformsControls.addEventListener('dragging-changed', (event) => {
-    camera_controls.enabled = !event.value;
+    // transform_controls.detach();
   });
 
   // Axes
