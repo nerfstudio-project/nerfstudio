@@ -19,7 +19,7 @@ import yaml
 from rich.console import Console
 
 from nerfactory.configs import base as cfg
-from nerfactory.configs.base_configs import BaseConfigSubcommand
+from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
 from nerfactory.engine.trainer import train_loop
 from nerfactory.utils import comms, profiler
 
@@ -212,4 +212,4 @@ def main(config: cfg.Config) -> None:
 
 if __name__ == "__main__":
     # Choose a base configuration and override values.
-    main(dcargs.cli(BaseConfigSubcommand))
+    main(dcargs.cli(AnnotatedBaseConfigUnion))

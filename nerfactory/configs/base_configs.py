@@ -20,6 +20,7 @@ import copy
 from typing import Dict, Type
 
 import dcargs
+from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     BlenderDataParserConfig,
@@ -174,6 +175,7 @@ base_configs["compound"] = Config(
 )
 
 
+@typeguard_ignore  # TypeGuard doesn't understand the generic alias that's returned here.
 def _make_base_config_subcommand_type() -> Type[Config]:
     """Generate a Union[] type over the possible base config types, with runtime
     annotations containing default values. Used to generate CLIs.
@@ -195,6 +197,7 @@ def _make_base_config_subcommand_type() -> Type[Config]:
     return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
 
 
-BaseConfigSubcommand = _make_base_config_subcommand_type()
-"""Union[] type for use with dcargs.cli(), which allows the user to pick between one of
-several base configurations, and then override values in it."""
+AnnotatedBaseConfigUnion = _make_base_config_subcommand_type()
+"""Union[] type over config types, annotated with default instances for use with
+dcargs.cli(). Allows the user to pick between one of several base configurations, and
+then override values in it."""
