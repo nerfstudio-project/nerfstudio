@@ -17,6 +17,7 @@
 
 import enum
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
@@ -33,7 +34,7 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
-from nerfactory.utils.io import write_to_json
+from nerfactory.utils.io import load_from_json, write_to_json
 from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
@@ -187,7 +188,7 @@ class VisualizerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[str] = None):
+    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[Path] = None):
         self.config = config
         self.config_base_dir = config_base_dir
 
@@ -206,7 +207,9 @@ class VisualizerState:
                 # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
                 console.line()
-                self.viewer_url = f"https://viewer.nerfactory.com/latest/?websocket_url=localhost:{websocket_port}"
+                json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
+                version = load_from_json(Path(json_filename))["version"]
+                self.viewer_url = f"https://viewer.nerfactory.com/{version}/?websocket_url=localhost:{websocket_port}"
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
                 pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
                 dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"

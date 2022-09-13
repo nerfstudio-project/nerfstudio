@@ -3,10 +3,13 @@ import * as THREE from 'three';
 
 import { Button, Slider } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
+import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { useContext, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { CameraHelper } from './CameraHelper';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -17,13 +20,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import { useSelector, useDispatch } from 'react-redux';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
-import { CameraHelper } from './CameraHelper';
-import {
-  get_curve_object_from_cameras,
-  get_transform_matrix,
-} from './curve';
 
 const msgpack = require('msgpack-lite');
 
@@ -110,6 +107,11 @@ export default function CameraPanel(props) {
   const render_width = useSelector(
     (state) => state.renderingState.render_width,
   );
+
+  const field_of_view = useSelector(
+    (state) => state.renderingState.field_of_view,
+  );
+
   const setRenderHeight = (value) => {
     dispatch({
       type: 'write',
@@ -132,10 +134,9 @@ export default function CameraPanel(props) {
 
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
-    console.log(camera_main_copy.near);
-    console.log(camera_main_copy.far);
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
+    set_camera_position(camera_render, camera_main_copy.matrix);
   };
 
   // force a rerender if the cameras are dragged around
@@ -264,7 +265,7 @@ export default function CameraPanel(props) {
       render_width,
       camera_path,
       fps,
-      seconds
+      seconds,
     };
     return camera_path_object;
   };
@@ -301,14 +302,10 @@ export default function CameraPanel(props) {
     const camera_path_object = get_camera_path();
 
     // Copy the text inside the text field
-    const config_filename = `${config_base_dir  }/config.yml`;
-    const camera_path_filename = `${config_base_dir  }/camera_path.json`;
+    const config_filename = `${config_base_dir}/config.yml`;
+    const camera_path_filename = `${config_base_dir}/camera_path.json`;
     const cmd =
-      `python scripts/run_eval.py render-trajectory --load-config ${ 
-      config_filename 
-      } --traj filename --camera-path-filename ${ 
-      camera_path_filename 
-      } --output-path output.mp4` +
+      `python scripts/run_eval.py render-trajectory --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path output.mp4` +
       ` --downscale-factor 4`;
     navigator.clipboard.writeText(cmd);
 
@@ -327,6 +324,14 @@ export default function CameraPanel(props) {
       const message = msgpack.encode(data);
       websocket.send(message);
     }
+  };
+
+  const setFOV = (fov) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/field_of_view',
+      data: fov,
+    });
   };
 
   return (
@@ -446,6 +451,23 @@ export default function CameraPanel(props) {
           value={render_width}
           error={render_width <= 0}
           helperText={render_width <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+        <TextField
+          label="FOV"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setFOV(parseInt(e.target.value, 10));
+            }
+          }}
+          value={field_of_view}
+          error={field_of_view <= 0}
+          helperText={field_of_view <= 0 ? 'Required' : ''}
           variant="standard"
         />
       </div>

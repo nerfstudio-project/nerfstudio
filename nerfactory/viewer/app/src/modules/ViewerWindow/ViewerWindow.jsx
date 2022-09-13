@@ -233,14 +233,17 @@ export default function ViewerWindow(props) {
   let crop_h;
   const render_aspect = render_width / render_height;
   const viewport_aspect = viewport_width / viewport_height;
+  let render_viewport_apsect_ratio = null;
   if (render_aspect > viewport_aspect) {
     // render width is the limiting factor
     crop_w = viewport_width;
     crop_h = viewport_width / render_aspect;
+    render_viewport_apsect_ratio = viewport_aspect / render_aspect;
   } else {
     // render height is the limiting factor
     crop_w = viewport_height * render_aspect;
     crop_h = viewport_height;
+    render_viewport_apsect_ratio = 1.0;
   }
 
   let display = null;
@@ -255,6 +258,15 @@ export default function ViewerWindow(props) {
     width: crop_w,
     height: crop_h,
   };
+
+  // set the threejs field of view
+  // such that the rendered video will match correctly
+  if (camera_choice !== 'Main Camera') {
+    const fl = 1.0 / Math.tan(field_of_view * Math.PI / 360);
+    const fl_new = fl * render_viewport_apsect_ratio;
+    const fov = Math.atan(1/fl_new) / (Math.PI / 360);
+    sceneTree.metadata.camera.fov = fov;
+  }
 
   return (
     <>
