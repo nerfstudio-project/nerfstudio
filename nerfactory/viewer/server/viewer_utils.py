@@ -32,6 +32,7 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
@@ -107,6 +108,7 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
+            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -114,6 +116,7 @@ class RenderThread(threading.Thread):
 
     def join(self, timeout=None):
         threading.Thread.join(self)
+        torch.cuda.empty_cache()
         if self.exc:
             raise self.exc
 

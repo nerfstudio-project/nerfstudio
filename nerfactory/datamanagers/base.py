@@ -251,6 +251,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
                 self.train_input_dataset,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
                 device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
             )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
