@@ -104,8 +104,8 @@ class TensorboardWriterConfig(InstantiateConfig):
     """if True enables tensorboard logging, else disables"""
     relative_log_dir: Path = Path("./")
     """relative path to save all tensorboard events"""
-    log_dir: Optional[Path] = None  # full log dir path to be dynamically set
-    """auto populated absolute path to saved tensorboard events [Do not set!]"""
+    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
+    """auto-populated absolute path to saved tensorboard events"""
 
 
 @dataclass
@@ -118,8 +118,8 @@ class WandbWriterConfig(InstantiateConfig):
     """if True enables wandb logging, else disables"""
     relative_log_dir: Path = Path("./")
     """relative path to save all wandb events"""
-    log_dir: Optional[Path] = None  # full log dir path to be dynamically set
-    """auto populated absolute path to saved wandb events [Do not set!]"""
+    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
+    """auto-populated absolute path to saved wandb events"""
 
 
 @dataclass
@@ -142,8 +142,8 @@ class LocalWriterConfig(InstantiateConfig):
     """maximum number of rows to print before wrapping. if 0, will print everything."""
     relative_log_dir: Path = Path("./")
     """relative local path to save all events"""
-    log_dir: Optional[Path] = None  # full log dir path to be dynamically set
-    """auto populated absolute local path to saved events [Do not set!]"""
+    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
+    """auto-populated absolute local path to saved events"""
 
     def setup(self, banner_messages: Optional[List[str]] = None, **kwargs) -> Any:
         """Instantiate local writer
@@ -189,8 +189,8 @@ class TrainerConfig(PrintableConfig):
     """whether or not to use mixed precision for training"""
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
-    model_dir: Optional[Path] = None  # full model dir path to be dynamically set
-    """auto populated absolute path to saved checkpoints [Do not set!]"""
+    model_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
+    """auto-populated absolute path to saved checkpoints"""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
@@ -484,8 +484,10 @@ class PipelineConfig(InstantiateConfig):
 class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
-    log_filename: Optional[Path] = None
-    """Filename to use for the log file. Defaults to None. If None, no log file is created."""
+    relative_log_filename: str = "viewer_log_filename.txt"
+    """Filename to use for the log file."""
+    log_filename: dcargs.conf.Fixed[Path] = dcargs.MISSING
+    """Absolute path to the log file. Set automatically."""
     enable: bool = False
     """whether to enable viewer"""
     start_train: bool = True
@@ -538,7 +540,8 @@ class Config(PrintableConfig):
 
     experiment_name: str = "blender_lego"
     method_name: str = "base_method"
-    base_dir: Optional[Path] = None  # base dir path to be dynamically set
+    base_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
+    """Experiment base directory. Set automatically."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
     trainer: TrainerConfig = TrainerConfig()
@@ -554,12 +557,20 @@ class Config(PrintableConfig):
     viewer: ViewerConfig = ViewerConfig()
 
     def __post_init__(self):
-        """Convert logging directories to more specific filepaths"""
-        dt_str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{dt_str}")
-        if self.trainer.model_dir is None:
-            self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
+        """Make paths more specific using the current timestamp."""
+        self.set_timestamp()
+
+    def set_timestamp(self, timestamp: Optional[str] = None) -> None:
+        """Make paths in our config more specific using a timestamp.
+
+        Args:
+            timestamp: Timestamp to use, as a string. If None, defaults to the current
+                time in the form YYYY-MM-DD_HHMMMSS.
+        """
+        if timestamp is None:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{timestamp}")
+        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
         for curr_writer in self.logging.writer:
             curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
-        if self.viewer.log_filename is None:
-            self.viewer.log_filename = self.base_dir / "viewer_log_filename.txt"
+        self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename

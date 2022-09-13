@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 view_dataset.py
 """
@@ -11,6 +12,7 @@ import yaml
 from rich.console import Console
 
 from nerfactory.configs import base as cfg
+from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
 from nerfactory.viewer.server import viewer_utils
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
@@ -34,10 +36,7 @@ def main(config: cfg.Config) -> None:
 if __name__ == "__main__":
     console = Console(width=120)
 
-    from nerfactory.configs.base_configs import base_configs
-
-    SubcommandType = dcargs.extras.subcommand_type_from_defaults(base_configs)
-    instantiated_config = dcargs.cli(SubcommandType)
+    instantiated_config = dcargs.cli(AnnotatedBaseConfigUnion)
     if instantiated_config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")
         instantiated_config = yaml.load(instantiated_config.trainer.load_config.read_text(), Loader=yaml.Loader)
