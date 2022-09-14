@@ -19,7 +19,6 @@ export default function WebSocketContextFunction({ children }) {
   const websocket_url = useSelector(
     (state) => state.websocketState.websocket_url,
   );
-  console.log(websocket_url);
 
   const connect = () => {
     const url = `ws://${websocket_url}/`;

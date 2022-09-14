@@ -46,6 +46,13 @@ pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.py
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
+Experimental: install tab completion for nerfactory (bash and zsh)
+
+```bash
+# If the CLI changes, we can also re-install to synchronize completions
+python scripts/completion/configure.py install
+```
+
 # Downloading data
 
 Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).

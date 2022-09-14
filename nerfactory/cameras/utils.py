@@ -18,6 +18,7 @@ Camera transformation helper code.
 """
 
 import math
+from turtle import width
 from typing import List, Literal, Optional, Tuple
 
 import numpy as np

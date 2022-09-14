@@ -25,12 +25,13 @@ function setPoint(point, pointMap, geometry, camera, x, y, z) {
  */
 
 class CameraHelper extends THREE.Mesh {
-  constructor(camera) {
+  constructor(camera, color = 0x000000) {
     const line_geometry = new THREE.BufferGeometry();
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLineMaterial({
-      color: 0x000000,
-      lineWidth: 0.04,
+      color,
+      lineWidth: 0.01,
+      sizeAttenuation: false,
     });
 
     const vertices = [];
@@ -96,41 +97,47 @@ class CameraHelper extends THREE.Mesh {
   }
 
   update() {
+    if (!this.visible) {
+      const camera_vis = new MeshLine();
+      this.geometry = camera_vis.geometry;
+      return;
+    }
+
     const geometry = this.line_geometry;
     const pointMap = this.pointMap;
 
     const w = 1;
     const h = 1;
-    const z = 2;
+    const z = 0.1;
 
     // we need just camera projection matrix inverse
     // world matrix must be identity
 
     _camera.projectionMatrixInverse.copy(this.camera.projectionMatrixInverse);
 
-    // center
-
-    setPoint('c', pointMap, geometry, _camera, 0, 0, -1);
-    setPoint('t', pointMap, geometry, _camera, 0, 0, 1);
-
     // near
 
-    setPoint('n1', pointMap, geometry, _camera, -w, -h, z);
-    setPoint('n2', pointMap, geometry, _camera, w, -h, z);
-    setPoint('n3', pointMap, geometry, _camera, -w, h, z);
-    setPoint('n4', pointMap, geometry, _camera, w, h, z);
+    setPoint('n1', pointMap, geometry, _camera, -w, -h, -z);
+    setPoint('n2', pointMap, geometry, _camera, w, -h, -z);
+    setPoint('n3', pointMap, geometry, _camera, -w, h, -z);
+    setPoint('n4', pointMap, geometry, _camera, w, h, -z);
 
     // up
 
-    setPoint('u1', pointMap, geometry, _camera, w * 0.7, h * 1.1, z);
-    setPoint('u2', pointMap, geometry, _camera, -w * 0.7, h * 1.1, z);
-    setPoint('u3', pointMap, geometry, _camera, 0, h * 2, z);
+    setPoint('u1', pointMap, geometry, _camera, w * 0.7, h * 1.1, -z);
+    setPoint('u2', pointMap, geometry, _camera, -w * 0.7, h * 1.1, -z);
+    setPoint('u3', pointMap, geometry, _camera, 0, h * 2, -z);
 
     geometry.getAttribute('position').needsUpdate = true;
 
     const camera_vis = new MeshLine();
     camera_vis.setGeometry(geometry);
     this.geometry = camera_vis.geometry;
+  }
+
+  set_visibility(visible) {
+    this.visible = visible;
+    this.update();
   }
 
   dispose() {

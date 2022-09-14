@@ -16,7 +16,11 @@
 Put all the method implementations in one location.
 """
 
-from typing import Dict
+import copy
+from typing import Dict, Type
+
+import dcargs
+from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     BlenderDataParserConfig,
@@ -169,3 +173,31 @@ base_configs["compound"] = Config(
         }
     },
 )
+
+
+@typeguard_ignore  # TypeGuard doesn't understand the generic alias that's returned here.
+def _make_base_config_subcommand_type() -> Type[Config]:
+    """Generate a Union[] type over the possible base config types, with runtime
+    annotations containing default values. Used to generate CLIs.
+
+    Returns:
+        An annotated Union type, which can be used to pick a base configuration.
+    """
+    # When a base config is used to generate a CLI: replace the auto-generated timestamp
+    # with {timestamp}. This makes the CLI helptext (and, for zsh, autocomplete
+    # generation) consistent everytime you run a script with --help.
+    #
+    # Note that when a config is instantiated with dcargs.cli(), the __post_init__
+    # called when the config is instantiated will set the correct timestamp.
+    base_configs_placeholder_timestamp = {}
+    for name, config in base_configs.items():
+        base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
+        base_configs_placeholder_timestamp[name].set_timestamp("{timestamp}")
+
+    return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
+
+
+AnnotatedBaseConfigUnion = _make_base_config_subcommand_type()
+"""Union[] type over config types, annotated with default instances for use with
+dcargs.cli(). Allows the user to pick between one of several base configurations, and
+then override values in it."""

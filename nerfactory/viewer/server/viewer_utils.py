@@ -17,8 +17,11 @@
 
 import enum
 import logging
+import os
 import sys
 import threading
+import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -32,6 +35,8 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
+from nerfactory.utils.io import load_from_json, write_to_json
+from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
@@ -102,11 +107,13 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-        except IOChangeException as e:
+                with torch.no_grad():
+                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+        except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
         if outputs:
+            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -182,8 +189,9 @@ class VisualizerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig):
+    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[Path] = None):
         self.config = config
+        self.config_base_dir = config_base_dir
 
         self.vis = None
         self.viewer_url = None
@@ -200,7 +208,9 @@ class VisualizerState:
                 # of the logging stack and easy to see and click
                 # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
                 console.line()
-                self.viewer_url = f"https://viewer.nerfactory.com/latest/?websocket_url=localhost:{websocket_port}"
+                json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
+                version = load_from_json(Path(json_filename))["version"]
+                self.viewer_url = f"https://viewer.nerfactory.com/{version}/?websocket_url=localhost:{websocket_port}"
                 viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
                 pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
                 dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
@@ -226,6 +236,7 @@ class VisualizerState:
         self.static_fps = 1
         self.moving_fps = 24
         self.camera_moving = False
+        self.prev_camera_timestamp = 0
 
         self.outputs_set = False
 
@@ -237,6 +248,10 @@ class VisualizerState:
             start_train: whether to start train when viewer init;
                 if False, only displays dataset until resume train is toggled
         """
+        # set the config base dir
+        if self.config_base_dir:
+            self.vis["renderingState/config_base_dir"].write(str(self.config_base_dir))
+
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
         self.vis["sceneState/cameras"].delete()
@@ -273,6 +288,15 @@ class VisualizerState:
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
+
+        # check if we should interrupt from a button press?
+        camera_path_payload = self.vis["camera_path_payload"].read()
+        if camera_path_payload:
+            # write to json file
+            camera_path_filename = camera_path_payload["camera_path_filename"]
+            camera_path = camera_path_payload["camera_path"]
+            write_to_json(Path(camera_path_filename), camera_path)
+            self.vis["camera_path_payload"].delete()
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -503,6 +527,12 @@ class VisualizerState:
         Args:
             graph: current checkpoint of model
         """
+        # Check that timestamp is newer than the last one
+        if int(camera_object["timestamp"]) < self.prev_camera_timestamp:
+            return
+
+        self.prev_camera_timestamp = int(camera_object["timestamp"])
+
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
         output_type = OutputTypes.INIT if output_type is None else output_type
@@ -515,7 +545,14 @@ class VisualizerState:
         self.prev_colormap_type = colormap_type
 
         # Calculate camera pose and intrinsics
-        image_height = self._calculate_image_height(camera_object, is_training)
+        try:
+            image_height = self._calculate_image_height(camera_object, is_training)
+        except ZeroDivisionError as e:
+            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            print(f"Error: {e}")
+            return
+
         if image_height is None:
             return
 
@@ -556,8 +593,17 @@ class VisualizerState:
             try:
                 render_thread.join()
                 check_thread.join()
-            except Exception:  # pylint: disable=broad-except
+            except IOChangeException:
                 pass
+            except RuntimeError as e:
+                del camera_ray_bundle
+                torch.cuda.empty_cache()
+                time.sleep(0.5)  # sleep to allow buffer to reset
+                self.vis["renderingState/log_errors"].write(
+                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+                )
+                print(f"Error: {e}")
+
         graph.train()
         outputs = render_thread.vis_outputs
         if outputs is not None:

@@ -77,7 +77,7 @@ class CacheImageDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = default_collate(batch_list)
-        collated_batch = get_dict_to_torch(collated_batch, device=self.device)
+        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
         return collated_batch
 
     def __iter__(self):
@@ -142,11 +142,11 @@ class EvalDataloader(DataLoader):
             distortion_params = self.cameras.distortion_params[image_idx]
 
         camera = Cameras(
-            fx=self.cameras.fx[image_idx],
-            fy=self.cameras.fy[image_idx],
+            fx=self.cameras.fx if isinstance(self.cameras.fx, float) else self.cameras.fx[image_idx : image_idx + 1],
+            fy=self.cameras.fy if isinstance(self.cameras.fy, float) else self.cameras.fy[image_idx : image_idx + 1],
             cx=self.cameras.cx,
             cy=self.cameras.cy,
-            camera_to_worlds=self.cameras.camera_to_worlds[image_idx],
+            camera_to_worlds=self.cameras.camera_to_worlds[image_idx : image_idx + 1],
             distortion_params=distortion_params,
             camera_type=self.cameras.camera_type,
         )
@@ -162,7 +162,7 @@ class EvalDataloader(DataLoader):
         ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
         ray_bundle.camera_indices = torch.Tensor([image_idx])[..., None].int()
         batch = self.input_dataset[image_idx]
-        batch = get_dict_to_torch(batch, device=self.device)
+        batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
         return ray_bundle, batch
 
 
