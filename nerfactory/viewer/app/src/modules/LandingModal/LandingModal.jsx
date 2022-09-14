@@ -1,6 +1,17 @@
+/* eslint-disable react/jsx-props-no-spreading */
 import * as React from 'react';
 
-import { Box, Button, Modal, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Modal,
+  Typography,
+  Tabs,
+  Tab,
+  Chip,
+  Link,
+} from '@mui/material';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
 import WebSocketUrlField from '../WebSocketUrlField';
 
@@ -8,14 +19,66 @@ interface LandingModalProps {
   initial_state: object;
 }
 
+interface TabPanelProps {
+  children: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...other}
+    >
+      <Box sx={{ p: 3, padding: 0 }}>
+        <Typography component="div">{children}</Typography>
+      </Box>
+    </div>
+  );
+}
+
+function a11yProps(index: number) {
+  return {
+    id: `simple-tab-${index}`,
+    'aria-controls': `simple-tabpanel-${index}`,
+  };
+}
+
 export default function LandingModel(props: LandingModalProps) {
   const [open, setOpen] = React.useState(props.initial_state);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_1 = `At the top right is the Status Panel where you can connect to a WebSocket and see the train/eval status of your NeRF model. The WebSocket URL takes the form <domain-or-ip_address>:<port>.`;
-  const text_2 =
-    'If the WebSocket is not connecting, make sure your port is being forwarded properly!';
+  const text_intro = `At the top right is the Status Panel where you can connect to a WebSocket and see the train/eval status of your NeRF model. The WebSocket URL takes the form <domain-or-ip_address>:<port>.`;
+
+  const command = `ssh -L localhost:7007:localhost:7007 USER@REMOTE.SERVER.IP`;
+
+  const platform = window.navigator.platform.toLowerCase();
+  let initial_tab = 0;
+  if (platform.includes('mac')) {
+    initial_tab = 0;
+  } else if (platform.includes('linux')) {
+    initial_tab = 1;
+  } else if (platform.includes('win')) {
+    initial_tab = 2;
+  }
+
+  const [tabValue, setTabValue] = React.useState(initial_tab);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(command);
+  };
 
   return (
     <div className="LandingModal">
@@ -47,13 +110,73 @@ export default function LandingModel(props: LandingModalProps) {
             sx={{ mt: 2 }}
           >
             <div className="LandingModel-content">
-              <b>Getting Started</b>
-              <p>{text_1}</p>
+              <h2>Getting Started</h2>
+              <p>{text_intro}</p>
               <p>
                 You can enter your WebSocket URL in the Status Panel or here:
               </p>
               <WebSocketUrlField />
-              <p>{text_2}</p>
+              <h3>Remote Server</h3>
+              <p>
+                If you are using a remote server, make sure to forward the port.
+                This can be accomplished by running the following command on
+                this machine.
+              </p>
+
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs
+                  value={tabValue}
+                  onChange={handleTabChange}
+                  aria-label="os tabs"
+                >
+                  <Tab label="Mac OS" {...a11yProps(0)} />
+                  <Tab label="Linux" {...a11yProps(1)} />
+                  <Tab label="Windows" {...a11yProps(2)} />
+                </Tabs>
+              </Box>
+              <TabPanel value={tabValue} index={0}>
+                <p>
+                  SSH must be set up on the remote machine. Then run the
+                  following on this machine:
+                </p>
+                <Chip
+                  label={command}
+                  onDelete={handleCopy}
+                  deleteIcon={<ContentCopyRoundedIcon />}
+                />
+              </TabPanel>
+              <TabPanel value={tabValue} index={1}>
+                <p>
+                  SSH must be set up on the remote machine. Then run the
+                  following on this machine:
+                </p>
+                <Chip
+                  label={command}
+                  onDelete={handleCopy}
+                  deleteIcon={<ContentCopyRoundedIcon />}
+                />
+              </TabPanel>
+              <TabPanel value={tabValue} index={2}>
+                <p>
+                  SSH must be set up on the remote machine. Then run the
+                  following on this machine in PowerShell:
+                </p>
+                <Chip
+                  label={command}
+                  onDelete={handleCopy}
+                  deleteIcon={<ContentCopyRoundedIcon />}
+                />
+                <p>
+                  If OpenSSH is not installed, refer to this{' '}
+                  <Link
+                    href="http://woshub.com/using-native-ssh-client-windows/"
+                    color="secondary"
+                  >
+                    guide
+                  </Link>
+                  .
+                </p>
+              </TabPanel>
             </div>
           </Typography>
         </Box>

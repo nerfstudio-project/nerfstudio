@@ -5,16 +5,16 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 <details>
 <summary>Installing Conda</summary>
 
-    This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
+This step is fairly self-explanatory, but here are the basic steps. You can also find countless tutorials online.
 
-    ```bash
-    cd /path/to/install/miniconda
+```bash
+cd /path/to/install/miniconda
 
-    mkdir -p miniconda3
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
-    bash miniconda3/miniconda.sh -b -u -p miniconda3
-    rm -rf miniconda/miniconda.sh
-    ```
+mkdir -p miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda3/miniconda.sh
+bash miniconda3/miniconda.sh -b -u -p miniconda3
+rm -rf miniconda/miniconda.sh
+```
 
 </details>
 
@@ -29,6 +29,7 @@ Clone the repo
 
 ```bash
 git clone git@github.com:plenoptix/nerfactory.git
+cd nerfactory
 ```
 
 Install dependencies and nerfactory as a library
@@ -38,15 +39,29 @@ python -m pip install --upgrade pip
 pip install -e .
 ```
 
-Install tiny-cuda-nn (tcnn) to use with the graph_instant_ngp.yaml config
+Install tiny-cuda-nn (tcnn) to run instant_ngp
 
 ```bash
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
+
+Experimental: install tab completion for nerfactory (bash and zsh)
+
+```bash
+# If the CLI changes, we can also re-install to synchronize completions
+python scripts/completion/configure.py install
 ```
 
 # Downloading data
 
-Download the original [NeRF dataset](https://drive.google.com/drive/folders/128yBriW1IG_3NJ5Rp7APSTZsJqdJdfc1) and unfold it in the following format. This is for the blender dataset type. We support the major datasets and allow users to create their own dataset, described in detail [here](data/creating_dataset.md).
+Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
+
+```
+python scripts/downloads/download_data.py --dataset=blender
+```
+
+Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
 
 ```
 |─ nerfactory/
@@ -115,7 +130,7 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 
 **Solution**:
 ```
-pip install torch==1.11.0+cu113 torchvision==0.12.0+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
 * [Installation errors, File "setup.py" not found](pip-install-error)

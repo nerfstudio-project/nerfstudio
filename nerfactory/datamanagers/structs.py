@@ -32,7 +32,9 @@ class PointCloud:
     """Dataclass for a point cloud."""
 
     xyz: TensorType["num_points", 3] = None
+    """the 3D points in point cloud"""
     rgb: TensorType["num_points", 3] = None
+    """the color of each point in point cloud"""
 
 
 @dataclass
@@ -40,24 +42,27 @@ class Semantics:
     """Dataclass for semantic labels."""
 
     stuff_filenames: List[Path]
+    """filenames to load "stuff"/background data"""
     stuff_classes: List[str]
-    thing_filenames: List[Path]
-    thing_classes: List[str]
+    """class labels for "stuff" data"""
     stuff_colors: torch.Tensor
+    """color mapping for "stuff" classes"""
+    thing_filenames: List[Path]
+    """filenames to load "thing"/foreground data"""
+    thing_classes: List[str]
+    """class labels for "thing" data"""
     thing_colors: torch.Tensor
+    """color mapping for "thing" classes"""
 
 
 @dataclass
 class SceneBounds:
-    """Data to represent the scene bounds.
-
-    Attributes:
-        aabb: axis-aligned bounding box.
-            aabb[0] is the minimum (x,y,z) point.
-            aabb[1] is the maximum (x,y,z) point.
-    """
+    """Data to represent the scene bounds."""
 
     aabb: TensorType[2, 3] = None
+    """aabb: axis-aligned bounding box.
+    aabb[0] is the minimum (x,y,z) point.
+    aabb[1] is the maximum (x,y,z) point."""
 
     def get_diagonal_length(self):
         """Returns the longest diagonal length."""
@@ -72,7 +77,11 @@ class SceneBounds:
 
     def get_centered_and_scaled_scene_bounds(self, scale_factor: Union[float, torch.Tensor] = 1.0):
         """Returns a new box that has been shifted and rescaled to be centered
-        about the origin."""
+        about the origin.
+
+        Args:
+            scale_factor: How much to scale the camera origins by.
+        """
         return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
 
     @staticmethod
@@ -82,9 +91,6 @@ class SceneBounds:
         Args:
             positions: the xyz positions
             aabb: the axis-aligned bounding box
-
-        Returns:
-            positions that are normalized into the range [0, 1].
         """
         aabb_lengths = aabb[1] - aabb[0]
         normalized_positions = (positions - aabb[0]) / aabb_lengths
@@ -96,14 +102,23 @@ class SceneBounds:
 
     @staticmethod
     def from_json(json_: Dict) -> "SceneBounds":
-        """Returns the an instance of SceneBounds from a json dictionary."""
+        """Returns the an instance of SceneBounds from a json dictionary.
+
+        Args:
+            json_: the json dictionary containing scene bound information
+        """
         assert json_["type"] == "aabb"
         aabb = torch.tensor([json_[0], json_[1]])
         return SceneBounds(aabb=aabb)
 
     @staticmethod
     def from_camera_poses(poses: TensorType[..., 3, 4], scale_factor: float) -> "SceneBounds":
-        """Returns the instance of SceneBounds that fully envelopes a set of poses"""
+        """Returns the instance of SceneBounds that fully envelopes a set of poses
+
+        Args:
+            poses: tensor of camera pose matrices
+            scale_factor: How much to scale the camera origins by.
+        """
         xyzs = poses[..., :3, -1]
         aabb = torch.stack([torch.min(xyzs, dim=0)[0], torch.max(xyzs, dim=0)[0]])
         return SceneBounds(aabb=aabb * scale_factor)
@@ -111,22 +126,24 @@ class SceneBounds:
 
 @dataclass
 class DatasetInputs:
-    """Dataset inputs for the image dataset and the ray generator.
-
-    Args:
-        image_filenames: Filenames for the images.
-        intrinsics: Tensor of per-image camera intrisics.
-        camera_to_world: Tensor of per-image c2w matrices, in [R | t] format.
-        ...
-    """
+    """Dataset inputs for the image dataset and the ray generator."""
 
     image_filenames: List[Path]
+    """Filenames for the images."""
     cameras: Cameras
+    """Camera object storing collection of camera information in dataset"""
     alpha_color: Optional[TensorType[3]] = None
+    """color of dataset background"""
     scene_bounds: SceneBounds = SceneBounds()
-    point_cloud: PointCloud = PointCloud()
+    """scene bounds of dataset"""
     # we support additional input information/formats including mask/depth/semantics.
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
+    """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
+    {input_name:
+    ... {"func": function to process additional dataset inputs,
+    ... "kwargs": dictionary of data to pass into "func"}
+    }
+    """
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""

@@ -40,7 +40,6 @@ export default function WebRtcWindow() {
         // {
         //   urls: 'stun:stun.l.google.com:19302',
         // },
-        // extra TURN server(s):
         // {
         //   urls: 'turn:1830walnut.ddns.net',
         //   username: 'turnuser',

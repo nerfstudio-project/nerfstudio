@@ -201,7 +201,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     under the hood. We may clean this up a little bit under the hood with more standard dataloading
     components that can be strung together, but it can be just used as a black box for now since
     only the constructor is likely to change in the future, or maybe passing in step number to the
-    next_train and next_eval functions."""
+    next_train and next_eval functions.
+
+    Args:
+        config: the DataManagerConfig used to instantiate class
+    """
 
     config: cfg.VanillaDataManagerConfig
 
@@ -247,6 +251,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
                 self.train_input_dataset,
                 num_images_to_sample_from=self.config.train_num_images_to_sample_from,
                 device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
             )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)

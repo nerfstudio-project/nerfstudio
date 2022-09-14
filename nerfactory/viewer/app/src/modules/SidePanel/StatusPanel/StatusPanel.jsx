@@ -73,16 +73,18 @@ export default function StatusPanel(props: StatusPanelProps) {
 
   return (
     <div className="StatusPanel">
-      <Button
-        className="StatusPanel-play-button"
-        variant="contained"
-        color="secondary"
-        onClick={handlePlayChange}
-        disabled={!isWebsocketConnected}
-        startIcon={training_icon}
-      >
-        {is_training_text}
-      </Button>
+      <div className="StatusPanel-play-button">
+        <Button
+          className="StatusPanel-play-button"
+          variant="contained"
+          color="secondary"
+          onClick={handlePlayChange}
+          disabled={!isWebsocketConnected}
+          startIcon={training_icon}
+        >
+          {is_training_text}
+        </Button>
+      </div>
       <Button
         className="StatusPanel-hide-scene-button"
         variant="outlined"

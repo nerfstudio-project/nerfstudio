@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -45,12 +46,9 @@ def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
     """Main training function that sets up and runs the trainer per process
 
     Args:
-        local_rank (int): current rank of process
-        world_size (int): total number of gpus available
-        config (Config): config file specifying training regimen
-
-    Returns:
-        Any: TODO(): determine the return type
+        local_rank: current rank of process
+        world_size: total number of gpus available
+        config: config file specifying training regimen
     """
     trainer = Trainer(config, local_rank, world_size)
     trainer.setup()
@@ -62,9 +60,9 @@ class Trainer:
     """Trainer class
 
     Args:
-        config (Config): The configuration object.
-        local_rank (int, optional): Local rank of the process. Defaults to 0.
-        world_size (int, optional): World size of the process. Defaults to 1.
+        config: The configuration object.
+        local_rank: Local rank of the process. Defaults to 0.
+        world_size: World size of the process. Defaults to 1.
     """
 
     def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):
@@ -82,7 +80,7 @@ class Trainer:
         self.start_step = 0
         # visualizer variable
         banner_messages = None
-        self.visualizer_state = viewer_utils.VisualizerState(config.viewer)
+        self.visualizer_state = viewer_utils.VisualizerState(config.viewer, config_base_dir=self.config.base_dir)
         if config.viewer.enable:
             banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
@@ -98,7 +96,7 @@ class Trainer:
         """Setup the Trainer by calling other setup functions.
 
         Args:
-            test_mode (bool, optional): Whether to setup for testing. Defaults to False.
+            test_mode: Whether to setup for testing. Defaults to False.
         """
         self.pipeline: Pipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
@@ -117,7 +115,7 @@ class Trainer:
         assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
 
         self.visualizer_state.init_scene(
-            dataset=self.pipeline.datamanager.train_input_dataset, start_train=self.config.viewer.train
+            dataset=self.pipeline.datamanager.train_input_dataset, start_train=self.config.viewer.start_train
         )
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
@@ -139,7 +137,8 @@ class Trainer:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
-                        self.visualizer_state.update_scene(step, self.pipeline.model)
+                        num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
+                        self.visualizer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
@@ -172,7 +171,7 @@ class Trainer:
         """Perform writes only during appropriate time steps
 
         Args:
-            step (int): Current training step.
+            step: Current training step.
         """
         if (
             step % self.config.logging.steps_per_log == 0
@@ -185,8 +184,12 @@ class Trainer:
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
         load_dir = self.config.trainer.load_dir
-        load_step = self.config.trainer.load_step
-        if load_dir is not None and load_step is not None:
+        if load_dir is not None:
+            load_step = self.config.trainer.load_step
+            if load_step is None:
+                print("Loading latest checkpoint from load_dir")
+                # NOTE: this is specific to the checkpoint name format
+                load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(load_dir))[-1]
             load_path = load_dir / f"step-{load_step:09d}.ckpt"
             assert load_path.exists(), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
@@ -198,6 +201,8 @@ class Trainer:
             logging.info("done loading checkpoint from %s", load_path)
         else:
             logging.info("No checkpoints to load, training from scratch")
+
+        logging.info("saving checkpoints to: %s", self.config.trainer.model_dir)
 
     @check_main_thread
     def _save_checkpoint(self, output_dir: Path, step: int) -> None:
@@ -226,13 +231,10 @@ class Trainer:
 
     @profiler.time_function
     def train_iteration(self, step: int) -> Dict[str, torch.Tensor]:
-        """Run one iteration with a batch of inputs.
+        """Run one iteration with a batch of inputs. Returns dictionary of model losses.
 
         Args:
             step: Current training step.
-
-        Returns:
-            Dictionary of model losses.
         """
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str = self.device.split(":")[0]

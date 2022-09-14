@@ -26,8 +26,8 @@ class FieldModule(nn.Module):
     """Field modules that can be combined to store and compute the fields.
 
     Args:
-        in_dim (int, optional): Input dimension to module.
-        out_dim (int, optional): Ouput dimension to module.
+        in_dim: Input dimension to module.
+        out_dim: Ouput dimension to module.
     """
 
     def __init__(self, in_dim: Optional[int] = None, out_dim: Optional[int] = None) -> None:
@@ -43,18 +43,14 @@ class FieldModule(nn.Module):
         """Sets input dimension of encoding
 
         Args:
-            in_dim (int): input dimension
+            in_dim: input dimension
         """
         if in_dim <= 0:
             raise ValueError("Input dimension should be greater than zero")
         self.in_dim = in_dim
 
     def get_out_dim(self) -> int:
-        """Calculates output dimension of encoding.
-
-        Returns:
-            int: output dimension
-        """
+        """Calculates output dimension of encoding."""
         if self.out_dim is None:
             raise ValueError("Output dimension has not been set")
         return self.out_dim
@@ -62,10 +58,9 @@ class FieldModule(nn.Module):
     @abstractmethod
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
         """
+        Returns processed tensor
+
         Args:
             in_tensor: Input tensor to process
-
-        Returns:
-            Processed tensor
         """
         raise NotImplementedError

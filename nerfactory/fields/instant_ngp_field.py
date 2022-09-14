@@ -38,16 +38,35 @@ except ImportError:
     pass
 
 
-def get_normalized_directions(directions):
-    """SH encoding must be in the range [0, 1]"""
+def get_normalized_directions(directions: TensorType["bs":..., 3]):
+    """SH encoding must be in the range [0, 1]
+
+    Args:
+        directions: batch of directions
+    """
     return (directions + 1.0) / 2.0
 
 
 class TCNNInstantNGPField(Field):
-    """NeRF Field"""
+    """NeRF Field
+
+    Args:
+        aabb: parameters of scene aabb bounds
+        num_layers: number of hidden layers
+        hidden_dim: dimension of hidden layers
+        geo_feat_dim: output geo feat dimensions
+        num_layers_color: number of hidden layers for color network
+        hidden_dim_color: dimension of hidden layers for color network
+    """
 
     def __init__(
-        self, aabb, num_layers=2, hidden_dim=64, geo_feat_dim=15, num_layers_color=3, hidden_dim_color=64
+        self,
+        aabb,
+        num_layers: int = 2,
+        hidden_dim: int = 64,
+        geo_feat_dim: int = 15,
+        num_layers_color: int = 3,
+        hidden_dim_color: int = 64,
     ) -> None:
         super().__init__()
 
@@ -99,7 +118,6 @@ class TCNNInstantNGPField(Field):
         )
 
     def get_density(self, ray_samples: RaySamples):
-        """Computes and returns the densities."""
         positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)

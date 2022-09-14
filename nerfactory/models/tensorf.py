@@ -50,8 +50,10 @@ from nerfactory.utils.callbacks import (
 
 
 class TensoRFModel(Model):
-    """
-    TensoRF Model
+    """TensoRF Model
+
+    Args:
+        config: TensoRF configuration to instantiate model
     """
 
     def __init__(
@@ -194,7 +196,7 @@ class TensoRFModel(Model):
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        image = batch["image"]
+        image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
         depth = visualization.apply_depth_colormap(

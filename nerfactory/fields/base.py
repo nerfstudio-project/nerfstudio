@@ -30,8 +30,12 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 class Field(nn.Module):
     """Base class for fields."""
 
-    def density_fn(self, positions):
-        """Returns only the density. Used primarily with the density grid."""
+    def density_fn(self, positions: TensorType["bs":..., 3]):
+        """Returns only the density. Used primarily with the density grid.
+
+        Args:
+            positions: the origin of the samples/frustums
+        """
         # Need to figure out a better way to descibe positions with a ray.
         ray_samples = RaySamples(
             frustums=Frustums(
@@ -47,34 +51,28 @@ class Field(nn.Module):
 
     @abstractmethod
     def get_density(self, ray_samples: RaySamples) -> Tuple[TensorType[..., 1], TensorType[..., "num_features"]]:
-        """Computes and returns the densities.
+        """Computes and returns the densities. Returns a tensor of densities and a tensor of features.
 
         Args:
-            ray_samples (RaySamples): Samples locations to compute density.
-
-        Returns:
-            Tuple[TensorType[...,1], TensorType[...,"num_features"]]: A tensor of densities and a tensor of features.
+            ray_samples: Samples locations to compute density.
         """
 
     @abstractmethod
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
-        """Computes and returns the colors.
+        """Computes and returns the colors. Returns output field values.
 
         Args:
-            ray_samples (RaySamples): Samples locations to compute outputs.
-            density_embedding (TensorType, optional): Density embeddings to condition on.
-
-        Returns:
-            Dict[FieldHeadNames, TensorType]: Output field values.
+            ray_samples: Samples locations to compute outputs.
+            density_embedding: Density embeddings to condition on.
         """
 
     def forward(self, ray_samples: RaySamples):
         """Evaluates the field at points along the ray.
 
         Args:
-            ray_samples (RaySamples): Samples to evaluate field on.
+            ray_samples: Samples to evaluate field on.
         """
         valid_mask = ray_samples.valid_mask
 

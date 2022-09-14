@@ -26,6 +26,7 @@
     "no-console": "off",
     "prefer-destructuring": "off",
     "react/destructuring-assignment": "off",
+    "react/prop-types": 0,
     "unused-imports/no-unused-imports-ts": 2
   }
 }

@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Stats from 'stats.js';
-import { useSelector } from 'react-redux';
 import React, { useContext, useEffect, useRef } from 'react';
-import { WebSocketContext } from '../WebSocket/WebSocket';
+import { SelectChangeEvent } from '@mui/material/Select';
+import { useDispatch, useSelector } from 'react-redux';
+
+import { IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
+import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
+import PublicSharpIcon from '@mui/icons-material/PublicSharp';
+import Stats from 'stats.js';
+import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
+import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
 
@@ -18,60 +24,169 @@ function createStats() {
   return stats;
 }
 
+function CameraToggle() {
+  const dispatch = useDispatch();
+  const camera_choice = useSelector(
+    (state) => state.renderingState.camera_choice,
+  );
+  const set_camera_choice = (event: SelectChangeEvent) => {
+    const value = event.target.value;
+    dispatch({
+      type: 'write',
+      path: 'renderingState/camera_choice',
+      data: value,
+    });
+  };
+
+  return (
+    <ToggleButtonGroup
+      color="primary"
+      value={camera_choice}
+      exclusive
+      onChange={set_camera_choice}
+      aria-label="camera view"
+      size="small"
+      varient="filled"
+    >
+      <ToggleButton value="Main Camera">Viewport</ToggleButton>
+      <ToggleButton value="Render Camera">Render</ToggleButton>
+    </ToggleButtonGroup>
+  );
+}
+
+function TransformIcons(props) {
+  const sceneTree = props.sceneTree;
+  const transform_controls = sceneTree.find_object(['Transform Controls']);
+  // NOTE(ethan): I'm not sure why this is necessary, but it is
+  // toggle back and forth between local and global transform
+  const [world, setWorld] = React.useState(true);
+
+  const toggleLocal = () => {
+    transform_controls.setSpace(world ? 'local' : 'world');
+    setWorld(!world);
+  };
+
+  return (
+    <div>
+      <div className="ViewerWindow-iconbutton">
+        <IconButton
+          size="large"
+          onClick={() => {
+            transform_controls.setMode('translate');
+          }}
+        >
+          {/* translate */}
+          <OpenWithIcon />
+        </IconButton>
+      </div>
+      <div className="ViewerWindow-iconbutton">
+        <IconButton
+          size="large"
+          onClick={() => {
+            transform_controls.setMode('rotate');
+          }}
+        >
+          {/* rotate */}
+          <SyncOutlinedIcon />
+        </IconButton>
+      </div>
+      <div className="ViewerWindow-iconbutton">
+        <IconButton size="large" onClick={toggleLocal}>
+          {world ? <PublicSharpIcon /> : <PublicOffSharpIcon />}
+        </IconButton>
+      </div>
+    </div>
+  );
+}
+
 // manages a camera and the web rtc stream...
 export default function ViewerWindow(props) {
-  // eslint-disable-next-line react/prop-types
-  const scene = props.scene;
+  const sceneTree = props.sceneTree;
+  const scene = sceneTree.object;
+  const renderer = sceneTree.metadata.renderer;
 
   const myRef = useRef(null);
   const websocket = useContext(WebSocketContext).socket;
   const field_of_view = useSelector(
     (state) => state.renderingState.field_of_view,
   );
-  const field_of_view_ref = useRef(field_of_view);
 
-  const camera = useRef(null);
-  let cameraControls = null;
-  let renderer = null;
-  let viewportWidth = null;
-  let viewportHeight = null;
+  const camera_choice = useSelector(
+    (state) => state.renderingState.camera_choice,
+  );
+
+  // listen to the viewport width
+  const size = new THREE.Vector2();
+  renderer.getSize(size);
+  const [viewport_size, setDimensions] = React.useState({
+    height: size.x,
+    width: size.y,
+  });
+  const viewport_width = viewport_size.width;
+  const viewport_height = viewport_size.height;
+
+  // on change, update the camera and controls
+  sceneTree.metadata.camera = sceneTree.find_object(['Cameras', camera_choice]);
+
   let stats = null;
 
-  const getViewportWidth = () => {
+  const get_window_width = () => {
     const width = myRef.current.clientWidth;
     return width - (width % 2);
   };
 
-  const getViewportHeight = () => {
+  const get_window_height = () => {
     return myRef.current.clientHeight;
   };
 
   const handleResize = () => {
-    viewportWidth = getViewportWidth();
-    viewportHeight = getViewportHeight();
-    camera.current.aspect = viewportWidth / viewportHeight;
-    camera.current.updateProjectionMatrix();
+    const viewportWidth = get_window_width();
+    const viewportHeight = get_window_height();
+    sceneTree.metadata.camera.aspect = viewportWidth / viewportHeight;
+    sceneTree.metadata.camera.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
   };
 
+  // update the camera information in the python server
   const sendCamera = () => {
-    // update the camera information in the python server
     if (websocket.readyState === WebSocket.OPEN) {
       const cmd = 'write';
       const path = 'renderingState/camera';
       const data = {
         type: cmd,
         path,
-        data: camera.current.toJSON(),
+        data: sceneTree.metadata.camera.toJSON(),
       };
       const message = msgpack.encode(data);
       websocket.send(message);
     }
   };
 
-  // keep sending the camera often
   useEffect(() => {
-    const fps = 60;
+    function update_dimensions() {
+      setDimensions({
+        height: get_window_height(),
+        width: get_window_width(),
+      });
+    }
+
+    window.addEventListener('resize', update_dimensions);
+
+    // force a rerender
+    setDimensions({
+      height: get_window_height(),
+      width: get_window_width(),
+    });
+
+    return () => {
+      window.removeEventListener('resize', update_dimensions);
+    };
+  }, []);
+
+  // keep sending the camera often
+  // rerun this when the websocket changes
+  useEffect(() => {
+    const fps = 24;
     const interval = 1000 / fps;
     const refreshIntervalId = setInterval(sendCamera, interval);
     return () => {
@@ -79,66 +194,90 @@ export default function ViewerWindow(props) {
     };
   }, [websocket]);
 
-  const update = () => {
-    requestAnimationFrame(update);
+  const render = () => {
+    requestAnimationFrame(render);
     handleResize();
-    camera.current.fov = field_of_view_ref.current;
-    camera.current.updateProjectionMatrix();
-    cameraControls.update();
-    renderer.render(scene, camera.current);
+    sceneTree.metadata.camera.updateProjectionMatrix();
+    sceneTree.metadata.camera_controls.update();
+    renderer.render(scene, sceneTree.metadata.camera);
     stats.update();
   };
 
-  // this is run once
+  // start the three.js rendering loop
+  // when the DOM is ready
   useEffect(() => {
-    viewportWidth = getViewportWidth();
-    viewportHeight = getViewportHeight();
-
     stats = createStats();
     myRef.current.append(stats.domElement);
-
-    camera.current = new THREE.PerspectiveCamera(
-      field_of_view_ref.current,
-      viewportWidth / viewportHeight,
-      0.01,
-      100,
-    );
-    camera.current.position.x = 5;
-    camera.current.position.y = -5;
-    camera.current.position.z = 5;
-    camera.current.up = new THREE.Vector3(0, 0, 1);
-
-    renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(viewportWidth, viewportHeight);
-
     myRef.current.append(renderer.domElement);
-    // add camera controls
-    cameraControls = new OrbitControls(camera.current, renderer.domElement);
-    cameraControls.rotateSpeed = 2.0;
-    cameraControls.zoomSpeed = 0.3;
-    cameraControls.panSpeed = 0.2;
-    cameraControls.target.set(0, 0, 0); // focus point of the controls
-    cameraControls.autoRotate = false;
-    cameraControls.enableDamping = true;
-    cameraControls.dampingFactor = 1.0;
-    cameraControls.update();
-    update();
+    render();
   }, []);
 
-  // updates the field of view inside the ref to avoid rerendering so often
+  // updates the current camera with the field of view
   useEffect(() => {
-    field_of_view_ref.current = field_of_view;
+    sceneTree.metadata.camera.fov = field_of_view;
   }, [field_of_view]);
+
+  const render_height = useSelector(
+    (state) => state.renderingState.render_height,
+  );
+  const render_width = useSelector(
+    (state) => state.renderingState.render_width,
+  );
+
+  let crop_w;
+  let crop_h;
+  const render_aspect = render_width / render_height;
+  const viewport_aspect = viewport_width / viewport_height;
+  let render_viewport_apsect_ratio = null;
+  if (render_aspect > viewport_aspect) {
+    // render width is the limiting factor
+    crop_w = viewport_width;
+    crop_h = viewport_width / render_aspect;
+    render_viewport_apsect_ratio = viewport_aspect / render_aspect;
+  } else {
+    // render height is the limiting factor
+    crop_w = viewport_height * render_aspect;
+    crop_h = viewport_height;
+    render_viewport_apsect_ratio = 1.0;
+  }
+
+  let display = null;
+  if (camera_choice === 'Main Camera') {
+    display = 'none';
+  } else {
+    display = 'flex';
+  }
+
+  const crop_style = {
+    display,
+    width: crop_w,
+    height: crop_h,
+  };
+
+  // set the threejs field of view
+  // such that the rendered video will match correctly
+  if (camera_choice !== 'Main Camera') {
+    const fl = 1.0 / Math.tan((field_of_view * Math.PI) / 360);
+    const fl_new = fl * render_viewport_apsect_ratio;
+    const fov = Math.atan(1 / fl_new) / (Math.PI / 360);
+    sceneTree.metadata.camera.fov = fov;
+  }
 
   return (
     <>
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
-      <div className="canvas-container-main" ref={myRef} />
+      <div className="canvas-container-main" ref={myRef}>
+        <div className="ViewerWindow-camera-toggle">
+          <CameraToggle />
+        </div>
+      </div>
+      <div className="ViewerWindow-buttons">
+        <TransformIcons sceneTree={sceneTree} />
+      </div>
+      <div className="ViewerWindow-render-crop-container">
+        <div className="ViewerWindow-render-crop" style={crop_style} />
+      </div>
     </>
   );
 }

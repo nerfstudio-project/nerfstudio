@@ -34,7 +34,12 @@ from nerfactory.utils import misc, writer
 
 
 class SemanticNerfModel(NeRFModel):
-    """Semantic-NeRF model"""
+    """Semantic-NeRF model
+
+    Args:
+        config: SemanticNeRF configuration to instantiate model
+        semantics: additional semantics data info
+    """
 
     def __init__(self, config: cfg.ModelConfig, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
@@ -109,7 +114,7 @@ class SemanticNerfModel(NeRFModel):
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
-        image = batch["image"]
+        image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
         semantic_logits = outputs["semantic_fine"]

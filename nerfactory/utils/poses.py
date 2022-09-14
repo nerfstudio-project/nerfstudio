@@ -24,10 +24,10 @@ def to4x4(pose: TensorType[..., 3, 4]) -> TensorType[..., 4, 4]:
     """Convert 3x4 pose matrices to a 4x4 with the addition of a homogeneous coordinate.
 
     Args:
-        pose (TensorType[..., 3, 4]): Camera pose without homogenous coordinate.
+        pose: Camera pose without homogenous coordinate.
 
     Returns:
-        TensorType[..., 4, 4]: Camera poses with additional homogenous coordinate added.
+        Camera poses with additional homogenous coordinate added.
     """
     constants = torch.zeros_like(pose[..., :1, :], device=pose.device)
     constants[..., :, 3] = 1
@@ -38,10 +38,10 @@ def inverse(pose: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
     """Invert provided pose matrix.
 
     Args:
-        pose (TensorType[..., 3, 4]): Camera pose without homogenous coordinate.
+        pose: Camera pose without homogenous coordinate.
 
     Returns:
-        TensorType[..., 3, 4]: Inverse of pose.
+        Inverse of pose.
     """
     R = pose[..., :3, :3]
     t = pose[..., :3, 3:]
@@ -54,11 +54,11 @@ def multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]) -> Te
     """Multiply two pose matrices, A @ B.
 
     Args:
-        pose_a (TensorType[..., 3, 4]): Left pose matrix, usually a transformation applied to the right.
-        pose_b (TensorType[..., 3, 4]): Right pose matrix, usually a camera pose that will be tranformed by pose_a.
+        pose_a: Left pose matrix, usually a transformation applied to the right.
+        pose_b: Right pose matrix, usually a camera pose that will be tranformed by pose_a.
 
     Returns:
-        TensorType[..., 3, 4]: Camera pose matrix where pose_a was applied to pose_b.
+        Camera pose matrix where pose_a was applied to pose_b.
     """
     R1, t1 = pose_a[..., :3, :3], pose_a[..., :3, 3:]
     R2, t2 = pose_b[..., :3, :3], pose_b[..., :3, 3:]
@@ -71,10 +71,10 @@ def normalize(poses: TensorType[..., 3, 4]) -> TensorType[..., 3, 4]:
     """Normalize the XYZs of poses to fit within a unit cube ([-1, 1]). Note: This operation is not in-place.
 
     Args:
-        poses (TensorType[..., 3, 4]): A collection of poses to be normalized.
+        poses: A collection of poses to be normalized.
 
     Returns;
-        TensorType[..., 3, 4]: Normalized collection of poses.
+        Normalized collection of poses.
     """
     pose_copy = torch.clone(poses)
     pose_copy[..., :3, 3] /= torch.max(torch.abs(poses[..., :3, 3]))

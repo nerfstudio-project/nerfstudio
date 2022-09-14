@@ -28,7 +28,8 @@ function dispose(object) {
 
 export default class SceneNode {
   constructor(object) {
-    this.object = object;
+    this.metadata = {}; // relevant metadata for the object
+    this.object = object; // three.js objects
     this.children = {};
     for (const c of this.object.children) {
       this.add_child(c);
@@ -60,6 +61,10 @@ export default class SceneNode {
     return child.find(path.slice(1));
   }
 
+  find_object(path) {
+    return this.find(path.concat(['<object>'])).object;
+  }
+
   set_property(property, value) {
     if (property === 'position') {
       this.object.position.set(value[0], value[1], value[2]);
@@ -83,6 +88,10 @@ export default class SceneNode {
     );
   }
 
+  set_object_from_path(path, object) {
+    this.find(path.concat(['<object>'])).set_object(object);
+  }
+
   set_object(object) {
     const parent = this.object.parent;
     this.dispose_recursive();
@@ -100,7 +109,7 @@ export default class SceneNode {
 
   delete(path) {
     if (path.length === 0) {
-      console.error("Can't delete an empty path");
+      console.error("Can't delete an empty path.");
     } else {
       const parent = this.find(path.slice(0, path.length - 1));
       const name = path[path.length - 1];

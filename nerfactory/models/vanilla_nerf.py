@@ -51,12 +51,7 @@ class NeRFModel(Model):
     """Vanilla NeRF model
 
     Args:
-        near_plane: Where to start sampling points. Defaults to 2.0.
-        far_plane: Where to stop sampling points. Defaults to 6.0.
-        num_coarse_samples: Number of samples in coarse field evaluation. Defaults to 64,
-        num_importance_samples: Number of samples in fine field evaluation. Defaults to 64,
-        enable_density_field: Whether to create a density field to filter samples. Defaults to False.
-        density_field_config: Configuration of density field. Defaults to None.
+        config: Basic NeRF configuration to instantiate model
     """
 
     def __init__(
@@ -184,7 +179,7 @@ class NeRFModel(Model):
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        image = batch["image"]
+        image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         acc_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])

@@ -21,7 +21,11 @@ from nerfactory.utils import comms
 
 
 def decorate_all(decorators: List[Callable]) -> Callable:
-    """A decorator to decorate all member functions of a class"""
+    """A decorator to decorate all member functions of a class
+
+    Args:
+        decorators: list of decorators to add to all functions in the class
+    """
 
     def decorate(cls):
         for attr in cls.__dict__:

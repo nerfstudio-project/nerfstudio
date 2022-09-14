@@ -43,7 +43,11 @@ from nerfactory.utils import colors, misc, visualization, writer
 
 
 class NerfWModel(Model):
-    """NeRF-W model"""
+    """NeRF-W model
+
+    Args:
+        config: NerfW configuration to instantiate model
+    """
 
     config: cfg.NerfWModelConfig
 
@@ -211,7 +215,7 @@ class NerfWModel(Model):
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        image = batch["image"]
+        image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
         rgb_fine_static = outputs["rgb_fine_static"]

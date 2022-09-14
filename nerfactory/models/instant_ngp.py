@@ -46,8 +46,7 @@ class NGPModel(Model):
     """Instant NGP model
 
     Args:
-        field_implementation (str): one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'
-        kwargs: additional params to pass up to the parent class model
+        config: instant NGP configuration to instantiate model
     """
 
     config: cfg.InstantNGPModelConfig
@@ -151,7 +150,7 @@ class NGPModel(Model):
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        image = batch["image"]
+        image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
         depth = visualization.apply_depth_colormap(
