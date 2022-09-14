@@ -409,6 +409,8 @@ class InstantNGPModelConfig(ModelConfig):
     """Whether to create a density field to filter samples."""
     num_samples: int = 1024  # instead of course/fine samples
     """Number of samples in field evaluation. Defaults to 1024,"""
+    cone_angle: float = 0.0
+    """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
 
 
 @dataclass

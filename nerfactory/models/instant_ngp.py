@@ -95,17 +95,18 @@ class NGPModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    @torch.cuda.amp.autocast()
     def get_outputs(self, ray_bundle: RayBundle):
+        assert self.field is not None
+
         # TODO(ruilongli)
         # - train test difference
         # - visualize "depth_density_grid"
         num_rays = len(ray_bundle)
         device = ray_bundle.origins.device
 
-        if self.field is None:
-            raise ValueError("populate_fields() must be called before get_outputs")
-        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
+        ray_samples, packed_info, t_min, t_max = self.sampler(
+            ray_bundle, self.field.aabb, cone_angle=self.config.cone_angle
+        )
 
         field_outputs = self.field.forward(ray_samples)
         rgbs = field_outputs[FieldHeadNames.RGB]
@@ -157,14 +158,17 @@ class NGPModel(Model):
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
+        alive_ray_mask = visualization.apply_colormap(outputs["alive_ray_mask"])
 
         combined_rgb = torch.cat([image, rgb], dim=1)
         combined_acc = torch.cat([acc], dim=1)
         combined_depth = torch.cat([depth], dim=1)
+        combined_alive_ray_mask = torch.cat([alive_ray_mask], dim=1)
 
         writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
         writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
         writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
+        writer.put_image(name=f"alive_ray_mask/image_idx_{image_idx}", image=combined_alive_ray_mask, step=step)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]

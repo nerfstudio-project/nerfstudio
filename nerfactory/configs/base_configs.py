@@ -46,7 +46,7 @@ from nerfactory.models.vanilla_nerf import NeRFModel
 base_configs: Dict[str, Config] = {}
 base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
-    trainer=TrainerConfig(mixed_precision=True),
+    trainer=TrainerConfig(steps_per_test=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),

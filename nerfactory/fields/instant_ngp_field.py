@@ -48,7 +48,7 @@ def get_normalized_directions(directions: TensorType["bs":..., 3]):
 
 
 class TCNNInstantNGPField(Field):
-    """NeRF Field
+    """TCNN implementation of the Instant-NGP field.
 
     Args:
         aabb: parameters of scene aabb bounds
@@ -119,8 +119,12 @@ class TCNNInstantNGPField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-        positions_flat = positions.view(-1, 3)
-        h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+        # assert all positions are in the range [0, 1]
+        # otherwise print min and max values
+        # assert torch.all(positions >= 0.0) and torch.all(
+        #     positions <= 1.0
+        # ), f"positions: {positions.min()} {positions.max()}"
+        h = self.mlp_base(positions)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
@@ -131,22 +135,24 @@ class TCNNInstantNGPField(Field):
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         # TODO: add valid_mask masking!
-        # tcnn requires directions in the range [0,1]
         directions = get_normalized_directions(ray_samples.frustums.directions)
-        directions_flat = directions.view(-1, 3)
-        d = self.direction_encoding(directions_flat)
+        # assert all directions are in the range [0, 1]
+        # assert torch.all(directions >= 0.0) and torch.all(
+        #     directions <= 1.0
+        # ), f"directions: {directions.min()} {directions.max()}"
+        d = self.direction_encoding(directions)
         if density_embedding is None:
             positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-            h = torch.cat([d, positions.view(-1, 3)], dim=-1)
+            h = torch.cat([d, positions], dim=-1)
         else:
-            h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
-        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
+            h = torch.cat([d, density_embedding], dim=-1)
+        rgb = self.mlp_head(h).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
 
 class TorchInstantNGPField(NeRFField):
     """
-    PyTorch implementation of the instant-ngp field.
+    PyTorch implementation of the Instant-NGP field.
     """
 
     def __init__(
