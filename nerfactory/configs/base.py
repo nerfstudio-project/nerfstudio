@@ -307,6 +307,8 @@ class Record3DDataParserConfig(DataParserConfig):
     max_dataset_size: int = 150
     """Max number of images to train on. If the dataset has
     more, images will be sampled approximately evenly. Defaults to 150."""
+    orientation_method: Literal["pca", "up"] = "up"
+    """The method to use for orientation. Either "pca" or "up"."""
 
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
@@ -338,6 +340,9 @@ class BARFPoseOptimizerConfig(CameraOptimizerConfig):
 
     _target: Type = BARFOptimizer
     noise_variance: float = 0.01
+=======
+    orientation_method: Literal["pca", "up"] = "up"
+>>>>>>> Stashed changes
 
 
 @dataclass
