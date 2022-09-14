@@ -8,8 +8,8 @@ const msgpack = require('msgpack-lite');
 export function LogPanel() {
   const websocket = useContext(WebSocketContext).socket;
   const dispatch = useDispatch();
-  const gpu_oom_error_msg = "GPU out of memory";
-  const resolved_msg = "resolved";
+  const gpu_oom_error_msg = 'GPU out of memory';
+  const resolved_msg = 'resolved';
   let local_error = resolved_msg;
   // connection status indicators
 
@@ -70,22 +70,17 @@ export function LogPanel() {
     }
   };
 
-  const check_error = useSelector(
-    (state) => {
-        local_error = state.renderingState.log_errors;
-        if(local_error.includes(gpu_oom_error_msg)){
-            console.log(local_error);
-            set_log_message();
-            set_small_resolution();
-            set_max_train_util();
-        }
+  const check_error = useSelector((state) => {
+    local_error = state.renderingState.log_errors;
+    if (local_error.includes(gpu_oom_error_msg)) {
+      console.log(local_error);
+      set_log_message();
+      set_small_resolution();
+      set_max_train_util();
     }
-  );
+  });
 
-  useEffect(() => {}, [
-    check_error,
-    local_error,
-  ]);
+  useEffect(() => {}, [check_error, local_error]);
 
   return null;
 }
