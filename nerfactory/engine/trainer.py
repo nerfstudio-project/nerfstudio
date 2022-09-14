@@ -20,6 +20,7 @@ from __future__ import annotations
 import functools
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -120,7 +121,6 @@ class Trainer:
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
-
                 # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
@@ -138,7 +138,14 @@ class Trainer:
 
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
                         num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
-                        self.visualizer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
+                        try:
+                            self.visualizer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
+                        except RuntimeError:
+                            time.sleep(0.03)  # sleep to allow buffer to reset
+                            assert self.visualizer_state.vis is not None
+                            self.visualizer_state.vis["renderingState/log_errors"].write(
+                                "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+                            )
 
                 if step != 0 and step % self.config.logging.steps_per_log == 0:
                     writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
