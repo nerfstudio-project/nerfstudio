@@ -94,7 +94,9 @@ class Record3D(DataParser):
         # convert OpenGL to OpenCV coordinate system
         poses = poses @ torch.diag(torch.tensor([1.0, -1.0, -1.0, 1.0]))
 
-        poses = camera_utils.auto_orient_poses(pose_utils.to4x4(poses), method="pca")[:, :3, :4]
+        poses = camera_utils.auto_orient_poses(pose_utils.to4x4(poses), method=self.config.orientation_method)[
+            :, :3, :4
+        ]
 
         # Centering poses
         poses[:, :3, 3] = poses[:, :3, 3] - torch.mean(poses[:, :3, 3], dim=0)
