@@ -21,7 +21,6 @@ import os
 import sys
 import threading
 import time
-import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -546,7 +545,14 @@ class VisualizerState:
         self.prev_colormap_type = colormap_type
 
         # Calculate camera pose and intrinsics
-        image_height = self._calculate_image_height(camera_object, is_training)
+        try:
+            image_height = self._calculate_image_height(camera_object, is_training)
+        except ZeroDivisionError as e:
+            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            print(f"Error: {e}")
+            return
+
         if image_height is None:
             return
 
@@ -589,18 +595,14 @@ class VisualizerState:
                 check_thread.join()
             except IOChangeException:
                 pass
-            except RuntimeError:
+            except RuntimeError as e:
                 del camera_ray_bundle
                 torch.cuda.empty_cache()
                 time.sleep(0.5)  # sleep to allow buffer to reset
                 self.vis["renderingState/log_errors"].write(
                     "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                 )
-                traceback.print_exception(*sys.exc_info())
-            except ZeroDivisionError:
-                self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                traceback.print_exception(*sys.exc_info())
+                print(f"Error: {e}")
 
         graph.train()
         outputs = render_thread.vis_outputs

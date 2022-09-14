@@ -1,4 +1,3 @@
-import { buttonGroup, useControls } from 'leva';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -83,9 +82,8 @@ export function LogPanel() {
     }
   );
 
-  useEffect(() => {
-    check_error;
-  }, [
+  useEffect(() => {}, [
+    check_error,
     local_error,
   ]);
 

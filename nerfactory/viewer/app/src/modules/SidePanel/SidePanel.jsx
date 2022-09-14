@@ -183,7 +183,7 @@ export function BasicTabs(props: BasicTabsProps) {
         </TabPanel>
 
         <TabPanel value={value} index={3}>
-          <LogPanel></LogPanel>
+          <LogPanel>TODO: Something maybe?</LogPanel>
         </TabPanel>
       </Box>
     </div>
