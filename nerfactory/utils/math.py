@@ -22,12 +22,11 @@ from torchtyping import TensorType
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
     """
-    Args:
-        levels (int): Number of spherical harmonic levels to compute.
-        directions (TensorType[..., 3]): Spherical hamonic coefficients
+    Returns value for each component of spherical harmonics.
 
-    Returns:
-        TensorType[..., "components"]: Value for each component.
+    Args:
+        levels: Number of spherical harmonic levels to compute.
+        directions: Spherical hamonic coefficients
     """
     num_components = levels**2
     components = torch.zeros((*directions.shape[:-1], num_components)).to(directions.device)
@@ -90,8 +89,8 @@ class Gaussians:
     """Stores Gaussians
 
     Args:
-        mean (TensorType[..., "dim"]): Mean of multivariate Gaussian
-        cov (TensorType[..., "dim", "dim"]): Covariance of multivariate Gaussian.
+        mean: Mean of multivariate Gaussian
+        cov: Covariance of multivariate Gaussian.
     """
 
     mean: TensorType[..., "dim"]
@@ -107,10 +106,10 @@ def compute_3d_gaussian(
     """Compute guassian along ray.
 
     Args:
-        directions (TensorType[..., 3]): Axis of Gaussian.
-        means (TensorType[..., 3]): Mean of Gaussian.
-        dir_variance (TensorType[..., 3]): Variance along direction axis.
-        radius_variance (TensorType[..., 3]): Variance tangent to direction axis.
+        directions: Axis of Gaussian.
+        means: Mean of Gaussian.
+        dir_variance: Variance along direction axis.
+        radius_variance: Variance tangent to direction axis.
 
     Returns:
         Gaussians: Oriented 3D gaussian.
@@ -136,11 +135,11 @@ def cylinder_to_gaussian(
     """Approximates cylinders with a Gaussian distributions.
 
     Args:
-        origins (TensorType[..., 3]): Origins of cylinders.
-        directions (TensorType[..., 3]): Direction (axis) of cylinders.
-        starts (TensorType[..., 1]): Start of cylinders.
-        ends (TensorType[..., 1]): End of cylinders.
-        radius (TensorType[..., 1]): Radii of cylinders.
+        origins: Origins of cylinders.
+        directions: Direction (axis) of cylinders.
+        starts: Start of cylinders.
+        ends: End of cylinders.
+        radius: Radii of cylinders.
 
     Returns:
         Gaussians: Approximation of cylinders
@@ -163,11 +162,11 @@ def conical_frustum_to_gaussian(
     Uses stable parameterization described in mip-NeRF publication.
 
     Args:
-        origins (TensorType[..., 3]): Origins of cones.
-        directions (TensorType[..., 3]): Direction (axis) of frustums.
-        starts (TensorType[..., 1]): Start of conical frustums.
-        ends (TensorType[..., 1]): End of conical frustums.
-        radius (TensorType[..., 1]): Radii of cone a distance of 1 from the origin.
+        origins: Origins of cones.
+        directions: Direction (axis) of frustums.
+        starts: Start of conical frustums.
+        ends: End of conical frustums.
+        radius: Radii of cone a distance of 1 from the origin.
 
     Returns:
         Gaussians: Approximation of conical frustums
@@ -184,8 +183,8 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """Computes the expected value of sin(y) where y ~ N(x_means, x_vars)
 
     Args:
-        x_means (torch.Tensor): Mean values.
-        x_vars (torch.Tensor): Variance of values.
+        x_means: Mean values.
+        x_vars: Variance of values.
 
     Returns:
         torch.Tensor: The expected value of sin.

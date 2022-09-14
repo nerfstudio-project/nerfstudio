@@ -43,6 +43,11 @@ class Encoding(FieldModule):
 
     @abstractmethod
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+        """Call forward and returns and processed tensor
+
+        Args:
+            in_tensor: the input tensor to process
+        """
         raise NotImplementedError
 
 
@@ -243,13 +248,10 @@ class HashEncoding(Encoding):
         return self.num_levels * self.features_per_level
 
     def hash_fn(self, in_tensor: TensorType["bs":..., "num_levels", 3]) -> TensorType["bs":..., "num_levels"]:
-        """Hash tensor using method described in Instant-NGP
+        """Returns hash tensor using method described in Instant-NGP
 
         Args:
             in_tensor: Tensor to be hashed
-
-        Returns:
-            Hashed tensor
         """
 
         # min_val = torch.min(in_tensor)

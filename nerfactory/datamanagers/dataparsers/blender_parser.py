@@ -34,11 +34,6 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 class Blender(DataParser):
     """Blender Dataset
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
-
-    Args:
-        data_directory: Location of data
-        alpha_color: Sets transparent regions to specified color, otherwise black.
-        scale_factor: How much to scale the camera origins by.
     """
 
     def __init__(self, config: cfg.BlenderDataParserConfig):

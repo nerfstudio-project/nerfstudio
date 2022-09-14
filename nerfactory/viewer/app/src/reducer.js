@@ -18,8 +18,8 @@ const initialState = {
     output_choice: 'rgb', // the selected output
     colormap_options: ['default'], // populated by the output choice
     colormap_choice: 'default', // the selected colormap
-    minResolution: 128,
-    maxResolution: 512,
+    maxResolution: 1024,
+    targetTrainUtil: 0.9,
     field_of_view: 80,
     eval_fps: 'Paused',
     train_eta: 'Paused',

@@ -110,6 +110,8 @@ def convert_video_to_images(
         -show_entries stream=nb_read_packets -of csv=p=0 {video_path}"
     output = run_command(cmd, verbose=False)
     assert output is not None
+    output = output.strip(" ,\t\n\r")
+
     num_frames = int(output)
     print("Number of frames in video:", num_frames)
 

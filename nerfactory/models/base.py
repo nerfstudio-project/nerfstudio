@@ -40,15 +40,9 @@ class Model(nn.Module):
     Where everything (Fields, Optimizers, Samplers, Visualization, etc) is linked together. This should be
     subclassed for custom NeRF model.
 
-    TODO:
-
     Args:
-        scene_bounds: Bounds of target scene.
-        loss_coefficients: Loss specific weights.
-        enable_collider: Whether to create a scene collider to filter rays.
-        collider_config: Configuration of scene collider.
-        enable_density_field: Whether to create a density field to filter samples.
-        density_field_config: Configuration of density field.
+        config: configuration for instantiating model
+        scene_bounds: dataset scene bounds
     """
 
     config: cfg.ModelConfig
@@ -134,14 +128,13 @@ class Model(nn.Module):
     ) -> Union[
         Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
     ]:
-        """Run forward starting with a ray bundle.
+        """Run forward starting with a ray bundle. This outputs different things depending on the configuration
+        of the model and whether or not the batch is provided (whether or not we are training basically)
 
-        This takes in raybundles (containing all the information needed to render that ray...
-        latents included) and the batch (containing all the auxilury things needed to train
-        like masks and ground truth pixels).
-
-        This outputs different things depending on the configuration of the model and whether or not
-        the batch is provided (whether or not we are training basically)."""
+        Args:
+            ray_bundle: containing all the information needed to render that ray latents included
+            batch: containing all the auxilury things needed to train like masks and ground truth pixels.
+        """
 
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
@@ -169,18 +162,34 @@ class Model(nn.Module):
         return outputs, loss_dict, metrics_dict
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
-        """Compute and returns metrics."""
+        """Compute and returns metrics.
+
+        Args:
+            outputs: the output to compute loss dict to
+            batch: ground truth batch corresponding to outputs
+        """
         # pylint: disable=unused-argument
         # pylint: disable=no-self-use
         return {}
 
     @abstractmethod
     def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
-        """Computes and returns the losses dict."""
+        """Computes and returns the losses dict.
+
+        Args:
+            outputs: the output to compute loss dict to
+            batch: ground truth batch corresponding to outputs
+            metrics_dict: collection of metrics to compute
+            loss_coefficients: list of loss coefficients/weightings to apply
+        """
 
     @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
-        """Takes in camera parameters and computes the output of the model."""
+        """Takes in camera parameters and computes the output of the model.
+
+        Args:
+            camera_ray_bundle: ray bundle to calculate outputs over
+        """
         assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
@@ -213,6 +222,10 @@ class Model(nn.Module):
         """
 
     def load_model(self, loaded_state: Dict[str, Any]) -> None:
-        """Load the checkpoint from the given path"""
+        """Load the checkpoint from the given path
+
+        Args:
+            loaded_state: dictionary of pre-trained model states
+        """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore

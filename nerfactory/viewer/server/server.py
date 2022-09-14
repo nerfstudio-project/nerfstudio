@@ -131,10 +131,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
 
             video = SingleFrameStreamTrack()
             self.bridge.video_tracks.add(video)
-            _ = pc.addTrack(video)
-            # TODO: do something with the codec
-            # video_sender = pc.addTrack(video)
-            # force_codec(pc, video_sender, video_codec)
+            video_sender = pc.addTrack(video)
+            force_codec(pc, video_sender, "video/VP8")
 
             await pc.setRemoteDescription(offer)
             answer = await pc.createAnswer()
