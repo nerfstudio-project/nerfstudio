@@ -57,6 +57,7 @@ function CameraToggle() {
 function TransformIcons(props) {
   const sceneTree = props.sceneTree;
   const transform_controls = sceneTree.find_object(['Transform Controls']);
+  // NOTE(ethan): I'm not sure why this is necessary, but it is
   // toggle back and forth between local and global transform
   const [world, setWorld] = React.useState(true);
 

@@ -258,10 +258,13 @@ $sidebar-width: 100% !default;
 $viewer_button_size: 50px;
 
 .ViewerWindow-camera-toggle {
+  position: absolute;
   margin: auto;
   text-align: center;
   margin-top: 10px;
   z-index: 1000;
+  left: 0;
+  right: 0;
 }
 
 .ViewerWindow-buttons {

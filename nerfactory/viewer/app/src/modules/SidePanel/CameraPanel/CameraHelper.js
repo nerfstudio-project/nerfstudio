@@ -25,11 +25,11 @@ function setPoint(point, pointMap, geometry, camera, x, y, z) {
  */
 
 class CameraHelper extends THREE.Mesh {
-  constructor(camera) {
+  constructor(camera, color = 0x000000) {
     const line_geometry = new THREE.BufferGeometry();
     const geometry = new THREE.BufferGeometry();
     const material = new MeshLineMaterial({
-      color: 0x000000,
+      color,
       lineWidth: 0.01,
     });
 
@@ -101,12 +101,10 @@ class CameraHelper extends THREE.Mesh {
 
     const w = 1;
     const h = 1;
-    const z = 2;
+    const z = 0.1;
 
     // we need just camera projection matrix inverse
     // world matrix must be identity
-
-    console.log(_camera.projectionMatrixInverse);
 
     _camera.projectionMatrixInverse.copy(this.camera.projectionMatrixInverse);
 
