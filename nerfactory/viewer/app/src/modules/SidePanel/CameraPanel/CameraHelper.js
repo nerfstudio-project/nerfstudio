@@ -31,6 +31,7 @@ class CameraHelper extends THREE.Mesh {
     const material = new MeshLineMaterial({
       color,
       lineWidth: 0.01,
+      sizeAttenuation: false,
     });
 
     const vertices = [];
@@ -96,6 +97,12 @@ class CameraHelper extends THREE.Mesh {
   }
 
   update() {
+    if (!this.visible) {
+      const camera_vis = new MeshLine();
+      this.geometry = camera_vis.geometry;
+      return;
+    }
+
     const geometry = this.line_geometry;
     const pointMap = this.pointMap;
 
@@ -126,6 +133,11 @@ class CameraHelper extends THREE.Mesh {
     const camera_vis = new MeshLine();
     camera_vis.setGeometry(geometry);
     this.geometry = camera_vis.geometry;
+  }
+
+  set_visibility(visible) {
+    this.visible = visible;
+    this.update();
   }
 
   dispose() {
