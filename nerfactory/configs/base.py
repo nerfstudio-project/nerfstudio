@@ -293,7 +293,7 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
 @dataclass
 class Record3DDataParserConfig(DataParserConfig):
-    """Mipnerf 360 dataset config"""
+    """Record3D dataset config"""
 
     _target: Type = Record3D
     """target class to instantiate"""
