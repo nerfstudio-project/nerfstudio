@@ -25,6 +25,7 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
 from nerfactory.datamanagers.structs import SceneBounds
+from nerfactory.fields.base import Field
 from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.embedding import Embedding
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
@@ -48,7 +49,7 @@ def get_normalized_directions(directions):
     return (directions + 1.0) / 2.0
 
 
-class TCNNCompoundField(TCNNInstantNGPField):
+class TCNNCompoundField(Field):
     """Compound Field that uses TCNN"""
 
     def __init__(
@@ -63,17 +64,15 @@ class TCNNCompoundField(TCNNInstantNGPField):
         appearance_embedding_dim: int = 40,
         spatial_distortion: SpatialDistortion = SceneContraction(),
     ) -> None:
-        super().__init__(self, aabb)
+        super().__init__()
+
+        self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
 
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
         self.appearance_embedding_dim = appearance_embedding_dim
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
-
-        self.aabb = Parameter(aabb, requires_grad=False)
-
-        self.geo_feat_dim = geo_feat_dim
 
         # TODO: set this properly based on the aabb
         per_level_scale = 1.4472692012786865
@@ -107,7 +106,7 @@ class TCNNCompoundField(TCNNInstantNGPField):
         )
 
         self.mlp_head = tcnn.Network(
-            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
+            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim,  # + self.appearance_embedding_dim,
             n_output_dims=3,
             network_config={
                 "otype": "FullyFusedMLP",
@@ -137,7 +136,6 @@ class TCNNCompoundField(TCNNInstantNGPField):
         # tcnn requires directions in the range [0,1]
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
-
         camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
         embedded_appearance = self.embedding_appearance(camera_indices)
 

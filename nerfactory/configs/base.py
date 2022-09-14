@@ -233,7 +233,7 @@ class BlenderDataParserConfig(DataParserConfig):
 
     _target: Type = Blender
     """target class to instantiate"""
-    data_directory: Path = Path("data/blender/lego")
+    data_directory: Path = Path("data/blender/relit_lego")
     """directory specifying location of data"""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
@@ -413,6 +413,7 @@ class CompoundModelConfig(ModelConfig):
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     num_samples: int = 1024  # instead of course/fine samples
+    num_images: int = 100  # TODO: don't hardcode this
 
 
 @dataclass

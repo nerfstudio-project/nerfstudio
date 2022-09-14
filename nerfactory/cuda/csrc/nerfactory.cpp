@@ -59,6 +59,13 @@ std::vector<torch::Tensor> volumetric_rendering_backward(
     torch::Tensor opacities
 ) {};
 
+torch::Tensor get_mapping(
+    const uint32_t n_rays,
+    const int* packed_info, 
+    const int* camera_indices, 
+    torch::Tensor mapping
+) {};
+
 std::vector<torch::Tensor> occupancy_query(
     // samples
     const torch::Tensor positions, 

@@ -39,7 +39,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.fields.instant_ngp_field import field_implementation_to_class
+from nerfactory.fields.compound_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
@@ -84,7 +84,9 @@ class CompoundModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
         # torch or tiny-cuda-nn version
-        self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
+        self.field = field_implementation_to_class[self.config.field_implementation](
+            self.scene_bounds.aabb, self.config.num_images
+        )
 
         # samplers
         self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
