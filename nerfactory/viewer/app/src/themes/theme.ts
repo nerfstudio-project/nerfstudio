@@ -95,5 +95,33 @@ export const appTheme = createTheme({
         },
       },
     },
+    MuiToggleButtonGroup: {
+      styleOverrides: {
+        root: {
+          color: '#eeeeee',
+          backgroundColor: '#393e46',
+          '&.Mui-disabled': {
+            color: '#999999',
+            backgroundColor: '#393e46',
+          },
+        },
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          color: '#eeeeee',
+          backgroundColor: '#393e46',
+          '&.Mui-selected': {
+            color: '#FFD369',
+            backgroundColor: '#555555',
+          },
+          '&.Mui-disabled': {
+            color: '#999999',
+            backgroundColor: '#393e46',
+          },
+        },
+      },
+    },
   },
 });

@@ -15,13 +15,13 @@ const initialState = {
   // the rendering state
   renderingState: {
     // cameras
-    camera_options: ['Main Camera', 'Render Camera'], // the possible camera names to render the scene
     camera_choice: 'Main Camera', // the camera being used to render the scene
 
     // camera path information
     config_base_dir: 'config_base_dir', // the base directory of the config file
     render_height: 1080,
     render_width: 1920,
+    field_of_view: 50,
 
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
@@ -30,7 +30,6 @@ const initialState = {
     colormap_choice: 'default', // the selected colormap
     maxResolution: 1024,
     targetTrainUtil: 0.9,
-    field_of_view: 80,
     eval_fps: 'Paused',
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
