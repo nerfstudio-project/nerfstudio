@@ -117,7 +117,9 @@ class Pipeline(nn.Module):
         if self.world_size > 1:
             self.datamanager.sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train()
-        model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
+        model_outputs = self.model(ray_bundle, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         return model_outputs, loss_dict, metrics_dict
 
     @abstractmethod

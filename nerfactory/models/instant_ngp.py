@@ -137,7 +137,7 @@ class NGPModel(Model):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
+    def get_loss_dict(self, outputs, batch):
         device = self.device
         image = batch["image"].to(device)
         if "alive_ray_mask" in outputs:
@@ -146,7 +146,7 @@ class NGPModel(Model):
         else:
             rgb_loss = self.rgb_loss(image, outputs["rgb"])
         loss_dict = {"rgb_loss": rgb_loss}
-        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
+        loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
