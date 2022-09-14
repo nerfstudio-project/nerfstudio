@@ -152,10 +152,12 @@ export default function ViewerWindow(props) {
     if (websocket.readyState === WebSocket.OPEN) {
       const cmd = 'write';
       const path = 'renderingState/camera';
+      const data_packet = sceneTree.metadata.camera.toJSON();
+      data_packet.object.timestamp = +new Date();
       const data = {
         type: cmd,
         path,
-        data: sceneTree.metadata.camera.toJSON(),
+        data: data_packet,
       };
       const message = msgpack.encode(data);
       websocket.send(message);

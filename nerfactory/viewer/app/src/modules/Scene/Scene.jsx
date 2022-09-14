@@ -31,18 +31,16 @@ export function get_scene_tree() {
   main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
-  sceneTree.set_object_from_path(
-    ['Cameras', 'Main Camera', 'Helper'],
-    new CameraHelper(main_camera),
-  );
   sceneTree.metadata.camera = main_camera;
 
   // Render camera
   const render_camera = main_camera.clone();
+  const render_camera_helper = new CameraHelper(render_camera, '#4eb570');
+  render_camera_helper.set_visibility(false);
   sceneTree.set_object_from_path(['Cameras', 'Render Camera'], render_camera);
   sceneTree.set_object_from_path(
     ['Cameras', 'Render Camera', 'Helper'],
-    new CameraHelper(render_camera),
+    render_camera_helper,
   );
 
   // Renderer
