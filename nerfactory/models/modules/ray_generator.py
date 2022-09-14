@@ -17,7 +17,6 @@ Ray generator.
 """
 from torch import nn
 from torchtyping import TensorType
-from typing import Optional
 
 from nerfactory.cameras.camera_optimizers import CameraOptimizer
 from nerfactory.cameras.cameras import Cameras

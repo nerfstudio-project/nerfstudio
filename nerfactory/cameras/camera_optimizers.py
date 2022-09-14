@@ -18,8 +18,6 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
-from typing import Union
-
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -51,8 +49,11 @@ class CameraOptimizer(nn.Module):
         """Indexing into camera adjustments.
 
         Args:
-            indices (TensorType["num_cameras"]):
+            indices (TensorType["num_cameras"]): indices of Cameras to optimize.
 
+        Returns:
+            TensorType["num_cameras", 3, 4]: Tranformation matrices from camera coordinates
+            to optimized camera coordinates.
         """
         return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op
 
