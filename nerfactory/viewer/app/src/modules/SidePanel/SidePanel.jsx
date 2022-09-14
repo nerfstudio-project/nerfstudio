@@ -89,14 +89,25 @@ interface ClickableListProps {
 function ClickableList(props: ClickableListProps) {
   const sceneTree = props.sceneTree;
 
-  const get_menu_items = (name: String, scene_node: SceneNode, level: Int) => {
+  const get_menu_items = (
+    name: String,
+    scene_node: SceneNode,
+    level: Number,
+  ) => {
     // TODO: sort the keys by string
 
     const num_children = Object.keys(scene_node.children).length;
     if (num_children === 0) {
       return (
-        <ListItemButton icon={<FaLightbulb />} sx={{ pl: 2 + level * 2 }}>
-          <ListItemIcon>
+        <ListItemButton
+          icon={<FaLightbulb />}
+          sx={{ pl: 2 + level * 2, bgcolor: LevaTheme.colors.elevation1 }}
+        >
+          <ListItemIcon
+            sx={{
+              color: LevaTheme.colors.accent2,
+            }}
+          >
             <FaLightbulb />
           </ListItemIcon>
           <ListItem name={name} object={scene_node.object} />
@@ -110,8 +121,16 @@ function ClickableList(props: ClickableListProps) {
     };
     return (
       <>
-        <ListItemButton onClick={handleClick} sx={{ pl: 2 + level * 2 }}>
-          <ListItemIcon>
+        <ListItemButton
+          onClick={handleClick}
+          sx={{
+            pl: 2 + level * 2,
+            bgcolor: open
+              ? LevaTheme.colors.elevation3
+              : LevaTheme.colors.elevation1,
+          }}
+        >
+          <ListItemIcon sx={{ color: LevaTheme.colors.accent2 }}>
             <FaTractor />
           </ListItemIcon>
           <ListItemText primary={name} />
@@ -130,7 +149,7 @@ function ClickableList(props: ClickableListProps) {
 
   const menu_items = get_menu_items('Scene', sceneTree, 0);
 
-  return <List>{menu_items}</List>;
+  return <List sx={{ color: LevaTheme.colors.accent2 }}>{menu_items}</List>;
 }
 
 interface BasicTabsProps {
