@@ -235,6 +235,7 @@ class VisualizerState:
         self.static_fps = 1
         self.moving_fps = 24
         self.camera_moving = False
+        self.prev_camera_timestamp = 0
 
         self.outputs_set = False
 
@@ -525,6 +526,12 @@ class VisualizerState:
         Args:
             graph: current checkpoint of model
         """
+        # Check that timestamp is newer than the last one
+        if int(camera_object["timestamp"]) < self.prev_camera_timestamp:
+            return
+
+        self.prev_camera_timestamp = int(camera_object["timestamp"])
+
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
         output_type = OutputTypes.INIT if output_type is None else output_type
