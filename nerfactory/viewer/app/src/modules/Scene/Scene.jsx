@@ -25,9 +25,9 @@ export function get_scene_tree() {
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  main_camera.position.x = 5;
-  main_camera.position.y = -5;
-  main_camera.position.z = 5;
+  main_camera.position.x = 0.7;
+  main_camera.position.y = -0.7;
+  main_camera.position.z = 0.3;
   main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
