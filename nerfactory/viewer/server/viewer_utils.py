@@ -108,7 +108,8 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                with torch.no_grad():
+                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
@@ -121,7 +122,6 @@ class RenderThread(threading.Thread):
 
     def join(self, timeout=None):
         threading.Thread.join(self)
-        _flush_cache(None)
         if self.exc:
             raise self.exc
 
@@ -180,11 +180,6 @@ class CheckThread(threading.Thread):
                 if self.state.max_resolution != max_resolution:
                     self.state.check_interrupt_vis = True
                     return
-
-
-def _flush_cache(step, periodicity=50):
-    if step is None or step % periodicity == 0:  # periodic flushing
-        torch.cuda.empty_cache()
 
 
 @decorate_all([check_visualizer_enabled])
@@ -293,7 +288,6 @@ class VisualizerState:
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
-        _flush_cache(step)
 
         # check if we should interrupt from a button press?
         camera_path_payload = self.vis["camera_path_payload"].read()
@@ -345,7 +339,6 @@ class VisualizerState:
                 if step > 0:
                     self._render_image_in_viewer(camera_object, graph, is_training)
                     camera_object = self._get_camera_object()
-                _flush_cache(local_step)
                 is_training = self.vis["renderingState/isTraining"].read()
                 run_loop = not is_training
                 local_step += 1
@@ -591,8 +584,8 @@ class VisualizerState:
                 pass
             except RuntimeError:
                 del camera_ray_bundle
-                _flush_cache(None)
-                time.sleep(0.03)  # sleep to allow buffer to reset
+                torch.cuda.empty_cache()
+                time.sleep(0.5)  # sleep to allow buffer to reset
                 self.vis["renderingState/log_errors"].write(
                     "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                 )

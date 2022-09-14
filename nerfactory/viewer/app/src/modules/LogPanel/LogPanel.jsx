@@ -75,7 +75,6 @@ export function LogPanel() {
     (state) => {
         local_error = state.renderingState.log_errors;
         if(local_error.includes(gpu_oom_error_msg)){
-            // alert(local_error);
             console.log(local_error);
             set_log_message();
             set_small_resolution();
