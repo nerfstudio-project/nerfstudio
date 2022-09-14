@@ -22,6 +22,7 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
+import nerfactory.utils.poses as pose_utils
 from nerfactory.configs import base as cfg
 
 
@@ -59,6 +60,7 @@ class CameraOptimizer(nn.Module):
 
 
 class BARFOptimizer(CameraOptimizer):
+    """Bundle-Adjusting NeRF (BARF) Pose Optimization"""
 
     config: cfg.BARFPoseOptimizerConfig
 
@@ -116,18 +118,8 @@ class BARFOptimizer(CameraOptimizer):
         )
         return ret
 
-    @classmethod
-    def compose(cls, se3_1: torch.Tensor, se3_2: torch.Tensor):  # type: ignore
-        batch_size = max(se3_1.shape[0], se3_2.shape[0])
-        se3_2 = se3_2.to(se3_1.device)
-        ret = torch.zeros(batch_size, 3, 4, dtype=se3_1.dtype, device=se3_1.device)
-        ret[:, :, :3] = se3_1[:, :, :3] @ se3_2[:, :, :3]
-        ret[:, :, 3] = se3_1[:, :, 3]
-        ret[:, :, 3:] += se3_1[:, :, :3] @ se3_2[:, :, 3:]
-        return ret
-
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
         pose_noise = self.pose_noise[indices]
         pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])
-        c2c_prime = self.compose(pose_noise, pose_adjustment)
+        c2c_prime = pose_utils.multiply(pose_noise, pose_adjustment)
         return c2c_prime
