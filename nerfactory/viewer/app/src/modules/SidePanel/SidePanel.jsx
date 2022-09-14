@@ -3,13 +3,19 @@
 import * as React from 'react';
 
 import { FaLightbulb, FaTractor } from 'react-icons/fa';
-import { Menu, MenuItem, ProSidebar, SubMenu } from 'react-pro-sidebar';
 
 import Box from '@mui/material/Box';
+import { Collapse } from '@mui/material';
 import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
 import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import { Leva } from 'leva';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
@@ -83,32 +89,48 @@ interface ClickableListProps {
 function ClickableList(props: ClickableListProps) {
   const sceneTree = props.sceneTree;
 
-  const get_menu_items = (name: String, scene_node: SceneNode) => {
+  const get_menu_items = (name: String, scene_node: SceneNode, level: Int) => {
     // TODO: sort the keys by string
+
     const num_children = Object.keys(scene_node.children).length;
     if (num_children === 0) {
       return (
-        <MenuItem icon={<FaLightbulb />}>
+        <ListItemButton icon={<FaLightbulb />} sx={{ pl: 2 + level * 2 }}>
+          <ListItemIcon>
+            <FaLightbulb />
+          </ListItemIcon>
           <ListItem name={name} object={scene_node.object} />
-        </MenuItem>
+        </ListItemButton>
       );
     }
+
+    const [open, setOpen] = React.useState(true);
+    const handleClick = () => {
+      setOpen(!open);
+    };
     return (
-      <SubMenu title={name} icon={<FaTractor />} defaultOpen>
-        {Object.keys(scene_node.children).map((key) =>
-          get_menu_items(key, scene_node.children[key]),
-        )}
-      </SubMenu>
+      <>
+        <ListItemButton onClick={handleClick} sx={{ pl: 2 + level * 2 }}>
+          <ListItemIcon>
+            <FaTractor />
+          </ListItemIcon>
+          <ListItemText primary={name} />
+          {open ? <ExpandLess /> : <ExpandMore />}
+        </ListItemButton>
+        <Collapse in={open} timeout="auto">
+          <List>
+            {Object.keys(scene_node.children).map((key) =>
+              get_menu_items(key, scene_node.children[key], level + 1),
+            )}
+          </List>
+        </Collapse>
+      </>
     );
   };
 
-  const menu_items = get_menu_items('Scene', sceneTree);
+  const menu_items = get_menu_items('Scene', sceneTree, 0);
 
-  return (
-    <ProSidebar>
-      <Menu iconShape="square">{menu_items}</Menu>
-    </ProSidebar>
-  );
+  return <List>{menu_items}</List>;
 }
 
 interface BasicTabsProps {
