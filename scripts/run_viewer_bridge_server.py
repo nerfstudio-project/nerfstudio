@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """View Bridge Server"""
 
 from nerfactory.viewer.server.server import run_viewer_bridge_server

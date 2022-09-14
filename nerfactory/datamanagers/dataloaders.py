@@ -142,11 +142,11 @@ class EvalDataloader(DataLoader):
             distortion_params = self.cameras.distortion_params[image_idx]
 
         camera = Cameras(
-            fx=self.cameras.fx[image_idx],
-            fy=self.cameras.fy[image_idx],
+            fx=self.cameras.fx if isinstance(self.cameras.fx, float) else self.cameras.fx[image_idx : image_idx + 1],
+            fy=self.cameras.fy if isinstance(self.cameras.fy, float) else self.cameras.fy[image_idx : image_idx + 1],
             cx=self.cameras.cx,
             cy=self.cameras.cy,
-            camera_to_worlds=self.cameras.camera_to_worlds[image_idx],
+            camera_to_worlds=self.cameras.camera_to_worlds[image_idx : image_idx + 1],
             distortion_params=distortion_params,
             camera_type=self.cameras.camera_type,
         )

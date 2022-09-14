@@ -76,17 +76,17 @@ jobs:
       # increment the version.txt file when there is a change.
       # Update the version.txt code and push to master when things change.
       # https://github.com/marketplace/actions/changed-files
-      - name: Run changed-files with defaults on the dir1
-        id: changed-files-for-dir1
-        uses: tj-actions/changed-files@v29.0.3
-        with:
-          path: nerfactory/viewer/app
+      # - name: Run changed-files with defaults on the dir1
+      #   id: changed-files-for-dir1
+      #   uses: tj-actions/changed-files@v29.0.3
+      #   with:
+      #     path: nerfactory/viewer/app
 
-      - name: List all added files in dir1
-        run: |
-          for file in ${{ steps.changed-files-for-dir1.outputs.modified_files }}; do
-            echo "$file was modified"
-          done
+      # - name: List all added files in dir1
+      #   run: |
+      #     for file in ${{ steps.changed-files-for-dir1.outputs.modified_files }}; do
+      #       echo "$file was modified"
+      #     done
 
       - run: |
           python ./nerfactory/viewer/app/run_deploy.py \

@@ -43,10 +43,23 @@ def get_chunks(
     return chunks
 
 
+def three_js_perspective_camera_focal_length(fov: float, image_height: int):
+    """Returns the focal length of a three.js perspective camera.
+
+    Args:
+        fov: the field of view of the camera in degrees.
+        image_height: the height of the image in pixels.
+    """
+    pp_h = image_height / 2.0
+    focal_length = pp_h / np.tan(fov * (np.pi / 180.0) / 2.0)
+    return focal_length
+
+
 def get_intrinsics_matrix_and_camera_to_world_h(
     camera_object: Dict[str, Any], image_height: int
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns the camera intrinsics matrix and the camera to world homogeneous matrix.
+
     Args:
         camera_object: a Camera object.
         image_size: the size of the image (height, width)
@@ -57,7 +70,7 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     image_width = aspect * image_height
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
-    focal_length = pp_h / np.tan(fov * (np.pi / 180.0) / 2.0)
+    focal_length = three_js_perspective_camera_focal_length(fov, image_height)
     intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]]).float()
 
     # extrinsics
