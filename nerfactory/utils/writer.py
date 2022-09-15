@@ -22,7 +22,7 @@ import logging
 from abc import abstractmethod
 from pathlib import Path
 from time import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import imageio
 import numpy as np
@@ -61,6 +61,7 @@ class EventType(enum.Enum):
     IMAGE = "write_image"
     SCALAR = "write_scalar"
     DICT = "write_scalar_dict"
+    CONFIG = "write_config"
 
 
 @check_main_thread
@@ -93,7 +94,7 @@ def put_scalar(name: str, scalar: float, step: int):
 
 
 @check_main_thread
-def put_dict(name: str, scalar_dict: float, step: int):
+def put_dict(name: str, scalar_dict: Dict[str, Any], step: int):
     """Setter function to place a dictionary of scalars into the queue to be written out
 
     Args:
@@ -102,6 +103,18 @@ def put_dict(name: str, scalar_dict: float, step: int):
         step: step associated with dict
     """
     EVENT_STORAGE.append({"name": name, "write_type": EventType.DICT, "event": scalar_dict, "step": step})
+
+
+@check_main_thread
+def put_config(name: str, config_dict: Dict[str, Any], step: int):
+    """Setter function to place a dictionary of scalars into the queue to be written out
+
+    Args:
+        name: name of scalar dictionary
+        scalar_dict: values to write out
+        step: step associated with dict
+    """
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.CONFIG, "event": config_dict, "step": step})
 
 
 @check_main_thread
@@ -123,7 +136,6 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
         GLOBAL_BUFFER["step"] = step
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
         curr_buffer = curr_event["buffer"]
-        curr_avg = curr_event["avg"]
         if len(curr_buffer) >= GLOBAL_BUFFER["max_buffer_size"]:
             curr_buffer.pop(0)
         curr_buffer.append(duration)
@@ -147,14 +159,10 @@ def write_out_storage():
     for writer in EVENT_WRITERS:
         for event in EVENT_STORAGE:
             write_func = getattr(writer, event["write_type"].value)
-            if event["write_type"] == EventType.DICT:
-                write_func(event["event"], event["step"])
-                if isinstance(writer, LocalWriter):
-                    continue
-            else:
-                write_func(event["name"], event["event"], event["step"])
-                if isinstance(writer, LocalWriter):
-                    break
+            write_func(event["name"], event["event"], event["step"])
+            # NOTE(ethan): why is the below statement needed?
+            if isinstance(writer, LocalWriter):
+                break
     EVENT_STORAGE.clear()
 
 
@@ -212,15 +220,15 @@ class Writer:
         raise NotImplementedError
 
     @check_main_thread
-    def write_scalar_dict(self, scalar_dict: Dict[str, float], step: int) -> None:
+    def write_scalar_dict(self, name: str, scalar_dict: Dict[str, Any], step: int) -> None:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
             scalar_dict: dictionary containing all scalar values with key names and quantities
             step: the time step to log
         """
-        for name, scalar in scalar_dict.items():
-            self.write_scalar(name, scalar, step)
+        for key, scalar in scalar_dict.items():
+            self.write_scalar(name + "/" + key, float(scalar), step)
 
 
 class TimeWriter:
@@ -258,7 +266,7 @@ class WandbWriter(Writer):
 
     def __init__(self, config: cfg.WandbWriterConfig):
         super().__init__(config.log_dir)
-        wandb.init(dir=config.log_dir)
+        wandb.init(project="nerfactory-project", dir=config.log_dir, reinit=True)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))
@@ -266,6 +274,16 @@ class WandbWriter(Writer):
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
         wandb.log({name: scalar}, step=step)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
+        # pylint: disable=unused-argument
+        # pylint: disable=no-self-use
+        """Function that writes out the config to wandb
+
+        Args:
+            config: config dictionary to write out
+        """
+        wandb.config.update(config_dict)
 
 
 @decorate_all([check_main_thread])
@@ -282,6 +300,14 @@ class TensorboardWriter(Writer):
 
     def write_scalar(self, name: str, scalar: float, step: int) -> None:
         self.tb_writer.add_scalar(name, scalar, step)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):  # pylint: disable=unused-argument
+        """Function that writes out the config to tensorboard
+
+        Args:
+            config: config dictionary to write out
+        """
+        self.tb_writer.add_text("config", str(config_dict))
 
 
 def _cursorup(x: int):
@@ -352,6 +378,14 @@ class LocalWriter(Writer):
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)
             self._print_stats(latest_map)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
+        """Function that writes out the config to local
+
+        Args:
+            config: config dictionary to write out
+        """
+        # TODO: implement this
 
     def _consolidate_events(self):
         latest_map = {}

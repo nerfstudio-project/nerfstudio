@@ -50,6 +50,25 @@
       ]
     },
     {
+      "name": "Python: run_train ngp nerfactory (gpu)",
+      "type": "python",
+      "request": "launch",
+      "program": "scripts/run_train.py",
+      "console": "integratedTerminal",
+      "args": [
+        "instant_ngp",
+        "--experiment_name=nerfactory_experiment",
+        "--logging.writer.2.max-log-size=0",
+        // viewer
+        "--viewer.enable",
+        "--viewer.zmq-url=tcp://127.0.0.1:6001",
+        "--viewer.websocket-port=8014",
+        "--pipeline.model.randomize-background",
+        "--pipeline.model.cone-angle=0.00390625",
+        "nerfactory-data"
+      ]
+    },
+    {
       "name": "Python: run_train ngp-friends (gpu)",
       "type": "python",
       "request": "launch",

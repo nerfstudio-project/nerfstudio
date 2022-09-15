@@ -360,6 +360,7 @@ class NGPSpacedSampler(Sampler):
         ray_bundle: RayBundle,
         aabb: TensorType[2, 3],
         num_samples: Optional[int] = None,
+        cone_angle: Optional[float] = 0.0,
         marching_steps: Optional[int] = 128,
         t_min: Optional[TensorType["num_rays"]] = None,
         t_max: Optional[TensorType["num_rays"]] = None,
@@ -373,6 +374,7 @@ class NGPSpacedSampler(Sampler):
             ray_bundle: Rays to generate samples for
             aabb: Bounding box of the scene.
             num_samples: Number of samples per ray
+            cone_angle: 0.0 for nerf-synthetic and 1.0/256 for real scenes
 
         Returns:
             First return is ray samples in a packed way where only the valid samples are kept.
@@ -385,16 +387,13 @@ class NGPSpacedSampler(Sampler):
 
         num_samples = num_samples or self.num_samples
 
-        aabb = aabb.flatten()
+        aabb = aabb.flatten().contiguous()
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
         scene_scale = (aabb[3:6] - aabb[0:3]).max()
 
         if t_min is None or t_max is None:
-            # TODO(ruilongli): this clipping here is stupid. Try to avoid that.
             t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
-            t_min = torch.clamp(t_min, max=1e10)  # type: ignore
-            t_max = torch.clamp(t_max, max=1e10)  # type: ignore
 
         marching_steps = -1  # disable marching mode for now
         # TODO(ruilongli): * 16 is for original impl for training. Need to run
@@ -418,7 +417,7 @@ class NGPSpacedSampler(Sampler):
             marching_steps,
             max_samples_per_batch,
             num_samples,
-            0.0,
+            cone_angle,
             scene_scale,
         )
 

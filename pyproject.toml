@@ -49,7 +49,7 @@ dependencies = [
     "torchvision>=0.13.0",
     "tqdm==4.64.0",
     "u-msgpack-python>=2.4.1",
-    "wandb==0.13.2"
+    "wandb==0.13.3"
 ]
 
 [project.urls]

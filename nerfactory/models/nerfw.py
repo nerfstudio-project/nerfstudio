@@ -239,3 +239,9 @@ class NerfWModel(Model):
         if "mask" in batch:
             mask = batch["mask"].repeat(1, 1, 3)
             writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
+
+        # this doesn't really make sense but do it anyway
+        fine_psnr = self.psnr(image, rgb_fine)
+        return {
+            "psnr": float(fine_psnr.item()),
+        }

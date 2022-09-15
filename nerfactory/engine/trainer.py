@@ -17,6 +17,7 @@ Code to train model.
 """
 from __future__ import annotations
 
+import dataclasses
 import functools
 import logging
 import os
@@ -93,6 +94,8 @@ class Trainer:
         )
         profiler.setup_profiler(config.logging)
 
+        writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
+
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
 
@@ -147,12 +150,14 @@ class Trainer:
                                 "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                             )
 
-                if step != 0 and step % self.config.logging.steps_per_log == 0:
-                    writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
+                if step % self.config.logging.steps_per_log == 0:
+                    writer.put_dict(name="Train Metrics and Loss", scalar_dict=loss_metric_dict, step=step)
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
                 if step % self.config.trainer.steps_per_test == 0:
-                    self.pipeline.get_eval_loss_dict(step=step)
+                    metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
+                    writer.put_dict(name="Eval Metrics", scalar_dict=metrics_dict, step=step)
+                    # write out the image dictionary returned too
                 self._update_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
 

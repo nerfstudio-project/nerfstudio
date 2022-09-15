@@ -106,7 +106,6 @@ class CompoundModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    @torch.cuda.amp.autocast()
     def get_outputs(self, ray_bundle: RayBundle):
         # TODO(ruilongli)
         # - train test difference
@@ -192,4 +191,4 @@ class CompoundModel(Model):
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)
 
-        return psnr.item()
+        return {"psnr": float(psnr.item())}
