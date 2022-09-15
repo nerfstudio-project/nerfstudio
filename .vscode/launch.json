@@ -46,8 +46,7 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "instant_ngp",
-        "--logging.writer.2.max-log-size=0"
+        "instant_ngp"
       ]
     },
     {
