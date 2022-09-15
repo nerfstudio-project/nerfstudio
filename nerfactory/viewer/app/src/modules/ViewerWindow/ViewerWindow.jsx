@@ -104,6 +104,7 @@ export default function ViewerWindow(props) {
   const sceneTree = props.sceneTree;
   const scene = sceneTree.object;
   const renderer = sceneTree.metadata.renderer;
+  const labelRenderer = sceneTree.metadata.labelRenderer;
 
   const myRef = useRef(null);
   const websocket = useContext(WebSocketContext).socket;
@@ -145,6 +146,7 @@ export default function ViewerWindow(props) {
     sceneTree.metadata.camera.aspect = viewportWidth / viewportHeight;
     sceneTree.metadata.camera.updateProjectionMatrix();
     renderer.setSize(viewportWidth, viewportHeight);
+    labelRenderer.setSize(viewportWidth, viewportHeight);
   };
 
   // update the camera information in the python server
@@ -202,6 +204,7 @@ export default function ViewerWindow(props) {
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.camera_controls.update();
     renderer.render(scene, sceneTree.metadata.camera);
+    labelRenderer.render(scene, sceneTree.metadata.camera);
     stats.update();
   };
 
