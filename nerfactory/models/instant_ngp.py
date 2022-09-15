@@ -169,7 +169,6 @@ class NGPModel(Model):
 
     def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
         image = batch["image"].to(self.device)
-        # image = batch["image"]
         mask = outputs["alive_ray_mask"]
         rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])
         loss_dict = {"rgb_loss": rgb_loss}
@@ -177,7 +176,6 @@ class NGPModel(Model):
 
     def log_test_image_outputs(self, image_idx, step, batch, outputs):
         image = batch["image"].to(self.device)
-        # image = batch["image"]
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
         depth = visualization.apply_depth_colormap(
