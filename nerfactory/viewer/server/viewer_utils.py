@@ -51,6 +51,8 @@ class OutputTypes(str, enum.Enum):
     INIT = "init"
     RGB = "rgb"
     RGB_FINE = "rgb_fine"
+    ACCUMULATION = "accumulation"
+    ACCUMULATION_FINE = "accumulation_fine"
 
 
 class ColormapTypes(str, enum.Enum):
@@ -238,7 +240,7 @@ class VisualizerState:
         self.camera_moving = False
         self.prev_camera_timestamp = 0
 
-        self.outputs_set = False
+        self.output_list = None
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
@@ -323,7 +325,7 @@ class VisualizerState:
 
                     batches_per_sec = train_rays_per_sec / num_rays_per_batch
 
-                    num_steps = int(1 / self.static_fps * batches_per_sec)
+                    num_steps = max(int(1 / self.static_fps * batches_per_sec), 1)
                 else:
                     num_steps = 1
 
@@ -376,40 +378,48 @@ class VisualizerState:
             stuff_colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
+        if self.output_list:
+            reformatted_output = self._process_invalid_output(self.prev_output_type)
+
         # default for rgb images
-        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].shape[-1] == 3:
-            return outputs[self.prev_output_type]
+        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
+            return outputs[reformatted_output]
 
         # rendering depth outputs
         if self.prev_colormap_type == ColormapTypes.DEPTH or (
             self.prev_colormap_type == ColormapTypes.DEFAULT
-            and outputs[self.prev_output_type].dtype == torch.float
-            and (torch.max(outputs[self.prev_output_type]) - 1.0) > eps  # handle floating point arithmetic
+            and outputs[reformatted_output].dtype == torch.float
+            and (torch.max(outputs[reformatted_output]) - 1.0) > eps  # handle floating point arithmetic
         ):
+            accumulation_str = (
+                OutputTypes.ACCUMULATION
+                if OutputTypes.ACCUMULATION in self.output_list
+                else OutputTypes.ACCUMULATION_FINE
+            )
             return visualization.apply_depth_colormap(
-                outputs[self.prev_output_type], accumulation=outputs["accumulation"]
+                outputs[reformatted_output], accumulation=outputs[accumulation_str]
             )
 
         # rendering accumulation outputs
         if self.prev_colormap_type == ColormapTypes.TURBO or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.float
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
         ):
-            return visualization.apply_colormap(outputs[self.prev_output_type])
+            return visualization.apply_colormap(outputs[reformatted_output])
 
         # rendering semantic outputs
         if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.int
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.int
         ):
-            logits = outputs[self.prev_output_type]
+            logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert stuff_colors is not None
             return stuff_colors[labels]
 
         # rendering boolean outputs
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.bool
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
         ):
-            return visualization.apply_boolean_colormap(outputs[self.prev_output_type])
+            return visualization.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
 
@@ -421,20 +431,24 @@ class VisualizerState:
             stuff_colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
-        if not self.outputs_set:
-            self.vis["renderingState/output_options"].write(list(outputs.keys()))
-            self.outputs_set = True
-        # gross hack to get the image key, depending on which keys the graph uses
-        if self.prev_output_type == OutputTypes.INIT:
-            self.prev_output_type = OutputTypes.RGB if OutputTypes.RGB in outputs else OutputTypes.RGB_FINE
+        if self.output_list is None:
+            self.output_list = list(outputs.keys())
+            viewer_output_list = list(np.copy(self.output_list))
+            # remapping rgb_fine -> rgb for all cases just so that we dont have 2 of them in the options
+            if OutputTypes.RGB_FINE in self.output_list:
+                viewer_output_list.remove(OutputTypes.RGB_FINE)
+            viewer_output_list.insert(0, OutputTypes.RGB)
+            self.vis["renderingState/output_options"].write(viewer_output_list)
+
+        reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
         if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
             self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = [ColormapTypes.DEFAULT]
             if (
-                outputs[self.prev_output_type].shape[-1] != 3
-                and outputs[self.prev_output_type].dtype == torch.float
-                and (torch.max(outputs[self.prev_output_type]) - 1.0) <= eps  # handle floating point arithmetic
+                outputs[reformatted_output].shape[-1] != 3
+                and outputs[reformatted_output].dtype == torch.float
+                and (torch.max(outputs[reformatted_output]) - 1.0) <= eps  # handle floating point arithmetic
             ):
                 # accumulation can also include depth
                 colormap_options.extend(["depth"])
@@ -517,6 +531,28 @@ class VisualizerState:
         image_height = min(self.max_resolution, image_height)
 
         return image_height
+
+    def _process_invalid_output(self, output_type: str) -> str:
+        """Check to see whether we are in the corner case of RGB; if still invalid, throw error
+        Returns correct string mapping given improperly formatted output_type.
+
+        Args:
+            output_type: reformatted output type
+        """
+        if output_type == OutputTypes.INIT:
+            output_type = OutputTypes.RGB
+
+        # check if rgb or rgb_fine should be the case TODO: add other checks here
+        attempted_output_type = output_type
+        if output_type not in self.output_list and output_type == OutputTypes.RGB:
+            output_type = OutputTypes.RGB_FINE
+
+        # check if output_type is not in list
+        if output_type not in self.output_list:
+            assert (
+                NotImplementedError
+            ), f"Output {attempted_output_type} not in list. Tried to reformat as {output_type} but still not found."
+        return output_type
 
     @profiler.time_function
     def _render_image_in_viewer(self, camera_object, graph: Model, is_training: bool) -> None:
