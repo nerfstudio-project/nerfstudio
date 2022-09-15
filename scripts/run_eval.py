@@ -16,20 +16,19 @@ import dcargs
 import mediapy as media
 import torch
 import yaml
-from tqdm import tqdm
+from rich.console import Console
+from rich.progress import track
 from typing_extensions import assert_never
 
 # pylint: disable=unused-import
-from nerfactory.cameras.camera_paths import (
-    get_interpolated_camera_path,
-    get_path_from_json,
-    get_spiral_path,
-)
+from nerfactory.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.configs import base as cfg
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils.misc import human_format
 from nerfactory.utils.writer import TimeWriter
+
+console = Console(width=120)
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
@@ -57,7 +56,7 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     """
     assert config.load_dir is not None
     if config.load_step is None:
-        print("Loading latest checkpoint from load_dir")
+        console.print("Loading latest checkpoint from load_dir")
         # NOTE: this is specific to the checkpoint name format
         load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
@@ -66,7 +65,7 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     assert load_path.exists(), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
     pipeline.load_pipeline(loaded_state["pipeline"])
-    print(f"done loading checkpoint from {load_path}")
+    console.print(f":white_check_mark: Done loading checkpoint from {load_path}")
     return load_path
 
 
@@ -82,7 +81,7 @@ def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
     avg_psnr = 0
     avg_rays_per_sec = 0
     avg_fps = 0
-    for step, (camera_ray_bundle, batch) in tqdm(enumerate(pipeline.datamanager.eval_dataloader)):
+    for step, (camera_ray_bundle, batch) in track(enumerate(pipeline.datamanager.eval_dataloader)):
         with TimeWriter(writer=None, name=None, write=False) as t:
             with torch.no_grad():
                 image_idx = int(camera_ray_bundle.camera_indices[0, 0])
@@ -115,10 +114,10 @@ def _render_trajectory_video(
         num_rays_per_chunk: Number of rays to use per chunk. Defaults to 4096.
         seconds: Number for the output video. Defaults to 5.0.
     """
-    print("Creating trajectory video.")
+    console.print("[bold green]Creating trajectory video")
     images = []
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
-    for camera_idx in tqdm(range(cameras.size)):
+    for camera_idx in track(range(cameras.size), description=":movie_camera: Rendering :movie_camera:"):
         camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
         camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
         with torch.no_grad():
@@ -127,7 +126,10 @@ def _render_trajectory_video(
         images.append(image)
 
     fps = len(images) / seconds
-    media.write_video(output_filename, images, fps=fps)
+    with console.status("[yellow]Saving video", spinner="bouncingBall"):
+        media.write_video(output_filename, images, fps=fps)
+    console.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
+    console.print(f"[green]Saved video to {output_filename}", justify="center")
 
 
 def _eval_setup(config_path: Path) -> Tuple[cfg.Config, Pipeline, Path]:
@@ -178,9 +180,9 @@ class ComputePSNR:
         avg_psnr = stats_dict["avg psnr"]
         avg_rays_per_sec = stats_dict["avg rays per sec"]
         avg_fps = stats_dict["avg fps"]
-        print(f"Avg. PSNR: {avg_psnr:0.4f}")
-        print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
-        print(f"Avg. FPS: {avg_fps:0.4f}")
+        console.print(f"Avg. PSNR: {avg_psnr:0.4f}")
+        console.print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
+        console.print(f"Avg. FPS: {avg_fps:0.4f}")
         # save output to some file
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         benchmark_info = {
@@ -190,7 +192,7 @@ class ComputePSNR:
             "results": stats_dict,
         }
         self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
-        print(f"Saved results to: {self.output_path}")
+        console.print(f"Saved results to: {self.output_path}")
 
 
 @dataclasses.dataclass
