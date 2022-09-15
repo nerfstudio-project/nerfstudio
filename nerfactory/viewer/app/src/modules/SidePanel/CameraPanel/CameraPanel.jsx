@@ -18,6 +18,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
@@ -172,11 +173,27 @@ export default function CameraPanel(props) {
   // draw cameras and curve to the scene
   useEffect(() => {
     // draw the cameras
+
+    const labels = Array.from(document.getElementsByClassName('label'));
+    labels.forEach(label => {
+      label.remove();
+    });
+
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
       // camera.aspect = render_width / render_height;
       const camera_helper = new CameraHelper(camera, 0x393e46);
+
+      const labelDiv = document.createElement( 'div' );
+      labelDiv.className = 'label';
+      labelDiv.textContent = i;
+      labelDiv.style.color = "black";
+      const camera_label = new CSS2DObject( labelDiv );
+      camera_label.position.set( 0, -0.1, -0.1 );
+      camera_helper.add( camera_label );
+      camera_label.layers.set( 0 );
+
       // camera
       sceneTree.set_object_from_path(
         ['Camera Path', 'Cameras', i.toString(), 'Camera'],
