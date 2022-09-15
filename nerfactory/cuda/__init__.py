@@ -99,9 +99,7 @@ class RayMarching(torch.autograd.Function):
         grad_rays_d = torch.zeros_like(rays_d)
 
         for idx in range(0, packed_info.shape[0], 3):
-            i = packed_info[3 * idx]
-            j_start = packed_info[3 * idx + 1]
-            j_end = packed_info[3 * idx + 2]
+            i, j_start, j_end = packed_info[idx]
             grad_rays_o[i] += torch.sum(grad_origins[j_start:j_end], axis=0)
             grad_rays_d[i] += torch.sum(grad_dirs[j_start:j_end], axis=0)
 
