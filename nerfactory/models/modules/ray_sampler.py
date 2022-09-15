@@ -432,31 +432,9 @@ class NGPSpacedSampler(Sampler):
         assert ray_bundle.camera_indices is not None
         indices = torch.zeros_like(origins[:, :1], dtype=torch.long)
 
-        print(origins[:, :1].shape)
-        print(packed_info.shape)
-        print(ray_bundle.camera_indices.shape)
-        print(total_samples)
-        print(indices.shape)
-        print()
         ray_bundle.camera_indices = ray_bundle.camera_indices.to(torch.long).to(packed_info.device)
 
-        indices = nerfactory_cuda.get_mapping(
-            int(packed_info.shape[0]), packed_info, ray_bundle.camera_indices, indices
-        )
-
-        # ray_index = packed_info[:, 0]
-        # base = packed_info[:, 1]
-        # num_samples = packed_info[:, 2]
-        # camera_index = ray_bundle.camera_indices[ray_index]
-
-        # for i in range(packed_info.shape[0]):
-        #     ray_index = packed_info[i, 0]
-        #     base = packed_info[i, 1].to(origins.device)
-        #     num_samples = packed_info[i, 2]
-        #     camera_index = ray_bundle.camera_indices[ray_index].to(origins.device)
-        #     indices[base : base + num_samples] *= camera_index
-
-        # indices = indices.to(torch.int32)
+        indices = nerfactory_cuda.get_camera_indices(packed_info, ray_bundle.camera_indices, indices)
 
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(

@@ -22,6 +22,7 @@ from typing import Dict, Union
 import numpy as np
 import numpy.typing as npt
 import torch
+import torchvision
 from PIL import Image
 from torch.utils.data import Dataset
 from torchtyping import TensorType
