@@ -30,6 +30,10 @@ def set_reduced_config(config: cfg.Config):
         data_directory=Path("tests/data/lego_test")
     )
 
+    # use tensorboard logging instead of wandb
+    config.logging.writer[0].enable = True
+    config.logging.writer[1].enable = False
+
     # reduce model factors
     config.pipeline.model.num_coarse_samples = 4
     config.pipeline.model.num_importance_samples = 4

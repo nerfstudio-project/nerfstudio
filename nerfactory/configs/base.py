@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import dcargs
 import torch
+from rich import console
 
 from nerfactory.configs.utils import to_immutable_dict
 
@@ -45,6 +46,7 @@ from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
 
+CONSOLE = console.Console()
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -543,6 +545,18 @@ class Config(PrintableConfig):
     def __post_init__(self):
         """Make paths more specific using the current timestamp."""
         self.set_timestamp()
+
+        # if the viewer is enabled, disable tensorboard and wandb logging
+        # TODO(ethan): this is gross for now and will require a config refactor
+        if self.viewer.enable:
+            string = "Disabling tensorboard and wandb logging since viewer is enabled."
+            CONSOLE.print(f"[bold red]{string}")
+            self.logging.writer[0].enable = False
+            self.logging.writer[1].enable = False
+            # also disable eval steps
+            string = "Disabling eval iterations since viewer is enabled."
+            CONSOLE.print(f"[bold red]{string}")
+            self.trainer.steps_per_test = self.trainer.max_num_iterations
 
     def set_timestamp(self, timestamp: Optional[str] = None) -> None:
         """Make paths in our config more specific using a timestamp.
