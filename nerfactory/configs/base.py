@@ -163,7 +163,7 @@ class LoggingConfig(PrintableConfig):
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurances."""
     writer: Tuple[Any, ...] = (
-        TensorboardWriterConfig(enable=True),
+        TensorboardWriterConfig(enable=False),
         WandbWriterConfig(enable=True),
         LocalWriterConfig(enable=True),
     )
