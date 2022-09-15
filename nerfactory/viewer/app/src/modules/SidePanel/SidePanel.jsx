@@ -5,7 +5,7 @@ import * as React from 'react';
 import { FaLightbulb, FaTractor } from 'react-icons/fa';
 
 import Box from '@mui/material/Box';
-import { Collapse } from '@mui/material';
+import { Collapse, IconButton, Switch } from '@mui/material';
 import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
 import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
@@ -14,8 +14,8 @@ import ListItemText from '@mui/material/ListItemText';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { Leva } from 'leva';
 import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-import ExpandLess from '@mui/icons-material/ExpandLess';
-import ExpandMore from '@mui/icons-material/ExpandMore';
+// import ExpandLess from '@mui/icons-material/ExpandLess';
+// import ExpandMore from '@mui/icons-material/ExpandMore';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
@@ -26,6 +26,12 @@ import SceneNode from '../../SceneNode';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
+import {
+  ExpandLess,
+  ExpandMore,
+  Visibility,
+  VisibilityOff,
+} from '@mui/icons-material/';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -67,18 +73,41 @@ interface ListItemProps {
 function ListItem(props: ListItemProps) {
   const name = props.name;
   const object = props.object;
+  const groupVisible = props.groupVisible;
+  const level = props.level;
 
-  const [value, setValue] = React.useState(1);
-  object.visible = value;
+  const [visible, setVisible] = React.useState(groupVisible);
+  object.visible = visible;
 
-  function handleClick() {
-    setValue(!value);
-  }
+  React.useEffect(() => {
+    setVisible(groupVisible);
+  }, [props.groupVisible]);
+
+  const handleClick = (e) => {
+    event.stopPropagation();
+    setVisible(!visible);
+  };
 
   return (
-    <button type="button" onClick={handleClick}>
-      {name}
-    </button>
+    // TODO: maybe this isn't the cleanest way to handle color changes
+    <ListItemButton
+      sx={{
+        pl: 2 + level * 2,
+        color: visible ? LevaTheme.colors.accent2 : LevaTheme.colors.disabled,
+      }}
+    >
+      <ListItemIcon
+        sx={{
+          color: visible ? LevaTheme.colors.accent2 : LevaTheme.colors.disabled,
+        }}
+      >
+        <FaTractor />
+      </ListItemIcon>
+      <ListItemText primary={name} />
+      <IconButton aria-label="visibility" onClick={handleClick}>
+        {visible ? <Visibility /> : <VisibilityOff />}{' '}
+      </IconButton>
+    </ListItemButton>
   );
 }
 
@@ -93,32 +122,42 @@ function ClickableList(props: ClickableListProps) {
     name: String,
     scene_node: SceneNode,
     level: Number,
+    groupVisible: Boolean,
   ) => {
     // TODO: sort the keys by string
+    const isTerminal = (object) => {
+      return Object.keys(object.children).includes('<object>');
+    };
 
     const num_children = Object.keys(scene_node.children).length;
     if (num_children === 0) {
-      return (
-        <ListItemButton
-          icon={<FaLightbulb />}
-          sx={{ pl: 2 + level * 2, bgcolor: LevaTheme.colors.elevation1 }}
-        >
-          <ListItemIcon
-            sx={{
-              color: LevaTheme.colors.accent2,
-            }}
-          >
-            <FaLightbulb />
-          </ListItemIcon>
-          <ListItem name={name} object={scene_node.object} />
-        </ListItemButton>
-      );
+      return;
     }
 
+    if (isTerminal(scene_node)) {
+      return (
+        <ListItem
+          name={name}
+          object={scene_node.object}
+          groupVisible={groupVisible}
+          level={level}
+        />
+      );
+    }
     const [open, setOpen] = React.useState(true);
+    const [visible, setVisible] = React.useState(true);
     const handleClick = () => {
       setOpen(!open);
     };
+    const toggleVisible = (e) => {
+      e.stopPropagation();
+      setVisible(!visible);
+    };
+
+    React.useEffect(() => {
+      setVisible(groupVisible);
+    }, [groupVisible]);
+
     return (
       <>
         <ListItemButton
@@ -128,18 +167,30 @@ function ClickableList(props: ClickableListProps) {
             bgcolor: open
               ? LevaTheme.colors.elevation3
               : LevaTheme.colors.elevation1,
+            color: visible
+              ? LevaTheme.colors.accent2
+              : LevaTheme.colors.disabled,
           }}
         >
-          <ListItemIcon sx={{ color: LevaTheme.colors.accent2 }}>
+          <ListItemIcon
+            sx={{
+              color: visible
+                ? LevaTheme.colors.accent2
+                : LevaTheme.colors.disabled,
+            }}
+          >
             <FaTractor />
           </ListItemIcon>
           <ListItemText primary={name} />
+          <IconButton aria-label="visibility" onClick={toggleVisible}>
+            {visible ? <Visibility /> : <VisibilityOff />}
+          </IconButton>
           {open ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
         <Collapse in={open} timeout="auto">
           <List>
             {Object.keys(scene_node.children).map((key) =>
-              get_menu_items(key, scene_node.children[key], level + 1),
+              get_menu_items(key, scene_node.children[key], level + 1, visible),
             )}
           </List>
         </Collapse>
@@ -147,7 +198,7 @@ function ClickableList(props: ClickableListProps) {
     );
   };
 
-  const menu_items = get_menu_items('Scene', sceneTree, 0);
+  const menu_items = get_menu_items('Scene', sceneTree, 0, true);
 
   return <List sx={{ color: LevaTheme.colors.accent2 }}>{menu_items}</List>;
 }
