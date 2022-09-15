@@ -3,6 +3,8 @@ import * as THREE from 'three';
 
 import { useContext, useEffect } from 'react';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer';
+
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { useDispatch } from 'react-redux';
 import { drawCamera, drawSceneBounds } from './drawing';
@@ -31,18 +33,16 @@ export function get_scene_tree() {
   main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
-  sceneTree.set_object_from_path(
-    ['Cameras', 'Main Camera', 'Helper'],
-    new CameraHelper(main_camera),
-  );
   sceneTree.metadata.camera = main_camera;
 
   // Render camera
   const render_camera = main_camera.clone();
+  const render_camera_helper = new CameraHelper(render_camera, '#4eb570');
+  render_camera_helper.set_visibility(false);
   sceneTree.set_object_from_path(['Cameras', 'Render Camera'], render_camera);
   sceneTree.set_object_from_path(
     ['Cameras', 'Render Camera', 'Helper'],
-    new CameraHelper(render_camera),
+    render_camera_helper,
   );
 
   // Renderer
@@ -52,6 +52,13 @@ export function get_scene_tree() {
   });
   renderer.setPixelRatio(window.devicePixelRatio);
   sceneTree.metadata.renderer = renderer;
+
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0px';
+  document.body.appendChild(labelRenderer.domElement);
+  sceneTree.metadata.labelRenderer = labelRenderer;
 
   // Camera Controls
   const camera_controls = new OrbitControls(main_camera, renderer.domElement);

@@ -20,6 +20,7 @@ import SceneNode from '../../SceneNode';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
+import { LogPanel } from '../LogPanel/LogPanel';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -182,7 +183,7 @@ export function BasicTabs(props: BasicTabsProps) {
         </TabPanel>
 
         <TabPanel value={value} index={3}>
-          TODO: add a logging panel
+          <LogPanel>TODO: Something maybe?</LogPanel>
         </TabPanel>
       </Box>
     </div>

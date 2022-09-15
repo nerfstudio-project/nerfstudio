@@ -20,6 +20,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -106,8 +107,9 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-        except IOChangeException as e:
+                with torch.no_grad():
+                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+        except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
         if outputs:
@@ -119,7 +121,6 @@ class RenderThread(threading.Thread):
 
     def join(self, timeout=None):
         threading.Thread.join(self)
-        torch.cuda.empty_cache()
         if self.exc:
             raise self.exc
 
@@ -235,6 +236,7 @@ class VisualizerState:
         self.static_fps = 1
         self.moving_fps = 24
         self.camera_moving = False
+        self.prev_camera_timestamp = 0
 
         self.outputs_set = False
 
@@ -525,6 +527,12 @@ class VisualizerState:
         Args:
             graph: current checkpoint of model
         """
+        # Check that timestamp is newer than the last one
+        if int(camera_object["timestamp"]) < self.prev_camera_timestamp:
+            return
+
+        self.prev_camera_timestamp = int(camera_object["timestamp"])
+
         # check and perform output type updates
         output_type = self.vis["renderingState/output_choice"].read()
         output_type = OutputTypes.INIT if output_type is None else output_type
@@ -537,7 +545,14 @@ class VisualizerState:
         self.prev_colormap_type = colormap_type
 
         # Calculate camera pose and intrinsics
-        image_height = self._calculate_image_height(camera_object, is_training)
+        try:
+            image_height = self._calculate_image_height(camera_object, is_training)
+        except ZeroDivisionError as e:
+            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            print(f"Error: {e}")
+            return
+
         if image_height is None:
             return
 
@@ -578,8 +593,17 @@ class VisualizerState:
             try:
                 render_thread.join()
                 check_thread.join()
-            except Exception:  # pylint: disable=broad-except
+            except IOChangeException:
                 pass
+            except RuntimeError as e:
+                del camera_ray_bundle
+                torch.cuda.empty_cache()
+                time.sleep(0.5)  # sleep to allow buffer to reset
+                self.vis["renderingState/log_errors"].write(
+                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+                )
+                print(f"Error: {e}")
+
         graph.train()
         outputs = render_thread.vis_outputs
         if outputs is not None:
