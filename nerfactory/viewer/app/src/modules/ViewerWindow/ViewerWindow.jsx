@@ -277,7 +277,7 @@ export default function ViewerWindow(props) {
           <CameraToggle />
         </div>
       </div>
-      <div className="ViewerWindow-buttons">
+      <div className="ViewerWindow-buttons" style={{display: 'none'}}>
         <TransformIcons sceneTree={sceneTree} />
       </div>
       <div className="ViewerWindow-render-crop-container">
