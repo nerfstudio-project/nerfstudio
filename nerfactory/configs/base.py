@@ -117,7 +117,7 @@ class WandbWriterConfig(InstantiateConfig):
     """target class to instantiate"""
     enable: bool = False
     """if True enables wandb logging, else disables"""
-    relative_log_dir: Path = Path("./wandb")
+    relative_log_dir: Path = Path("./")
     """relative path to save all wandb events"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
     """auto-populated absolute path to saved wandb events"""
