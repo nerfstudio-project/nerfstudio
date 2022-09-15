@@ -2,36 +2,34 @@
 
 import * as React from 'react';
 
-import { FaLightbulb, FaTractor } from 'react-icons/fa';
+import { FaTractor } from 'react-icons/fa';
 
 import Box from '@mui/material/Box';
-import { Collapse, IconButton, Switch } from '@mui/material';
-import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
+import { Collapse, IconButton } from '@mui/material';
 import Divider from '@mui/material/Divider';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { Leva } from 'leva';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
-// import ExpandLess from '@mui/icons-material/ExpandLess';
-// import ExpandMore from '@mui/icons-material/ExpandMore';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import Typography from '@mui/material/Typography';
-import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
+import {
+  CameraAltRounded,
+  ExpandLess,
+  ExpandMore,
+  ReceiptLongRounded,
+  TuneRounded,
+  Visibility,
+  VisibilityOff,
+  WidgetsRounded,
+} from '@mui/icons-material/';
 import StatusPanel from './StatusPanel';
 import SceneNode from '../../SceneNode';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
-import {
-  ExpandLess,
-  ExpandMore,
-  Visibility,
-  VisibilityOff,
-} from '@mui/icons-material/';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -83,8 +81,7 @@ function ListItem(props: ListItemProps) {
     setVisible(groupVisible);
   }, [props.groupVisible]);
 
-  const handleClick = (e) => {
-    event.stopPropagation();
+  const handleClick = () => {
     setVisible(!visible);
   };
 
@@ -227,26 +224,10 @@ export function BasicTabs(props: BasicTabsProps) {
             onChange={handleChange}
             aria-label="basic tabs example"
           >
-            <Tab
-              icon={<TuneRoundedIcon />}
-              label="Controls"
-              {...a11yProps(0)}
-            />
-            <Tab
-              icon={<WidgetsRoundedIcon />}
-              label="Scene"
-              {...a11yProps(1)}
-            />
-            <Tab
-              icon={<CameraAltRoundedIcon />}
-              label="Render"
-              {...a11yProps(2)}
-            />
-            <Tab
-              icon={<ReceiptLongRoundedIcon />}
-              label="Logs"
-              {...a11yProps(3)}
-            />
+            <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
+            <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(1)} />
+            <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(2)} />
+            <Tab icon={<ReceiptLongRounded />} label="Logs" {...a11yProps(3)} />
           </Tabs>
         </Box>
         <TabPanel value={value} index={0}>
