@@ -340,9 +340,6 @@ class BARFPoseOptimizerConfig(CameraOptimizerConfig):
 
     _target: Type = BARFOptimizer
     noise_variance: float = 0.01
-=======
-    orientation_method: Literal["pca", "up"] = "up"
->>>>>>> Stashed changes
 
 
 @dataclass
@@ -360,6 +357,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """target class to instantiate"""
     train_dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
     """specifies the dataparser used to unpack the data"""
+    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    """specifies the camera pose optimizer used during training"""
     train_num_rays_per_batch: int = 1024
     """number of rays per batch to use per training iteration"""
     train_num_images_to_sample_from: int = -1

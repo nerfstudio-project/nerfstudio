@@ -38,9 +38,79 @@ volumetric_rendering_forward = _make_lazy_cuda("volumetric_rendering_forward")
 volumetric_rendering_backward = _make_lazy_cuda("volumetric_rendering_backward")
 occupancy_query = _make_lazy_cuda("occupancy_query")
 
+
+# pylint: disable=abstract-method,arguments-differ
+class RayMarching(torch.autograd.Function):
+    """CUDA Raymarcher"""
+
+    @staticmethod
+    @custom_fwd(cast_inputs=torch.float32)
+    def forward(
+        ctx,
+        # rays
+        rays_o,
+        rays_d,
+        t_min,
+        t_max,
+        # density grid
+        center,
+        base_scale,
+        num_cascades,
+        resolution,
+        density_bitfield,
+        # sampling args
+        marching_steps,
+        max_samples_per_batch,
+        num_samples,
+        cone_angle,
+        scene_scale,
+    ):
+        packed_info, origins, dirs, starts, ends = raymarching(  # rays
+            rays_o,
+            rays_d,
+            t_min,
+            t_max,
+            # density grid
+            center,
+            base_scale,
+            num_cascades,
+            resolution,
+            density_bitfield,
+            # sampling args
+            marching_steps,
+            max_samples_per_batch,
+            num_samples,
+            cone_angle,
+            scene_scale,
+        )
+
+        ctx.save_for_backward(packed_info, rays_o, rays_d)
+
+        return packed_info, origins, dirs, starts, ends
+
+    @staticmethod
+    @custom_bwd
+    def backward(
+        ctx, grad_packed_info, grad_origins, grad_dirs, grad_starts, grad_ends
+    ):  # pylint: disable=unused-argument
+        (packed_info, rays_o, rays_d) = ctx.saved_tensors
+
+        grad_rays_o = torch.zeros_like(rays_o)
+        grad_rays_d = torch.zeros_like(rays_d)
+
+        for idx in range(0, packed_info.shape[0], 3):
+            i = packed_info[3 * idx]
+            j_start = packed_info[3 * idx + 1]
+            j_end = packed_info[3 * idx + 2]
+            grad_rays_o[i] += torch.sum(grad_origins[j_start:j_end], axis=0)
+            grad_rays_d[i] += torch.sum(grad_dirs[j_start:j_end], axis=0)
+
+        return grad_rays_o, grad_rays_d, None, None, None, None, None, None, None, None, None, None, None, None
+
+
 # pylint: disable=abstract-method,arguments-differ
 class VolumeRenderer(torch.autograd.Function):
-    """CUDA Volumetirc Renderer"""
+    """CUDA Volumetric Renderer"""
 
     @staticmethod
     @custom_fwd(cast_inputs=torch.float32)

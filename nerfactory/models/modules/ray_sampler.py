@@ -349,6 +349,12 @@ class NGPSpacedSampler(Sampler):
     Otherwise we can seperate it out and use collision detecoter that already exists in the repo.
     """
 
+    def __init__(
+        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 0.01
+    ) -> None:
+        super().__init__(num_samples, density_field=density_field, weight_threshold=weight_threshold)
+        self.ray_marching = nerfactory_cuda.RayMarching.apply
+
     def generate_ray_samples(self) -> RaySamples:
         raise RuntimeError("For NGP we fused ray samples and density check together. Please call forward() directly.")
 
@@ -400,7 +406,7 @@ class NGPSpacedSampler(Sampler):
         max_samples_per_batch = len(rays_o) * num_samples
 
         # marching
-        packed_info, origins, dirs, starts, ends = nerfactory_cuda.raymarching(
+        packed_info, origins, dirs, starts, ends = self.ray_marching(
             # rays
             rays_o,
             rays_d,
@@ -418,7 +424,7 @@ class NGPSpacedSampler(Sampler):
             num_samples,
             0.0,
             scene_scale,
-        )
+        )  # type: ignore
 
         # squeeze valid samples
         total_samples = max(packed_info[:, -1].sum(), 1)
