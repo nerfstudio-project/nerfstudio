@@ -191,4 +191,4 @@ class CompoundModel(Model):
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)
 
-        return psnr.item()
+        return {"psnr": float(psnr.item())}

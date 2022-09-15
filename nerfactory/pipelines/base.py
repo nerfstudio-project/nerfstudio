@@ -138,10 +138,10 @@ class Pipeline(nn.Module):
                 image_idx = int(camera_ray_bundle.camera_indices[0, 0])
                 if self.world_size > 1:
                     outputs = self.model.module.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                    psnr = self.model.module.log_test_image_outputs(image_idx, step, batch, outputs)
+                    metrics_dict = self.model.module.log_test_image_outputs(image_idx, step, batch, outputs)
                 else:
                     outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                    psnr = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
+                    metrics_dict = self.model.log_test_image_outputs(image_idx, step, batch, outputs)
             if step is not None:
                 writer.put_time(
                     name=EventName.TEST_RAYS_PER_SEC,
@@ -149,8 +149,8 @@ class Pipeline(nn.Module):
                     step=step,
                     avg_over_steps=True,
                 )
-        # TODO(ethan): this function should probably return something?
         self.train()
+        return metrics_dict
 
     @abstractmethod
     def log_test_image_outputs(self) -> None:

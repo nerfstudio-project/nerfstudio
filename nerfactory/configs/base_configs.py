@@ -27,7 +27,6 @@ from nerfactory.configs.base import (
     CompoundModelConfig,
     Config,
     FriendsDataManagerConfig,
-    InstantNGPModelConfig,
     MipNerf360DataParserConfig,
     ModelConfig,
     NerfWModelConfig,
@@ -38,6 +37,7 @@ from nerfactory.configs.base import (
     TrainerConfig,
     VanillaDataManagerConfig,
 )
+from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
 from nerfactory.models.semantic_nerf import SemanticNerfModel

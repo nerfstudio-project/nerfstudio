@@ -207,7 +207,7 @@ class Model(nn.Module):
         return outputs
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, batch, outputs) -> float:
+    def log_test_image_outputs(self, image_idx, step, batch, outputs) -> Dict[str, float]:
         """Writes the test image outputs.
         TODO: This shouldn't return a loss
 
@@ -218,7 +218,7 @@ class Model(nn.Module):
             outputs: Outputs of the model.
 
         Returns:
-            The psnr.
+            A dictionary of metrics.
         """
 
     def load_model(self, loaded_state: Dict[str, Any]) -> None:
