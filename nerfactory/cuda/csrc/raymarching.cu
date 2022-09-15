@@ -127,10 +127,11 @@ __global__ void kernel_raymarching(
     int* steps_counter,
     int* rays_counter,
     int* packed_info_out,
+    long* ray_idx_map,
     scalar_t* origins_out,
     scalar_t* dirs_out,
     scalar_t* starts_out,
-    scalar_t* ends_out 
+    scalar_t* ends_out
 ) {
     CUDA_GET_THREAD_ID(i, n_rays);
 
@@ -221,6 +222,9 @@ __global__ void kernel_raymarching(
         uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
         
         if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
+            ray_idx_map[j * 3 + 0] = i;
+            ray_idx_map[j * 3 + 1] = i;
+            ray_idx_map[j * 3 + 2] = i;
             origins_out[j * 3 + 0] = ox;
             origins_out[j * 3 + 1] = oy;
             origins_out[j * 3 + 2] = oz;
@@ -377,6 +381,7 @@ std::vector<torch::Tensor> raymarching(
     torch::Tensor packed_info = torch::zeros(
         {n_rays, 3}, rays_o.options().dtype(torch::kInt32));  // ray_id, sample_id, num_samples
     torch::Tensor origins = torch::zeros({output_total_samples, 3}, rays_o.options());
+    torch::Tensor ray_idx_map = torch::zeros({output_total_samples, 3}, rays_o.options().dtype(torch::kInt64));
     torch::Tensor dirs = torch::zeros({output_total_samples, 3}, rays_o.options());
     torch::Tensor starts = torch::zeros({output_total_samples, 1}, rays_o.options());
     torch::Tensor ends = torch::zeros({output_total_samples, 1}, rays_o.options());
@@ -406,7 +411,8 @@ std::vector<torch::Tensor> raymarching(
                 step_scale,
                 steps_counter.data_ptr<int>(),  // total samples.
                 rays_counter.data_ptr<int>(),  // total rays.
-                packed_info.data_ptr<int>(), 
+                packed_info.data_ptr<int>(),
+                ray_idx_map.data_ptr<long>(),
                 origins.data_ptr<scalar_t>(),
                 dirs.data_ptr<scalar_t>(), 
                 starts.data_ptr<scalar_t>(),
@@ -414,7 +420,7 @@ std::vector<torch::Tensor> raymarching(
             ); 
         }));
 
-    return {packed_info, origins, dirs, starts, ends};
+    return {packed_info, origins, dirs, starts, ends, ray_idx_map};
 }
 
 

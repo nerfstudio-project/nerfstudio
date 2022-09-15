@@ -65,7 +65,7 @@ class RayMarching(torch.autograd.Function):
         cone_angle,
         scene_scale,
     ):
-        packed_info, origins, dirs, starts, ends = raymarching(  # rays
+        packed_info, origins, dirs, starts, ends, ray_idx_map = raymarching(  # rays
             rays_o,
             rays_d,
             t_min,
@@ -84,7 +84,7 @@ class RayMarching(torch.autograd.Function):
             scene_scale,
         )
 
-        ctx.save_for_backward(packed_info, rays_o, rays_d)
+        ctx.save_for_backward(packed_info, rays_o, rays_d, ray_idx_map)
 
         return packed_info, origins, dirs, starts, ends
 
@@ -93,17 +93,13 @@ class RayMarching(torch.autograd.Function):
     def backward(
         ctx, grad_packed_info, grad_origins, grad_dirs, grad_starts, grad_ends
     ):  # pylint: disable=unused-argument
-        (packed_info, rays_o, rays_d) = ctx.saved_tensors
+        (packed_info, rays_o, rays_d, ray_idx_map) = ctx.saved_tensors
 
         grad_rays_o = torch.zeros_like(rays_o)
         grad_rays_d = torch.zeros_like(rays_d)
 
-        for idx in range(0, packed_info.shape[0], 3):
-            i = packed_info[3 * idx]
-            j_start = packed_info[3 * idx + 1]
-            j_end = packed_info[3 * idx + 2]
-            grad_rays_o[i] += torch.sum(grad_origins[j_start:j_end], axis=0)
-            grad_rays_d[i] += torch.sum(grad_dirs[j_start:j_end], axis=0)
+        grad_rays_o.scatter_add_(0, ray_idx_map, grad_origins)
+        grad_rays_d.scatter_add_(0, ray_idx_map, grad_dirs)
 
         return grad_rays_o, grad_rays_d, None, None, None, None, None, None, None, None, None, None, None, None
 
