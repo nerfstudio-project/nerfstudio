@@ -175,7 +175,7 @@ export default function CameraPanel(props) {
     // draw the cameras
 
     const labels = Array.from(document.getElementsByClassName('label'));
-    labels.forEach(label => {
+    labels.forEach((label) => {
       label.remove();
     });
 
@@ -185,14 +185,14 @@ export default function CameraPanel(props) {
       // camera.aspect = render_width / render_height;
       const camera_helper = new CameraHelper(camera, 0x393e46);
 
-      const labelDiv = document.createElement( 'div' );
+      const labelDiv = document.createElement('div');
       labelDiv.className = 'label';
       labelDiv.textContent = i;
-      labelDiv.style.color = "black";
-      const camera_label = new CSS2DObject( labelDiv );
-      camera_label.position.set( 0, -0.1, -0.1 );
-      camera_helper.add( camera_label );
-      camera_label.layers.set( 0 );
+      labelDiv.style.color = 'black';
+      const camera_label = new CSS2DObject(labelDiv);
+      camera_label.position.set(0, -0.1, -0.1);
+      camera_helper.add(camera_label);
+      camera_label.layers.set(0);
 
       // camera
       sceneTree.set_object_from_path(

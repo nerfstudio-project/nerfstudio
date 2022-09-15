@@ -14,7 +14,6 @@ import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
 
-
 const msgpack = require('msgpack-lite');
 
 const SCENE_BOUNDS_NAME = 'Scene Bounds';
@@ -55,10 +54,10 @@ export function get_scene_tree() {
   sceneTree.metadata.renderer = renderer;
 
   const labelRenderer = new CSS2DRenderer();
-  labelRenderer.setSize( window.innerWidth, window.innerHeight );
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
   labelRenderer.domElement.style.position = 'absolute';
   labelRenderer.domElement.style.top = '0px';
-  document.body.appendChild( labelRenderer.domElement );
+  document.body.appendChild(labelRenderer.domElement);
   sceneTree.metadata.labelRenderer = labelRenderer;
 
   // Camera Controls
