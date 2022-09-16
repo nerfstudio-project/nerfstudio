@@ -151,7 +151,13 @@ class TCNNInstantNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
-    def get_outputs_from_positions_and_direction(self, positions, directions):
+    def get_outputs_from_positions_and_direction(self, positions: TensorType["bs", 3], directions: TensorType["bs", 3]):
+        """Given positions and directions, return the outputs of the field.
+
+        Args:
+            positions: positions of the points
+            directions: directions at the point locations
+        """
         # assume flat positions and directions
         # TODO: normalize positions
         positions = SceneBounds.get_normalized_positions(positions, self.aabb)

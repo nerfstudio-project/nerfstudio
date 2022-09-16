@@ -22,28 +22,26 @@ import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Type
 
+import nerfacc  # pylint: disable=import-error
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchtyping import TensorType
 
-# import nerfactory.cuda as nerfactory_cuda
-import nerfacc
-from nerfactory.cameras.rays import RayBundle, RaySamples
+from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
-from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils import visualization, writer
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfactory.cameras.rays import Frustums, RayBundle, RaySamples
 
 
 @dataclass
@@ -132,9 +130,7 @@ class NGPModel(Model):
     ) -> List[TrainingCallback]:
         return [
             TrainingCallback(
-                where_to_run=[
-                    TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
-                ],  # NOTE(ethan): this was changed to before from after
+                where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                 update_every_num_iters=1,
                 func=self.occ_field.every_n_step,  # will take in step
             )
@@ -150,7 +146,7 @@ class NGPModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         assert self.field is not None
 
-        def query_fn(positions, directions, only_density=False):
+        def query_fn(positions: TensorType["bs", 3], directions: TensorType["bs", 3], only_density=False):
             if only_density:
                 return self.field.density_fn(positions)
             field_outputs = self.field.get_outputs_from_positions_and_direction(positions, directions)
@@ -164,8 +160,8 @@ class NGPModel(Model):
             accumulated_color,
             accumulated_depth,
             accumulated_weight,
-            steps_counter,
-            compact_steps_counter,
+            steps_counter,  # pylint: disable=unused-variable
+            compact_steps_counter,  # pylint: disable=unused-variable
         ) = nerfacc.volumetric_rendering(
             query_fn=query_fn,
             rays_o=ray_bundle.origins,

@@ -234,17 +234,26 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_input_dataset is not None
-        sampler = DistributedSampler(
-            self.train_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
-        )
-        self.train_image_dataloader = CacheImageDataloader(
-            self.train_input_dataset,
-            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            pin_memory=True,
-            sampler=sampler,
-        )
+        if self.world_size > 1:
+            sampler = DistributedSampler(
+                self.train_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+            self.train_image_dataloader = CacheImageDataloader(
+                self.train_input_dataset,
+                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+                sampler=sampler,
+            )  # TODO(ethan): pass this in
+        else:
+            self.train_image_dataloader = CacheImageDataloader(
+                self.train_input_dataset,
+                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+            )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_ray_generator = RayGenerator(self.train_input_dataset.dataset_inputs.cameras.to(self.device))
@@ -252,17 +261,26 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         assert self.eval_input_dataset is not None
-        sampler = DistributedSampler(
-            self.eval_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
-        )
-        self.eval_image_dataloader = CacheImageDataloader(
-            self.eval_input_dataset,
-            num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            pin_memory=True,
-            sampler=sampler,
-        )
+        if self.world_size > 1:
+            sampler = DistributedSampler(
+                self.eval_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+            self.eval_image_dataloader = CacheImageDataloader(
+                self.eval_input_dataset,
+                num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+                sampler=sampler,
+            )  # TODO(ethan): pass this in
+        else:
+            self.eval_image_dataloader = CacheImageDataloader(
+                self.eval_input_dataset,
+                num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+            )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(self.eval_input_dataset.dataset_inputs.cameras.to(self.device))
