@@ -65,6 +65,8 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     """Number of samples in field evaluation. Defaults to 1024,"""
     cone_angle: float = 0.0
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    near_plane: float = 0.05
+    """How far along ray to start sampling."""
     randomize_background: bool = False
     """Whether to randomize the background color. Defaults to False."""
 
@@ -154,8 +156,6 @@ class NGPModel(Model):
             sigmas = field_outputs[FieldHeadNames.DENSITY]
             return rgbs, sigmas
 
-        # TODO: add random background
-
         (
             accumulated_color,
             accumulated_depth,
@@ -171,6 +171,7 @@ class NGPModel(Model):
             scene_resolution=self.occ_field.resolution,
             render_bkgd=torch.ones(3, device=self.device),
             render_step_size=self.render_step_size,
+            near_plane=self.config.near_plane,
         )
 
         alive_ray_mask = accumulated_weight.squeeze(-1) > 0

@@ -115,7 +115,9 @@ class CompoundModel(Model):
 
         if self.field is None:
             raise ValueError("populate_fields() must be called before get_outputs")
-        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
+        ray_samples, packed_info, t_min, t_max = self.sampler(
+            ray_bundle, self.field.aabb, cone_angle=self.config.cone_angle, near_plane=self.config.near_plane
+        )
 
         field_outputs = self.field.forward(ray_samples)
 
