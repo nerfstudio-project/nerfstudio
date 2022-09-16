@@ -48,7 +48,9 @@ function CameraList(props) {
       'Camera',
     ]);
     transform_controls.attach(camera);
-    const viewer_buttons = document.getElementsByClassName("ViewerWindow-buttons")[0];
+    const viewer_buttons = document.getElementsByClassName(
+      'ViewerWindow-buttons',
+    )[0];
     viewer_buttons.style.display = 'block';
   };
 

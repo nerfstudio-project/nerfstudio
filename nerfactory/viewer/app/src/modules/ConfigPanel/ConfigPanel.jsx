@@ -120,7 +120,7 @@ export function RenderControls() {
       // output_options
       output_options: {
         label: 'Output Render',
-        options: [... new Set(outputOptions)],
+        options: [...new Set(outputOptions)],
         value: outputChoice,
         onChange: (v) => {
           set_output_choice(v);
