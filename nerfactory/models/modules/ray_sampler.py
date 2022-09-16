@@ -19,6 +19,7 @@ Collection of sampling strategies
 from abc import abstractmethod
 from typing import Callable, Optional, Tuple
 
+import nerfacc
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -435,3 +436,98 @@ class NGPSpacedSampler(Sampler):
             frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
         )
         return ray_samples, packed_info, t_min, t_max
+
+
+class VolumetricSampler(Sampler):
+    """Sampler inspired by the one proposed in the Instant-NGP paper.
+
+    This sampler does ray-box AABB test, ray samples generation and density check, all together.
+    """
+
+    def __init__(
+        self,
+        aabb: TensorType[2, 3],
+        density_fn: Callable[[TensorType["N", 3]], TensorType["N"]],
+        grid_resolution: int = 128,
+        num_samples: int = 1024,
+    ) -> None:
+        """Init.
+
+        Args:
+            aabb: Bounding box of the scene.
+            density_fn: Function that takes a tensor of points and returns a tensor of densities.
+            grid_resolution: Resolution of the density grid.
+            num_samples: Number of samples per ray.
+        """
+        super().__init__(num_samples=num_samples)
+        self.aabb = aabb
+
+        # setup occupancy field with eval function
+        def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
+            """Evaluate occupancy given positions.
+
+            Args:
+                x: positions with shape (N, 3).
+            Returns:
+                occupancy values with shape (N, 1).
+            """
+            density_after_activation = density_fn(x)
+            # those two are similar when density is small.
+            # occupancy = 1.0 - torch.exp(-density_after_activation * render_step_size)
+            occupancy = density_after_activation * self.render_step_size
+            return occupancy
+
+        self.occ_field = nerfacc.OccupancyField(occ_eval_fn=occ_eval_fn, aabb=aabb, resolution=grid_resolution)
+
+    def generate_ray_samples(self) -> RaySamples:
+        raise RuntimeError(
+            "The VolumetricSampler fuses sample generation and density check together. Please call forward() directly."
+        )
+
+    # pylint: disable=arguments-differ
+    def forward(
+        self,
+        ray_bundle: RayBundle,
+        render_step_size: float,
+        num_samples: Optional[int] = None,
+        near_plane: float = 0.0,
+    ) -> Tuple[RaySamples, TensorType["total_samples", 3]]:
+        """Generate ray samples in a bounding box.
+
+        Args:
+            ray_bundle: Rays to generate samples for
+            render_step_size: Step size for rendering.
+            num_samples: Number of samples per ray
+            near_plane: Near plane for raymarching
+
+        Returns:
+            a tuple of (ray_samples, packed_info)
+            The ray_samples are packed, only storing the valid samples.
+            The packed_info contains all the information to recover packed samples into unpacked mode for rendering.
+        """
+
+        if self.density_field is not None:
+            raise ValueError("NGPSpacedSampler does not support a density field")
+
+        num_samples = num_samples or self.num_samples
+
+        rays_o = ray_bundle.origins.contiguous()
+        rays_d = ray_bundle.directions.contiguous()
+
+        packed_info, origins, dirs, starts, ends = nerfacc.volumetric_marching(
+            rays_o=rays_o,
+            rays_d=rays_d,
+            aabb=self.aabb,
+            scene_resolution=self.occ_field.resolution,
+            scene_occ_binary=self.occ_field.occ_grid_binary,
+            render_step_size=render_step_size,
+            near_plane=near_plane,
+            stratified=self.training,
+        )
+
+        # return samples
+        zeros = torch.zeros_like(origins[:, :1])
+        ray_samples = RaySamples(
+            frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
+        )
+        return ray_samples, packed_info
