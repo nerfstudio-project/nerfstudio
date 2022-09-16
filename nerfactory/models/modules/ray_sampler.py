@@ -430,10 +430,17 @@ class NGPSpacedSampler(Sampler):
         starts = starts[:total_samples]
         ends = ends[:total_samples]
 
-        # return samples
+        assert ray_bundle.camera_indices is not None
+        indices = torch.zeros_like(origins[:, :1], dtype=torch.long)
+
+        ray_bundle.camera_indices = ray_bundle.camera_indices.to(torch.long).to(packed_info.device)
+
+        indices = nerfactory_cuda.get_camera_indices(packed_info, ray_bundle.camera_indices, indices)
+
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
             frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
+            camera_indices=indices,
         )
         return ray_samples, packed_info, t_min, t_max
 

@@ -411,6 +411,10 @@ class CompoundModelConfig(ModelConfig):
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     num_samples: int = 1024  # instead of course/fine samples
+    cone_angle: float = 0.0
+    """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    near_plane: float = 0.05
+    """How far along ray to start sampling."""
 
 
 @dataclass

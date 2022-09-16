@@ -37,6 +37,7 @@ raymarching = _make_lazy_cuda("raymarching")
 volumetric_rendering_forward = _make_lazy_cuda("volumetric_rendering_forward")
 volumetric_rendering_backward = _make_lazy_cuda("volumetric_rendering_backward")
 occupancy_query = _make_lazy_cuda("occupancy_query")
+get_camera_indices = _make_lazy_cuda("get_camera_indices")
 
 # pylint: disable=abstract-method,arguments-differ
 class VolumeRenderer(torch.autograd.Function):
