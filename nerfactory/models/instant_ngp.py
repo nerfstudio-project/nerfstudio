@@ -63,6 +63,8 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     """Number of samples in field evaluation. Defaults to 1024,"""
     cone_angle: float = 0.0
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    near_plane: float = 0.05
+    """How far along ray to start sampling."""
     randomize_background: bool = False
     """Whether to randomize the background color. Defaults to False."""
 
@@ -128,7 +130,7 @@ class NGPModel(Model):
         device = ray_bundle.origins.device
 
         ray_samples, packed_info, t_min, t_max = self.sampler(
-            ray_bundle, self.field.aabb, cone_angle=self.config.cone_angle
+            ray_bundle, self.field.aabb, cone_angle=self.config.cone_angle, near_plane=self.config.near_plane
         )
 
         field_outputs = self.field.forward(ray_samples)
