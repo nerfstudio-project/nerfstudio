@@ -18,24 +18,25 @@ Implementation of Instant NGP.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Type
 
+import nerfacc  # pylint: disable=import-error
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchtyping import TensorType
 
-import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
-from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import colors, visualization, writer
+from nerfactory.utils import visualization, writer
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -57,7 +58,8 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     """Instant NGP doesn't use a collider."""
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'"""
-    enable_density_field: bool = True
+    # TODO(ethan): remove the density field specified here
+    enable_density_field: bool = False
     """Whether to create a density field to filter samples."""
     num_samples: int = 1024
     """Number of samples in field evaluation. Defaults to 1024,"""
@@ -83,27 +85,39 @@ class NGPModel(Model):
         self.field = None
         super().__init__(config=config, **kwargs)
 
-    def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes
-    ) -> List[TrainingCallback]:
-        assert self.density_field is not None
-        return [
-            TrainingCallback(
-                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                update_every_num_iters=self.density_field.update_every_num_iters,
-                func=self.density_field.update_density_grid,
-                kwargs={"density_eval_func": self.field.density_fn},  # type: ignore
-            )
-        ]
-
     def populate_modules(self):
         """Set the fields and modules."""
         super().populate_modules()
+
         # torch or tiny-cuda-nn version
         self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-        # samplers
-        self.sampler = NGPSpacedSampler(num_samples=self.config.num_samples, density_field=self.density_field)
+        # to match Ruilong's code naming
+        self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
+
+        # setup some rendering settings
+        render_n_samples = 1024
+        self.render_step_size = (
+            (self.scene_aabb[3:] - self.scene_aabb[:3]).max() * math.sqrt(3) / render_n_samples
+        ).item()
+
+        # setup occupancy field with eval function
+        def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
+            """Evaluate occupancy given positions.
+
+            Args:
+                x: positions with shape (N, 3).
+            Returns:
+                occupancy values with shape (N, 1).
+            """
+            density_after_activation = self.field.density_fn(x)
+            # those two are similar when density is small.
+            # occupancy = 1.0 - torch.exp(-density_after_activation * render_step_size)
+            occupancy = density_after_activation * self.render_step_size
+            return occupancy
+
+        # occupancy grid
+        self.occ_field = nerfacc.OccupancyField(occ_eval_fn=occ_eval_fn, aabb=self.scene_aabb, resolution=128)
 
         # losses
         self.rgb_loss = MSELoss()
@@ -112,6 +126,17 @@ class NGPModel(Model):
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        return [
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                update_every_num_iters=1,
+                func=self.occ_field.every_n_step,  # will take in step
+            )
+        ]
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -123,43 +148,34 @@ class NGPModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         assert self.field is not None
 
-        # TODO(ruilongli)
-        # - train test difference
-        # - visualize "depth_density_grid"
-        num_rays = len(ray_bundle)
-        device = ray_bundle.origins.device
+        def query_fn(positions: TensorType["bs", 3], directions: TensorType["bs", 3], only_density=False):
+            if only_density:
+                return self.field.density_fn(positions)
+            field_outputs = self.field.get_outputs_from_positions_and_direction(positions, directions)
+            rgbs = field_outputs[FieldHeadNames.RGB]
+            sigmas = field_outputs[FieldHeadNames.DENSITY]
+            return rgbs, sigmas
 
-        ray_samples, packed_info, t_min, t_max = self.sampler(
-            ray_bundle, self.field.aabb, cone_angle=self.config.cone_angle, near_plane=self.config.near_plane
-        )
-
-        field_outputs = self.field.forward(ray_samples)
-        rgbs = field_outputs[FieldHeadNames.RGB]
-        sigmas = field_outputs[FieldHeadNames.DENSITY]
-
-        # accumulate all the rays start from zero opacity
-        opacities = torch.zeros((num_rays, 1), device=device)
         (
-            accumulated_weight,
-            accumulated_depth,
             accumulated_color,
-            alive_ray_mask,
-        ) = nerfactory_cuda.VolumeRenderer.apply(
-            packed_info,
-            ray_samples.frustums.starts,
-            ray_samples.frustums.ends,
-            sigmas.contiguous(),
-            rgbs.contiguous(),
-            opacities,
+            accumulated_depth,
+            accumulated_weight,
+            steps_counter,  # pylint: disable=unused-variable
+            compact_steps_counter,  # pylint: disable=unused-variable
+        ) = nerfacc.volumetric_rendering(
+            query_fn=query_fn,
+            rays_o=ray_bundle.origins,
+            rays_d=ray_bundle.directions,
+            scene_aabb=self.scene_aabb,
+            scene_occ_binary=self.occ_field.occ_grid_binary,
+            scene_resolution=self.occ_field.resolution,
+            render_bkgd=torch.ones(3, device=self.device),
+            render_step_size=self.render_step_size,
+            near_plane=self.config.near_plane,
+            stratified=self.training,  # only use stratified sampling during training
         )
-        accumulated_depth = torch.clip(accumulated_depth, t_min[:, None], t_max[:, None])
 
-        if self.config.randomize_background:
-            background_colors = torch.rand((num_rays, 3), device=device)  # (num_rays, 3)
-        else:
-            background_colors = colors.WHITE.to(accumulated_color)  # (3,)
-
-        accumulated_color = accumulated_color + background_colors * (1.0 - accumulated_weight)
+        alive_ray_mask = accumulated_weight.squeeze(-1) > 0
 
         outputs = {
             "rgb": accumulated_color,
