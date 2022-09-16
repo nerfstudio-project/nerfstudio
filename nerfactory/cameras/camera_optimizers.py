@@ -18,6 +18,8 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
+from typing import Union
+
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -34,7 +36,7 @@ class CameraOptimizer(nn.Module):
         self,
         config: cfg.CameraOptimizerConfig,
         num_cameras: int,
-        device: int,
+        device: Union[torch.device, str],
         **kwargs,  # pylint: disable=unused-argument
     ) -> None:
         super().__init__()
