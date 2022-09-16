@@ -128,16 +128,6 @@ base_configs["vanilla_nerf"] = Config(
         ),
         model=ModelConfig(_target=NeRFModel),
     ),
-    optimizers={
-        "fields": {
-            "optimizer": OptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
-        },
-        "camera_opt": {
-            "optimizer": OptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
-        },
-    }
 )
 
 base_configs["tensorf"] = Config(
