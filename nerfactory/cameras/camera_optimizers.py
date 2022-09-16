@@ -57,7 +57,7 @@ class CameraOptimizer(nn.Module):
             TensorType["num_cameras", 3, 4]: Tranformation matrices from camera coordinates
             to optimized camera coordinates.
         """
-        return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op (Identity Transform)
+        return torch.eye(4).repeat(indices.shape[0], 1, 1)[:, :3, :4]  # no-op (Identity Transform)
 
 
 class BARFOptimizer(CameraOptimizer):
