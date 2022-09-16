@@ -40,7 +40,6 @@ from nerfactory.fields.modules.spatial_distortions import (
     SceneContraction,
     SpatialDistortion,
 )
-from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.utils.activations import trunc_exp
 
 try:
@@ -125,6 +124,7 @@ class TCNNCompoundField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
+        # TODO: add spatial distortion to ngp sampler
         # positions = self.spatial_distortion(ray_samples.frustums.get_positions())
         positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
@@ -221,6 +221,7 @@ class TorchCompoundField(Field):
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
     def get_density(self, ray_samples: RaySamples):
+        # TODO: add spatial distortion to ngp sampler
         # positions = self.spatial_distortion(ray_samples.frustums.get_positions())
         positions = ray_samples.frustums.get_positions()
         encoded_xyz = self.position_encoding(positions)
@@ -245,7 +246,16 @@ class TorchCompoundField(Field):
         outputs = {}
         for field_head in self.field_heads:
             encoded_dir = self.direction_encoding(ray_samples.frustums.directions)
-            mlp_out = self.mlp_head(torch.cat([encoded_dir, density_embedding, embedded_appearance.view(-1, self.appearance_embedding_dim)], dim=-1))  # type: ignore
+            mlp_out = self.mlp_head(
+                torch.cat(
+                    [
+                        encoded_dir,
+                        density_embedding,  # type:ignore
+                        embedded_appearance.view(-1, self.appearance_embedding_dim),
+                    ],
+                    dim=-1,  # type:ignore
+                )
+            )
             outputs[field_head.field_head_name] = field_head(mlp_out)
         return outputs
 
