@@ -18,6 +18,8 @@ NeRF-W (NeRF in the wild) implementation.
 
 from __future__ import annotations
 
+from typing import Dict, Tuple
+
 import torch
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
@@ -39,7 +41,7 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
     UncertaintyRenderer,
 )
-from nerfactory.utils import colors, misc, visualization, writer
+from nerfactory.utils import colors, misc, visualization
 
 
 class NerfWModel(Model):
@@ -214,7 +216,9 @@ class NerfWModel(Model):
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
@@ -234,14 +238,13 @@ class NerfWModel(Model):
         row2 = torch.cat([depth_fine, depth_fine_static, depth_coarse], dim=-2)
         combined_image = torch.cat([row0, row1, row2], dim=-3)
 
-        writer.put_image(name=f"img/image_idx_{image_idx}-nerfw", image=combined_image, step=step)
-
-        if "mask" in batch:
-            mask = batch["mask"].repeat(1, 1, 3)
-            writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
-
         # this doesn't really make sense but do it anyway
         fine_psnr = self.psnr(image, rgb_fine)
-        return {
+        metrics_dict = {
             "psnr": float(fine_psnr.item()),
         }
+        images_dict = {"img": combined_image}
+        if "mask" in batch:
+            mask = batch["mask"].repeat(1, 1, 3)
+            images_dict["mask"] = mask
+        return metrics_dict, images_dict

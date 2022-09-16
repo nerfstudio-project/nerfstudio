@@ -616,7 +616,6 @@ class VisualizerState:
         camera = camera.to(graph.device)
 
         camera_ray_bundle = camera.generate_rays(camera_indices=0)
-        camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Type
+from typing import Dict, List, Literal, Optional, Tuple, Type
 
 import nerfacc  # pylint: disable=import-error
 import torch
@@ -36,7 +36,7 @@ from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import visualization, writer
+from nerfactory.utils import visualization
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -192,7 +192,10 @@ class NGPModel(Model):
         loss_dict = {"rgb_loss": rgb_loss}
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
         acc = visualization.apply_colormap(outputs["accumulation"])
@@ -207,12 +210,6 @@ class NGPModel(Model):
         combined_depth = torch.cat([depth], dim=1)
         combined_alive_ray_mask = torch.cat([alive_ray_mask], dim=1)
 
-        # TODO: return an image dictionary instead of logging here
-        writer.put_image(name="Eval Images/img", image=combined_rgb, step=step)
-        writer.put_image(name="Eval Images/accumulation", image=combined_acc, step=step)
-        writer.put_image(name="Eval Images/depth", image=combined_depth, step=step)
-        writer.put_image(name="Eval Images/alive_ray_mask", image=combined_alive_ray_mask, step=step)
-
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
@@ -222,13 +219,14 @@ class NGPModel(Model):
         lpips = self.lpips(image, rgb)
 
         # all of these metrics will be logged as scalars
-        metrics_dict = {
-            "psnr": float(psnr.item()),
-            "image_idx": image_idx,
-            "ssim": float(ssim),  # type: ignore
-            "lpips": float(lpips),
-            "acc_min": float(acc.min().item()),
-            "acc_max": float(acc.max().item()),
-        }
+        metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim), "lpips": float(lpips)}  # type: ignore
         # TODO(ethan): return an image dictionary
-        return metrics_dict
+
+        images_dict = {
+            "img": combined_rgb,
+            "accumulation": combined_acc,
+            "depth": combined_depth,
+            "alive_ray_mask": combined_alive_ray_mask,
+        }
+
+        return metrics_dict, images_dict

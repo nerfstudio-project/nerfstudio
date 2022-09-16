@@ -38,6 +38,7 @@ from nerfactory.utils.callbacks import (
     TrainingCallbackLocation,
 )
 from nerfactory.utils.decorators import check_main_thread
+from nerfactory.utils.misc import step_check
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
 
@@ -133,12 +134,14 @@ class Trainer:
                             step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
                         )
 
-                    loss_metric_dict = self.train_iteration(step)
+                    # time the forward pass
+                    loss, loss_dict, metrics_dict = self.train_iteration(step)
 
                     # training callbacks after the training iteration
                     for callback in self.callbacks:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
+                    # NOTE(ethan): we should remove this when the viewer is disabled
                     with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
                         num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
                         try:
@@ -150,14 +153,36 @@ class Trainer:
                                 "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                             )
 
-                if step % self.config.logging.steps_per_log == 0:
-                    writer.put_dict(name="Train Metrics and Loss", scalar_dict=loss_metric_dict, step=step)
+                # a batch of train rays
+                if step_check(step, self.config.logging.steps_per_log, run_at_zero=True):
+                    writer.put_scalar(name="Train Loss", scalar=loss, step=step)
+                    writer.put_dict(name="Train Loss Dict", scalar_dict=loss_dict, step=step)
+                    writer.put_dict(name="Train Metrics Dict", scalar_dict=metrics_dict, step=step)
+
+                # a batch of eval rays
+                if step_check(step, self.config.trainer.steps_per_eval_batch, run_at_zero=True):
+                    _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
+                    eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
+                    writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
+                    writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
+                    writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
+
+                # one eval image
+                if step_check(step, self.config.trainer.steps_per_eval_image):
+                    metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+                    writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
+                    group = "Eval Images"
+                    for image_name, image in images_dict.items():
+                        writer.put_image(name=group + "/" + image_name, image=image, step=step)
+
+                # all eval images
+                if step_check(step, self.config.trainer.steps_per_eval_all_images):
+                    metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
+                    writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
+
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
-                if step % self.config.trainer.steps_per_test == 0:
-                    metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
-                    writer.put_dict(name="Eval Metrics", scalar_dict=metrics_dict, step=step)
-                    # write out the image dictionary returned too
+
                 self._update_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
 
@@ -187,9 +212,9 @@ class Trainer:
         """
         if (
             step % self.config.logging.steps_per_log == 0
-            or (self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0)
-            or step % self.config.trainer.steps_per_test == 0
-            or step == self.config.trainer.max_num_iterations
+            or step % self.config.trainer.steps_per_eval_batch == 0
+            or step % self.config.trainer.steps_per_eval_image == 0
+            or step % self.config.trainer.steps_per_eval_all_images == 0
         ):
             writer.write_out_storage()
 
@@ -259,6 +284,4 @@ class Trainer:
         self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
-        loss_dict["loss"] = loss
-        loss_dict.update(metrics_dict)
-        return loss_dict
+        return loss, loss_dict, metrics_dict

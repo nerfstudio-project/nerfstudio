@@ -104,20 +104,17 @@ class EvalDataloader(DataLoader):
 
     Args:
         input_dataset: InputDataset to load data from
-        num_rays_per_chunk: Number of camera rays to generate per chunk
         device: Device to load data to
     """
 
     def __init__(
         self,
         input_dataset: InputDataset,
-        num_rays_per_chunk: int,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
         self.input_dataset = input_dataset
         self.cameras = input_dataset.dataset_inputs.cameras.to(device)
-        self.num_rays_per_chunk = num_rays_per_chunk
         self.device = device
         self.kwargs = kwargs
         super().__init__(dataset=input_dataset)
@@ -159,7 +156,6 @@ class EvalDataloader(DataLoader):
             image_idx: Camera image index
         """
         ray_bundle = self.cameras.generate_rays(camera_indices=image_idx)
-        ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
         ray_bundle.camera_indices = torch.Tensor([image_idx])[..., None].int()
         batch = self.input_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
@@ -171,7 +167,6 @@ class FixedIndicesEvalDataloader(EvalDataloader):
 
     Args:
         input_dataset: InputDataset to load data from
-        num_rays_per_chunk: Number of camera rays to generate per chunk
         image_indices: List of image indices to load data from. If None, then use all images.
         device: Device to load data to
     """
@@ -179,17 +174,15 @@ class FixedIndicesEvalDataloader(EvalDataloader):
     def __init__(
         self,
         input_dataset: InputDataset,
-        num_rays_per_chunk: int,
         image_indices: Optional[Tuple[int]] = None,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
-        super().__init__(input_dataset, num_rays_per_chunk, device, **kwargs)
+        super().__init__(input_dataset, device, **kwargs)
         if image_indices is None:
             self.image_indices = list(range(len(input_dataset)))
         else:
             self.image_indices = image_indices
-        self.num_rays_per_chunk = num_rays_per_chunk
         self.count = 0
 
     def __iter__(self):
@@ -200,7 +193,6 @@ class FixedIndicesEvalDataloader(EvalDataloader):
         if self.count < len(self.image_indices):
             image_idx = self.image_indices[self.count]
             ray_bundle, batch = self.get_data_from_image_idx(image_idx)
-            ray_bundle.num_rays_per_chunk = self.num_rays_per_chunk
             self.count += 1
             return ray_bundle, batch
         raise StopIteration
@@ -211,18 +203,16 @@ class RandIndicesEvalDataloader(EvalDataloader):
 
     Args:
         input_dataset: InputDataset to load data from
-        num_rays_per_chunk: Number of camera rays to generate per chunk
         device: Device to load data to
     """
 
     def __init__(
         self,
         input_dataset: InputDataset,
-        num_rays_per_chunk: int,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
-        super().__init__(input_dataset, num_rays_per_chunk, device, **kwargs)
+        super().__init__(input_dataset, device, **kwargs)
         self.count = 0
 
     def __iter__(self):

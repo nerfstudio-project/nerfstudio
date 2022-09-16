@@ -22,7 +22,7 @@ import logging
 from abc import abstractmethod
 from pathlib import Path
 from time import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import imageio
 import numpy as np
@@ -79,7 +79,7 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
 
 
 @check_main_thread
-def put_scalar(name: str, scalar: float, step: int):
+def put_scalar(name: str, scalar: Any, step: int):
     """Setter function to place scalars into the queue to be written out
 
     Args:
@@ -209,7 +209,7 @@ class Writer:
         raise NotImplementedError
 
     @abstractmethod
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         """Required method to write a single scalar value to the logger
 
         Args:
@@ -272,7 +272,7 @@ class WandbWriter(Writer):
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         wandb.log({name: scalar}, step=step)
 
     def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
@@ -298,7 +298,7 @@ class TensorboardWriter(Writer):
         image = to8b(image)
         self.tb_writer.add_image(name, image, step, dataformats="HWC")
 
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         self.tb_writer.add_scalar(name, scalar, step)
 
     def write_config(self, name: str, config_dict: Dict[str, Any], step: int):  # pylint: disable=unused-argument
