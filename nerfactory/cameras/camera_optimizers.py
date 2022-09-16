@@ -22,7 +22,6 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-import nerfactory.utils.poses as pose_utils
 from nerfactory.configs import base as cfg
 
 
@@ -66,14 +65,20 @@ class BARFOptimizer(CameraOptimizer):
 
     def __init__(self, config: cfg.BARFPoseOptimizerConfig, num_cameras: int, device: int) -> None:
         super().__init__(config, num_cameras, device)
-        self.noise_variance = config.noise_variance
-        pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.noise_variance)
-        self.pose_noise = nn.Parameter(self.exp_map(pose_noise), requires_grad=False)
         self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
         nn.init.zeros_(self.pose_adjustment.weight)
 
     @classmethod
     def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
+        """Convert SE3 vector into [R|t] transformation matrix.
+
+        Args:
+            tangent_vector (TensorType["num_cameras", 6]): SE3 vector
+
+        Returns:
+            TensorType["num_cameras", 3, 4]: Respective [R|t] tranformation matrices.
+        """
+
         tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
         tangent_vector_ang = tangent_vector[:, 3:].view(-1, 3, 1)
 
@@ -119,7 +124,5 @@ class BARFOptimizer(CameraOptimizer):
         return ret
 
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
-        pose_noise = self.pose_noise[indices]
-        pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])
-        c2c_prime = pose_utils.multiply(pose_noise, pose_adjustment)
+        c2c_prime = self.exp_map(self.pose_adjustment.weight[indices])
         return c2c_prime

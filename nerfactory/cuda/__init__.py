@@ -93,7 +93,7 @@ class RayMarching(torch.autograd.Function):
     def backward(
         ctx, grad_packed_info, grad_origins, grad_dirs, grad_starts, grad_ends
     ):  # pylint: disable=unused-argument
-        (packed_info, rays_o, rays_d, ray_idx_map) = ctx.saved_tensors
+        (_packed_info, rays_o, rays_d, ray_idx_map) = ctx.saved_tensors
 
         grad_rays_o = torch.zeros_like(rays_o)
         grad_rays_d = torch.zeros_like(rays_d)

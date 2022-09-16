@@ -339,7 +339,6 @@ class BARFPoseOptimizerConfig(CameraOptimizerConfig):
     """BARF camera optimizer."""
 
     _target: Type = BARFOptimizer
-    noise_variance: float = 0.01
 
 
 @dataclass
