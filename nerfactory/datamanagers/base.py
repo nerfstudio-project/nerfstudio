@@ -300,5 +300,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             A list of dictionaries containing the data manager's param groups.
         """
         param_groups = {}
-        param_groups["camera_opt"] = list(self.train_camera_optimizer.parameters())
+
+        camera_opt_params = self.train_camera_optimizer.parameters()
+        if camera_opt_params:
+            param_groups["camera_opt"] = list(camera_opt_params)
+
         return param_groups
