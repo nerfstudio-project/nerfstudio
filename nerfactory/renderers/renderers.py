@@ -29,6 +29,7 @@ Example:
 import math
 from typing import Optional
 
+import nerfacc
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -232,3 +233,61 @@ class SemanticRenderer(nn.Module):
         """_summary_"""
         sem = torch.sum(weights * semantics, dim=-2)
         return sem
+
+
+class VolumeRenderer(nn.Module):
+    """wrapper class for nerfacc volumetric rendering"""
+
+    def forward(
+        self,
+        query_fn,
+        packed_info: TensorType[..., 3],
+        positions: TensorType[..., 1],
+        dirs: TensorType[..., 1],
+        starts: TensorType[..., 1],
+        ends: TensorType[..., 1],
+    ):
+        """output weights, depth, color for the given rays"""
+        n_rays = packed_info.shape[0]
+        with torch.no_grad():
+            densities = query_fn(positions, dirs, only_density=True)
+            (
+                compact_packed_info,
+                compact_frustum_starts,
+                compact_frustum_ends,
+                compact_frustum_positions,
+                compact_frustum_dirs,
+            ) = nerfacc.volumetric_rendering_steps(
+                packed_info,
+                densities,
+                starts,
+                ends,
+                positions,
+                dirs,
+            )
+
+        compact_query_results = query_fn(compact_frustum_positions, compact_frustum_dirs)
+        compact_rgbs, compact_densities = compact_query_results[0], compact_query_results[1]
+
+        # accumulation
+        compact_weights, compact_ray_indices = nerfacc.volumetric_rendering_weights(
+            compact_packed_info,
+            compact_densities,
+            compact_frustum_starts,
+            compact_frustum_ends,
+        )
+        accumulated_color = nerfacc.volumetric_rendering_accumulate(
+            compact_weights, compact_ray_indices, compact_rgbs, n_rays
+        )
+        accumulated_weight = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, None, n_rays)
+        accumulated_depth = nerfacc.volumetric_rendering_accumulate(
+            compact_weights,
+            compact_ray_indices,
+            (compact_frustum_starts + compact_frustum_ends) / 2.0,
+            n_rays,
+        )
+        return (
+            accumulated_weight,
+            accumulated_depth,
+            accumulated_color,
+        )
