@@ -172,6 +172,7 @@ class NGPModel(Model):
             render_bkgd=torch.ones(3, device=self.device),
             render_step_size=self.render_step_size,
             near_plane=self.config.near_plane,
+            stratified=self.training, # only use stratified sampling during training
         )
 
         alive_ray_mask = accumulated_weight.squeeze(-1) > 0
