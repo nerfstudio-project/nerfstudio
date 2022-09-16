@@ -20,7 +20,7 @@
       "justMyCode": true
     },
     {
-      "name": "Python: run_train (gpu)",
+      "name": "Python: run_train",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -30,17 +30,7 @@
       ]
     },
     {
-      "name": "Python: run_train (cpu)",
-      "type": "python",
-      "request": "launch",
-      "program": "scripts/run_train.py",
-      "console": "integratedTerminal",
-      "args": [
-        "machine.num_gpus=0"
-      ]
-    },
-    {
-      "name": "Python: run_train ngp (gpu)",
+      "name": "Python: run_train ngp",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -50,7 +40,7 @@
       ]
     },
     {
-      "name": "Python: run_train ngp nerfactory (gpu)",
+      "name": "Python: run_train ngp nerfactory",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -60,16 +50,16 @@
         "--experiment_name=nerfactory_experiment",
         "--logging.writer.2.max-log-size=0",
         // viewer
-        "--viewer.enable",
-        "--viewer.zmq-url=tcp://127.0.0.1:6001",
-        "--viewer.websocket-port=8014",
-        "--pipeline.model.randomize-background",
-        "--pipeline.model.cone-angle=0.00390625",
+        // "--viewer.enable",
+        // "--viewer.zmq-url=tcp://127.0.0.1:6001",
+        // "--viewer.websocket-port=8014",
+        // "--pipeline.model.randomize-background",
+        // "--pipeline.model.cone-angle=0.00390625",
         "nerfactory-data"
       ]
     },
     {
-      "name": "Python: run_train ngp-friends (gpu)",
+      "name": "Python: run_train ngp-friends",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -88,7 +78,7 @@
       ]
     },
     {
-      "name": "Python: run_train mipnerf 360 (gpu)",
+      "name": "Python: run_train mipnerf 360",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -98,7 +88,7 @@
       ]
     },
     {
-      "name": "Python: run_train tensorf (gpu)",
+      "name": "Python: run_train tensorf",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -108,7 +98,7 @@
       ]
     },
     {
-      "name": "Python: run_train nerfw (gpu)",
+      "name": "Python: run_train nerfw",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
@@ -118,7 +108,7 @@
       ]
     },
     {
-      "name": "Python: run_train semantic_nerf (gpu)",
+      "name": "Python: run_train semantic_nerf",
       "type": "python",
       "request": "launch",
       "program": "scripts/run_train.py",
