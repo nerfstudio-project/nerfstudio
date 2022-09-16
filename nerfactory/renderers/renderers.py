@@ -238,8 +238,9 @@ class SemanticRenderer(nn.Module):
 class VolumeRenderer(nn.Module):
     """wrapper class for nerfacc volumetric rendering"""
 
+    @classmethod
     def forward(
-        self,
+        cls,
         query_fn,
         packed_info: TensorType[..., 3],
         positions: TensorType[..., 1],
