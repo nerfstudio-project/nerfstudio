@@ -27,10 +27,10 @@ from typing import Any, Dict, List, Optional
 import imageio
 import numpy as np
 import torch
-import wandb
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
+import wandb
 from nerfactory.configs import base as cfg
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
@@ -47,7 +47,7 @@ class EventName(enum.Enum):
 
     ITER_TRAIN_TIME = "Train Iter (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
-    ITER_VIS_TIME = "Visualizer Rendering (time)"
+    ITER_VIS_TIME = "Viewer Rendering (time)"
     ETA = "ETA (time)"
     TRAIN_RAYS_PER_SEC = "Train Rays / Sec"
     TEST_RAYS_PER_SEC = "Test Rays / Sec"
@@ -167,7 +167,7 @@ def write_out_storage():
 
 
 @check_main_thread
-def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
+def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -175,20 +175,29 @@ def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_message
         max_iter: maximum number of train iterations
         banner_messages: list of messages to always display at bottom of screen
     """
-    for writer_type_config in config.writer:
-        if writer_type_config.enable:
-            if isinstance(writer_type_config, cfg.LocalWriterConfig):
-                curr_writer = writer_type_config.setup(banner_messages=banner_messages)
-            else:
-                curr_writer = writer_type_config.setup()
-            EVENT_WRITERS.append(curr_writer)
-            logging.info("logging info to: %s", writer_type_config.log_dir)
+
+    curr_writer = config.local_writer.setup(banner_messages=banner_messages)
+    EVENT_WRITERS.append(curr_writer)
+    logging.info("logging info to: %s", config.local_writer.log_dir)
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
     GLOBAL_BUFFER["max_buffer_size"] = config.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.steps_per_log
     GLOBAL_BUFFER["events"] = {}
+
+
+def setup_event_writer(config: cfg.LoggingConfig) -> None:
+    """Initialization of all event writers specified in config
+
+    Args:
+        config: configuration to instantiate loggers
+        max_iter: maximum number of train iterations
+        banner_messages: list of messages to always display at bottom of screen
+    """
+    curr_writer = config.writer_config.setup()
+    EVENT_WRITERS.append(curr_writer)
+    logging.info("logging info to: %s", config.writer_config.log_dir)
 
 
 class Writer:
@@ -266,7 +275,7 @@ class WandbWriter(Writer):
 
     def __init__(self, config: cfg.WandbWriterConfig):
         super().__init__(config.log_dir)
-        wandb.init(project="nerfactory-project", dir=config.log_dir, reinit=True)
+        wandb.init(project="nerfactory-project", dir=str(config.log_dir), reinit=True)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))

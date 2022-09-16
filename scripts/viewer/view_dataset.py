@@ -4,6 +4,7 @@ view_dataset.py
 """
 
 import logging
+import time
 from datetime import timedelta
 
 import dcargs
@@ -15,7 +16,7 @@ from nerfactory.configs import base as cfg
 from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
 from nerfactory.viewer.server import viewer_utils
 
-logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
@@ -25,12 +26,16 @@ torch.backends.cudnn.benchmark = True  # type: ignore
 
 def main(config: cfg.Config) -> None:
     """Main function."""
-    if not config.viewer.enable:
-        config.viewer.enable = True
+    if not isinstance(config.logging.writer_config, cfg.ViewerConfig):
+        config.logging.writer = "viewer"
+        config.logging.writer_config = cfg.ViewerConfig()
+        config.set_timestamp()  # sets the path for logging filename
         logging.info("Enabling viewer to view dataset")
-    visualizer_state = viewer_utils.VisualizerState(config.viewer)
+    viewer_state = viewer_utils.ViewerState(config.logging.writer_config)
     datamanager = config.pipeline.datamanager.setup()
-    visualizer_state.init_scene(dataset=datamanager.train_input_dataset, start_train=False)
+    viewer_state.init_scene(dataset=datamanager.train_input_dataset, start_train=False)
+    logging.info("Please refresh and load page at: %s", viewer_state.viewer_url)
+    time.sleep(30)  # allowing time to refresh page
 
 
 if __name__ == "__main__":

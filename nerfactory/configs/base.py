@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 import dcargs
 import torch
@@ -101,8 +101,6 @@ class TensorboardWriterConfig(InstantiateConfig):
 
     _target: Type = writer.TensorboardWriter
     """target class to instantiate"""
-    enable: bool = False
-    """if True enables tensorboard logging, else disables"""
     relative_log_dir: Path = Path("./")
     """relative path to save all tensorboard events"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
@@ -115,8 +113,6 @@ class WandbWriterConfig(InstantiateConfig):
 
     _target: Type = writer.WandbWriter
     """target class to instantiate"""
-    enable: bool = False
-    """if True enables wandb logging, else disables"""
     relative_log_dir: Path = Path("./wandb")
     """relative path to save all wandb events"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
@@ -164,12 +160,12 @@ class LoggingConfig(PrintableConfig):
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurances."""
-    writer: Tuple[Any, ...] = (
-        TensorboardWriterConfig(enable=False),
-        WandbWriterConfig(enable=True),
-        LocalWriterConfig(enable=True),
-    )
-    """list of all supported writers. Can turn on/off writers by specifying enable."""
+    writer: Literal["tb", "wandb", "viewer"] = "wandb"
+    """list of all supported writers; currently can only specify one at a time."""
+    writer_config: dcargs.conf.Fixed[Union[TensorboardWriterConfig, WandbWriterConfig, ViewerConfig]] = dcargs.MISSING
+    """dynamically set the writer config based on the writer"""
+    local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
+    """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True
     """whether to enable profiling code; prints speed of functions at the end of a program.
     profiler logs run times of functions and prints at end of training"""
@@ -474,8 +470,6 @@ class ViewerConfig(PrintableConfig):
     """Filename to use for the log file."""
     log_filename: dcargs.conf.Fixed[Path] = dcargs.MISSING
     """Absolute path to the log file. Set automatically."""
-    enable: bool = False
-    """whether to enable viewer"""
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
@@ -486,7 +480,7 @@ class ViewerConfig(PrintableConfig):
     websocket_port: int = 7007
     """the default websocket port to connect to"""
     num_rays_per_chunk: int = 32768
-    """number of rays per chunk to render with visualizer"""
+    """number of rays per chunk to render with viewer"""
 
 
 # Optimizer related configs
@@ -540,19 +534,11 @@ class Config(PrintableConfig):
             }
         }
     )
-    viewer: ViewerConfig = ViewerConfig()
 
     def __post_init__(self):
         """Make paths more specific using the current timestamp."""
         self.set_timestamp()
-
-        # if the viewer is enabled, disable tensorboard and wandb logging
-        # TODO(ethan): this is gross for now and will require a config refactor
-        if self.viewer.enable:
-            string = "Disabling tensorboard and wandb logging since viewer is enabled."
-            CONSOLE.print(f"[bold red]{string}")
-            self.logging.writer[0].enable = False
-            self.logging.writer[1].enable = False
+        if isinstance(self.logging.writer_config, ViewerConfig):
             # also disable eval steps
             string = "Disabling eval iterations since viewer is enabled."
             CONSOLE.print(f"[bold red]{string}")
@@ -565,10 +551,21 @@ class Config(PrintableConfig):
             timestamp: Timestamp to use, as a string. If None, defaults to the current
                 time in the form YYYY-MM-DD_HHMMMSS.
         """
+        # set up the proper writer based on type
+        if self.logging.writer == "tb":
+            self.logging.writer_config = TensorboardWriterConfig()
+        elif self.logging.writer == "wandb":
+            self.logging.writer_config = WandbWriterConfig()
+        elif self.logging.writer == "viewer":
+            self.logging.writer_config = ViewerConfig()
+
+        # set the timestamp of the model logging/writer loggign paths
         if timestamp is None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{timestamp}")
         self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
-        for curr_writer in self.logging.writer:
-            curr_writer.log_dir = self.base_dir / curr_writer.relative_log_dir
-        self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename
+        if isinstance(self.logging.writer_config, ViewerConfig):
+            self.logging.writer_config.log_filename = self.base_dir / self.logging.writer_config.relative_log_filename
+        else:
+            self.logging.writer_config.log_dir = self.base_dir / self.logging.writer_config.relative_log_dir
+        self.logging.local_writer.log_dir = self.base_dir / self.logging.local_writer.relative_log_dir
