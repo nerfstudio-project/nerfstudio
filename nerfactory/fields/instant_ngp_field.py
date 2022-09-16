@@ -151,6 +151,26 @@ class TCNNInstantNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
+    def get_outputs_from_positions_and_direction(self, positions: TensorType["bs", 3], directions: TensorType["bs", 3]):
+        """Given positions and directions, return the outputs of the field.
+
+        Args:
+            positions: positions of the points
+            directions: directions at the point locations
+        """
+        # assume flat positions and directions
+        # TODO: normalize positions
+        positions = SceneBounds.get_normalized_positions(positions, self.aabb)
+        directions = get_normalized_directions(directions)
+        h = self.mlp_base(positions)
+        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+        density = trunc_exp(density_before_activation.to(positions))
+        # TODO: normalize directions
+        d = self.direction_encoding(directions)
+        h = torch.cat([d, base_mlp_out], dim=-1)
+        rgb = self.mlp_head(h).to(directions)
+        return {FieldHeadNames.RGB: rgb, FieldHeadNames.DENSITY: density}
+
 
 class TorchInstantNGPField(NeRFField):
     """

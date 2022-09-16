@@ -428,6 +428,40 @@ std::vector<torch::Tensor> raymarching(
     return {packed_info, origins, dirs, starts, ends};
 }
 
+__global__ void kernel_get_camera_indices(
+    const uint32_t n_rays,
+    const int* packed_info, 
+    const long* camera_indices,
+    long* mapping
+) {
+    CUDA_GET_THREAD_ID(thread_id, n_rays);
+
+    const int i = packed_info[thread_id * 3 + 0];  // ray idx in {rays_o, rays_d}
+    const int base = packed_info[thread_id * 3 + 1];  // point idx start.
+    const int numsteps = packed_info[thread_id * 3 + 2];  // point idx shift.
+    const long camera_index = camera_indices[i];
+
+    int j = 0;
+    for (; j < numsteps; ++j) {
+        mapping[base + j] = camera_index;
+    }
+    
+    return;
+}
+
+torch::Tensor get_camera_indices(
+    const torch::Tensor packed_info, 
+    const torch::Tensor camera_indices, 
+    torch::Tensor mapping
+) {
+    const int n_rays = packed_info.size(0);
+    const int threads = 256;
+    const int blocks = CUDA_N_BLOCKS_NEEDED(n_rays, threads);
+
+    kernel_get_camera_indices<<<blocks, threads>>>(n_rays, packed_info.data_ptr<int>(), camera_indices.data_ptr<long>(), mapping.data_ptr<long>());
+    return mapping;
+}
+
 
 std::vector<torch::Tensor> occupancy_query(
     // samples

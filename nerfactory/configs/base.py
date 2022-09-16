@@ -113,7 +113,7 @@ class WandbWriterConfig(InstantiateConfig):
 
     _target: Type = writer.WandbWriter
     """target class to instantiate"""
-    relative_log_dir: Path = Path("./wandb")
+    relative_log_dir: Path = Path("./")
     """relative path to save all wandb events"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
     """auto-populated absolute path to saved wandb events"""
@@ -341,6 +341,10 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during training iteration"""
     eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
     """optionally specify different dataparser to use during eval; if None, uses train_dataparser"""
+    eval_num_rays_per_batch: int = 1024
+    """number of rays per batch to use per eval iteration"""
+    eval_num_images_to_sample_from: int = -1
+    """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
     eval_num_rays_per_chunk: int = 4096
@@ -403,6 +407,10 @@ class CompoundModelConfig(ModelConfig):
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     num_samples: int = 1024  # instead of course/fine samples
+    cone_angle: float = 0.0
+    """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    near_plane: float = 0.05
+    """How far along ray to start sampling."""
 
 
 @dataclass
