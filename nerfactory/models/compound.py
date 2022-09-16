@@ -108,7 +108,6 @@ class CompoundModel(Model):
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
-    @torch.cuda.amp.autocast()
     def get_outputs(self, ray_bundle: RayBundle):
         # TODO(ruilongli)
         # - train test difference
@@ -118,7 +117,9 @@ class CompoundModel(Model):
 
         if self.field is None:
             raise ValueError("populate_fields() must be called before get_outputs")
-        ray_samples, packed_info, t_min, t_max = self.sampler(ray_bundle, self.field.aabb)
+        ray_samples, packed_info, t_min, t_max = self.sampler(
+            ray_bundle, self.field.aabb, cone_angle=self.config.cone_angle, near_plane=self.config.near_plane
+        )
 
         field_outputs = self.field.forward(ray_samples)
 
@@ -194,4 +195,4 @@ class CompoundModel(Model):
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)
 
-        return psnr.item()
+        return {"psnr": float(psnr.item())}

@@ -210,4 +210,4 @@ class MipNerf360Model(Model):
 
         writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
 
-        return fine_psnr.item()
+        return {"psnr": float(fine_psnr.item())}

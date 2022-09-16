@@ -67,7 +67,7 @@ class Nerfactory(DataParser):
 
         # Scale poses
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
-        poses[:, :3, 3] *= scale_factor
+        poses[:, :3, 3] *= scale_factor * self.config.scale_factor
 
         # in x,y,z order
         # assumes that the scene is centered at the origin

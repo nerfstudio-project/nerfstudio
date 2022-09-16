@@ -8,6 +8,10 @@ inline __device__ float min_step_size(uint32_t max_ray_samples) {
 // Maximum step size is the width of the coarsest gridsize cell.
 inline __device__ float max_step_size(uint32_t grid_cascades, uint32_t grid_size) { 
     // Note(ruilongli): use mip=0 step size?
+    // Example:
+    // if there are 3 grid cascades and the grid size is 128 resolution
+    // then we will have 2^(num_cascades-1) = 4
+    // and sqrt(3) * 4 / 128 = 0.03125
     return __SQRT3() * (1 << (grid_cascades-1)) / grid_size; 
 }
 
@@ -108,22 +112,22 @@ template <typename scalar_t>
 __global__ void kernel_raymarching(
     // rays info
     const uint32_t n_rays,
-    const scalar_t* rays_o,
-    const scalar_t* rays_d,
-    const scalar_t* t_min,
-    const scalar_t* t_max, 
+    const scalar_t* rays_o, // shape (n_rays, 3)
+    const scalar_t* rays_d, // shape (n_rays, 3)
+    const scalar_t* t_min, // shape (n_rays,)
+    const scalar_t* t_max, // shape (n_rays,)
     // density grid
-    const float grid_center,
-    const float grid_scale,
-    const int grid_cascades,
-    const int grid_size,
+    const float grid_center, // default 0.0
+    const float grid_scale, // default 3.0
+    const int grid_cascades, // default 1
+    const int grid_size, // default 128
     const uint8_t* grid_bitfield,
     // sampling
     const int marching_steps, // used only for inference. -1 means disable it.
     const int max_total_samples,
-    const int max_ray_samples,  // default 1024
-    const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
-    const float step_scale,
+    const int max_ray_samples, // default 1024
+    const float cone_angle, // default 0. for nerf-syn and 1/256 for large scene
+    const float step_scale, // length of the longest side of the scene bounding box
     int* steps_counter,
     int* rays_counter,
     int* packed_info_out,
@@ -148,7 +152,13 @@ __global__ void kernel_raymarching(
     // TODO(ruilongli): perturb `near` as in ngp_pl?
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
     float dt_min = min_step_size(max_ray_samples) * step_scale;
-    float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;    
+    float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;
+
+    // if (threadIdx.x == 0) {
+    //     // these values should be equivalent with the current code
+    //     printf("step_scale value %f\n", step_scale);
+    //     printf("grid_scale value %f\n", grid_scale);
+    // }
 	
     uint32_t ray_idx, base, marching_samples;
     uint32_t j;
@@ -322,6 +332,7 @@ __global__ void kernel_occupancy_query(
  * @param max_ray_samples Used to define the minimal step size: SQRT3() / max_ray_samples.
  * @param cone_angle 0. for nerf-synthetic and 1./256 for real scenes.
  * @param step_scale Scale up the step size by this much. Usually equals to scene scale.
+ *   For example, this is often set to the length of the longest side of the scene bounding box.
  * @return std::vector<torch::Tensor> 
  * - packed_info: Stores how to index the ray samples from the returned values.
  *  Shape of [n_rays, 3]. First value is the ray index. Second value is the sample 

@@ -235,7 +235,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         """Sets up the data loaders for training"""
         assert self.train_input_dataset is not None
         if self.world_size > 1:
-            self.sampler = DistributedSampler(
+            sampler = DistributedSampler(
                 self.train_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
             self.train_image_dataloader = CacheImageDataloader(
@@ -244,7 +244,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
                 device=self.device,
                 num_workers=self.world_size * 4,
                 pin_memory=True,
-                sampler=self.sampler,
+                sampler=sampler,
             )  # TODO(ethan): pass this in
         else:
             self.train_image_dataloader = CacheImageDataloader(
@@ -261,6 +261,30 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         assert self.eval_input_dataset is not None
+        if self.world_size > 1:
+            sampler = DistributedSampler(
+                self.eval_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+            self.eval_image_dataloader = CacheImageDataloader(
+                self.eval_input_dataset,
+                num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+                sampler=sampler,
+            )  # TODO(ethan): pass this in
+        else:
+            self.eval_image_dataloader = CacheImageDataloader(
+                self.eval_input_dataset,
+                num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+                device=self.device,
+                num_workers=self.world_size * 4,
+                pin_memory=True,
+            )
+        self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
+        self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
+        self.eval_ray_generator = RayGenerator(self.eval_input_dataset.dataset_inputs.cameras.to(self.device))
+        # for loading full images
         self.eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_input_dataset,
             num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
@@ -270,8 +294,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
 
     def next_train(self) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the train dataloader.
-        The RayBundle can be shaped in whatever way."""
+        """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         batch = self.train_pixel_sampler.sample(image_batch)
@@ -280,9 +303,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return ray_bundle, batch
 
     def next_eval(self) -> Tuple[RayBundle, Dict]:
-        """Returns the next batch of data from the eval dataloader.
-        The RayBundle should be shaped like an image."""
+        """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
-        assert self.eval_dataloader is not None, "Must setup eval dataloader before calling next_eval"
-        camera_ray_bundle, batch = next(self.eval_dataloader)
-        return camera_ray_bundle, batch
+        image_batch = next(self.iter_eval_image_dataloader)
+        batch = self.eval_pixel_sampler.sample(image_batch)
+        ray_indices = batch["indices"]
+        ray_bundle = self.eval_ray_generator(ray_indices)
+        return ray_bundle, batch

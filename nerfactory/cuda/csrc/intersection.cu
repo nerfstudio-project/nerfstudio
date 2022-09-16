@@ -19,8 +19,8 @@ inline __host__ __device__ void _ray_aabb_intersect(
     if (tymin > tymax) __swap(tymin, tymax);
 
     if (tmin > tymax || tymin > tmax){
-        *near = std::numeric_limits<scalar_t>::max();
-        *far = std::numeric_limits<scalar_t>::max();
+        *near = 1e10;
+        *far = 1e10;
         return;
     }
 
@@ -32,8 +32,8 @@ inline __host__ __device__ void _ray_aabb_intersect(
     if (tzmin > tzmax) __swap(tzmin, tzmax);
 
     if (tmin > tzmax || tzmin > tmax){
-        *near = std::numeric_limits<scalar_t>::max();
-        *far = std::numeric_limits<scalar_t>::max();
+        *near = 1e10;
+        *far = 1e10;
         return;
     }
 
@@ -103,7 +103,7 @@ std::vector<torch::Tensor> ray_aabb_intersect(
     AT_DISPATCH_FLOATING_TYPES_AND_HALF(
         rays_o.scalar_type(), "ray_aabb_intersect", 
         ([&] {
-            kernel_ray_aabb_intersect<scalar_t><<<blocks, threads>>>(
+            kernel_ray_aabb_intersect<scalar_t><<<blocks, threads, 0, at::cuda::getCurrentCUDAStream()>>>(
                 N,
                 rays_o.data_ptr<scalar_t>(),
                 rays_d.data_ptr<scalar_t>(),

@@ -27,7 +27,6 @@ from nerfactory.configs.base import (
     CompoundModelConfig,
     Config,
     FriendsDataManagerConfig,
-    InstantNGPModelConfig,
     MipNerf360DataParserConfig,
     ModelConfig,
     NerfWModelConfig,
@@ -38,6 +37,7 @@ from nerfactory.configs.base import (
     TrainerConfig,
     VanillaDataManagerConfig,
 )
+from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
 from nerfactory.models.semantic_nerf import SemanticNerfModel
@@ -46,7 +46,7 @@ from nerfactory.models.vanilla_nerf import NeRFModel
 base_configs: Dict[str, Config] = {}
 base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
-    trainer=TrainerConfig(mixed_precision=True),
+    trainer=TrainerConfig(steps_per_test=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),

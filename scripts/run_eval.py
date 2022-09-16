@@ -86,7 +86,8 @@ def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
             with torch.no_grad():
                 image_idx = int(camera_ray_bundle.camera_indices[0, 0])
                 outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                psnr = pipeline.model.log_test_image_outputs(image_idx, step, batch, outputs)
+                metrics_dict = pipeline.model.log_test_image_outputs(image_idx, step, batch, outputs)
+                psnr = metrics_dict["psnr"]
         avg_rays_per_sec = _update_avg(avg_rays_per_sec, camera_ray_bundle.origins.shape[0] / t.duration, step)
         avg_psnr = _update_avg(avg_psnr, psnr, step)
         avg_fps = _update_avg(avg_fps, 1 / t.duration, step)
