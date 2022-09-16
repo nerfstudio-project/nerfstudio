@@ -234,7 +234,7 @@ class BlenderDataParserConfig(DataParserConfig):
 
     _target: Type = Blender
     """target class to instantiate"""
-    data_directory: Path = Path("data/blender/relit_lego")
+    data_directory: Path = Path("data/blender/lego")
     """directory specifying location of data"""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
