@@ -494,9 +494,6 @@ class VolumetricSampler(Sampler):
     ) -> Tuple[RaySamples, TensorType["total_samples", 3]]:
         """Generate ray samples in a bounding box.
 
-        TODO(ruilongli): write a Packed[Ray_samples] class to ray_samples with packed_info.
-        TODO(ruilongli): maybe move aabb test to the collision detector?
-
         Args:
             ray_bundle: Rays to generate samples for
             render_step_size: Step size for rendering.
