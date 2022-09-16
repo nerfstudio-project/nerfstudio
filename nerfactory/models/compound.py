@@ -85,7 +85,7 @@ class CompoundModel(Model):
         super().populate_modules()
         # torch or tiny-cuda-nn version
         self.field = field_implementation_to_class[self.config.field_implementation](
-            self.scene_bounds.aabb, self.config.num_images
+            self.scene_bounds.aabb, self.num_train_data
         )
 
         # samplers
