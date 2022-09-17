@@ -16,6 +16,7 @@
 Collection of sampling strategies
 """
 
+import math
 from abc import abstractmethod
 from typing import Callable, Optional, Tuple
 
@@ -469,6 +470,8 @@ class VolumetricSampler(Sampler):
         super().__init__(num_samples=num_samples)
         self.aabb = aabb
 
+        self.render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
+
         # setup occupancy field with eval function
         def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
             """Evaluate occupancy given positions.
@@ -495,7 +498,6 @@ class VolumetricSampler(Sampler):
     def forward(
         self,
         ray_bundle: RayBundle,
-        render_step_size: float,
         num_samples: Optional[int] = None,
         near_plane: float = 0.0,
     ) -> Tuple[RaySamples, TensorType["total_samples", 3]]:
@@ -503,7 +505,6 @@ class VolumetricSampler(Sampler):
 
         Args:
             ray_bundle: Rays to generate samples for
-            render_step_size: Step size for rendering.
             num_samples: Number of samples per ray
             near_plane: Near plane for raymarching
 
@@ -516,7 +517,11 @@ class VolumetricSampler(Sampler):
         if self.density_field is not None:
             raise ValueError("NGPSpacedSampler does not support a density field")
 
-        num_samples = num_samples or self.num_samples
+        if num_samples is not None:
+            render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
+        else:
+            num_samples = self.num_samples
+            render_step_size = self.render_step_size
 
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
@@ -532,7 +537,6 @@ class VolumetricSampler(Sampler):
             stratified=self.training,
         )
 
-        # return samples
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
             frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
