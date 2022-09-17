@@ -76,7 +76,7 @@ class Nerfactory(DataParser):
         assert len(i_eval) == num_eval_images
         if split == "train":
             indices = i_train
-        elif split == "val":
+        elif split == "val" or split == "test":
             indices = i_eval
         else:
             raise ValueError(f"Unknown dataparser split {split}")
