@@ -23,7 +23,6 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 import dcargs
 import torch
-from rich import console
 
 from nerfactory.configs.utils import to_immutable_dict
 
@@ -46,7 +45,6 @@ from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
 
-CONSOLE = console.Console()
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -101,8 +99,6 @@ class TensorboardWriterConfig(InstantiateConfig):
 
     _target: Type = writer.TensorboardWriter
     """target class to instantiate"""
-    relative_log_dir: Path = Path("./")
-    """relative path to save all tensorboard events"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
     """auto-populated absolute path to saved tensorboard events"""
 
@@ -113,8 +109,6 @@ class WandbWriterConfig(InstantiateConfig):
 
     _target: Type = writer.WandbWriter
     """target class to instantiate"""
-    relative_log_dir: Path = Path("./")
-    """relative path to save all wandb events"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
     """auto-populated absolute path to saved wandb events"""
 
@@ -137,10 +131,6 @@ class LocalWriterConfig(InstantiateConfig):
     """specifies which stats will be logged/printed to terminal"""
     max_log_size: int = 10
     """maximum number of rows to print before wrapping. if 0, will print everything."""
-    relative_log_dir: Path = Path("./")
-    """relative local path to save all events"""
-    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """auto-populated absolute local path to saved events"""
 
     def setup(self, banner_messages: Optional[List[str]] = None, **kwargs) -> Any:
         """Instantiate local writer
@@ -155,14 +145,16 @@ class LocalWriterConfig(InstantiateConfig):
 class LoggingConfig(PrintableConfig):
     """Configuration of loggers and profilers"""
 
+    relative_log_dir: Path = Path("./")
+    """relative path to save all logged events"""
     steps_per_log: int = 10
     """number of steps between logging stats"""
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurances."""
-    writer: Literal["tb", "wandb", "viewer"] = "wandb"
-    """list of all supported writers; currently can only specify one at a time."""
-    writer_config: dcargs.conf.Fixed[Union[TensorboardWriterConfig, WandbWriterConfig, ViewerConfig]] = dcargs.MISSING
+    event_writer: Literal["tb", "wandb", "none"] = "wandb"
+    """specify which writer to use (tensorboard or wandb)"""
+    event_writer_config: dcargs.conf.Fixed[Optional[Union[TensorboardWriterConfig, WandbWriterConfig]]] = dcargs.MISSING
     """dynamically set the writer config based on the writer"""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
@@ -474,6 +466,8 @@ class PipelineConfig(InstantiateConfig):
 class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
+    enable: bool = False
+    """whether to enable viewer"""
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
     log_filename: dcargs.conf.Fixed[Path] = dcargs.MISSING
@@ -532,6 +526,7 @@ class Config(PrintableConfig):
     """Experiment base directory. Set automatically."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
+    viewer: ViewerConfig = ViewerConfig()
     trainer: TrainerConfig = TrainerConfig()
     pipeline: PipelineConfig = PipelineConfig()
     optimizers: Dict[str, Any] = to_immutable_dict(
@@ -546,11 +541,6 @@ class Config(PrintableConfig):
     def __post_init__(self):
         """Make paths more specific using the current timestamp."""
         self.set_timestamp()
-        if isinstance(self.logging.writer_config, ViewerConfig):
-            # also disable eval steps
-            string = "Disabling eval iterations since viewer is enabled."
-            CONSOLE.print(f"[bold red]{string}")
-            self.trainer.steps_per_test = self.trainer.max_num_iterations
 
     def set_timestamp(self, timestamp: Optional[str] = None) -> None:
         """Make paths in our config more specific using a timestamp.
@@ -559,21 +549,21 @@ class Config(PrintableConfig):
             timestamp: Timestamp to use, as a string. If None, defaults to the current
                 time in the form YYYY-MM-DD_HHMMMSS.
         """
-        # set up the proper writer based on type
-        if self.logging.writer == "tb":
-            self.logging.writer_config = TensorboardWriterConfig()
-        elif self.logging.writer == "wandb":
-            self.logging.writer_config = WandbWriterConfig()
-        elif self.logging.writer == "viewer":
-            self.logging.writer_config = ViewerConfig()
 
         # set the timestamp of the model logging/writer loggign paths
         if timestamp is None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{timestamp}")
         self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
-        if isinstance(self.logging.writer_config, ViewerConfig):
-            self.logging.writer_config.log_filename = self.base_dir / self.logging.writer_config.relative_log_filename
+        if self.logging.event_writer == "tb":
+            self.logging.event_writer_config = TensorboardWriterConfig(
+                log_dir=self.base_dir / self.logging.relative_log_dir
+            )
+        elif self.logging.event_writer == "wandb":
+            self.logging.event_writer_config = WandbWriterConfig(log_dir=self.base_dir / self.logging.relative_log_dir)
         else:
-            self.logging.writer_config.log_dir = self.base_dir / self.logging.writer_config.relative_log_dir
-        self.logging.local_writer.log_dir = self.base_dir / self.logging.local_writer.relative_log_dir
+            self.logging.event_writer_config = None
+        self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename
+        # disable test if viewer is enabled (for speed purposes)
+        if self.viewer.enable:
+            self.trainer.steps_per_test = self.trainer.max_num_iterations

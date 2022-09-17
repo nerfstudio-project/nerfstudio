@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
+from rich import console
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfactory.configs import base as cfg
@@ -42,6 +43,7 @@ from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
+CONSOLE = console.Console()
 
 
 def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
@@ -84,22 +86,15 @@ class Trainer:
         self.callbacks: List[TrainingCallback]
         # optimizers
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
-        # logging/viewer variable
-        banner_messages = None
-        self.viewer_state = None
-        if isinstance(self.config.logging.writer_config, cfg.ViewerConfig):
-            self.viewer_state = viewer_utils.ViewerState(
-                config.logging.writer_config, config_base_dir=self.config.base_dir
-            )
-            banner_messages = [f"Viewer at: {self.viewer_state.viewer_url}"]
-        else:
-            writer.setup_event_writer(config.logging)
-
+        # logging/viewer variables
+        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer)
+        writer.setup_event_writer(config.logging)
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
         profiler.setup_profiler(config.logging)
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
+        self._check_viewer_warnings()
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
@@ -123,11 +118,7 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
 
-        if self.viewer_state:
-            self.viewer_state.init_scene(
-                dataset=self.pipeline.datamanager.train_input_dataset,
-                start_train=self.config.logging.writer_config.start_train,
-            )
+        self._init_viewer_scene()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
@@ -147,6 +138,7 @@ class Trainer:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
                     vis_t = self._update_viewer_state(step)
+
                 self._update_viewer_rays_per_sec(train_t, vis_t, step)
 
                 if step % self.config.logging.steps_per_log == 0:
@@ -161,8 +153,35 @@ class Trainer:
 
         self._write_out_storage(num_iterations)
 
+    def _check_viewer_warnings(self) -> None:
+        """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
+        if self.config.viewer.enable:
+            if self.config.logging.event_writer_config:
+                string = (
+                    "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
+                    "Please set `--logging.event_writer none` for faster rendering"
+                )
+                CONSOLE.print(f"[bold red]{string}")
+            string = "[WARNING] Disabling eval iterations since viewer is enabled."
+            CONSOLE.print(f"[bold red]{string}")
+
     @check_viewer_enabled
-    def _update_viewer_state(self, step: int):
+    def _init_viewer_scene(self) -> None:
+        """Initializes viewer scene with given train dataset"""
+        assert self.viewer_state and self.pipeline.datamanager.train_input_dataset
+        self.viewer_state.init_scene(
+            dataset=self.pipeline.datamanager.train_input_dataset,
+            start_train=self.config.viewer.start_train,
+        )
+
+    @check_viewer_enabled
+    def _update_viewer_state(self, step: int) -> TimeWriter:
+        """Updates the viewer state by rendering out scene with current pipeline
+        Returns the time taken to render scene.
+
+        Args:
+            step: current train step
+        """
         assert self.viewer_state is not None
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
             num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch

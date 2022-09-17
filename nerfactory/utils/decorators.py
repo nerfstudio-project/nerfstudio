@@ -54,7 +54,7 @@ def check_viewer_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.viewer_state:
+        if self.config.viewer.enable:
             ret = func(self, *args, **kwargs)
         return ret
 

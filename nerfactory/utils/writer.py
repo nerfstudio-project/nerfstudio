@@ -27,10 +27,10 @@ from typing import Any, Dict, List, Optional
 import imageio
 import numpy as np
 import torch
+import wandb
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-import wandb
 from nerfactory.configs import base as cfg
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
@@ -157,12 +157,13 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
 def write_out_storage():
     """Function that writes all the events in storage to all the writer locations"""
     for writer in EVENT_WRITERS:
+        if isinstance(writer, LocalWriter) and len(EVENT_STORAGE) > 0:
+            writer.write_stats_log(EVENT_STORAGE[0]["step"])
+            continue
         for event in EVENT_STORAGE:
             write_func = getattr(writer, event["write_type"].value)
             write_func(event["name"], event["event"], event["step"])
-            # NOTE(ethan): why is the below statement needed?
-            if isinstance(writer, LocalWriter):
-                break
+
     EVENT_STORAGE.clear()
 
 
@@ -175,10 +176,11 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
         max_iter: maximum number of train iterations
         banner_messages: list of messages to always display at bottom of screen
     """
-
-    curr_writer = config.local_writer.setup(banner_messages=banner_messages)
-    EVENT_WRITERS.append(curr_writer)
-    logging.info("logging info to: %s", config.local_writer.log_dir)
+    if config.local_writer.enable:
+        curr_writer = config.local_writer.setup(banner_messages=banner_messages)
+        EVENT_WRITERS.append(curr_writer)
+    else:
+        logging.info("disabled local writer")
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
@@ -195,9 +197,12 @@ def setup_event_writer(config: cfg.LoggingConfig) -> None:
         max_iter: maximum number of train iterations
         banner_messages: list of messages to always display at bottom of screen
     """
-    curr_writer = config.writer_config.setup()
-    EVENT_WRITERS.append(curr_writer)
-    logging.info("logging info to: %s", config.writer_config.log_dir)
+    if config.event_writer_config:
+        curr_writer = config.event_writer_config.setup()
+        EVENT_WRITERS.append(curr_writer)
+        logging.info("logging info to: %s", config.event_writer_config.log_dir)
+    else:
+        logging.info("disabled tensorboard/wandb event writers")
 
 
 class Writer:
@@ -349,7 +354,7 @@ def _format_time(seconds):
 
 
 @decorate_all([check_main_thread])
-class LocalWriter(Writer):
+class LocalWriter:
     """Local Writer Class
     TODO: migrate to prettyprint
 
@@ -359,9 +364,8 @@ class LocalWriter(Writer):
     """
 
     def __init__(self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None):
-        super().__init__(config.log_dir)
+        self.config = config
         self.stats_to_track = [name.value for name in config.stats_to_track]
-        self.max_log_size = config.max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
         self.banner_len = 0 if banner_messages is None else len(banner_messages) + 1
@@ -370,19 +374,18 @@ class LocalWriter(Writer):
             self.past_mssgs.extend(banner_messages)
         self.has_printed = False
 
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        if name in self.stats_to_track and self.log_dir:
-            image = to8b(image)
-            image_path = self.log_dir / f"{name}.jpg"
-            imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
+    def write_stats_log(self, step: int) -> None:
+        """Function to write out scalars to terminal
 
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+        Args:
+            step: current train step
+        """
         if step > 0:
-            if not self.has_printed and self.max_log_size:
+            if not self.has_printed and self.config.max_log_size:
                 logging.info(
-                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` "
+                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.local_writer.max-log-size=0` "
                     "to disable line wrapping.\x1b[0m",
-                    self.max_log_size,
+                    self.config.max_log_size,
                 )
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)
@@ -414,8 +417,8 @@ class LocalWriter(Writer):
             latest_map: the most recent dictionary of stats that have been recorded
             new_key: indicator whether or not there is a new key added to logger
         """
-        full_log_cond = not self.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
-        capped_log_cond = self.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
+        full_log_cond = not self.config.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
+        capped_log_cond = self.config.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
         if full_log_cond or capped_log_cond:
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
@@ -450,13 +453,13 @@ class LocalWriter(Writer):
                 curr_mssg += f"{v:<20} "
 
         # update the history buffer
-        if self.max_log_size:
+        if self.config.max_log_size:
             if not self.has_printed:
                 cursor_idx = len(self.past_mssgs) - self.banner_len
                 self.has_printed = True
             else:
                 cursor_idx = len(self.past_mssgs)
-            if len(self.past_mssgs[2:]) - self.banner_len >= self.max_log_size:
+            if len(self.past_mssgs[2:]) - self.banner_len >= self.config.max_log_size:
                 self.past_mssgs.pop(2)
             self.past_mssgs.insert(len(self.past_mssgs) - self.banner_len, curr_mssg)
             _cursorup(cursor_idx)

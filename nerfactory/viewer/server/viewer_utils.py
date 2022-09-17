@@ -14,6 +14,7 @@
 
 """Code to interface with the `vis/` (the JS viewer).
 """
+from __future__ import annotations
 
 import enum
 import os
@@ -41,6 +42,19 @@ from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_w
 from nerfactory.viewer.server.visualizer import Viewer
 
 console = Console(width=120)
+
+
+def setup_viewer(config: cfg.ViewerConfig):
+    """Sets up the viewer if enabled
+
+    Args:
+        config: the configuration to instantiate viewer
+    """
+    if config.enable:
+        viewer_state = ViewerState(config)
+        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+        return viewer_state, banner_messages
+    return None, None
 
 
 class OutputTypes(str, enum.Enum):
@@ -188,10 +202,8 @@ class ViewerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[Path] = None):
+    def __init__(self, config: cfg.ViewerConfig):
         self.config = config
-        self.config_base_dir = config_base_dir
-
         self.vis = None
         self.viewer_url = None
         if self.config.launch_bridge_server:
@@ -243,8 +255,7 @@ class ViewerState:
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
-        if self.config_base_dir:
-            self.vis["renderingState/config_base_dir"].write(str(self.config_base_dir))
+        self.vis["renderingState/config_base_dir"].write(str(self.config.log_filename.parents[0]))
 
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
