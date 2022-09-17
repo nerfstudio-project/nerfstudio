@@ -32,7 +32,7 @@ from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.misc import get_masked_dict, is_not_none
+from nerfactory.utils.misc import get_masked_dict
 
 
 class Model(nn.Module):
@@ -51,11 +51,13 @@ class Model(nn.Module):
         self,
         config: cfg.ModelConfig,
         scene_bounds: SceneBounds,
+        num_train_data: int,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
         self.scene_bounds = scene_bounds
+        self.num_train_data = num_train_data
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
@@ -190,14 +192,14 @@ class Model(nn.Module):
         Args:
             camera_ray_bundle: ray bundle to calculate outputs over
         """
-        assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
+        num_rays_per_chunk = self.config.eval_num_rays_per_chunk
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
         outputs = {}
         outputs_lists = defaultdict(list)
-        for i in range(0, num_rays, camera_ray_bundle.num_rays_per_chunk):
+        for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
-            end_idx = i + camera_ray_bundle.num_rays_per_chunk
+            end_idx = i + num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
@@ -207,7 +209,9 @@ class Model(nn.Module):
         return outputs
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, batch, outputs) -> float:
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         """Writes the test image outputs.
         TODO: This shouldn't return a loss
 
@@ -218,7 +222,7 @@ class Model(nn.Module):
             outputs: Outputs of the model.
 
         Returns:
-            The psnr.
+            A dictionary of metrics.
         """
 
     def load_model(self, loaded_state: Dict[str, Any]) -> None:
