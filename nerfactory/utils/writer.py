@@ -24,8 +24,6 @@ from pathlib import Path
 from time import time
 from typing import Any, Dict, List, Optional, Union
 
-import imageio
-import numpy as np
 import torch
 import wandb
 from torch.utils.tensorboard import SummaryWriter

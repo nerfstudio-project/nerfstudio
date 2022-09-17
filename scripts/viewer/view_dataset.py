@@ -26,12 +26,10 @@ torch.backends.cudnn.benchmark = True  # type: ignore
 
 def main(config: cfg.Config) -> None:
     """Main function."""
-    if not isinstance(config.logging.writer_config, cfg.ViewerConfig):
-        config.logging.writer = "viewer"
-        config.logging.writer_config = cfg.ViewerConfig()
-        config.set_timestamp()  # sets the path for logging filename
+    if not config.viewer.enable:
+        config.viewer.enable = True
         logging.info("Enabling viewer to view dataset")
-    viewer_state = viewer_utils.ViewerState(config.logging.writer_config)
+    viewer_state = viewer_utils.ViewerState(config.viewer)
     datamanager = config.pipeline.datamanager.setup()
     viewer_state.init_scene(dataset=datamanager.train_input_dataset, start_train=False)
     logging.info("Please refresh and load page at: %s", viewer_state.viewer_url)
