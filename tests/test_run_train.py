@@ -44,6 +44,7 @@ def set_reduced_config(config: cfg.Config):
     if config.method_name == "instant_ngp":
         config.pipeline.model.field_implementation = "torch"
 
+    config.populate_dynamic_fields()
     return config
 
 

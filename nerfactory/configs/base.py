@@ -549,9 +549,9 @@ class Config(PrintableConfig):
 
     def __post_init__(self):
         """Make paths more specific using the current timestamp."""
-        self.set_timestamp()
+        self.populate_dynamic_fields()
 
-    def set_timestamp(self, timestamp: Optional[str] = None) -> None:
+    def populate_dynamic_fields(self, timestamp: Optional[str] = None) -> None:
         """Make paths in our config more specific using a timestamp.
 
         Args:
