@@ -17,6 +17,8 @@ Semantic NeRF implementation.
 """
 from __future__ import annotations
 
+from typing import Dict, Tuple
+
 import torch
 from torch import nn
 
@@ -30,7 +32,7 @@ from nerfactory.fields.semantic_nerf_field import SemanticNerfField
 from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.models.vanilla_nerf import NeRFModel
 from nerfactory.renderers.renderers import SemanticRenderer
-from nerfactory.utils import misc, writer
+from nerfactory.utils import misc
 
 
 class SemanticNerfModel(NeRFModel):
@@ -128,12 +130,16 @@ class SemanticNerfModel(NeRFModel):
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
-        super().log_test_image_outputs(image_idx, step, batch, outputs)
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
+        metrics_dict, images_dict = super().get_image_metrics_and_images(outputs, batch)
         semantic_logits = outputs["semantic_fine"]
         semantic_labels = torch.argmax(torch.nn.functional.softmax(semantic_logits, dim=-1), dim=-1)  # type: ignore
         semantic_labels_image = self.stuff_colors[semantic_labels]
-        writer.put_image(name=f"semantics/image_idx_{image_idx}", image=semantic_labels_image, step=step)
 
         mask = batch["mask"].repeat(1, 1, 3)
-        writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
+
+        images_dict["semantics"] = semantic_labels_image
+        images_dict["mask"] = mask
+        return metrics_dict, images_dict

@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -62,6 +63,27 @@ class Nerfactory(DataParser):
         No image files found. 
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
+
+        # filter image_filenames and poses based on train/eval split percentage
+        num_images = len(image_filenames)
+        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+        num_eval_images = num_images - num_train_images
+        i_all = np.arange(num_images)
+        i_train = np.linspace(
+            0, num_images - 1, num_train_images, dtype=int
+        )  # equally spaced training images starting and ending at 0 and num_images-1
+        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+        assert len(i_eval) == num_eval_images
+        if split == "train":
+            indices = i_train
+        elif split == "val" or split == "test":
+            indices = i_eval
+        else:
+            raise ValueError(f"Unknown dataparser split {split}")
+
+        image_filenames = [image_filenames[i] for i in indices]
+        poses = [poses[i] for i in indices]
+
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
         poses = camera_utils.auto_orient_poses(poses, method=self.config.orientation_method)
 

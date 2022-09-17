@@ -19,7 +19,7 @@ Collection of sampling strategies
 from abc import abstractmethod
 from typing import Callable, Optional, Tuple
 
-import nerfacc
+import nerfacc  # pylint: disable=import-error
 import torch
 from torch import nn
 from torchtyping import TensorType

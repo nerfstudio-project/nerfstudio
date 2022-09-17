@@ -18,7 +18,7 @@ Implementation of mip-NeRF.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import torch
 from torch.nn import Parameter
@@ -41,7 +41,7 @@ from nerfactory.renderers.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfactory.utils import colors, misc, visualization, writer
+from nerfactory.utils import colors, misc, visualization
 
 
 class MipNerf360Model(Model):
@@ -160,7 +160,9 @@ class MipNerf360Model(Model):
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
@@ -183,10 +185,6 @@ class MipNerf360Model(Model):
         combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
         combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
 
-        writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
-        writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
-        writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
-
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
@@ -197,17 +195,14 @@ class MipNerf360Model(Model):
         fine_ssim = self.ssim(image, rgb_fine)
         fine_lpips = self.lpips(image, rgb_fine)
 
-        writer.put_scalar(name=f"psnr/val_{image_idx}-coarse", scalar=float(coarse_psnr), step=step)
-        writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(fine_psnr), step=step)
-        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(fine_ssim), step=step)  # type: ignore
-        writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(fine_lpips), step=step)
-        writer.put_scalar(
-            name=f"ray_loss_coarse/val_{image_idx}", scalar=float(torch.mean(outputs["ray_loss_coarse"])), step=step
-        )
-        writer.put_scalar(
-            name=f"ray_loss_fine/val_{image_idx}", scalar=float(torch.mean(outputs["ray_loss_fine"])), step=step
-        )
-
-        writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(fine_psnr), step=step)
-
-        return {"psnr": float(fine_psnr.item())}
+        metrics_dict = {
+            "psnr": float(fine_psnr.item()),
+            "coarse_psnr": float(coarse_psnr),
+            "fine_psnr": float(fine_psnr),
+            "fine_ssim": float(fine_ssim),
+            "fine_lpips": float(fine_lpips),
+            "ray_loss_coarse": float(torch.mean(outputs["ray_loss_coarse"])),
+            "ray_loss_fine": float(torch.mean(outputs["ray_loss_fine"])),
+        }
+        images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+        return metrics_dict, images_dict

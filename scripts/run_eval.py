@@ -100,7 +100,6 @@ def _render_trajectory_video(
     output_filename: Path,
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
-    num_rays_per_chunk: int = 4096,
     seconds: float = 5.0,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -112,7 +111,6 @@ def _render_trajectory_video(
         rendered_output_name: Name of the renderer output to use.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
             Defaults to 1.0.
-        num_rays_per_chunk: Number of rays to use per chunk. Defaults to 4096.
         seconds: Number for the output video. Defaults to 5.0.
     """
     console.print("[bold green]Creating trajectory video")
@@ -120,7 +118,6 @@ def _render_trajectory_video(
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
     for camera_idx in track(range(cameras.size), description=":movie_camera: Rendering :movie_camera:"):
         camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
-        camera_ray_bundle.num_rays_per_chunk = num_rays_per_chunk
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
         image = outputs[rendered_output_name].cpu().numpy()
@@ -217,7 +214,7 @@ class RenderTrajectory:
 
     def main(self) -> None:
         """Main function."""
-        config, pipeline, _ = _eval_setup(self.load_config)
+        _, pipeline, _ = _eval_setup(self.load_config)
 
         seconds = self.seconds
 
@@ -245,7 +242,6 @@ class RenderTrajectory:
             output_filename=self.output_path,
             rendered_output_name=self.rendered_output_name,
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
-            num_rays_per_chunk=config.pipeline.datamanager.eval_num_rays_per_chunk,
             seconds=seconds,
         )
 

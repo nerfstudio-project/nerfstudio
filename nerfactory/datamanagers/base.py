@@ -31,6 +31,7 @@ from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataloaders import (
     CacheImageDataloader,
     FixedIndicesEvalDataloader,
+    RandIndicesEvalDataloader,
 )
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.datamanagers.pixel_sampler import PixelSampler
@@ -163,7 +164,7 @@ class DataManager(nn.Module):
         raise NotImplementedError
 
     @abstractmethod
-    def next_train(self) -> Tuple:
+    def next_train(self, step: int) -> Tuple:
         """Returns the next batch of data from the train data manager.
 
         This will be a tuple of all the information that this data manager outputs.
@@ -171,11 +172,16 @@ class DataManager(nn.Module):
         raise NotImplementedError
 
     @abstractmethod
-    def next_eval(self) -> Tuple:
+    def next_eval(self, step: int) -> Tuple:
         """Returns the next batch of data from the eval data manager.
 
         This will be a tuple of all the information that this data manager outputs.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def next_eval_image(self, step: int) -> Tuple:
+        """Returns the next eval image."""
         raise NotImplementedError
 
     def get_training_callbacks(  # pylint:disable=no-self-use
@@ -285,15 +291,22 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(self.eval_input_dataset.dataset_inputs.cameras.to(self.device))
         # for loading full images
-        self.eval_dataloader = FixedIndicesEvalDataloader(
+        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_input_dataset,
-            num_rays_per_chunk=self.config.eval_num_rays_per_chunk,
+            device=self.device,
+            num_workers=0 if self.world_size == 1 else self.world_size * 4,
+        )
+        self.eval_dataloader = RandIndicesEvalDataloader(
+            input_dataset=self.eval_input_dataset,
             image_indices=self.config.eval_image_indices,
             device=self.device,
             num_workers=0 if self.world_size == 1 else self.world_size * 4,
         )
 
-    def next_train(self) -> Tuple[RayBundle, Dict]:
+        # TODO: eval dataloader should be separate from train
+        self.iter_eval_dataloader = iter(self.eval_image_dataloader)
+
+    def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
@@ -302,7 +315,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         ray_bundle = self.train_ray_generator(ray_indices)
         return ray_bundle, batch
 
-    def next_eval(self) -> Tuple[RayBundle, Dict]:
+    def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
         image_batch = next(self.iter_eval_image_dataloader)
@@ -310,3 +323,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         ray_indices = batch["indices"]
         ray_bundle = self.eval_ray_generator(ray_indices)
         return ray_bundle, batch
+
+    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
+        for camera_ray_bundle, batch in self.eval_dataloader:
+            image_idx = int(camera_ray_bundle.camera_indices[0, 0])
+            return image_idx, camera_ray_bundle, batch

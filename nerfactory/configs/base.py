@@ -182,8 +182,12 @@ class TrainerConfig(PrintableConfig):
 
     steps_per_save: int = 1000
     """number of steps between saves"""
-    steps_per_test: int = 500
-    """number of steps between eval"""
+    steps_per_eval_batch: int = 500
+    """number of steps between randomly sampled batches of rays"""
+    steps_per_eval_image: int = 500
+    """number of steps between single eval images"""
+    steps_per_eval_all_images: int = 25000
+    """number of steps between eval all images"""
     max_num_iterations: int = 1000000
     """maximum number of iterations to run"""
     mixed_precision: bool = False
@@ -223,9 +227,14 @@ class NerfactoryDataParserConfig(DataParserConfig):
     downscale_factor: int = 1
     """How much to downscale images. Defaults to 1."""
     scene_scale: float = 4.0
-    """How much to scale the scene. Defaults to 0.33"""
+    """How much to scale the scene. Defaults to 4.0"""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation. Either "pca" or "up"."""
+    train_split_percentage: float = 0.9
+    """
+    The percent of images to use for training.
+    The remaining images are for eval. Defaults to 0.9.
+    """
 
 
 @dataclass
@@ -351,8 +360,6 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
-    eval_num_rays_per_chunk: int = 4096
-    """specifies number of rays per chunk during eval"""
 
 
 @dataclass
@@ -394,6 +401,8 @@ class ModelConfig(InstantiateConfig):
         }
     )
     """parameters to instantiate density field with"""
+    eval_num_rays_per_chunk: int = 4096
+    """specifies number of rays per chunk during eval"""
 
 
 @dataclass
@@ -564,7 +573,9 @@ class Config(PrintableConfig):
             # also disable eval steps
             string = "Disabling eval iterations since viewer is enabled."
             CONSOLE.print(f"[bold red]{string}")
-            self.trainer.steps_per_test = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
 
     def set_timestamp(self, timestamp: Optional[str] = None) -> None:
         """Make paths in our config more specific using a timestamp.

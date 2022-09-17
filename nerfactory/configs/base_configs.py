@@ -46,14 +46,10 @@ from nerfactory.models.vanilla_nerf import NeRFModel
 base_configs: Dict[str, Config] = {}
 base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
-    trainer=TrainerConfig(steps_per_test=500, steps_per_save=2000, mixed_precision=True),
+    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
-        ),
-        model=InstantNGPModelConfig(),
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
@@ -66,12 +62,10 @@ base_configs["instant_ngp"] = Config(
 base_configs["mipnerf_360"] = Config(
     experiment_name="mipnerf_360",
     method_name="mipnerf_360",
-    trainer=TrainerConfig(steps_per_test=200),
+    trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=MipNerf360DataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
+            train_dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192
         ),
         model=ModelConfig(
             _target=MipNerf360Model,
@@ -79,6 +73,7 @@ base_configs["mipnerf_360"] = Config(
             loss_coefficients={"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0},
             num_coarse_samples=128,
             num_importance_samples=128,
+            eval_num_rays_per_chunk=8192,
         ),
     ),
 )
@@ -86,16 +81,13 @@ base_configs["mipnerf_360"] = Config(
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
-        ),
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=ModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
             num_coarse_samples=128,
             num_importance_samples=128,
+            eval_num_rays_per_chunk=8192,
         ),
     ),
 )
@@ -159,12 +151,8 @@ base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
-        ),
-        model=CompoundModelConfig(),
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
