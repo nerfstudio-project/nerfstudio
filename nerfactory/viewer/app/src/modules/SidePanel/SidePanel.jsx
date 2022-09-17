@@ -31,6 +31,7 @@ import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
+// import { object } from 'prop-types';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -65,47 +66,108 @@ function a11yProps(index: number) {
 }
 
 interface ListItemProps {
-  name: object;
-  object: object;
+  name: String;
+  scene_node: SceneNode;
+  level: Number;
+  groupVisible: Boolean;
 }
 
-function ListItem(props: ListItemProps) {
+function MenuItems(props: ListItemProps) {
   const name = props.name;
-  const object = props.object;
-  const groupVisible = props.groupVisible;
+  const scene_node = props.scene_node;
   const level = props.level;
+  const groupVisible = props.groupVisible;
+
+  // TODO: sort the keys by string
+  const terminal = Object.keys(scene_node.children).includes('<object>');
+
+  const num_children = Object.keys(scene_node.children).length;
+  if (num_children === 0) {
+    return null;
+  }
+
+  const [open, setOpen] = React.useState(true);
+  const toggleOpen = () => {
+    setOpen(!open);
+  };
 
   const [visible, setVisible] = React.useState(groupVisible);
-  object.visible = visible;
+  if (terminal) {
+    scene_node.object.visible = visible;
+  }
 
-  React.useEffect(() => {
-    setVisible(groupVisible);
-  }, [props.groupVisible]);
-
-  const handleClick = () => {
+  const toggleVisible = (e) => {
+    e.stopPropagation();
     setVisible(!visible);
   };
 
+  React.useEffect(() => {
+    setVisible(groupVisible);
+  }, [groupVisible]);
+
   return (
-    // TODO: maybe this isn't the cleanest way to handle color changes
-    <ListItemButton
-      sx={{
-        pl: 2 + level * 2,
-        color: visible ? LevaTheme.colors.accent2 : LevaTheme.colors.disabled,
-      }}
-    >
-      <ListItemIcon
-        sx={{
-          color: visible ? LevaTheme.colors.accent2 : LevaTheme.colors.disabled,
-        }}
+    <>
+      <ListItemButton
+        onClick={terminal ? null : toggleOpen}
+        sx={
+          terminal
+            ? {
+                pl: 2 + level * 2,
+                color: visible
+                  ? LevaTheme.colors.accent2
+                  : LevaTheme.colors.disabled,
+              }
+            : {
+                pl: 2 + level * 2,
+                bgcolor: open
+                  ? LevaTheme.colors.elevation3
+                  : LevaTheme.colors.elevation1,
+                color: visible
+                  ? LevaTheme.colors.accent2
+                  : LevaTheme.colors.disabled,
+              }
+        }
       >
-        <FaTractor />
-      </ListItemIcon>
-      <ListItemText primary={name} />
-      <IconButton aria-label="visibility" onClick={handleClick}>
-        {visible ? <Visibility /> : <VisibilityOff />}{' '}
-      </IconButton>
-    </ListItemButton>
+        <ListItemIcon
+          sx={{
+            color: visible
+              ? LevaTheme.colors.accent2
+              : LevaTheme.colors.disabled,
+          }}
+        >
+          <FaTractor />
+        </ListItemIcon>
+        <ListItemText primary={name} />
+
+        <IconButton aria-label="visibility" onClick={toggleVisible}>
+          {visible ? <Visibility /> : <VisibilityOff />}
+        </IconButton>
+
+        {terminal
+          ? null
+          : (() => {
+              if (open) {
+                return <ExpandLess />;
+              }
+              return <ExpandMore />;
+            })()}
+      </ListItemButton>
+
+      {terminal ? null : (
+        <Collapse in={open} timeout="auto">
+          <List>
+            {Object.keys(scene_node.children).map((key) => (
+              <MenuItems
+                name={key}
+                scene_node={scene_node.children[key]}
+                level={level + 1}
+                groupVisible={visible}
+              />
+            ))}
+          </List>
+        </Collapse>
+      )}
+    </>
   );
 }
 
@@ -116,89 +178,11 @@ interface ClickableListProps {
 function ClickableList(props: ClickableListProps) {
   const sceneTree = props.sceneTree;
 
-  const get_menu_items = (
-    name: String,
-    scene_node: SceneNode,
-    level: Number,
-    groupVisible: Boolean,
-  ) => {
-    // TODO: sort the keys by string
-    const isTerminal = (object) => {
-      return Object.keys(object.children).includes('<object>');
-    };
-
-    const num_children = Object.keys(scene_node.children).length;
-    if (num_children === 0) {
-      return;
-    }
-
-    if (isTerminal(scene_node)) {
-      return (
-        <ListItem
-          name={name}
-          object={scene_node.object}
-          groupVisible={groupVisible}
-          level={level}
-        />
-      );
-    }
-    const [open, setOpen] = React.useState(true);
-    const [visible, setVisible] = React.useState(true);
-    const handleClick = () => {
-      setOpen(!open);
-    };
-    const toggleVisible = (e) => {
-      e.stopPropagation();
-      setVisible(!visible);
-    };
-
-    React.useEffect(() => {
-      setVisible(groupVisible);
-    }, [groupVisible]);
-
-    return (
-      <>
-        <ListItemButton
-          onClick={handleClick}
-          sx={{
-            pl: 2 + level * 2,
-            bgcolor: open
-              ? LevaTheme.colors.elevation3
-              : LevaTheme.colors.elevation1,
-            color: visible
-              ? LevaTheme.colors.accent2
-              : LevaTheme.colors.disabled,
-          }}
-        >
-          <ListItemIcon
-            sx={{
-              color: visible
-                ? LevaTheme.colors.accent2
-                : LevaTheme.colors.disabled,
-            }}
-          >
-            <FaTractor />
-          </ListItemIcon>
-          <ListItemText primary={name} />
-          <IconButton aria-label="visibility" onClick={toggleVisible}>
-            {visible ? <Visibility /> : <VisibilityOff />}
-          </IconButton>
-          {open ? <ExpandLess /> : <ExpandMore />}
-        </ListItemButton>
-        <Collapse in={open} timeout="auto">
-          <List>
-            {Object.keys(scene_node.children).map((key) =>
-              get_menu_items(key, scene_node.children[key], level + 1, visible),
-            )}
-          </List>
-        </Collapse>
-      </>
-    );
-  };
-
-  const menu_items = get_menu_items('Scene', sceneTree, 0, true);
-
-  return <List sx={{ color: LevaTheme.colors.accent2 }}>{menu_items}</List>;
+  return (
+    <List sx={{ color: LevaTheme.colors.accent2 }}>
+      <MenuItems name="Scene" scene_node={sceneTree} level={0} groupVisible />
+    </List>
+  );
 }
 
 interface BasicTabsProps {
