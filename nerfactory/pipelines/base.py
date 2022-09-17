@@ -26,7 +26,6 @@ import torch.distributed as dist
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from tqdm import tqdm
 
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.base import DataManager
@@ -99,7 +98,8 @@ class Pipeline(nn.Module):
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_input_dataset is not None, "Missing input dataset"
         self.model: Model = config.model.setup(
-            scene_bounds=self.datamanager.train_input_dataset.dataset_inputs.scene_bounds
+            scene_bounds=self.datamanager.train_input_dataset.dataset_inputs.scene_bounds,
+            num_train_data=len(self.datamanager.train_input_dataset),
         )
         self.model.to(device)
 
@@ -178,8 +178,8 @@ class Pipeline(nn.Module):
         """Iterate over all the images in the eval dataset and get the average."""
         self.eval()
         metrics_dict_list = []
-        # TODO: replace tqdm
-        for camera_ray_bundle, batch in tqdm(self.datamanager.fixed_indices_eval_dataloader):
+        # TODO: add something like tqdm but so that it doesn't interfere with logging
+        for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
             outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             metrics_dict, _ = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
             metrics_dict_list.append(metrics_dict)

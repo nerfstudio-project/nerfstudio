@@ -420,6 +420,10 @@ class CompoundModelConfig(ModelConfig):
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     num_samples: int = 1024  # instead of course/fine samples
+    cone_angle: float = 0.0
+    """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    near_plane: float = 0.05
+    """How far along ray to start sampling."""
 
 
 @dataclass
@@ -570,6 +574,8 @@ class Config(PrintableConfig):
             string = "Disabling eval iterations since viewer is enabled."
             CONSOLE.print(f"[bold red]{string}")
             self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
 
     def set_timestamp(self, timestamp: Optional[str] = None) -> None:
         """Make paths in our config more specific using a timestamp.

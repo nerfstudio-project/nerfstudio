@@ -51,11 +51,13 @@ class Model(nn.Module):
         self,
         config: cfg.ModelConfig,
         scene_bounds: SceneBounds,
+        num_train_data: int,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
         self.scene_bounds = scene_bounds
+        self.num_train_data = num_train_data
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
