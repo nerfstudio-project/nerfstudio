@@ -28,7 +28,7 @@ TODO:
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import torch
 from torch.nn import Parameter
@@ -44,7 +44,7 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import NGPSpacedSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import colors, misc, visualization, writer
+from nerfactory.utils import colors, misc, visualization
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -164,7 +164,9 @@ class CompoundModel(Model):
         loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         device = self.device
         image = batch["image"].to(device)
         rgb = outputs["rgb"]
@@ -177,10 +179,6 @@ class CompoundModel(Model):
         combined_acc = torch.cat([acc], dim=1)
         combined_depth = torch.cat([depth], dim=1)
 
-        writer.put_image(name=f"img/image_idx_{image_idx}", image=combined_rgb, step=step)
-        writer.put_image(name=f"accumulation/image_idx_{image_idx}", image=combined_acc, step=step)
-        writer.put_image(name=f"depth/image_idx_{image_idx}", image=combined_depth, step=step)
-
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
@@ -189,10 +187,10 @@ class CompoundModel(Model):
         ssim = self.ssim(image, rgb)
         lpips = self.lpips(image, rgb)
 
-        writer.put_scalar(name=f"psnr/val_{image_idx}-fine", scalar=float(psnr), step=step)
-        writer.put_scalar(name=f"ssim/val_{image_idx}", scalar=float(ssim), step=step)  # type: ignore
-        writer.put_scalar(name=f"lpips/val_{image_idx}", scalar=float(lpips), step=step)
-
-        writer.put_scalar(name=writer.EventName.CURR_TEST_PSNR, scalar=float(psnr), step=step)
-
-        return {"psnr": float(psnr.item())}
+        metrics_dict = {
+            "psnr": float(psnr.item()),
+            "ssim": float(ssim.item()),
+            "lpips": float(lpips.item()),
+        }
+        images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+        return metrics_dict, images_dict

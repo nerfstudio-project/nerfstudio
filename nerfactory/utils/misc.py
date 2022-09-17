@@ -159,3 +159,8 @@ def scale_dict(dictionary: Dict[Any, Any], coefficients: Dict[str, float]) -> Di
         if key in coefficients:
             dictionary[key] *= coefficients[key]
     return dictionary
+
+
+def step_check(step, step_size, run_at_zero=False) -> bool:
+    """Returns true based on current step and step interval."""
+    return (run_at_zero or step != 0) and step % step_size == 0
