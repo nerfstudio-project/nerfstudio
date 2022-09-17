@@ -165,8 +165,6 @@ class RayBundle(TensorDataclass):
     """Rays Distance along ray to stop sampling"""
     valid_mask: Optional[TensorType[..., 1, bool]] = None
     """Rays that are valid"""
-    num_rays_per_chunk: int = 128
-    """Number of rays per chunk"""
     metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
     """Additional metadata or data needed for interpolation, will mimic shape of rays"""
 

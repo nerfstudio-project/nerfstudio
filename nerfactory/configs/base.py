@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import dcargs
 import torch
+from rich import console
 
 from nerfactory.cameras.camera_optimizers import BARFOptimizer, CameraOptimizer
 from nerfactory.configs.utils import to_immutable_dict
@@ -40,13 +41,13 @@ from nerfactory.datamanagers.dataparsers.record3d_parser import Record3D
 # model instances
 from nerfactory.models.base import Model
 from nerfactory.models.compound import CompoundModel
-from nerfactory.models.instant_ngp import NGPModel
 from nerfactory.models.nerfw import NerfWModel
 from nerfactory.models.tensorf import TensoRFModel
 from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
 from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
 
+CONSOLE = console.Console()
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -165,8 +166,8 @@ class LoggingConfig(PrintableConfig):
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurances."""
     writer: Tuple[Any, ...] = (
-        TensorboardWriterConfig(enable=True),
-        WandbWriterConfig(enable=False),
+        TensorboardWriterConfig(enable=False),
+        WandbWriterConfig(enable=True),
         LocalWriterConfig(enable=True),
     )
     """list of all supported writers. Can turn on/off writers by specifying enable."""
@@ -182,8 +183,12 @@ class TrainerConfig(PrintableConfig):
 
     steps_per_save: int = 1000
     """number of steps between saves"""
-    steps_per_test: int = 500
-    """number of steps between eval"""
+    steps_per_eval_batch: int = 500
+    """number of steps between randomly sampled batches of rays"""
+    steps_per_eval_image: int = 500
+    """number of steps between single eval images"""
+    steps_per_eval_all_images: int = 25000
+    """number of steps between eval all images"""
     max_num_iterations: int = 1000000
     """maximum number of iterations to run"""
     mixed_precision: bool = False
@@ -216,16 +221,21 @@ class NerfactoryDataParserConfig(DataParserConfig):
 
     _target: Type = Nerfactory
     """target class to instantiate"""
-    data_directory: Path = Path("data/ours/posterv2")
+    data_directory: Path = Path("data/ours/posters_v3")
     """directory specifying location of data"""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     downscale_factor: int = 1
     """How much to downscale images. Defaults to 1."""
     scene_scale: float = 4.0
-    """How much to scale the scene. Defaults to 0.33"""
+    """How much to scale the scene. Defaults to 4.0"""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation. Either "pca" or "up"."""
+    train_split_percentage: float = 0.9
+    """
+    The percent of images to use for training.
+    The remaining images are for eval. Defaults to 0.9.
+    """
 
 
 @dataclass
@@ -364,10 +374,12 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during training iteration"""
     eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
     """optionally specify different dataparser to use during eval; if None, uses train_dataparser"""
+    eval_num_rays_per_batch: int = 1024
+    """number of rays per batch to use per eval iteration"""
+    eval_num_images_to_sample_from: int = -1
+    """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
-    eval_num_rays_per_chunk: int = 4096
-    """specifies number of rays per chunk during eval"""
 
 
 @dataclass
@@ -389,7 +401,7 @@ class ModelConfig(InstantiateConfig):
     """target class to instantiate"""
     enable_collider: bool = True
     """Whether to create a scene collider to filter rays."""
-    collider_params: Dict[str, float] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
+    collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
     """parameters to instantiate scene collider with"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     """Loss specific weights."""
@@ -397,8 +409,6 @@ class ModelConfig(InstantiateConfig):
     """Number of samples in coarse field evaluation. Defaults to 64"""
     num_importance_samples: int = 128
     """Number of samples in fine field evaluation. Defaults to 128"""
-    field_implementation: Literal["torch", "tcnn"] = "torch"
-    """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class"""
     enable_density_field: bool = False
     """Whether to create a density field to filter samples."""
     density_field_params: Dict[str, Any] = to_immutable_dict(
@@ -411,24 +421,13 @@ class ModelConfig(InstantiateConfig):
         }
     )
     """parameters to instantiate density field with"""
+    eval_num_rays_per_chunk: int = 4096
+    """specifies number of rays per chunk during eval"""
 
 
 @dataclass
-class InstantNGPModelConfig(ModelConfig):
-    """Instant NGP Model Config"""
-
-    _target: Type = NGPModel
-    """target class to instantiate"""
-    enable_collider: bool = False
-    """Whether to create a scene collider to filter rays."""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
-    """Loss specific weights."""
-    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
-    """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'"""
-    enable_density_field: bool = True
-    """Whether to create a density field to filter samples."""
-    num_samples: int = 1024  # instead of course/fine samples
-    """Number of samples in field evaluation. Defaults to 1024,"""
+class VanillaModelConfig(InstantiateConfig):
+    """Vanilla Model Config"""
 
 
 @dataclass
@@ -441,6 +440,10 @@ class CompoundModelConfig(ModelConfig):
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     num_samples: int = 1024  # instead of course/fine samples
+    cone_angle: float = 0.0
+    """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    near_plane: float = 0.05
+    """How far along ray to start sampling."""
 
 
 @dataclass
@@ -579,6 +582,20 @@ class Config(PrintableConfig):
     def __post_init__(self):
         """Make paths more specific using the current timestamp."""
         self.set_timestamp()
+
+        # if the viewer is enabled, disable tensorboard and wandb logging
+        # TODO(ethan): this is gross for now and will require a config refactor
+        if self.viewer.enable:
+            string = "Disabling tensorboard and wandb logging since viewer is enabled."
+            CONSOLE.print(f"[bold red]{string}")
+            self.logging.writer[0].enable = False
+            self.logging.writer[1].enable = False
+            # also disable eval steps
+            string = "Disabling eval iterations since viewer is enabled."
+            CONSOLE.print(f"[bold red]{string}")
+            self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
+            self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
 
     def set_timestamp(self, timestamp: Optional[str] = None) -> None:
         """Make paths in our config more specific using a timestamp.

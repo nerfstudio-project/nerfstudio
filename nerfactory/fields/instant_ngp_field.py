@@ -48,7 +48,7 @@ def get_normalized_directions(directions: TensorType["bs":..., 3]):
 
 
 class TCNNInstantNGPField(Field):
-    """NeRF Field
+    """TCNN implementation of the Instant-NGP field.
 
     Args:
         aabb: parameters of scene aabb bounds
@@ -120,6 +120,11 @@ class TCNNInstantNGPField(Field):
     def get_density(self, ray_samples: RaySamples):
         positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
+        # assert all positions are in the range [0, 1]
+        # otherwise print min and max values
+        # assert torch.all(positions >= 0.0) and torch.all(
+        #     positions <= 1.0
+        # ), f"positions: {positions.min()} {positions.max()}"
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
@@ -131,9 +136,12 @@ class TCNNInstantNGPField(Field):
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         # TODO: add valid_mask masking!
-        # tcnn requires directions in the range [0,1]
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
+        # assert all directions are in the range [0, 1]
+        # assert torch.all(directions >= 0.0) and torch.all(
+        #     directions <= 1.0
+        # ), f"directions: {directions.min()} {directions.max()}"
         d = self.direction_encoding(directions_flat)
         if density_embedding is None:
             positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
@@ -143,10 +151,30 @@ class TCNNInstantNGPField(Field):
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
+    def get_outputs_from_positions_and_direction(self, positions: TensorType["bs", 3], directions: TensorType["bs", 3]):
+        """Given positions and directions, return the outputs of the field.
+
+        Args:
+            positions: positions of the points
+            directions: directions at the point locations
+        """
+        # assume flat positions and directions
+        # TODO: normalize positions
+        positions = SceneBounds.get_normalized_positions(positions, self.aabb)
+        directions = get_normalized_directions(directions)
+        h = self.mlp_base(positions)
+        density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+        density = trunc_exp(density_before_activation.to(positions))
+        # TODO: normalize directions
+        d = self.direction_encoding(directions)
+        h = torch.cat([d, base_mlp_out], dim=-1)
+        rgb = self.mlp_head(h).to(directions)
+        return {FieldHeadNames.RGB: rgb, FieldHeadNames.DENSITY: density}
+
 
 class TorchInstantNGPField(NeRFField):
     """
-    PyTorch implementation of the instant-ngp field.
+    PyTorch implementation of the Instant-NGP field.
     """
 
     def __init__(
