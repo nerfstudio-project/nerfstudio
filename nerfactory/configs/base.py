@@ -183,10 +183,10 @@ class TrainerConfig(PrintableConfig):
     steps_per_save: int = 1000
     """number of steps between saves"""
     steps_per_eval_batch: int = 500
-    """number of steps between eval batches"""
+    """number of steps between randomly sampled batches of rays"""
     steps_per_eval_image: int = 500
-    """number of steps between eval images"""
-    steps_per_eval_all_images: int = 1000
+    """number of steps between single eval images"""
+    steps_per_eval_all_images: int = 25000
     """number of steps between eval all images"""
     max_num_iterations: int = 1000000
     """maximum number of iterations to run"""
