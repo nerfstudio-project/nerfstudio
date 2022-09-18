@@ -27,7 +27,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
@@ -135,15 +134,6 @@ class NGPModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         assert self.field is not None
 
-        def query_fn(positions: TensorType["bs", 3], directions: TensorType["bs", 3], only_density=False):
-            assert self.field is not None
-            if only_density:
-                return self.field.density_fn(positions)
-            field_outputs = self.field.get_outputs_from_positions_and_direction(positions, directions)
-            rgbs = field_outputs[FieldHeadNames.RGB]
-            sigmas = field_outputs[FieldHeadNames.DENSITY]
-            return rgbs, sigmas
-
         n_rays = ray_bundle.origins.shape[0]
 
         with torch.no_grad():
@@ -152,48 +142,23 @@ class NGPModel(Model):
                 near_plane=self.config.near_plane,
             )
 
-            frustum_starts = ray_samples.frustums.starts
-            frustum_ends = ray_samples.frustums.ends
-            frustum_dirs = ray_samples.frustums.directions
-            frustum_positions = ray_samples.frustums.get_positions()
-
-        # compat the samples thru volumetric rendering
-        with torch.no_grad():
-            densities = self.field.density_fn(frustum_positions)
-            (
-                compact_packed_info,
-                compact_frustum_starts,
-                compact_frustum_ends,
-                compact_frustum_positions,
-                compact_frustum_dirs,
-            ) = nerfacc.volumetric_rendering_steps(
-                packed_info,
-                densities,
-                frustum_starts,
-                frustum_ends,
-                frustum_positions,
-                frustum_dirs,
-            )
-
-        # network
-        compact_query_results = query_fn(compact_frustum_positions, compact_frustum_dirs)
-        compact_rgbs, compact_densities = compact_query_results[0], compact_query_results[1]
+        field_outputs = self.field(ray_samples)
+        rgbs = field_outputs[FieldHeadNames.RGB]
+        densities = field_outputs[FieldHeadNames.DENSITY]
 
         # accumulation
         compact_weights, compact_ray_indices = nerfacc.volumetric_rendering_weights(
-            compact_packed_info,
-            compact_densities,
-            compact_frustum_starts,
-            compact_frustum_ends,
+            packed_info,
+            densities,
+            ray_samples.frustums.starts,
+            ray_samples.frustums.ends,
         )
-        accumulated_color = nerfacc.volumetric_rendering_accumulate(
-            compact_weights, compact_ray_indices, compact_rgbs, n_rays
-        )
+        accumulated_color = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, rgbs, n_rays)
         accumulated_weight = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, None, n_rays)
         accumulated_depth = nerfacc.volumetric_rendering_accumulate(
             compact_weights,
             compact_ray_indices,
-            (compact_frustum_starts + compact_frustum_ends) / 2.0,
+            (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2.0,
             n_rays,
         )
 
