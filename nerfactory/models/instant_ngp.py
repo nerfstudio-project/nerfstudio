@@ -197,6 +197,13 @@ class NGPModel(Model):
             n_rays,
         )
 
+        if self.config.randomize_background:
+            # TODO(matt) Investigate randomizing per pixel not per batch.
+            render_bkgd = torch.rand(3, device=accumulated_color.device)
+        else:
+            render_bkgd = torch.ones(3, device=self.device)
+        accumulated_color = accumulated_color + render_bkgd * (1.0 - accumulated_weight)
+
         alive_ray_mask = accumulated_weight.squeeze(-1) > 0
 
         outputs = {
