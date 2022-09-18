@@ -35,7 +35,12 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import VolumetricSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import visualization
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfactory.utils import colors, visualization
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -93,17 +98,21 @@ class NGPModel(Model):
         # torch or tiny-cuda-nn version
         self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-        # to match Ruilong's code naming
         self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
 
         # Sampler
-
         self.sampler = VolumetricSampler(
             aabb=self.scene_aabb,
             density_fn=self.field.density_fn,
             grid_resolution=self.config.grid_resolution,
             num_samples=self.config.num_samples,
         )
+
+        # renderers
+        background_color = None if self.config.randomize_background else colors.WHITE
+        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_accumulation = AccumulationRenderer()
+        self.renderer_depth = DepthRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -143,38 +152,29 @@ class NGPModel(Model):
             )
 
         field_outputs = self.field(ray_samples)
-        rgbs = field_outputs[FieldHeadNames.RGB]
-        densities = field_outputs[FieldHeadNames.DENSITY]
 
         # accumulation
-        compact_weights, compact_ray_indices = nerfacc.volumetric_rendering_weights(
-            packed_info,
-            densities,
-            ray_samples.frustums.starts,
-            ray_samples.frustums.ends,
-        )
-        accumulated_color = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, rgbs, n_rays)
-        accumulated_weight = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, None, n_rays)
-        accumulated_depth = nerfacc.volumetric_rendering_accumulate(
-            compact_weights,
-            compact_ray_indices,
-            (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2.0,
-            n_rays,
+        weights, ray_indices = nerfacc.volumetric_rendering_weights(
+            packed_info=packed_info,
+            sigmas=field_outputs[FieldHeadNames.DENSITY],
+            frustum_starts=ray_samples.frustums.starts,
+            frustum_ends=ray_samples.frustums.ends,
         )
 
-        if self.config.randomize_background:
-            # TODO(matt) Investigate randomizing per pixel not per batch.
-            render_bkgd = torch.rand(3, device=accumulated_color.device)
-        else:
-            render_bkgd = torch.ones(3, device=self.device)
-        accumulated_color = accumulated_color + render_bkgd * (1.0 - accumulated_weight)
-
-        alive_ray_mask = accumulated_weight.squeeze(-1) > 0
+        rgb = self.renderer_rgb(
+            rgb=field_outputs[FieldHeadNames.RGB],
+            weights=weights,
+            ray_indices=ray_indices,
+            num_rays=n_rays,
+        )
+        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=n_rays)
+        accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=n_rays)
+        alive_ray_mask = accumulation.squeeze(-1) > 0
 
         outputs = {
-            "rgb": accumulated_color,
-            "accumulation": accumulated_weight,
-            "depth": accumulated_depth,
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
