@@ -15,7 +15,9 @@
 """Data parser for record3d dataset"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal, Type
 
 import numpy as np
 import torch
@@ -31,10 +33,29 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
 @dataclass
+class Record3DDataParserConfig(cfg.DataParserConfig):
+    """Record3D dataset config"""
+
+    _target: Type = field(default_factory=lambda: Record3D)
+    """target class to instantiate"""
+    data_directory: Path = Path("data/record3d/garden")
+    """Location of data"""
+    val_skip: int = 8
+    """1/val_skip images to use for validation. Defaults to 8."""
+    aabb_scale: float = 4.0
+    """Scene scale, Defaults to 4.0."""
+    orientation_method: Literal["pca", "up"] = "up"
+    """The method to use for orientation. Either "pca" or "up"."""
+    max_dataset_size: int = 150
+    """Max number of images to train on. If the dataset has
+    more, images will be sampled approximately evenly. Defaults to 150."""
+
+
+@dataclass
 class Record3D(DataParser):
     """Record3D Dataset"""
 
-    config: cfg.Record3DDataParserConfig
+    config: Record3DDataParserConfig
 
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
         abs_dir = get_absolute_path(self.config.data_directory)

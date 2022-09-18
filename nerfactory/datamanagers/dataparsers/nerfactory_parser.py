@@ -11,13 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+""" Data parser for nerfactory datasets. """
 
 from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal, Type
 
 import numpy as np
 import torch
@@ -31,10 +33,33 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
 @dataclass
+class NerfactoryDataParserConfig(cfg.DataParserConfig):
+    """Nerfactory dataset config"""
+
+    _target: Type = field(default_factory=lambda: Nerfactory)
+    """target class to instantiate"""
+    data_directory: Path = Path("data/ours/posters_v3")
+    """directory specifying location of data"""
+    scale_factor: float = 1.0
+    """How much to scale the camera origins by."""
+    downscale_factor: int = 1
+    """How much to downscale images. Defaults to 1."""
+    scene_scale: float = 4.0
+    """How much to scale the scene. Defaults to 4.0"""
+    orientation_method: Literal["pca", "up"] = "up"
+    """The method to use for orientation. Either "pca" or "up"."""
+    train_split_percentage: float = 0.9
+    """
+    The percent of images to use for training.
+    The remaining images are for eval. Defaults to 0.9.
+    """
+
+
+@dataclass
 class Nerfactory(DataParser):
     """Nerfactory Dataset"""
 
-    config: cfg.NerfactoryDataParserConfig
+    config: NerfactoryDataParserConfig
 
     def _generate_dataset_inputs(self, split="train"):
 
@@ -76,7 +101,7 @@ class Nerfactory(DataParser):
         assert len(i_eval) == num_eval_images
         if split == "train":
             indices = i_train
-        elif split == "val" or split == "test":
+        elif split in ["val", "test"]:
             indices = i_eval
         else:
             raise ValueError(f"Unknown dataparser split {split}")
