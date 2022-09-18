@@ -29,12 +29,6 @@ from nerfactory.configs.utils import to_immutable_dict
 # data instances
 from nerfactory.datamanagers.base import VanillaDataManager
 from nerfactory.datamanagers.dataparsers.base import DataParser
-from nerfactory.datamanagers.dataparsers.blender_parser import Blender
-from nerfactory.datamanagers.dataparsers.friends_parser import Friends
-from nerfactory.datamanagers.dataparsers.instant_ngp_parser import InstantNGP
-from nerfactory.datamanagers.dataparsers.mipnerf_parser import Mipnerf360
-from nerfactory.datamanagers.dataparsers.nerfactory_parser import Nerfactory
-from nerfactory.datamanagers.dataparsers.record3d_parser import Record3D
 
 # model instances
 from nerfactory.models.base import Model
@@ -201,109 +195,19 @@ class DataParserConfig(InstantiateConfig):
     """_target: target class to instantiate"""
 
 
-@dataclass
-class NerfactoryDataParserConfig(DataParserConfig):
-    """Nerfactory dataset config"""
-
-    _target: Type = Nerfactory
-    """target class to instantiate"""
-    data_directory: Path = Path("data/ours/posters_v3")
-    """directory specifying location of data"""
-    scale_factor: float = 1.0
-    """How much to scale the camera origins by."""
-    downscale_factor: int = 1
-    """How much to downscale images. Defaults to 1."""
-    scene_scale: float = 4.0
-    """How much to scale the scene. Defaults to 4.0"""
-    orientation_method: Literal["pca", "up"] = "up"
-    """The method to use for orientation. Either "pca" or "up"."""
-    train_split_percentage: float = 0.9
-    """
-    The percent of images to use for training.
-    The remaining images are for eval. Defaults to 0.9.
-    """
-
-
-@dataclass
-class BlenderDataParserConfig(DataParserConfig):
-    """Blender dataset config"""
-
-    _target: Type = Blender
-    """target class to instantiate"""
-    data_directory: Path = Path("data/blender/lego")
-    """directory specifying location of data"""
-    scale_factor: float = 1.0
-    """How much to scale the camera origins by."""
-    alpha_color: str = "white"
-    """alpha color of background"""
-
-
-@dataclass
-class FriendsDataParserConfig(DataParserConfig):
-    """Friends dataset config"""
-
-    _target: Type = Friends
-    """target class to instantiate"""
-    data_directory: Path = Path("data/friends/TBBT-big_living_room")
-    """directory specifying location of data"""
-    include_semantics: bool = True
-    """whether or not to include loading of semantics data"""
-    downscale_factor: int = 8
-    scene_scale: float = 4.0
-    """
-    Sets the bounding cube to have edge length of this size.
-    The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
-    """
-
-
-@dataclass
-class MipNerf360DataParserConfig(DataParserConfig):
-    """Mipnerf 360 dataset config"""
-
-    _target: Type = Mipnerf360
-    """target class to instantiate"""
-    data_directory: Path = Path("data/mipnerf_360/garden")
-    """directory specifying location of data"""
-    downscale_factor: int = 1
-    """How much to downscale images. Defaults to 1."""
-    val_skip: int = 8
-    """1/val_skip images to use for validation. Defaults to 8."""
-    auto_scale: bool = True
-    """Scale based on pose bounds. Defaults to True."""
-    aabb_scale: float = 4
-    """Scene scale, Defaults to 1.0."""
-
-
-@dataclass
-class InstantNGPDataParserConfig(DataParserConfig):
-    """Instant-NGP dataset config"""
-
-    _target: Type = InstantNGP
-    """target class to instantiate"""
-    data_directory: Path = Path("data/ours/posterv2")
-    """directory specifying location of data"""
-    scale_factor: float = 1.0
-    """How much to scale the camera origins by."""
-    scene_scale: float = 0.33
-    """How much to scale the scene. Defaults to 0.33"""
-
-
-@dataclass
-class Record3DDataParserConfig(DataParserConfig):
-    """Record3D dataset config"""
-
-    _target: Type = Record3D
-    """target class to instantiate"""
-    data_directory: Path = Path("data/record3d/garden")
-    """Location of data"""
-    val_skip: int = 8
-    """1/val_skip images to use for validation. Defaults to 8."""
-    aabb_scale: float = 4.0
-    """Scene scale, Defaults to 4.0."""
-    max_dataset_size: int = 150
-    """Max number of images to train on. If the dataset has
-    more, images will be sampled approximately evenly. Defaults to 150."""
-
+# pylint: disable=wrong-import-position
+from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
+from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
+from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
+    InstantNGPDataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
+    MipNerf360DataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
+    NerfactoryDataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
     {

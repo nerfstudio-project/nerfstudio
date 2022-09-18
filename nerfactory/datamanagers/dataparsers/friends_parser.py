@@ -15,8 +15,9 @@
 """Data parser for friends dataset"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Type
 
 import numpy as np
 import torch
@@ -53,12 +54,30 @@ def get_semantics_and_masks(image_idx: int, semantics: Semantics):
 
 
 @dataclass
+class FriendsDataParserConfig(cfg.DataParserConfig):
+    """Friends dataset parser config"""
+
+    _target: Type = field(default_factory=lambda: Friends)
+    """target class to instantiate"""
+    data_directory: Path = Path("data/friends/TBBT-big_living_room")
+    """directory specifying location of data"""
+    include_semantics: bool = True
+    """whether or not to include loading of semantics data"""
+    downscale_factor: int = 8
+    scene_scale: float = 4.0
+    """
+    Sets the bounding cube to have edge length of this size.
+    The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
+    """
+
+
+@dataclass
 class Friends(DataParser):
     """Friends Dataset"""
 
-    config: cfg.FriendsDataParserConfig
+    config: FriendsDataParserConfig
 
-    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=unused-argument
+    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
 
         abs_dir = get_absolute_path(self.config.data_directory)
 

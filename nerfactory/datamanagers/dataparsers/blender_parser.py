@@ -15,8 +15,9 @@
 """Data parser for blender dataset"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Type
 
 import imageio
 import numpy as np
@@ -31,12 +32,28 @@ from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
 @dataclass
+class BlenderDataParserConfig(cfg.DataParserConfig):
+    """Blender dataset parser config"""
+
+    _target: Type = field(default_factory=lambda: Blender)
+    """target class to instantiate"""
+    data_directory: Path = Path("data/blender/lego")
+    """directory specifying location of data"""
+    scale_factor: float = 1.0
+    """How much to scale the camera origins by."""
+    alpha_color: str = "white"
+    """alpha color of background"""
+
+
+@dataclass
 class Blender(DataParser):
     """Blender Dataset
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
     """
 
-    def __init__(self, config: cfg.BlenderDataParserConfig):
+    config: cfg.BlenderDataParserConfig
+
+    def __init__(self, config: BlenderDataParserConfig):
         super().__init__(config=config)
         self.data_directory: Path = config.data_directory
         self.scale_factor: float = config.scale_factor

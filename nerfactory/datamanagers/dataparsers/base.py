@@ -31,6 +31,8 @@ class DataParser:
         config: datasetparser config containing all information needed to instantiate dataset
     """
 
+    config: cfg.DataParserConfig
+
     def __init__(self, config: cfg.DataParserConfig):
         super().__init__()
         self.config = config
