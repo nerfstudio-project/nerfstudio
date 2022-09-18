@@ -31,15 +31,12 @@ def set_reduced_config(config: cfg.Config):
     )
 
     # use tensorboard logging instead of wandb
-    config.logging.writer[0].enable = True
-    config.logging.writer[1].enable = False
+    config.logging.event_writer = "tb"
+    config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors
     config.pipeline.model.num_coarse_samples = 4
     config.pipeline.model.num_importance_samples = 4
-    # set logging to tmp
-    for writer in config.logging.writer:
-        writer.log_dir = Path("/tmp/")
     # remove viewer
     config.viewer.enable = False
 
@@ -47,6 +44,7 @@ def set_reduced_config(config: cfg.Config):
     if config.method_name == "instant_ngp":
         config.pipeline.model.field_implementation = "torch"
 
+    config.populate_dynamic_fields()
     return config
 
 

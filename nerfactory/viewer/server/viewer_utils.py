@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Code to interface with the `vis/` (the JS visualizer).
+"""Code to interface with the `vis/` (the JS viewer).
 """
+from __future__ import annotations
 
 import enum
-import logging
 import os
 import sys
 import threading
@@ -34,7 +34,6 @@ from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
-from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.io import load_from_json, write_to_json
 from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -43,6 +42,19 @@ from nerfactory.viewer.server.utils import get_intrinsics_matrix_and_camera_to_w
 from nerfactory.viewer.server.visualizer import Viewer
 
 console = Console(width=120)
+
+
+def setup_viewer(config: cfg.ViewerConfig):
+    """Sets up the viewer if enabled
+
+    Args:
+        config: the configuration to instantiate viewer
+    """
+    if config.enable:
+        viewer_state = ViewerState(config)
+        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+        return viewer_state, banner_messages
+    return None, None
 
 
 class OutputTypes(str, enum.Enum):
@@ -67,7 +79,7 @@ class ColormapTypes(str, enum.Enum):
 
 
 class IOChangeException(Exception):
-    """Basic camera exception to interrupt visualizer"""
+    """Basic camera exception to interrupt viewer"""
 
 
 class SetTrace:
@@ -88,12 +100,12 @@ class RenderThread(threading.Thread):
     """Thread that does all the rendering calls while listening for interrupts
 
     Args:
-        state: current visualizer state object
+        state: current viewer state object
         graph: current checkpoint of model
         camera_ray_bundle: input rays to pass through the graph to render out
     """
 
-    def __init__(self, state: "VisualizerState", graph: Model, camera_ray_bundle: RayBundle):
+    def __init__(self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph
@@ -131,7 +143,7 @@ class CheckThread(threading.Thread):
     """Thread the constantly checks for io changes and sets a flag indicating interrupt
 
     Args:
-        state: current visualizer state object
+        state: current viewer state object
     """
 
     def __init__(self, state):
@@ -141,7 +153,7 @@ class CheckThread(threading.Thread):
     def run(self):
         """Run function that checks to see if any of the existing state has changed
         (e.g. camera pose/output type/resolutions).
-        Sets the visualizer state flag to true to signal
+        Sets the viewer state flag to true to signal
         to render thread that an interrupt was registered.
         """
         self.state.check_done_render = False
@@ -183,49 +195,41 @@ class CheckThread(threading.Thread):
                     return
 
 
-@decorate_all([check_visualizer_enabled])
-class VisualizerState:
-    """Class to hold state for visualizer variables
+class ViewerState:
+    """Class to hold state for viewer variables
 
     Args:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[Path] = None):
+    def __init__(self, config: cfg.ViewerConfig):
         self.config = config
-        self.config_base_dir = config_base_dir
-
         self.vis = None
         self.viewer_url = None
-        if self.config.enable:
-            if self.config.launch_bridge_server:
-                # start the viewer bridge server
-                zmq_port = int(self.config.zmq_url.split(":")[-1])
-                websocket_port = self.config.websocket_port
-                self.config.log_filename.parent.mkdir(exist_ok=True)
-                run_viewer_bridge_server_as_subprocess(
-                    zmq_port, websocket_port, log_filename=str(self.config.log_filename)
-                )
-                # TODO(ethan): move this into the writer such that it's at the bottom
-                # of the logging stack and easy to see and click
-                # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
-                console.line()
-                json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
-                version = load_from_json(Path(json_filename))["version"]
-                self.viewer_url = f"https://viewer.nerfactory.com/{version}/?websocket_url=localhost:{websocket_port}"
-                viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
-                pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
-                dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
-                console.rule(characters="=")
-                console.print(pub_open_viewer_instructions_string)
-                console.print(dev_open_viewer_instructions_string)
-                console.rule(characters="=")
-                console.line()
-            self.vis = Viewer(zmq_url=self.config.zmq_url)
-        else:
-            logging.info("Continuing without viewer.")
+        if self.config.launch_bridge_server:
+            # start the viewer bridge server
+            zmq_port = int(self.config.zmq_url.split(":")[-1])
+            websocket_port = self.config.websocket_port
+            self.config.log_filename.parent.mkdir(exist_ok=True)
+            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.config.log_filename))
+            # TODO(ethan): move this into the writer such that it's at the bottom
+            # of the logging stack and easy to see and click
+            # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
+            console.line()
+            json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
+            version = load_from_json(Path(json_filename))["version"]
+            self.viewer_url = f"https://viewer.nerfactory.com/{version}/?websocket_url=localhost:{websocket_port}"
+            viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
+            pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
+            dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
+            console.rule(characters="=")
+            console.print(pub_open_viewer_instructions_string)
+            console.print(dev_open_viewer_instructions_string)
+            console.rule(characters="=")
+            console.line()
+        self.vis = Viewer(zmq_url=self.config.zmq_url)
 
-        # visualizer specific variables
+        # viewer specific variables
         self.prev_camera_matrix = None
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = ColormapTypes.INIT
@@ -251,8 +255,7 @@ class VisualizerState:
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
-        if self.config_base_dir:
-            self.vis["renderingState/config_base_dir"].write(str(self.config_base_dir))
+        self.vis["renderingState/config_base_dir"].write(str(self.config.log_filename.parents[0]))
 
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()

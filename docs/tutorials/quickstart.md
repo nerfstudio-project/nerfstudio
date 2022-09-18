@@ -103,7 +103,7 @@ To evaluate the trained NeRF, we provide an evaluation script that allows you to
 python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
 ```
 
-Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based visualizer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.
+Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.
 
 # FAQ
 
