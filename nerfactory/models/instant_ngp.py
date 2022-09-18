@@ -27,7 +27,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
