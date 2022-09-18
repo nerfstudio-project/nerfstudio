@@ -13,10 +13,10 @@ import nerfactory.configs.base as cfg
 from nerfactory.configs.base_configs import base_configs
 from nerfactory.engine.trainer import train_loop
 
-BLACKLIST = ["base", "semantic_nerf", "mipnerf_360", "instant_ngp", "compound"]
+BLACKLIST = ["base", "semantic_nerf", "mipnerf_360", "compound"]
 
 
-def set_reduced_config(config: cfg.Config):
+def set_reduced_config(config: cfg.Config, use_gpu=False):
     """Reducing the config settings to speedup test"""
     config.machine.num_gpus = 0
     config.trainer.max_num_iterations = 2
@@ -45,7 +45,7 @@ def set_reduced_config(config: cfg.Config):
 
     # model specific config settings
     if config.method_name == "instant_ngp":
-        config.pipeline.model.field_implementation = "torch"
+        config.pipeline.model.field_implementation = "tcnn" if use_gpu else "torch"
 
     return config
 
@@ -60,9 +60,14 @@ def test_run_train():
             continue
         print(f"testing run for: {config_name}")
         config = base_configs[config_name]
-        config = set_reduced_config(config)
 
-        train_loop(local_rank=0, world_size=0, config=config)
+        use_gpu = torch.cuda.is_available()
+        config = set_reduced_config(config, use_gpu=use_gpu)
+
+        if use_gpu:
+            train_loop(local_rank=0, world_size=1, config=config)
+        else:
+            train_loop(local_rank=0, world_size=0, config=config)
 
 
 if __name__ == "__main__":

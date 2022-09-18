@@ -365,7 +365,7 @@ class NGPSpacedSampler(Sampler):
         cone_angle: float = 0.0,
         marching_steps: Optional[int] = 128,
         near_plane: float = 0.0,
-    ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples"], TensorType["total_samples"]]:
+    ) -> Tuple[RaySamples, TensorType["total_samples", 2], TensorType["total_samples"], TensorType["total_samples"]]:
         """Generate ray samples in a bounding box.
 
         TODO(ruilongli): write a Packed[Ray_samples] class to ray_samples with packed_info.
@@ -454,7 +454,7 @@ class VolumetricSampler(Sampler):
 
     def __init__(
         self,
-        aabb: TensorType[2, 3],
+        aabb: TensorType[6],
         density_fn: Callable[[TensorType["N", 3]], TensorType["N"]],
         grid_resolution: int = 128,
         num_samples: int = 1024,
@@ -462,7 +462,7 @@ class VolumetricSampler(Sampler):
         """Init.
 
         Args:
-            aabb: Bounding box of the scene.
+            aabb: Bounding box of the scene with values [min_x, min_y, min_z, max_x, max_y, max_z]
             density_fn: Function that takes a tensor of points and returns a tensor of densities.
             grid_resolution: Resolution of the density grid.
             num_samples: Number of samples per ray.
@@ -500,7 +500,7 @@ class VolumetricSampler(Sampler):
         ray_bundle: RayBundle,
         num_samples: Optional[int] = None,
         near_plane: float = 0.0,
-    ) -> Tuple[RaySamples, TensorType["total_samples", 3]]:
+    ) -> Tuple[RaySamples, TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
 
         Args:
