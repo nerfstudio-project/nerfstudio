@@ -27,7 +27,6 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
@@ -36,7 +35,12 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
 from nerfactory.models.modules.ray_sampler import VolumetricSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import visualization
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfactory.utils import colors, visualization
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -94,17 +98,21 @@ class NGPModel(Model):
         # torch or tiny-cuda-nn version
         self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-        # to match Ruilong's code naming
         self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
 
         # Sampler
-
         self.sampler = VolumetricSampler(
             aabb=self.scene_aabb,
             density_fn=self.field.density_fn,
             grid_resolution=self.config.grid_resolution,
             num_samples=self.config.num_samples,
         )
+
+        # renderers
+        background_color = None if self.config.randomize_background else colors.WHITE
+        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_accumulation = AccumulationRenderer()
+        self.renderer_depth = DepthRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -135,15 +143,6 @@ class NGPModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         assert self.field is not None
 
-        def query_fn(positions: TensorType["bs", 3], directions: TensorType["bs", 3], only_density=False):
-            assert self.field is not None
-            if only_density:
-                return self.field.density_fn(positions)
-            field_outputs = self.field.get_outputs_from_positions_and_direction(positions, directions)
-            rgbs = field_outputs[FieldHeadNames.RGB]
-            sigmas = field_outputs[FieldHeadNames.DENSITY]
-            return rgbs, sigmas
-
         n_rays = ray_bundle.origins.shape[0]
 
         with torch.no_grad():
@@ -152,57 +151,30 @@ class NGPModel(Model):
                 near_plane=self.config.near_plane,
             )
 
-            frustum_starts = ray_samples.frustums.starts
-            frustum_ends = ray_samples.frustums.ends
-            frustum_dirs = ray_samples.frustums.directions
-            frustum_positions = ray_samples.frustums.get_positions()
-
-        # compat the samples thru volumetric rendering
-        with torch.no_grad():
-            densities = self.field.density_fn(frustum_positions)
-            (
-                compact_packed_info,
-                compact_frustum_starts,
-                compact_frustum_ends,
-                compact_frustum_positions,
-                compact_frustum_dirs,
-            ) = nerfacc.volumetric_rendering_steps(
-                packed_info,
-                densities,
-                frustum_starts,
-                frustum_ends,
-                frustum_positions,
-                frustum_dirs,
-            )
-
-        # network
-        compact_query_results = query_fn(compact_frustum_positions, compact_frustum_dirs)
-        compact_rgbs, compact_densities = compact_query_results[0], compact_query_results[1]
+        field_outputs = self.field(ray_samples)
 
         # accumulation
-        compact_weights, compact_ray_indices = nerfacc.volumetric_rendering_weights(
-            compact_packed_info,
-            compact_densities,
-            compact_frustum_starts,
-            compact_frustum_ends,
-        )
-        accumulated_color = nerfacc.volumetric_rendering_accumulate(
-            compact_weights, compact_ray_indices, compact_rgbs, n_rays
-        )
-        accumulated_weight = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, None, n_rays)
-        accumulated_depth = nerfacc.volumetric_rendering_accumulate(
-            compact_weights,
-            compact_ray_indices,
-            (compact_frustum_starts + compact_frustum_ends) / 2.0,
-            n_rays,
+        weights, ray_indices = nerfacc.volumetric_rendering_weights(
+            packed_info=packed_info,
+            sigmas=field_outputs[FieldHeadNames.DENSITY],
+            frustum_starts=ray_samples.frustums.starts,
+            frustum_ends=ray_samples.frustums.ends,
         )
 
-        alive_ray_mask = accumulated_weight.squeeze(-1) > 0
+        rgb = self.renderer_rgb(
+            rgb=field_outputs[FieldHeadNames.RGB],
+            weights=weights,
+            ray_indices=ray_indices,
+            num_rays=n_rays,
+        )
+        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=n_rays)
+        accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=n_rays)
+        alive_ray_mask = accumulation.squeeze(-1) > 0
 
         outputs = {
-            "rgb": accumulated_color,
-            "accumulation": accumulated_weight,
-            "depth": accumulated_depth,
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs

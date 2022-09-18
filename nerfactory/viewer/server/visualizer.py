@@ -87,7 +87,7 @@ class ViewerWindow:
 
 
 class Viewer:
-    """Visualizer class for connecting to the bridge server.
+    """Viewer class for connecting to the bridge server.
 
     Args:
         zmq_url: Where to connect with ZMQ. Defaults to None.

@@ -49,12 +49,12 @@ def check_profiler_enabled(func: Callable) -> Callable:
     return wrapper
 
 
-def check_visualizer_enabled(func: Callable) -> Callable:
-    """Decorator: check if visualizer is enabled"""
+def check_viewer_enabled(func: Callable) -> Callable:
+    """Decorator: check if viewer is enabled"""
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.vis:
+        if self.config.viewer.enable:
             ret = func(self, *args, **kwargs)
         return ret
 

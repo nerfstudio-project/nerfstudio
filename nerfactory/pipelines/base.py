@@ -63,16 +63,16 @@ class Pipeline(nn.Module):
     and so on.
 
 
-    TODO: For visualizer functionality to be added down the line, we should make sure
-    that we are still abstracting away the Model from the end user. The visualizer function
+    TODO: For viewer functionality to be added down the line, we should make sure
+    that we are still abstracting away the Model from the end user. The viewer function
     should probably be done by adding a new iterator on the base data manager that will
-    talk to the actual visualizer. This is probably ideal to have the visualizer be
+    talk to the actual viewer. This is probably ideal to have the viewer be
     primarily located in the data manager (first because it makes sense as the
-    visualizers main job in this context is to feed in data for the model to load)
-    so that we can have an easier time ensuring that the visualizer is always
+    viewers main job in this context is to feed in data for the model to load)
+    so that we can have an easier time ensuring that the viewer is always
     returning the same formatted data as for in train / eval. All this is pending changes to
     be done in the future... but just bear in mind that if learned parameters are in the data manager,
-    the visualizer may have to use those parameters as well.
+    the viewer may have to use those parameters as well.
 
 
     Args:
