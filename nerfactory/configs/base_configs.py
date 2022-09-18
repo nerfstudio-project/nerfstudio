@@ -24,7 +24,6 @@ from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     BlenderDataParserConfig,
-    CompoundModelConfig,
     Config,
     FriendsDataManagerConfig,
     MipNerf360DataParserConfig,
@@ -37,6 +36,7 @@ from nerfactory.configs.base import (
     TrainerConfig,
     VanillaDataManagerConfig,
 )
+from nerfactory.models.compound import CompoundModelConfig
 from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model

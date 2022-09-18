@@ -25,7 +25,6 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import Frustums, RayBundle, RaySamples
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 
@@ -342,108 +341,6 @@ class PDFSampler(Sampler):
         ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
 
         return ray_samples
-
-
-class NGPSpacedSampler(Sampler):
-    """Sampler that matches Instant-NGP paper.
-
-    This sampler does ray-box AABB test, ray samples generation and density check, all together.
-
-    TODO(ruilongli): check whether fuse AABB test together with `raymarching` can speed things up.
-    Otherwise we can seperate it out and use collision detecoter that already exists in the repo.
-    """
-
-    def generate_ray_samples(self) -> RaySamples:
-        raise RuntimeError("For NGP we fused ray samples and density check together. Please call forward() directly.")
-
-    # pylint: disable=arguments-differ
-    def forward(
-        self,
-        ray_bundle: RayBundle,
-        aabb: TensorType[2, 3],
-        num_samples: Optional[int] = None,
-        cone_angle: float = 0.0,
-        marching_steps: Optional[int] = 128,
-        near_plane: float = 0.0,
-    ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples"], TensorType["total_samples"]]:
-        """Generate ray samples in a bounding box.
-
-        TODO(ruilongli): write a Packed[Ray_samples] class to ray_samples with packed_info.
-        TODO(ruilongli): maybe move aabb test to the collision detector?
-
-        Args:
-            ray_bundle: Rays to generate samples for
-            aabb: Bounding box of the scene.
-            num_samples: Number of samples per ray
-            cone_angle: 0.0 for nerf-synthetic and 1.0/256 for real scenes
-            marching_steps: Number of marching steps (Note: not currently used)
-            near_plane: Near plane for raymarching
-
-        Returns:
-            First return is ray samples in a packed way where only the valid samples are kept.
-            Second return contains all the information to recover packed samples into unpacked mode for rendering.
-            The last two returns are t_min and t_max from ray-aabb test.
-        """
-
-        if self.density_field is None:
-            raise ValueError("density_field must be set to use NGPSpacedSampler")
-
-        num_samples = num_samples or self.num_samples
-
-        aabb = aabb.flatten().contiguous()
-        rays_o = ray_bundle.origins.contiguous()
-        rays_d = ray_bundle.directions.contiguous()
-        scene_scale = (aabb[3:6] - aabb[0:3]).max()
-
-        t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
-        t_min = torch.max(t_min, torch.ones_like(t_min) * near_plane)
-
-        marching_steps = -1  # disable marching mode for now
-        # TODO(ruilongli): * 16 is for original impl for training. Need to run
-        # some profiling test with this choice.
-        max_samples_per_batch = len(rays_o) * num_samples
-
-        # marching
-        packed_info, origins, dirs, starts, ends = nerfactory_cuda.raymarching(
-            # rays
-            rays_o,
-            rays_d,
-            t_min,
-            t_max,
-            # density grid
-            self.density_field.center,
-            self.density_field.base_scale,
-            self.density_field.num_cascades,
-            self.density_field.resolution,
-            self.density_field.density_bitfield,
-            # sampling args
-            marching_steps,
-            max_samples_per_batch,
-            num_samples,
-            cone_angle,
-            scene_scale,
-        )
-
-        # squeeze valid samples
-        total_samples = max(packed_info[:, -1].sum(), 1)
-        origins = origins[:total_samples]
-        dirs = dirs[:total_samples]
-        starts = starts[:total_samples]
-        ends = ends[:total_samples]
-
-        assert ray_bundle.camera_indices is not None
-        indices = torch.zeros_like(origins[:, :1], dtype=torch.long)
-
-        ray_bundle.camera_indices = ray_bundle.camera_indices.to(torch.long).to(packed_info.device)
-
-        indices = nerfactory_cuda.get_camera_indices(packed_info, ray_bundle.camera_indices, indices)
-
-        zeros = torch.zeros_like(origins[:, :1])
-        ray_samples = RaySamples(
-            frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
-            camera_indices=indices,
-        )
-        return ray_samples, packed_info, t_min, t_max
 
 
 class VolumetricSampler(Sampler):
