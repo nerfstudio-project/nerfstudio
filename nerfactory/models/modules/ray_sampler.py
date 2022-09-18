@@ -502,7 +502,7 @@ class VolumetricSampler(Sampler):
         num_samples: Optional[int] = None,
         near_plane: float = 0.0,
         remove_occluded_samples: bool = True,
-    ) -> Tuple[RaySamples, TensorType["total_samples", 3]]:
+    ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
 
         Args:
@@ -512,9 +512,10 @@ class VolumetricSampler(Sampler):
             remove_occluded_samples: Whether to remove occluded samples. (requires evaluating the density function)
 
         Returns:
-            a tuple of (ray_samples, packed_info)
+            a tuple of (ray_samples, packed_info, ray_indices)
             The ray_samples are packed, only storing the valid samples.
             The packed_info contains all the information to recover packed samples into unpacked mode for rendering.
+            The ray_indices contains the indices of the rays that each sample belongs to.
         """
 
         if self.density_field is not None:
@@ -528,8 +529,12 @@ class VolumetricSampler(Sampler):
 
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
+        if ray_bundle.camera_indices is not None:
+            camera_indices = ray_bundle.camera_indices.contiguous()
+        else:
+            camera_indices = None
 
-        packed_info, origins, dirs, starts, ends = nerfacc.volumetric_marching(
+        packed_info, starts, ends = nerfacc.volumetric_marching(
             rays_o=rays_o,
             rays_d=rays_d,
             aabb=self.aabb,
@@ -540,18 +545,25 @@ class VolumetricSampler(Sampler):
             stratified=self.training,
         )
 
+        ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
+        origins = rays_o[ray_indices]
+        dirs = rays_d[ray_indices]
+        if camera_indices is not None:
+            camera_indices = camera_indices[ray_indices]
+
         if remove_occluded_samples:
             with torch.no_grad():
                 positions = origins + dirs * (starts + ends) / 2.0
                 densities = self.density_fn(positions)
-                packed_info, starts, ends, origins, dirs = nerfacc.volumetric_rendering_steps(
-                    packed_info,
-                    densities,
-                    starts,
-                    ends,
-                    origins,
-                    dirs,
-                )
+                if camera_indices is not None:
+                    packed_info, starts, ends, origins, dirs, camera_indices = nerfacc.volumetric_rendering_steps(
+                        packed_info, densities, starts, ends, origins, dirs, camera_indices
+                    )
+                else:
+                    packed_info, starts, ends, origins, dirs = nerfacc.volumetric_rendering_steps(
+                        packed_info, densities, starts, ends, origins, dirs
+                    )
+            ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
 
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
@@ -562,5 +574,6 @@ class VolumetricSampler(Sampler):
                 ends=ends,
                 pixel_area=zeros,
             ),
+            camera_indices=camera_indices,
         )
-        return ray_samples, packed_info
+        return ray_samples, packed_info, ray_indices

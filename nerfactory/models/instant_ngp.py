@@ -62,9 +62,6 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     """Instant NGP doesn't use a collider."""
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'"""
-    # TODO(ethan): remove the density field specified here
-    enable_density_field: bool = False
-    """Whether to create a density field to filter samples."""
     num_samples: int = 1024
     """Number of samples in field evaluation."""
     grid_resolution: int = 128
@@ -129,7 +126,7 @@ class NGPModel(Model):
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                 update_every_num_iters=1,
-                func=self.sampler.occ_field.every_n_step,  # will take in step
+                func=self.sampler.occ_field.every_n_step,
             ),
         ]
 
@@ -142,11 +139,10 @@ class NGPModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         assert self.field is not None
-
-        n_rays = ray_bundle.origins.shape[0]
+        num_rays = len(ray_bundle)
 
         with torch.no_grad():
-            ray_samples, packed_info = self.sampler(
+            ray_samples, packed_info, ray_indices = self.sampler(
                 ray_bundle=ray_bundle,
                 near_plane=self.config.near_plane,
             )
@@ -154,7 +150,7 @@ class NGPModel(Model):
         field_outputs = self.field(ray_samples)
 
         # accumulation
-        weights, ray_indices = nerfacc.volumetric_rendering_weights(
+        weights = nerfacc.volumetric_rendering_weights(
             packed_info=packed_info,
             sigmas=field_outputs[FieldHeadNames.DENSITY],
             frustum_starts=ray_samples.frustums.starts,
@@ -165,10 +161,12 @@ class NGPModel(Model):
             rgb=field_outputs[FieldHeadNames.RGB],
             weights=weights,
             ray_indices=ray_indices,
-            num_rays=n_rays,
+            num_rays=num_rays,
         )
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=n_rays)
-        accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=n_rays)
+        depth = self.renderer_depth(
+            weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays
+        )
+        accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=num_rays)
         alive_ray_mask = accumulation.squeeze(-1) > 0
 
         outputs = {
