@@ -129,8 +129,8 @@ class Pipeline(nn.Module):
             self.datamanager.train_image_dataloader.sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle, batch)
-        loss_dict = self.model.get_loss_dict(model_outputs, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
         return model_outputs, loss_dict, metrics_dict
 
