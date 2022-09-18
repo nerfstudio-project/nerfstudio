@@ -2,25 +2,36 @@
 
 import * as React from 'react';
 
-import { FaLightbulb, FaTractor } from 'react-icons/fa';
-import { Menu, MenuItem, ProSidebar, SubMenu } from 'react-pro-sidebar';
+import { FaTractor } from 'react-icons/fa';
 
 import Box from '@mui/material/Box';
-import CameraAltRoundedIcon from '@mui/icons-material/CameraAltRounded';
+import { Collapse, IconButton } from '@mui/material';
 import Divider from '@mui/material/Divider';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import { Leva } from 'leva';
-import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import Typography from '@mui/material/Typography';
-import WidgetsRoundedIcon from '@mui/icons-material/WidgetsRounded';
+import {
+  CameraAltRounded,
+  ExpandLess,
+  ExpandMore,
+  ReceiptLongRounded,
+  TuneRounded,
+  Visibility,
+  VisibilityOff,
+  WidgetsRounded,
+} from '@mui/icons-material/';
 import StatusPanel from './StatusPanel';
 import SceneNode from '../../SceneNode';
 import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
+// import { object } from 'prop-types';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -55,25 +66,108 @@ function a11yProps(index: number) {
 }
 
 interface ListItemProps {
-  name: object;
-  object: object;
+  name: String;
+  scene_node: SceneNode;
+  level: Number;
+  groupVisible: Boolean;
 }
 
-function ListItem(props: ListItemProps) {
+function MenuItems(props: ListItemProps) {
   const name = props.name;
-  const object = props.object;
+  const scene_node = props.scene_node;
+  const level = props.level;
+  const groupVisible = props.groupVisible;
 
-  const [value, setValue] = React.useState(1);
-  object.visible = value;
+  // TODO: sort the keys by string
+  const terminal = Object.keys(scene_node.children).includes('<object>');
 
-  function handleClick() {
-    setValue(!value);
+  const num_children = Object.keys(scene_node.children).length;
+  if (num_children === 0) {
+    return null;
   }
 
+  const [open, setOpen] = React.useState(true);
+  const toggleOpen = () => {
+    setOpen(!open);
+  };
+
+  const [visible, setVisible] = React.useState(groupVisible);
+  if (terminal) {
+    scene_node.object.visible = visible;
+  }
+
+  const toggleVisible = (e) => {
+    e.stopPropagation();
+    setVisible(!visible);
+  };
+
+  React.useEffect(() => {
+    setVisible(groupVisible);
+  }, [groupVisible]);
+
   return (
-    <button type="button" onClick={handleClick}>
-      {name}
-    </button>
+    <>
+      <ListItemButton
+        onClick={terminal ? null : toggleOpen}
+        sx={
+          terminal
+            ? {
+                pl: 2 + level * 2,
+                color: visible
+                  ? LevaTheme.colors.accent2
+                  : LevaTheme.colors.disabled,
+              }
+            : {
+                pl: 2 + level * 2,
+                bgcolor: open
+                  ? LevaTheme.colors.elevation3
+                  : LevaTheme.colors.elevation1,
+                color: visible
+                  ? LevaTheme.colors.accent2
+                  : LevaTheme.colors.disabled,
+              }
+        }
+      >
+        <ListItemIcon
+          sx={{
+            color: visible
+              ? LevaTheme.colors.accent2
+              : LevaTheme.colors.disabled,
+          }}
+        >
+          <FaTractor />
+        </ListItemIcon>
+        <ListItemText primary={name} />
+
+        <IconButton aria-label="visibility" onClick={toggleVisible}>
+          {visible ? <Visibility /> : <VisibilityOff />}
+        </IconButton>
+
+        {terminal
+          ? null
+          : (() => {
+              if (open) {
+                return <ExpandLess />;
+              }
+              return <ExpandMore />;
+            })()}
+      </ListItemButton>
+
+      {terminal ? null : (
+        <Collapse in={open} timeout="auto">
+          <List>
+            {Object.keys(scene_node.children).map((key) => (
+              <MenuItems
+                name={key}
+                scene_node={scene_node.children[key]}
+                level={level + 1}
+                groupVisible={visible}
+              />
+            ))}
+          </List>
+        </Collapse>
+      )}
+    </>
   );
 }
 
@@ -84,31 +178,10 @@ interface ClickableListProps {
 function ClickableList(props: ClickableListProps) {
   const sceneTree = props.sceneTree;
 
-  const get_menu_items = (name: String, scene_node: SceneNode) => {
-    // TODO: sort the keys by string
-    const num_children = Object.keys(scene_node.children).length;
-    if (num_children === 0) {
-      return (
-        <MenuItem icon={<FaLightbulb />}>
-          <ListItem name={name} object={scene_node.object} />
-        </MenuItem>
-      );
-    }
-    return (
-      <SubMenu title={name} icon={<FaTractor />} defaultOpen>
-        {Object.keys(scene_node.children).map((key) =>
-          get_menu_items(key, scene_node.children[key]),
-        )}
-      </SubMenu>
-    );
-  };
-
-  const menu_items = get_menu_items('Scene', sceneTree);
-
   return (
-    <ProSidebar>
-      <Menu iconShape="square">{menu_items}</Menu>
-    </ProSidebar>
+    <List sx={{ color: LevaTheme.colors.accent2 }}>
+      <MenuItems name="Scene" scene_node={sceneTree} level={0} groupVisible />
+    </List>
   );
 }
 
@@ -136,26 +209,10 @@ export function BasicTabs(props: BasicTabsProps) {
             onChange={handleChange}
             aria-label="basic tabs example"
           >
-            <Tab
-              icon={<TuneRoundedIcon />}
-              label="Controls"
-              {...a11yProps(0)}
-            />
-            <Tab
-              icon={<WidgetsRoundedIcon />}
-              label="Scene"
-              {...a11yProps(1)}
-            />
-            <Tab
-              icon={<CameraAltRoundedIcon />}
-              label="Render"
-              {...a11yProps(2)}
-            />
-            <Tab
-              icon={<ReceiptLongRoundedIcon />}
-              label="Logs"
-              {...a11yProps(3)}
-            />
+            <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
+            <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(1)} />
+            <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(2)} />
+            <Tab icon={<ReceiptLongRounded />} label="Logs" {...a11yProps(3)} />
           </Tabs>
         </Box>
         <TabPanel value={value} index={0}>
