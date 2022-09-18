@@ -469,6 +469,7 @@ class VolumetricSampler(Sampler):
         """
         super().__init__(num_samples=num_samples)
         self.aabb = aabb
+        self.density_fn = density_fn
 
         self.render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
 
@@ -500,6 +501,7 @@ class VolumetricSampler(Sampler):
         ray_bundle: RayBundle,
         num_samples: Optional[int] = None,
         near_plane: float = 0.0,
+        remove_occluded_samples: bool = True,
     ) -> Tuple[RaySamples, TensorType["total_samples", 3]]:
         """Generate ray samples in a bounding box.
 
@@ -507,6 +509,7 @@ class VolumetricSampler(Sampler):
             ray_bundle: Rays to generate samples for
             num_samples: Number of samples per ray
             near_plane: Near plane for raymarching
+            remove_occluded_samples: Whether to remove occluded samples. (requires evaluating the density function)
 
         Returns:
             a tuple of (ray_samples, packed_info)
@@ -537,8 +540,27 @@ class VolumetricSampler(Sampler):
             stratified=self.training,
         )
 
+        if remove_occluded_samples:
+            with torch.no_grad():
+                positions = origins + dirs * (starts + ends) / 2.0
+                densities = self.density_fn(positions)
+                packed_info, starts, ends, origins, dirs = nerfacc.volumetric_rendering_steps(
+                    packed_info,
+                    densities,
+                    starts,
+                    ends,
+                    origins,
+                    dirs,
+                )
+
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
-            frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
+            frustums=Frustums(
+                origins=origins,
+                directions=dirs,
+                starts=starts,
+                ends=ends,
+                pixel_area=zeros,
+            ),
         )
         return ray_samples, packed_info
