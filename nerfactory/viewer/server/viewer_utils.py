@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Code to interface with the `vis/` (the JS visualizer).
+"""Code to interface with the `vis/` (the JS viewer).
 """
+from __future__ import annotations
 
 import enum
-import logging
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -33,7 +34,6 @@ from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
-from nerfactory.utils.decorators import check_visualizer_enabled, decorate_all
 from nerfactory.utils.io import load_from_json, write_to_json
 from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -44,12 +44,27 @@ from nerfactory.viewer.server.visualizer import Viewer
 console = Console(width=120)
 
 
+def setup_viewer(config: cfg.ViewerConfig):
+    """Sets up the viewer if enabled
+
+    Args:
+        config: the configuration to instantiate viewer
+    """
+    if config.enable:
+        viewer_state = ViewerState(config)
+        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+        return viewer_state, banner_messages
+    return None, None
+
+
 class OutputTypes(str, enum.Enum):
     """Noncomprehsnive list of output render types"""
 
     INIT = "init"
     RGB = "rgb"
     RGB_FINE = "rgb_fine"
+    ACCUMULATION = "accumulation"
+    ACCUMULATION_FINE = "accumulation_fine"
 
 
 class ColormapTypes(str, enum.Enum):
@@ -64,7 +79,7 @@ class ColormapTypes(str, enum.Enum):
 
 
 class IOChangeException(Exception):
-    """Basic camera exception to interrupt visualizer"""
+    """Basic camera exception to interrupt viewer"""
 
 
 class SetTrace:
@@ -85,12 +100,12 @@ class RenderThread(threading.Thread):
     """Thread that does all the rendering calls while listening for interrupts
 
     Args:
-        state: current visualizer state object
+        state: current viewer state object
         graph: current checkpoint of model
         camera_ray_bundle: input rays to pass through the graph to render out
     """
 
-    def __init__(self, state: "VisualizerState", graph: Model, camera_ray_bundle: RayBundle):
+    def __init__(self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph
@@ -106,8 +121,9 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
-        except IOChangeException as e:
+                with torch.no_grad():
+                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+        except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
         if outputs:
@@ -119,7 +135,6 @@ class RenderThread(threading.Thread):
 
     def join(self, timeout=None):
         threading.Thread.join(self)
-        torch.cuda.empty_cache()
         if self.exc:
             raise self.exc
 
@@ -128,7 +143,7 @@ class CheckThread(threading.Thread):
     """Thread the constantly checks for io changes and sets a flag indicating interrupt
 
     Args:
-        state: current visualizer state object
+        state: current viewer state object
     """
 
     def __init__(self, state):
@@ -138,7 +153,7 @@ class CheckThread(threading.Thread):
     def run(self):
         """Run function that checks to see if any of the existing state has changed
         (e.g. camera pose/output type/resolutions).
-        Sets the visualizer state flag to true to signal
+        Sets the viewer state flag to true to signal
         to render thread that an interrupt was registered.
         """
         self.state.check_done_render = False
@@ -180,49 +195,41 @@ class CheckThread(threading.Thread):
                     return
 
 
-@decorate_all([check_visualizer_enabled])
-class VisualizerState:
-    """Class to hold state for visualizer variables
+class ViewerState:
+    """Class to hold state for viewer variables
 
     Args:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, config_base_dir: Optional[Path] = None):
+    def __init__(self, config: cfg.ViewerConfig):
         self.config = config
-        self.config_base_dir = config_base_dir
-
         self.vis = None
         self.viewer_url = None
-        if self.config.enable:
-            if self.config.launch_bridge_server:
-                # start the viewer bridge server
-                zmq_port = int(self.config.zmq_url.split(":")[-1])
-                websocket_port = self.config.websocket_port
-                self.config.log_filename.parent.mkdir(exist_ok=True)
-                run_viewer_bridge_server_as_subprocess(
-                    zmq_port, websocket_port, log_filename=str(self.config.log_filename)
-                )
-                # TODO(ethan): move this into the writer such that it's at the bottom
-                # of the logging stack and easy to see and click
-                # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
-                console.line()
-                json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
-                version = load_from_json(Path(json_filename))["version"]
-                self.viewer_url = f"https://viewer.nerfactory.com/{version}/?websocket_url=localhost:{websocket_port}"
-                viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
-                pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
-                dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
-                console.rule(characters="=")
-                console.print(pub_open_viewer_instructions_string)
-                console.print(dev_open_viewer_instructions_string)
-                console.rule(characters="=")
-                console.line()
-            self.vis = Viewer(zmq_url=self.config.zmq_url)
-        else:
-            logging.info("Continuing without viewer.")
+        if self.config.launch_bridge_server:
+            # start the viewer bridge server
+            zmq_port = int(self.config.zmq_url.split(":")[-1])
+            websocket_port = self.config.websocket_port
+            self.config.log_filename.parent.mkdir(exist_ok=True)
+            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.config.log_filename))
+            # TODO(ethan): move this into the writer such that it's at the bottom
+            # of the logging stack and easy to see and click
+            # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
+            console.line()
+            json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
+            version = load_from_json(Path(json_filename))["version"]
+            self.viewer_url = f"https://viewer.nerfactory.com/{version}/?websocket_url=localhost:{websocket_port}"
+            viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
+            pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
+            dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
+            console.rule(characters="=")
+            console.print(pub_open_viewer_instructions_string)
+            console.print(dev_open_viewer_instructions_string)
+            console.rule(characters="=")
+            console.line()
+        self.vis = Viewer(zmq_url=self.config.zmq_url)
 
-        # visualizer specific variables
+        # viewer specific variables
         self.prev_camera_matrix = None
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = ColormapTypes.INIT
@@ -237,7 +244,7 @@ class VisualizerState:
         self.camera_moving = False
         self.prev_camera_timestamp = 0
 
-        self.outputs_set = False
+        self.output_list = None
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
@@ -248,8 +255,7 @@ class VisualizerState:
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
-        if self.config_base_dir:
-            self.vis["renderingState/config_base_dir"].write(str(self.config_base_dir))
+        self.vis["renderingState/config_base_dir"].write(str(self.config.log_filename.parents[0]))
 
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
@@ -322,7 +328,7 @@ class VisualizerState:
 
                     batches_per_sec = train_rays_per_sec / num_rays_per_batch
 
-                    num_steps = int(1 / self.static_fps * batches_per_sec)
+                    num_steps = max(int(1 / self.static_fps * batches_per_sec), 1)
                 else:
                     num_steps = 1
 
@@ -375,40 +381,48 @@ class VisualizerState:
             stuff_colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
+        if self.output_list:
+            reformatted_output = self._process_invalid_output(self.prev_output_type)
+
         # default for rgb images
-        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].shape[-1] == 3:
-            return outputs[self.prev_output_type]
+        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
+            return outputs[reformatted_output]
 
         # rendering depth outputs
         if self.prev_colormap_type == ColormapTypes.DEPTH or (
             self.prev_colormap_type == ColormapTypes.DEFAULT
-            and outputs[self.prev_output_type].dtype == torch.float
-            and (torch.max(outputs[self.prev_output_type]) - 1.0) > eps  # handle floating point arithmetic
+            and outputs[reformatted_output].dtype == torch.float
+            and (torch.max(outputs[reformatted_output]) - 1.0) > eps  # handle floating point arithmetic
         ):
+            accumulation_str = (
+                OutputTypes.ACCUMULATION
+                if OutputTypes.ACCUMULATION in self.output_list
+                else OutputTypes.ACCUMULATION_FINE
+            )
             return visualization.apply_depth_colormap(
-                outputs[self.prev_output_type], accumulation=outputs["accumulation"]
+                outputs[reformatted_output], accumulation=outputs[accumulation_str]
             )
 
         # rendering accumulation outputs
         if self.prev_colormap_type == ColormapTypes.TURBO or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.float
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
         ):
-            return visualization.apply_colormap(outputs[self.prev_output_type])
+            return visualization.apply_colormap(outputs[reformatted_output])
 
         # rendering semantic outputs
         if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.int
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.int
         ):
-            logits = outputs[self.prev_output_type]
+            logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert stuff_colors is not None
             return stuff_colors[labels]
 
         # rendering boolean outputs
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[self.prev_output_type].dtype == torch.bool
+            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
         ):
-            return visualization.apply_boolean_colormap(outputs[self.prev_output_type])
+            return visualization.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
 
@@ -420,20 +434,24 @@ class VisualizerState:
             stuff_colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
-        if not self.outputs_set:
-            self.vis["renderingState/output_options"].write(list(outputs.keys()))
-            self.outputs_set = True
-        # gross hack to get the image key, depending on which keys the graph uses
-        if self.prev_output_type == OutputTypes.INIT:
-            self.prev_output_type = OutputTypes.RGB if OutputTypes.RGB in outputs else OutputTypes.RGB_FINE
+        if self.output_list is None:
+            self.output_list = list(outputs.keys())
+            viewer_output_list = list(np.copy(self.output_list))
+            # remapping rgb_fine -> rgb for all cases just so that we dont have 2 of them in the options
+            if OutputTypes.RGB_FINE in self.output_list:
+                viewer_output_list.remove(OutputTypes.RGB_FINE)
+            viewer_output_list.insert(0, OutputTypes.RGB)
+            self.vis["renderingState/output_options"].write(viewer_output_list)
+
+        reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
         if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
             self.prev_colormap_type = ColormapTypes.DEFAULT
             colormap_options = [ColormapTypes.DEFAULT]
             if (
-                outputs[self.prev_output_type].shape[-1] != 3
-                and outputs[self.prev_output_type].dtype == torch.float
-                and (torch.max(outputs[self.prev_output_type]) - 1.0) <= eps  # handle floating point arithmetic
+                outputs[reformatted_output].shape[-1] != 3
+                and outputs[reformatted_output].dtype == torch.float
+                and (torch.max(outputs[reformatted_output]) - 1.0) <= eps  # handle floating point arithmetic
             ):
                 # accumulation can also include depth
                 colormap_options.extend(["depth"])
@@ -517,6 +535,28 @@ class VisualizerState:
 
         return image_height
 
+    def _process_invalid_output(self, output_type: str) -> str:
+        """Check to see whether we are in the corner case of RGB; if still invalid, throw error
+        Returns correct string mapping given improperly formatted output_type.
+
+        Args:
+            output_type: reformatted output type
+        """
+        if output_type == OutputTypes.INIT:
+            output_type = OutputTypes.RGB
+
+        # check if rgb or rgb_fine should be the case TODO: add other checks here
+        attempted_output_type = output_type
+        if output_type not in self.output_list and output_type == OutputTypes.RGB:
+            output_type = OutputTypes.RGB_FINE
+
+        # check if output_type is not in list
+        if output_type not in self.output_list:
+            assert (
+                NotImplementedError
+            ), f"Output {attempted_output_type} not in list. Tried to reformat as {output_type} but still not found."
+        return output_type
+
     @profiler.time_function
     def _render_image_in_viewer(self, camera_object, graph: Model, is_training: bool) -> None:
         """
@@ -544,7 +584,14 @@ class VisualizerState:
         self.prev_colormap_type = colormap_type
 
         # Calculate camera pose and intrinsics
-        image_height = self._calculate_image_height(camera_object, is_training)
+        try:
+            image_height = self._calculate_image_height(camera_object, is_training)
+        except ZeroDivisionError as e:
+            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            print(f"Error: {e}")
+            return
+
         if image_height is None:
             return
 
@@ -572,7 +619,6 @@ class VisualizerState:
         camera = camera.to(graph.device)
 
         camera_ray_bundle = camera.generate_rays(camera_indices=0)
-        camera_ray_bundle.num_rays_per_chunk = self.config.num_rays_per_chunk
 
         graph.eval()
 
@@ -585,8 +631,17 @@ class VisualizerState:
             try:
                 render_thread.join()
                 check_thread.join()
-            except Exception:  # pylint: disable=broad-except
+            except IOChangeException:
                 pass
+            except RuntimeError as e:
+                del camera_ray_bundle
+                torch.cuda.empty_cache()
+                time.sleep(0.5)  # sleep to allow buffer to reset
+                self.vis["renderingState/log_errors"].write(
+                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+                )
+                print(f"Error: {e}")
+
         graph.train()
         outputs = render_thread.vis_outputs
         if outputs is not None:

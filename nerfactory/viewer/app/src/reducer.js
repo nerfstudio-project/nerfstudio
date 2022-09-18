@@ -33,6 +33,7 @@ const initialState = {
     eval_fps: 'Paused',
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
+    log_errors: '',
   },
   // the scene state
   sceneState: {

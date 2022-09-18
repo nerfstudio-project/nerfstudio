@@ -29,6 +29,7 @@ Example:
 import math
 from typing import Optional
 
+import nerfacc
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -54,6 +55,8 @@ class RGBRenderer(nn.Module):
         rgb: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
         background_color: Optional[TensorType[3]] = None,
+        ray_indices: Optional[TensorType["num_samples"]] = None,
+        num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 3]:
         """Composite samples along ray and render color image
 
@@ -61,16 +64,23 @@ class RGBRenderer(nn.Module):
             rgb: RGB for each sample
             weights: Weights for each sample
             background_color: Background color as RGB. Defaults to random.
+            ray_indices: Ray index for each sample, used when samples are packed.
+            num_rays: Number of rays, used when samples are packed.
 
         Returns:
             Outputs rgb values.
         """
-        rgb = torch.sum(weights * rgb, dim=-2)
+        if ray_indices is not None and num_rays is not None:
+            rgb = nerfacc.volumetric_rendering_accumulate(weights, ray_indices, rgb, num_rays)
+            accumulated_weight = nerfacc.volumetric_rendering_accumulate(weights, ray_indices, None, num_rays)
+        else:
+            rgb = torch.sum(weights * rgb, dim=-2)
+            accumulated_weight = torch.sum(weights, dim=-2)
 
         if background_color is None:
             background_color = torch.rand_like(rgb).to(rgb.device)
 
-        rgb = rgb + background_color.to(weights.device) * (1.0 - torch.sum(weights, dim=-2))
+        rgb = rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
 
         return rgb
 
@@ -78,18 +88,24 @@ class RGBRenderer(nn.Module):
         self,
         rgb: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
+        ray_indices: Optional[TensorType["num_samples"]] = None,
+        num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 3]:
         """Composite samples along ray and render color image
 
         Args:
             rgb: RGB for each sample
             weights: Weights for each sample
+            ray_indices: Ray index for each sample, used when samples are packed.
+            num_rays: Number of rays, used when samples are packed.
 
         Returns:
             Outputs of rgb values.
         """
 
-        rgb = self.combine_rgb(rgb, weights, background_color=self.background_color)
+        rgb = self.combine_rgb(
+            rgb, weights, background_color=self.background_color, ray_indices=ray_indices, num_rays=num_rays
+        )
         if not self.training:
             torch.clamp_(rgb, min=0.0, max=1.0)
         return rgb
@@ -150,17 +166,24 @@ class AccumulationRenderer(nn.Module):
     def forward(
         cls,
         weights: TensorType["bs":..., "num_samples", 1],
+        ray_indices: Optional[TensorType["num_samples"]] = None,
+        num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 1]:
         """Composite samples along ray and calculate accumulation.
 
         Args:
             weights: Weights for each sample
+            ray_indices: Ray index for each sample, used when samples are packed.
+            num_rays: Number of rays, used when samples are packed.
 
         Returns:
             Outputs of accumulated values.
         """
 
-        accumulation = torch.sum(weights, dim=-2)
+        if ray_indices is not None and num_rays is not None:
+            accumulation = nerfacc.volumetric_rendering_accumulate(weights, ray_indices, None, num_rays)
+        else:
+            accumulation = torch.sum(weights, dim=-2)
         return accumulation
 
 
@@ -177,12 +200,20 @@ class DepthRenderer(nn.Module):
             raise ValueError(f"{method} is an invalid depth calculation method")
         self.method = method
 
-    def forward(self, weights: TensorType[..., "num_samples", 1], ray_samples: RaySamples) -> TensorType[..., 1]:
+    def forward(
+        self,
+        weights: TensorType[..., "num_samples", 1],
+        ray_samples: RaySamples,
+        ray_indices: Optional[TensorType["num_samples"]] = None,
+        num_rays: Optional[int] = None,
+    ) -> TensorType[..., 1]:
         """Composite samples along ray and calculate disparities.
 
         Args:
             weights: Weights for each sample.
             ray_samples: Set of ray samples.
+            ray_indices: Ray index for each sample, used when samples are packed.
+            num_rays: Number of rays, used when samples are packed.
 
         Returns:
             Outputs of depth values.
@@ -191,7 +222,11 @@ class DepthRenderer(nn.Module):
         if self.method == "expected":
             eps = 1e-10
             steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
-            depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
+
+            if ray_indices is not None and num_rays is not None:
+                depth = nerfacc.volumetric_rendering_accumulate(weights, ray_indices, steps, num_rays)
+            else:
+                depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
 
             depth = torch.clip(depth, steps[..., 0, :], steps[..., -1, :])
 

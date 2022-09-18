@@ -22,10 +22,8 @@ import logging
 from abc import abstractmethod
 from pathlib import Path
 from time import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-import imageio
-import numpy as np
 import torch
 import wandb
 from torch.utils.tensorboard import SummaryWriter
@@ -47,7 +45,7 @@ class EventName(enum.Enum):
 
     ITER_TRAIN_TIME = "Train Iter (time)"
     TOTAL_TRAIN_TIME = "Train Total (time)"
-    ITER_VIS_TIME = "Visualizer Rendering (time)"
+    ITER_VIS_TIME = "Viewer Rendering (time)"
     ETA = "ETA (time)"
     TRAIN_RAYS_PER_SEC = "Train Rays / Sec"
     TEST_RAYS_PER_SEC = "Test Rays / Sec"
@@ -61,6 +59,7 @@ class EventType(enum.Enum):
     IMAGE = "write_image"
     SCALAR = "write_scalar"
     DICT = "write_scalar_dict"
+    CONFIG = "write_config"
 
 
 @check_main_thread
@@ -78,7 +77,7 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
 
 
 @check_main_thread
-def put_scalar(name: str, scalar: float, step: int):
+def put_scalar(name: str, scalar: Any, step: int):
     """Setter function to place scalars into the queue to be written out
 
     Args:
@@ -93,7 +92,7 @@ def put_scalar(name: str, scalar: float, step: int):
 
 
 @check_main_thread
-def put_dict(name: str, scalar_dict: float, step: int):
+def put_dict(name: str, scalar_dict: Dict[str, Any], step: int):
     """Setter function to place a dictionary of scalars into the queue to be written out
 
     Args:
@@ -102,6 +101,18 @@ def put_dict(name: str, scalar_dict: float, step: int):
         step: step associated with dict
     """
     EVENT_STORAGE.append({"name": name, "write_type": EventType.DICT, "event": scalar_dict, "step": step})
+
+
+@check_main_thread
+def put_config(name: str, config_dict: Dict[str, Any], step: int):
+    """Setter function to place a dictionary of scalars into the queue to be written out
+
+    Args:
+        name: name of scalar dictionary
+        scalar_dict: values to write out
+        step: step associated with dict
+    """
+    EVENT_STORAGE.append({"name": name, "write_type": EventType.CONFIG, "event": config_dict, "step": step})
 
 
 @check_main_thread
@@ -123,7 +134,6 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
         GLOBAL_BUFFER["step"] = step
         curr_event = GLOBAL_BUFFER["events"].get(name, {"buffer": [], "avg": 0})
         curr_buffer = curr_event["buffer"]
-        curr_avg = curr_event["avg"]
         if len(curr_buffer) >= GLOBAL_BUFFER["max_buffer_size"]:
             curr_buffer.pop(0)
         curr_buffer.append(duration)
@@ -145,21 +155,18 @@ def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True,
 def write_out_storage():
     """Function that writes all the events in storage to all the writer locations"""
     for writer in EVENT_WRITERS:
+        if isinstance(writer, LocalWriter) and len(EVENT_STORAGE) > 0:
+            writer.write_stats_log(EVENT_STORAGE[0]["step"])
+            continue
         for event in EVENT_STORAGE:
             write_func = getattr(writer, event["write_type"].value)
-            if event["write_type"] == EventType.DICT:
-                write_func(event["event"], event["step"])
-                if isinstance(writer, LocalWriter):
-                    continue
-            else:
-                write_func(event["name"], event["event"], event["step"])
-                if isinstance(writer, LocalWriter):
-                    break
+            write_func(event["name"], event["event"], event["step"])
+
     EVENT_STORAGE.clear()
 
 
 @check_main_thread
-def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
+def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -167,20 +174,33 @@ def setup_event_writers(config: cfg.LoggingConfig, max_iter: int, banner_message
         max_iter: maximum number of train iterations
         banner_messages: list of messages to always display at bottom of screen
     """
-    for writer_type_config in config.writer:
-        if writer_type_config.enable:
-            if isinstance(writer_type_config, cfg.LocalWriterConfig):
-                curr_writer = writer_type_config.setup(banner_messages=banner_messages)
-            else:
-                curr_writer = writer_type_config.setup()
-            EVENT_WRITERS.append(curr_writer)
-            logging.info("logging info to: %s", writer_type_config.log_dir)
+    if config.local_writer.enable:
+        curr_writer = config.local_writer.setup(banner_messages=banner_messages)
+        EVENT_WRITERS.append(curr_writer)
+    else:
+        logging.info("disabled local writer")
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
     GLOBAL_BUFFER["max_buffer_size"] = config.max_buffer_size
     GLOBAL_BUFFER["steps_per_log"] = config.steps_per_log
     GLOBAL_BUFFER["events"] = {}
+
+
+def setup_event_writer(config: cfg.LoggingConfig) -> None:
+    """Initialization of all event writers specified in config
+
+    Args:
+        config: configuration to instantiate loggers
+        max_iter: maximum number of train iterations
+        banner_messages: list of messages to always display at bottom of screen
+    """
+    if config.event_writer_config:
+        curr_writer = config.event_writer_config.setup()
+        EVENT_WRITERS.append(curr_writer)
+        logging.info("logging info to: %s", config.event_writer_config.log_dir)
+    else:
+        logging.info("disabled tensorboard/wandb event writers")
 
 
 class Writer:
@@ -201,7 +221,7 @@ class Writer:
         raise NotImplementedError
 
     @abstractmethod
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         """Required method to write a single scalar value to the logger
 
         Args:
@@ -212,15 +232,15 @@ class Writer:
         raise NotImplementedError
 
     @check_main_thread
-    def write_scalar_dict(self, scalar_dict: Dict[str, float], step: int) -> None:
+    def write_scalar_dict(self, name: str, scalar_dict: Dict[str, Any], step: int) -> None:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
             scalar_dict: dictionary containing all scalar values with key names and quantities
             step: the time step to log
         """
-        for name, scalar in scalar_dict.items():
-            self.write_scalar(name, scalar, step)
+        for key, scalar in scalar_dict.items():
+            self.write_scalar(name + "/" + key, float(scalar), step)
 
 
 class TimeWriter:
@@ -258,14 +278,24 @@ class WandbWriter(Writer):
 
     def __init__(self, config: cfg.WandbWriterConfig):
         super().__init__(config.log_dir)
-        wandb.init(dir=config.log_dir)
+        wandb.init(project="nerfactory-project", dir=str(config.log_dir), reinit=True)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         wandb.log({name: scalar}, step=step)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
+        # pylint: disable=unused-argument
+        # pylint: disable=no-self-use
+        """Function that writes out the config to wandb
+
+        Args:
+            config: config dictionary to write out
+        """
+        wandb.config.update(config_dict)
 
 
 @decorate_all([check_main_thread])
@@ -280,8 +310,16 @@ class TensorboardWriter(Writer):
         image = to8b(image)
         self.tb_writer.add_image(name, image, step, dataformats="HWC")
 
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
         self.tb_writer.add_scalar(name, scalar, step)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):  # pylint: disable=unused-argument
+        """Function that writes out the config to tensorboard
+
+        Args:
+            config: config dictionary to write out
+        """
+        self.tb_writer.add_text("config", str(config_dict))
 
 
 def _cursorup(x: int):
@@ -314,7 +352,7 @@ def _format_time(seconds):
 
 
 @decorate_all([check_main_thread])
-class LocalWriter(Writer):
+class LocalWriter:
     """Local Writer Class
     TODO: migrate to prettyprint
 
@@ -324,9 +362,8 @@ class LocalWriter(Writer):
     """
 
     def __init__(self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None):
-        super().__init__(config.log_dir)
+        self.config = config
         self.stats_to_track = [name.value for name in config.stats_to_track]
-        self.max_log_size = config.max_log_size
         self.keys = set()
         self.past_mssgs = ["", ""]
         self.banner_len = 0 if banner_messages is None else len(banner_messages) + 1
@@ -335,23 +372,30 @@ class LocalWriter(Writer):
             self.past_mssgs.extend(banner_messages)
         self.has_printed = False
 
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
-        if name in self.stats_to_track and self.log_dir:
-            image = to8b(image)
-            image_path = self.log_dir / f"{name}.jpg"
-            imageio.imwrite(image_path, np.uint8(image.cpu().numpy() * 255.0))
+    def write_stats_log(self, step: int) -> None:
+        """Function to write out scalars to terminal
 
-    def write_scalar(self, name: str, scalar: float, step: int) -> None:
+        Args:
+            step: current train step
+        """
         if step > 0:
-            if not self.has_printed and self.max_log_size:
+            if not self.has_printed and self.config.max_log_size:
                 logging.info(
-                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.writer.2.max-log-size=0` "
+                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.local_writer.max-log-size=0` "
                     "to disable line wrapping.\x1b[0m",
-                    self.max_log_size,
+                    self.config.max_log_size,
                 )
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)
             self._print_stats(latest_map)
+
+    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
+        """Function that writes out the config to local
+
+        Args:
+            config: config dictionary to write out
+        """
+        # TODO: implement this
 
     def _consolidate_events(self):
         latest_map = {}
@@ -371,8 +415,8 @@ class LocalWriter(Writer):
             latest_map: the most recent dictionary of stats that have been recorded
             new_key: indicator whether or not there is a new key added to logger
         """
-        full_log_cond = not self.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
-        capped_log_cond = self.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
+        full_log_cond = not self.config.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
+        capped_log_cond = self.config.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
         if full_log_cond or capped_log_cond:
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
@@ -407,13 +451,13 @@ class LocalWriter(Writer):
                 curr_mssg += f"{v:<20} "
 
         # update the history buffer
-        if self.max_log_size:
+        if self.config.max_log_size:
             if not self.has_printed:
                 cursor_idx = len(self.past_mssgs) - self.banner_len
                 self.has_printed = True
             else:
                 cursor_idx = len(self.past_mssgs)
-            if len(self.past_mssgs[2:]) - self.banner_len >= self.max_log_size:
+            if len(self.past_mssgs[2:]) - self.banner_len >= self.config.max_log_size:
                 self.past_mssgs.pop(2)
             self.past_mssgs.insert(len(self.past_mssgs) - self.banner_len, curr_mssg)
             _cursorup(cursor_idx)
