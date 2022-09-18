@@ -76,4 +76,10 @@ def main(check: bool = False):
 
 
 if __name__ == "__main__":
+    try:
+        # Requires dcargs>=0.3.3.
+        dcargs.extras.set_accent_color("bright_yellow")
+    except AttributeError:
+        pass
+
     dcargs.cli(main)

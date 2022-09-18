@@ -247,6 +247,12 @@ class RenderTrajectory:
 
 
 if __name__ == "__main__":
+    try:
+        # Requires dcargs>=0.3.3.
+        dcargs.extras.set_accent_color("bright_yellow")
+    except AttributeError:
+        pass
+
     # A Union over dataclass types will create a subcommand for each type.
     #
     # TODO: it would make sense to split this script up into separate scripts.
