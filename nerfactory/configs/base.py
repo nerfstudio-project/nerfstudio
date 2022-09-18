@@ -29,18 +29,6 @@ from nerfactory.configs.utils import to_immutable_dict
 # data instances
 from nerfactory.datamanagers.base import VanillaDataManager
 from nerfactory.datamanagers.dataparsers.base import DataParser
-from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
-from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
-from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
-    InstantNGPDataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
-    MipNerf360DataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
-    NerfactoryDataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
 
 # model instances
 from nerfactory.models.base import Model
@@ -206,6 +194,20 @@ class DataParserConfig(InstantiateConfig):
     _target: Type = DataParser
     """_target: target class to instantiate"""
 
+
+# pylint: disable=wrong-import-position
+from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
+from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
+from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
+    InstantNGPDataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
+    MipNerf360DataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
+    NerfactoryDataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
     {
