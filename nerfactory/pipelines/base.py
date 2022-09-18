@@ -117,7 +117,7 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_train_loss_dict(self, step: Optional[int] = None):
+    def get_train_loss_dict(self, step: int):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the DataManager and interfacing with the
         Model class, feeding the data to the model's forward function.
@@ -125,15 +125,16 @@ class Pipeline(nn.Module):
         Args:
             step: current iteration step to update sampler if using DDP (distributed)
         """
-        if self.world_size > 1:
-            self.datamanager.train_image_dataloader.sampler.set_epoch(step)
+        if self.world_size > 1 and step:
+            assert self.datamanager.train_sampler is not None
+            self.datamanager.train_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
         return model_outputs, loss_dict, metrics_dict
 
     @abstractmethod
     @profiler.time_function
-    def get_eval_loss_dict(self, step: Optional[int] = None):
+    def get_eval_loss_dict(self, step: int):
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 
@@ -142,7 +143,8 @@ class Pipeline(nn.Module):
         """
         self.eval()
         if self.world_size > 1:
-            self.datamanager.eval_image_dataloader.sampler.set_epoch(step)
+            assert self.datamanager.eval_sampler is not None
+            self.datamanager.eval_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_eval(step)
         model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
         self.train()
@@ -150,7 +152,7 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_eval_image_metrics_and_images(self, step: Optional[int] = None):
+    def get_eval_image_metrics_and_images(self, step: int):
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 
