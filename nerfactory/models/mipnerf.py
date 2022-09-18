@@ -137,7 +137,7 @@ class MipNerfModel(Model):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"]
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])

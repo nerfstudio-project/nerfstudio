@@ -195,7 +195,7 @@ class NerfWModel(Model):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None):
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
         rgb_coarse = outputs["rgb_coarse"]
