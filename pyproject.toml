@@ -40,6 +40,7 @@ dependencies = [
     "protobuf==3.20.0",
     "pylint==2.13.4",
     "pytest==7.1.2",
+    "pytest-xdist==2.5.0",
     "python-socketio==5.7.1",
     "rich==12.5.1",
     "tensorboard==2.9.0",
@@ -104,7 +105,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "--typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
+addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
 testpaths = [
     "tests",
 ]
