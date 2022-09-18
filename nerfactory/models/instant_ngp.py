@@ -18,7 +18,6 @@ Implementation of Instant NGP.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple, Type
 
@@ -35,6 +34,7 @@ from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import VolumetricSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.utils import visualization
 from nerfactory.utils.callbacks import (
@@ -62,13 +62,15 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     enable_density_field: bool = False
     """Whether to create a density field to filter samples."""
     num_samples: int = 1024
-    """Number of samples in field evaluation. Defaults to 1024,"""
+    """Number of samples in field evaluation."""
+    grid_resolution: int = 128
+    """Resolution of the grid used for the field."""
     cone_angle: float = 0.0
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
     near_plane: float = 0.05
     """How far along ray to start sampling."""
     randomize_background: bool = False
-    """Whether to randomize the background color. Defaults to False."""
+    """Whether to randomize the background color."""
 
 
 class NGPModel(Model):
@@ -95,29 +97,14 @@ class NGPModel(Model):
         # to match Ruilong's code naming
         self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
 
-        # setup some rendering settings
-        render_n_samples = 1024
-        self.render_step_size = (
-            (self.scene_aabb[3:] - self.scene_aabb[:3]).max() * math.sqrt(3) / render_n_samples
-        ).item()
+        # Sampler
 
-        # setup occupancy field with eval function
-        def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
-            """Evaluate occupancy given positions.
-
-            Args:
-                x: positions with shape (N, 3).
-            Returns:
-                occupancy values with shape (N, 1).
-            """
-            density_after_activation = self.field.density_fn(x)
-            # those two are similar when density is small.
-            # occupancy = 1.0 - torch.exp(-density_after_activation * render_step_size)
-            occupancy = density_after_activation * self.render_step_size
-            return occupancy
-
-        # occupancy grid
-        self.occ_field = nerfacc.OccupancyField(occ_eval_fn=occ_eval_fn, aabb=self.scene_aabb, resolution=128)
+        self.sampler = VolumetricSampler(
+            aabb=self.scene_aabb,
+            density_fn=self.field.density_fn,
+            grid_resolution=self.config.grid_resolution,
+            num_samples=self.config.num_samples,
+        )
 
         # losses
         self.rgb_loss = MSELoss()
@@ -134,8 +121,8 @@ class NGPModel(Model):
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                 update_every_num_iters=1,
-                func=self.occ_field.every_n_step,  # will take in step
-            )
+                func=self.sampler.occ_field.every_n_step,  # will take in step
+            ),
         ]
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -149,6 +136,7 @@ class NGPModel(Model):
         assert self.field is not None
 
         def query_fn(positions: TensorType["bs", 3], directions: TensorType["bs", 3], only_density=False):
+            assert self.field is not None
             if only_density:
                 return self.field.density_fn(positions)
             field_outputs = self.field.get_outputs_from_positions_and_direction(positions, directions)
@@ -156,24 +144,65 @@ class NGPModel(Model):
             sigmas = field_outputs[FieldHeadNames.DENSITY]
             return rgbs, sigmas
 
-        (
-            accumulated_color,
-            accumulated_depth,
-            accumulated_weight,
-            steps_counter,  # pylint: disable=unused-variable
-            compact_steps_counter,  # pylint: disable=unused-variable
-        ) = nerfacc.volumetric_rendering(
-            query_fn=query_fn,
-            rays_o=ray_bundle.origins,
-            rays_d=ray_bundle.directions,
-            scene_aabb=self.scene_aabb,
-            scene_occ_binary=self.occ_field.occ_grid_binary,
-            scene_resolution=self.occ_field.resolution,
-            render_bkgd=torch.ones(3, device=self.device),
-            render_step_size=self.render_step_size,
-            near_plane=self.config.near_plane,
-            stratified=self.training,  # only use stratified sampling during training
+        n_rays = ray_bundle.origins.shape[0]
+
+        with torch.no_grad():
+            ray_samples, packed_info = self.sampler(
+                ray_bundle=ray_bundle,
+                near_plane=self.config.near_plane,
+            )
+
+            frustum_starts = ray_samples.frustums.starts
+            frustum_ends = ray_samples.frustums.ends
+            frustum_dirs = ray_samples.frustums.directions
+            frustum_positions = ray_samples.frustums.get_positions()
+
+        # compat the samples thru volumetric rendering
+        with torch.no_grad():
+            densities = self.field.density_fn(frustum_positions)
+            (
+                compact_packed_info,
+                compact_frustum_starts,
+                compact_frustum_ends,
+                compact_frustum_positions,
+                compact_frustum_dirs,
+            ) = nerfacc.volumetric_rendering_steps(
+                packed_info,
+                densities,
+                frustum_starts,
+                frustum_ends,
+                frustum_positions,
+                frustum_dirs,
+            )
+
+        # network
+        compact_query_results = query_fn(compact_frustum_positions, compact_frustum_dirs)
+        compact_rgbs, compact_densities = compact_query_results[0], compact_query_results[1]
+
+        # accumulation
+        compact_weights, compact_ray_indices = nerfacc.volumetric_rendering_weights(
+            compact_packed_info,
+            compact_densities,
+            compact_frustum_starts,
+            compact_frustum_ends,
         )
+        accumulated_color = nerfacc.volumetric_rendering_accumulate(
+            compact_weights, compact_ray_indices, compact_rgbs, n_rays
+        )
+        accumulated_weight = nerfacc.volumetric_rendering_accumulate(compact_weights, compact_ray_indices, None, n_rays)
+        accumulated_depth = nerfacc.volumetric_rendering_accumulate(
+            compact_weights,
+            compact_ray_indices,
+            (compact_frustum_starts + compact_frustum_ends) / 2.0,
+            n_rays,
+        )
+
+        if self.config.randomize_background:
+            # TODO(matt) Investigate randomizing per pixel not per batch.
+            render_bkgd = torch.rand(3, device=accumulated_color.device)
+        else:
+            render_bkgd = torch.ones(3, device=self.device)
+        accumulated_color = accumulated_color + render_bkgd * (1.0 - accumulated_weight)
 
         alive_ray_mask = accumulated_weight.squeeze(-1) > 0
 
