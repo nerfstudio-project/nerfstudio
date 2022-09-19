@@ -255,4 +255,5 @@ if __name__ == "__main__":
     #   operations implemented by each seem fairly universal; ideally the checkpoint
     #   loading logic, for example, would be the same as what's used for loading a
     #   checkpoint when resuming a training run.
+    dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(Union[ComputePSNR, RenderTrajectory]).main()

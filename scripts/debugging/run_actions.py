@@ -87,4 +87,5 @@ def run_code_checks(continue_on_fail: bool = False):
 
 
 if __name__ == "__main__":
+    dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(run_code_checks)
