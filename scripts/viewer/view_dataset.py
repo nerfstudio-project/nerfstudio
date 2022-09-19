@@ -37,14 +37,9 @@ def main(config: cfg.Config) -> None:
 
 
 if __name__ == "__main__":
-    try:
-        # Requires dcargs>=0.3.3.
-        dcargs.extras.set_accent_color("bright_yellow")
-    except AttributeError:
-        pass
-
     console = Console(width=120)
 
+    dcargs.extras.set_accent_color("bright_yellow")
     instantiated_config = dcargs.cli(AnnotatedBaseConfigUnion)
     if instantiated_config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")
