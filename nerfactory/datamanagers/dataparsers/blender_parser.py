@@ -24,15 +24,14 @@ import numpy as np
 import torch
 
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.colors import get_color
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
 @dataclass
-class BlenderDataParserConfig(cfg.DataParserConfig):
+class BlenderDataParserConfig(DataParserConfig):
     """Blender dataset parser config"""
 
     _target: Type = field(default_factory=lambda: Blender)
@@ -51,7 +50,7 @@ class Blender(DataParser):
     Some of this code comes from https://github.com/yenchenlin/nerf-pytorch/blob/master/load_blender.py#L37.
     """
 
-    config: cfg.BlenderDataParserConfig
+    config: BlenderDataParserConfig
 
     def __init__(self, config: BlenderDataParserConfig):
         super().__init__(config=config)

@@ -26,14 +26,13 @@ import torch
 
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
 @dataclass
-class NerfactoryDataParserConfig(cfg.DataParserConfig):
+class NerfactoryDataParserConfig(DataParserConfig):
     """Nerfactory dataset config"""
 
     _target: Type = field(default_factory=lambda: Nerfactory)

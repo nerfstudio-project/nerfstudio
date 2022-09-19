@@ -17,10 +17,19 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Type
 
 import nerfactory.configs.base as cfg
 from nerfactory.datamanagers.structs import DatasetInputs
+
+
+@dataclass
+class DataParserConfig(cfg.InstantiateConfig):
+    """Basic dataset config"""
+
+    _target: Type = field(default_factory=lambda: DataParser)
+    """_target: target class to instantiate"""
 
 
 @dataclass
@@ -31,9 +40,9 @@ class DataParser:
         config: datasetparser config containing all information needed to instantiate dataset
     """
 
-    config: cfg.DataParserConfig
+    config: DataParserConfig
 
-    def __init__(self, config: cfg.DataParserConfig):
+    def __init__(self, config: DataParserConfig):
         super().__init__()
         self.config = config
 

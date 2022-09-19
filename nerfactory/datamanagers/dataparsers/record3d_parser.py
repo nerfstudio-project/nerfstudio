@@ -25,15 +25,14 @@ from scipy.spatial.transform import Rotation
 
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils import poses as pose_utils
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
 
 @dataclass
-class Record3DDataParserConfig(cfg.DataParserConfig):
+class Record3DDataParserConfig(DataParserConfig):
     """Record3D dataset config"""
 
     _target: Type = field(default_factory=lambda: Record3D)

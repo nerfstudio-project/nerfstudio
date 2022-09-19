@@ -24,14 +24,13 @@ import numpy as np
 import torch
 
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.io import get_absolute_path
 
 
 @dataclass
-class MipNerf360DataParserConfig(cfg.DataParserConfig):
+class MipNerf360DataParserConfig(DataParserConfig):
     """Mipnerf 360 dataset parser config"""
 
     _target: Type = field(default_factory=lambda: Mipnerf360)

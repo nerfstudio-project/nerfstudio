@@ -24,9 +24,8 @@ import torch
 from PIL import Image
 from rich.console import Console
 
-import nerfactory.configs.base as cfg
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds, Semantics
 from nerfactory.utils.io import get_absolute_path, load_from_json
 
@@ -54,7 +53,7 @@ def get_semantics_and_masks(image_idx: int, semantics: Semantics):
 
 
 @dataclass
-class FriendsDataParserConfig(cfg.DataParserConfig):
+class FriendsDataParserConfig(DataParserConfig):
     """Friends dataset parser config"""
 
     _target: Type = field(default_factory=lambda: Friends)
