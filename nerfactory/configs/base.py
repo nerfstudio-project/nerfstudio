@@ -347,7 +347,7 @@ class ViewerConfig(PrintableConfig):
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
     log_filename: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """Absolute path to the log file. Set automatically."""
+    """[Do not set] Absolute path to the log file. Set automatically."""
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
