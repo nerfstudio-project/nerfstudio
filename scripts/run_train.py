@@ -212,5 +212,5 @@ def main(config: cfg.Config) -> None:
 
 if __name__ == "__main__":
     # Choose a base configuration and override values.
-    dcargs.extras.set_accent_colour("bright_yellow")
+    dcargs.extras.set_accent_color("bright_yellow")
     main(dcargs.cli(AnnotatedBaseConfigUnion))
