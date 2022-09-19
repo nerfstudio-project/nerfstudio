@@ -42,7 +42,7 @@ class InstantNGPDataParserConfig(DataParserConfig):
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     scene_scale: float = 0.33
-    """How much to scale the scene. Defaults to 0.33"""
+    """How much to scale the scene."""
 
 
 @dataclass

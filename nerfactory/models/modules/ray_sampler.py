@@ -239,11 +239,11 @@ class PDFSampler(Sampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Randomize location within each bin during training. Defaults to True
-        include_original: Add original samples to ray. Defaults to True
+        train_stratified: Randomize location within each bin during training.
+        include_original: Add original samples to ray.
         density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
         weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
-        histogram_padding: Amount to weights prior to computing PDF. Defaults to 0.01.
+        histogram_padding: Amount to weights prior to computing PDF.
     """
 
     def __init__(
@@ -276,7 +276,7 @@ class PDFSampler(Sampler):
             ray_samples: Existing ray samples
             weights: Weights for each bin
             num_samples: Number of samples per ray
-            eps: Small value to prevent numerical issues. Defaults to 1e-5
+            eps: Small value to prevent numerical issues.
 
         Returns:
             Positions and deltas for samples along a ray

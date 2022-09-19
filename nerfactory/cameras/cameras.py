@@ -256,8 +256,8 @@ class Cameras:
 
         Args:
             camera_idx: Index of the camera to convert.
-            image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
-            max_size: Max size to resize the image to. Defaults to None.
+            image: An image in range [0, 1] that is encoded to a base64 string.
+            max_size: Max size to resize the image to if present.
 
         Returns:
             A JSON representation of the camera

@@ -66,8 +66,8 @@ class Trainer:
 
     Args:
         config: The configuration object.
-        local_rank: Local rank of the process. Defaults to 0.
-        world_size: World size of the process. Defaults to 1.
+        local_rank: Local rank of the process.
+        world_size: World size of the process.
     """
 
     def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):

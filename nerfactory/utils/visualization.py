@@ -28,7 +28,7 @@ def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType
 
     Args:
         image: Single channel image.
-        cmap: Colormap for image. Defaults to 'turbo'.
+        cmap: Colormap for image.
 
     Returns:
         TensorType: Colored image
@@ -55,10 +55,10 @@ def apply_depth_colormap(
 
     Args:
         depth: Depth image.
-        accumulation: Ray accumulation used for masking vis. Defaults to None.
-        near_plane: Closest depth to consider. If None, use min image value. Defaults to None.
-        far_plane: Furthest depth to consider. If None, use max image value. Defaults to None.
-        cmap: Colormap to apply. Defaults to "turbo".
+        accumulation: Ray accumulation used for masking vis.
+        near_plane: Closest depth to consider. If None, use min image value.
+        far_plane: Furthest depth to consider. If None, use max image value.
+        cmap: Colormap to apply.
 
     Returns:
         Colored depth image
@@ -88,8 +88,8 @@ def apply_boolean_colormap(
 
     Args:
         image: Boolean image.
-        true_color: Color to use for True. Defaults to white.
-        false_color: Color to use for False. Defaults to black.
+        true_color: Color to use for True.
+        false_color: Color to use for False.
 
     Returns:
         Colored boolean image

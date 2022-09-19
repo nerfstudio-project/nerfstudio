@@ -126,10 +126,10 @@ def launch(
         main_func (Callable): function that will be called by the distributed workers
         num_gpus_per_machine (int): number of GPUs per machine
         num_machines (int, optional): total number of machines
-        machine_rank (int, optional): rank of this machine. Defaults to 0.
-        dist_url (str, optional): url to connect to for distributed jobs. Defaults to "auto".
-        config (Config, optional): config file specifying training regimen. Defaults to None.
-        timeout (timedelta, optional): timeout of the distributed workers. Defaults to DEFAULT_TIMEOUT.
+        machine_rank (int, optional): rank of this machine.
+        dist_url (str, optional): url to connect to for distributed jobs.
+        config (Config, optional): config file specifying training regimen.
+        timeout (timedelta, optional): timeout of the distributed workers.
     """
     assert config is not None
     world_size = num_machines * num_gpus_per_machine

@@ -90,8 +90,8 @@ class Viewer:
     """Viewer class for connecting to the bridge server.
 
     Args:
-        zmq_url: Where to connect with ZMQ. Defaults to None.
-        window: An already existing ViewerWindow. Defaults to None.
+        zmq_url: Where to connect with ZMQ.
+        window: An already existing ViewerWindow.
     """
 
     def __init__(self, zmq_url: Optional[str] = None, window: Optional[ViewerWindow] = None):

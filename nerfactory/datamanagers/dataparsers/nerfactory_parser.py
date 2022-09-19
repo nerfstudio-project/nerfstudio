@@ -42,15 +42,13 @@ class NerfactoryDataParserConfig(DataParserConfig):
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     downscale_factor: int = 1
-    """How much to downscale images. Defaults to 1."""
+    """How much to downscale images."""
     scene_scale: float = 4.0
-    """How much to scale the scene. Defaults to 4.0"""
+    """How much to scale the scene."""
     orientation_method: Literal["pca", "up"] = "up"
-    """The method to use for orientation. Either "pca" or "up"."""
+    """The method to use for orientation."""
     train_split_percentage: float = 0.9
-    """
-    The percent of images to use for training.
-    The remaining images are for eval. Defaults to 0.9.
+    """The percent of images to use for training. The remaining images are for eval.
     """
 
 

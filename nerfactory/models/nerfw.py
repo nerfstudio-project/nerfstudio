@@ -65,7 +65,6 @@ class NerfWModel(Model):
             uncertainty_min (float, optional): This is added to the end of the uncertainty
                 rendering operation. It's called 'beta_min' in other repos.
                 This avoids calling torch.log() on a zero value, which would be undefined.
-                Defaults to 0.03.
         """
         self.field_coarse = None
         self.field_fine = None
