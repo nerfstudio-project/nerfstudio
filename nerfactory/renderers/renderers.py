@@ -27,7 +27,7 @@ Example:
 
 """
 import math
-from typing import Optional
+from typing import Literal, Optional
 
 import nerfacc
 import torch
@@ -42,7 +42,7 @@ class RGBRenderer(nn.Module):
     """Standard volumetic rendering.
 
     Args:
-        background_color: Background color as RGB. Defaults to random.
+        background_color: Background color as RGB. Uses random colors if None.
     """
 
     def __init__(self, background_color: Optional[TensorType[3]] = None) -> None:
@@ -63,7 +63,7 @@ class RGBRenderer(nn.Module):
         Args:
             rgb: RGB for each sample
             weights: Weights for each sample
-            background_color: Background color as RGB. Defaults to random.
+            background_color: Background color as RGB. Uses random colors if None.
             ray_indices: Ray index for each sample, used when samples are packed.
             num_rays: Number of rays, used when samples are packed.
 
@@ -115,8 +115,8 @@ class SHRenderer(nn.Module):
     """Render RGB value from spherical harmonics.
 
     Args:
-        background_color: Background color as RGB. Defaults to random.
-        activation: Output activation. Defaults to Sigmoid().
+        background_color: Background color as RGB. Uses random colors if None
+        activation: Output activation.
     """
 
     def __init__(
@@ -191,13 +191,11 @@ class DepthRenderer(nn.Module):
     """Calculate depth along ray.
 
     Args:
-        method (str, optional): Depth calculation method. Defaults to 'expected'.
+        method (str, optional): Depth calculation method.
     """
 
-    def __init__(self, method: str = "expected") -> None:
+    def __init__(self, method: Literal["expected"] = "expected") -> None:
         super().__init__()
-        if method not in {"expected"}:
-            raise ValueError(f"{method} is an invalid depth calculation method")
         self.method = method
 
     def forward(

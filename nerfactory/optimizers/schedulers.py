@@ -29,8 +29,8 @@ class ExponentialDecaySchedule(LambdaLR):
         lr_init: The initial learning rate.
         lr_final: The final learning rate.
         max_steps: The maximum number of steps.
-        lr_delay_steps: The number of steps to delay the learning rate. Default is 0.
-        lr_delay_mult: The multiplier for the learning rate after the delay. Default is 1.0.
+        lr_delay_steps: The number of steps to delay the learning rate.
+        lr_delay_mult: The multiplier for the learning rate after the delay.
     """
 
     def __init__(self, optimizer, lr_init, lr_final, max_steps, lr_delay_steps=0, lr_delay_mult=1.0) -> None:

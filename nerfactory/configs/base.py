@@ -128,7 +128,7 @@ class LocalWriterConfig(InstantiateConfig):
         """Instantiate local writer
 
         Args:
-            banner_messages: List of strings that always print at the bottom of screen. Defaults to None.
+            banner_messages: List of strings that always print at the bottom of screen.
         """
         return self._target(self, banner_messages=banner_messages, **kwargs)
 
@@ -257,9 +257,9 @@ class ModelConfig(InstantiateConfig):
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     """Loss specific weights."""
     num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation. Defaults to 64"""
+    """Number of samples in coarse field evaluation"""
     num_importance_samples: int = 128
-    """Number of samples in fine field evaluation. Defaults to 128"""
+    """Number of samples in fine field evaluation"""
     enable_density_field: bool = False
     """Whether to create a density field to filter samples."""
     density_field_params: Dict[str, Any] = to_immutable_dict(
@@ -292,20 +292,20 @@ class NerfWModelConfig(ModelConfig):
     )
     """Loss specific weights."""
     num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation. Defaults to 64,"""
+    """Number of samples in coarse field evaluation."""
     num_importance_samples: int = 64
-    """Number of samples in fine field evaluation. Defaults to 128,"""
+    """Number of samples in fine field evaluation."""
     uncertainty_min: float = 0.03
     """This is added to the end of the uncertainty
     rendering operation. It's called 'beta_min' in other repos.
     This avoids calling torch.log() on a zero value, which would be undefined.
-    Defaults to 0.03."""
+    """
     num_images: int = 10000  # TODO: don't hardcode this
     """How many images exist in the dataset."""
     appearance_embedding_dim: int = 48
-    """Dimension of appearance embedding. Defaults to 48."""
+    """Dimension of appearance embedding."""
     transient_embedding_dim: int = 16
-    """Dimension of transient embedding. Defaults to 16."""
+    """Dimension of transient embedding."""
 
 
 @dataclass

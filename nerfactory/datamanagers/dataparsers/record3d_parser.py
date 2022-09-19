@@ -40,14 +40,14 @@ class Record3DDataParserConfig(DataParserConfig):
     data_directory: Path = Path("data/record3d/garden")
     """Location of data"""
     val_skip: int = 8
-    """1/val_skip images to use for validation. Defaults to 8."""
+    """1/val_skip images to use for validation."""
     aabb_scale: float = 4.0
-    """Scene scale, Defaults to 4.0."""
+    """Scene scale."""
     orientation_method: Literal["pca", "up"] = "up"
-    """The method to use for orientation. Either "pca" or "up"."""
+    """The method to use for orientation"""
     max_dataset_size: int = 150
     """Max number of images to train on. If the dataset has
-    more, images will be sampled approximately evenly. Defaults to 150."""
+    more, images will be sampled approximately evenly."""
 
 
 @dataclass

@@ -110,8 +110,7 @@ def _render_trajectory_video(
         output_filename: Name of the output file.
         rendered_output_name: Name of the renderer output to use.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
-            Defaults to 1.0.
-        seconds: Number for the output video. Defaults to 5.0.
+        seconds: Number for the output video.
     """
     console.print("[bold green]Creating trajectory video")
     images = []

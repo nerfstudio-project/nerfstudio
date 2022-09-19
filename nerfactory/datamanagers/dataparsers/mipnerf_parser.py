@@ -38,13 +38,13 @@ class MipNerf360DataParserConfig(DataParserConfig):
     data_directory: Path = Path("data/mipnerf_360/garden")
     """directory specifying location of data"""
     downscale_factor: int = 1
-    """How much to downscale images. Defaults to 1."""
+    """How much to downscale images."""
     val_skip: int = 8
-    """1/val_skip images to use for validation. Defaults to 8."""
+    """1/val_skip images to use for validation."""
     auto_scale: bool = True
-    """Scale based on pose bounds. Defaults to True."""
+    """Scale based on pose bounds."""
     aabb_scale: float = 4
-    """Scene scale, Defaults to 1.0."""
+    """Scene scale."""
 
 
 @dataclass
