@@ -15,9 +15,8 @@
 """Data parser for friends dataset"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
 from typing import Type
 
 import numpy as np

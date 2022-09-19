@@ -12,15 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Data parser for nerfactory datasets. """
-""" Data parser for nerfactory datasets. """
 
 from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Type
 from typing import Literal, Type
 
 import numpy as np
