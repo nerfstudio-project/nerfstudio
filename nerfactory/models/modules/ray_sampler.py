@@ -347,6 +347,12 @@ class VolumetricSampler(Sampler):
     """Sampler inspired by the one proposed in the Instant-NGP paper.
 
     This sampler does ray-box AABB test, ray samples generation and density check, all together.
+
+        Args:
+        aabb: Bounding box of the scene.
+        density_fn: Function that takes a tensor of points and returns a tensor of densities.
+        grid_resolution: Resolution of the density grid.
+        num_samples: Number of samples per ray.
     """
 
     def __init__(
@@ -356,14 +362,7 @@ class VolumetricSampler(Sampler):
         grid_resolution: int = 128,
         num_samples: int = 1024,
     ) -> None:
-        """Init.
 
-        Args:
-            aabb: Bounding box of the scene.
-            density_fn: Function that takes a tensor of points and returns a tensor of densities.
-            grid_resolution: Resolution of the density grid.
-            num_samples: Number of samples per ray.
-        """
         super().__init__(num_samples=num_samples)
         self.aabb = aabb
         self.density_fn = density_fn
@@ -398,7 +397,7 @@ class VolumetricSampler(Sampler):
         ray_bundle: RayBundle,
         num_samples: Optional[int] = None,
         near_plane: float = 0.0,
-        remove_occluded_samples: bool = True,
+        remove_occluded_samples: bool = False,
     ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
 
