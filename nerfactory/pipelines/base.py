@@ -30,9 +30,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.base import DataManager
 from nerfactory.models.base import Model
-from nerfactory.utils import profiler, writer
+from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.writer import EventName, TimeWriter
 
 
 def module_wrapper(module: nn.Module) -> nn.Module:
