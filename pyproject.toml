@@ -33,13 +33,14 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.0.6",
+    "nerfacc==0.0.8",
     "numpy-quaternion",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
     "pylint==2.13.4",
     "pytest==7.1.2",
+    "pytest-xdist==2.5.0",
     "python-socketio==5.7.1",
     "rich==12.5.1",
     "tensorboard==2.9.0",
@@ -104,7 +105,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "--typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
+addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
 testpaths = [
     "tests",
 ]

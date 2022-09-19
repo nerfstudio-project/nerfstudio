@@ -9,6 +9,7 @@
     "highlight1": "#d1d4db",
     "highlight2": "#EEEEEE",
     "highlight3": "#222831",
+    "disabled": "#595959",
     "vivid1": "#ffcc00"
   },
   "radii": {

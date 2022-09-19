@@ -49,24 +49,39 @@ except ImportError:
     pass
 
 
-def get_normalized_directions(directions):
-    """SH encoding must be in the range [0, 1]"""
+def get_normalized_directions(directions: TensorType["bs":..., 3]):
+    """SH encoding must be in the range [0, 1]
+
+    Args:
+        directions: batch of directions
+    """
     return (directions + 1.0) / 2.0
 
 
 class TCNNCompoundField(Field):
-    """Compound Field that uses TCNN"""
+    """Compound Field that uses TCNN
+
+    Args:
+        aabb: parameters of scene aabb bounds
+        num_layers: number of hidden layers
+        hidden_dim: dimension of hidden layers
+        geo_feat_dim: output geo feat dimensions
+        num_layers_color: number of hidden layers for color network
+        hidden_dim_color: dimension of hidden layers for color network
+        appearance_embedding_dim: dimension of appearance embedding
+        spatial_distortion: spatial distortion to apply to the scene
+    """
 
     def __init__(
         self,
         aabb,
         num_images: int,
-        num_layers=2,
-        hidden_dim=64,
-        geo_feat_dim=15,
-        num_layers_color=3,
-        hidden_dim_color=64,
-        appearance_embedding_dim: int = 40,
+        num_layers: int = 2,
+        hidden_dim: int = 64,
+        geo_feat_dim: int = 15,
+        num_layers_color: int = 3,
+        hidden_dim_color: int = 64,
+        appearance_embedding_dim: int = 32,
         spatial_distortion: SpatialDistortion = SceneContraction(),
     ) -> None:
         super().__init__()

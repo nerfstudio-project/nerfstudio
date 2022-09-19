@@ -17,25 +17,39 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Type
 
 import numpy as np
 import torch
 
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.io import get_absolute_path, load_from_json
+
+
+@dataclass
+class InstantNGPDataParserConfig(DataParserConfig):
+    """Instant-NGP dataset parser config"""
+
+    _target: Type = field(default_factory=lambda: InstantNGP)
+    """target class to instantiate"""
+    data_directory: Path = Path("data/ours/posterv2")
+    """directory specifying location of data"""
+    scale_factor: float = 1.0
+    """How much to scale the camera origins by."""
+    scene_scale: float = 0.33
+    """How much to scale the scene. Defaults to 0.33"""
 
 
 @dataclass
 class InstantNGP(DataParser):
     """Instant NGP Dataset"""
 
-    config: cfg.InstantNGPDataParserConfig
+    config: InstantNGPDataParserConfig
 
     def _generate_dataset_inputs(self, split="train"):
 

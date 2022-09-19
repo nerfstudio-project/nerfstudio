@@ -88,6 +88,8 @@ class DataManager(nn.Module):
 
     train_input_dataset: Optional[InputDataset] = None
     eval_input_dataset: Optional[InputDataset] = None
+    train_sampler: Optional[DistributedSampler] = None
+    eval_sampler: Optional[DistributedSampler] = None
 
     def __init__(self):
         """Constructor for the DataManager class.
@@ -233,8 +235,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         if config.eval_dataparser is None:
             logging.info("No eval dataset specified so using train dataset for eval.")
             config.eval_dataparser = config.train_dataparser
-        self.train_input_dataset = InputDataset(config.train_dataparser, split="train")
-        self.eval_input_dataset = InputDataset(config.eval_dataparser, split="val" if not test_mode else "test")
+
+        self.train_input_dataset = InputDataset(config.train_dataparser.setup().get_dataset_inputs(split="train"))
+        self.eval_input_dataset = InputDataset(
+            config.eval_dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
+        )
         super().__init__()
 
     def setup_train(self):
@@ -326,5 +331,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
         for camera_ray_bundle, batch in self.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             return image_idx, camera_ray_bundle, batch
+        raise ValueError("No more eval images")
