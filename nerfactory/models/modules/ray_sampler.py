@@ -414,7 +414,7 @@ class VolumetricSampler(Sampler):
         """
 
         if self.density_field is not None:
-            raise ValueError("NGPSpacedSampler does not support a density field")
+            raise ValueError("VolumetricSampler does not support a density field")
 
         if num_samples is not None:
             render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()

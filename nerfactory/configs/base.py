@@ -24,11 +24,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 import dcargs
 import torch
 
-from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfactory.configs.utils import to_immutable_dict
-
-# data instances
-from nerfactory.datamanagers.base import VanillaDataManager
 
 # model instances
 from nerfactory.models.base import Model
@@ -213,6 +209,11 @@ AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
 )
 """Union over possible dataparser types, annotated with metadata for dcargs. This is the
 same as the vanilla union, but results in shorter subcommand names."""
+
+from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
+
+# data instances
+from nerfactory.datamanagers.base import VanillaDataManager
 
 
 @dataclass
