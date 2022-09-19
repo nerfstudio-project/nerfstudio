@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from torch import nn
@@ -32,7 +32,7 @@ from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.misc import get_masked_dict, is_not_none
+from nerfactory.utils.misc import get_masked_dict
 
 
 class Model(nn.Module):
@@ -51,11 +51,13 @@ class Model(nn.Module):
         self,
         config: cfg.ModelConfig,
         scene_bounds: SceneBounds,
+        num_train_data: int,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
         self.scene_bounds = scene_bounds
+        self.num_train_data = num_train_data
         self.density_field = None
         self.kwargs = kwargs
         self.collider = None
@@ -113,21 +115,9 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    @overload
-    def forward(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
-        ...
-
-    @overload
-    def forward(
-        self, ray_bundle: RayBundle, batch: Dict[str, torch.Tensor]
-    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        ...
-
     def forward(
         self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
-    ) -> Union[
-        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
-    ]:
+    ) -> Dict[str, torch.Tensor]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 
@@ -155,11 +145,7 @@ class Model(nn.Module):
             batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
 
         outputs = self.get_outputs(intersected_ray_bundle)
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
-        loss_dict = self.get_loss_dict(
-            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.config.loss_coefficients
-        )
-        return outputs, loss_dict, metrics_dict
+        return outputs
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -173,14 +159,13 @@ class Model(nn.Module):
         return {}
 
     @abstractmethod
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         """Computes and returns the losses dict.
 
         Args:
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
-            metrics_dict: collection of metrics to compute
-            loss_coefficients: list of loss coefficients/weightings to apply
+            metrics_dict: dictionary of metrics, some of which we can use for loss
         """
 
     @torch.no_grad()
@@ -190,14 +175,14 @@ class Model(nn.Module):
         Args:
             camera_ray_bundle: ray bundle to calculate outputs over
         """
-        assert is_not_none(camera_ray_bundle.num_rays_per_chunk)
+        num_rays_per_chunk = self.config.eval_num_rays_per_chunk
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
         outputs = {}
         outputs_lists = defaultdict(list)
-        for i in range(0, num_rays, camera_ray_bundle.num_rays_per_chunk):
+        for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
-            end_idx = i + camera_ray_bundle.num_rays_per_chunk
+            end_idx = i + num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
@@ -207,7 +192,9 @@ class Model(nn.Module):
         return outputs
 
     @abstractmethod
-    def log_test_image_outputs(self, image_idx, step, batch, outputs) -> float:
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         """Writes the test image outputs.
         TODO: This shouldn't return a loss
 
@@ -218,7 +205,7 @@ class Model(nn.Module):
             outputs: Outputs of the model.
 
         Returns:
-            The psnr.
+            A dictionary of metrics.
         """
 
     def load_model(self, loaded_state: Dict[str, Any]) -> None:

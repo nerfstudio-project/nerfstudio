@@ -24,10 +24,8 @@ from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     BlenderDataParserConfig,
-    CompoundModelConfig,
     Config,
-    FriendsDataManagerConfig,
-    InstantNGPModelConfig,
+    LoggingConfig,
     MipNerf360DataParserConfig,
     ModelConfig,
     NerfWModelConfig,
@@ -37,23 +35,23 @@ from nerfactory.configs.base import (
     TensoRFModelConfig,
     TrainerConfig,
     VanillaDataManagerConfig,
+    ViewerConfig,
 )
+from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
+from nerfactory.models.compound import CompoundModelConfig
+from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
 from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
 
 base_configs: Dict[str, Config] = {}
-base_configs["instant_ngp"] = Config(
-    method_name="instant_ngp",
-    trainer=TrainerConfig(mixed_precision=True),
+base_configs["instant-ngp"] = Config(
+    method_name="instant-ngp",
+    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
-        ),
-        model=InstantNGPModelConfig(),
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
@@ -61,17 +59,16 @@ base_configs["instant_ngp"] = Config(
             "scheduler": None,
         }
     },
+    viewer=ViewerConfig(enable=True),
+    logging=LoggingConfig(event_writer="none"),
 )
 
-base_configs["mipnerf_360"] = Config(
-    experiment_name="mipnerf_360",
-    method_name="mipnerf_360",
-    trainer=TrainerConfig(steps_per_test=200),
+base_configs["mipnerf-360"] = Config(
+    method_name="mipnerf-360",
+    trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=MipNerf360DataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
+            train_dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192
         ),
         model=ModelConfig(
             _target=MipNerf360Model,
@@ -79,6 +76,7 @@ base_configs["mipnerf_360"] = Config(
             loss_coefficients={"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0},
             num_coarse_samples=128,
             num_importance_samples=128,
+            eval_num_rays_per_chunk=8192,
         ),
     ),
 )
@@ -86,31 +84,34 @@ base_configs["mipnerf_360"] = Config(
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
-        ),
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=ModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
             num_coarse_samples=128,
             num_importance_samples=128,
+            eval_num_rays_per_chunk=8192,
         ),
     ),
 )
 
 base_configs["nerfw"] = Config(
-    experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
-    pipeline=PipelineConfig(datamanager=FriendsDataManagerConfig(), model=NerfWModelConfig()),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=FriendsDataParserConfig(),
+        ),
+        model=NerfWModelConfig(),
+    ),
 )
 
-base_configs["semantic_nerf"] = Config(
-    experiment_name="friends_TBBT-big_living_room",
-    method_name="semantic_nerf",
+
+base_configs["semantic-nerf"] = Config(
+    method_name="semantic-nerf",
     pipeline=PipelineConfig(
-        datamanager=FriendsDataManagerConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=FriendsDataParserConfig(),
+        ),
         model=ModelConfig(
             _target=SemanticNerfModel,
             loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
@@ -120,24 +121,14 @@ base_configs["semantic_nerf"] = Config(
     ),
 )
 
-base_configs["vanilla_nerf"] = Config(
-    method_name="vanilla_nerf",
+base_configs["vanilla-nerf"] = Config(
+    method_name="vanilla-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),
         ),
         model=ModelConfig(_target=NeRFModel),
     ),
-    optimizers={
-        "fields": {
-            "optimizer": OptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
-        },
-        "camera_opt": {
-            "optimizer": OptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
-        },
-    }
 )
 
 base_configs["tensorf"] = Config(
@@ -169,12 +160,8 @@ base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
-            train_num_rays_per_batch=8192,
-            eval_num_rays_per_chunk=8192,
-        ),
-        model=CompoundModelConfig(),
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
@@ -182,6 +169,8 @@ base_configs["compound"] = Config(
             "scheduler": None,
         }
     },
+    viewer=ViewerConfig(enable=True),
+    logging=LoggingConfig(event_writer="none"),
 )
 
 
@@ -202,7 +191,7 @@ def _make_base_config_subcommand_type() -> Type[Config]:
     base_configs_placeholder_timestamp = {}
     for name, config in base_configs.items():
         base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
-        base_configs_placeholder_timestamp[name].set_timestamp("{timestamp}")
+        base_configs_placeholder_timestamp[name].populate_dynamic_fields(timestamp="{timestamp}")
 
     return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
 

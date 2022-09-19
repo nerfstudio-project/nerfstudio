@@ -18,6 +18,8 @@ NeRF-W (NeRF in the wild) implementation.
 
 from __future__ import annotations
 
+from typing import Dict, Tuple
+
 import torch
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
@@ -39,7 +41,7 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
     UncertaintyRenderer,
 )
-from nerfactory.utils import colors, misc, visualization, writer
+from nerfactory.utils import colors, misc, visualization
 
 
 class NerfWModel(Model):
@@ -63,7 +65,6 @@ class NerfWModel(Model):
             uncertainty_min (float, optional): This is added to the end of the uncertainty
                 rendering operation. It's called 'beta_min' in other repos.
                 This avoids calling torch.log() on a zero value, which would be undefined.
-                Defaults to 0.03.
         """
         self.field_coarse = None
         self.field_fine = None
@@ -193,7 +194,7 @@ class NerfWModel(Model):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None):
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
         rgb_coarse = outputs["rgb_coarse"]
@@ -211,10 +212,12 @@ class NerfWModel(Model):
             "uncertainty_loss": uncertainty_loss,
             "density_loss": density_loss,
         }
-        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
+        loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
-    def log_test_image_outputs(self, image_idx, step, batch, outputs):
+    def get_image_metrics_and_images(
+        self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
+    ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
@@ -234,8 +237,13 @@ class NerfWModel(Model):
         row2 = torch.cat([depth_fine, depth_fine_static, depth_coarse], dim=-2)
         combined_image = torch.cat([row0, row1, row2], dim=-3)
 
-        writer.put_image(name=f"img/image_idx_{image_idx}-nerfw", image=combined_image, step=step)
-
+        # this doesn't really make sense but do it anyway
+        fine_psnr = self.psnr(image, rgb_fine)
+        metrics_dict = {
+            "psnr": float(fine_psnr.item()),
+        }
+        images_dict = {"img": combined_image}
         if "mask" in batch:
             mask = batch["mask"].repeat(1, 1, 3)
-            writer.put_image(name=f"mask/image_idx_{image_idx}", image=mask, step=step)
+            images_dict["mask"] = mask
+        return metrics_dict, images_dict

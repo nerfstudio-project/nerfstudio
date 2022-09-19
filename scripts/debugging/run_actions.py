@@ -18,7 +18,7 @@ def run_command(command: str, continue_on_fail: bool = False) -> bool:
 
     Args:
         command: command to run
-        continue_on_fail: whether to continue running commands if the current one fails. Defaults to False.
+        continue_on_fail: whether to continue running commands if the current one fails.
     """
     ret_code = subprocess.call(command, shell=True)
     if ret_code != 0:
@@ -87,4 +87,5 @@ def run_code_checks(continue_on_fail: bool = False):
 
 
 if __name__ == "__main__":
+    dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(run_code_checks)

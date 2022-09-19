@@ -18,24 +18,41 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from typing import Type, Union
+
 import torch
 from torch import nn
 from torchtyping import TensorType
 
-import nerfactory.utils.poses as pose_utils
 from nerfactory.configs import base as cfg
+
+
+# Camera Optimization related configs
+@dataclass
+class CameraOptimizerConfig(cfg.InstantiateConfig):
+    """Default camera optimizer config. Note: This is a no-op class and will not optimize cameras."""
+
+    _target: Type = field(default_factory=lambda: CameraOptimizer)
+
+
+@dataclass
+class BARFPoseOptimizerConfig(CameraOptimizerConfig):
+    """BARF camera optimizer."""
+
+    _target: Type = field(default_factory=lambda: BARFOptimizer)
 
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
 
-    config: cfg.CameraOptimizerConfig
+    config: CameraOptimizerConfig
 
     def __init__(
         self,
-        config: cfg.CameraOptimizerConfig,
+        config: CameraOptimizerConfig,
         num_cameras: int,
-        device: int,
+        device: Union[torch.device, str],
         **kwargs,  # pylint: disable=unused-argument
     ) -> None:
         super().__init__()
@@ -56,24 +73,30 @@ class CameraOptimizer(nn.Module):
             TensorType["num_cameras", 3, 4]: Tranformation matrices from camera coordinates
             to optimized camera coordinates.
         """
-        return torch.eye(indices.shape[0], 4)[..., :3, :4]  # no-op (Identity Transform)
+        return torch.eye(4).repeat(indices.shape[0], 1, 1)[:, :3, :4]  # no-op (Identity Transform)
 
 
 class BARFOptimizer(CameraOptimizer):
     """Bundle-Adjusting NeRF (BARF) Pose Optimization"""
 
-    config: cfg.BARFPoseOptimizerConfig
+    config: BARFPoseOptimizerConfig
 
-    def __init__(self, config: cfg.BARFPoseOptimizerConfig, num_cameras: int, device: int) -> None:
+    def __init__(self, config: BARFPoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
         super().__init__(config, num_cameras, device)
-        self.noise_variance = config.noise_variance
-        pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.noise_variance)
-        self.pose_noise = nn.Parameter(self.exp_map(pose_noise), requires_grad=False)
         self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
         nn.init.zeros_(self.pose_adjustment.weight)
 
     @classmethod
     def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
+        """Convert SE3 vector into [R|t] transformation matrix.
+
+        Args:
+            tangent_vector (TensorType["num_cameras", 6]): SE3 vector
+
+        Returns:
+            TensorType["num_cameras", 3, 4]: Respective [R|t] tranformation matrices.
+        """
+
         tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
         tangent_vector_ang = tangent_vector[:, 3:].view(-1, 3, 1)
 
@@ -90,7 +113,7 @@ class BARFOptimizer(CameraOptimizer):
         # Compute the rotation
         sine = theta.sin()
         cosine = torch.where(near_zero, 8 / (4 + theta2) - 1, theta.cos())
-        sine_by_theta = torch.where(near_zero, 0.5 * cosine + 0.5, theta.sin() / theta_nz)
+        sine_by_theta = torch.where(near_zero, 0.5 * cosine + 0.5, sine / theta_nz)
         one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 * sine_by_theta, (1 - cosine) / theta2_nz)
         ret = torch.zeros(tangent_vector.shape[0], 3, 4).to(dtype=tangent_vector.dtype, device=tangent_vector.device)
         ret[:, :3, :3] = one_minus_cosine_by_theta2 * tangent_vector_ang @ tangent_vector_ang.transpose(1, 2)
@@ -119,7 +142,5 @@ class BARFOptimizer(CameraOptimizer):
         return ret
 
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
-        pose_noise = self.pose_noise[indices]
-        pose_adjustment = self.exp_map(self.pose_adjustment.weight[indices])
-        c2c_prime = pose_utils.multiply(pose_noise, pose_adjustment)
+        c2c_prime = self.exp_map(self.pose_adjustment.weight[indices])
         return c2c_prime

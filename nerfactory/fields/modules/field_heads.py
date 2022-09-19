@@ -117,9 +117,9 @@ class SHFieldHead(FieldHead):
 
     Args:
         in_dim: input dimension. If not defined in constructor, it must be set later.
-        levels: Number of spherical harmonics layers. Defaults to 3.
+        levels: Number of spherical harmonics layers.
         channels: Number of channels. Defaults to 3 (ie RGB).
-        activation: Output activation. Defaults to None.
+        activation: Output activation.
     """
 
     def __init__(

@@ -8,6 +8,10 @@ inline __device__ float min_step_size(uint32_t max_ray_samples) {
 // Maximum step size is the width of the coarsest gridsize cell.
 inline __device__ float max_step_size(uint32_t grid_cascades, uint32_t grid_size) { 
     // Note(ruilongli): use mip=0 step size?
+    // Example:
+    // if there are 3 grid cascades and the grid size is 128 resolution
+    // then we will have 2^(num_cascades-1) = 4
+    // and sqrt(3) * 4 / 128 = 0.03125
     return __SQRT3() * (1 << (grid_cascades-1)) / grid_size; 
 }
 
@@ -108,29 +112,30 @@ template <typename scalar_t>
 __global__ void kernel_raymarching(
     // rays info
     const uint32_t n_rays,
-    const scalar_t* rays_o,
-    const scalar_t* rays_d,
-    const scalar_t* t_min,
-    const scalar_t* t_max, 
+    const scalar_t* rays_o, // shape (n_rays, 3)
+    const scalar_t* rays_d, // shape (n_rays, 3)
+    const scalar_t* t_min, // shape (n_rays,)
+    const scalar_t* t_max, // shape (n_rays,)
     // density grid
-    const float grid_center,
-    const float grid_scale,
-    const int grid_cascades,
-    const int grid_size,
+    const float grid_center, // default 0.0
+    const float grid_scale, // default 3.0
+    const int grid_cascades, // default 1
+    const int grid_size, // default 128
     const uint8_t* grid_bitfield,
     // sampling
     const int marching_steps, // used only for inference. -1 means disable it.
     const int max_total_samples,
-    const int max_ray_samples,  // default 1024
-    const float cone_angle,  // default 0. for nerf-syn and 1/256 for large scene
-    const float step_scale,
+    const int max_ray_samples, // default 1024
+    const float cone_angle, // default 0. for nerf-syn and 1/256 for large scene
+    const float step_scale, // length of the longest side of the scene bounding box
     int* steps_counter,
     int* rays_counter,
     int* packed_info_out,
+    long* ray_idx_map,
     scalar_t* origins_out,
     scalar_t* dirs_out,
     scalar_t* starts_out,
-    scalar_t* ends_out 
+    scalar_t* ends_out
 ) {
     CUDA_GET_THREAD_ID(i, n_rays);
 
@@ -148,7 +153,13 @@ __global__ void kernel_raymarching(
     // TODO(ruilongli): perturb `near` as in ngp_pl?
     // TODO(ruilongli): pre-compute `dt_min`, `dt_max` as it is a constant?
     float dt_min = min_step_size(max_ray_samples) * step_scale;
-    float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;    
+    float dt_max = max_step_size(grid_cascades, grid_size) * grid_scale;
+
+    // if (threadIdx.x == 0) {
+    //     // these values should be equivalent with the current code
+    //     printf("step_scale value %f\n", step_scale);
+    //     printf("grid_scale value %f\n", grid_scale);
+    // }
 	
     uint32_t ray_idx, base, marching_samples;
     uint32_t j;
@@ -221,6 +232,9 @@ __global__ void kernel_raymarching(
         uint32_t mip = mip_from_dt(x, y, z, grid_cascades, dt, grid_size, grid_center, grid_scale);
         
         if (grid_occupied_at(x, y, z, grid_bitfield, mip, grid_size, grid_center, grid_scale)) {
+            ray_idx_map[j * 3 + 0] = i;
+            ray_idx_map[j * 3 + 1] = i;
+            ray_idx_map[j * 3 + 2] = i;
             origins_out[j * 3 + 0] = ox;
             origins_out[j * 3 + 1] = oy;
             origins_out[j * 3 + 2] = oz;
@@ -322,6 +336,7 @@ __global__ void kernel_occupancy_query(
  * @param max_ray_samples Used to define the minimal step size: SQRT3() / max_ray_samples.
  * @param cone_angle 0. for nerf-synthetic and 1./256 for real scenes.
  * @param step_scale Scale up the step size by this much. Usually equals to scene scale.
+ *   For example, this is often set to the length of the longest side of the scene bounding box.
  * @return std::vector<torch::Tensor> 
  * - packed_info: Stores how to index the ray samples from the returned values.
  *  Shape of [n_rays, 3]. First value is the ray index. Second value is the sample 
@@ -377,6 +392,7 @@ std::vector<torch::Tensor> raymarching(
     torch::Tensor packed_info = torch::zeros(
         {n_rays, 3}, rays_o.options().dtype(torch::kInt32));  // ray_id, sample_id, num_samples
     torch::Tensor origins = torch::zeros({output_total_samples, 3}, rays_o.options());
+    torch::Tensor ray_idx_map = torch::zeros({output_total_samples, 3}, rays_o.options().dtype(torch::kInt64));
     torch::Tensor dirs = torch::zeros({output_total_samples, 3}, rays_o.options());
     torch::Tensor starts = torch::zeros({output_total_samples, 1}, rays_o.options());
     torch::Tensor ends = torch::zeros({output_total_samples, 1}, rays_o.options());
@@ -406,7 +422,8 @@ std::vector<torch::Tensor> raymarching(
                 step_scale,
                 steps_counter.data_ptr<int>(),  // total samples.
                 rays_counter.data_ptr<int>(),  // total rays.
-                packed_info.data_ptr<int>(), 
+                packed_info.data_ptr<int>(),
+                ray_idx_map.data_ptr<long>(),
                 origins.data_ptr<scalar_t>(),
                 dirs.data_ptr<scalar_t>(), 
                 starts.data_ptr<scalar_t>(),
@@ -414,7 +431,41 @@ std::vector<torch::Tensor> raymarching(
             ); 
         }));
 
-    return {packed_info, origins, dirs, starts, ends};
+    return {packed_info, origins, dirs, starts, ends, ray_idx_map};
+}
+
+__global__ void kernel_get_camera_indices(
+    const uint32_t n_rays,
+    const int* packed_info, 
+    const long* camera_indices,
+    long* mapping
+) {
+    CUDA_GET_THREAD_ID(thread_id, n_rays);
+
+    const int i = packed_info[thread_id * 3 + 0];  // ray idx in {rays_o, rays_d}
+    const int base = packed_info[thread_id * 3 + 1];  // point idx start.
+    const int numsteps = packed_info[thread_id * 3 + 2];  // point idx shift.
+    const long camera_index = camera_indices[i];
+
+    int j = 0;
+    for (; j < numsteps; ++j) {
+        mapping[base + j] = camera_index;
+    }
+    
+    return;
+}
+
+torch::Tensor get_camera_indices(
+    const torch::Tensor packed_info, 
+    const torch::Tensor camera_indices, 
+    torch::Tensor mapping
+) {
+    const int n_rays = packed_info.size(0);
+    const int threads = 256;
+    const int blocks = CUDA_N_BLOCKS_NEEDED(n_rays, threads);
+
+    kernel_get_camera_indices<<<blocks, threads>>>(n_rays, packed_info.data_ptr<int>(), camera_indices.data_ptr<long>(), mapping.data_ptr<long>());
+    return mapping;
 }
 
 

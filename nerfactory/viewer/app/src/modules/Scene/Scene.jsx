@@ -3,6 +3,8 @@ import * as THREE from 'three';
 
 import { useContext, useEffect } from 'react';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer';
+
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { useDispatch } from 'react-redux';
 import { drawCamera, drawSceneBounds } from './drawing';
@@ -51,11 +53,18 @@ export function get_scene_tree() {
   renderer.setPixelRatio(window.devicePixelRatio);
   sceneTree.metadata.renderer = renderer;
 
+  const labelRenderer = new CSS2DRenderer();
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.domElement.style.position = 'absolute';
+  labelRenderer.domElement.style.top = '0px';
+  document.body.appendChild(labelRenderer.domElement);
+  sceneTree.metadata.labelRenderer = labelRenderer;
+
   // Camera Controls
   const camera_controls = new OrbitControls(main_camera, renderer.domElement);
   camera_controls.rotateSpeed = 2.0;
-  camera_controls.zoomSpeed = 0.3;
-  camera_controls.panSpeed = 0.2;
+  camera_controls.zoomSpeed = 1;
+  camera_controls.panSpeed = 1;
   camera_controls.target.set(0, 0, 0); // focus point of the controls
   camera_controls.autoRotate = false;
   camera_controls.enableDamping = true;

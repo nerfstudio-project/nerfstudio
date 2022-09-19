@@ -17,6 +17,7 @@ Code to train model.
 """
 from __future__ import annotations
 
+import dataclasses
 import functools
 import logging
 import os
@@ -25,6 +26,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import torch
+from rich import console
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfactory.configs import base as cfg
@@ -36,11 +38,13 @@ from nerfactory.utils.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfactory.utils.decorators import check_main_thread
+from nerfactory.utils.decorators import check_main_thread, check_viewer_enabled
+from nerfactory.utils.misc import step_check
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
 
 logging.getLogger("PIL").setLevel(logging.WARNING)
+CONSOLE = console.Console()
 
 
 def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
@@ -62,8 +66,8 @@ class Trainer:
 
     Args:
         config: The configuration object.
-        local_rank: Local rank of the process. Defaults to 0.
-        world_size: World size of the process. Defaults to 1.
+        local_rank: Local rank of the process.
+        world_size: World size of the process.
     """
 
     def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):
@@ -79,19 +83,19 @@ class Trainer:
         self.pipeline: Pipeline
         self.optimizers: Optimizers
         self.start_step = 0
-        # visualizer variable
-        banner_messages = None
-        self.visualizer_state = viewer_utils.VisualizerState(config.viewer, config_base_dir=self.config.base_dir)
-        if config.viewer.enable:
-            banner_messages = [f"Viewer at: {self.visualizer_state.viewer_url}"]
-        self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # training callbacks
         self.callbacks: List[TrainingCallback]
-        # logging variables
-        writer.setup_event_writers(
+        # optimizers
+        self.grad_scaler = GradScaler(enabled=self.mixed_precision)
+        # logging/viewer variables
+        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer)
+        writer.setup_event_writer(config.logging)
+        writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
         profiler.setup_profiler(config.logging)
+        writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
+        self._check_viewer_warnings()
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
@@ -115,13 +119,11 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
 
-        self.visualizer_state.init_scene(
-            dataset=self.pipeline.datamanager.train_input_dataset, start_train=self.config.viewer.start_train
-        )
+        self._init_viewer_scene()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self.start_step, self.start_step + num_iterations):
-                # if the visualizer used, the rendering of the visualizer will be included in the iteration train time
+                # if the viewer used, the rendering of the viewer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
                     # training callbacks before the training iteration
@@ -130,35 +132,96 @@ class Trainer:
                             step, location=TrainingCallbackLocation.BEFORE_TRAIN_ITERATION
                         )
 
-                    loss_metric_dict = self.train_iteration(step)
+                    # time the forward pass
+                    loss, loss_dict, metrics_dict = self.train_iteration(step)
 
                     # training callbacks after the training iteration
                     for callback in self.callbacks:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
-                    with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
-                        num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
-                        try:
-                            self.visualizer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
-                        except RuntimeError:
-                            time.sleep(0.03)  # sleep to allow buffer to reset
-                            assert self.visualizer_state.vis is not None
-                            self.visualizer_state.vis["renderingState/log_errors"].write(
-                                "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                            )
+                    vis_t = self._update_viewer_state(step)
 
-                if step != 0 and step % self.config.logging.steps_per_log == 0:
-                    writer.put_dict(name="Loss/train-loss_metrics_dict", scalar_dict=loss_metric_dict, step=step)
+                self._update_viewer_rays_per_sec(train_t, vis_t, step)
+
+                # a batch of train rays
+                if step_check(step, self.config.logging.steps_per_log, run_at_zero=True):
+                    writer.put_scalar(name="Train Loss", scalar=loss, step=step)
+                    writer.put_dict(name="Train Loss Dict", scalar_dict=loss_dict, step=step)
+                    writer.put_dict(name="Train Metrics Dict", scalar_dict=metrics_dict, step=step)
+
+                # a batch of eval rays
+                if step_check(step, self.config.trainer.steps_per_eval_batch, run_at_zero=True):
+                    _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
+                    eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
+                    writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
+                    writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
+                    writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
+
+                # one eval image
+                if step_check(step, self.config.trainer.steps_per_eval_image):
+                    metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+                    writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
+                    group = "Eval Images"
+                    for image_name, image in images_dict.items():
+                        writer.put_image(name=group + "/" + image_name, image=image, step=step)
+
+                # all eval images
+                if step_check(step, self.config.trainer.steps_per_eval_all_images):
+                    metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
+                    writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
+
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
-                if step % self.config.trainer.steps_per_test == 0:
-                    self.pipeline.get_eval_loss_dict(step=step)
-                self._update_rays_per_sec(train_t, vis_t, step)
+
+                self._update_viewer_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
 
         self._write_out_storage(num_iterations)
 
-    def _update_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
+    def _check_viewer_warnings(self) -> None:
+        """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
+        if self.config.viewer.enable:
+            if self.config.logging.event_writer_config:
+                string = (
+                    "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
+                    "Please set `--logging.event_writer none` for faster rendering"
+                )
+                CONSOLE.print(f"[bold red]{string}")
+            string = "[WARNING] Disabling eval iterations since viewer is enabled."
+            CONSOLE.print(f"[bold red]{string}")
+
+    @check_viewer_enabled
+    def _init_viewer_scene(self) -> None:
+        """Initializes viewer scene with given train dataset"""
+        assert self.viewer_state and self.pipeline.datamanager.train_input_dataset
+        self.viewer_state.init_scene(
+            dataset=self.pipeline.datamanager.train_input_dataset,
+            start_train=self.config.viewer.start_train,
+        )
+
+    @check_viewer_enabled
+    def _update_viewer_state(self, step: int) -> TimeWriter:
+        """Updates the viewer state by rendering out scene with current pipeline
+        Returns the time taken to render scene.
+
+        Args:
+            step: current train step
+        """
+        assert self.viewer_state is not None
+        with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
+            num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
+            try:
+                self.viewer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
+            except RuntimeError:
+                time.sleep(0.03)  # sleep to allow buffer to reset
+                assert self.viewer_state.vis is not None
+                self.viewer_state.vis["renderingState/log_errors"].write(
+                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+                )
+        return vis_t
+
+    @check_viewer_enabled
+    def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
         """Performs update on rays/sec calclation for training
 
         Args:
@@ -182,9 +245,9 @@ class Trainer:
         """
         if (
             step % self.config.logging.steps_per_log == 0
-            or (self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0)
-            or step % self.config.trainer.steps_per_test == 0
-            or step == self.config.trainer.max_num_iterations
+            or step % self.config.trainer.steps_per_eval_batch == 0
+            or step % self.config.trainer.steps_per_eval_image == 0
+            or step % self.config.trainer.steps_per_eval_all_images == 0
         ):
             writer.write_out_storage()
 
@@ -254,6 +317,4 @@ class Trainer:
         self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.
-        loss_dict["loss"] = loss
-        loss_dict.update(metrics_dict)
-        return loss_dict
+        return loss, loss_dict, metrics_dict

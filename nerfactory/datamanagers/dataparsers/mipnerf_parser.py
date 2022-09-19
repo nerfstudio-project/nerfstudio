@@ -15,24 +15,43 @@
 """Data parser for mipnerf dataset"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Type
 
 import imageio
 import numpy as np
 import torch
 
 from nerfactory.cameras.cameras import Cameras, CameraType
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.dataparsers.base import DataParser
+from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.io import get_absolute_path
+
+
+@dataclass
+class MipNerf360DataParserConfig(DataParserConfig):
+    """Mipnerf 360 dataset parser config"""
+
+    _target: Type = field(default_factory=lambda: Mipnerf360)
+    """target class to instantiate"""
+    data_directory: Path = Path("data/mipnerf_360/garden")
+    """directory specifying location of data"""
+    downscale_factor: int = 1
+    """How much to downscale images."""
+    val_skip: int = 8
+    """1/val_skip images to use for validation."""
+    auto_scale: bool = True
+    """Scale based on pose bounds."""
+    aabb_scale: float = 4
+    """Scene scale."""
 
 
 @dataclass
 class Mipnerf360(DataParser):
     """MipNeRF 360 Dataset"""
 
-    config: cfg.MipNerf360DataParserConfig
+    config: MipNerf360DataParserConfig
 
     @classmethod
     def normalize_orientation(cls, poses: np.ndarray):

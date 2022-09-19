@@ -16,14 +16,15 @@
 Collection of sampling strategies
 """
 
+import math
 from abc import abstractmethod
 from typing import Callable, Optional, Tuple
 
+import nerfacc  # pylint: disable=import-error
 import torch
 from torch import nn
 from torchtyping import TensorType
 
-import nerfactory.cuda as nerfactory_cuda
 from nerfactory.cameras.rays import Frustums, RayBundle, RaySamples
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 
@@ -237,11 +238,11 @@ class PDFSampler(Sampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Randomize location within each bin during training. Defaults to True
-        include_original: Add original samples to ray. Defaults to True
+        train_stratified: Randomize location within each bin during training.
+        include_original: Add original samples to ray.
         density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
         weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
-        histogram_padding: Amount to weights prior to computing PDF. Defaults to 0.01.
+        histogram_padding: Amount to weights prior to computing PDF.
     """
 
     def __init__(
@@ -273,7 +274,7 @@ class PDFSampler(Sampler):
             ray_samples: Existing ray samples
             weights: Weights for each bin
             num_samples: Number of samples per ray
-            eps: Small value to prevent numerical issues. Defaults to 1e-5
+            eps: Small value to prevent numerical issues.
 
         Returns:
             Positions and deltas for samples along a ray
@@ -340,102 +341,134 @@ class PDFSampler(Sampler):
         return ray_samples
 
 
-class NGPSpacedSampler(Sampler):
-    """Sampler that matches Instant-NGP paper.
+class VolumetricSampler(Sampler):
+    """Sampler inspired by the one proposed in the Instant-NGP paper.
 
     This sampler does ray-box AABB test, ray samples generation and density check, all together.
-
-    TODO(ruilongli): check whether fuse AABB test together with `raymarching` can speed things up.
-    Otherwise we can seperate it out and use collision detecoter that already exists in the repo.
     """
 
     def __init__(
-        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 0.01
+        self,
+        aabb: TensorType[2, 3],
+        density_fn: Callable[[TensorType["N", 3]], TensorType["N"]],
+        grid_resolution: int = 128,
+        num_samples: int = 1024,
     ) -> None:
-        super().__init__(num_samples, density_field=density_field, weight_threshold=weight_threshold)
-        self.ray_marching = nerfactory_cuda.RayMarching.apply
+        """Init.
+
+        Args:
+            aabb: Bounding box of the scene.
+            density_fn: Function that takes a tensor of points and returns a tensor of densities.
+            grid_resolution: Resolution of the density grid.
+            num_samples: Number of samples per ray.
+        """
+        super().__init__(num_samples=num_samples)
+        self.aabb = aabb
+        self.density_fn = density_fn
+
+        self.render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
+
+        # setup occupancy field with eval function
+        def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
+            """Evaluate occupancy given positions.
+
+            Args:
+                x: positions with shape (N, 3).
+            Returns:
+                occupancy values with shape (N, 1).
+            """
+            density_after_activation = density_fn(x)
+            # those two are similar when density is small.
+            # occupancy = 1.0 - torch.exp(-density_after_activation * render_step_size)
+            occupancy = density_after_activation * self.render_step_size
+            return occupancy
+
+        self.occ_field = nerfacc.OccupancyField(occ_eval_fn=occ_eval_fn, aabb=aabb, resolution=grid_resolution)
 
     def generate_ray_samples(self) -> RaySamples:
-        raise RuntimeError("For NGP we fused ray samples and density check together. Please call forward() directly.")
+        raise RuntimeError(
+            "The VolumetricSampler fuses sample generation and density check together. Please call forward() directly."
+        )
 
     # pylint: disable=arguments-differ
     def forward(
         self,
         ray_bundle: RayBundle,
-        aabb: TensorType[2, 3],
         num_samples: Optional[int] = None,
-        marching_steps: Optional[int] = 128,
-        t_min: Optional[TensorType["num_rays"]] = None,
-        t_max: Optional[TensorType["num_rays"]] = None,
-    ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples"], TensorType["total_samples"]]:
+        near_plane: float = 0.0,
+        remove_occluded_samples: bool = True,
+    ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
-
-        TODO(ruilongli): write a Packed[Ray_samples] class to ray_samples with packed_info.
-        TODO(ruilongli): maybe move aabb test to the collision detector?
 
         Args:
             ray_bundle: Rays to generate samples for
-            aabb: Bounding box of the scene.
             num_samples: Number of samples per ray
+            near_plane: Near plane for raymarching
+            remove_occluded_samples: Whether to remove occluded samples. (requires evaluating the density function)
 
         Returns:
-            First return is ray samples in a packed way where only the valid samples are kept.
-            Second return contains all the information to recover packed samples into unpacked mode for rendering.
-            The last two returns are t_min and t_max from ray-aabb test.
+            a tuple of (ray_samples, packed_info, ray_indices)
+            The ray_samples are packed, only storing the valid samples.
+            The packed_info contains all the information to recover packed samples into unpacked mode for rendering.
+            The ray_indices contains the indices of the rays that each sample belongs to.
         """
 
-        if self.density_field is None:
-            raise ValueError("density_field must be set to use NGPSpacedSampler")
+        if self.density_field is not None:
+            raise ValueError("VolumetricSampler does not support a density field")
 
-        num_samples = num_samples or self.num_samples
+        if num_samples is not None:
+            render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
+        else:
+            num_samples = self.num_samples
+            render_step_size = self.render_step_size
 
-        aabb = aabb.flatten()
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
-        scene_scale = (aabb[3:6] - aabb[0:3]).max()
+        if ray_bundle.camera_indices is not None:
+            camera_indices = ray_bundle.camera_indices.contiguous()
+        else:
+            camera_indices = None
 
-        if t_min is None or t_max is None:
-            # TODO(ruilongli): this clipping here is stupid. Try to avoid that.
-            t_min, t_max = nerfactory_cuda.ray_aabb_intersect(rays_o, rays_d, aabb)
-            t_min = torch.clamp(t_min, max=1e10)  # type: ignore
-            t_max = torch.clamp(t_max, max=1e10)  # type: ignore
+        packed_info, starts, ends = nerfacc.volumetric_marching(
+            rays_o=rays_o,
+            rays_d=rays_d,
+            aabb=self.aabb,
+            scene_resolution=self.occ_field.resolution,
+            scene_occ_binary=self.occ_field.occ_grid_binary,
+            render_step_size=render_step_size,
+            near_plane=near_plane,
+            stratified=self.training,
+        )
 
-        marching_steps = -1  # disable marching mode for now
-        # TODO(ruilongli): * 16 is for original impl for training. Need to run
-        # some profiling test with this choice.
-        max_samples_per_batch = len(rays_o) * num_samples
+        ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
+        origins = rays_o[ray_indices]
+        dirs = rays_d[ray_indices]
+        if camera_indices is not None:
+            camera_indices = camera_indices[ray_indices]
 
-        # marching
-        packed_info, origins, dirs, starts, ends = self.ray_marching(
-            # rays
-            rays_o,
-            rays_d,
-            t_min,
-            t_max,
-            # density grid
-            self.density_field.center,
-            self.density_field.base_scale,
-            self.density_field.num_cascades,
-            self.density_field.resolution,
-            self.density_field.density_bitfield,
-            # sampling args
-            marching_steps,
-            max_samples_per_batch,
-            num_samples,
-            0.0,
-            scene_scale,
-        )  # type: ignore
+        if remove_occluded_samples:
+            with torch.no_grad():
+                positions = origins + dirs * (starts + ends) / 2.0
+                densities = self.density_fn(positions)
+                if camera_indices is not None:
+                    packed_info, starts, ends, origins, dirs, camera_indices = nerfacc.volumetric_rendering_steps(
+                        packed_info, densities, starts, ends, origins, dirs, camera_indices
+                    )
+                else:
+                    packed_info, starts, ends, origins, dirs = nerfacc.volumetric_rendering_steps(
+                        packed_info, densities, starts, ends, origins, dirs
+                    )
+            ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
 
-        # squeeze valid samples
-        total_samples = max(packed_info[:, -1].sum(), 1)
-        origins = origins[:total_samples]
-        dirs = dirs[:total_samples]
-        starts = starts[:total_samples]
-        ends = ends[:total_samples]
-
-        # return samples
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
-            frustums=Frustums(origins=origins, directions=dirs, starts=starts, ends=ends, pixel_area=zeros),
+            frustums=Frustums(
+                origins=origins,
+                directions=dirs,
+                starts=starts,
+                ends=ends,
+                pixel_area=zeros,
+            ),
+            camera_indices=camera_indices,
         )
-        return ray_samples, packed_info, t_min, t_max
+        return ray_samples, packed_info, ray_indices

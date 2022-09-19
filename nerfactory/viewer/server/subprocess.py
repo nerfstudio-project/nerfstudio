@@ -38,7 +38,7 @@ def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, l
     Args:
         zmq_port: Port to use for the ZMQ server.
         websocket_port: Port to use for the websocket server.
-        log_filename: Filename to use for the log file. Defaults to None. If None, no log file is created.
+        log_filename: Filename to use for the log file. If None, no log file is created.
 
     Returns:
         None

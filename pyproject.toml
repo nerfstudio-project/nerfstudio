@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfactory"
-version = "0.0.0"
+version = "0.0.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -18,7 +18,7 @@ dependencies = [
     "aiortc==1.3.2",
     "av==9.2.0",
     "black[jupyter]==22.3.0",
-    "dcargs>=0.3.1",
+    "dcargs>=0.3.7",
     "gdown==4.5.1",
     "ninja==1.10.2.3",
     "functorch==0.2.1",
@@ -33,12 +33,14 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
+    "nerfacc==0.0.8",
     "numpy-quaternion",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
     "pylint==2.13.4",
     "pytest==7.1.2",
+    "pytest-xdist==2.5.0",
     "python-socketio==5.7.1",
     "rich==12.5.1",
     "tensorboard==2.9.0",
@@ -48,7 +50,7 @@ dependencies = [
     "torchvision>=0.13.0",
     "tqdm==4.64.0",
     "u-msgpack-python>=2.4.1",
-    "wandb==0.13.2"
+    "wandb==0.13.3"
 ]
 
 [project.urls]
@@ -103,7 +105,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "--typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
+addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
 testpaths = [
     "tests",
 ]

@@ -25,7 +25,7 @@ from nerfactory.cameras.rays import RayBundle
 
 class RayGenerator(nn.Module):
     """torch.nn Module for generating rays.
-    This class will store the intrinsics and extrinsics parameters of the cameras.
+    This class is the interface between the scene's cameras/camera optimizer and the ray sampler.
 
     Args:
         cameras: Cameras object, containing all camera information.

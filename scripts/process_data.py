@@ -342,7 +342,7 @@ def main(
     output_dir: Path,
     num_frames_target: int = 300,
     camera_type: Literal["perspective", "fisheye"] = "perspective",
-    num_downscales: int = 0,
+    num_downscales: int = 3,
     skip_colmap: bool = False,
     gpu: bool = True,
     verbose: bool = False,
@@ -441,4 +441,5 @@ def main(
 
 
 if __name__ == "__main__":
+    dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(main)

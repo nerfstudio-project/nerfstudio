@@ -26,6 +26,7 @@ import torchvision
 from torch.nn.functional import normalize
 from torchtyping import TensorType
 
+from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.utils import poses as pose_utils
 
@@ -188,13 +189,14 @@ class Cameras:
 
         distortion_params = None
         if self.distortion_params is not None:
+            distortion_params = self.distortion_params[camera_indices]
             if distortion_params_delta is not None:
-                distortion_params = self.distortion_params[camera_indices] + distortion_params_delta
+                distortion_params = distortion_params + distortion_params_delta
         elif distortion_params_delta is not None:
             distortion_params = distortion_params_delta
 
         if distortion_params is not None:
-            raise NotImplementedError("Camera distortion not implemented.")
+            coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
 
         if self.camera_type == CameraType.PERSPECTIVE:
             directions_stack = torch.stack(
@@ -255,8 +257,8 @@ class Cameras:
 
         Args:
             camera_idx: Index of the camera to convert.
-            image: An image in range [0, 1] that is encoded to a base64 string. Defaults to None.
-            max_size: Max size to resize the image to. Defaults to None.
+            image: An image in range [0, 1] that is encoded to a base64 string.
+            max_size: Max size to resize the image to if present.
 
         Returns:
             A JSON representation of the camera
