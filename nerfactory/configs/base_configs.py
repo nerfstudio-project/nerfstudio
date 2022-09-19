@@ -47,7 +47,7 @@ from nerfactory.models.vanilla_nerf import NeRFModel
 
 base_configs: Dict[str, Config] = {}
 base_configs["instant_ngp"] = Config(
-    method_name="instant_ngp",
+    method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
@@ -64,8 +64,7 @@ base_configs["instant_ngp"] = Config(
 )
 
 base_configs["mipnerf_360"] = Config(
-    experiment_name="mipnerf_360",
-    method_name="mipnerf_360",
+    method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -97,7 +96,6 @@ base_configs["mipnerf"] = Config(
 )
 
 base_configs["nerfw"] = Config(
-    experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -108,8 +106,7 @@ base_configs["nerfw"] = Config(
 )
 
 base_configs["semantic_nerf"] = Config(
-    experiment_name="friends_TBBT-big_living_room",
-    method_name="semantic_nerf",
+    method_name="semantic-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=FriendsDataParserConfig(),
@@ -124,7 +121,7 @@ base_configs["semantic_nerf"] = Config(
 )
 
 base_configs["vanilla_nerf"] = Config(
-    method_name="vanilla_nerf",
+    method_name="vanilla-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),
@@ -193,7 +190,7 @@ def _make_base_config_subcommand_type() -> Type[Config]:
     base_configs_placeholder_timestamp = {}
     for name, config in base_configs.items():
         base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
-        base_configs_placeholder_timestamp[name].populate_dynamic_fields("{timestamp}")
+        base_configs_placeholder_timestamp[name].populate_dynamic_fields(timestamp="{timestamp}")
 
     return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
 

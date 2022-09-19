@@ -381,7 +381,7 @@ class LocalWriter:
         if step > 0:
             if not self.has_printed and self.config.max_log_size:
                 logging.info(
-                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.local_writer.max-log-size=0` "
+                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.local-writer.max-log-size=0` "
                     "to disable line wrapping.\x1b[0m",
                     self.config.max_log_size,
                 )
