@@ -46,7 +46,7 @@ from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
 
 base_configs: Dict[str, Config] = {}
-base_configs["instant_ngp"] = Config(
+base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
@@ -63,7 +63,7 @@ base_configs["instant_ngp"] = Config(
     logging=LoggingConfig(event_writer="none"),
 )
 
-base_configs["mipnerf_360"] = Config(
+base_configs["mipnerf-360"] = Config(
     method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
@@ -105,7 +105,8 @@ base_configs["nerfw"] = Config(
     ),
 )
 
-base_configs["semantic_nerf"] = Config(
+
+base_configs["semantic-nerf"] = Config(
     method_name="semantic-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -120,7 +121,7 @@ base_configs["semantic_nerf"] = Config(
     ),
 )
 
-base_configs["vanilla_nerf"] = Config(
+base_configs["vanilla-nerf"] = Config(
     method_name="vanilla-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
