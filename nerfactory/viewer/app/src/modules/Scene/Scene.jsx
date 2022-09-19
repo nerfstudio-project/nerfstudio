@@ -63,12 +63,22 @@ export function get_scene_tree() {
   // Camera Controls
   const camera_controls = new OrbitControls(main_camera, renderer.domElement);
   camera_controls.rotateSpeed = 2.0;
-  camera_controls.zoomSpeed = 1;
-  camera_controls.panSpeed = 1;
+  camera_controls.zoomSpeed = 0.3;
+  camera_controls.panSpeed = 0.2;
   camera_controls.target.set(0, 0, 0); // focus point of the controls
   camera_controls.autoRotate = false;
   camera_controls.enableDamping = true;
   camera_controls.dampingFactor = 1.0;
+
+  camera_controls.listenToKeyEvents( window ); 
+  camera_controls.enablePan = true;
+  camera_controls.keys = {
+    LEFT: 'KeyA', 
+    UP: 'KeyW', 
+    RIGHT: 'KeyD', 
+    BOTTOM: 'KeyS' 
+  };
+
   sceneTree.metadata.camera_controls = camera_controls;
 
   // Transform Controls
@@ -94,6 +104,13 @@ export function get_scene_tree() {
       });
     }
     // transform_controls.detach();
+  });
+
+  window.addEventListener('keydown', event => {
+    if (event.code === 'Space') {
+      camera_controls.target.set(0, 0, 0);
+      camera_controls.update();
+    }
   });
 
   // Axes
