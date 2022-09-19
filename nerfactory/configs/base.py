@@ -92,7 +92,7 @@ class TensorboardWriterConfig(InstantiateConfig):
     _target: Type = writer.TensorboardWriter
     """target class to instantiate"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """auto-populated absolute path to saved tensorboard events"""
+    """[Do not set] Auto-populated absolute path to saved tensorboard events"""
 
 
 @dataclass
@@ -102,7 +102,7 @@ class WandbWriterConfig(InstantiateConfig):
     _target: Type = writer.WandbWriter
     """target class to instantiate"""
     log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """auto-populated absolute path to saved wandb events"""
+    """[Do not set] Auto-populated absolute path to saved wandb events"""
 
 
 @dataclass
@@ -147,7 +147,7 @@ class LoggingConfig(PrintableConfig):
     event_writer: Literal["tb", "wandb", "none"] = "wandb"
     """specify which writer to use (tensorboard or wandb)"""
     event_writer_config: dcargs.conf.Fixed[Optional[Union[TensorboardWriterConfig, WandbWriterConfig]]] = dcargs.MISSING
-    """dynamically set the writer config based on the writer"""
+    """[Do not set] Writer config based on the specified event_writer. Set automatically."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True
@@ -175,7 +175,7 @@ class TrainerConfig(PrintableConfig):
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
     model_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """auto-populated absolute path to saved checkpoints"""
+    """[Do not set] Auto-populated absolute path to saved checkpoints. Set automatically."""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
@@ -396,10 +396,12 @@ class SchedulerConfig(InstantiateConfig):
 class Config(PrintableConfig):
     """Full config contents"""
 
-    experiment_name: str = "blender_lego"
-    method_name: str = "base_method"
+    method_name: Optional[str] = None
+    """Method name. Required to set in python or via cli"""
+    experiment_name: Optional[str] = None
+    """Experiment name. If None, will automatically be set to dataset name"""
     base_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """Experiment base directory. Set automatically."""
+    """[Do not set] Experiment base directory. Set automatically."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
     viewer: ViewerConfig = ViewerConfig()
@@ -425,6 +427,10 @@ class Config(PrintableConfig):
             timestamp: Timestamp to use, as a string. If None, defaults to the current
                 time in the form YYYY-MM-DD_HHMMMSS.
         """
+        # check the experiment and method names
+        assert self.method_name is not None, "Please set method name in config or via the cli"
+        if self.experiment_name is None:
+            self.experiment_name = str(self.pipeline.datamanager.train_dataparser.data_directory).replace("/", "-")
 
         # set the timestamp of the model logging/writer loggign paths
         if timestamp is None:

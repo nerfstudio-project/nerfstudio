@@ -64,7 +64,6 @@ base_configs["instant-ngp"] = Config(
 )
 
 base_configs["mipnerf-360"] = Config(
-    experiment_name="mipnerf-360",
     method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
@@ -97,7 +96,6 @@ base_configs["mipnerf"] = Config(
 )
 
 base_configs["nerfw"] = Config(
-    experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -107,8 +105,8 @@ base_configs["nerfw"] = Config(
     ),
 )
 
+
 base_configs["semantic-nerf"] = Config(
-    experiment_name="friends_TBBT-big_living_room",
     method_name="semantic-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -193,7 +191,7 @@ def _make_base_config_subcommand_type() -> Type[Config]:
     base_configs_placeholder_timestamp = {}
     for name, config in base_configs.items():
         base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
-        base_configs_placeholder_timestamp[name].populate_dynamic_fields("{timestamp}")
+        base_configs_placeholder_timestamp[name].populate_dynamic_fields(timestamp="{timestamp}")
 
     return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
 
