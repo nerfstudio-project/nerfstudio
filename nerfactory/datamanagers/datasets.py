@@ -17,7 +17,7 @@ Some dataset code.
 """
 from __future__ import annotations
 
-from typing import Dict, Union
+from typing import Dict
 
 import numpy as np
 import numpy.typing as npt
@@ -26,7 +26,6 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchtyping import TensorType
 
-from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.structs import DatasetInputs
 from nerfactory.utils.misc import is_not_none
 
@@ -38,9 +37,9 @@ class InputDataset(Dataset):
         config: the DataParserConfig used to instantiate class, which in turn is used to load dataset inputs
     """
 
-    def __init__(self, config: Union[cfg.DataParserConfig, cfg.InstantiateConfig], split: str):
+    def __init__(self, dataset_inputs: DatasetInputs):
         super().__init__()
-        self.dataset_inputs: DatasetInputs = config.setup().get_dataset_inputs(split=split)
+        self.dataset_inputs = dataset_inputs
 
     def __len__(self):
         return len(self.dataset_inputs.image_filenames)

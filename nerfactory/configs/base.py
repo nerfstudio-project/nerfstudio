@@ -28,7 +28,6 @@ from nerfactory.configs.utils import to_immutable_dict
 
 # data instances
 from nerfactory.datamanagers.base import VanillaDataManager
-from nerfactory.datamanagers.dataparsers.base import DataParser
 
 # model instances
 from nerfactory.models.base import Model
@@ -186,15 +185,6 @@ class TrainerConfig(PrintableConfig):
     """optionally specify a pre-defined config to load from"""
 
 
-# Dataset related configs
-@dataclass
-class DataParserConfig(InstantiateConfig):
-    """Basic dataset config"""
-
-    _target: Type = DataParser
-    """_target: target class to instantiate"""
-
-
 # pylint: disable=wrong-import-position
 from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
@@ -251,16 +241,6 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
-
-
-@dataclass
-class FriendsDataManagerConfig(VanillaDataManagerConfig):
-    """Friends data manager config"""
-
-    _target: Type = VanillaDataManager
-    """target class to instantiate"""
-    train_dataparser: DataParserConfig = FriendsDataParserConfig()
-    """specifies the dataparser used to unpack the data"""
 
 
 # Model related configs

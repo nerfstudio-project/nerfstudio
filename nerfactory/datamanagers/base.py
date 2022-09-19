@@ -235,8 +235,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         if config.eval_dataparser is None:
             logging.info("No eval dataset specified so using train dataset for eval.")
             config.eval_dataparser = config.train_dataparser
-        self.train_input_dataset = InputDataset(config.train_dataparser, split="train")
-        self.eval_input_dataset = InputDataset(config.eval_dataparser, split="val" if not test_mode else "test")
+
+        self.train_input_dataset = InputDataset(config.train_dataparser.setup().get_dataset_inputs(split="train"))
+        self.eval_input_dataset = InputDataset(
+            config.eval_dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
+        )
         super().__init__()
 
     def setup_train(self):

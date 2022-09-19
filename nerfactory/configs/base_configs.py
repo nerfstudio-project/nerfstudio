@@ -25,7 +25,6 @@ from typeguard import typeguard_ignore
 from nerfactory.configs.base import (
     BlenderDataParserConfig,
     Config,
-    FriendsDataManagerConfig,
     MipNerf360DataParserConfig,
     ModelConfig,
     NerfWModelConfig,
@@ -36,6 +35,7 @@ from nerfactory.configs.base import (
     TrainerConfig,
     VanillaDataManagerConfig,
 )
+from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
 from nerfactory.models.compound import CompoundModelConfig
 from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
@@ -95,14 +95,21 @@ base_configs["mipnerf"] = Config(
 base_configs["nerfw"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
-    pipeline=PipelineConfig(datamanager=FriendsDataManagerConfig(), model=NerfWModelConfig()),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=FriendsDataParserConfig(),
+        ),
+        model=NerfWModelConfig(),
+    ),
 )
 
 base_configs["semantic_nerf"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="semantic_nerf",
     pipeline=PipelineConfig(
-        datamanager=FriendsDataManagerConfig(),
+        datamanager=VanillaDataManagerConfig(
+            train_dataparser=FriendsDataParserConfig(),
+        ),
         model=ModelConfig(
             _target=SemanticNerfModel,
             loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
