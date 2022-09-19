@@ -166,16 +166,12 @@ class Pipeline(nn.Module):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        with TimeWriter(None, None, write=False) as test_t:
-            outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
-        writer.put_time(
-            name=EventName.TEST_RAYS_PER_SEC,
-            duration=len(camera_ray_bundle) / test_t.duration,
-            step=step,
-            avg_over_steps=True,
-        )
+        outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
+        assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
+        assert "num_rays" not in metrics_dict
+        metrics_dict["num_rays"] = len(camera_ray_bundle)
         self.train()
         return metrics_dict, images_dict
 

@@ -20,7 +20,7 @@ import math
 from abc import abstractmethod
 from typing import Callable, Optional, Tuple
 
-import nerfacc  # pylint: disable=import-error
+import nerfacc
 import torch
 from torch import nn
 from torchtyping import TensorType

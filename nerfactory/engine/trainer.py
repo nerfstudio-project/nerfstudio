@@ -139,9 +139,14 @@ class Trainer:
                     for callback in self.callbacks:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
-                    vis_t = self._update_viewer_state(step)
+                writer.put_time(
+                    name=EventName.TRAIN_RAYS_PER_SEC,
+                    duration=self.config.pipeline.datamanager.train_num_rays_per_batch / train_t.duration,
+                    step=step,
+                    avg_over_steps=True,
+                )
 
-                self._update_viewer_rays_per_sec(train_t, vis_t, step)
+                self._update_viewer_state(step)
 
                 # a batch of train rays
                 if step_check(step, self.config.logging.steps_per_log, run_at_zero=True):
@@ -159,7 +164,14 @@ class Trainer:
 
                 # one eval image
                 if step_check(step, self.config.trainer.steps_per_eval_image):
-                    metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+                    with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
+                        metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+                    writer.put_time(
+                        name=EventName.TEST_RAYS_PER_SEC,
+                        duration=metrics_dict["num_rays"] / test_t.duration,
+                        step=step,
+                        avg_over_steps=True,
+                    )
                     writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
                     group = "Eval Images"
                     for image_name, image in images_dict.items():
@@ -173,7 +185,6 @@ class Trainer:
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(self.config.trainer.model_dir, step)
 
-                self._update_viewer_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
 
         self._write_out_storage(num_iterations)
@@ -200,7 +211,7 @@ class Trainer:
         )
 
     @check_viewer_enabled
-    def _update_viewer_state(self, step: int) -> TimeWriter:
+    def _update_viewer_state(self, step: int):
         """Updates the viewer state by rendering out scene with current pipeline
         Returns the time taken to render scene.
 
@@ -208,7 +219,7 @@ class Trainer:
             step: current train step
         """
         assert self.viewer_state is not None
-        with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as vis_t:
+        with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
             num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
             try:
                 self.viewer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
@@ -218,7 +229,6 @@ class Trainer:
                 self.viewer_state.vis["renderingState/log_errors"].write(
                     "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                 )
-        return vis_t
 
     @check_viewer_enabled
     def _update_viewer_rays_per_sec(self, train_t: TimeWriter, vis_t: TimeWriter, step: int):
