@@ -30,8 +30,6 @@ from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.models.base import Model
 from nerfactory.models.nerfw import NerfWModel
 from nerfactory.models.tensorf import TensoRFModel
-from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
-from nerfactory.pipelines.base import Pipeline
 from nerfactory.utils import writer
 
 
@@ -183,6 +181,10 @@ class TrainerConfig(PrintableConfig):
 
 
 # pylint: disable=wrong-import-position
+from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
+
+# data instances
+from nerfactory.datamanagers.base import VanillaDataManager
 from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
 from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
@@ -195,6 +197,8 @@ from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
     NerfactoryDataParserConfig,
 )
 from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
+from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
+from nerfactory.pipelines.base import Pipeline
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
     {
@@ -209,11 +213,6 @@ AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
 )
 """Union over possible dataparser types, annotated with metadata for dcargs. This is the
 same as the vanilla union, but results in shorter subcommand names."""
-
-from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
-
-# data instances
-from nerfactory.datamanagers.base import VanillaDataManager
 
 
 @dataclass
