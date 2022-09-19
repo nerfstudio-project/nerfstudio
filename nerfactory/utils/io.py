@@ -75,7 +75,7 @@ def get_git_root(path: str, dirs: Tuple[str] = (".git",), default: str = "") -> 
 
     Args:
         path: The path to start from.
-        dirs: The directories to look for. Defaults to (".git",).
+        dirs: The directories to look for.
         default: The default value to return if no git root is found.
 
     Returns:

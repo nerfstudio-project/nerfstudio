@@ -88,6 +88,8 @@ class DataManager(nn.Module):
 
     train_input_dataset: Optional[InputDataset] = None
     eval_input_dataset: Optional[InputDataset] = None
+    train_sampler: Optional[DistributedSampler] = None
+    eval_sampler: Optional[DistributedSampler] = None
 
     def __init__(self):
         """Constructor for the DataManager class.
@@ -233,8 +235,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         if config.eval_dataparser is None:
             logging.info("No eval dataset specified so using train dataset for eval.")
             config.eval_dataparser = config.train_dataparser
-        self.train_input_dataset = InputDataset(config.train_dataparser, split="train")
-        self.eval_input_dataset = InputDataset(config.eval_dataparser, split="val" if not test_mode else "test")
+
+        self.train_input_dataset = InputDataset(config.train_dataparser.setup().get_dataset_inputs(split="train"))
+        self.eval_input_dataset = InputDataset(
+            config.eval_dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
+        )
         super().__init__()
 
     def setup_train(self):
@@ -295,7 +300,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
-        self.eval_ray_generator = RayGenerator(self.eval_input_dataset.dataset_inputs.cameras.to(self.device))
+        self.eval_ray_generator = RayGenerator(
+            self.eval_input_dataset.dataset_inputs.cameras.to(self.device),
+            self.train_camera_optimizer,  # should be shared between train and eval.
+        )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_input_dataset,
@@ -332,8 +340,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
         for camera_ray_bundle, batch in self.eval_dataloader:
+            assert camera_ray_bundle.camera_indices is not None
             image_idx = int(camera_ray_bundle.camera_indices[0, 0])
             return image_idx, camera_ray_bundle, batch
+        raise ValueError("No more eval images")
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.

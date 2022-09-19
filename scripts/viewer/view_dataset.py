@@ -4,6 +4,7 @@ view_dataset.py
 """
 
 import logging
+import time
 from datetime import timedelta
 
 import dcargs
@@ -15,7 +16,7 @@ from nerfactory.configs import base as cfg
 from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
 from nerfactory.viewer.server import viewer_utils
 
-logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
@@ -28,14 +29,17 @@ def main(config: cfg.Config) -> None:
     if not config.viewer.enable:
         config.viewer.enable = True
         logging.info("Enabling viewer to view dataset")
-    visualizer_state = viewer_utils.VisualizerState(config.viewer)
+    viewer_state = viewer_utils.ViewerState(config.viewer)
     datamanager = config.pipeline.datamanager.setup()
-    visualizer_state.init_scene(dataset=datamanager.train_input_dataset, start_train=False)
+    viewer_state.init_scene(dataset=datamanager.train_input_dataset, start_train=False)
+    logging.info("Please refresh and load page at: %s", viewer_state.viewer_url)
+    time.sleep(30)  # allowing time to refresh page
 
 
 if __name__ == "__main__":
     console = Console(width=120)
 
+    dcargs.extras.set_accent_color("bright_yellow")
     instantiated_config = dcargs.cli(AnnotatedBaseConfigUnion)
     if instantiated_config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {instantiated_config.trainer.load_config}")

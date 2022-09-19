@@ -31,9 +31,9 @@ class MLP(FieldModule):
         in_dim: Input layer dimension
         num_layers: Number of network layers
         layer_width: Width of each MLP layer
-        out_dim: Ouput layer dimension. Defaults to layer_width
-        activation: intermediate layer activation function. Defaults to nn.ReLU.
-        out_activation: output activation function. Defaults to None.
+        out_dim: Ouput layer dimension. Uses layer_width if None.
+        activation: intermediate layer activation function.
+        out_activation: output activation function.
     """
 
     def __init__(

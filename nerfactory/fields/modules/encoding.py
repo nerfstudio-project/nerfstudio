@@ -68,8 +68,8 @@ class ScalingAndOffset(Encoding):
 
     Args:
         in_dim: Input dimension of tensor
-        scaling: Scaling applied to tensor. Defaults to 1.0.
-        offset: Offset applied to tensor. Defaults to 0.0.
+        scaling: Scaling applied to tensor.
+        offset: Offset applied to tensor.
     """
 
     def __init__(self, in_dim: int, scaling: float = 1.0, offset: float = 0.0) -> None:
@@ -127,7 +127,7 @@ class NeRFEncoding(Encoding):
 
         Args:
             in_tensor: For best performance, the input tensor should be between 0 and 1.
-            covs: Covariances of input points. Defaults to None.
+            covs: Covariances of input points.
         Returns:
             Output values will be between -1 and 1
         """
@@ -186,7 +186,7 @@ class RFFEncoding(Encoding):
 
         Args:
             in_tensor: For best performance, the input tensor should be between 0 and 1.
-            covs: Covariances of input points. Defaults to None.
+            covs: Covariances of input points.
 
         Returns:
             Output values will be between -1 and 1
@@ -212,12 +212,12 @@ class HashEncoding(Encoding):
     """Hash encoding
 
     Args:
-        num_levels: Number of feature grids. Defaults to 16.
-        min_res: Resolution of smallest feature grid. Defaults to 16.
-        max_res: Resolution of largest feature grid. Defaults to 1024.
-        hash_table_size: Size of hash table. Defaults to 2**19.
-        features_per_level: Number of features per level. Defaults to 2.
-        hash_init_scale: Value to initialize hash grid. Defaults to 0.001.
+        num_levels: Number of feature grids.
+        min_res: Resolution of smallest feature grid.
+        max_res: Resolution of largest feature grid.
+        hash_table_size: Size of hash table.
+        features_per_level: Number of features per level.
+        hash_init_scale: Value to initialize hash grid.
     """
 
     def __init__(
@@ -313,9 +313,9 @@ class TensorCPEncoding(Encoding):
     """Learned CANDECOMP/PARFAC (CP) decomposition encoding used in TensoRF
 
     Args:
-        resolution: Resolution of grid. Defaults to 256.
-        num_components: Number of components per dimension. Defaults to 24.
-        init_scale: Initialization scale. Defaults to 0.1.
+        resolution: Resolution of grid.
+        num_components: Number of components per dimension.
+        init_scale: Initialization scale.
     """
 
     def __init__(self, resolution: int = 256, num_components: int = 24, init_scale: float = 0.1) -> None:
@@ -363,9 +363,9 @@ class TensorVMEncoding(Encoding):
     """Learned vector-matrix encoding proposed by TensoRF
 
     Args:
-        resolution: Resolution of grid. Defaults to 256.
-        num_components: Number of components per dimension. Defaults to 24.
-        init_scale: Initialization scale. Defaults to 0.1.
+        resolution: Resolution of grid.
+        num_components: Number of components per dimension.
+        init_scale: Initialization scale.
     """
 
     plane_coef: TensorType[3, "num_components", "resolution", "resolution"]
@@ -427,7 +427,7 @@ class SHEncoding(Encoding):
     """Spherical harmonic encoding
 
     Args:
-        levels: Number of spherical hamonic levels to encode. Defaults to 4.
+        levels: Number of spherical hamonic levels to encode.
     """
 
     def __init__(self, levels: int = 4) -> None:

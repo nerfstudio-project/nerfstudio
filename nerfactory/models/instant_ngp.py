@@ -18,7 +18,6 @@ Implementation of Instant NGP.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple, Type
 
@@ -28,15 +27,20 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model
+from nerfactory.models.modules.ray_sampler import VolumetricSampler
 from nerfactory.optimizers.loss import MSELoss
-from nerfactory.utils import visualization
+from nerfactory.renderers.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfactory.utils import colors, visualization
 from nerfactory.utils.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -58,17 +62,16 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     """Instant NGP doesn't use a collider."""
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'"""
-    # TODO(ethan): remove the density field specified here
-    enable_density_field: bool = False
-    """Whether to create a density field to filter samples."""
     num_samples: int = 1024
-    """Number of samples in field evaluation. Defaults to 1024,"""
+    """Number of samples in field evaluation."""
+    grid_resolution: int = 128
+    """Resolution of the grid used for the field."""
     cone_angle: float = 0.0
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
     near_plane: float = 0.05
     """How far along ray to start sampling."""
     randomize_background: bool = False
-    """Whether to randomize the background color. Defaults to False."""
+    """Whether to randomize the background color."""
 
 
 class NGPModel(Model):
@@ -92,32 +95,21 @@ class NGPModel(Model):
         # torch or tiny-cuda-nn version
         self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
 
-        # to match Ruilong's code naming
         self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
 
-        # setup some rendering settings
-        render_n_samples = 1024
-        self.render_step_size = (
-            (self.scene_aabb[3:] - self.scene_aabb[:3]).max() * math.sqrt(3) / render_n_samples
-        ).item()
+        # Sampler
+        self.sampler = VolumetricSampler(
+            aabb=self.scene_aabb,
+            density_fn=self.field.density_fn,
+            grid_resolution=self.config.grid_resolution,
+            num_samples=self.config.num_samples,
+        )
 
-        # setup occupancy field with eval function
-        def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
-            """Evaluate occupancy given positions.
-
-            Args:
-                x: positions with shape (N, 3).
-            Returns:
-                occupancy values with shape (N, 1).
-            """
-            density_after_activation = self.field.density_fn(x)
-            # those two are similar when density is small.
-            # occupancy = 1.0 - torch.exp(-density_after_activation * render_step_size)
-            occupancy = density_after_activation * self.render_step_size
-            return occupancy
-
-        # occupancy grid
-        self.occ_field = nerfacc.OccupancyField(occ_eval_fn=occ_eval_fn, aabb=self.scene_aabb, resolution=128)
+        # renderers
+        background_color = None if self.config.randomize_background else colors.WHITE
+        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_accumulation = AccumulationRenderer()
+        self.renderer_depth = DepthRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -134,8 +126,8 @@ class NGPModel(Model):
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                 update_every_num_iters=1,
-                func=self.occ_field.every_n_step,  # will take in step
-            )
+                func=self.sampler.occ_field.every_n_step,
+            ),
         ]
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
@@ -147,45 +139,45 @@ class NGPModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         assert self.field is not None
+        num_rays = len(ray_bundle)
 
-        def query_fn(positions: TensorType["bs", 3], directions: TensorType["bs", 3], only_density=False):
-            if only_density:
-                return self.field.density_fn(positions)
-            field_outputs = self.field.get_outputs_from_positions_and_direction(positions, directions)
-            rgbs = field_outputs[FieldHeadNames.RGB]
-            sigmas = field_outputs[FieldHeadNames.DENSITY]
-            return rgbs, sigmas
+        with torch.no_grad():
+            ray_samples, packed_info, ray_indices = self.sampler(
+                ray_bundle=ray_bundle,
+                near_plane=self.config.near_plane,
+            )
 
-        (
-            accumulated_color,
-            accumulated_depth,
-            accumulated_weight,
-            steps_counter,  # pylint: disable=unused-variable
-            compact_steps_counter,  # pylint: disable=unused-variable
-        ) = nerfacc.volumetric_rendering(
-            query_fn=query_fn,
-            rays_o=ray_bundle.origins,
-            rays_d=ray_bundle.directions,
-            scene_aabb=self.scene_aabb,
-            scene_occ_binary=self.occ_field.occ_grid_binary,
-            scene_resolution=self.occ_field.resolution,
-            render_bkgd=torch.ones(3, device=self.device),
-            render_step_size=self.render_step_size,
-            near_plane=self.config.near_plane,
-            stratified=self.training,  # only use stratified sampling during training
+        field_outputs = self.field(ray_samples)
+
+        # accumulation
+        weights = nerfacc.volumetric_rendering_weights(
+            packed_info=packed_info,
+            sigmas=field_outputs[FieldHeadNames.DENSITY],
+            frustum_starts=ray_samples.frustums.starts,
+            frustum_ends=ray_samples.frustums.ends,
         )
 
-        alive_ray_mask = accumulated_weight.squeeze(-1) > 0
+        rgb = self.renderer_rgb(
+            rgb=field_outputs[FieldHeadNames.RGB],
+            weights=weights,
+            ray_indices=ray_indices,
+            num_rays=num_rays,
+        )
+        depth = self.renderer_depth(
+            weights=weights, ray_samples=ray_samples, ray_indices=ray_indices, num_rays=num_rays
+        )
+        accumulation = self.renderer_accumulation(weights=weights, ray_indices=ray_indices, num_rays=num_rays)
+        alive_ray_mask = accumulation.squeeze(-1) > 0
 
         outputs = {
-            "rgb": accumulated_color,
-            "accumulation": accumulated_weight,
-            "depth": accumulated_depth,
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(self.device)
         mask = outputs["alive_ray_mask"]
         rgb_loss = self.rgb_loss(image[mask], outputs["rgb"][mask])

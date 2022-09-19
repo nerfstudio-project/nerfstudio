@@ -63,8 +63,8 @@ export function get_scene_tree() {
   // Camera Controls
   const camera_controls = new OrbitControls(main_camera, renderer.domElement);
   camera_controls.rotateSpeed = 2.0;
-  camera_controls.zoomSpeed = 0.3;
-  camera_controls.panSpeed = 0.2;
+  camera_controls.zoomSpeed = 1;
+  camera_controls.panSpeed = 1;
   camera_controls.target.set(0, 0, 0); // focus point of the controls
   camera_controls.autoRotate = false;
   camera_controls.enableDamping = true;

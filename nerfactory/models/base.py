@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from torch import nn
@@ -115,21 +115,9 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    @overload
-    def forward(self, ray_bundle: RayBundle, batch: None = None) -> Dict[str, torch.Tensor]:
-        ...
-
-    @overload
-    def forward(
-        self, ray_bundle: RayBundle, batch: Dict[str, torch.Tensor]
-    ) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
-        ...
-
     def forward(
         self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
-    ) -> Union[
-        Dict[str, torch.Tensor], Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor], Dict[str, torch.Tensor]]
-    ]:
+    ) -> Dict[str, torch.Tensor]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 
@@ -157,11 +145,7 @@ class Model(nn.Module):
             batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
 
         outputs = self.get_outputs(intersected_ray_bundle)
-        metrics_dict = self.get_metrics_dict(outputs=outputs, batch=batch)
-        loss_dict = self.get_loss_dict(
-            outputs=outputs, batch=batch, metrics_dict=metrics_dict, loss_coefficients=self.config.loss_coefficients
-        )
-        return outputs, loss_dict, metrics_dict
+        return outputs
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.
@@ -175,14 +159,13 @@ class Model(nn.Module):
         return {}
 
     @abstractmethod
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients) -> Dict[str, torch.Tensor]:
+    def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         """Computes and returns the losses dict.
 
         Args:
             outputs: the output to compute loss dict to
             batch: ground truth batch corresponding to outputs
-            metrics_dict: collection of metrics to compute
-            loss_coefficients: list of loss coefficients/weightings to apply
+            metrics_dict: dictionary of metrics, some of which we can use for loss
         """
 
     @torch.no_grad()

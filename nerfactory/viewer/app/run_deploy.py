@@ -135,4 +135,5 @@ def main(
 
 
 if __name__ == "__main__":
+    dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(main)

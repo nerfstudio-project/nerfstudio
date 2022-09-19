@@ -63,16 +63,16 @@ class Pipeline(nn.Module):
     and so on.
 
 
-    TODO: For visualizer functionality to be added down the line, we should make sure
-    that we are still abstracting away the Model from the end user. The visualizer function
+    TODO: For viewer functionality to be added down the line, we should make sure
+    that we are still abstracting away the Model from the end user. The viewer function
     should probably be done by adding a new iterator on the base data manager that will
-    talk to the actual visualizer. This is probably ideal to have the visualizer be
+    talk to the actual viewer. This is probably ideal to have the viewer be
     primarily located in the data manager (first because it makes sense as the
-    visualizers main job in this context is to feed in data for the model to load)
-    so that we can have an easier time ensuring that the visualizer is always
+    viewers main job in this context is to feed in data for the model to load)
+    so that we can have an easier time ensuring that the viewer is always
     returning the same formatted data as for in train / eval. All this is pending changes to
     be done in the future... but just bear in mind that if learned parameters are in the data manager,
-    the visualizer may have to use those parameters as well.
+    the viewer may have to use those parameters as well.
 
 
     Args:
@@ -117,7 +117,7 @@ class Pipeline(nn.Module):
 
     @abstractmethod
     @profiler.time_function
-    def get_train_loss_dict(self, step: Optional[int] = None):
+    def get_train_loss_dict(self, step: int):
         """This function gets your training loss dict. This will be responsible for
         getting the next batch of data from the DataManager and interfacing with the
         Model class, feeding the data to the model's forward function.
@@ -125,15 +125,19 @@ class Pipeline(nn.Module):
         Args:
             step: current iteration step to update sampler if using DDP (distributed)
         """
-        if self.world_size > 1:
-            self.datamanager.train_image_dataloader.sampler.set_epoch(step)
+        if self.world_size > 1 and step:
+            assert self.datamanager.train_sampler is not None
+            self.datamanager.train_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train(step)
-        model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
+        model_outputs = self.model(ray_bundle, batch)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+
         return model_outputs, loss_dict, metrics_dict
 
     @abstractmethod
     @profiler.time_function
-    def get_eval_loss_dict(self, step: Optional[int] = None):
+    def get_eval_loss_dict(self, step: int):
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 
@@ -142,15 +146,18 @@ class Pipeline(nn.Module):
         """
         self.eval()
         if self.world_size > 1:
-            self.datamanager.eval_image_dataloader.sampler.set_epoch(step)
+            assert self.datamanager.eval_sampler is not None
+            self.datamanager.eval_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_eval(step)
-        model_outputs, loss_dict, metrics_dict = self.model(ray_bundle, batch)
+        model_outputs = self.model(ray_bundle, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         self.train()
         return model_outputs, loss_dict, metrics_dict
 
     @abstractmethod
     @profiler.time_function
-    def get_eval_image_metrics_and_images(self, step: Optional[int] = None):
+    def get_eval_image_metrics_and_images(self, step: int):
         """This function gets your evaluation loss dict. It needs to get the data
         from the DataManager and feed it to the model's forward function
 

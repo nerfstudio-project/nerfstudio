@@ -36,9 +36,9 @@ class CacheImageDataloader(DataLoader):
 
     Args:
         dataset: Dataset to sample from.
-        num_samples_to_collate: How many images to sample rays for each batch. Defaults to all images.
-        num_times_to_repeat_images: How often to collate new images. Defaults to every iteration.
-        device: Device to perform computation. Defaults to "cpu".
+        num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
+        num_times_to_repeat_images: How often to collate new images.
+        device: Device to perform computation.
     """
 
     def __init__(
