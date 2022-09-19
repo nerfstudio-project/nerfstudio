@@ -115,7 +115,7 @@ class SemanticNerfModel(NeRFModel):
         }
         return outputs
 
-    def get_loss_dict(self, outputs, batch, metrics_dict, loss_coefficients):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
@@ -127,7 +127,7 @@ class SemanticNerfModel(NeRFModel):
             "rgb_loss_fine": rgb_loss_fine,
             "semantic_loss_fine": semantic_loss_fine,
         }
-        loss_dict = misc.scale_dict(loss_dict, loss_coefficients)
+        loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
     def get_image_metrics_and_images(
