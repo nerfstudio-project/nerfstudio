@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 import dcargs
 import torch
 
-from nerfactory.cameras.camera_optimizers import BARFOptimizer, CameraOptimizer
+from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfactory.configs.utils import to_immutable_dict
 
 # data instances
@@ -213,21 +213,6 @@ AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
 )
 """Union over possible dataparser types, annotated with metadata for dcargs. This is the
 same as the vanilla union, but results in shorter subcommand names."""
-
-
-# Camera Optimization related configs
-@dataclass
-class CameraOptimizerConfig(InstantiateConfig):
-    """Default camera optimizer config. Note: This is a no-op class and will not optimize cameras."""
-
-    _target: Type = CameraOptimizer
-
-
-@dataclass
-class BARFPoseOptimizerConfig(CameraOptimizerConfig):
-    """BARF camera optimizer."""
-
-    _target: Type = BARFOptimizer
 
 
 @dataclass

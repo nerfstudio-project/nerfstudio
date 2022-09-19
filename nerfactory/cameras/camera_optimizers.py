@@ -18,7 +18,8 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
-from typing import Union
+from dataclasses import dataclass, field
+from typing import Type, Union
 
 import torch
 from torch import nn
@@ -27,14 +28,29 @@ from torchtyping import TensorType
 from nerfactory.configs import base as cfg
 
 
+# Camera Optimization related configs
+@dataclass
+class CameraOptimizerConfig(cfg.InstantiateConfig):
+    """Default camera optimizer config. Note: This is a no-op class and will not optimize cameras."""
+
+    _target: Type = field(default_factory=lambda: CameraOptimizer)
+
+
+@dataclass
+class BARFPoseOptimizerConfig(CameraOptimizerConfig):
+    """BARF camera optimizer."""
+
+    _target: Type = field(default_factory=lambda: BARFOptimizer)
+
+
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
 
-    config: cfg.CameraOptimizerConfig
+    config: CameraOptimizerConfig
 
     def __init__(
         self,
-        config: cfg.CameraOptimizerConfig,
+        config: CameraOptimizerConfig,
         num_cameras: int,
         device: Union[torch.device, str],
         **kwargs,  # pylint: disable=unused-argument
@@ -63,9 +79,9 @@ class CameraOptimizer(nn.Module):
 class BARFOptimizer(CameraOptimizer):
     """Bundle-Adjusting NeRF (BARF) Pose Optimization"""
 
-    config: cfg.BARFPoseOptimizerConfig
+    config: BARFPoseOptimizerConfig
 
-    def __init__(self, config: cfg.BARFPoseOptimizerConfig, num_cameras: int, device: int) -> None:
+    def __init__(self, config: BARFPoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
         super().__init__(config, num_cameras, device)
         self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
         nn.init.zeros_(self.pose_adjustment.weight)
@@ -97,7 +113,7 @@ class BARFOptimizer(CameraOptimizer):
         # Compute the rotation
         sine = theta.sin()
         cosine = torch.where(near_zero, 8 / (4 + theta2) - 1, theta.cos())
-        sine_by_theta = torch.where(near_zero, 0.5 * cosine + 0.5, theta.sin() / theta_nz)
+        sine_by_theta = torch.where(near_zero, 0.5 * cosine + 0.5, sine / theta_nz)
         one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 * sine_by_theta, (1 - cosine) / theta2_nz)
         ret = torch.zeros(tangent_vector.shape[0], 3, 4).to(dtype=tangent_vector.dtype, device=tangent_vector.device)
         ret[:, :3, :3] = one_minus_cosine_by_theta2 * tangent_vector_ang @ tangent_vector_ang.transpose(1, 2)
