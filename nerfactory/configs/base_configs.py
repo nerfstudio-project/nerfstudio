@@ -46,8 +46,8 @@ from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
 
 base_configs: Dict[str, Config] = {}
-base_configs["instant_ngp"] = Config(
-    method_name="instant_ngp",
+base_configs["instant-ngp"] = Config(
+    method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
@@ -63,9 +63,9 @@ base_configs["instant_ngp"] = Config(
     logging=LoggingConfig(event_writer="none"),
 )
 
-base_configs["mipnerf_360"] = Config(
-    experiment_name="mipnerf_360",
-    method_name="mipnerf_360",
+base_configs["mipnerf-360"] = Config(
+    experiment_name="mipnerf-360",
+    method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -107,9 +107,9 @@ base_configs["nerfw"] = Config(
     ),
 )
 
-base_configs["semantic_nerf"] = Config(
+base_configs["semantic-nerf"] = Config(
     experiment_name="friends_TBBT-big_living_room",
-    method_name="semantic_nerf",
+    method_name="semantic-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=FriendsDataParserConfig(),
@@ -123,8 +123,8 @@ base_configs["semantic_nerf"] = Config(
     ),
 )
 
-base_configs["vanilla_nerf"] = Config(
-    method_name="vanilla_nerf",
+base_configs["vanilla-nerf"] = Config(
+    method_name="vanilla-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),
