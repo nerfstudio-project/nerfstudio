@@ -187,7 +187,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
-def setup_event_writer(config: cfg.LoggingConfig) -> None:
+def setup_event_writer(config: cfg.LoggingConfig, log_dir: Path) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -195,19 +195,19 @@ def setup_event_writer(config: cfg.LoggingConfig) -> None:
         max_iter: maximum number of train iterations
         banner_messages: list of messages to always display at bottom of screen
     """
-    if config.event_writer_config:
-        curr_writer = config.event_writer_config.setup()
-        EVENT_WRITERS.append(curr_writer)
-        logging.info("logging info to: %s", config.event_writer_config.log_dir)
+    if config.event_writer == "tb":
+        curr_writer = TensorboardWriter(log_dir=log_dir)
+    elif config.event_writer == "wandb":
+        curr_writer = WandbWriter(log_dir=log_dir)
     else:
         logging.info("disabled tensorboard/wandb event writers")
+        return
+    EVENT_WRITERS.append(curr_writer)
+    logging.info("logging %s events to: %s", config.event_writer, log_dir)
 
 
 class Writer:
     """Writer class"""
-
-    def __init__(self, log_dir: Optional[Path]):
-        self.log_dir = log_dir
 
     @abstractmethod
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
@@ -276,9 +276,8 @@ class TimeWriter:
 class WandbWriter(Writer):
     """WandDB Writer Class"""
 
-    def __init__(self, config: cfg.WandbWriterConfig):
-        super().__init__(config.log_dir)
-        wandb.init(project="nerfactory-project", dir=str(config.log_dir), reinit=True)
+    def __init__(self, log_dir: Path):
+        wandb.init(project="nerfactory-project", dir=str(log_dir), reinit=True)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = torch.permute(image, (2, 0, 1))
@@ -302,9 +301,8 @@ class WandbWriter(Writer):
 class TensorboardWriter(Writer):
     """Tensorboard Writer Class"""
 
-    def __init__(self, config: cfg.TensorboardWriterConfig):
-        super().__init__(config.log_dir)
-        self.tb_writer = SummaryWriter(log_dir=config.log_dir)
+    def __init__(self, log_dir: Path):
+        self.tb_writer = SummaryWriter(log_dir=log_dir)
 
     def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
         image = to8b(image)
