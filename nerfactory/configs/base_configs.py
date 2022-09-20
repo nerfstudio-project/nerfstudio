@@ -27,7 +27,6 @@ from nerfactory.configs.base import (
     Config,
     LoggingConfig,
     MipNerf360DataParserConfig,
-    ModelConfig,
     NerfWModelConfig,
     OptimizerConfig,
     PipelineConfig,
@@ -35,6 +34,7 @@ from nerfactory.configs.base import (
     TensoRFModelConfig,
     TrainerConfig,
     VanillaDataManagerConfig,
+    VanillaModelConfig,
     ViewerConfig,
 )
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
@@ -70,7 +70,7 @@ base_configs["mipnerf-360"] = Config(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192
         ),
-        model=ModelConfig(
+        model=VanillaModelConfig(
             _target=MipNerf360Model,
             collider_params={"near_plane": 0.5, "far_plane": 20.0},
             loss_coefficients={"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0},
@@ -85,7 +85,7 @@ base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
-        model=ModelConfig(
+        model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
             num_coarse_samples=128,
@@ -112,7 +112,7 @@ base_configs["semantic-nerf"] = Config(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=FriendsDataParserConfig(),
         ),
-        model=ModelConfig(
+        model=VanillaModelConfig(
             _target=SemanticNerfModel,
             loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
             num_coarse_samples=64,
@@ -127,7 +127,7 @@ base_configs["vanilla-nerf"] = Config(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),
         ),
-        model=ModelConfig(_target=NeRFModel),
+        model=VanillaModelConfig(_target=NeRFModel),
     ),
 )
 

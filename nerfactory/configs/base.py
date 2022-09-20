@@ -256,10 +256,6 @@ class ModelConfig(InstantiateConfig):
     """parameters to instantiate scene collider with"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     """Loss specific weights."""
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation"""
-    num_importance_samples: int = 128
-    """Number of samples in fine field evaluation"""
     enable_density_field: bool = False
     """Whether to create a density field to filter samples."""
     density_field_params: Dict[str, Any] = to_immutable_dict(
@@ -277,12 +273,17 @@ class ModelConfig(InstantiateConfig):
 
 
 @dataclass
-class VanillaModelConfig(InstantiateConfig):
+class VanillaModelConfig(ModelConfig):
     """Vanilla Model Config"""
+
+    num_coarse_samples: int = 64
+    """Number of samples in coarse field evaluation"""
+    num_importance_samples: int = 128
+    """Number of samples in fine field evaluation"""
 
 
 @dataclass
-class NerfWModelConfig(ModelConfig):
+class NerfWModelConfig(VanillaModelConfig):
     """NerfW model config"""
 
     _target: Type = NerfWModel
@@ -309,7 +310,7 @@ class NerfWModelConfig(ModelConfig):
 
 
 @dataclass
-class TensoRFModelConfig(ModelConfig):
+class TensoRFModelConfig(VanillaModelConfig):
     """TensoRF model config"""
 
     _target: Type = TensoRFModel
