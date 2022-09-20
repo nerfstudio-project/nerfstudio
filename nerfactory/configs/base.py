@@ -411,31 +411,9 @@ class Config(PrintableConfig):
         if self.experiment_name is None:
             self.experiment_name = str(self.pipeline.datamanager.train_dataparser.data_directory).replace("/", "-")
 
-<<<<<<< HEAD
-        # set the timestamp of the model logging/writer loggign paths
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{timestamp}")
-        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
-        if self.logging.event_writer == "tb":
-            self.logging.event_writer_config = TensorboardWriterConfig(
-                log_dir=self.base_dir / self.logging.relative_log_dir
-            )
-        elif self.logging.event_writer == "wandb":
-            self.logging.event_writer_config = WandbWriterConfig(log_dir=self.base_dir / self.logging.relative_log_dir)
-        else:
-            self.logging.event_writer_config = None
-        self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename
-        # disable test if viewer is enabled (for speed purposes)
-        # if self.viewer.enable:
-        #     self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
-        #     self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
-        #     self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
-=======
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
         # check the experiment and method names
         assert self.method_name is not None, "Please set method name in config or via the cli"
         self.set_experiment_name()
         return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
->>>>>>> 38f83de64b4aacf12adf521cd79f3e1b02190c93
