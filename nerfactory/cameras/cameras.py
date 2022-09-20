@@ -171,6 +171,9 @@ class Cameras:
             Rays for the given camera indices and coords.
         """
 
+        if isinstance(camera_indices, torch.Tensor):
+            camera_indices = camera_indices.to(self.device)
+
         if coords is None:
             coords = self.get_image_coords().to(self.device)
 
@@ -237,7 +240,7 @@ class Cameras:
         if not isinstance(camera_indices, torch.Tensor):
             ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to(pixel_area.shape).to(self.device)
         else:
-            ray_bundle_camera_indices = camera_indices
+            ray_bundle_camera_indices = camera_indices.view(pixel_area.shape)
 
         return RayBundle(
             origins=origins,
