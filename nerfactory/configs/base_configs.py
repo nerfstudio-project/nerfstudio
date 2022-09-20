@@ -191,7 +191,6 @@ def _make_base_config_subcommand_type() -> Type[Config]:
     base_configs_placeholder_timestamp = {}
     for name, config in base_configs.items():
         base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
-        base_configs_placeholder_timestamp[name].populate_dynamic_fields(timestamp="{timestamp}")
 
     return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
 

@@ -95,15 +95,23 @@ class Trainer:
         self._start_step = 0
         # optimizers
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
-        # logging/viewer variables
-        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer)
-        writer.setup_event_writer(config.logging)
+
+        self.base_dir = config.get_base_dir()
+        # directory to save checkpoints
+        self.checkpoint_dir = Path(self.base_dir / self.config.trainer.relative_model_dir)
+        logging.info("Saving checkpoints to: %s", self.checkpoint_dir)
+        # set up viewer if enabled
+        viewer_log_path = self.base_dir / config.viewer.relative_log_filename
+        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        self._check_viewer_warnings()
+        # set up writers/profilers if enabled
+        writer_log_path = self.base_dir / config.logging.relative_log_dir
+        writer.setup_event_writer(config.logging, log_dir=writer_log_path)
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
-        profiler.setup_profiler(config.logging)
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
-        self._check_viewer_warnings()
+        profiler.setup_profiler(config.logging)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
@@ -197,7 +205,7 @@ class Trainer:
                     writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
 
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
-                    self._save_checkpoint(self.config.trainer.model_dir, step)
+                    self._save_checkpoint(step)
 
                 self._write_out_storage(step)
 
@@ -206,12 +214,15 @@ class Trainer:
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.viewer.enable:
-            if self.config.logging.event_writer_config:
+            if self.config.logging.event_writer != "none":
                 string = (
                     "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
                     "Please set `--logging.event_writer none` for faster rendering"
                 )
                 CONSOLE.print(f"[bold red]{string}")
+            self.config.trainer.steps_per_eval_batch = self.config.trainer.max_num_iterations
+            self.config.trainer.steps_per_eval_image = self.config.trainer.max_num_iterations
+            self.config.trainer.steps_per_eval_all_images = self.config.trainer.max_num_iterations
             string = "[WARNING] Disabling eval iterations since viewer is enabled."
             CONSOLE.print(f"[bold red]{string}")
 
@@ -296,19 +307,16 @@ class Trainer:
         else:
             logging.info("No checkpoints to load, training from scratch")
 
-        logging.info("saving checkpoints to: %s", self.config.trainer.model_dir)
-
     @check_main_thread
-    def _save_checkpoint(self, output_dir: Path, step: int) -> None:
+    def _save_checkpoint(self, step: int) -> None:
         """Save the model and optimizers
 
         Args:
-            output_dir: directory to save the checkpoint
             step: number of steps in training for given checkpoint
         """
-        if not output_dir.exists():
-            output_dir.mkdir(parents=True, exist_ok=True)
-        ckpt_path = output_dir / f"step-{step:09d}.ckpt"
+        if not self.checkpoint_dir.exists():
+            self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_path = self.checkpoint_dir / f"step-{step:09d}.ckpt"
         if hasattr(self.pipeline, "module"):
             pipeline = self.pipeline.module.state_dict()  # type: ignore
         else:
