@@ -100,6 +100,7 @@ base_configs["mipnerf-360"] = Config(
     optimizers={
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
         }
     },
 )
@@ -119,6 +120,7 @@ base_configs["mipnerf"] = Config(
     optimizers={
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
         }
     },
 )
@@ -134,6 +136,7 @@ base_configs["nerfw"] = Config(
     optimizers={
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
         }
     },
 )
@@ -155,6 +158,7 @@ base_configs["semantic-nerf"] = Config(
     optimizers={
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
         }
     },
 )
@@ -170,6 +174,7 @@ base_configs["vanilla-nerf"] = Config(
     optimizers={
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
         }
     },
 )
