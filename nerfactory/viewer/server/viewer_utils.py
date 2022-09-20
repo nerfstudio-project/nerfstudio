@@ -487,7 +487,7 @@ class ViewerState:
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
                 self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
             else:
-                self.vis["renderingState/vis_train_ratio"] = "Starting"
+                self.vis["renderingState/vis_train_ratio"].write("Starting")
         else:
             self.vis["renderingState/eval_fps"].write("Paused")
             self.vis["renderingState/train_eta"].write("Paused")

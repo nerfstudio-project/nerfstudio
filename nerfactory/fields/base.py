@@ -30,7 +30,7 @@ from nerfactory.fields.modules.field_heads import FieldHeadNames
 class Field(nn.Module):
     """Base class for fields."""
 
-    def density_fn(self, positions: TensorType["bs":..., 3]):
+    def density_fn(self, positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
         """Returns only the density. Used primarily with the density grid.
 
         Args:
