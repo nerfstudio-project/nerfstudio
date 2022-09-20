@@ -33,7 +33,7 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.0.8",
+    "nerfacc==0.0.9",
     "numpy-quaternion",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
