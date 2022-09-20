@@ -30,9 +30,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.base import DataManager
 from nerfactory.models.base import Model
-from nerfactory.utils import profiler, writer
+from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.writer import EventName, TimeWriter
 
 
 def module_wrapper(module: nn.Module) -> nn.Module:
@@ -166,16 +165,12 @@ class Pipeline(nn.Module):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        with TimeWriter(None, None, write=False) as test_t:
-            outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
-        writer.put_time(
-            name=EventName.TEST_RAYS_PER_SEC,
-            duration=len(camera_ray_bundle) / test_t.duration,
-            step=step,
-            avg_over_steps=True,
-        )
+        outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
+        assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
+        assert "num_rays" not in metrics_dict
+        metrics_dict["num_rays"] = len(camera_ray_bundle)
         self.train()
         return metrics_dict, images_dict
 

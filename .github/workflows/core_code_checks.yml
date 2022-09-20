@@ -25,7 +25,7 @@ jobs:
           key: ${{ env.pythonLocation }}-${{ hashFiles('pyproject.toml') }}
       - name: Install dependencies
         run: |
-          pip install --upgrade --upgrade-strategy eager -e .
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
       - name: Run license checks
         run: |
           ./scripts/licensing/license_headers.sh --check
@@ -38,7 +38,7 @@ jobs:
         run: black docs/ nerfactory/ scripts/ tests/ --check
       - name: Python Pylint
         run: |
-          pylint --disable=cyclic-import nerfactory tests scripts
+          pylint nerfactory tests scripts
       - name: Test with pytest
         run: |
           pytest

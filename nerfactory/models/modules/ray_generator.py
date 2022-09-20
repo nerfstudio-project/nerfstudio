@@ -50,5 +50,4 @@ class RayGenerator(nn.Module):
             camera_indices=c,
             coords=coords,
         )
-        ray_bundle.camera_indices = c[..., None]  # ["num_rays",1]
         return ray_bundle
