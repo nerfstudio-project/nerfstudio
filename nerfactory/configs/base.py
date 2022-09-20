@@ -337,18 +337,34 @@ class ViewerConfig(PrintableConfig):
 
 # Optimizer related configs
 @dataclass
-class OptimizerConfig(InstantiateConfig):
+class OptimizerConfig(PrintableConfig):
     """Basic optimizer config with RAdam"""
 
-    _target: Type = torch.optim.RAdam
+    _target: Type = torch.optim.Adam
     lr: float = 0.0005
     eps: float = 1e-08
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params=None, **kwargs) -> Any:
+    def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
-        return self._target(params, lr=self.lr, eps=self.eps)
+        kwargs = vars(self)
+        del kwargs["_target"]
+        return self._target(params, **kwargs)
+
+
+@dataclass
+class AdamOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with Adam"""
+
+    _target: Type = torch.optim.Adam
+
+
+@dataclass
+class RAdamOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with RAdam"""
+
+    _target: Type = torch.optim.RAdam
 
 
 @dataclass

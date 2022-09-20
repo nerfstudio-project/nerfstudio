@@ -23,13 +23,14 @@ import dcargs
 from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
+    AdamOptimizerConfig,
     BlenderDataParserConfig,
     Config,
     LoggingConfig,
     MipNerf360DataParserConfig,
     NerfWModelConfig,
-    OptimizerConfig,
     PipelineConfig,
+    RAdamOptimizerConfig,
     SchedulerConfig,
     TensoRFModelConfig,
     TrainerConfig,
@@ -46,6 +47,23 @@ from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
 
 base_configs: Dict[str, Config] = {}
+base_configs["compound"] = Config(
+    method_name="compound",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=PipelineConfig(
+        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(enable=True),
+    logging=LoggingConfig(event_writer="none"),
+)
+
 base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
@@ -55,7 +73,7 @@ base_configs["instant-ngp"] = Config(
     ),
     optimizers={
         "fields": {
-            "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         }
     },
@@ -79,6 +97,12 @@ base_configs["mipnerf-360"] = Config(
             eval_num_rays_per_chunk=8192,
         ),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["mipnerf"] = Config(
@@ -93,6 +117,12 @@ base_configs["mipnerf"] = Config(
             eval_num_rays_per_chunk=8192,
         ),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["nerfw"] = Config(
@@ -103,6 +133,12 @@ base_configs["nerfw"] = Config(
         ),
         model=NerfWModelConfig(),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 
@@ -119,6 +155,12 @@ base_configs["semantic-nerf"] = Config(
             num_importance_samples=64,
         ),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["vanilla-nerf"] = Config(
@@ -129,6 +171,12 @@ base_configs["vanilla-nerf"] = Config(
         ),
         model=VanillaModelConfig(_target=NeRFModel),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["tensorf"] = Config(
@@ -142,35 +190,18 @@ base_configs["tensorf"] = Config(
     ),
     optimizers={
         "fields": {
-            "optimizer": OptimizerConfig(lr=0.001),
+            "optimizer": RAdamOptimizerConfig(lr=0.001),
             "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
         },
         "position_encoding": {
-            "optimizer": OptimizerConfig(lr=0.02),
+            "optimizer": RAdamOptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
         },
         "direction_encoding": {
-            "optimizer": OptimizerConfig(lr=0.02),
+            "optimizer": RAdamOptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
         },
     },
-)
-
-base_configs["compound"] = Config(
-    method_name="compound",
-    trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
-        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
-    ),
-    optimizers={
-        "fields": {
-            "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),
-            "scheduler": None,
-        }
-    },
-    viewer=ViewerConfig(enable=True),
-    logging=LoggingConfig(event_writer="none"),
 )
 
 
