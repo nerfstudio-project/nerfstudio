@@ -87,9 +87,13 @@ class Trainer:
         self.callbacks: List[TrainingCallback]
         # optimizers
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
-        # logging/viewer variables
-        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer)
-        writer.setup_event_writer(config.logging)
+        # set up viewer if enabled
+        self.base_dir = config.get_base_dir()
+        viewer_log_path = self.base_dir / config.viewer.relative_log_filename
+        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        # set up writers/profilers if enabled
+        writer_log_path = self.base_dir / config.logging.relative_log_dir
+        writer.setup_event_writer(config.logging, log_dir=writer_log_path)
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
@@ -171,7 +175,7 @@ class Trainer:
                     writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
 
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
-                    self._save_checkpoint(self.config.trainer.model_dir, step)
+                    self._save_checkpoint(Path(self.base_dir / self.config.trainer.relative_model_dir), step)
 
                 self._update_viewer_rays_per_sec(train_t, vis_t, step)
                 self._write_out_storage(step)
@@ -187,6 +191,9 @@ class Trainer:
                     "Please set `--logging.event_writer none` for faster rendering"
                 )
                 CONSOLE.print(f"[bold red]{string}")
+            self.config.trainer.steps_per_eval_batch = self.config.trainer.max_num_iterations
+            self.config.trainer.steps_per_eval_image = self.config.trainer.max_num_iterations
+            self.config.trainer.steps_per_eval_all_images = self.config.trainer.max_num_iterations
             string = "[WARNING] Disabling eval iterations since viewer is enabled."
             CONSOLE.print(f"[bold red]{string}")
 

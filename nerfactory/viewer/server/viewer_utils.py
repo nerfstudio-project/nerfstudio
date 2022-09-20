@@ -44,14 +44,14 @@ from nerfactory.viewer.server.visualizer import Viewer
 console = Console(width=120)
 
 
-def setup_viewer(config: cfg.ViewerConfig):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
     """
     if config.enable:
-        viewer_state = ViewerState(config)
+        viewer_state = ViewerState(config, log_filename=log_filename)
         banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
         return viewer_state, banner_messages
     return None, None
@@ -202,16 +202,17 @@ class ViewerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path):
         self.config = config
         self.vis = None
         self.viewer_url = None
+        self.log_filename = log_filename
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             zmq_port = int(self.config.zmq_url.split(":")[-1])
             websocket_port = self.config.websocket_port
-            self.config.log_filename.parent.mkdir(exist_ok=True)
-            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.config.log_filename))
+            self.log_filename.parent.mkdir(exist_ok=True)
+            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.log_filename))
             # TODO(ethan): move this into the writer such that it's at the bottom
             # of the logging stack and easy to see and click
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
@@ -255,7 +256,7 @@ class ViewerState:
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
-        self.vis["renderingState/config_base_dir"].write(str(self.config.log_filename.parents[0]))
+        self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
 
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
