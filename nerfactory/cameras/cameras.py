@@ -18,7 +18,7 @@ Camera Models
 import base64
 import math
 from enum import Enum, auto
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import cv2
 import torch
@@ -28,6 +28,7 @@ from torchtyping import TensorType
 
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.utils.tensor_dataclass import TensorDataclass
 
 
 class CameraType(Enum):
@@ -54,14 +55,14 @@ class Cameras:
 
     Args:
         camera_to_worlds: Tensor of per-image c2w matrices, in [R | t] format.
-        fx: Focal length x.
-        fy: Focal length y.
-        cx: Principal point x.
-        cy: Principal point y.
-        width: Image width.
-        height: Image height.
+        fx: Focal length x. If a single value is provided, it is broadcasted to all cameras.
+        fy: Focal length y. If a single value is provided, it is broadcasted to all cameras.
+        cx: Principal point x. If a single value is provided, it is broadcasted to all cameras.
+        cy: Principal point y. If a single value is provided, it is broadcasted to all cameras.
+        width: Image width. If a single value is provided, it is broadcasted to all cameras.
+        height: Image height. If a single value is provided, it is broadcasted to all cameras.
         distortion_params: OpenCV 6 radial distortion coefficients.
-        camera_type: Type of camera model.
+        camera_type: Type of camera model. If a single value is provided, it is broadcasted to all cameras.
     """
 
     def __init__(
@@ -69,12 +70,12 @@ class Cameras:
         camera_to_worlds: TensorType["num_cameras", 3, 4],
         fx: Union[TensorType["num_cameras"], float],
         fy: Union[TensorType["num_cameras"], float],
-        cx: float,
-        cy: float,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
+        cx: Union[TensorType["num_cameras"], float],
+        cy: Union[TensorType["num_cameras"], float],
+        width: Optional[Union[TensorType["num_cameras"], float]] = None,
+        height: Optional[Union[TensorType["num_cameras"], float]] = None,
         distortion_params: Optional[TensorType["num_cameras", 6]] = None,
-        camera_type: CameraType = CameraType.PERSPECTIVE,
+        camera_type: Optional[Union[List[CameraType], CameraType]] = CameraType.PERSPECTIVE,
     ):
         self._num_cameras = camera_to_worlds.shape[0]
         self.camera_to_worlds = camera_to_worlds
@@ -84,14 +85,31 @@ class Cameras:
             fy = torch.Tensor([fy])
         self.fx = fx.broadcast_to((self._num_cameras)).to(self.device)
         self.fy = fy.broadcast_to((self._num_cameras)).to(self.device)
+
+        if not isinstance(cx, torch.Tensor):
+            cx = torch.Tensor([cx])
+        else:
+            test = cx == cx[0]
+            assert , "Batched cameras of different types will be allowed in the future."
+        if not isinstance(cx, torch.Tensor):
+            cx = torch.Tensor([cx])
+        else:
+            for elem in cx:
+                assert elem == cx[0], "Batched cameras of different types will be allowed in the future."
         self.cx = cx
         self.cy = cy
+
         if distortion_params is not None:
             self.distortion_params = distortion_params.broadcast_to((self._num_cameras, 6))
         else:
             self.distortion_params = None
         self._image_heights = int(self.cy * 2) if height is None else height
         self._image_widths = int(self.cx * 2) if width is None else width
+        if not isinstance(camera_type, list):
+            camera_type = [camera_type] * self._num_cameras
+        else:
+            for cam_type in camera_type:
+                assert camera_type[0] == cam_type, "Batched cameras of different types will be allowed in the future."
         self.camera_type = camera_type
 
     @property
