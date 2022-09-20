@@ -232,17 +232,17 @@ class Cameras:
 
         dx = torch.sqrt(torch.sum((directions - directions_stack[1]) ** 2, dim=-1))
         dy = torch.sqrt(torch.sum((directions - directions_stack[2]) ** 2, dim=-1))
-        pixel_area = dx * dy
+        pixel_area = (dx * dy)[..., None]
 
         if not isinstance(camera_indices, torch.Tensor):
-            ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to((self._num_cameras)).to(self.device)
+            ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to(pixel_area.shape).to(self.device)
         else:
             ray_bundle_camera_indices = camera_indices
 
         return RayBundle(
             origins=origins,
             directions=directions,
-            pixel_area=pixel_area[..., None],
+            pixel_area=pixel_area,
             camera_indices=ray_bundle_camera_indices,
         )
 
