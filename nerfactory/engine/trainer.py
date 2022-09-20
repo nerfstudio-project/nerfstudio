@@ -23,7 +23,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import torch
 from rich import console
@@ -68,7 +68,20 @@ class Trainer:
         config: The configuration object.
         local_rank: Local rank of the process.
         world_size: World size of the process.
+
+    Attributes:
+        config: The configuration object.
+        local_rank: Local rank of the process.
+        world_size: World size of the process.
+        device: The device to run the training on.
+        pipeline: The pipeline object.
+        optimizers: The optimizers object.
+        callbacks: The callbacks object.
     """
+
+    pipeline: Pipeline
+    optimizers: Optimizers
+    callbacks: List[TrainingCallback]
 
     def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):
         self.config = config
@@ -79,12 +92,7 @@ class Trainer:
         if self.device == "cpu":
             self.mixed_precision = False
             logging.warning("Mixed precision is disabled for CPU training.")
-        # model variables
-        self.pipeline: Pipeline
-        self.optimizers: Optimizers
-        self.start_step = 0
-        # training callbacks
-        self.callbacks: List[TrainingCallback]
+        self._start_step = 0
         # optimizers
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
         # logging/viewer variables
@@ -112,7 +120,11 @@ class Trainer:
 
         # TODO(ethan): do this for pipeline, not pipeline.model
         self.callbacks = self.pipeline.get_training_callbacks(
-            TrainingCallbackAttributes(optimizers=self.optimizers, grad_scaler=self.grad_scaler, pipeline=self.pipeline)
+            TrainingCallbackAttributes(
+                optimizers=self.optimizers,  # type: ignore
+                grad_scaler=self.grad_scaler,  # type: ignore
+                pipeline=self.pipeline,  # type: ignore
+            )
         )
 
     def train(self) -> None:
@@ -122,7 +134,7 @@ class Trainer:
         self._init_viewer_scene()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
-            for step in range(self.start_step, self.start_step + num_iterations):
+            for step in range(self._start_step, self._start_step + num_iterations):
                 # if the viewer used, the rendering of the viewer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
@@ -275,7 +287,7 @@ class Trainer:
             load_path = load_dir / f"step-{load_step:09d}.ckpt"
             assert load_path.exists(), f"Checkpoint {load_path} does not exist"
             loaded_state = torch.load(load_path, map_location="cpu")
-            self.start_step = loaded_state["step"] + 1
+            self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
@@ -312,7 +324,7 @@ class Trainer:
         )
 
     @profiler.time_function
-    def train_iteration(self, step: int) -> Dict[str, torch.Tensor]:
+    def train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         """Run one iteration with a batch of inputs. Returns dictionary of model losses.
 
         Args:

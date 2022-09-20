@@ -17,7 +17,6 @@ dependencies = [
     "aiohttp==3.8.1",
     "aiortc==1.3.2",
     "av==9.2.0",
-    "black[jupyter]==22.3.0",
     "dcargs>=0.3.7",
     "gdown==4.5.1",
     "ninja==1.10.2.3",
@@ -28,36 +27,38 @@ dependencies = [
     "imageio==2.21.1",
     "ipywidgets>=7.6",
     "jupyterlab==3.3.4",
-    "kaleido==0.2.1",
     "matplotlib==3.5.3",
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
     "nerfacc==0.0.9",
-    "numpy-quaternion",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
-    "pylint==2.13.4",
-    "pytest==7.1.2",
-    "pytest-xdist==2.5.0",
     "python-socketio==5.7.1",
     "rich==12.5.1",
     "tensorboard==2.9.0",
     "torch==1.12.1",
-    "torchmetrics[image]==0.8.2",
+    "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
-    "tqdm==4.64.0",
     "u-msgpack-python>=2.4.1",
-    "wandb==0.13.3"
+    "wandb>=0.13.3"
 ]
 
 [project.urls]
 "Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
 
 [project.optional-dependencies]
-# for building the docs
+# Development packages
+dev = [
+    "black[jupyter]==22.3.0",
+    "pylint==2.13.4",
+    "pytest==7.1.2",
+    "pytest-xdist==2.5.0",
+]
+
+# Documentation related packages
 docs = [
     "furo==2022.4.7",
     "readthedocs-sphinx-search==0.1.2",
@@ -91,6 +92,7 @@ max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
 ignore-paths = ["scripts/colmap2nerf.py", "^nerfactory/cuda/.*$", "^tests/cuda/.*$"]
+jobs = 0
 
 disable = [
   "duplicate-code",

@@ -11,6 +11,21 @@ The project is set up for development in VSCode, we recommend using it if you pl
 | Docs            | Sphinx |
 | Docstring style | Google |
 
+## Requirements
+
+To install the required packages:
+
+```bash
+pip install -e .[dev]
+pip install -e .[docs]
+```
+
+You may also need to install [pandoc](https://pandoc.org/). If you are using `conda` you can run the following:
+
+```bash
+conda install -c conda-forge pandoc
+```
+
 ## Committing
 
 1. Make your modifications
@@ -22,32 +37,18 @@ The project is set up for development in VSCode, we recommend using it if you pl
    python scripts/debugging/run_actions.py
    ```
 
-   This will perform the following checks and actions:
+This will perform the following checks and actions:
 
-   - Black/ Linting style check: Ensure that the code is consistently and properly formatted.
-   - Pytests: Runs pytests locally to make sure the logic of any added code does not break existing logic.
-   - Documentation build: Builds the documentation locally to make sure none of the changes result in any warnings or errors in the docs.
-   - Licensing: automatically adds licensing headers to the correct files.
+- Black/ Linting style check: Ensure that the code is consistently and properly formatted.
+- Pytests: Runs pytests locally to make sure the logic of any added code does not break existing logic.
+- Documentation build: Builds the documentation locally to make sure none of the changes result in any warnings or errors in the docs.
+- Licensing: automatically adds licensing headers to the correct files.
 
 In order to merge changes to the code base, all of these checks must be passing. If you pass these tests locally, you will likely pass on github servers as well (results in a green checkmark next to your commit).
 
 3. Open pull request
 
 ## Documentation
-
-### Requirements
-
-To install the required packages:
-
-```bash
-pip install -e .[docs]
-```
-
-You may also need to install [pandoc](https://pandoc.org/). If you are using `conda` you can run the following:
-
-```bash
-conda install -c conda-forge pandoc
-```
 
 ### Building
 
