@@ -441,6 +441,14 @@ class VolumetricSampler(Sampler):
             stratified=self.training,
         )
 
+        num_samples = starts.shape[0]
+        if num_samples == 0:
+            # create a single fake sample and update packed_info accordingly
+            # this says the last ray in packed_info has 1 sample, which starts and ends at 1
+            packed_info[-1, 1] = 1
+            starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
+            ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
+
         ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]

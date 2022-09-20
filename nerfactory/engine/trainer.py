@@ -126,6 +126,8 @@ class Trainer:
                 # if the viewer used, the rendering of the viewer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
+                    self.pipeline.train()
+
                     # training callbacks before the training iteration
                     for callback in self.callbacks:
                         callback.run_callback_at_location(
