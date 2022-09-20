@@ -24,6 +24,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 from torch import nn
 from torch.nn import Parameter
+from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 
 from nerfactory.cameras.rays import RayBundle
@@ -86,12 +87,12 @@ class DataManager(nn.Module):
 
     """
 
-    train_input_dataset: Optional[VanillaInputDataset] = None
-    eval_input_dataset: Optional[VanillaInputDataset] = None
+    train_input_dataset: Optional[Dataset] = None
+    eval_input_dataset: Optional[Dataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
 
-    def __init__(self):
+    def __init__(self, src: str):
         """Constructor for the DataManager class.
 
         Subclassed DataManagers will likely need to override this constructor.
@@ -217,8 +218,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     config: cfg.VanillaDataManagerConfig
 
+    train_input_dataset: Optional[VanillaInputDataset] = None
+    eval_input_dataset: Optional[VanillaInputDataset] = None
+
     def __init__(
         self,
+        src=,
         config: cfg.VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
