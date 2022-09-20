@@ -103,15 +103,15 @@ class Trainer:
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
         writer.setup_event_writer(config.logging, log_dir=writer_log_path)
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
-        profiler.setup_profiler(config.logging)
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
-        self._check_viewer_warnings()
+        profiler.setup_profiler(config.logging)
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
