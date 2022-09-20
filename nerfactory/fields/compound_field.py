@@ -153,11 +153,9 @@ class TCNNCompoundField(Field):
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
-        # TODO: add valid_mask masking!
-        # tcnn requires directions in the range [0,1]
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
-        camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
+        camera_indices = ray_samples.camera_indices.squeeze()
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
@@ -165,8 +163,8 @@ class TCNNCompoundField(Field):
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
         else:
-            embedded_appearance = torch.zeros((*directions.shape[:-1], self.appearance_embedding_dim)).to(
-                directions.device
+            embedded_appearance = torch.zeros(
+                (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
             )
 
         if density_embedding is None:
@@ -250,13 +248,14 @@ class TorchCompoundField(Field):
 
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
-        camera_indices = ray_samples.camera_indices.squeeze().to(ray_samples.frustums.origins.device)
+        camera_indices = ray_samples.camera_indices.squeeze()
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
         else:
             embedded_appearance = torch.zeros(
-                (*ray_samples.frustums.directions.shape[:-1], self.appearance_embedding_dim)
-            ).to(ray_samples.frustums.directions.device)
+                (*ray_samples.frustums.directions.shape[:-1], self.appearance_embedding_dim),
+                device=ray_samples.frustums.directions.device,
+            )
 
         outputs = {}
         for field_head in self.field_heads:
