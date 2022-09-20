@@ -31,7 +31,7 @@ from rich.console import Console
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.datasets import InputDataset
+from nerfactory.datamanagers.datasets import VanillaInputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
 from nerfactory.utils.io import load_from_json, write_to_json
@@ -246,7 +246,7 @@ class ViewerState:
 
         self.output_list = None
 
-    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
+    def init_scene(self, dataset: VanillaInputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:

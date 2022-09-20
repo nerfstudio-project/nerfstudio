@@ -30,8 +30,11 @@ from nerfactory.datamanagers.structs import DatasetInputs
 from nerfactory.utils.misc import is_not_none
 
 
-class InputDataset(Dataset):
-    """Dataset that returns images.
+class VanillaInputDataset(Dataset):
+    """Dataset that returns images, cameras
+
+    This is the vanilla flavor of dataset for the vanilla NeRF paradigm of single scene and multiple images,
+    and takes in a DatasetInputs object which is the default. This will return an image, camera
 
     Args:
         config: the DataParserConfig used to instantiate class, which in turn is used to load dataset inputs

@@ -26,7 +26,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.datamanagers.datasets import InputDataset
+from nerfactory.datamanagers.datasets import VanillaInputDataset
 from nerfactory.utils.misc import get_dict_to_torch
 
 
@@ -43,7 +43,7 @@ class CacheImageDataloader(DataLoader):
 
     def __init__(
         self,
-        dataset: InputDataset,
+        dataset: VanillaInputDataset,
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = 0,
         device: Union[torch.device, str] = "cpu",
@@ -109,7 +109,7 @@ class EvalDataloader(DataLoader):
 
     def __init__(
         self,
-        input_dataset: InputDataset,
+        input_dataset: VanillaInputDataset,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
@@ -173,7 +173,7 @@ class FixedIndicesEvalDataloader(EvalDataloader):
 
     def __init__(
         self,
-        input_dataset: InputDataset,
+        input_dataset: VanillaInputDataset,
         image_indices: Optional[Tuple[int]] = None,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
@@ -208,7 +208,7 @@ class RandIndicesEvalDataloader(EvalDataloader):
 
     def __init__(
         self,
-        input_dataset: InputDataset,
+        input_dataset: VanillaInputDataset,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):

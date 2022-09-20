@@ -33,7 +33,7 @@ from nerfactory.datamanagers.dataloaders import (
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
-from nerfactory.datamanagers.datasets import InputDataset
+from nerfactory.datamanagers.datasets import VanillaInputDataset
 from nerfactory.datamanagers.pixel_sampler import PixelSampler
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
@@ -86,8 +86,8 @@ class DataManager(nn.Module):
 
     """
 
-    train_input_dataset: Optional[InputDataset] = None
-    eval_input_dataset: Optional[InputDataset] = None
+    train_input_dataset: Optional[VanillaInputDataset] = None
+    eval_input_dataset: Optional[VanillaInputDataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
 
@@ -236,8 +236,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             logging.info("No eval dataset specified so using train dataset for eval.")
             config.eval_dataparser = config.train_dataparser
 
-        self.train_input_dataset = InputDataset(config.train_dataparser.setup().get_dataset_inputs(split="train"))
-        self.eval_input_dataset = InputDataset(
+        self.train_input_dataset = VanillaInputDataset(
+            config.train_dataparser.setup().get_dataset_inputs(split="train")
+        )
+        self.eval_input_dataset = VanillaInputDataset(
             config.eval_dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
         )
         super().__init__()
