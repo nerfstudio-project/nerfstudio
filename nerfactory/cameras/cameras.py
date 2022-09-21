@@ -28,7 +28,6 @@ from torchtyping import TensorType
 
 from nerfactory.cameras import utils as camera_utils
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.utils.tensor_dataclass import TensorDataclass
 
 
 class CameraType(Enum):
@@ -51,7 +50,9 @@ CAMERA_MODEL_TO_TYPE = {
 class Cameras:
     """Dataset inputs for the image dataset and the ray generator.
 
-    Note: currently only supports cameras with the same principal points and types.
+    Note: currently only supports cameras with the same principal points and types. The reason we type
+    the focal lengths, principal points, and image sizes as tensors is to allow for batched cameras
+    down the line in cases where your batches of camera data don't come from the same cameras.
 
     Args:
         camera_to_worlds: Tensor of per-image c2w matrices, in [R | t] format.
@@ -89,28 +90,52 @@ class Cameras:
         if not isinstance(cx, torch.Tensor):
             cx = torch.Tensor([cx])
         else:
-            test = cx == cx[0]
-            assert , "Batched cameras of different types will be allowed in the future."
-        if not isinstance(cx, torch.Tensor):
-            cx = torch.Tensor([cx])
+            assert torch.all(cx == cx[0]), "Batched cameras of different types will be allowed in the future."
+        if not isinstance(cy, torch.Tensor):
+            cy = torch.Tensor([cy])
         else:
-            for elem in cx:
-                assert elem == cx[0], "Batched cameras of different types will be allowed in the future."
-        self.cx = cx
-        self.cy = cy
+            assert torch.all(cy == cy[0]), "Batched cameras of different types will be allowed in the future."
+        self.cx = cx.broadcast_to((self._num_cameras)).to(self.device)
+        self.cy = cy.broadcast_to((self._num_cameras)).to(self.device)
 
         if distortion_params is not None:
             self.distortion_params = distortion_params.broadcast_to((self._num_cameras, 6))
         else:
             self.distortion_params = None
+
         self._image_heights = int(self.cy * 2) if height is None else height
         self._image_widths = int(self.cx * 2) if width is None else width
+
+        # If int, first go to tensor and then broadcast to all cameras
+        # If tensor, broadcast to all cameras
+        # If none, use cx or cy * 2
+        if isinstance(height, int):
+            height = torch.Tensor([height])
+            self._image_heights = height.broadcast_to((self._num_cameras)).to(self.device)
+        elif isinstance(height, torch.Tensor):
+            self._image_heights = height.broadcast_to((self._num_cameras)).to(self.device)
+            assert torch.all(
+                self._image_heights == self._image_heights[0]
+            ), "Batched cameras of different types will be allowed in the future."
+        else:
+            self._image_heights = torch.Tensor([int(self.cy * 2)]).broadcast_to((self._num_cameras)).to(self.device)
+        if isinstance(width, int):
+            width = torch.Tensor([width])
+            self._image_widths = width.broadcast_to((self._num_cameras)).to(self.device)
+        elif isinstance(width, torch.Tensor):
+            self._image_widths = width.broadcast_to((self._num_cameras)).to(self.device)
+            assert torch.all(
+                self._image_widths == self._image_widths[0]
+            ), "Batched cameras of different types will be allowed in the future."
+        else:
+            self._image_widths = torch.Tensor([int(self.cx * 2)]).broadcast_to((self._num_cameras)).to(self.device)
+
         if not isinstance(camera_type, list):
-            camera_type = [camera_type] * self._num_cameras
+            self.camera_type = [camera_type] * self._num_cameras
         else:
             for cam_type in camera_type:
                 assert camera_type[0] == cam_type, "Batched cameras of different types will be allowed in the future."
-        self.camera_type = camera_type
+            self.camera_type = camera_type
 
     @property
     def device(self):
@@ -123,12 +148,12 @@ class Cameras:
         return self._num_cameras
 
     @property
-    def image_height(self) -> int:
+    def image_height(self) -> TensorType["num_cameras"]:
         """Returns the height of the images."""
         return self._image_heights
 
     @property
-    def image_width(self) -> int:
+    def image_width(self) -> TensorType["num_cameras"]:
         """Returns the height of the images."""
         return self._image_widths
 
@@ -154,15 +179,20 @@ class Cameras:
         )
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
-        """
+        """This gets the image coordinates of one of the cameras in this object
+
+        Down the line we may support jagged images, allowing this to return multiple image coordinates of
+        different sizes, but for the time being since all cameras are constrained to be the same height and
+        width, this will return the same image coordinates for all cameras.
+
         Args:
             pixel_offset: Offset for each pixel. Defaults to center of pixel (0.5)
 
         Returns:
             Grid of image coordinates.
         """
-        image_height = self.image_height
-        image_width = self.image_width
+        image_height = self.image_height[0]
+        image_width = self.image_width[0]
         image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
         image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
@@ -199,7 +229,7 @@ class Cameras:
         y = coords[..., 0]  # (..., 1)
         x = coords[..., 1]  # (..., 1)
         fx, fy = self.fx[camera_indices], self.fy[camera_indices]
-        cx, cy = self.cx, self.cy
+        cx, cy = self.cx[camera_indices], self.cy[camera_indices]
 
         coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)
         coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)
@@ -218,11 +248,11 @@ class Cameras:
         if distortion_params is not None:
             coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
 
-        if self.camera_type == CameraType.PERSPECTIVE:
+        if self.camera_type[0] == CameraType.PERSPECTIVE:
             directions_stack = torch.stack(
                 [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
             )
-        elif self.camera_type == CameraType.FISHEYE:
+        elif self.camera_type[0] == CameraType.FISHEYE:
             theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
 
@@ -285,8 +315,8 @@ class Cameras:
         """
         json_ = {
             "type": "PinholeCamera",
-            "cx": self.cx,
-            "cy": self.cy,
+            "cx": self.cx[camera_idx],
+            "cy": self.cy[camera_idx],
             "fx": self.fx[camera_idx].tolist(),
             "fy": self.fy[camera_idx].tolist(),
             "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
@@ -317,12 +347,15 @@ class Cameras:
         K[:, 2, 2] = 1.0
         return K
 
-    def rescale_output_resolution(self, scaling_factor: float) -> None:
+    def rescale_output_resolution(self, scaling_factor: Union[TensorType["num_cameras"], float]) -> None:
         """Rescale the output resolution of the cameras.
 
         Args:
             scaling_factor: Scaling factor to apply to the output resolution.
         """
+        if isinstance(scaling_factor, float):
+            scaling_factor = torch.tensor([scaling_factor]).broadcast_to((self.size))
+
         self.fx = self.fx * scaling_factor
         self.fy = self.fy * scaling_factor
         self.cx = self.cx * scaling_factor
