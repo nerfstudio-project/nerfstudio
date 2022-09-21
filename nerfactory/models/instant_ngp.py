@@ -47,6 +47,8 @@ from nerfactory.utils.callbacks import (
     TrainingCallbackLocation,
 )
 
+from nerfactory.pipelines.base import Pipeline
+
 
 @dataclass
 class InstantNGPModelConfig(cfg.ModelConfig):
@@ -174,6 +176,7 @@ class NGPModel(Model):
             "accumulation": accumulation,
             "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
+            "num_samples": packed_info[:, 1],
         }
         return outputs
 
@@ -181,6 +184,7 @@ class NGPModel(Model):
         image = batch["image"].to(self.device)
         metrics_dict = {}
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["num_samples"] = outputs["num_samples"].sum()
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
@@ -228,3 +232,32 @@ class NGPModel(Model):
         }
 
         return metrics_dict, images_dict
+
+
+@dataclass
+class InstantNGPPipelineConfig(cfg.PipelineConfig):
+
+    _target: Type = field(
+        default_factory=lambda: InstantNGPPipeline
+    )  # We can't write `InstantNGPPipeline` directly, because `InstantNGPPipeline` doesn't exist yet
+    target_num_samples: int = 100000
+    """the target number of samples to use for training"""
+
+
+class InstantNGPPipeline(Pipeline):
+    """Pipeline with logic for changing the number of rays per batch."""
+
+    def get_train_loss_dict(self, step: int):
+
+        # update the number of rays to sample
+        # self.datamanager.train_pixel_sampler.num_rays_per_batch =
+
+        ray_bundle, batch = self.datamanager.next_train(step)
+
+        model_outputs = self.model(ray_bundle, batch)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        num_samples = metrics_dict["num_samples"]
+        print("step:        ", num_samples)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+
+        return model_outputs, loss_dict, metrics_dict
