@@ -29,13 +29,13 @@ from nerfactory.configs.base import (
     LoggingConfig,
     MipNerf360DataParserConfig,
     NerfWModelConfig,
-    VanillaPipelineConfig,
     RAdamOptimizerConfig,
     SchedulerConfig,
     TensoRFModelConfig,
     TrainerConfig,
     VanillaDataManagerConfig,
     VanillaModelConfig,
+    VanillaPipelineConfig,
     ViewerConfig,
 )
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
