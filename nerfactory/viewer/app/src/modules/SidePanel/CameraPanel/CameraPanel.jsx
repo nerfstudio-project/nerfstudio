@@ -41,23 +41,30 @@ function CameraList(props) {
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
-    const camera = sceneTree.find_object([
+    const camera = sceneTree.find_object_no_create([
       'Camera Path',
       'Cameras',
       index.toString(),
       'Camera',
     ]);
-    transform_controls.attach(camera);
-    const viewer_buttons = document.getElementsByClassName(
-      'ViewerWindow-buttons',
-    )[0];
-    viewer_buttons.style.display = 'block';
+    if (camera !== null) {
+      transform_controls.detach();
+      transform_controls.attach(camera);
+      const viewer_buttons = document.getElementsByClassName(
+        'ViewerWindow-buttons',
+      )[0];
+      viewer_buttons.style.display = 'block';
+    }
   };
 
   const delete_camera = (index) => {
     console.log('TODO: deleting camera: ', index);
-    setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
     sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera']);
+    sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera Helper']);
+    setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
+    // detach and hide transform controls
+    transform_controls.detach();
+    transform_controls.set_visibility(false);
   };
 
   const cameraList = cameras.map((camera, index) => {
@@ -85,14 +92,14 @@ function CameraList(props) {
 export default function CameraPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
-  const camera_main = sceneTree.find_object(['Cameras', 'Main Camera']);
-  const camera_render = sceneTree.find_object(['Cameras', 'Render Camera']);
-  const camera_render_helper = sceneTree.find_object([
+  const camera_main = sceneTree.find_object_no_create(['Cameras', 'Main Camera']);
+  const camera_render = sceneTree.find_object_no_create(['Cameras', 'Render Camera']);
+  const camera_render_helper = sceneTree.find_object_no_create([
     'Cameras',
     'Render Camera',
     'Helper',
   ]);
-  const transform_controls = sceneTree.find_object(['Transform Controls']);
+  const transform_controls = sceneTree.find_object_no_create(['Transform Controls']);
 
   // redux store state
   const config_base_dir = useSelector(
@@ -186,11 +193,6 @@ export default function CameraPanel(props) {
 
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     if (cameras.length === 0) {
-      const camera_render_helper = sceneTree.find_object([
-        'Cameras',
-        'Render Camera',
-        'Helper',
-      ]);
       camera_render_helper.set_visibility(false);
     } else {
       camera_render_helper.set_visibility(true);
