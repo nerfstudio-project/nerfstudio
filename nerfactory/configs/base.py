@@ -221,20 +221,14 @@ class VanillaDataManagerConfig(InstantiateConfig):
     train/eval data at each iteration
     """
 
-    # Note: eval_dataparser is annotated with Fixed[] to prevent dcargs from trying to
-    # convert Optional[InstantiateConfig] into subcommands for choosing between None and
-    # InstantiateConfig.
-
     _target: Type = VanillaDataManager
     """target class to instantiate"""
-    train_dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
     """specifies the dataparser used to unpack the data"""
     train_num_rays_per_batch: int = 1024
     """number of rays per batch to use per training iteration"""
     train_num_images_to_sample_from: int = -1
     """number of images to sample during training iteration"""
-    eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
-    """optionally specify different dataparser to use during eval; if None, uses train_dataparser"""
     eval_num_rays_per_batch: int = 1024
     """number of rays per batch to use per eval iteration"""
     eval_num_images_to_sample_from: int = -1
@@ -430,7 +424,7 @@ class Config(PrintableConfig):
         # check the experiment and method names
         assert self.method_name is not None, "Please set method name in config or via the cli"
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.train_dataparser.data_directory).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
 
         # set the timestamp of the model logging/writer loggign paths
         if timestamp is None:
@@ -447,7 +441,7 @@ class Config(PrintableConfig):
             self.logging.event_writer_config = None
         self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename
         # disable test if viewer is enabled (for speed purposes)
-        if self.viewer.enable:
-            self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
-            self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
-            self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
+        # if self.viewer.enable:
+        #     self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
+        #     self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
+        #     self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations

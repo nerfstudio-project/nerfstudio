@@ -177,6 +177,12 @@ class NGPModel(Model):
         }
         return outputs
 
+    def get_metrics_dict(self, outputs, batch):
+        image = batch["image"].to(self.device)
+        metrics_dict = {}
+        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        return metrics_dict
+
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(self.device)
         mask = outputs["alive_ray_mask"]

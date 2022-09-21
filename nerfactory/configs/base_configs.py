@@ -50,7 +50,7 @@ base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
@@ -67,9 +67,7 @@ base_configs["mipnerf-360"] = Config(
     method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192
-        ),
+        datamanager=VanillaDataManagerConfig(dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192),
         model=ModelConfig(
             _target=MipNerf360Model,
             collider_params={"near_plane": 0.5, "far_plane": 20.0},
@@ -84,7 +82,7 @@ base_configs["mipnerf-360"] = Config(
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=ModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -99,7 +97,7 @@ base_configs["nerfw"] = Config(
     method_name="nerfw",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=FriendsDataParserConfig(),
+            dataparser=FriendsDataParserConfig(),
         ),
         model=NerfWModelConfig(),
     ),
@@ -110,7 +108,7 @@ base_configs["semantic-nerf"] = Config(
     method_name="semantic-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=FriendsDataParserConfig(),
+            dataparser=FriendsDataParserConfig(),
         ),
         model=ModelConfig(
             _target=SemanticNerfModel,
@@ -125,7 +123,7 @@ base_configs["vanilla-nerf"] = Config(
     method_name="vanilla-nerf",
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
+            dataparser=BlenderDataParserConfig(),
         ),
         model=ModelConfig(_target=NeRFModel),
     ),
@@ -136,7 +134,7 @@ base_configs["tensorf"] = Config(
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
+            dataparser=BlenderDataParserConfig(),
         ),
         model=TensoRFModelConfig(),
     ),
@@ -160,7 +158,7 @@ base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
