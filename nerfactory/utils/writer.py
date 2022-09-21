@@ -376,7 +376,8 @@ class LocalWriter:
         Args:
             step: current train step
         """
-        if step > 0:
+        valid_step = step > 0 and step % GLOBAL_BUFFER["steps_per_log"] == 0
+        if valid_step:
             if not self.has_printed and self.config.max_log_size:
                 logging.info(
                     "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.local-writer.max-log-size=0` "

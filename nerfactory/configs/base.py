@@ -196,20 +196,14 @@ class VanillaDataManagerConfig(InstantiateConfig):
     train/eval data at each iteration
     """
 
-    # Note: eval_dataparser is annotated with Fixed[] to prevent dcargs from trying to
-    # convert Optional[InstantiateConfig] into subcommands for choosing between None and
-    # InstantiateConfig.
-
     _target: Type = VanillaDataManager
     """target class to instantiate"""
-    train_dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
     """specifies the dataparser used to unpack the data"""
     train_num_rays_per_batch: int = 1024
     """number of rays per batch to use per training iteration"""
     train_num_images_to_sample_from: int = -1
     """number of images to sample during training iteration"""
-    eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
-    """optionally specify different dataparser to use during eval; if None, uses train_dataparser"""
     eval_num_rays_per_batch: int = 1024
     """number of rays per batch to use per eval iteration"""
     eval_num_images_to_sample_from: int = -1
@@ -409,7 +403,7 @@ class Config(PrintableConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.train_dataparser.data_directory).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
