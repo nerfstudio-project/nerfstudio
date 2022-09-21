@@ -40,11 +40,12 @@ from nerfactory.configs.base import (
 )
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
 from nerfactory.models.compound import CompoundModelConfig
-from nerfactory.models.instant_ngp import InstantNGPModelConfig, InstantNGPPipelineConfig
+from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
 from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
+from nerfactory.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 base_configs: Dict[str, Config] = {}
 base_configs["compound"] = Config(
@@ -67,7 +68,7 @@ base_configs["compound"] = Config(
 base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
-    pipeline=InstantNGPPipelineConfig(
+    pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),

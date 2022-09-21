@@ -94,17 +94,22 @@ class Pipeline(nn.Module):
         self.model: The model that will be used
     """
 
+    config: cfg.PipelineConfig
+    datamanger: DataManager
+    model: Model
+
     def __init__(
         self, config: cfg.PipelineConfig, device: str, test_mode: bool = False, world_size: int = 1, local_rank: int = 0
     ):
         super().__init__()
-        self.datamanager: DataManager = config.datamanager.setup(
+        self.config = config
+        self.datamanager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_input_dataset is not None, "Missing input dataset"
-        self.model: Model = config.model.setup(
+        self.model = config.model.setup(
             scene_bounds=self.datamanager.train_input_dataset.dataset_inputs.scene_bounds,
             num_train_data=len(self.datamanager.train_input_dataset),
         )
