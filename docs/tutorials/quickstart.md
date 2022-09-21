@@ -135,3 +135,20 @@ This can be fixed by upgrading pip to the latest version:
 ```
 python -m pip install --upgrade pip
 ```
+
+- [Runtime errors, "len(sources) > 0".](cuda-sources-error)
+
+(cuda-sources-error)=
+
+#### Runtime errors, "len(sources) > 0".
+
+When running `run_train.py `, an error occurs when installing cuda files in the backend code.
+
+**Solution**:
+This is a problem with not being able to detect the correct CUDA version, and can be fixed by updating the CUDA path environment variables:
+
+```
+export CUDA_HOME=/usr/local/cuda
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
+export PATH=$PATH:$CUDA_HOME/bin
+```

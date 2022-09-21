@@ -28,7 +28,7 @@ from torch.utils.data.distributed import DistributedSampler
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.dataloaders import (
-    CacheImageDataloader,
+    CacheDataloader,
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
@@ -246,7 +246,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         else:
             sampler = None
-        self.train_image_dataloader = CacheImageDataloader(
+        self.train_image_dataloader = CacheDataloader(
             self.train_input_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
             device=self.device,
@@ -267,7 +267,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         else:
             sampler = None
-        self.eval_image_dataloader = CacheImageDataloader(
+        self.eval_image_dataloader = CacheDataloader(
             self.eval_input_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
             device=self.device,

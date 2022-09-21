@@ -21,7 +21,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from torch.utils.data import default_collate
+from torch.utils.data import Dataset, default_collate
 from torch.utils.data.dataloader import DataLoader
 
 from nerfactory.cameras.cameras import Cameras
@@ -30,8 +30,8 @@ from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.utils.misc import get_dict_to_torch
 
 
-class CacheImageDataloader(DataLoader):
-    """Collated image dataset that implements caching of images.
+class CacheDataloader(DataLoader):
+    """Collated image dataset that implements caching of default-pytorch-collatable data.
     Creates batches of the InputDataset return type.
 
     Args:
@@ -43,7 +43,7 @@ class CacheImageDataloader(DataLoader):
 
     def __init__(
         self,
-        dataset: InputDataset,
+        dataset: Dataset,
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = 0,
         device: Union[torch.device, str] = "cpu",
