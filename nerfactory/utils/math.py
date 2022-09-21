@@ -29,7 +29,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
         directions: Spherical hamonic coefficients
     """
     num_components = levels**2
-    components = torch.zeros((*directions.shape[:-1], num_components)).to(directions.device)
+    components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)
 
     assert 1 <= levels <= 5, f"SH levels must be in [1,4], got {levels}"
     assert directions.shape[-1] == 3, f"Direction input should have three dimensions. Got {directions.shape[-1]}"

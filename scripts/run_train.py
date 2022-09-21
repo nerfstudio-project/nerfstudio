@@ -194,9 +194,10 @@ def main(config: cfg.Config) -> None:
     console.print(config)
     console.rule("")
 
-    assert config.base_dir is not None
-    config.base_dir.mkdir(parents=True, exist_ok=True)
-    config_yaml_path = config.base_dir / "config.yml"
+    base_dir = config.get_base_dir()
+    assert base_dir is not None
+    base_dir.mkdir(parents=True, exist_ok=True)
+    config_yaml_path = base_dir / "config.yml"
     logging.info(f"Saving config to: {config_yaml_path}")
     config_yaml_path.write_text(yaml.dump(config), "utf8")
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple, Type
 
-import nerfacc  # pylint: disable=import-error
+import nerfacc
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
@@ -176,6 +176,12 @@ class NGPModel(Model):
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
         }
         return outputs
+
+    def get_metrics_dict(self, outputs, batch):
+        image = batch["image"].to(self.device)
+        metrics_dict = {}
+        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(self.device)

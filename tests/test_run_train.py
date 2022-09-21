@@ -13,7 +13,7 @@ import nerfactory.configs.base as cfg
 from nerfactory.configs.base_configs import base_configs
 from nerfactory.engine.trainer import train_loop
 
-BLACKLIST = ["base", "semantic_nerf", "mipnerf_360", "instant_ngp", "compound"]
+BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "compound"]
 
 
 def set_reduced_config(config: cfg.Config):
@@ -21,30 +21,26 @@ def set_reduced_config(config: cfg.Config):
     config.machine.num_gpus = 0
     config.trainer.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
-    config.pipeline.datamanager.train_dataparser = cfg.BlenderDataParserConfig(
-        data_directory=Path("tests/data/lego_test")
-    )
+    config.pipeline.datamanager.dataparser = cfg.BlenderDataParserConfig(data_directory=Path("tests/data/lego_test"))
     config.pipeline.datamanager.train_num_images_to_sample_from = 1
     config.pipeline.datamanager.train_num_rays_per_batch = 4
-    config.pipeline.datamanager.eval_dataparser = cfg.BlenderDataParserConfig(
-        data_directory=Path("tests/data/lego_test")
-    )
 
     # use tensorboard logging instead of wandb
     config.logging.event_writer = "tb"
     config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors
-    config.pipeline.model.num_coarse_samples = 4
-    config.pipeline.model.num_importance_samples = 4
+    if hasattr(config.pipeline.model, "num_coarse_samples"):
+        config.pipeline.model.num_coarse_samples = 4
+    if hasattr(config.pipeline.model, "num_importance_samples"):
+        config.pipeline.model.num_importance_samples = 4
     # remove viewer
     config.viewer.enable = False
 
     # model specific config settings
-    if config.method_name == "instant_ngp":
+    if config.method_name == "instant-ngp":
         config.pipeline.model.field_implementation = "torch"
 
-    config.populate_dynamic_fields()
     return config
 
 

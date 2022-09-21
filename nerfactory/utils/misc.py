@@ -163,4 +163,20 @@ def scale_dict(dictionary: Dict[Any, Any], coefficients: Dict[str, float]) -> Di
 
 def step_check(step, step_size, run_at_zero=False) -> bool:
     """Returns true based on current step and step interval."""
+    if step_size == 0:
+        return False
     return (run_at_zero or step != 0) and step % step_size == 0
+
+
+def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
+    """helper to calculate the running average
+
+    Args:
+        prev_avg (float): previous average value
+        new_val (float): new value to update the average with
+        step (int): current step number
+
+    Returns:
+        float: new updated average
+    """
+    return (step * prev_avg + new_val) / (step + 1)
