@@ -29,10 +29,9 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
 from nerfactory.fields.instant_ngp_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.models.base import Model
+from nerfactory.models.base import Model, ModelConfig
 from nerfactory.models.modules.ray_sampler import VolumetricSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
@@ -49,7 +48,7 @@ from nerfactory.utils.callbacks import (
 
 
 @dataclass
-class InstantNGPModelConfig(cfg.ModelConfig):
+class InstantNGPModelConfig(ModelConfig):
     """Instant NGP Model Config"""
 
     _target: Type = field(
@@ -62,7 +61,7 @@ class InstantNGPModelConfig(cfg.ModelConfig):
     """Instant NGP doesn't use a collider."""
     field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
     """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'"""
-    num_samples: int = 1024
+    max_num_samples_per_ray: int = 1024
     """Number of samples in field evaluation."""
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
@@ -102,7 +101,7 @@ class NGPModel(Model):
             aabb=self.scene_aabb,
             density_fn=self.field.density_fn,
             grid_resolution=self.config.grid_resolution,
-            num_samples=self.config.num_samples,
+            num_samples=self.config.max_num_samples_per_ray,
         )
 
         # renderers
@@ -174,6 +173,7 @@ class NGPModel(Model):
             "accumulation": accumulation,
             "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
+            "num_samples_per_ray": packed_info[:, 1],
         }
         return outputs
 
@@ -181,6 +181,7 @@ class NGPModel(Model):
         image = batch["image"].to(self.device)
         metrics_dict = {}
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["num_samples_per_batch"] = outputs["num_samples_per_ray"].sum()
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):

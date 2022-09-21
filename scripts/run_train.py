@@ -3,6 +3,8 @@
 run_train_nerf.py
 """
 
+from __future__ import annotations
+
 import logging
 import random
 import socket

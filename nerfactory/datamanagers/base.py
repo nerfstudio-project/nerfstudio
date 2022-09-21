@@ -18,25 +18,53 @@ Data loader.
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple, Type, Union
 
+import dcargs
 import torch
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs.base import InstantiateConfig
 from nerfactory.datamanagers.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
+from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
+from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
+from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
+    InstantNGPDataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
+    MipNerf360DataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
+    NerfactoryDataParserConfig,
+)
+from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.datamanagers.pixel_sampler import PixelSampler
 from nerfactory.models.modules.ray_generator import RayGenerator
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import IterableWrapper
+
+AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
+    {
+        "nerfactory-data": NerfactoryDataParserConfig(),
+        "blender-data": BlenderDataParserConfig(),
+        "friends-data": FriendsDataParserConfig(),
+        "mipnerf-360-data": MipNerf360DataParserConfig(),
+        "instant-ngp-data": InstantNGPDataParserConfig(),
+        "record3d-data": Record3DDataParserConfig(),
+    },
+    prefix_names=False,
+)
+"""Union over possible dataparser types, annotated with metadata for dcargs. This is the
+same as the vanilla union, but results in shorter subcommand names."""
 
 
 class DataManager(nn.Module):
@@ -201,6 +229,29 @@ class DataManager(nn.Module):
         return {}
 
 
+@dataclass
+class VanillaDataManagerConfig(InstantiateConfig):
+    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
+    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
+    train/eval data at each iteration
+    """
+
+    _target: Type = field(default_factory=lambda: VanillaDataManager)
+    """target class to instantiate"""
+    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
+    """specifies the dataparser used to unpack the data"""
+    train_num_rays_per_batch: int = 1024
+    """number of rays per batch to use per training iteration"""
+    train_num_images_to_sample_from: int = -1
+    """number of images to sample during training iteration"""
+    eval_num_rays_per_batch: int = 1024
+    """number of rays per batch to use per eval iteration"""
+    eval_num_images_to_sample_from: int = -1
+    """number of images to sample during eval iteration"""
+    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
+    """specifies the image indices to use during eval; if None, uses all"""
+
+
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
@@ -214,11 +265,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         config: the DataManagerConfig used to instantiate class
     """
 
-    config: cfg.VanillaDataManagerConfig
+    config: VanillaDataManagerConfig
 
     def __init__(
         self,
-        config: cfg.VanillaDataManagerConfig,
+        config: VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
         world_size: int = 1,

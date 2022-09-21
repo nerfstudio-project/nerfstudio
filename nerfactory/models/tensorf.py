@@ -18,7 +18,8 @@ TensorRF implementation.
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
 import torch
@@ -28,11 +29,11 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.fields.modules.encoding import TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
-from nerfactory.models.base import Model
+from nerfactory.models.base import Model, VanillaModelConfig
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.optimizers.loss import L1Loss, MSELoss
 from nerfactory.optimizers.optimizers import Optimizers
@@ -49,6 +50,22 @@ from nerfactory.utils.callbacks import (
 )
 
 
+@dataclass
+class TensoRFModelConfig(VanillaModelConfig):
+    """TensoRF model config"""
+
+    _target: Type = field(default_factory=lambda: TensoRFModel)
+    """target class to instantiate"""
+    init_resolution: int = 128
+    """initial render resolution"""
+    final_resolution: int = 200
+    """final render resolution"""
+    upsampling_iters: Tuple[int, ...] = (5000, 5500, 7000)
+    """specifies a list of iteration step numbers to perform upsampling"""
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "feature_loss": 8e-5})
+    """Loss specific weights."""
+
+
 class TensoRFModel(Model):
     """TensoRF Model
 
@@ -58,7 +75,7 @@ class TensoRFModel(Model):
 
     def __init__(
         self,
-        config: cfg.TensoRFModelConfig,
+        config: TensoRFModelConfig,
         **kwargs,
     ) -> None:
         self.init_resolution = config.init_resolution

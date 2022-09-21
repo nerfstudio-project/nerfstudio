@@ -22,22 +22,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
-import dcargs
 import torch
 import yaml
 from rich.console import Console
 
 from nerfactory.configs.utils import to_immutable_dict
 
-# data instances
-from nerfactory.datamanagers.base import VanillaDataManager
-
 # model instances
-from nerfactory.models.base import Model
-from nerfactory.models.nerfw import NerfWModel
-from nerfactory.models.tensorf import TensoRFModel
 from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
-from nerfactory.pipelines.base import VanillaPipeline
 from nerfactory.utils import writer
 
 
@@ -163,153 +155,6 @@ class TrainerConfig(PrintableConfig):
     """optionally specify a pre-defined config to load from"""
 
 
-# pylint: disable=wrong-import-position
-from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
-from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
-from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
-    InstantNGPDataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
-    MipNerf360DataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
-    NerfactoryDataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
-
-AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
-    {
-        "nerfactory-data": NerfactoryDataParserConfig(),
-        "blender-data": BlenderDataParserConfig(),
-        "friends-data": FriendsDataParserConfig(),
-        "mipnerf-360-data": MipNerf360DataParserConfig(),
-        "instant-ngp-data": InstantNGPDataParserConfig(),
-        "record3d-data": Record3DDataParserConfig(),
-    },
-    prefix_names=False,
-)
-"""Union over possible dataparser types, annotated with metadata for dcargs. This is the
-same as the vanilla union, but results in shorter subcommand names."""
-
-
-@dataclass
-class VanillaDataManagerConfig(InstantiateConfig):
-    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
-    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
-    train/eval data at each iteration
-    """
-
-    _target: Type = VanillaDataManager
-    """target class to instantiate"""
-    dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
-    """specifies the dataparser used to unpack the data"""
-    train_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per training iteration"""
-    train_num_images_to_sample_from: int = -1
-    """number of images to sample during training iteration"""
-    eval_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per eval iteration"""
-    eval_num_images_to_sample_from: int = -1
-    """number of images to sample during eval iteration"""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """specifies the image indices to use during eval; if None, uses all"""
-
-
-# Model related configs
-@dataclass
-class ModelConfig(InstantiateConfig):
-    """Configuration for model instantiation"""
-
-    _target: Type = Model
-    """target class to instantiate"""
-    enable_collider: bool = True
-    """Whether to create a scene collider to filter rays."""
-    collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
-    """parameters to instantiate scene collider with"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
-    """Loss specific weights."""
-    enable_density_field: bool = False
-    """Whether to create a density field to filter samples."""
-    density_field_params: Dict[str, Any] = to_immutable_dict(
-        {
-            "center": 0.0,  # simply set it as the center of the scene bbox
-            "base_scale": 3.0,  # simply set it as the scale of the scene bbox
-            "num_cascades": 1,  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-            "resolution": 128,
-            "update_every_num_iters": 16,
-        }
-    )
-    """parameters to instantiate density field with"""
-    eval_num_rays_per_chunk: int = 4096
-    """specifies number of rays per chunk during eval"""
-
-
-@dataclass
-class VanillaModelConfig(ModelConfig):
-    """Vanilla Model Config"""
-
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation"""
-    num_importance_samples: int = 128
-    """Number of samples in fine field evaluation"""
-
-
-@dataclass
-class NerfWModelConfig(VanillaModelConfig):
-    """NerfW model config"""
-
-    _target: Type = NerfWModel
-    """target class to instantiate"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict(
-        {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "uncertainty_loss": 1.0, "density_loss": 0.01}
-    )
-    """Loss specific weights."""
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation."""
-    num_importance_samples: int = 64
-    """Number of samples in fine field evaluation."""
-    uncertainty_min: float = 0.03
-    """This is added to the end of the uncertainty
-    rendering operation. It's called 'beta_min' in other repos.
-    This avoids calling torch.log() on a zero value, which would be undefined.
-    """
-    num_images: int = 10000  # TODO: don't hardcode this
-    """How many images exist in the dataset."""
-    appearance_embedding_dim: int = 48
-    """Dimension of appearance embedding."""
-    transient_embedding_dim: int = 16
-    """Dimension of transient embedding."""
-
-
-@dataclass
-class TensoRFModelConfig(VanillaModelConfig):
-    """TensoRF model config"""
-
-    _target: Type = TensoRFModel
-    """target class to instantiate"""
-    init_resolution: int = 128
-    """initial render resolution"""
-    final_resolution: int = 200
-    """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = (5000, 5500, 7000)
-    """specifies a list of iteration step numbers to perform upsampling"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "feature_loss": 8e-5})
-    """Loss specific weights."""
-
-
-# Pipeline related configs
-@dataclass
-class VanillaPipelineConfig(InstantiateConfig):
-    """Configuration for pipeline instantiation"""
-
-    _target: Type = VanillaPipeline
-    """target class to instantiate"""
-    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
-    """specifies the datamanager config"""
-    model: ModelConfig = ModelConfig()
-    """specifies the model config"""
-
-
 # Viewer related configs
 @dataclass
 class ViewerConfig(PrintableConfig):
@@ -377,6 +222,10 @@ class SchedulerConfig(InstantiateConfig):
     def setup(self, optimizer=None, lr_init=None, **kwargs) -> Any:
         """Returns the instantiated object using the config."""
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
+
+
+# pylint: disable=wrong-import-position
+from nerfactory.pipelines.base import VanillaPipelineConfig
 
 
 @dataclass
