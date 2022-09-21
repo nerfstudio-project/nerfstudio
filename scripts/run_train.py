@@ -188,13 +188,6 @@ def main(config: cfg.Config) -> None:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
 
-    base_dir = config.get_base_dir()
-    assert base_dir is not None
-    base_dir.mkdir(parents=True, exist_ok=True)
-    config_yaml_path = base_dir / "config.yml"
-    logging.info(f"Saving config to: {config_yaml_path}")
-    config_yaml_path.write_text(yaml.dump(config), "utf8")
-
     launch(
         train_loop,
         config.machine.num_gpus,

@@ -113,8 +113,9 @@ class Trainer:
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
         profiler.setup_profiler(config.logging)
 
-        # print out config
+        # print and save config
         config.print_to_terminal()
+        config.save_config()
 
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
