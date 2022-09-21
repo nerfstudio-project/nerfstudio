@@ -21,13 +21,12 @@ from typing import Type
 
 import torch
 
-from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.base import VanillaDataManager
-from nerfactory.pipelines.base import Pipeline
+from nerfactory.pipelines.base import VanillaPipeline, VanillaPipelineConfig
 
 
 @dataclass
-class DynamicBatchPipelineConfig(cfg.PipelineConfig):
+class DynamicBatchPipelineConfig(VanillaPipelineConfig):
     """Dynamic Batch Pipeline Config"""
 
     _target: Type = field(default_factory=lambda: DynamicBatchPipeline)
@@ -37,8 +36,10 @@ class DynamicBatchPipelineConfig(cfg.PipelineConfig):
     """The maximum number of samples to be placed along a ray."""
 
 
-class DynamicBatchPipeline(Pipeline):
+class DynamicBatchPipeline(VanillaPipeline):
     """Pipeline with logic for changing the number of rays per batch."""
+
+    # pylint: disable=abstract-method
 
     config: DynamicBatchPipelineConfig
     datamanger: VanillaDataManager

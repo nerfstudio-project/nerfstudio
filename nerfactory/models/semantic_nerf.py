@@ -23,12 +23,12 @@ import torch
 from torch import nn
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.structs import Semantics
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.semantic_nerf_field import SemanticNerfField
+from nerfactory.models.base import ModelConfig
 from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.models.vanilla_nerf import NeRFModel
 from nerfactory.renderers.renderers import SemanticRenderer
@@ -43,7 +43,7 @@ class SemanticNerfModel(NeRFModel):
         semantics: additional semantics data info
     """
 
-    def __init__(self, config: cfg.ModelConfig, semantics: Semantics, **kwargs) -> None:
+    def __init__(self, config: ModelConfig, semantics: Semantics, **kwargs) -> None:
         self.stuff_classes = semantics.stuff_classes
         self.stuff_colors = semantics.stuff_colors
         super().__init__(config=config, **kwargs)

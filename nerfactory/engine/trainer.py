@@ -31,7 +31,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfactory.configs import base as cfg
 from nerfactory.optimizers.optimizers import Optimizers, setup_optimizers
-from nerfactory.pipelines.base import Pipeline
+from nerfactory.pipelines.base import VanillaPipeline
 from nerfactory.utils import profiler, writer
 from nerfactory.utils.callbacks import (
     TrainingCallback,
@@ -79,7 +79,7 @@ class Trainer:
         callbacks: The callbacks object.
     """
 
-    pipeline: Pipeline
+    pipeline: VanillaPipeline
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
@@ -119,7 +119,7 @@ class Trainer:
         Args:
             test_mode: Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: Pipeline = self.config.pipeline.setup(
+        self.pipeline: VanillaPipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
         self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
