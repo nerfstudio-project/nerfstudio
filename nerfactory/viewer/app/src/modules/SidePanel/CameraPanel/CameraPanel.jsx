@@ -57,6 +57,7 @@ function CameraList(props) {
   const delete_camera = (index) => {
     console.log('TODO: deleting camera: ', index);
     setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
+    sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera']);
   };
 
   const cameraList = cameras.map((camera, index) => {
@@ -184,6 +185,16 @@ export default function CameraPanel(props) {
     });
 
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
+    if (cameras.length === 0) {
+      const camera_render_helper = sceneTree.find_object([
+        'Cameras',
+        'Render Camera',
+        'Helper',
+      ]);
+      camera_render_helper.set_visibility(false);
+    } else {
+      camera_render_helper.set_visibility(true);
+    }
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
       // camera.aspect = render_width / render_height;
@@ -222,6 +233,8 @@ export default function CameraPanel(props) {
     const material = new MeshLineMaterial({ lineWidth: 0.01, color: 0xff5024 });
     const spline_mesh = new THREE.Mesh(spline.geometry, material);
     sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
+  } else {
+    sceneTree.delete(['Camera Path', 'Curve']);
   }
 
   const marks = [];
