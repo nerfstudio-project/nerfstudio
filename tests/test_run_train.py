@@ -30,8 +30,10 @@ def set_reduced_config(config: cfg.Config):
     config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors
-    config.pipeline.model.num_coarse_samples = 4
-    config.pipeline.model.num_importance_samples = 4
+    if hasattr(config.pipeline.model, "num_coarse_samples"):
+        config.pipeline.model.num_coarse_samples = 4
+    if hasattr(config.pipeline.model, "num_importance_samples"):
+        config.pipeline.model.num_importance_samples = 4
     # remove viewer
     config.viewer.enable = False
 
@@ -39,7 +41,6 @@ def set_reduced_config(config: cfg.Config):
     if config.method_name == "instant-ngp":
         config.pipeline.model.field_implementation = "torch"
 
-    config.populate_dynamic_fields()
     return config
 
 

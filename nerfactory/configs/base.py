@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import dcargs
 import torch
@@ -84,27 +84,6 @@ class MachineConfig(PrintableConfig):
     """distributed connection point (for DDP)"""
 
 
-# Logging related configs
-@dataclass
-class TensorboardWriterConfig(InstantiateConfig):
-    """Tensorboard Writer config"""
-
-    _target: Type = writer.TensorboardWriter
-    """target class to instantiate"""
-    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Auto-populated absolute path to saved tensorboard events"""
-
-
-@dataclass
-class WandbWriterConfig(InstantiateConfig):
-    """WandDB Writer config"""
-
-    _target: Type = writer.WandbWriter
-    """target class to instantiate"""
-    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Auto-populated absolute path to saved wandb events"""
-
-
 @dataclass
 class LocalWriterConfig(InstantiateConfig):
     """Local Writer config"""
@@ -146,8 +125,6 @@ class LoggingConfig(PrintableConfig):
      e.g. if 20, averages will be computed over past 20 occurances."""
     event_writer: Literal["tb", "wandb", "none"] = "wandb"
     """specify which writer to use (tensorboard or wandb)"""
-    event_writer_config: dcargs.conf.Fixed[Optional[Union[TensorboardWriterConfig, WandbWriterConfig]]] = dcargs.MISSING
-    """[Do not set] Writer config based on the specified event_writer. Set automatically."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True
@@ -174,8 +151,6 @@ class TrainerConfig(PrintableConfig):
     """whether or not to use mixed precision for training"""
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
-    model_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Auto-populated absolute path to saved checkpoints. Set automatically."""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
@@ -250,10 +225,6 @@ class ModelConfig(InstantiateConfig):
     """parameters to instantiate scene collider with"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
     """Loss specific weights."""
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation"""
-    num_importance_samples: int = 128
-    """Number of samples in fine field evaluation"""
     enable_density_field: bool = False
     """Whether to create a density field to filter samples."""
     density_field_params: Dict[str, Any] = to_immutable_dict(
@@ -271,12 +242,17 @@ class ModelConfig(InstantiateConfig):
 
 
 @dataclass
-class VanillaModelConfig(InstantiateConfig):
+class VanillaModelConfig(ModelConfig):
     """Vanilla Model Config"""
+
+    num_coarse_samples: int = 64
+    """Number of samples in coarse field evaluation"""
+    num_importance_samples: int = 128
+    """Number of samples in fine field evaluation"""
 
 
 @dataclass
-class NerfWModelConfig(ModelConfig):
+class NerfWModelConfig(VanillaModelConfig):
     """NerfW model config"""
 
     _target: Type = NerfWModel
@@ -303,7 +279,7 @@ class NerfWModelConfig(ModelConfig):
 
 
 @dataclass
-class TensoRFModelConfig(ModelConfig):
+class TensoRFModelConfig(VanillaModelConfig):
     """TensoRF model config"""
 
     _target: Type = TensoRFModel
@@ -340,8 +316,6 @@ class ViewerConfig(PrintableConfig):
     """whether to enable viewer"""
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
-    log_filename: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Absolute path to the log file. Set automatically."""
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
@@ -357,18 +331,34 @@ class ViewerConfig(PrintableConfig):
 
 # Optimizer related configs
 @dataclass
-class OptimizerConfig(InstantiateConfig):
+class OptimizerConfig(PrintableConfig):
     """Basic optimizer config with RAdam"""
 
-    _target: Type = torch.optim.RAdam
+    _target: Type = torch.optim.Adam
     lr: float = 0.0005
     eps: float = 1e-08
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params=None, **kwargs) -> Any:
+    def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
-        return self._target(params, lr=self.lr, eps=self.eps)
+        kwargs = vars(self)
+        del kwargs["_target"]
+        return self._target(params, **kwargs)
+
+
+@dataclass
+class AdamOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with Adam"""
+
+    _target: Type = torch.optim.Adam
+
+
+@dataclass
+class RAdamOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with RAdam"""
+
+    _target: Type = torch.optim.RAdam
 
 
 @dataclass
@@ -394,8 +384,8 @@ class Config(PrintableConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
-    base_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Experiment base directory. Set automatically."""
+    timestamp: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
     viewer: ViewerConfig = ViewerConfig()
@@ -410,38 +400,14 @@ class Config(PrintableConfig):
         }
     )
 
-    def __post_init__(self):
-        """Make paths more specific using the current timestamp."""
-        self.populate_dynamic_fields()
-
-    def populate_dynamic_fields(self, timestamp: Optional[str] = None) -> None:
-        """Make paths in our config more specific using a timestamp.
-
-        Args:
-            timestamp: Timestamp to use, as a string. If None, defaults to the current
-                time in the form YYYY-MM-DD_HHMMMSS.
-        """
-        # check the experiment and method names
-        assert self.method_name is not None, "Please set method name in config or via the cli"
+    def set_experiment_name(self) -> None:
+        """Dynamically set the experiment name"""
         if self.experiment_name is None:
             self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
 
-        # set the timestamp of the model logging/writer loggign paths
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{timestamp}")
-        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
-        if self.logging.event_writer == "tb":
-            self.logging.event_writer_config = TensorboardWriterConfig(
-                log_dir=self.base_dir / self.logging.relative_log_dir
-            )
-        elif self.logging.event_writer == "wandb":
-            self.logging.event_writer_config = WandbWriterConfig(log_dir=self.base_dir / self.logging.relative_log_dir)
-        else:
-            self.logging.event_writer_config = None
-        self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename
-        # disable test if viewer is enabled (for speed purposes)
-        # if self.viewer.enable:
-        #     self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
-        #     self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
-        #     self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
+    def get_base_dir(self) -> Path:
+        """Retrieve the base directory to set relative paths"""
+        # check the experiment and method names
+        assert self.method_name is not None, "Please set method name in config or via the cli"
+        self.set_experiment_name()
+        return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
