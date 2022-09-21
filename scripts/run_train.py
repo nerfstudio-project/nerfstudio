@@ -188,6 +188,10 @@ def main(config: cfg.Config) -> None:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
 
+    # print and save config
+    config.print_to_terminal()
+    config.save_config()
+
     launch(
         train_loop,
         config.machine.num_gpus,
