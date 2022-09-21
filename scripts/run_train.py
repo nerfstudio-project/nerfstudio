@@ -16,7 +16,6 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import yaml
-from rich.console import Console
 
 from nerfactory.configs import base as cfg
 from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
@@ -188,11 +187,6 @@ def main(config: cfg.Config) -> None:
     if config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
-
-    console = Console(width=120)
-    console.rule("Config")
-    console.print(config)
-    console.rule("")
 
     base_dir = config.get_base_dir()
     assert base_dir is not None

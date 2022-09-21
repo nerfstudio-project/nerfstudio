@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import dcargs
 import torch
+from rich.console import Console
 
 from nerfactory.configs.utils import to_immutable_dict
 
@@ -411,3 +412,10 @@ class Config(PrintableConfig):
         assert self.method_name is not None, "Please set method name in config or via the cli"
         self.set_experiment_name()
         return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
+
+    def print_to_terminal(self) -> None:
+        """Helper to pretty print config to terminal"""
+        console = Console(width=120)
+        console.rule("Config")
+        console.print(self)
+        console.rule("")

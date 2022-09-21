@@ -113,6 +113,9 @@ class Trainer:
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
         profiler.setup_profiler(config.logging)
 
+        # print out config
+        config.print_to_terminal()
+
     def setup(self, test_mode=False):
         """Setup the Trainer by calling other setup functions.
 
@@ -212,17 +215,18 @@ class Trainer:
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.viewer.enable:
-            if self.config.logging.event_writer != "none":
+            if self.config.logging.event_writer == "none":
+                self.config.trainer.steps_per_eval_batch = self.config.trainer.max_num_iterations
+                self.config.trainer.steps_per_eval_image = self.config.trainer.max_num_iterations
+                self.config.trainer.steps_per_eval_all_images = self.config.trainer.max_num_iterations
+                string = "[WARNING] Disabling eval iterations since viewer is enabled."
+                CONSOLE.print(f"[bold red]{string}")
+            else:
                 string = (
                     "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
                     "Please set `--logging.event_writer none` for faster rendering"
                 )
                 CONSOLE.print(f"[bold red]{string}")
-            self.config.trainer.steps_per_eval_batch = self.config.trainer.max_num_iterations
-            self.config.trainer.steps_per_eval_image = self.config.trainer.max_num_iterations
-            self.config.trainer.steps_per_eval_all_images = self.config.trainer.max_num_iterations
-            string = "[WARNING] Disabling eval iterations since viewer is enabled."
-            CONSOLE.print(f"[bold red]{string}")
 
     @check_viewer_enabled
     def _init_viewer_scene(self) -> None:
