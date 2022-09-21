@@ -23,18 +23,19 @@ import dcargs
 from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
+    AdamOptimizerConfig,
     BlenderDataParserConfig,
     Config,
     LoggingConfig,
     MipNerf360DataParserConfig,
-    ModelConfig,
     NerfWModelConfig,
-    OptimizerConfig,
-    PipelineConfig,
+    RAdamOptimizerConfig,
     SchedulerConfig,
     TensoRFModelConfig,
     TrainerConfig,
     VanillaDataManagerConfig,
+    VanillaModelConfig,
+    VanillaPipelineConfig,
     ViewerConfig,
 )
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
@@ -46,16 +47,33 @@ from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.vanilla_nerf import NeRFModel
 
 base_configs: Dict[str, Config] = {}
+base_configs["compound"] = Config(
+    method_name="compound",
+    trainer=TrainerConfig(mixed_precision=True),
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(enable=True),
+    logging=LoggingConfig(event_writer="none"),
+)
+
 base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
-    pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
         "fields": {
-            "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         }
     },
@@ -66,11 +84,9 @@ base_configs["instant-ngp"] = Config(
 base_configs["mipnerf-360"] = Config(
     method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
-    pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            train_dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192
-        ),
-        model=ModelConfig(
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192),
+        model=VanillaModelConfig(
             _target=MipNerf360Model,
             collider_params={"near_plane": 0.5, "far_plane": 20.0},
             loss_coefficients={"ray_loss_coarse": 1.0, "ray_loss_fine": 1.0},
@@ -79,13 +95,19 @@ base_configs["mipnerf-360"] = Config(
             eval_num_rays_per_chunk=8192,
         ),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
-    pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
-        model=ModelConfig(
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
             num_coarse_samples=128,
@@ -93,84 +115,91 @@ base_configs["mipnerf"] = Config(
             eval_num_rays_per_chunk=8192,
         ),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["nerfw"] = Config(
     method_name="nerfw",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=FriendsDataParserConfig(),
+            dataparser=FriendsDataParserConfig(),
         ),
         model=NerfWModelConfig(),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 
 base_configs["semantic-nerf"] = Config(
     method_name="semantic-nerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=FriendsDataParserConfig(),
+            dataparser=FriendsDataParserConfig(),
         ),
-        model=ModelConfig(
+        model=VanillaModelConfig(
             _target=SemanticNerfModel,
             loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
             num_coarse_samples=64,
             num_importance_samples=64,
         ),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["vanilla-nerf"] = Config(
     method_name="vanilla-nerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
+            dataparser=BlenderDataParserConfig(),
         ),
-        model=ModelConfig(_target=NeRFModel),
+        model=VanillaModelConfig(_target=NeRFModel),
     ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        }
+    },
 )
 
 base_configs["tensorf"] = Config(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            train_dataparser=BlenderDataParserConfig(),
+            dataparser=BlenderDataParserConfig(),
         ),
         model=TensoRFModelConfig(),
     ),
     optimizers={
         "fields": {
-            "optimizer": OptimizerConfig(lr=0.001),
+            "optimizer": RAdamOptimizerConfig(lr=0.001),
             "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
         },
         "position_encoding": {
-            "optimizer": OptimizerConfig(lr=0.02),
+            "optimizer": RAdamOptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
         },
         "direction_encoding": {
-            "optimizer": OptimizerConfig(lr=0.02),
+            "optimizer": RAdamOptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
         },
     },
-)
-
-base_configs["compound"] = Config(
-    method_name="compound",
-    trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
-        datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
-        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
-    ),
-    optimizers={
-        "fields": {
-            "optimizer": OptimizerConfig(lr=3e-3, eps=1e-15),
-            "scheduler": None,
-        }
-    },
-    viewer=ViewerConfig(enable=True),
-    logging=LoggingConfig(event_writer="none"),
 )
 
 
@@ -191,7 +220,6 @@ def _make_base_config_subcommand_type() -> Type[Config]:
     base_configs_placeholder_timestamp = {}
     for name, config in base_configs.items():
         base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
-        base_configs_placeholder_timestamp[name].populate_dynamic_fields(timestamp="{timestamp}")
 
     return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
 

@@ -19,29 +19,36 @@ from __future__ import annotations
 
 import typing
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional
+from time import time
+from typing import Any, Dict, List, Optional, Union, cast
 
 import torch
 import torch.distributed as dist
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.base import DataManager
+from nerfactory.datamanagers.base import DataManager, VanillaDataManager
 from nerfactory.models.base import Model
-from nerfactory.utils import profiler, writer
+from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.writer import EventName, TimeWriter
 
 
-def module_wrapper(module: nn.Module) -> nn.Module:
+def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
     """
     If DDP, then return the .module. Otherwise, return the model.
     """
-    if isinstance(module, DDP):
-        return module.module
-    return module
+    if isinstance(ddp_or_model, DDP):
+        return cast(Model, ddp_or_model.module)
+    return ddp_or_model
 
 
 class Pipeline(nn.Module):
@@ -62,19 +69,6 @@ class Pipeline(nn.Module):
     simplifying the model classes, which each may have different forward() methods
     and so on.
 
-
-    TODO: For viewer functionality to be added down the line, we should make sure
-    that we are still abstracting away the Model from the end user. The viewer function
-    should probably be done by adding a new iterator on the base data manager that will
-    talk to the actual viewer. This is probably ideal to have the viewer be
-    primarily located in the data manager (first because it makes sense as the
-    viewers main job in this context is to feed in data for the model to load)
-    so that we can have an easier time ensuring that the viewer is always
-    returning the same formatted data as for in train / eval. All this is pending changes to
-    be done in the future... but just bear in mind that if learned parameters are in the data manager,
-    the viewer may have to use those parameters as well.
-
-
     Args:
         config: configuration to instantiate pipeline
         device: location to place model and data
@@ -87,11 +81,115 @@ class Pipeline(nn.Module):
         self.model: The model that will be used
     """
 
+    datamanager: DataManager
+    model: Model
+
+    @property
+    def device(self):
+        """Returns the device that the model is on."""
+        return module_wrapper(self.model).device
+
+    @profiler.time_function
+    def get_train_loss_dict(self, step: int):
+        """This function gets your training loss dict. This will be responsible for
+        getting the next batch of data from the DataManager and interfacing with the
+        Model class, feeding the data to the model's forward function.
+
+        Args:
+            step: current iteration step to update sampler if using DDP (distributed)
+        """
+        if self.world_size > 1 and step:
+            assert self.datamanager.train_sampler is not None
+            self.datamanager.train_sampler.set_epoch(step)
+        ray_bundle, batch = self.datamanager.next_train(step)
+        model_outputs = self.model(ray_bundle, batch)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
+
+        return model_outputs, loss_dict, metrics_dict
+
+    @profiler.time_function
+    def get_eval_loss_dict(self, step: int):
+        """This function gets your evaluation loss dict. It needs to get the data
+        from the DataManager and feed it to the model's forward function
+
+        Args:
+            step: current iteration step
+        """
+        self.eval()
+        if self.world_size > 1:
+            assert self.datamanager.eval_sampler is not None
+            self.datamanager.eval_sampler.set_epoch(step)
+        ray_bundle, batch = self.datamanager.next_eval(step)
+        model_outputs = self.model(ray_bundle, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        self.train()
+        return model_outputs, loss_dict, metrics_dict
+
+    @abstractmethod
+    @profiler.time_function
+    def get_eval_image_metrics_and_images(self, step: int):
+        """This function gets your evaluation loss dict. It needs to get the data
+        from the DataManager and feed it to the model's forward function
+
+        Args:
+            step: current iteration step
+        """
+
+    @abstractmethod
+    @profiler.time_function
+    def get_average_eval_image_metrics(self, step: Optional[int] = None):
+        """Iterate over all the images in the eval dataset and get the average."""
+
+    @abstractmethod
+    def log_test_image_outputs(self) -> None:
+        """Log the test image outputs"""
+
+    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+        """Load the checkpoint from the given path
+
+        Args:
+            loaded_state: pre-trained model state dict
+        """
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        """Returns the training callbacks from both the Dataloader and the Model."""
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:
+        """Get the param groups for the pipeline.
+
+        Returns:
+            A list of dictionaries containing the pipeline's param groups.
+        """
+
+
+class VanillaPipeline(Pipeline):
+    """The pipeline class for the vanilla nerf setup of multiple cameras for one or a few scenes.
+
+        config: configuration to instantiate pipeline
+        device: location to place model and data
+        test_mode: if True, loads test datset. if False, loads train/eval datasets
+        world_size: total number of machines available
+        local_rank: rank of current machine
+
+    Attributes:
+        self.datamanager: The data manager that will be used
+        self.model: The model that will be used
+    """
+
     def __init__(
-        self, config: cfg.PipelineConfig, device: str, test_mode: bool = False, world_size: int = 1, local_rank: int = 0
+        self,
+        config: cfg.VanillaPipelineConfig,
+        device: str,
+        test_mode: bool = False,
+        world_size: int = 1,
+        local_rank: int = 0,
     ):
         super().__init__()
-        self.datamanager: DataManager = config.datamanager.setup(
+        self.datamanager: VanillaDataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
@@ -125,9 +223,6 @@ class Pipeline(nn.Module):
         Args:
             step: current iteration step to update sampler if using DDP (distributed)
         """
-        if self.world_size > 1 and step:
-            assert self.datamanager.train_sampler is not None
-            self.datamanager.train_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
@@ -145,9 +240,6 @@ class Pipeline(nn.Module):
             step: current iteration step
         """
         self.eval()
-        if self.world_size > 1:
-            assert self.datamanager.eval_sampler is not None
-            self.datamanager.eval_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_eval(step)
         model_outputs = self.model(ray_bundle, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch)
@@ -166,30 +258,48 @@ class Pipeline(nn.Module):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        with TimeWriter(None, None, write=False) as test_t:
-            outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
-        writer.put_time(
-            name=EventName.TEST_RAYS_PER_SEC,
-            duration=len(camera_ray_bundle) / test_t.duration,
-            step=step,
-            avg_over_steps=True,
-        )
+        outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
+        assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
+        assert "num_rays" not in metrics_dict
+        metrics_dict["num_rays"] = len(camera_ray_bundle)
         self.train()
         return metrics_dict, images_dict
 
     @abstractmethod
     @profiler.time_function
     def get_average_eval_image_metrics(self, step: Optional[int] = None):
-        """Iterate over all the images in the eval dataset and get the average."""
+        """Iterate over all the images in the eval dataset and get the average.
+
+        Returns:
+            metrics_dict: dictionary of metrics
+        """
         self.eval()
         metrics_dict_list = []
-        # TODO: add something like tqdm but so that it doesn't interfere with logging
-        for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
-            outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            metrics_dict, _ = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
-            metrics_dict_list.append(metrics_dict)
+        num_images = len(self.datamanager.fixed_indices_eval_dataloader)
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            MofNCompleteColumn(),
+            transient=True,
+        ) as progress:
+            task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
+            for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
+                # time this the following line
+                inner_start = time()
+                height, width = camera_ray_bundle.shape
+                num_rays = height * width
+                outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                metrics_dict, _ = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
+                assert "num_rays_per_sec" not in metrics_dict
+                metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
+                fps_str = f"fps_at_{height}x{width}"
+                assert fps_str not in metrics_dict
+                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+                metrics_dict_list.append(metrics_dict)
+                progress.advance(task)
         # average the metrics list
         metrics_dict = {}
         for key in metrics_dict_list[0].keys():
@@ -198,10 +308,6 @@ class Pipeline(nn.Module):
             )
         self.train()
         return metrics_dict
-
-    @abstractmethod
-    def log_test_image_outputs(self) -> None:
-        """Log the test image outputs"""
 
     def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path
