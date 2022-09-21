@@ -21,7 +21,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from torch.utils.data import default_collate
+from torch.utils.data import Dataset, default_collate
 from torch.utils.data.dataloader import DataLoader
 
 from nerfactory.cameras.cameras import Cameras
@@ -43,7 +43,7 @@ class CacheImageDataloader(DataLoader):
 
     def __init__(
         self,
-        dataset: VanillaInputDataset,
+        dataset: Dataset,
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = 0,
         device: Union[torch.device, str] = "cpu",
@@ -103,7 +103,7 @@ class EvalDataloader(DataLoader):
     """Evaluation dataloader base class
 
     Args:
-        input_dataset: InputDataset to load data from
+        input_dataset: VanillaInputDataset to load data from
         device: Device to load data to
     """
 

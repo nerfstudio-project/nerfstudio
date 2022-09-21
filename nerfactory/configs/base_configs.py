@@ -30,11 +30,11 @@ from nerfactory.configs.base import (
     ModelConfig,
     NerfWModelConfig,
     OptimizerConfig,
-    PipelineConfig,
     SchedulerConfig,
     TensoRFModelConfig,
     TrainerConfig,
     VanillaDataManagerConfig,
+    VanillaPipelineConfig,
     ViewerConfig,
 )
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
@@ -49,7 +49,7 @@ base_configs: Dict[str, Config] = {}
 base_configs["instant_ngp"] = Config(
     method_name="instant_ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
@@ -67,7 +67,7 @@ base_configs["mipnerf_360"] = Config(
     experiment_name="mipnerf_360",
     method_name="mipnerf_360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192
         ),
@@ -84,7 +84,7 @@ base_configs["mipnerf_360"] = Config(
 
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=ModelConfig(
             _target=MipNerfModel,
@@ -99,7 +99,7 @@ base_configs["mipnerf"] = Config(
 base_configs["nerfw"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="nerfw",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=FriendsDataParserConfig(),
         ),
@@ -110,7 +110,7 @@ base_configs["nerfw"] = Config(
 base_configs["semantic_nerf"] = Config(
     experiment_name="friends_TBBT-big_living_room",
     method_name="semantic_nerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=FriendsDataParserConfig(),
         ),
@@ -125,7 +125,7 @@ base_configs["semantic_nerf"] = Config(
 
 base_configs["vanilla_nerf"] = Config(
     method_name="vanilla_nerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),
         ),
@@ -136,7 +136,7 @@ base_configs["vanilla_nerf"] = Config(
 base_configs["tensorf"] = Config(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             train_dataparser=BlenderDataParserConfig(),
         ),
@@ -161,7 +161,7 @@ base_configs["tensorf"] = Config(
 base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(train_dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),

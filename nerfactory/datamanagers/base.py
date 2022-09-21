@@ -92,7 +92,7 @@ class DataManager(nn.Module):
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
 
-    def __init__(self, src: str):
+    def __init__(self):
         """Constructor for the DataManager class.
 
         Subclassed DataManagers will likely need to override this constructor.
@@ -104,10 +104,6 @@ class DataManager(nn.Module):
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
-        if self.train_input_dataset and self.train_input_dataset.dataset_inputs:
-            self.setup_train()
-        if self.eval_input_dataset and self.eval_input_dataset.dataset_inputs:
-            self.setup_eval()
 
     def forward(self):
         """Blank forward method
@@ -223,7 +219,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def __init__(
         self,
-        src=,
         config: cfg.VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
         test_mode: bool = False,
@@ -248,6 +243,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             config.eval_dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
         )
         super().__init__()
+        if self.train_input_dataset and self.train_input_dataset.dataset_inputs:
+            self.setup_train()
+        if self.eval_input_dataset and self.eval_input_dataset.dataset_inputs:
+            self.setup_eval()
 
     def setup_train(self):
         """Sets up the data loaders for training"""
