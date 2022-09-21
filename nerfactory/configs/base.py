@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,8 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import dcargs
 import torch
+import yaml
+from rich.console import Console
 
 from nerfactory.configs.utils import to_immutable_dict
 
@@ -411,3 +414,19 @@ class Config(PrintableConfig):
         assert self.method_name is not None, "Please set method name in config or via the cli"
         self.set_experiment_name()
         return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
+
+    def print_to_terminal(self) -> None:
+        """Helper to pretty print config to terminal"""
+        console = Console(width=120)
+        console.rule("Config")
+        console.print(self)
+        console.rule("")
+
+    def save_config(self) -> None:
+        """Save config to base directory"""
+        base_dir = self.get_base_dir()
+        assert base_dir is not None
+        base_dir.mkdir(parents=True, exist_ok=True)
+        config_yaml_path = base_dir / "config.yml"
+        logging.info(f"Saving config to: {config_yaml_path}")
+        config_yaml_path.write_text(yaml.dump(self), "utf8")

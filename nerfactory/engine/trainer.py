@@ -38,7 +38,11 @@ from nerfactory.utils.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfactory.utils.decorators import check_main_thread, check_viewer_enabled
+from nerfactory.utils.decorators import (
+    check_eval_enabled,
+    check_main_thread,
+    check_viewer_enabled,
+)
 from nerfactory.utils.misc import step_check
 from nerfactory.utils.writer import EventName, TimeWriter
 from nerfactory.viewer.server import viewer_utils
@@ -143,7 +147,6 @@ class Trainer:
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self._start_step, self._start_step + num_iterations):
-                # if the viewer used, the rendering of the viewer will be included in the iteration train time
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
                     self.pipeline.train()
@@ -176,33 +179,7 @@ class Trainer:
                     writer.put_dict(name="Train Loss Dict", scalar_dict=loss_dict, step=step)
                     writer.put_dict(name="Train Metrics Dict", scalar_dict=metrics_dict, step=step)
 
-                # a batch of eval rays
-                if step_check(step, self.config.trainer.steps_per_eval_batch, run_at_zero=True):
-                    _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
-                    eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
-                    writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
-                    writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
-                    writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
-
-                # one eval image
-                if step_check(step, self.config.trainer.steps_per_eval_image):
-                    with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
-                        metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
-                    writer.put_time(
-                        name=EventName.TEST_RAYS_PER_SEC,
-                        duration=metrics_dict["num_rays"] / test_t.duration,
-                        step=step,
-                        avg_over_steps=True,
-                    )
-                    writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
-                    group = "Eval Images"
-                    for image_name, image in images_dict.items():
-                        writer.put_image(name=group + "/" + image_name, image=image, step=step)
-
-                # all eval images
-                if step_check(step, self.config.trainer.steps_per_eval_all_images):
-                    metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
-                    writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
+                self.eval_iteration(step)
 
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(step)
@@ -212,17 +189,18 @@ class Trainer:
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.viewer.enable:
-            if self.config.logging.event_writer != "none":
+            if self.config.logging.event_writer == "none":
+                string = (
+                    "[WARNING] Disabling eval iterations since viewer is enabled."
+                    "Please set `--logging.event_writer wandb` (or tb) to run evaluations."
+                )
+                CONSOLE.print(f"[bold red]{string}")
+            else:
                 string = (
                     "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
                     "Please set `--logging.event_writer none` for faster rendering"
                 )
                 CONSOLE.print(f"[bold red]{string}")
-            self.config.trainer.steps_per_eval_batch = self.config.trainer.max_num_iterations
-            self.config.trainer.steps_per_eval_image = self.config.trainer.max_num_iterations
-            self.config.trainer.steps_per_eval_all_images = self.config.trainer.max_num_iterations
-            string = "[WARNING] Disabling eval iterations since viewer is enabled."
-            CONSOLE.print(f"[bold red]{string}")
 
     @check_viewer_enabled
     def _init_viewer_scene(self) -> None:
@@ -334,3 +312,39 @@ class Trainer:
 
         # Merging loss and metrics dict into a single output.
         return loss, loss_dict, metrics_dict
+
+    @check_eval_enabled
+    @profiler.time_function
+    def eval_iteration(self, step):
+        """Run one iteration with different batch/image/all image evaluations depending on step size.
+
+        Args:
+            step: Current training step.
+        """
+        # a batch of eval rays
+        if step_check(step, self.config.trainer.steps_per_eval_batch, run_at_zero=True):
+            _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
+            eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
+            writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
+            writer.put_dict(name="Eval Loss Dict", scalar_dict=eval_loss_dict, step=step)
+            writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
+
+        # one eval image
+        if step_check(step, self.config.trainer.steps_per_eval_image):
+            with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
+                metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
+            writer.put_time(
+                name=EventName.TEST_RAYS_PER_SEC,
+                duration=metrics_dict["num_rays"] / test_t.duration,
+                step=step,
+                avg_over_steps=True,
+            )
+            writer.put_dict(name="Eval Images Metrics", scalar_dict=metrics_dict, step=step)
+            group = "Eval Images"
+            for image_name, image in images_dict.items():
+                writer.put_image(name=group + "/" + image_name, image=image, step=step)
+
+        # all eval images
+        if step_check(step, self.config.trainer.steps_per_eval_all_images):
+            metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
+            writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)
