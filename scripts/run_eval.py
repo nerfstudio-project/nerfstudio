@@ -10,7 +10,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Literal, Tuple, Union
+from typing import Literal, Tuple, Union
 
 import dcargs
 import mediapy as media
@@ -20,31 +20,14 @@ from rich.console import Console
 from rich.progress import track
 from typing_extensions import assert_never
 
-# pylint: disable=unused-import
 from nerfactory.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.configs import base as cfg
 from nerfactory.pipelines.base import Pipeline
-from nerfactory.utils.misc import human_format
-from nerfactory.utils.writer import TimeWriter
 
 console = Console(width=120)
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
-
-
-def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
-    """helper to calculate the running average
-
-    Args:
-        prev_avg (float): previous average value
-        new_val (float): new value to update the average with
-        step (int): current step number
-
-    Returns:
-        float: new updated average
-    """
-    return (step * prev_avg + new_val) / (step + 1)
 
 
 def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
@@ -67,31 +50,6 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     pipeline.load_pipeline(loaded_state["pipeline"])
     console.print(f":white_check_mark: Done loading checkpoint from {load_path}")
     return load_path
-
-
-def _render_stats_dict(pipeline: Pipeline) -> Dict[str, float]:
-    """Helper function to evaluate the pipeline on a DataManager.
-
-    Args:
-        pipeline (Pipeline): Pipeline to evaluate
-
-    Returns:
-        dict: returns the average psnr and average rays per second
-    """
-    avg_psnr = 0
-    avg_rays_per_sec = 0
-    avg_fps = 0
-    for step, (camera_ray_bundle, batch) in track(enumerate(pipeline.datamanager.eval_dataloader)):
-        with TimeWriter(writer=None, name=None, write=False) as t:
-            with torch.no_grad():
-                image_idx = int(camera_ray_bundle.camera_indices[0, 0])
-                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                metrics_dict = pipeline.model.log_test_image_outputs(image_idx, step, batch, outputs)
-                psnr = metrics_dict["psnr"]
-        avg_rays_per_sec = _update_avg(avg_rays_per_sec, camera_ray_bundle.origins.shape[0] / t.duration, step)
-        avg_psnr = _update_avg(avg_psnr, psnr, step)
-        avg_fps = _update_avg(avg_fps, 1 / t.duration, step)
-    return {"avg psnr": avg_psnr, "avg rays per sec": avg_rays_per_sec, "avg fps": avg_fps}
 
 
 def _render_trajectory_video(
@@ -173,20 +131,14 @@ class ComputePSNR:
         config, pipeline, checkpoint_path = _eval_setup(self.load_config)
 
         assert self.output_path.suffix == ".json"
-        stats_dict = _render_stats_dict(pipeline)
-        avg_psnr = stats_dict["avg psnr"]
-        avg_rays_per_sec = stats_dict["avg rays per sec"]
-        avg_fps = stats_dict["avg fps"]
-        console.print(f"Avg. PSNR: {avg_psnr:0.4f}")
-        console.print(f"Avg. Rays / Sec: {human_format(avg_rays_per_sec)}")
-        console.print(f"Avg. FPS: {avg_fps:0.4f}")
+        metrics_dict = pipeline.get_average_eval_image_metrics()
         # save output to some file
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
         benchmark_info = {
             "experiment_name": config.experiment_name,
             "method_name": config.method_name,
             "checkpoint": str(checkpoint_path),
-            "results": stats_dict,
+            "results": metrics_dict,
         }
         self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
         console.print(f"Saved results to: {self.output_path}")

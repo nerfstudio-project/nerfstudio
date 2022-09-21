@@ -17,7 +17,6 @@ Data loader.
 """
 from __future__ import annotations
 
-import logging
 from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -232,13 +231,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.local_rank = local_rank
         self.sampler = None
 
-        if config.eval_dataparser is None:
-            logging.info("No eval dataset specified so using train dataset for eval.")
-            config.eval_dataparser = config.train_dataparser
-
-        self.train_input_dataset = InputDataset(config.train_dataparser.setup().get_dataset_inputs(split="train"))
+        self.train_input_dataset = InputDataset(config.dataparser.setup().get_dataset_inputs(split="train"))
         self.eval_input_dataset = InputDataset(
-            config.eval_dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
+            config.dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
         )
         super().__init__()
 
@@ -249,22 +244,16 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             sampler = DistributedSampler(
                 self.train_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
-            self.train_image_dataloader = CacheImageDataloader(
-                self.train_input_dataset,
-                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-                device=self.device,
-                num_workers=self.world_size * 4,
-                pin_memory=True,
-                sampler=sampler,
-            )  # TODO(ethan): pass this in
         else:
-            self.train_image_dataloader = CacheImageDataloader(
-                self.train_input_dataset,
-                num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-                device=self.device,
-                num_workers=self.world_size * 4,
-                pin_memory=True,
-            )
+            sampler = None
+        self.train_image_dataloader = CacheImageDataloader(
+            self.train_input_dataset,
+            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+            sampler=sampler,
+        )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_ray_generator = RayGenerator(self.train_input_dataset.dataset_inputs.cameras.to(self.device))
@@ -276,22 +265,16 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             sampler = DistributedSampler(
                 self.eval_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
-            self.eval_image_dataloader = CacheImageDataloader(
-                self.eval_input_dataset,
-                num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
-                device=self.device,
-                num_workers=self.world_size * 4,
-                pin_memory=True,
-                sampler=sampler,
-            )  # TODO(ethan): pass this in
         else:
-            self.eval_image_dataloader = CacheImageDataloader(
-                self.eval_input_dataset,
-                num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
-                device=self.device,
-                num_workers=self.world_size * 4,
-                pin_memory=True,
-            )
+            sampler = None
+        self.eval_image_dataloader = CacheImageDataloader(
+            self.eval_input_dataset,
+            num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+            sampler=sampler,
+        )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(self.eval_input_dataset.dataset_inputs.cameras.to(self.device))
@@ -299,13 +282,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_input_dataset,
             device=self.device,
-            num_workers=0 if self.world_size == 1 else self.world_size * 4,
+            num_workers=self.world_size * 4,
         )
         self.eval_dataloader = RandIndicesEvalDataloader(
             input_dataset=self.eval_input_dataset,
             image_indices=self.config.eval_image_indices,
             device=self.device,
-            num_workers=0 if self.world_size == 1 else self.world_size * 4,
+            num_workers=self.world_size * 4,
         )
 
         # TODO: eval dataloader should be separate from train

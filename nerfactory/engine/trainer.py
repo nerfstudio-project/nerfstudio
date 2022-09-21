@@ -207,9 +207,7 @@ class Trainer:
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
                     self._save_checkpoint(step)
 
-                self._write_out_storage(step)
-
-        self._write_out_storage(num_iterations)
+                writer.write_out_storage()
 
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
@@ -271,20 +269,6 @@ class Trainer:
             step=step,
             avg_over_steps=True,
         )
-
-    def _write_out_storage(self, step: int) -> None:
-        """Perform writes only during appropriate time steps
-
-        Args:
-            step: Current training step.
-        """
-        if (
-            step % self.config.logging.steps_per_log == 0
-            or step % self.config.trainer.steps_per_eval_batch == 0
-            or step % self.config.trainer.steps_per_eval_image == 0
-            or step % self.config.trainer.steps_per_eval_all_images == 0
-        ):
-            writer.write_out_storage()
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
