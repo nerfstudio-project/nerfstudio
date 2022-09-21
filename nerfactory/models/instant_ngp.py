@@ -21,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Optional, Tuple, Type
 
-import nerfacc  # pylint: disable=import-error
+import nerfacc
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio

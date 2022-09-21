@@ -18,7 +18,7 @@
 import logging
 import signal
 import sys
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import msgpack
 import msgpack_numpy
@@ -116,7 +116,7 @@ class Viewer:
     def __repr__(self):
         return f"<Viewer using: {self.window} at path: {self.path}>"
 
-    def write(self, data: Optional[Dict] = None):
+    def write(self, data: Union[Dict, str, None] = None):
         """Write data."""
         path = self.path.lower()
         return self.window.send({"type": "write", "path": path, "data": data})
