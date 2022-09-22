@@ -20,6 +20,7 @@ const SCENE_BOUNDS_NAME = 'Scene Bounds';
 const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
+
   const scene = new THREE.Scene();
   const sceneTree = new SceneNode(scene);
 
@@ -61,53 +62,33 @@ export function get_scene_tree() {
   sceneTree.metadata.labelRenderer = labelRenderer;
 
   // Camera Controls
-  CameraControls.install({ THREE });
+  CameraControls.install( { THREE } );
 
-  const camera_controls = new CameraControls(main_camera, renderer.domElement);
-  camera_controls.azimuthRotateSpeed = 0.3;
-  camera_controls.polarRotateSpeed = 0.3;
+  const camera_controls = new CameraControls( main_camera, renderer.domElement);
+  camera_controls.azimuthRotateSpeed = 0.3; // negative value to invert rotation direction
+  camera_controls.polarRotateSpeed = 0.3; // 
   camera_controls.minDistance = 0.3;
   camera_controls.maxDistance = 100;
-
+  
   // camera_controls.dollyToCursor = true;
   camera_controls.dollySpeed = 0.3;
   camera_controls.saveState();
-
+  
   const keyMap = [];
 
   function moveCamera() {
     const scaling = Math.max(1, 0.3 * camera_controls.distance);
-    if (keyMap.ArrowLeft === true) {
-      camera_controls.rotate(-0.03, 0, true);
-    }
-    if (keyMap.ArrowRight === true) {
-      camera_controls.rotate(0.03, 0, true);
-    }
-    if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, 0.01, true);
-    }
-    if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, -0.01, true);
-    }
-    if (keyMap.KeyD === true) {
-      camera_controls.truck(0.02 * scaling, 0, true);
-    }
-    if (keyMap.KeyA === true) {
-      camera_controls.truck(-0.02 * scaling, 0, true);
-    }
-    if (keyMap.KeyW === true) {
-      camera_controls.forward(0.02 * scaling, true);
-    }
-    if (keyMap.KeyS === true) {
-      camera_controls.forward(-0.02 * scaling, true);
-    }
-    if (keyMap.KeyQ === true) {
-      camera_controls.dolly(0.1 * scaling, true);
-    }
-    if (keyMap.KeyE === true) {
-      camera_controls.dolly(-0.1 * scaling, true);
-    }
-  }
+    if (keyMap.ArrowLeft === true) { camera_controls.rotate(-.03, 0, true); }
+    if (keyMap.ArrowRight === true) { camera_controls.rotate(.03, 0, true); }
+    if (keyMap.ArrowUp === true) { camera_controls.rotate(0, -.01, true); }
+    if (keyMap.ArrowDown === true) { camera_controls.rotate(0, .01, true); }
+    if (keyMap.KeyD === true) { camera_controls.truck(.02 * scaling, 0, true); }
+    if (keyMap.KeyA === true) { camera_controls.truck(-.02 * scaling, 0, true); }
+    if (keyMap.KeyW === true) { camera_controls.forward(.02 * scaling, true); }
+    if (keyMap.KeyS === true) { camera_controls.forward(-.02 * scaling, true); }
+    if (keyMap.KeyQ === true) { camera_controls.dolly(0.1 * scaling, true); }
+    if (keyMap.KeyE === true) { camera_controls.dolly(-0.1 * scaling, true); }
+  };
 
   function onKeyUp(event) {
     const keyCode = event.code;
@@ -118,10 +99,10 @@ export function get_scene_tree() {
     keyMap[keyCode] = true;
   }
 
-  window.addEventListener('keydown', onKeyDown, true);
-  window.addEventListener('keyup', onKeyUp, true);
+  window.addEventListener("keydown", onKeyDown, true);
+  window.addEventListener("keyup", onKeyUp, true);
 
-  window.addEventListener('keydown', (event) => {
+  window.addEventListener('keydown', event => {
     if (event.code === 'Space') {
       camera_controls.setTarget(0, 0, 0);
     }
