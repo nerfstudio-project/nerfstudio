@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import typing
 from abc import abstractmethod
+from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Optional, Union, cast
+from typing import Any, Dict, List, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -35,9 +36,14 @@ from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+# from nerfactory.configs.base import InstantiateConfig
 from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.base import DataManager, VanillaDataManager
-from nerfactory.models.base import Model
+from nerfactory.datamanagers.base import (
+    DataManager,
+    VanillaDataManager,
+    VanillaDataManagerConfig,
+)
+from nerfactory.models.base import Model, ModelConfig
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 
@@ -81,7 +87,9 @@ class Pipeline(nn.Module):
         self.model: The model that will be used
     """
 
-    datamanager: DataManager
+    # pylint: disable=abstract-method
+
+    datamanger: DataManager
     model: Model
 
     @property
@@ -142,10 +150,6 @@ class Pipeline(nn.Module):
     def get_average_eval_image_metrics(self, step: Optional[int] = None):
         """Iterate over all the images in the eval dataset and get the average."""
 
-    @abstractmethod
-    def log_test_image_outputs(self) -> None:
-        """Log the test image outputs"""
-
     def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
         """Load the checkpoint from the given path
 
@@ -166,6 +170,18 @@ class Pipeline(nn.Module):
         """
 
 
+@dataclass
+class VanillaPipelineConfig(cfg.InstantiateConfig):
+    """Configuration for pipeline instantiation"""
+
+    _target: Type = field(default_factory=lambda: VanillaPipeline)
+    """target class to instantiate"""
+    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
+    """specifies the datamanager config"""
+    model: ModelConfig = ModelConfig()
+    """specifies the model config"""
+
+
 class VanillaPipeline(Pipeline):
     """The pipeline class for the vanilla nerf setup of multiple cameras for one or a few scenes.
 
@@ -182,20 +198,21 @@ class VanillaPipeline(Pipeline):
 
     def __init__(
         self,
-        config: cfg.VanillaPipelineConfig,
+        config: VanillaPipelineConfig,
         device: str,
         test_mode: bool = False,
         world_size: int = 1,
         local_rank: int = 0,
     ):
         super().__init__()
+        self.config = config
         self.datamanager: VanillaDataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_input_dataset is not None, "Missing input dataset"
-        self.model: Model = config.model.setup(
+        self.model = config.model.setup(
             scene_bounds=self.datamanager.train_input_dataset.dataset_inputs.scene_bounds,
             num_train_data=len(self.datamanager.train_input_dataset),
         )
@@ -213,7 +230,6 @@ class VanillaPipeline(Pipeline):
         """Returns the device that the model is on."""
         return module_wrapper(self.model).device
 
-    @abstractmethod
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
         """This function gets your training loss dict. This will be responsible for
@@ -230,7 +246,13 @@ class VanillaPipeline(Pipeline):
 
         return model_outputs, loss_dict, metrics_dict
 
-    @abstractmethod
+    def forward(self):
+        """Blank forward method
+
+        This is an nn.Module, and so requires a forward() method normally, although in our case
+        we do not need a forward() method"""
+        raise NotImplementedError
+
     @profiler.time_function
     def get_eval_loss_dict(self, step: int):
         """This function gets your evaluation loss dict. It needs to get the data
@@ -247,7 +269,6 @@ class VanillaPipeline(Pipeline):
         self.train()
         return model_outputs, loss_dict, metrics_dict
 
-    @abstractmethod
     @profiler.time_function
     def get_eval_image_metrics_and_images(self, step: int):
         """This function gets your evaluation loss dict. It needs to get the data
@@ -267,7 +288,6 @@ class VanillaPipeline(Pipeline):
         self.train()
         return metrics_dict, images_dict
 
-    @abstractmethod
     @profiler.time_function
     def get_average_eval_image_metrics(self, step: Optional[int] = None):
         """Iterate over all the images in the eval dataset and get the average.

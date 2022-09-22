@@ -284,7 +284,7 @@ class ViewerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def update_scene(self, step: int, graph: Model, num_rays_per_batch: int) -> None:
+    def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -298,6 +298,8 @@ class ViewerState:
         # check if we should interrupt from a button press?
         camera_path_payload = self.vis["camera_path_payload"].read()
         if camera_path_payload:
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
             # write to json file
             camera_path_filename = camera_path_payload["camera_path_filename"]
             camera_path = camera_path_payload["camera_path"]

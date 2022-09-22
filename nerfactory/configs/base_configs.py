@@ -16,6 +16,8 @@
 Put all the method implementations in one location.
 """
 
+from __future__ import annotations
+
 import copy
 from typing import Dict, Type
 
@@ -24,27 +26,30 @@ from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     AdamOptimizerConfig,
-    BlenderDataParserConfig,
     Config,
     LoggingConfig,
-    MipNerf360DataParserConfig,
-    NerfWModelConfig,
     RAdamOptimizerConfig,
     SchedulerConfig,
-    TensoRFModelConfig,
     TrainerConfig,
-    VanillaDataManagerConfig,
-    VanillaModelConfig,
-    VanillaPipelineConfig,
     ViewerConfig,
 )
+from nerfactory.datamanagers.base import VanillaDataManagerConfig
+from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
+    MipNerf360DataParserConfig,
+)
+from nerfactory.models.base import VanillaModelConfig
 from nerfactory.models.compound import CompoundModelConfig
 from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
+from nerfactory.models.nerfw import NerfWModelConfig
 from nerfactory.models.semantic_nerf import SemanticNerfModel
+from nerfactory.models.tensorf import TensoRFModelConfig
 from nerfactory.models.vanilla_nerf import NeRFModel
+from nerfactory.pipelines.base import VanillaPipelineConfig
+from nerfactory.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 base_configs: Dict[str, Config] = {}
 base_configs["compound"] = Config(
@@ -67,7 +72,7 @@ base_configs["compound"] = Config(
 base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
-    pipeline=VanillaPipelineConfig(
+    pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
