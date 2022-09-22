@@ -48,6 +48,8 @@ class Record3DDataParserConfig(DataParserConfig):
     max_dataset_size: int = 150
     """Max number of images to train on. If the dataset has
     more, images will be sampled approximately evenly."""
+    downscale_factor: int = 1
+    """How much to downscale images."""
 
 
 @dataclass
@@ -142,6 +144,7 @@ class Record3D(DataParser):
             camera_to_worlds=poses,
             camera_type=CameraType.PERSPECTIVE,
         )
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
         dataset_inputs = DatasetInputs(
             image_filenames=image_filenames,
