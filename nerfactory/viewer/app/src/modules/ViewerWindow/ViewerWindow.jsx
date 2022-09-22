@@ -199,8 +199,8 @@ export default function ViewerWindow(props) {
   }, [websocket]);
 
   const render = () => {
-    const fps = 24
-    const interval = 1000 / fps
+    const fps = 24;
+    const interval = 1000 / fps;
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
     sceneTree.metadata.moveCamera();
