@@ -64,8 +64,8 @@ export function get_scene_tree() {
   CameraControls.install({ THREE });
 
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
-  camera_controls.azimuthRotateSpeed = -0.3; // negative value to invert rotation direction
-  camera_controls.polarRotateSpeed = 0.3; //
+  camera_controls.azimuthRotateSpeed = 0.3;
+  camera_controls.polarRotateSpeed = 0.3;
   camera_controls.minDistance = 0.3;
   camera_controls.maxDistance = 100;
 
