@@ -3552,10 +3552,6 @@
   "resolved" "https://registry.npmjs.org/case-sensitive-paths-webpack-plugin/-/case-sensitive-paths-webpack-plugin-2.4.0.tgz"
   "version" "2.4.0"
 
-"ccapture.js@github:aceslowman/ccapture.js#npm-fix":
-  "resolved" "git+ssh://git@github.com/aceslowman/ccapture.js.git#98b8046970c2bfbb25f749e732f196e15c3486fd"
-  "version" "1.0.8"
-
 "chalk@^2.0.0":
   "integrity" "sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ=="
   "resolved" "https://registry.npmjs.org/chalk/-/chalk-2.4.2.tgz"
