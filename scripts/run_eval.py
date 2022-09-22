@@ -102,7 +102,7 @@ def _eval_setup(config_path: Path) -> Tuple[cfg.Config, Pipeline, Path]:
 
     # load checkpoints from wherever they were saved
     # TODO: expose the ability to choose an arbitrary checkpoint
-    config.trainer.load_dir = config.trainer.model_dir
+    config.trainer.load_dir = config.get_checkpoint_dir()
     config.pipeline.datamanager.eval_image_indices = None
 
     # setup pipeline (which includes the DataManager)

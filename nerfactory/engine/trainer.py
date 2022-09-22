@@ -22,7 +22,6 @@ import functools
 import logging
 import os
 import time
-from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import torch
@@ -102,7 +101,7 @@ class Trainer:
 
         self.base_dir = config.get_base_dir()
         # directory to save checkpoints
-        self.checkpoint_dir = Path(self.base_dir / self.config.trainer.relative_model_dir)
+        self.checkpoint_dir = config.get_checkpoint_dir()
         logging.info("Saving checkpoints to: %s", self.checkpoint_dir)
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
@@ -182,7 +181,7 @@ class Trainer:
                 self.eval_iteration(step)
 
                 if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
-                    self._save_checkpoint(step)
+                    self.save_checkpoint(step)
 
                 writer.write_out_storage()
 
@@ -223,7 +222,7 @@ class Trainer:
         with TimeWriter(writer, EventName.ITER_VIS_TIME, step=step) as _:
             num_rays_per_batch = self.config.pipeline.datamanager.train_num_rays_per_batch
             try:
-                self.viewer_state.update_scene(step, self.pipeline.model, num_rays_per_batch)
+                self.viewer_state.update_scene(self, step, self.pipeline.model, num_rays_per_batch)
             except RuntimeError:
                 time.sleep(0.03)  # sleep to allow buffer to reset
                 assert self.viewer_state.vis is not None
@@ -270,7 +269,7 @@ class Trainer:
             logging.info("No checkpoints to load, training from scratch")
 
     @check_main_thread
-    def _save_checkpoint(self, step: int) -> None:
+    def save_checkpoint(self, step: int) -> None:
         """Save the model and optimizers
 
         Args:
