@@ -199,10 +199,13 @@ export default function ViewerWindow(props) {
   }, [websocket]);
 
   const render = () => {
-    requestAnimationFrame(render);
+    const fps = 24
+    const interval = 1000 / fps
     handleResize();
     sceneTree.metadata.camera.updateProjectionMatrix();
-    sceneTree.metadata.camera_controls.update();
+    sceneTree.metadata.moveCamera();
+    sceneTree.metadata.camera_controls.update(interval);
+    requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);
     stats.update();
