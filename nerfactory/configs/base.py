@@ -264,6 +264,10 @@ class Config(PrintableConfig):
         self.set_experiment_name()
         return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
 
+    def get_checkpoint_dir(self) -> Path:
+        """Retrieve the checkpoint directory"""
+        return Path(self.get_base_dir() / self.trainer.relative_model_dir)
+
     def print_to_terminal(self) -> None:
         """Helper to pretty print config to terminal"""
         console = Console(width=120)
