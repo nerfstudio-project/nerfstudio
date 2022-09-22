@@ -58,13 +58,20 @@ function CameraList(props) {
   };
 
   const delete_camera = (index) => {
+    const camera_render_helper = sceneTree.find_object_no_create([
+      'Cameras',
+      'Render Camera',
+      'Helper',
+    ]);
     console.log('TODO: deleting camera: ', index);
     sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera']);
     sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera Helper']);
     setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
     // detach and hide transform controls
     transform_controls.detach();
-    transform_controls.set_visibility(false);
+    if (cameras.length <= 1) {
+      camera_render_helper.set_visibility(false);
+    }
   };
 
   const cameraList = cameras.map((camera, index) => {
@@ -159,7 +166,9 @@ export default function CameraPanel(props) {
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     set_camera_position(camera_render, camera_main_copy.matrix);
-    camera_render_helper.set_visibility(true);
+    if (cameras.length > 1) {
+      camera_render_helper.set_visibility(true);
+    }
   };
 
   // force a rerender if the cameras are dragged around
@@ -192,7 +201,7 @@ export default function CameraPanel(props) {
     });
 
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
-    if (cameras.length === 0) {
+    if (cameras.length <= 1) {
       camera_render_helper.set_visibility(false);
     } else {
       camera_render_helper.set_visibility(true);
@@ -264,7 +273,7 @@ export default function CameraPanel(props) {
 
   // call this function whenever slider state changes
   useEffect(() => {
-    if (is_playing) {
+    if (is_playing && cameras.length > 1) {
       const interval = setInterval(() => {
         set_slider_value((prev) => prev + step_size);
       }, 1000 / fps);
@@ -437,7 +446,9 @@ export default function CameraPanel(props) {
           <Button
             variant="outlined"
             onClick={() => {
-              setIsPlaying(true);
+              if(cameras.length > 1){
+                setIsPlaying(true);
+              }
             }}
           >
             <PlayArrowIcon />
