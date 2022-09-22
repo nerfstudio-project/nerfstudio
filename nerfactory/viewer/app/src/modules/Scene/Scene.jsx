@@ -65,7 +65,7 @@ export function get_scene_tree() {
   CameraControls.install( { THREE } );
 
   const camera_controls = new CameraControls( main_camera, renderer.domElement);
-  camera_controls.azimuthRotateSpeed = - 0.3; // negative value to invert rotation direction
+  camera_controls.azimuthRotateSpeed = 0.3; // negative value to invert rotation direction
   camera_controls.polarRotateSpeed = 0.3; // 
   camera_controls.minDistance = 0.3;
   camera_controls.maxDistance = 100;
@@ -80,8 +80,8 @@ export function get_scene_tree() {
     const scaling = Math.max(1, 0.3 * camera_controls.distance);
     if (keyMap.ArrowLeft === true) { camera_controls.rotate(-.03, 0, true); }
     if (keyMap.ArrowRight === true) { camera_controls.rotate(.03, 0, true); }
-    if (keyMap.ArrowUp === true) { camera_controls.rotate(0, .01, true); }
-    if (keyMap.ArrowDown === true) { camera_controls.rotate(0, -.01, true); }
+    if (keyMap.ArrowUp === true) { camera_controls.rotate(0, -.01, true); }
+    if (keyMap.ArrowDown === true) { camera_controls.rotate(0, .01, true); }
     if (keyMap.KeyD === true) { camera_controls.truck(.02 * scaling, 0, true); }
     if (keyMap.KeyA === true) { camera_controls.truck(-.02 * scaling, 0, true); }
     if (keyMap.KeyW === true) { camera_controls.forward(.02 * scaling, true); }
