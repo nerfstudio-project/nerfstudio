@@ -137,10 +137,10 @@ To run with all the defaults, e.g. vanilla nerf method with the blender lego ima
 python scripts/run_train.py --help
 
 # Run a vanilla nerf model.
-python scripts/run_train.py vanilla_nerf
+python scripts/run_train.py vanilla-nerf
 
 # Run a faster version with instant ngp using tcnn (without the viewer).
-python scripts/run_train.py instant_ngp
+python scripts/run_train.py instant-ngp
 ```
 
 #### 3.x Training a model with the viewer
