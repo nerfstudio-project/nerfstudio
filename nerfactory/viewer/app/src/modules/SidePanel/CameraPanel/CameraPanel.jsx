@@ -48,12 +48,17 @@ function CameraList(props) {
       'Camera',
     ]);
     if (camera !== null) {
-      transform_controls.detach();
-      transform_controls.attach(camera);
       const viewer_buttons = document.getElementsByClassName(
         'ViewerWindow-buttons',
       )[0];
-      viewer_buttons.style.display = 'block';
+      if (camera === transform_controls.object){
+        transform_controls.detach();
+        viewer_buttons.style.display = 'none';
+      } else{
+        transform_controls.detach();
+        transform_controls.attach(camera);
+        viewer_buttons.style.display = 'block';
+      }
     }
   };
 
@@ -100,6 +105,10 @@ function CameraList(props) {
     setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
     // detach and hide transform controls
     transform_controls.detach();
+    const viewer_buttons = document.getElementsByClassName(
+      'ViewerWindow-buttons',
+    )[0];
+    viewer_buttons.style.display = 'none';
     if (cameras.length < 1) {
       camera_render_helper.set_visibility(false);
     }
