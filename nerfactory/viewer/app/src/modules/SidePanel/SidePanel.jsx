@@ -156,7 +156,12 @@ function MenuItems(props: ListItemProps) {
       {terminal ? null : (
         <Collapse in={open} timeout="auto">
           <List>
-            {Object.keys(scene_node.children).map((key) => (
+            {Object.keys(scene_node.children).filter( (key) => {
+              if (key === "Camera") {
+                return false; // skip
+              }
+              return true;
+            }).map((key) => (
               <MenuItems
                 name={key}
                 scene_node={scene_node.children[key]}
