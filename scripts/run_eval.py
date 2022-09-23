@@ -77,6 +77,7 @@ def _render_trajectory_video(
         camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        print("OUTPUTS:", outputs.keys())
         image = outputs[rendered_output_name].cpu().numpy()
         images.append(image)
 
@@ -151,7 +152,7 @@ class RenderTrajectory:
     # Path to config YAML file.
     load_config: Path
     # Name of the renderer output to use. rgb, depth, etc.
-    rendered_output_name: str = "rgb"
+    rendered_output_name: str = "rgb_fine"
     #  Trajectory to render.
     traj: Literal["spiral", "interp", "filename"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
