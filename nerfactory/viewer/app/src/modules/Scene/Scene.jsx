@@ -75,19 +75,19 @@ export function get_scene_tree() {
   camera_controls.saveState();
   
   const keyMap = [];
+  const moveSpeed = .05;
 
   function moveCamera() {
-    const scaling = Math.max(1, 0.3 * camera_controls.distance);
     if (keyMap.ArrowLeft === true) { camera_controls.rotate(-.03, 0, true); }
     if (keyMap.ArrowRight === true) { camera_controls.rotate(.03, 0, true); }
-    if (keyMap.ArrowUp === true) { camera_controls.rotate(0, -.01, true); }
-    if (keyMap.ArrowDown === true) { camera_controls.rotate(0, .01, true); }
-    if (keyMap.KeyD === true) { camera_controls.truck(.02 * scaling, 0, true); }
-    if (keyMap.KeyA === true) { camera_controls.truck(-.02 * scaling, 0, true); }
-    if (keyMap.KeyW === true) { camera_controls.forward(.02 * scaling, true); }
-    if (keyMap.KeyS === true) { camera_controls.forward(-.02 * scaling, true); }
-    if (keyMap.KeyQ === true) { camera_controls.dolly(0.1 * scaling, true); }
-    if (keyMap.KeyE === true) { camera_controls.dolly(-0.1 * scaling, true); }
+    if (keyMap.ArrowUp === true) { camera_controls.rotate(0, -.02, true); }
+    if (keyMap.ArrowDown === true) { camera_controls.rotate(0, .02, true); }
+    if (keyMap.KeyD === true) { camera_controls.truck(moveSpeed, 0, true); }
+    if (keyMap.KeyA === true) { camera_controls.truck(-moveSpeed, 0, true); }
+    if (keyMap.KeyW === true) { camera_controls.forward(moveSpeed, true); }
+    if (keyMap.KeyS === true) { camera_controls.forward(-moveSpeed, true); }
+    if (keyMap.KeyQ === true) { camera_controls.truck(0, -moveSpeed, true); }
+    if (keyMap.KeyE === true) { camera_controls.truck(0, moveSpeed, true); }
   };
 
   function onKeyUp(event) {
