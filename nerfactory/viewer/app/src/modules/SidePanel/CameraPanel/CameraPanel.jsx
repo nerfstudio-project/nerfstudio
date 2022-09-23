@@ -26,7 +26,6 @@ import { WebSocketContext } from '../../WebSocket/WebSocket';
 const msgpack = require('msgpack-lite');
 
 function set_camera_position(camera, matrix) {
-  // console.log("setting camera position");
   const mat = new THREE.Matrix4();
   mat.fromArray(matrix.elements);
   mat.decompose(camera.position, camera.quaternion, camera.scale);
@@ -38,25 +37,83 @@ function CameraList(props) {
   const camera_main = props.camera_main;
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
+  // eslint-disable-next-line no-unused-vars
+  const [slider_value, set_slider_value] = React.useState(0); 
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
-    const camera = sceneTree.find_object([
+    const camera = sceneTree.find_object_no_create([
       'Camera Path',
       'Cameras',
       index.toString(),
       'Camera',
     ]);
-    transform_controls.attach(camera);
+    if (camera !== null) {
+      const viewer_buttons = document.getElementsByClassName(
+        'ViewerWindow-buttons',
+      )[0];
+      if (camera === transform_controls.object){
+        transform_controls.detach();
+        viewer_buttons.style.display = 'none';
+      } else{
+        transform_controls.detach();
+        transform_controls.attach(camera);
+        viewer_buttons.style.display = 'block';
+      }
+    }
+  };
+
+  const reset_slider_render_on_delete = () => {
+    // set slider and render camera back to 0
+    const slider_min = 0;
+    const camera_render = sceneTree.find_object_no_create(['Cameras', 'Render Camera']);
+    const camera_render_helper = sceneTree.find_object_no_create([
+      'Cameras',
+      'Render Camera',
+      'Helper',
+    ]);
+    if (cameras.length >= 1) {
+      let first_camera = sceneTree.find_object_no_create([
+        'Camera Path',
+        'Cameras',
+        0,
+        'Camera',
+      ]);
+      if (first_camera.type !== "PerspectiveCamera" && cameras.length > 1) {
+        first_camera = sceneTree.find_object_no_create([
+          'Camera Path',
+          'Cameras',
+          1,
+          'Camera',
+        ]);
+      }
+      set_camera_position(camera_render, first_camera.matrix);
+      camera_render_helper.set_visibility(true);
+      set_slider_value(slider_min);
+    }
+  }
+
+  const delete_camera = (index) => {
+    const camera_render_helper = sceneTree.find_object_no_create([
+      'Cameras',
+      'Render Camera',
+      'Helper',
+    ]);
+    console.log('TODO: deleting camera: ', index);
+    sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera']);
+    sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera Helper']);
+    
+    setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
+    // detach and hide transform controls
+    transform_controls.detach();
     const viewer_buttons = document.getElementsByClassName(
       'ViewerWindow-buttons',
     )[0];
-    viewer_buttons.style.display = 'block';
-  };
-
-  const delete_camera = (index) => {
-    console.log('TODO: deleting camera: ', index);
-    setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
+    viewer_buttons.style.display = 'none';
+    if (cameras.length < 1) {
+      camera_render_helper.set_visibility(false);
+    }
+    reset_slider_render_on_delete();
   };
 
   const cameraList = cameras.map((camera, index) => {
@@ -84,14 +141,14 @@ function CameraList(props) {
 export default function CameraPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
-  const camera_main = sceneTree.find_object(['Cameras', 'Main Camera']);
-  const camera_render = sceneTree.find_object(['Cameras', 'Render Camera']);
-  const camera_render_helper = sceneTree.find_object([
+  const camera_main = sceneTree.find_object_no_create(['Cameras', 'Main Camera']);
+  const camera_render = sceneTree.find_object_no_create(['Cameras', 'Render Camera']);
+  const camera_render_helper = sceneTree.find_object_no_create([
     'Cameras',
     'Render Camera',
     'Helper',
   ]);
-  const transform_controls = sceneTree.find_object(['Transform Controls']);
+  const transform_controls = sceneTree.find_object_no_create(['Transform Controls']);
 
   // redux store state
   const config_base_dir = useSelector(
@@ -145,13 +202,20 @@ export default function CameraPanel(props) {
   const slider_min = 0;
   const slider_max = Math.max(0, cameras.length - 1);
 
+  const reset_slider_render_on_add = (new_camera_list) => {
+    // set slider and render camera back to 0
+    if (new_camera_list.length >= 1){
+      set_camera_position(camera_render, new_camera_list[0].matrix);
+      set_slider_value(slider_min);
+    }
+  }
+
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
     camera_main_copy.aspect = 1.0;
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
-    set_camera_position(camera_render, camera_main_copy.matrix);
-    camera_render_helper.set_visibility(true);
+    reset_slider_render_on_add(new_camera_list);
   };
 
   // force a rerender if the cameras are dragged around
@@ -161,9 +225,7 @@ export default function CameraPanel(props) {
     // prevent multiple loops
     if (update_cameras_interval === null) {
       // hardcoded for 100 ms per udpate
-      update_cameras_interval = setInterval(() => {
-        setCameras(cameras);
-      }, 100);
+      update_cameras_interval = setInterval(() => {}, 100);
     }
   });
   // eslint-disable-next-line no-unused-vars
@@ -171,6 +233,7 @@ export default function CameraPanel(props) {
     if (update_cameras_interval !== null) {
       clearInterval(update_cameras_interval);
       update_cameras_interval = null;
+      setCameras(cameras);
     }
   });
 
@@ -184,6 +247,11 @@ export default function CameraPanel(props) {
     });
 
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
+    if (cameras.length < 1) {
+      camera_render_helper.set_visibility(false);
+    } else {
+      camera_render_helper.set_visibility(true);
+    }
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
       // camera.aspect = render_width / render_height;
@@ -213,6 +281,7 @@ export default function CameraPanel(props) {
 
   // update the camera curve
   const curve_object = get_curve_object_from_cameras(cameras);
+
   if (cameras.length > 1) {
     const num_points = fps * seconds;
     const points = curve_object.curve_positions.getPoints(num_points);
@@ -222,6 +291,21 @@ export default function CameraPanel(props) {
     const material = new MeshLineMaterial({ lineWidth: 0.01, color: 0xff5024 });
     const spline_mesh = new THREE.Mesh(spline.geometry, material);
     sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
+
+    // set the camera
+    const position = curve_object.curve_positions.getPoint(
+      slider_value / (cameras.length - 1.0),
+    );
+    const lookat = curve_object.curve_lookats.getPoint(
+      slider_value / (cameras.length - 1.0),
+    );
+    const up = curve_object.curve_ups.getPoint(
+      slider_value / (cameras.length - 1.0),
+    );
+    const mat = get_transform_matrix(position, lookat, up);
+    set_camera_position(camera_render, mat);
+  } else {
+    sceneTree.delete(['Camera Path', 'Curve']);
   }
 
   const marks = [];
@@ -249,7 +333,7 @@ export default function CameraPanel(props) {
 
   // call this function whenever slider state changes
   useEffect(() => {
-    if (is_playing) {
+    if (is_playing && cameras.length > 1) {
       const interval = setInterval(() => {
         set_slider_value((prev) => prev + step_size);
       }, 1000 / fps);
@@ -422,7 +506,9 @@ export default function CameraPanel(props) {
           <Button
             variant="outlined"
             onClick={() => {
-              setIsPlaying(true);
+              if(cameras.length > 1){
+                setIsPlaying(true);
+              }
             }}
           >
             <PlayArrowIcon />

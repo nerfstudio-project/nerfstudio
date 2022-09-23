@@ -65,6 +65,22 @@ export default class SceneNode {
     return this.find(path.concat(['<object>'])).object;
   }
 
+  find_no_create(path) {
+    if (path.length === 0) {
+      return this;
+    }
+    const name = path[0];
+    const child = this.children[name];
+    if (child === undefined) {
+      return null;
+    }
+    return child.find(path.slice(1));
+  }
+
+  find_object_no_create(path){
+    return this.find_no_create(path.concat(['<object>'])).object;
+  }
+
   set_property(property, value) {
     if (property === 'position') {
       this.object.position.set(value[0], value[1], value[2]);
