@@ -37,7 +37,8 @@ function CameraList(props) {
   const camera_main = props.camera_main;
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
-  const [slider_value, set_slider_value] = React.useState(0);
+  // eslint-disable-next-line no-unused-vars
+  const [slider_value, set_slider_value] = React.useState(0); 
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside

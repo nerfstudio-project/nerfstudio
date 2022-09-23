@@ -70,7 +70,7 @@ export default class SceneNode {
       return this;
     }
     const name = path[0];
-    let child = this.children[name];
+    const child = this.children[name];
     if (child === undefined) {
       return null;
     }
