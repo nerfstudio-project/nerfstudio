@@ -38,7 +38,7 @@ function CameraList(props) {
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
   // eslint-disable-next-line no-unused-vars
-  const [slider_value, set_slider_value] = React.useState(0); 
+  const [slider_value, set_slider_value] = React.useState(0);
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
@@ -52,10 +52,10 @@ function CameraList(props) {
       const viewer_buttons = document.getElementsByClassName(
         'ViewerWindow-buttons',
       )[0];
-      if (camera === transform_controls.object){
+      if (camera === transform_controls.object) {
         transform_controls.detach();
         viewer_buttons.style.display = 'none';
-      } else{
+      } else {
         transform_controls.detach();
         transform_controls.attach(camera);
         viewer_buttons.style.display = 'block';
@@ -66,7 +66,10 @@ function CameraList(props) {
   const reset_slider_render_on_delete = () => {
     // set slider and render camera back to 0
     const slider_min = 0;
-    const camera_render = sceneTree.find_object_no_create(['Cameras', 'Render Camera']);
+    const camera_render = sceneTree.find_object_no_create([
+      'Cameras',
+      'Render Camera',
+    ]);
     const camera_render_helper = sceneTree.find_object_no_create([
       'Cameras',
       'Render Camera',
@@ -79,7 +82,7 @@ function CameraList(props) {
         0,
         'Camera',
       ]);
-      if (first_camera.type !== "PerspectiveCamera" && cameras.length > 1) {
+      if (first_camera.type !== 'PerspectiveCamera' && cameras.length > 1) {
         first_camera = sceneTree.find_object_no_create([
           'Camera Path',
           'Cameras',
@@ -91,7 +94,7 @@ function CameraList(props) {
       camera_render_helper.set_visibility(true);
       set_slider_value(slider_min);
     }
-  }
+  };
 
   const delete_camera = (index) => {
     const camera_render_helper = sceneTree.find_object_no_create([
@@ -101,8 +104,13 @@ function CameraList(props) {
     ]);
     console.log('TODO: deleting camera: ', index);
     sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera']);
-    sceneTree.delete(['Camera Path', 'Cameras', index.toString(), 'Camera Helper']);
-    
+    sceneTree.delete([
+      'Camera Path',
+      'Cameras',
+      index.toString(),
+      'Camera Helper',
+    ]);
+
     setCameras([...cameras.slice(0, index), ...cameras.slice(index + 1)]);
     // detach and hide transform controls
     transform_controls.detach();
@@ -141,14 +149,22 @@ function CameraList(props) {
 export default function CameraPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
-  const camera_main = sceneTree.find_object_no_create(['Cameras', 'Main Camera']);
-  const camera_render = sceneTree.find_object_no_create(['Cameras', 'Render Camera']);
+  const camera_main = sceneTree.find_object_no_create([
+    'Cameras',
+    'Main Camera',
+  ]);
+  const camera_render = sceneTree.find_object_no_create([
+    'Cameras',
+    'Render Camera',
+  ]);
   const camera_render_helper = sceneTree.find_object_no_create([
     'Cameras',
     'Render Camera',
     'Helper',
   ]);
-  const transform_controls = sceneTree.find_object_no_create(['Transform Controls']);
+  const transform_controls = sceneTree.find_object_no_create([
+    'Transform Controls',
+  ]);
 
   // redux store state
   const config_base_dir = useSelector(
@@ -204,11 +220,11 @@ export default function CameraPanel(props) {
 
   const reset_slider_render_on_add = (new_camera_list) => {
     // set slider and render camera back to 0
-    if (new_camera_list.length >= 1){
+    if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
       set_slider_value(slider_min);
     }
-  }
+  };
 
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
@@ -506,7 +522,7 @@ export default function CameraPanel(props) {
           <Button
             variant="outlined"
             onClick={() => {
-              if(cameras.length > 1){
+              if (cameras.length > 1) {
                 setIsPlaying(true);
               }
             }}

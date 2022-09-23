@@ -77,7 +77,7 @@ export default class SceneNode {
     return child.find(path.slice(1));
   }
 
-  find_object_no_create(path){
+  find_object_no_create(path) {
     return this.find_no_create(path.concat(['<object>'])).object;
   }
 
