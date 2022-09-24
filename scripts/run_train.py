@@ -3,6 +3,8 @@
 run_train_nerf.py
 """
 
+from __future__ import annotations
+
 import logging
 import random
 import socket
@@ -16,7 +18,6 @@ import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 import yaml
-from rich.console import Console
 
 from nerfactory.configs import base as cfg
 from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
@@ -189,16 +190,9 @@ def main(config: cfg.Config) -> None:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
 
-    console = Console(width=120)
-    console.rule("Config")
-    console.print(config)
-    console.rule("")
-
-    assert config.base_dir is not None
-    config.base_dir.mkdir(parents=True, exist_ok=True)
-    config_yaml_path = config.base_dir / "config.yml"
-    logging.info(f"Saving config to: {config_yaml_path}")
-    config_yaml_path.write_text(yaml.dump(config), "utf8")
+    # print and save config
+    config.print_to_terminal()
+    config.save_config()
 
     launch(
         train_loop,

@@ -20,19 +20,50 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import torch
 from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs.base import InstantiateConfig
+from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfactory.utils.misc import get_masked_dict
+
+
+# Model related configs
+@dataclass
+class ModelConfig(InstantiateConfig):
+    """Configuration for model instantiation"""
+
+    _target: Type = field(default_factory=lambda: Model)
+    """target class to instantiate"""
+    enable_collider: bool = True
+    """Whether to create a scene collider to filter rays."""
+    collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
+    """parameters to instantiate scene collider with"""
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
+    """Loss specific weights."""
+    enable_density_field: bool = False
+    """Whether to create a density field to filter samples."""
+    density_field_params: Dict[str, Any] = to_immutable_dict(
+        {
+            "center": 0.0,  # simply set it as the center of the scene bbox
+            "base_scale": 3.0,  # simply set it as the scale of the scene bbox
+            "num_cascades": 1,  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+            "resolution": 128,
+            "update_every_num_iters": 16,
+        }
+    )
+    """parameters to instantiate density field with"""
+    eval_num_rays_per_chunk: int = 4096
+    """specifies number of rays per chunk during eval"""
 
 
 class Model(nn.Module):
@@ -45,11 +76,11 @@ class Model(nn.Module):
         scene_bounds: dataset scene bounds
     """
 
-    config: cfg.ModelConfig
+    config: ModelConfig
 
     def __init__(
         self,
-        config: cfg.ModelConfig,
+        config: ModelConfig,
         scene_bounds: SceneBounds,
         num_train_data: int,
         **kwargs,
@@ -216,3 +247,13 @@ class Model(nn.Module):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
+
+
+@dataclass
+class VanillaModelConfig(ModelConfig):
+    """Vanilla Model Config"""
+
+    num_coarse_samples: int = 64
+    """Number of samples in coarse field evaluation"""
+    num_importance_samples: int = 128
+    """Number of samples in fine field evaluation"""

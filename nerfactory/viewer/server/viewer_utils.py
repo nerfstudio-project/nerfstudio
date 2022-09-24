@@ -44,14 +44,14 @@ from nerfactory.viewer.server.visualizer import Viewer
 console = Console(width=120)
 
 
-def setup_viewer(config: cfg.ViewerConfig):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
     """
     if config.enable:
-        viewer_state = ViewerState(config)
+        viewer_state = ViewerState(config, log_filename=log_filename)
         banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
         return viewer_state, banner_messages
     return None, None
@@ -202,16 +202,17 @@ class ViewerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path):
         self.config = config
         self.vis = None
         self.viewer_url = None
+        self.log_filename = log_filename
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             zmq_port = int(self.config.zmq_url.split(":")[-1])
             websocket_port = self.config.websocket_port
-            self.config.log_filename.parent.mkdir(exist_ok=True)
-            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.config.log_filename))
+            self.log_filename.parent.mkdir(exist_ok=True)
+            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.log_filename))
             # TODO(ethan): move this into the writer such that it's at the bottom
             # of the logging stack and easy to see and click
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
@@ -255,7 +256,7 @@ class ViewerState:
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
-        self.vis["renderingState/config_base_dir"].write(str(self.config.log_filename.parents[0]))
+        self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
 
         # clear the current scene
         self.vis["sceneState/sceneBounds"].delete()
@@ -283,7 +284,7 @@ class ViewerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
-    def update_scene(self, step: int, graph: Model, num_rays_per_batch: int) -> None:
+    def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -297,6 +298,8 @@ class ViewerState:
         # check if we should interrupt from a button press?
         camera_path_payload = self.vis["camera_path_payload"].read()
         if camera_path_payload:
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
             # write to json file
             camera_path_filename = camera_path_payload["camera_path_filename"]
             camera_path = camera_path_payload["camera_path"]
@@ -487,7 +490,7 @@ class ViewerState:
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
                 self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
             else:
-                self.vis["renderingState/vis_train_ratio"] = "Starting"
+                self.vis["renderingState/vis_train_ratio"].write("Starting")
         else:
             self.vis["renderingState/eval_fps"].write("Paused")
             self.vis["renderingState/train_eta"].write("Paused")

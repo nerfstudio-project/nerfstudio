@@ -49,7 +49,6 @@ export function get_curve_object_from_cameras(cameras) {
     curve_lookats,
     curve_ups,
   };
-
   return curve_object;
 }
 

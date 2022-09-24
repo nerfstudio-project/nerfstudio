@@ -20,7 +20,7 @@ import math
 from abc import abstractmethod
 from typing import Callable, Optional, Tuple
 
-import nerfacc  # pylint: disable=import-error
+import nerfacc
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -345,6 +345,12 @@ class VolumetricSampler(Sampler):
     """Sampler inspired by the one proposed in the Instant-NGP paper.
 
     This sampler does ray-box AABB test, ray samples generation and density check, all together.
+
+        Args:
+        aabb: Bounding box of the scene.
+        density_fn: Function that takes a tensor of points and returns a tensor of densities.
+        grid_resolution: Resolution of the density grid.
+        num_samples: Number of samples per ray.
     """
 
     def __init__(
@@ -354,14 +360,7 @@ class VolumetricSampler(Sampler):
         grid_resolution: int = 128,
         num_samples: int = 1024,
     ) -> None:
-        """Init.
 
-        Args:
-            aabb: Bounding box of the scene.
-            density_fn: Function that takes a tensor of points and returns a tensor of densities.
-            grid_resolution: Resolution of the density grid.
-            num_samples: Number of samples per ray.
-        """
         super().__init__(num_samples=num_samples)
         self.aabb = aabb
         self.density_fn = density_fn
@@ -440,13 +439,21 @@ class VolumetricSampler(Sampler):
             stratified=self.training,
         )
 
+        num_samples = starts.shape[0]
+        if num_samples == 0:
+            # create a single fake sample and update packed_info accordingly
+            # this says the last ray in packed_info has 1 sample, which starts and ends at 1
+            packed_info[-1, 1] = 1
+            starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
+            ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
+
         ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]
         if camera_indices is not None:
             camera_indices = camera_indices[ray_indices]
 
-        if remove_occluded_samples:
+        if remove_occluded_samples and self.training:
             with torch.no_grad():
                 positions = origins + dirs * (starts + ends) / 2.0
                 densities = self.density_fn(positions)

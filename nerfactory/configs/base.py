@@ -16,20 +16,20 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
-import dcargs
 import torch
+import yaml
+from rich.console import Console
 
 from nerfactory.configs.utils import to_immutable_dict
 
 # model instances
-from nerfactory.models.base import Model
-from nerfactory.models.nerfw import NerfWModel
-from nerfactory.models.tensorf import TensoRFModel
+from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
 from nerfactory.utils import writer
 
 
@@ -79,27 +79,6 @@ class MachineConfig(PrintableConfig):
     """distributed connection point (for DDP)"""
 
 
-# Logging related configs
-@dataclass
-class TensorboardWriterConfig(InstantiateConfig):
-    """Tensorboard Writer config"""
-
-    _target: Type = writer.TensorboardWriter
-    """target class to instantiate"""
-    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Auto-populated absolute path to saved tensorboard events"""
-
-
-@dataclass
-class WandbWriterConfig(InstantiateConfig):
-    """WandDB Writer config"""
-
-    _target: Type = writer.WandbWriter
-    """target class to instantiate"""
-    log_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Auto-populated absolute path to saved wandb events"""
-
-
 @dataclass
 class LocalWriterConfig(InstantiateConfig):
     """Local Writer config"""
@@ -141,8 +120,6 @@ class LoggingConfig(PrintableConfig):
      e.g. if 20, averages will be computed over past 20 occurances."""
     event_writer: Literal["tb", "wandb", "none"] = "wandb"
     """specify which writer to use (tensorboard or wandb)"""
-    event_writer_config: dcargs.conf.Fixed[Optional[Union[TensorboardWriterConfig, WandbWriterConfig]]] = dcargs.MISSING
-    """[Do not set] Writer config based on the specified event_writer. Set automatically."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True
@@ -169,8 +146,6 @@ class TrainerConfig(PrintableConfig):
     """whether or not to use mixed precision for training"""
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
-    model_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Auto-populated absolute path to saved checkpoints. Set automatically."""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
@@ -178,166 +153,6 @@ class TrainerConfig(PrintableConfig):
     """optionally specify model step to load from; if none, will find most recent model in load_dir"""
     load_config: Optional[Path] = None
     """optionally specify a pre-defined config to load from"""
-
-
-# pylint: disable=wrong-import-position
-from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
-
-# data instances
-from nerfactory.datamanagers.base import VanillaDataManager
-from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
-from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
-from nerfactory.datamanagers.dataparsers.instant_ngp_parser import (
-    InstantNGPDataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
-    MipNerf360DataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.nerfactory_parser import (
-    NerfactoryDataParserConfig,
-)
-from nerfactory.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
-from nerfactory.optimizers.schedulers import ExponentialDecaySchedule
-from nerfactory.pipelines.base import Pipeline
-
-AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
-    {
-        "nerfactory-data": NerfactoryDataParserConfig(),
-        "blender-data": BlenderDataParserConfig(),
-        "friends-data": FriendsDataParserConfig(),
-        "mipnerf-360-data": MipNerf360DataParserConfig(),
-        "instant-ngp-data": InstantNGPDataParserConfig(),
-        "record3d-data": Record3DDataParserConfig(),
-    },
-    prefix_names=False,
-)
-"""Union over possible dataparser types, annotated with metadata for dcargs. This is the
-same as the vanilla union, but results in shorter subcommand names."""
-
-
-@dataclass
-class VanillaDataManagerConfig(InstantiateConfig):
-    """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
-    After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
-    train/eval data at each iteration
-    """
-
-    # Note: eval_dataparser is annotated with Fixed[] to prevent dcargs from trying to
-    # convert Optional[InstantiateConfig] into subcommands for choosing between None and
-    # InstantiateConfig.
-
-    _target: Type = VanillaDataManager
-    """target class to instantiate"""
-    train_dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
-    """specifies the dataparser used to unpack the data"""
-    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
-    """specifies the camera pose optimizer used during training"""
-    train_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per training iteration"""
-    train_num_images_to_sample_from: int = -1
-    """number of images to sample during training iteration"""
-    eval_dataparser: dcargs.conf.Fixed[Optional[InstantiateConfig]] = None
-    """optionally specify different dataparser to use during eval; if None, uses train_dataparser"""
-    eval_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per eval iteration"""
-    eval_num_images_to_sample_from: int = -1
-    """number of images to sample during eval iteration"""
-    eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """specifies the image indices to use during eval; if None, uses all"""
-
-
-# Model related configs
-@dataclass
-class ModelConfig(InstantiateConfig):
-    """Configuration for model instantiation"""
-
-    _target: Type = Model
-    """target class to instantiate"""
-    enable_collider: bool = True
-    """Whether to create a scene collider to filter rays."""
-    collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
-    """parameters to instantiate scene collider with"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
-    """Loss specific weights."""
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation"""
-    num_importance_samples: int = 128
-    """Number of samples in fine field evaluation"""
-    enable_density_field: bool = False
-    """Whether to create a density field to filter samples."""
-    density_field_params: Dict[str, Any] = to_immutable_dict(
-        {
-            "center": 0.0,  # simply set it as the center of the scene bbox
-            "base_scale": 3.0,  # simply set it as the scale of the scene bbox
-            "num_cascades": 1,  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-            "resolution": 128,
-            "update_every_num_iters": 16,
-        }
-    )
-    """parameters to instantiate density field with"""
-    eval_num_rays_per_chunk: int = 4096
-    """specifies number of rays per chunk during eval"""
-
-
-@dataclass
-class VanillaModelConfig(InstantiateConfig):
-    """Vanilla Model Config"""
-
-
-@dataclass
-class NerfWModelConfig(ModelConfig):
-    """NerfW model config"""
-
-    _target: Type = NerfWModel
-    """target class to instantiate"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict(
-        {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "uncertainty_loss": 1.0, "density_loss": 0.01}
-    )
-    """Loss specific weights."""
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation."""
-    num_importance_samples: int = 64
-    """Number of samples in fine field evaluation."""
-    uncertainty_min: float = 0.03
-    """This is added to the end of the uncertainty
-    rendering operation. It's called 'beta_min' in other repos.
-    This avoids calling torch.log() on a zero value, which would be undefined.
-    """
-    num_images: int = 10000  # TODO: don't hardcode this
-    """How many images exist in the dataset."""
-    appearance_embedding_dim: int = 48
-    """Dimension of appearance embedding."""
-    transient_embedding_dim: int = 16
-    """Dimension of transient embedding."""
-
-
-@dataclass
-class TensoRFModelConfig(ModelConfig):
-    """TensoRF model config"""
-
-    _target: Type = TensoRFModel
-    """target class to instantiate"""
-    init_resolution: int = 128
-    """initial render resolution"""
-    final_resolution: int = 200
-    """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = (5000, 5500, 7000)
-    """specifies a list of iteration step numbers to perform upsampling"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "feature_loss": 8e-5})
-    """Loss specific weights."""
-
-
-# Pipeline related configs
-@dataclass
-class PipelineConfig(InstantiateConfig):
-    """Configuration for pipeline instantiation"""
-
-    _target: Type = Pipeline
-    """target class to instantiate"""
-    datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
-    """specifies the datamanager config"""
-    model: ModelConfig = ModelConfig()
-    """specifies the model config"""
 
 
 # Viewer related configs
@@ -349,8 +164,6 @@ class ViewerConfig(PrintableConfig):
     """whether to enable viewer"""
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
-    log_filename: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Absolute path to the log file. Set automatically."""
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
@@ -366,18 +179,34 @@ class ViewerConfig(PrintableConfig):
 
 # Optimizer related configs
 @dataclass
-class OptimizerConfig(InstantiateConfig):
+class OptimizerConfig(PrintableConfig):
     """Basic optimizer config with RAdam"""
 
-    _target: Type = torch.optim.RAdam
+    _target: Type = torch.optim.Adam
     lr: float = 0.0005
     eps: float = 1e-08
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
-    def setup(self, params=None, **kwargs) -> Any:
+    def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
-        return self._target(params, lr=self.lr, eps=self.eps)
+        kwargs = vars(self)
+        del kwargs["_target"]
+        return self._target(params, **kwargs)
+
+
+@dataclass
+class AdamOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with Adam"""
+
+    _target: Type = torch.optim.Adam
+
+
+@dataclass
+class RAdamOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with RAdam"""
+
+    _target: Type = torch.optim.RAdam
 
 
 @dataclass
@@ -395,6 +224,10 @@ class SchedulerConfig(InstantiateConfig):
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 
 
+# pylint: disable=wrong-import-position
+from nerfactory.pipelines.base import VanillaPipelineConfig
+
+
 @dataclass
 class Config(PrintableConfig):
     """Full config contents"""
@@ -403,13 +236,13 @@ class Config(PrintableConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
-    base_dir: dcargs.conf.Fixed[Path] = dcargs.MISSING
-    """[Do not set] Experiment base directory. Set automatically."""
+    timestamp: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
     viewer: ViewerConfig = ViewerConfig()
     trainer: TrainerConfig = TrainerConfig()
-    pipeline: PipelineConfig = PipelineConfig()
+    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
     optimizers: Dict[str, Any] = to_immutable_dict(
         {
             "fields": {
@@ -419,38 +252,34 @@ class Config(PrintableConfig):
         }
     )
 
-    def __post_init__(self):
-        """Make paths more specific using the current timestamp."""
-        self.populate_dynamic_fields()
+    def set_experiment_name(self) -> None:
+        """Dynamically set the experiment name"""
+        if self.experiment_name is None:
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
 
-    def populate_dynamic_fields(self, timestamp: Optional[str] = None) -> None:
-        """Make paths in our config more specific using a timestamp.
-
-        Args:
-            timestamp: Timestamp to use, as a string. If None, defaults to the current
-                time in the form YYYY-MM-DD_HHMMMSS.
-        """
+    def get_base_dir(self) -> Path:
+        """Retrieve the base directory to set relative paths"""
         # check the experiment and method names
         assert self.method_name is not None, "Please set method name in config or via the cli"
-        if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.train_dataparser.data_directory).replace("/", "-")
+        self.set_experiment_name()
+        return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
 
-        # set the timestamp of the model logging/writer loggign paths
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-        self.base_dir = Path(f"outputs/{self.experiment_name}/{self.method_name}/{timestamp}")
-        self.trainer.model_dir = self.base_dir / self.trainer.relative_model_dir
-        if self.logging.event_writer == "tb":
-            self.logging.event_writer_config = TensorboardWriterConfig(
-                log_dir=self.base_dir / self.logging.relative_log_dir
-            )
-        elif self.logging.event_writer == "wandb":
-            self.logging.event_writer_config = WandbWriterConfig(log_dir=self.base_dir / self.logging.relative_log_dir)
-        else:
-            self.logging.event_writer_config = None
-        self.viewer.log_filename = self.base_dir / self.viewer.relative_log_filename
-        # disable test if viewer is enabled (for speed purposes)
-        if self.viewer.enable:
-            self.trainer.steps_per_eval_batch = self.trainer.max_num_iterations
-            self.trainer.steps_per_eval_image = self.trainer.max_num_iterations
-            self.trainer.steps_per_eval_all_images = self.trainer.max_num_iterations
+    def get_checkpoint_dir(self) -> Path:
+        """Retrieve the checkpoint directory"""
+        return Path(self.get_base_dir() / self.trainer.relative_model_dir)
+
+    def print_to_terminal(self) -> None:
+        """Helper to pretty print config to terminal"""
+        console = Console(width=120)
+        console.rule("Config")
+        console.print(self)
+        console.rule("")
+
+    def save_config(self) -> None:
+        """Save config to base directory"""
+        base_dir = self.get_base_dir()
+        assert base_dir is not None
+        base_dir.mkdir(parents=True, exist_ok=True)
+        config_yaml_path = base_dir / "config.yml"
+        logging.info(f"Saving config to: {config_yaml_path}")
+        config_yaml_path.write_text(yaml.dump(self), "utf8")
