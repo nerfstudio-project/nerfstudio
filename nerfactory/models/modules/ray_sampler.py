@@ -397,7 +397,7 @@ class VolumetricSampler(Sampler):
         ray_bundle: RayBundle,
         num_samples: Optional[int] = None,
         near_plane: float = 0.0,
-        remove_occluded_samples: bool = False,
+        remove_occluded_samples: bool = True,
     ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
 
@@ -455,7 +455,7 @@ class VolumetricSampler(Sampler):
         if camera_indices is not None:
             camera_indices = camera_indices[ray_indices]
 
-        if remove_occluded_samples:
+        if remove_occluded_samples and self.training:
             with torch.no_grad():
                 positions = origins + dirs * (starts + ends) / 2.0
                 densities = self.density_fn(positions)
