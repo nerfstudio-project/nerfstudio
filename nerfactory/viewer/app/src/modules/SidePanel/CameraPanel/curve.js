@@ -2,18 +2,18 @@
 
 import * as THREE from 'three';
 
-function get_curve(list_of_3d_vectors) {
+function get_curve(list_of_3d_vectors, is_cycle) {
   // TODO: add some hyperparameters to this function
   const curve = new THREE.CatmullRomCurve3(
     list_of_3d_vectors,
-    false,
+    is_cycle,
     // 'centripetal'
     'chordal',
   );
   return curve;
 }
 
-export function get_curve_object_from_cameras(cameras) {
+export function get_curve_object_from_cameras(cameras, is_cycle) {
   // interpolate positions, lookat directions, and ups
   // similar to
   // https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L281
@@ -40,9 +40,9 @@ export function get_curve_object_from_cameras(cameras) {
   let curve_lookats = null;
   let curve_ups = null;
 
-  curve_positions = get_curve(positions);
-  curve_lookats = get_curve(lookats);
-  curve_ups = get_curve(ups);
+  curve_positions = get_curve(positions, is_cycle);
+  curve_lookats = get_curve(lookats, is_cycle);
+  curve_ups = get_curve(ups, is_cycle);
 
   const curve_object = {
     curve_positions,

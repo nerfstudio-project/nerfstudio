@@ -19,6 +19,7 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import { AllInclusiveOutlined, GestureOutlined, ReplayCircleFilledOutlined } from '@mui/icons-material';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
@@ -92,8 +93,8 @@ function CameraList(props) {
       }
       set_camera_position(camera_render, first_camera.matrix);
       camera_render_helper.set_visibility(true);
-      set_slider_value(slider_min);
     }
+    set_slider_value(slider_min);
   };
 
   const delete_camera = (index) => {
@@ -176,6 +177,7 @@ export default function CameraPanel(props) {
   const [cameras, setCameras] = React.useState([]);
   const [slider_value, set_slider_value] = React.useState(0);
   const [is_playing, setIsPlaying] = React.useState(false);
+  const [is_cycle, setIsCycle] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
 
@@ -296,7 +298,7 @@ export default function CameraPanel(props) {
   }, [cameras, render_width, render_height]);
 
   // update the camera curve
-  const curve_object = get_curve_object_from_cameras(cameras);
+  const curve_object = get_curve_object_from_cameras(cameras, is_cycle);
 
   if (cameras.length > 1) {
     const num_points = fps * seconds;
@@ -480,6 +482,29 @@ export default function CameraPanel(props) {
         </Button>
       </div>
       <div className="CameraPanel-top-button">
+        <Tooltip title="Close/open camera curve">
+        {!is_cycle ? (
+          <Button
+            variant="outlined"
+            onClick={() => {
+                setIsCycle(true);
+            }}
+          >
+            <GestureOutlined />
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setIsCycle(false);
+            }}
+          >
+            <AllInclusiveOutlined />
+          </Button>
+        )}
+        </Tooltip>
+      </div>
+      <div className="CameraPanel-top-button">
         <Tooltip title="Copy Cmd to Clipboard">
           <IconButton onClick={copy_cmd_to_clipboard}>
             <ContentPasteGoIcon />
@@ -517,27 +542,36 @@ export default function CameraPanel(props) {
         >
           <ArrowBackIosNewIcon />
         </Button>
-
-        {!is_playing ? (
+        {/* eslint-disable-next-line no-nested-ternary */}
+        {!is_playing && slider_max === slider_value ? (
           <Button
             variant="outlined"
             onClick={() => {
-              if (cameras.length > 1) {
-                setIsPlaying(true);
-              }
+              set_slider_value(slider_min);
             }}
           >
-            <PlayArrowIcon />
+            <ReplayCircleFilledOutlined />
           </Button>
         ) : (
+          !is_playing ? (
           <Button
+          variant="outlined"
+          onClick={() => {
+            if (cameras.length > 1) {
+              setIsPlaying(true);
+            }
+          }}
+          >
+            <PlayArrowIcon />
+          </Button> ) : 
+          (<Button
             variant="outlined"
             onClick={() => {
               setIsPlaying(false);
-            }}
-          >
-            <PauseIcon />
-          </Button>
+              }}
+            >
+              <PauseIcon />
+            </Button> )
         )}
         <Button
           variant="outlined"
