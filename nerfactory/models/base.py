@@ -170,10 +170,10 @@ class Model(nn.Module):
             outputs = self.get_outputs(intersected_ray_bundle)
             return outputs
 
-        if valid_mask is not None:
-            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-            # during training, keep only the rays that intersect the scene. discard the rest
-            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+        # if valid_mask is not None:
+        #     intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+        #     # during training, keep only the rays that intersect the scene. discard the rest
+        #     batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
 
         outputs = self.get_outputs(intersected_ray_bundle)
         return outputs
@@ -209,7 +209,6 @@ class Model(nn.Module):
         num_rays_per_chunk = self.config.eval_num_rays_per_chunk
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
-        outputs = {}
         outputs_lists = defaultdict(list)
         for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
@@ -218,7 +217,11 @@ class Model(nn.Module):
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
+        outputs = {}
         for output_name, outputs_list in outputs_lists.items():
+            if not torch.is_tensor(outputs_list[0]):
+                # TODO: handle lists of tensors as well
+                continue
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
 

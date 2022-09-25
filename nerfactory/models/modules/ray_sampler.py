@@ -27,6 +27,9 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.rays import Frustums, RayBundle, RaySamples
 from nerfactory.fields.density_fields.density_grid import DensityGrid
+from nerfactory.fields.modules.field_heads import FieldHeadNames
+from nerfactory.fields.base import Field
+from nerfactory.fields.proposal_field import DensityField
 
 
 class Sampler(nn.Module):
@@ -38,7 +41,10 @@ class Sampler(nn.Module):
     """
 
     def __init__(
-        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 0.01
+        self,
+        num_samples: Optional[int] = None,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 0.01,
     ) -> None:
         super().__init__()
         self.num_samples = num_samples
@@ -75,9 +81,9 @@ class SpacedSampler(Sampler):
 
     def __init__(
         self,
-        num_samples: int,
         spacing_fn: Callable,
         spacing_fn_inv: Callable,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -138,7 +144,7 @@ class UniformSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -165,7 +171,7 @@ class LinearDisparitySampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -192,7 +198,7 @@ class SqrtSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -219,7 +225,7 @@ class LogSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -248,7 +254,7 @@ class PDFSampler(Sampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified: bool = True,
         include_original: bool = True,
         density_field: Optional[DensityGrid] = None,
@@ -481,3 +487,55 @@ class VolumetricSampler(Sampler):
             camera_indices=camera_indices,
         )
         return ray_samples, packed_info, ray_indices
+
+
+class ProposalNetworkSampler(Sampler):
+    """Sampler that uses a proposal network to generate samples.
+
+    Args:
+        num_samples: Number of samples per ray
+        train_stratified: Randomize location within each bin during training.
+        include_original: Add original samples to ray.
+        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
+        histogram_padding: Amount to weights prior to computing PDF.
+    """
+
+    def __init__(
+        self,
+        proposal_network: Field,
+        train_stratified: bool = True,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 1e-2,
+    ) -> None:
+        super().__init__(density_field=density_field, weight_threshold=weight_threshold)
+
+        self.pdf_sampler = PDFSampler(include_original=False, density_field=density_field)
+        self.proposal_network = proposal_network
+
+    @torch.no_grad()
+    def generate_ray_samples(
+        self,
+        ray_bundle: Optional[RayBundle] = None,
+        ray_samples: Optional[RaySamples] = None,
+        weights: TensorType[..., "num_samples", 1] = None,
+        num_samples: Optional[int] = None,
+        eps: float = 1e-5,
+    ) -> RaySamples:
+        """Generates position samples given a distribution.
+
+        Args:
+            aabb: Axis aligned bounding box of the scene.
+            ray_bundle: Rays to generate samples for
+            ray_samples: Existing ray samples
+            weights: Weights for each bin
+            num_samples: Number of samples per ray
+            eps: Small value to prevent numerical issues.
+
+        Returns:
+            Positions and deltas for samples along a ray
+        """
+        field_outputs = self.proposal_network.forward(ray_samples)
+        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples, eps)
+        return ray_samples, weights
