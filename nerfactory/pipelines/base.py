@@ -242,6 +242,8 @@ class VanillaPipeline(Pipeline):
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        if "camera_opt" in self.datamanager.get_param_groups():
+            metrics_dict["camera_opt"] = self.datamanager.get_param_groups()['camera_opt'][0].data[:, :3].norm()
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
         return model_outputs, loss_dict, metrics_dict

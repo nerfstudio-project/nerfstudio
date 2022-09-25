@@ -27,6 +27,7 @@ from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 
+from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs.base import InstantiateConfig
 from nerfactory.datamanagers.dataloaders import (
@@ -250,6 +251,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
+    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    """specifies the camera pose optimizer used during training"""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method

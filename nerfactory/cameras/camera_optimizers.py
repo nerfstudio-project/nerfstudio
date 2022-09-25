@@ -26,6 +26,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.configs import base as cfg
+from nerfactory.utils import poses as pose_utils
 
 
 # Camera Optimization related configs
@@ -41,6 +42,7 @@ class BARFPoseOptimizerConfig(CameraOptimizerConfig):
     """BARF camera optimizer."""
 
     _target: Type = field(default_factory=lambda: BARFOptimizer)
+    noise_variance: float = 0.0
 
 
 class CameraOptimizer(nn.Module):
@@ -83,6 +85,11 @@ class BARFOptimizer(CameraOptimizer):
 
     def __init__(self, config: BARFPoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
         super().__init__(config, num_cameras, device)
+        self.noise_variance = config.noise_variance
+        pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.noise_variance)
+        pose_noise[:, 3:] = 0.0 # remove rotation
+        self.pose_noise = self.exp_map(pose_noise).detach().to(device)
+        print("ADDED POSE NOISE:", self.pose_noise[:2])
         self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
         nn.init.zeros_(self.pose_adjustment.weight)
 
@@ -143,4 +150,5 @@ class BARFOptimizer(CameraOptimizer):
 
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
         c2c_prime = self.exp_map(self.pose_adjustment.weight[indices])
+        c2c_prime = pose_utils.multiply(self.pose_noise[indices], c2c_prime)
         return c2c_prime

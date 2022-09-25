@@ -14,11 +14,13 @@
 
 """Scheduler Classes"""
 
+from typing import Optional
+
 import numpy as np
-from torch.optim.lr_scheduler import LambdaLR
+import torch.optim as optim
 
 
-class ExponentialDecaySchedule(LambdaLR):
+class ExponentialDecaySchedule(optim.lr_scheduler.LambdaLR):
     """Exponential learning rate decay function.
     See https://github.com/google-research/google-research/blob/
     fd2cea8cdd86b3ed2c640cbe5561707639e682f3/jaxnerf/nerf/utils.py#L360
@@ -48,4 +50,23 @@ class ExponentialDecaySchedule(LambdaLR):
             )  # divided by lr_init because the multiplier is with the initial learning rate
             return delay_rate * multiplier
 
+        super().__init__(optimizer, lr_lambda=func)
+
+
+class DelayerScheduler(optim.lr_scheduler.LambdaLR):
+    """Starts with a flat lr schedule until it reaches N epochs then applies a scheduler"""
+    def __init__(
+        self,
+        optimizer: optim.Optimizer,
+        lr_init, lr_final, # pylint: disable=unused-argument
+        max_steps, delay_epochs: int = 500, # pylint: disable=unused-argument
+        after_scheduler: Optional[optim.lr_scheduler.LambdaLR] = None,
+    ) -> None:
+        def func(step):
+            if step > delay_epochs:
+                if after_scheduler is not None:
+                    return after_scheduler.get_lr()
+                return 1.0
+            return 0.0
+        
         super().__init__(optimizer, lr_lambda=func)
