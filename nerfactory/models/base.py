@@ -170,12 +170,14 @@ class Model(nn.Module):
             outputs = self.get_outputs(intersected_ray_bundle)
             return outputs
 
-        # if valid_mask is not None:
-        #     intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-        #     # during training, keep only the rays that intersect the scene. discard the rest
-        #     batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
+        if valid_mask is not None:
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
+            # during training, keep only the rays that intersect the scene. discard the rest
+            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
 
         outputs = self.get_outputs(intersected_ray_bundle)
+        if valid_mask is not None:
+            outputs["valid_mask"] = valid_mask
         return outputs
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:

@@ -46,6 +46,7 @@ from nerfactory.datamanagers.base import (
 from nerfactory.models.base import Model, ModelConfig
 from nerfactory.utils import profiler
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfactory.utils.misc import get_masked_dict
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -241,6 +242,9 @@ class VanillaPipeline(Pipeline):
         """
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle, batch)
+        if "valid_mask" in model_outputs:
+            valid_mask = model_outputs["valid_mask"]
+            batch = get_masked_dict(batch, valid_mask)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
@@ -264,6 +268,9 @@ class VanillaPipeline(Pipeline):
         self.eval()
         ray_bundle, batch = self.datamanager.next_eval(step)
         model_outputs = self.model(ray_bundle, batch)
+        if "valid_mask" in model_outputs:
+            valid_mask = model_outputs["valid_mask"]
+            batch = get_masked_dict(batch, valid_mask)
         loss_dict = self.model.get_loss_dict(model_outputs, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         self.train()

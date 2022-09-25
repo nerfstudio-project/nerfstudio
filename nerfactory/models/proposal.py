@@ -54,6 +54,7 @@ from nerfactory.utils.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfactory.fields.modules.spatial_distortions import SceneContraction
 
 
 @dataclass
@@ -106,9 +107,7 @@ class ProposalModel(Model):
         self.proposal_network = DensityField(self.scene_bounds.aabb)
 
         # Collider
-        # NOTE: current code will break when rays aren't valid, ie they don't intersect the box
-        # self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds, near_plane=self.config.near_plane)
-        self.collider = NearFarCollider(near_plane=2.0, far_plane=6.0)
+        self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds, near_plane=self.config.near_plane)
 
         # Samplers
         self.pdf_sampler = PDFSampler(include_original=False)
@@ -145,15 +144,16 @@ class ProposalModel(Model):
         weights_list = []
         sdist_list = []
         for i_level in range(n + 1):
-            is_prop = i_level < n - 1
+            is_prop = i_level < n
             num_samples = self.config.num_proposal_samples_per_ray if is_prop else self.config.num_nerf_samples_per_ray
             if i_level == 0:
                 # need to start with some samples
-                ray_samples = self.uniform_sampler(ray_bundle, num_samples=self.config.num_proposal_samples_per_ray)
+                ray_samples = self.uniform_sampler(ray_bundle, num_samples=num_samples)
+            else:
+                ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples)
             mlp = self.proposal_network if is_prop else self.field
             field_outputs = mlp(ray_samples)
             weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-            ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples)
             weights_list.append(weights[..., 0])  # (num_rays, num_samples)
 
             # normalize the intervals
