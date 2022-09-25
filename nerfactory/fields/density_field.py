@@ -1,9 +1,3 @@
-"""
-Proposal network field.
-"""
-
-from nerfactory.fields.base import Field
-
 # Copyright 2022 The Plenoptix Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,22 +13,20 @@ from nerfactory.fields.base import Field
 # limitations under the License.
 
 """
-Instant-NGP field implementations using tiny-cuda-nn, torch, ....
+Proposal network field.
 """
 
 
-from typing import Optional, Tuple
+from typing import Optional
 
-import torch
+import numpy as np
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
 from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.base import Field
-from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
-from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.fields.nerf_field import NeRFField
+from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
 from nerfactory.utils.activations import trunc_exp
 
 try:
@@ -45,24 +37,28 @@ except ImportError:
 
 
 class DensityField(Field):
-    """TCNN implementation of the Instant-NGP field.
+    """A lightweight density field module.
 
     Args:
         aabb: parameters of scene aabb bounds
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
-        geo_feat_dim: output geo feat dimensions
-        num_layers_color: number of hidden layers for color network
-        hidden_dim_color: dimension of hidden layers for color network
+        spatial_distortion: spatial distortion module
     """
 
-    def __init__(self, aabb, num_layers: int = 2, hidden_dim: int = 64) -> None:
+    def __init__(
+        self, aabb, num_layers: int = 2, hidden_dim: int = 64, spatial_distortion: Optional[SpatialDistortion] = None
+    ) -> None:
         super().__init__()
 
         self.aabb = Parameter(aabb, requires_grad=False)
+        self.spatial_distortion = spatial_distortion
 
-        # TODO: set this properly based on the aabb
-        per_level_scale = 1.4472692012786865
+        num_levels = 16
+        # max_res = 2048
+        max_res = 4096
+        base_res = 16
+        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
@@ -77,11 +73,11 @@ class DensityField(Field):
             n_output_dims=1,
             encoding_config={
                 "otype": "HashGrid",
-                "n_levels": 16,
+                "n_levels": num_levels,
                 "n_features_per_level": 2,
                 "log2_hashmap_size": 19,
-                "base_resolution": 16,
-                "per_level_scale": per_level_scale,
+                "base_resolution": base_res,
+                "per_level_scale": growth_factor,
             },
             network_config={
                 "otype": "FullyFusedMLP",
@@ -93,7 +89,11 @@ class DensityField(Field):
         )
 
     def get_density(self, ray_samples: RaySamples):
-        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        if self.spatial_distortion is not None:
+            positions = self.spatial_distortion(ray_samples.frustums.get_positions())
+            positions = (positions + 2.0) / 4.0
+        else:
+            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         # assert all positions are in the range [0, 1]
         # otherwise print min and max values

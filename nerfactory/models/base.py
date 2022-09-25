@@ -34,7 +34,6 @@ from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.misc import get_masked_dict
 
 
 # Model related configs
@@ -146,37 +145,27 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def forward(
-        self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 
         Args:
             ray_bundle: containing all the information needed to render that ray latents included
-            batch: containing all the auxilury things needed to train like masks and ground truth pixels.
         """
 
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
         else:
             # NOTE(ruilongli): we don't need collider for ngp
             intersected_ray_bundle = ray_bundle
             valid_mask = None
 
-        if batch is None:
-            # during inference, keep all rays
-            outputs = self.get_outputs(intersected_ray_bundle)
-            return outputs
-
-        if valid_mask is not None:
-            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-            # during training, keep only the rays that intersect the scene. discard the rest
-            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
-
         outputs = self.get_outputs(intersected_ray_bundle)
+        # TODO: update this once outputs is no longer a dictionary and is instead typed
         if valid_mask is not None:
+            assert "valid_mask" not in outputs, "valid_mask should not be in outputs"
             outputs["valid_mask"] = valid_mask
         return outputs
 

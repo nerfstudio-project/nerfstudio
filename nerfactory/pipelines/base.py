@@ -241,7 +241,7 @@ class VanillaPipeline(Pipeline):
             step: current iteration step to update sampler if using DDP (distributed)
         """
         ray_bundle, batch = self.datamanager.next_train(step)
-        model_outputs = self.model(ray_bundle, batch)
+        model_outputs = self.model(ray_bundle)
         if "valid_mask" in model_outputs:
             valid_mask = model_outputs["valid_mask"]
             batch = get_masked_dict(batch, valid_mask)
@@ -267,7 +267,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         ray_bundle, batch = self.datamanager.next_eval(step)
-        model_outputs = self.model(ray_bundle, batch)
+        model_outputs = self.model(ray_bundle)
         if "valid_mask" in model_outputs:
             valid_mask = model_outputs["valid_mask"]
             batch = get_masked_dict(batch, valid_mask)

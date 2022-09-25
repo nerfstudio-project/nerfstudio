@@ -18,7 +18,7 @@ Collection of sampling strategies
 
 import math
 from abc import abstractmethod
-from typing import Callable, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import nerfacc
 import torch
@@ -27,9 +27,6 @@ from torchtyping import TensorType
 
 from nerfactory.cameras.rays import Frustums, RayBundle, RaySamples
 from nerfactory.fields.density_fields.density_grid import DensityGrid
-from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.fields.base import Field
-from nerfactory.fields.proposal_field import DensityField
 
 
 class Sampler(nn.Module):
@@ -490,52 +487,48 @@ class VolumetricSampler(Sampler):
 
 
 class ProposalNetworkSampler(Sampler):
-    """Sampler that uses a proposal network to generate samples.
-
-    Args:
-        num_samples: Number of samples per ray
-        train_stratified: Randomize location within each bin during training.
-        include_original: Add original samples to ray.
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
-        histogram_padding: Amount to weights prior to computing PDF.
-    """
+    """Sampler that uses a proposal network to generate samples."""
 
     def __init__(
         self,
-        proposal_network: Field,
-        train_stratified: bool = True,
+        num_proposal_samples_per_ray: int = 64,
+        num_nerf_samples_per_ray: int = 32,
+        num_proposal_network_iterations: int = 2,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(density_field=density_field, weight_threshold=weight_threshold)
+        self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
+        self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
+        self.num_proposal_network_iterations = num_proposal_network_iterations
 
-        self.pdf_sampler = PDFSampler(include_original=False, density_field=density_field)
-        self.proposal_network = proposal_network
+        # NOTE: a linear disparity sampler won't work until we sample in s space instead of t space
+        self.uniform_sampler = UniformSampler()
+        self.pdf_sampler = PDFSampler(include_original=False)
 
-    @torch.no_grad()
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
-        ray_samples: Optional[RaySamples] = None,
-        weights: TensorType[..., "num_samples", 1] = None,
-        num_samples: Optional[int] = None,
-        eps: float = 1e-5,
-    ) -> RaySamples:
-        """Generates position samples given a distribution.
+        density_fn: Optional[Callable] = None,
+    ) -> Tuple[RaySamples, List, List]:
 
-        Args:
-            aabb: Axis aligned bounding box of the scene.
-            ray_bundle: Rays to generate samples for
-            ray_samples: Existing ray samples
-            weights: Weights for each bin
-            num_samples: Number of samples per ray
-            eps: Small value to prevent numerical issues.
+        weights_list = []
+        ray_samples_list = []
 
-        Returns:
-            Positions and deltas for samples along a ray
-        """
-        field_outputs = self.proposal_network.forward(ray_samples)
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples, eps)
-        return ray_samples, weights
+        n = self.num_proposal_network_iterations
+        for i_level in range(n + 1):
+            is_prop = i_level < n
+            num_samples = self.num_proposal_samples_per_ray if is_prop else self.num_nerf_samples_per_ray
+            if i_level == 0:
+                # Uniform sampling because we need to start with some samples
+                ray_samples = self.uniform_sampler(ray_bundle, num_samples=num_samples)
+            else:
+                # PDF sampling based on the last samples and their weights
+                ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples=num_samples)
+            if is_prop:
+                density = density_fn(ray_samples.frustums.get_positions())
+                weights = ray_samples.get_weights(density)
+                weights_list.append(weights)  # (num_rays, num_samples)
+                ray_samples_list.append(ray_samples)
+
+        return ray_samples, weights_list, ray_samples_list
