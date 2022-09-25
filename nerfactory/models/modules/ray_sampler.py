@@ -18,7 +18,7 @@ Collection of sampling strategies
 
 import math
 from abc import abstractmethod
-from typing import Callable, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import nerfacc
 import torch
@@ -38,7 +38,10 @@ class Sampler(nn.Module):
     """
 
     def __init__(
-        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 0.01
+        self,
+        num_samples: Optional[int] = None,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 0.01,
     ) -> None:
         super().__init__()
         self.num_samples = num_samples
@@ -75,9 +78,9 @@ class SpacedSampler(Sampler):
 
     def __init__(
         self,
-        num_samples: int,
         spacing_fn: Callable,
         spacing_fn_inv: Callable,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -138,7 +141,7 @@ class UniformSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -165,7 +168,7 @@ class LinearDisparitySampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -192,7 +195,7 @@ class SqrtSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -219,7 +222,7 @@ class LogSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -248,7 +251,7 @@ class PDFSampler(Sampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified: bool = True,
         include_original: bool = True,
         density_field: Optional[DensityGrid] = None,
@@ -481,3 +484,51 @@ class VolumetricSampler(Sampler):
             camera_indices=camera_indices,
         )
         return ray_samples, packed_info, ray_indices
+
+
+class ProposalNetworkSampler(Sampler):
+    """Sampler that uses a proposal network to generate samples."""
+
+    def __init__(
+        self,
+        num_proposal_samples_per_ray: int = 64,
+        num_nerf_samples_per_ray: int = 32,
+        num_proposal_network_iterations: int = 2,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 1e-2,
+    ) -> None:
+        super().__init__(density_field=density_field, weight_threshold=weight_threshold)
+        self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
+        self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
+        self.num_proposal_network_iterations = num_proposal_network_iterations
+
+        # NOTE: a linear disparity sampler won't work until we sample in s space instead of t space
+        self.uniform_sampler = UniformSampler()
+        self.pdf_sampler = PDFSampler(include_original=False)
+
+    def generate_ray_samples(
+        self,
+        ray_bundle: Optional[RayBundle] = None,
+        density_fn: Optional[Callable] = None,
+    ) -> Tuple[RaySamples, List, List]:
+
+        weights_list = []
+        ray_samples_list = []
+
+        n = self.num_proposal_network_iterations
+        for i_level in range(n + 1):
+            is_prop = i_level < n
+            num_samples = self.num_proposal_samples_per_ray if is_prop else self.num_nerf_samples_per_ray
+            if i_level == 0:
+                # Uniform sampling because we need to start with some samples
+                ray_samples = self.uniform_sampler(ray_bundle, num_samples=num_samples)
+            else:
+                # PDF sampling based on the last samples and their weights
+                ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples=num_samples)
+            if is_prop:
+                density = density_fn(ray_samples.frustums.get_positions())
+                weights = ray_samples.get_weights(density)
+                weights_list.append(weights)  # (num_rays, num_samples)
+                ray_samples_list.append(ray_samples)
+
+        return ray_samples, weights_list, ray_samples_list

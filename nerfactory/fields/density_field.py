@@ -1,0 +1,112 @@
+# Copyright 2022 The Plenoptix Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Proposal network field.
+"""
+
+
+from typing import Optional
+
+import numpy as np
+from torch.nn.parameter import Parameter
+from torchtyping import TensorType
+
+from nerfactory.cameras.rays import RaySamples
+from nerfactory.datamanagers.structs import SceneBounds
+from nerfactory.fields.base import Field
+from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
+from nerfactory.utils.activations import trunc_exp
+
+try:
+    import tinycudann as tcnn
+except ImportError:
+    # tinycudann module doesn't exist
+    pass
+
+
+class DensityField(Field):
+    """A lightweight density field module.
+
+    Args:
+        aabb: parameters of scene aabb bounds
+        num_layers: number of hidden layers
+        hidden_dim: dimension of hidden layers
+        spatial_distortion: spatial distortion module
+    """
+
+    def __init__(
+        self, aabb, num_layers: int = 2, hidden_dim: int = 64, spatial_distortion: Optional[SpatialDistortion] = None
+    ) -> None:
+        super().__init__()
+
+        self.aabb = Parameter(aabb, requires_grad=False)
+        self.spatial_distortion = spatial_distortion
+
+        num_levels = 16
+        # max_res = 2048
+        max_res = 4096
+        base_res = 16
+        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
+
+        self.direction_encoding = tcnn.Encoding(
+            n_input_dims=3,
+            encoding_config={
+                "otype": "SphericalHarmonics",
+                "degree": 4,
+            },
+        )
+
+        self.mlp_base = tcnn.NetworkWithInputEncoding(
+            n_input_dims=3,
+            n_output_dims=1,
+            encoding_config={
+                "otype": "HashGrid",
+                "n_levels": num_levels,
+                "n_features_per_level": 2,
+                "log2_hashmap_size": 19,
+                "base_resolution": base_res,
+                "per_level_scale": growth_factor,
+            },
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": hidden_dim,
+                "n_hidden_layers": num_layers - 1,
+            },
+        )
+
+    def get_density(self, ray_samples: RaySamples):
+        if self.spatial_distortion is not None:
+            positions = self.spatial_distortion(ray_samples.frustums.get_positions())
+            positions = (positions + 2.0) / 4.0
+        else:
+            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions_flat = positions.view(-1, 3)
+        # assert all positions are in the range [0, 1]
+        # otherwise print min and max values
+        # assert torch.all(positions >= 0.0) and torch.all(
+        #     positions <= 1.0
+        # ), f"positions: {positions.min()} {positions.max()}"
+        density_before_activation = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+
+        # Rectifying the density with an exponential is much more stable than a ReLU or
+        # softplus, because it enables high post-activation (float32) density outputs
+        # from smaller internal (float16) parameters.
+        density = trunc_exp(density_before_activation.to(positions))
+        return density, None
+
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
+        return {}
