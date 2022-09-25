@@ -55,7 +55,7 @@ base_configs: Dict[str, Config] = {}
 base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=VanillaPipelineConfig(
+    pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),
