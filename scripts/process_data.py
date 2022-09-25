@@ -9,9 +9,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal, Optional, Tuple
 
+import appdirs
 import dcargs
 import numpy as np
+import requests
 from rich.console import Console
+from rich.progress import track
 
 from nerfactory.utils import colmap_utils
 
@@ -67,6 +70,31 @@ def get_colmap_version(default_version=3.8) -> float:
             return float(line.split(" ")[1])
     CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
     return default_version
+
+
+def get_vocab_tree() -> Path:
+    """Return path to vocab tree. Downloads vocab tree if it doesn't exist.
+
+    Returns:
+        The path to the vocab tree.
+    """
+    vocab_tree_filename = Path(appdirs.user_data_dir("nerfactory")) / "vocab_tree.fbow"
+
+    if not vocab_tree_filename.exists():
+        r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)
+        vocab_tree_filename.parent.mkdir(parents=True, exist_ok=True)
+        with open(vocab_tree_filename, "wb") as f:
+            total_length = r.headers.get("content-length")
+            assert total_length is not None
+            for chunk in track(
+                r.iter_content(chunk_size=1024),
+                total=int(total_length) / 1024 + 1,
+                description="Downloading vocab tree...",
+            ):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+    return vocab_tree_filename
 
 
 def run_command(cmd, verbose=False) -> Optional[str]:
@@ -190,6 +218,7 @@ def run_colmap(
     camera_model: CameraModel,
     gpu: bool = True,
     verbose: bool = False,
+    matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -224,10 +253,13 @@ def run_colmap(
 
     # Feature matching
     feature_matcher_cmd = [
-        "colmap exhaustive_matcher",
+        f"colmap {matching_method}_matcher",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
+    if matching_method == "vocab_tree":
+        vocab_tree_filename = get_vocab_tree()
+        feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
     if not verbose:
         with CONSOLE.status("[bold yellow]Running COLMAP feature matcher...", spinner="runner"):
@@ -342,6 +374,7 @@ def main(
     output_dir: Path,
     num_frames_target: int = 300,
     camera_type: Literal["perspective", "fisheye"] = "perspective",
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree",
     num_downscales: int = 3,
     skip_colmap: bool = False,
     gpu: bool = True,
@@ -361,6 +394,8 @@ def main(
         output_dir: Path to the output directory.
         num_frames: Target number of frames to use for the dataset, results may not be exact.
         camera_type: Camera model to use.
+        matching_method: Feature matching method to use. Vocab tree is recommended for a balance of speed and
+            accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
             will downscale the images by 2x, 4x, and 8x.
         skip_colmap: If True, skips COLMAP and generates transforms.json if possible.
@@ -419,7 +454,14 @@ def main(
     if not skip_colmap:
         colmap_dir.mkdir(parents=True, exist_ok=True)
 
-        run_colmap(image_dir=image_dir, colmap_dir=colmap_dir, camera_model=camera_model, gpu=gpu, verbose=verbose)
+        run_colmap(
+            image_dir=image_dir,
+            colmap_dir=colmap_dir,
+            camera_model=camera_model,
+            gpu=gpu,
+            verbose=verbose,
+            matching_method=matching_method,
+        )
 
     if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
         with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
