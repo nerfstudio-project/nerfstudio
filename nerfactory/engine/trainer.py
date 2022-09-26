@@ -103,6 +103,7 @@ class Trainer:
         # directory to save checkpoints
         self.checkpoint_dir = config.get_checkpoint_dir()
         logging.info("Saving checkpoints to: %s", self.checkpoint_dir)
+        self.prev_ckpt_paths = []
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
@@ -291,6 +292,10 @@ class Trainer:
             },
             ckpt_path,
         )
+        self.prev_ckpt_paths.append(ckpt_path)
+        if len(self.prev_ckpt_paths) > self.config.trainer.num_ckpt_to_save:
+            self.prev_ckpt_paths[0].unlink(missing_ok=True)
+            self.prev_ckpt_paths.pop(0)
 
     @profiler.time_function
     def train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:

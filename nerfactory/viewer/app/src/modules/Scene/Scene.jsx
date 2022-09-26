@@ -64,19 +64,18 @@ export function get_scene_tree() {
   CameraControls.install({ THREE });
 
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
-  camera_controls.azimuthRotateSpeed = 0.3; // negative value to invert rotation direction
-  camera_controls.polarRotateSpeed = 0.3; //
+  camera_controls.azimuthRotateSpeed = 0.3;
+  camera_controls.polarRotateSpeed = 0.3;
   camera_controls.minDistance = 0.3;
   camera_controls.maxDistance = 100;
 
-  // camera_controls.dollyToCursor = true;
   camera_controls.dollySpeed = 0.3;
   camera_controls.saveState();
 
   const keyMap = [];
+  const moveSpeed = 0.05;
 
   function moveCamera() {
-    const scaling = Math.max(1, 0.3 * camera_controls.distance);
     if (keyMap.ArrowLeft === true) {
       camera_controls.rotate(-0.03, 0, true);
     }
@@ -84,28 +83,28 @@ export function get_scene_tree() {
       camera_controls.rotate(0.03, 0, true);
     }
     if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, -0.01, true);
+      camera_controls.rotate(0, -0.02, true);
     }
     if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, 0.01, true);
+      camera_controls.rotate(0, 0.02, true);
     }
     if (keyMap.KeyD === true) {
-      camera_controls.truck(0.02 * scaling, 0, true);
+      camera_controls.truck(moveSpeed, 0, true);
     }
     if (keyMap.KeyA === true) {
-      camera_controls.truck(-0.02 * scaling, 0, true);
+      camera_controls.truck(-moveSpeed, 0, true);
     }
     if (keyMap.KeyW === true) {
-      camera_controls.forward(0.02 * scaling, true);
+      camera_controls.forward(moveSpeed, true);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.forward(-0.02 * scaling, true);
+      camera_controls.forward(-moveSpeed, true);
     }
     if (keyMap.KeyQ === true) {
-      camera_controls.dolly(0.1 * scaling, true);
+      camera_controls.truck(0, -moveSpeed, true);
     }
     if (keyMap.KeyE === true) {
-      camera_controls.dolly(-0.1 * scaling, true);
+      camera_controls.truck(0, moveSpeed, true);
     }
   }
 
