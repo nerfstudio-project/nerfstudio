@@ -54,10 +54,11 @@ class DensityField(Field):
         self.aabb = Parameter(aabb, requires_grad=False)
         self.spatial_distortion = spatial_distortion
 
-        num_levels = 16
-        # max_res = 2048
-        max_res = 4096
+        num_levels = 8
+        max_res = 1024
         base_res = 16
+        log2_hashmap_size = 18
+        features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
@@ -74,8 +75,8 @@ class DensityField(Field):
             encoding_config={
                 "otype": "HashGrid",
                 "n_levels": num_levels,
-                "n_features_per_level": 2,
-                "log2_hashmap_size": 19,
+                "n_features_per_level": features_per_level,
+                "log2_hashmap_size": log2_hashmap_size,
                 "base_resolution": base_res,
                 "per_level_scale": growth_factor,
             },
