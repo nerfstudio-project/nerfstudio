@@ -103,15 +103,16 @@ class Nerfactory(DataParser):
         else:
             raise ValueError(f"Unknown dataparser split {split}")
 
-        image_filenames = [image_filenames[i] for i in indices]
-        poses = [poses[i] for i in indices]
-
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
         poses = camera_utils.auto_orient_poses(poses, method=self.config.orientation_method)
 
         # Scale poses
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
         poses[:, :3, 3] *= scale_factor * self.config.scale_factor
+
+        # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
+        image_filenames = [image_filenames[i] for i in indices]
+        poses = poses[indices]
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
