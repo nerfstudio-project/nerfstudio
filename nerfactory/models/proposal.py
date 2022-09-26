@@ -28,6 +28,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.fields.compound_field import TCNNCompoundField
 from nerfactory.fields.density_field import DensityField
 from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
@@ -65,6 +66,8 @@ class ProposalModelConfig(ModelConfig):
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.01
     """Distortion loss multiplier."""
+    use_appearance_conditioning: bool = True
+    """Whether to use appearance conditioning."""
 
 
 class ProposalModel(Model):
@@ -81,7 +84,12 @@ class ProposalModel(Model):
         super().populate_modules()
 
         # Fields
-        self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
+        if self.config.use_appearance_conditioning:
+            self.field = TCNNCompoundField(
+                self.scene_bounds.aabb, spatial_distortion=SceneContraction(), num_images=self.num_train_data
+            )
+        else:
+            self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
         self.proposal_network = DensityField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
 
         # Collider

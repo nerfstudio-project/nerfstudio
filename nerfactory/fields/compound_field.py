@@ -139,9 +139,12 @@ class TCNNCompoundField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        # TODO: add spatial distortion to ngp sampler
-        # positions = self.spatial_distortion(ray_samples.frustums.get_positions())
-        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        if self.spatial_distortion is not None:
+            positions = ray_samples.frustums.get_positions()
+            positions = self.spatial_distortion(positions)
+            positions = (positions + 2.0) / 4.0
+        else:
+            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
@@ -213,7 +216,6 @@ class TorchCompoundField(Field):
 
         self.position_encoding = position_encoding
         self.direction_encoding = direction_encoding
-        self.spatial_distortion = spatial_distortion
 
         self.mlp_base = MLP(
             in_dim=self.position_encoding.get_out_dim(),
@@ -234,9 +236,11 @@ class TorchCompoundField(Field):
             field_head.set_in_dim(self.mlp_head.get_out_dim())  # type: ignore
 
     def get_density(self, ray_samples: RaySamples):
-        # TODO: add spatial distortion to ngp sampler
-        # positions = self.spatial_distortion(ray_samples.frustums.get_positions())
-        positions = ray_samples.frustums.get_positions()
+        if self.spatial_distortion is not None:
+            positions = ray_samples.frustums.get_positions()
+            positions = self.spatial_distortion(positions)
+        else:
+            positions = ray_samples.frustums.get_positions()
         encoded_xyz = self.position_encoding(positions)
         base_mlp_out = self.mlp_base(encoded_xyz)
         density = self.field_output_density(base_mlp_out)
