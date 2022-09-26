@@ -70,20 +70,6 @@ def lossfun_outer(t, w, t_env, w_env):
     return torch.clip(w - w_outer, min=0) ** 2 / (w + EPS)
 
 
-def lossfun_distortion(t, w):
-    """
-    https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L142
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L266
-    """
-    ut = (t[..., 1:] + t[..., :-1]) / 2
-    dut = torch.abs(ut[..., :, None] - ut[..., None, :])
-    loss_inter = torch.sum(w * torch.sum(w[..., None, :] * dut, dim=-1), dim=-1)
-
-    loss_intra = torch.sum(w**2 * (t[..., 1:] - t[..., :-1]), dim=-1) / 3
-
-    return loss_inter + loss_intra
-
-
 def ray_samples_to_sdist(ray_samples, near_plane, far_plane):
     """Convert ray samples to s space"""
     starts = (ray_samples.frustums.starts - near_plane) / (far_plane - near_plane)
@@ -107,15 +93,3 @@ def interlevel_loss(weights_list, ray_samples_list, near_plane, far_plane):
         wp = weights[..., 0]  # (num_rays, num_samples)
         loss_interlevel += torch.mean(lossfun_outer(c, w, cp, wp))
     return loss_interlevel
-
-
-def distortion_loss(weights_list, ray_samples_list, near_plane, far_plane):
-    """Calculates the distortion loss in the MipNeRF-360 paper.
-
-    https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/model.py#L526
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/train_utils.py#L147
-    """
-    c = ray_samples_to_sdist(ray_samples_list[-1], near_plane, far_plane).detach()
-    w = weights_list[-1][..., 0]
-    loss = torch.mean(lossfun_distortion(c, w))
-    return loss

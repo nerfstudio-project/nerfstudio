@@ -34,9 +34,10 @@ from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.models.base import Model, ModelConfig
+from nerfactory.models.modules.ray_losses import distortion_loss
 from nerfactory.models.modules.ray_sampler import ProposalNetworkSampler
 from nerfactory.models.modules.scene_colliders import NearFarCollider
-from nerfactory.optimizers.loss import MSELoss, distortion_loss, interlevel_loss
+from nerfactory.optimizers.loss import MSELoss, interlevel_loss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -155,11 +156,12 @@ class ProposalModel(Model):
             self.config.near_plane,
             self.config.far_plane,
         )
-        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
-            outputs["weights_list"],
-            outputs["ray_samples_list"],
-            self.config.near_plane,
-            self.config.far_plane,
+        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * torch.mean(
+            distortion_loss(
+                outputs["ray_samples_list"][-1],
+                weights=outputs["weights_list"][-1],
+                scale_factor=1.0 / (self.config.far_plane - self.config.near_plane),
+            )
         )
         return loss_dict
 
@@ -188,8 +190,8 @@ class ProposalModel(Model):
         lpips = self.lpips(image, rgb)
 
         # all of these metrics will be logged as scalars
-        metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim), "lpips": float(lpips)}  # type: ignore
-        # TODO(ethan): return an image dictionary
+        metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
+        metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
