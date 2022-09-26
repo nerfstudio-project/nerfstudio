@@ -19,6 +19,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 
 from typing import Dict, Optional, Tuple
 
+import numpy as np
 import torch
 from torch import nn
 from torch.nn.parameter import Parameter
@@ -94,8 +95,12 @@ class TCNNCompoundField(Field):
         self.appearance_embedding_dim = appearance_embedding_dim
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
 
-        # TODO: set this properly based on the aabb
-        per_level_scale = 1.4472692012786865
+        num_levels = 16
+        max_res = 1024
+        base_res = 16
+        log2_hashmap_size = 19
+        features_per_level = 2
+        growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         self.direction_encoding = tcnn.Encoding(
             n_input_dims=3,
@@ -110,11 +115,11 @@ class TCNNCompoundField(Field):
             n_output_dims=1 + self.geo_feat_dim,
             encoding_config={
                 "otype": "HashGrid",
-                "n_levels": 16,
-                "n_features_per_level": 2,
-                "log2_hashmap_size": 19,
-                "base_resolution": 16,
-                "per_level_scale": per_level_scale,
+                "n_levels": num_levels,
+                "n_features_per_level": features_per_level,
+                "log2_hashmap_size": log2_hashmap_size,
+                "base_resolution": base_res,
+                "per_level_scale": growth_factor,
             },
             network_config={
                 "otype": "FullyFusedMLP",
