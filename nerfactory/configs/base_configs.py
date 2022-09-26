@@ -92,7 +92,7 @@ base_configs["proposal"] = Config(
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192, eval_num_rays_per_batch=8192
+            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
     ),
@@ -102,7 +102,7 @@ base_configs["proposal"] = Config(
             "scheduler": None,
         }
     },
-    viewer=ViewerConfig(enable=True),
+    viewer=ViewerConfig(enable=True, num_rays_per_chunk=2 << 15),
     logging=LoggingConfig(event_writer="none"),
 )
 
