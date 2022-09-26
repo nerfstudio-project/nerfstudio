@@ -14,7 +14,11 @@ function get_curve(list_of_3d_vectors, is_cycle, smoothness_value) {
   return curve;
 }
 
-export function get_curve_object_from_cameras(cameras, is_cycle, smoothness_value) {
+export function get_curve_object_from_cameras(
+  cameras,
+  is_cycle,
+  smoothness_value,
+) {
   // interpolate positions, lookat directions, and ups
   // similar to
   // https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L281

@@ -20,7 +20,13 @@ import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import { Stack } from '@mui/system';
-import { AllInclusiveOutlined, ChangeHistory, GestureOutlined, RadioButtonUnchecked, Replay } from '@mui/icons-material';
+import {
+  AllInclusiveOutlined,
+  ChangeHistory,
+  GestureOutlined,
+  RadioButtonUnchecked,
+  Replay,
+} from '@mui/icons-material';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
@@ -303,7 +309,11 @@ export default function CameraPanel(props) {
   }, [cameras, render_width, render_height]);
 
   // update the camera curve
-  const curve_object = get_curve_object_from_cameras(cameras, is_cycle, smoothness_value);
+  const curve_object = get_curve_object_from_cameras(
+    cameras,
+    is_cycle,
+    smoothness_value,
+  );
 
   if (cameras.length > 1) {
     const num_points = fps * seconds;
@@ -372,7 +382,6 @@ export default function CameraPanel(props) {
       setIsPlaying(false);
     }
   }, [slider_value]);
-
 
   const get_camera_path = () => {
     // NOTE: currently assuming these are ints
@@ -489,25 +498,25 @@ export default function CameraPanel(props) {
       </div>
       <div className="CameraPanel-top-button">
         <Tooltip title="Close/open camera curve">
-        {!is_cycle ? (
-          <Button
-            variant="outlined"
-            onClick={() => {
+          {!is_cycle ? (
+            <Button
+              variant="outlined"
+              onClick={() => {
                 setIsCycle(true);
-            }}
-          >
-            <GestureOutlined />
-          </Button>
-        ) : (
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setIsCycle(false);
-            }}
-          >
-            <AllInclusiveOutlined />
-          </Button>
-        )}
+              }}
+            >
+              <GestureOutlined />
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setIsCycle(false);
+              }}
+            >
+              <AllInclusiveOutlined />
+            </Button>
+          )}
         </Tooltip>
       </div>
       <div className="CameraPanel-top-button">
@@ -518,9 +527,8 @@ export default function CameraPanel(props) {
         </Tooltip>
       </div>
       <div className="CameraPanel-slider-container">
-        
         <Stack spacing={2} direction="row" sx={{ mb: 1 }} alignItems="center">
-          <p style={{ fontSize: "smaller", color: "#999999"}}>Smoothness</p>
+          <p style={{ fontSize: 'smaller', color: '#999999' }}>Smoothness</p>
           <ChangeHistory />
           <Slider
             value={smoothness_value}
@@ -531,7 +539,7 @@ export default function CameraPanel(props) {
             onChange={(event, value) => {
               set_smoothness_value(value);
             }}
-          /> 
+          />
           <RadioButtonUnchecked />
         </Stack>
       </div>
@@ -576,26 +584,26 @@ export default function CameraPanel(props) {
           >
             <Replay />
           </Button>
-        ) : (
-          !is_playing ? (
+        ) : !is_playing ? (
           <Button
-          variant="outlined"
-          onClick={() => {
-            if (cameras.length > 1) {
-              setIsPlaying(true);
-            }
-          }}
+            variant="outlined"
+            onClick={() => {
+              if (cameras.length > 1) {
+                setIsPlaying(true);
+              }
+            }}
           >
             <PlayArrowIcon />
-          </Button> ) : 
-          (<Button
+          </Button>
+        ) : (
+          <Button
             variant="outlined"
             onClick={() => {
               setIsPlaying(false);
-              }}
-            >
-              <PauseIcon />
-            </Button> )
+            }}
+          >
+            <PauseIcon />
+          </Button>
         )}
         <Button
           variant="outlined"
