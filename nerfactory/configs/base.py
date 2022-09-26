@@ -146,6 +146,8 @@ class TrainerConfig(PrintableConfig):
     """whether or not to use mixed precision for training"""
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
+    num_ckpt_to_save: int = 1
+    """number of latest checkpoints that we want to save. Default 1 saves only the latest model"""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
