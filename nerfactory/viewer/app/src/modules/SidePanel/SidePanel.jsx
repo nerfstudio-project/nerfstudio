@@ -1,6 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 
 import * as React from 'react';
+import * as THREE from 'three';
 
 import { FaTractor } from 'react-icons/fa';
 
@@ -21,6 +22,7 @@ import {
   ExpandMore,
   ReceiptLongRounded,
   TuneRounded,
+  Videocam,
   Visibility,
   VisibilityOff,
   WidgetsRounded,
@@ -67,6 +69,7 @@ function a11yProps(index: number) {
 
 interface ListItemProps {
   name: String;
+  sceneTree: SceneNode;
   scene_node: SceneNode;
   level: Number;
   groupVisible: Boolean;
@@ -74,12 +77,22 @@ interface ListItemProps {
 
 function MenuItems(props: ListItemProps) {
   const name = props.name;
+  const sceneTree = props.sceneTree;
   const scene_node = props.scene_node;
   const level = props.level;
   const groupVisible = props.groupVisible;
 
   // TODO: sort the keys by string
   const terminal = Object.keys(scene_node.children).includes('<object>');
+  const isCamera = () => {
+    return (
+      scene_node.object.children.map((obj) => obj.isCamera).some((e) => e) ||
+      name.includes('Camera')
+    );
+  };
+  const getCamera = () => {
+    return scene_node.object.children.filter((obj) => obj.isCamera)[0];
+  };
 
   const num_children = Object.keys(scene_node.children).length;
   if (num_children === 0) {
@@ -99,6 +112,13 @@ function MenuItems(props: ListItemProps) {
   const toggleVisible = (e) => {
     e.stopPropagation();
     setVisible(!visible);
+  };
+
+  const snap_to_camera = (matrix) => {
+    let camera = sceneTree.children.Cameras.children['Main Camera'].object;
+    const mat = new THREE.Matrix4();
+    mat.fromArray(matrix.elements);
+    mat.decompose(camera.position, camera.quaternion, camera.scale);
   };
 
   React.useEffect(() => {
@@ -139,6 +159,15 @@ function MenuItems(props: ListItemProps) {
         </ListItemIcon>
         <ListItemText primary={name} />
 
+        {isCamera() && (
+          <IconButton
+            aria-label="visibility"
+            onClick={() => snap_to_camera(getCamera().matrix)}
+          >
+            <Videocam />
+          </IconButton>
+        )}
+
         <IconButton aria-label="visibility" onClick={toggleVisible}>
           {visible ? <Visibility /> : <VisibilityOff />}
         </IconButton>
@@ -166,6 +195,7 @@ function MenuItems(props: ListItemProps) {
               .map((key) => (
                 <MenuItems
                   name={key}
+                  sceneTree={sceneTree}
                   scene_node={scene_node.children[key]}
                   level={level + 1}
                   groupVisible={visible}
@@ -187,7 +217,13 @@ function ClickableList(props: ClickableListProps) {
 
   return (
     <List sx={{ color: LevaTheme.colors.accent2 }}>
-      <MenuItems name="Scene" scene_node={sceneTree} level={0} groupVisible />
+      <MenuItems
+        name="Scene"
+        sceneTree={sceneTree}
+        scene_node={sceneTree}
+        level={0}
+        groupVisible
+      />
     </List>
   );
 }
