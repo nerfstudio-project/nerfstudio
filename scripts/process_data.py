@@ -481,10 +481,12 @@ def main(
         CONSOLE.print(summary, justify="center")
     CONSOLE.rule()
 
+
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(main)
+
 
 if __name__ == "__main__":
     entrypoint()
