@@ -73,7 +73,7 @@ $custom-border: solid 1px $base-color1;
   border: $custom-border;
   z-index: 999;
   text-align: center;
-  overflow: auto;
+  overflow-y: scroll;
 }
 
 .Leva-container > div {
@@ -189,9 +189,7 @@ $sidebar-width: 100% !default;
 
 .CameraList-container {
   position: relative;
-  height: 250px;
   padding: 2px;
-  overflow: auto;
 }
 
 .CameraList-row {
