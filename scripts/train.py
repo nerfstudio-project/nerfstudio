@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-run_train_nerf.py
+train.py
 """
 
 from __future__ import annotations
@@ -204,7 +204,12 @@ def main(config: cfg.Config) -> None:
     )
 
 
-if __name__ == "__main__":
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
     # Choose a base configuration and override values.
     dcargs.extras.set_accent_color("bright_yellow")
     main(dcargs.cli(AnnotatedBaseConfigUnion))
+
+
+if __name__ == "__main__":
+    entrypoint()

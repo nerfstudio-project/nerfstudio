@@ -7,7 +7,7 @@ We provide a set of pre implemented nerfactory models. One of the goals of nerfa
 It's easy!
 
 ```bash
-python scripts/run_train.py --config-name MODEL_CONFIG
+python scripts/train.py --config-name MODEL_CONFIG
 ```
 
 ## Guides

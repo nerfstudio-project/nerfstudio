@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-run_eval.py
+eval.py
 """
 from __future__ import annotations
 
@@ -197,7 +197,8 @@ class RenderTrajectory:
         )
 
 
-if __name__ == "__main__":
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
     # A Union over dataclass types will create a subcommand for each type.
     #
     # TODO: it would make sense to split this script up into separate scripts.
@@ -208,3 +209,7 @@ if __name__ == "__main__":
     #   checkpoint when resuming a training run.
     dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(Union[ComputePSNR, RenderTrajectory]).main()
+
+
+if __name__ == "__main__":
+    entrypoint()
