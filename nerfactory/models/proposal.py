@@ -138,6 +138,9 @@ class ProposalModel(Model):
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
         outputs["weights_list"] = weights_list
         outputs["ray_samples_list"] = ray_samples_list
+
+        for i in range(self.config.num_proposal_network_iterations):
+            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
@@ -191,5 +194,13 @@ class ProposalModel(Model):
         metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+
+        for i in range(self.config.num_proposal_network_iterations):
+            key = f"prop_depth_{i}"
+            prop_depth_i = visualization.apply_depth_colormap(
+                outputs[key],
+                accumulation=outputs["accumulation"],
+            )
+            images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict
