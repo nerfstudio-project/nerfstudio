@@ -52,7 +52,7 @@ class DensityField(Field):
         self,
         aabb,
         num_layers: int = 2,
-        hidden_dim: int = 16,
+        hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
         use_linear=False,
     ) -> None:
