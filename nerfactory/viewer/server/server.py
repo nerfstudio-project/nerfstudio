@@ -14,11 +14,10 @@
 
 """Server bridge to faciliate interactions between python backend and javascript front end"""
 
-
-import argparse
 import sys
 from typing import Callable, List, Optional, Tuple
 
+import dcargs
 import msgpack
 import msgpack_numpy
 import tornado.gen
@@ -177,6 +176,7 @@ class ZMQWebSocketBridge:
         websocket_address: str = "0.0.0.0",
         websocket_port: Optional[int] = None,
     ):
+        self.zmq_port = zmq_port
         self.host = host
         self.websocket_address = websocket_address
         self.websocket_pool = set()
@@ -185,14 +185,15 @@ class ZMQWebSocketBridge:
         self.pcs = set()
         self.video_tracks = set()
 
-        if zmq_port is None:
+        if self.zmq_port is None:
 
             def f(port):
                 return self.setup_zmq(f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{port:d}")
 
             (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(f, DEFAULT_ZMQ_PORT)
+            self.zmq_port = int(self.zmq_url.split(":")[-1])
         else:
-            zmq_url = f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{zmq_port:d}"
+            zmq_url = f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{self.zmq_port:d}"
             self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
         listen_kwargs = {"address": self.websocket_address}
@@ -208,7 +209,7 @@ class ZMQWebSocketBridge:
 
     def __str__(self) -> str:
         class_name = self.__class__.__name__
-        return f'{class_name} using zmq_url="{self.zmq_url}" and websocket_url="{self.websocket_url}"'
+        return f'{class_name} using zmq_port="{self.zmq_port}" and websocket_port="{self.websocket_port}"'
 
     def make_app(self):
         """Create a tornado application for the websocket server."""
@@ -292,13 +293,14 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def run_viewer_bridge_server():
-    """Run the viewer bridge server"""
-    parser = argparse.ArgumentParser(description="Listen for ZeroMQ commands")
-    parser.add_argument("--zmq-port", "-z", type=int, nargs="?", default=6000)
-    parser.add_argument("--websocket-port", "-wp", type=int, nargs="?", default=7007)
-    args = parser.parse_args()
-    bridge = ZMQWebSocketBridge(zmq_port=args.zmq_port, websocket_port=args.websocket_port)
+def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
+    """Run the viewer bridge server.
+
+    Args:
+        zmq_port: port to use for zmq
+        websocket_port: port to use for websocket
+    """
+    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port)
     print(bridge)
     try:
         bridge.run()
@@ -306,5 +308,11 @@ def run_viewer_bridge_server():
         pass
 
 
+def main():
+    """The main entrypoint."""
+    dcargs.extras.set_accent_color("bright_yellow")
+    dcargs.cli(run_viewer_bridge_server)
+
+
 if __name__ == "__main__":
-    run_viewer_bridge_server()
+    main()

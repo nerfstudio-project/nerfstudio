@@ -69,10 +69,10 @@ def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, l
             time.sleep(0.5)
         string = f"\nThe viewer bridge server subprocess failed. Please check the log file {log_filename}.\n"
         string += (
-            "You likely have to modify --viewer.zmq-url and/or --viewer.websocket-port in the "
+            "You likely have to modify --viewer.zmq-port and/or --viewer.websocket-port in the "
             "config to avoid conflicting ports.\n"
         )
-        string += "Try modifying --viewer.zmq-url tcp://127.0.0.1:6000 --viewer.websocket-port 7007\n"
+        string += "Try modifying --viewer.zmq-port 6000 --viewer.websocket-port 7007\n"
         CONSOLE.print(f"[bold red]{string}")
         cleanup(process)
         # This exists the entire program. sys.exit() will only kill the thread that this runs in.

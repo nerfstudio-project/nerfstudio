@@ -237,14 +237,19 @@ def main(
         CONSOLE.print()
         CONSOLE.print("Notes:")
         CONSOLE.print(
-            ":warning: In bash, completions will trigger via [dim white]./scripts/run_train.py <TAB>[/dim white], but"
-            " not [dim white]python ./scripts/run_train.py <TAB>[/dim white]."
+            ":warning: In bash, completions will trigger via [dim white]./scripts/train.py <TAB>[/dim white], but"
+            " not [dim white]python ./scripts/train.py <TAB>[/dim white]."
         )
         CONSOLE.print(
             ":warning: Completions are in an experimental state. If you run into any issues, please file an issue!"
         )
 
 
-if __name__ == "__main__":
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
     dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(main, description=__doc__)
+
+
+if __name__ == "__main__":
+    entrypoint()

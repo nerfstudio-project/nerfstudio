@@ -134,13 +134,13 @@ To run with all the defaults, e.g. vanilla nerf method with the blender lego ima
 
 ```
 # To see what models are available.
-python scripts/run_train.py --help
+python scripts/train.py --help
 
 # Run a vanilla nerf model.
-python scripts/run_train.py vanilla_nerf
+python scripts/train.py vanilla_nerf
 
 # Run a faster version with instant ngp using tcnn (without the viewer).
-python scripts/run_train.py instant_ngp
+python scripts/train.py instant_ngp
 ```
 
 #### 3.x Training a model with the viewer
@@ -149,16 +149,16 @@ Make sure to forward a port for the websocket to localhost. The default port is 
 
 ```bash
 # with the default port
-python scripts/run_train.py instant_ngp --viewer.enable
+python scripts/train.py instant_ngp --viewer.enable
 
 # with a specified websocket port
-python scripts/run_train.py instant_ngp --viewer.enable --viewer.websocket-port=7008
+python scripts/train.py instant_ngp --viewer.enable --viewer.websocket-port=7008
 
 # with the viewer bridge server as a separate process
 # in one terminal, start the bridge server:
 viewer-bridge-server # or equivalently, python scripts/run_viewer_bridge_server.py
 # in another terminal, start training:
-python scripts/run_train.py instant_ngp --viewer.enable --viewer.no-launch-bridge-server
+python scripts/train.py instant_ngp --viewer.enable --viewer.no-launch-bridge-server
 ```
 
 #### 4. Visualizing training runs
@@ -195,7 +195,7 @@ We support logging to weights and biases. To enable wandb logging, add the flag 
 #### 5. Rendering a trajectories during inference
 
 ```
-python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml--traj=spiral --output-path=output.mp4
+python scripts/eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml--traj=spiral --output-path=output.mp4
 ```
 
 #### 6. In-depth guide
