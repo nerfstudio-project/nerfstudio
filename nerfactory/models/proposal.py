@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
+import numpy as np
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
@@ -44,6 +45,11 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
 )
 from nerfactory.utils import colors, visualization
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 @dataclass
@@ -69,6 +75,12 @@ class ProposalModelConfig(ModelConfig):
     """Distortion loss multiplier."""
     use_appearance_conditioning: bool = True
     """Whether to use appearance conditioning."""
+    use_proposal_weight_anneal: bool = True
+    """Whether to use proposal weight annealing."""
+    proposal_weights_anneal_slope: float = 10.0
+    """Slope of the annealing function for the proposal weights."""
+    proposal_weights_anneal_max_num_iters: int = 1000
+    """Max num iterations for the annealing function."""
 
 
 class ProposalModel(Model):
@@ -124,6 +136,30 @@ class ProposalModel(Model):
         param_groups["fields"] = list(self.proposal_network.parameters()) + list(self.field.parameters())
         return param_groups
 
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        callbacks = []
+        if self.config.use_proposal_weight_anneal:
+            # anneal the weights of the proposal network before doing PDF sampling
+            N = self.config.proposal_weights_anneal_max_num_iters
+
+            def set_anneal(step):
+                # https://arxiv.org/pdf/2111.12077.pdf eq. 18
+                train_frac = np.clip(step / N, 0, 1)
+                bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
+                anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
+                self.proposal_sampler.set_anneal(anneal)
+
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=set_anneal,
+                )
+            )
+        return callbacks
+
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(
             ray_bundle, density_fn=self.proposal_network.density_fn
@@ -140,6 +176,9 @@ class ProposalModel(Model):
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
         outputs["weights_list"] = weights_list
         outputs["ray_samples_list"] = ray_samples_list
+
+        for i in range(self.config.num_proposal_network_iterations):
+            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
@@ -153,10 +192,7 @@ class ProposalModel(Model):
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-            outputs["weights_list"],
-            outputs["ray_samples_list"],
-            self.config.near_plane,
-            self.config.far_plane,
+            outputs["weights_list"], outputs["ray_samples_list"]
         )
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * torch.mean(
             distortion_loss(
@@ -196,5 +232,13 @@ class ProposalModel(Model):
         metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+
+        for i in range(self.config.num_proposal_network_iterations):
+            key = f"prop_depth_{i}"
+            prop_depth_i = visualization.apply_depth_colormap(
+                outputs[key],
+                accumulation=outputs["accumulation"],
+            )
+            images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict

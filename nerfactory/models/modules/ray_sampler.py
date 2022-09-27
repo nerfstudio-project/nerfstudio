@@ -551,8 +551,15 @@ class ProposalNetworkSampler(Sampler):
         self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
         self.num_proposal_network_iterations = num_proposal_network_iterations
 
+        # samplers
         self.initial_sampler = UniformLinDispPiecewiseSampler()
         self.pdf_sampler = PDFSampler(include_original=False)
+
+        self._anneal = 1.0
+
+    def set_anneal(self, anneal: float) -> None:
+        """Set the anneal value for the proposal network."""
+        self._anneal = anneal
 
     def generate_ray_samples(
         self,
@@ -572,7 +579,9 @@ class ProposalNetworkSampler(Sampler):
                 ray_samples = self.initial_sampler(ray_bundle, num_samples=num_samples)
             else:
                 # PDF sampling based on the last samples and their weights
-                ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples=num_samples)
+                # Perform annealing to the weights. This will be a no-op if self._anneal is 1.0.
+                annealed_weights = torch.pow(weights, self._anneal)
+                ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
                 density = density_fn(ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)

@@ -26,7 +26,7 @@ def distortion_loss(
     weights: TensorType["bs":..., "num_samples", 1] = None,
     scale_factor: float = 1.0,
 ) -> TensorType["bs":..., 1]:
-    """Ray baserd distortion loss proposed in MipNeRF-360. Returns distortion Loss.
+    """Ray based distortion loss proposed in MipNeRF-360. Returns distortion Loss.
 
     .. math::
 
