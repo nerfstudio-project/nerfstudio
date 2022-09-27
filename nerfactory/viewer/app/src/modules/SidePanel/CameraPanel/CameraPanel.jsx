@@ -1,25 +1,6 @@
 import * as React from 'react';
 import * as THREE from 'three';
 
-import { Button, Slider } from '@mui/material';
-import { MeshLine, MeshLineMaterial } from 'meshline';
-import { useContext, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
-import DeleteIcon from '@mui/icons-material/Delete';
-import FirstPageIcon from '@mui/icons-material/FirstPage';
-import IconButton from '@mui/material/IconButton';
-import LastPageIcon from '@mui/icons-material/LastPage';
-import PauseIcon from '@mui/icons-material/Pause';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import TextField from '@mui/material/TextField';
-import Tooltip from '@mui/material/Tooltip';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
-import { Stack } from '@mui/system';
 import {
   AllInclusiveOutlined,
   ChangeHistory,
@@ -27,8 +8,27 @@ import {
   RadioButtonUnchecked,
   Replay,
 } from '@mui/icons-material';
-import { CameraHelper } from './CameraHelper';
+import { Button, Slider } from '@mui/material';
+import { MeshLine, MeshLineMaterial } from 'meshline';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
+import { useContext, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import { CameraHelper } from './CameraHelper';
+import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
+import DeleteIcon from '@mui/icons-material/Delete';
+import FirstPageIcon from '@mui/icons-material/FirstPage';
+import IconButton from '@mui/material/IconButton';
+import LastPageIcon from '@mui/icons-material/LastPage';
+import PauseIcon from '@mui/icons-material/Pause';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { Stack } from '@mui/system';
+import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
@@ -452,7 +452,7 @@ export default function CameraPanel(props) {
     // Copy the text inside the text field
     const config_filename = `${config_base_dir}/config.yml`;
     const camera_path_filename = `${config_base_dir}/camera_path.json`;
-    const cmd = `python scripts/run_eval.py render-trajectory --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path output.mp4`;
+    const cmd = `python scripts/eval.py render-trajectory --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path output.mp4`;
     navigator.clipboard.writeText(cmd);
 
     const camera_path_payload = {

@@ -25,7 +25,7 @@ If your data was captured with a fisheye camera add `--camera-type fisheye`.
 Simply specify that you are using the `nerfactory` dataparser and point the data directory to your processed data.
 
 ```bash
-python scripts/run_train.py instant-ngp nerfactory --pipeline.datamanager.dataparser.data-directory PROCESSED_DATA_DIR
+python scripts/train.py instant-ngp nerfactory --pipeline.datamanager.dataparser.data-directory PROCESSED_DATA_DIR
 ```
 
 ### Installing COLMAP

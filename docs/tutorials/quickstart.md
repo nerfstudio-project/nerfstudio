@@ -68,19 +68,19 @@ To run with all the defaults, e.g. vanilla nerf method with the blender lego ima
 Run a vanilla nerf model.
 
 ```bash
-python scripts/run_train.py
+python scripts/train.py
 ```
 
 Run a faster version with instant ngp using tcnn (without the viewer).
 
 ```bash
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml
+python scripts/train.py --config-name=graph_instant_ngp.yaml
 ```
 
 Run with the viewer. However, you'll have to start the viewer server first. (See [viewer docs](../tutorials/viewer/viewer_quickstart.md))
 
 ```bash
-python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
+python scripts/train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
 ```
 
 With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments.
@@ -100,7 +100,7 @@ tensorboard --logdir outputs
 To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../tooling/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
-python scripts/run_eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
+python scripts/eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
 ```
 
 Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.
@@ -142,7 +142,7 @@ python -m pip install --upgrade pip
 
 #### Runtime errors, "len(sources) > 0".
 
-When running `run_train.py `, an error occurs when installing cuda files in the backend code.
+When running `train.py `, an error occurs when installing cuda files in the backend code.
 
 **Solution**:
 This is a problem with not being able to detect the correct CUDA version, and can be fixed by updating the CUDA path environment variables:

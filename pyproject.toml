@@ -74,7 +74,10 @@ docs = [
 ]
 
 [project.scripts]
-nf-scripts-viewer-bridge-server = "nerfactory.viewer.server.server:main"
+nf-install-cli = "scripts.completions.configure:entrypoint"
+nf-process-data = "scripts.process_data:entrypoint"
+nf-train = "scripts.train:entrypoint"
+nf-eval = "scripts.eval:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -83,7 +86,7 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nerfactory"]
+include = ["nerfactory", "scripts"]
 
 # black
 [tool.black]

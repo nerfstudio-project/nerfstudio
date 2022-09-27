@@ -27,10 +27,10 @@
       "justMyCode": true
     },
     {
-      "name": "Python: run_train",
+      "name": "Python: train",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
@@ -39,20 +39,20 @@
       ]
     },
     {
-      "name": "Python: run_train ngp",
+      "name": "Python: train ngp",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp"
       ]
     },
     {
-      "name": "Python: run_train ngp nerfactory",
+      "name": "Python: train ngp nerfactory",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
@@ -69,10 +69,10 @@
       ]
     },
     {
-      "name": "Python: run_train ngp-friends",
+      "name": "Python: train ngp-friends",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
@@ -88,40 +88,40 @@
       ]
     },
     {
-      "name": "Python: run_train mipnerf 360",
+      "name": "Python: train mipnerf 360",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "mipnerf_360"
       ]
     },
     {
-      "name": "Python: run_train tensorf",
+      "name": "Python: train tensorf",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "tensorf"
       ]
     },
     {
-      "name": "Python: run_train nerfw",
+      "name": "Python: train nerfw",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "nerfw"
       ]
     },
     {
-      "name": "Python: run_train semantic_nerf",
+      "name": "Python: train semantic_nerf",
       "type": "python",
       "request": "launch",
-      "program": "scripts/run_train.py",
+      "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "semantic_nerf"

@@ -59,7 +59,7 @@ for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
     base_config_name=${config_name/"graph_"/""}
     config_path="${output_dir}/blender_${dataset}_${month}-${date}-${year}/${base_config_name}/${year}-${month}-${date}_${seconds}/nerfactory_models/"
-    python scripts/run_eval.py compute-psnr \
+    python scripts/eval.py compute-psnr \
         --load-config=${config_path} \
         --output-path=${output_dir}/${base_config_name}/blender_${dataset}_${month}-${date}-${year}_${seconds}.json &
     echo "Launched ${checkpoint_dir} on gpu ${GPU_IDX[$idx]}"

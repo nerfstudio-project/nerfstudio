@@ -46,7 +46,7 @@ def set_reduced_config(config: Config):
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_run_train():
+def test_train():
     """test run train script works properly"""
     all_config_names = base_configs.keys()
     for config_name in all_config_names:
@@ -61,4 +61,4 @@ def test_run_train():
 
 
 if __name__ == "__main__":
-    test_run_train()
+    test_train()
