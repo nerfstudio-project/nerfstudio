@@ -53,7 +53,7 @@ class ProposalModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: ProposalModel)
     near_plane: float = 0.05
     """How far along the ray to start sampling."""
-    far_plane: float = 20.0
+    far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
     randomize_background: bool = True
     """Whether to randomize the background color."""
@@ -84,14 +84,16 @@ class ProposalModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
+        scene_contraction = SceneContraction()
+
         # Fields
         if self.config.use_appearance_conditioning:
             self.field = TCNNCompoundField(
-                self.scene_bounds.aabb, spatial_distortion=SceneContraction(), num_images=self.num_train_data
+                self.scene_bounds.aabb, spatial_distortion=scene_contraction, num_images=self.num_train_data
             )
         else:
-            self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
-        self.proposal_network = DensityField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
+            self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+        self.proposal_network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
 
         # Collider
         self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)

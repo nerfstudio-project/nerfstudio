@@ -83,7 +83,7 @@ class TCNNCompoundField(Field):
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
         appearance_embedding_dim: int = 32,
-        spatial_distortion: SpatialDistortion = SceneContraction(),
+        spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
 
