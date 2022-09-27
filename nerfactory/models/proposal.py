@@ -196,7 +196,8 @@ class ProposalModel(Model):
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * torch.mean(
             distortion_loss(
                 outputs["ray_samples_list"][-1],
-                weights=outputs["weights_list"][-1]
+                weights=outputs["weights_list"][-1],
+                scale_factor=1.0 / (self.config.far_plane - self.config.near_plane),
             )
         )
         return loss_dict
