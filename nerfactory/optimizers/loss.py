@@ -72,8 +72,8 @@ def lossfun_outer(t, w, t_env, w_env):
 
 def ray_samples_to_sdist(ray_samples):
     """Convert ray samples to s space"""
-    starts = ray_samples.frustums.starts
-    ends = ray_samples.frustums.ends
+    starts = ray_samples.spacing_starts
+    ends = ray_samples.spacing_ends
     sdist = torch.cat([starts[..., 0], ends[..., -1:, 0]], dim=-1)  # (num_rays, num_samples + 1)
     return sdist
 

@@ -75,11 +75,11 @@ class ProposalModelConfig(ModelConfig):
     """Distortion loss multiplier."""
     use_appearance_conditioning: bool = True
     """Whether to use appearance conditioning."""
-    use_proposal_weight_anneal: bool = False
+    use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
-    proposal_weights_anneal_max_num_iters: int = 10000
+    proposal_weights_anneal_max_num_iters: int = 1000
     """Num num iterations for the annealing function"""
 
 
@@ -196,8 +196,7 @@ class ProposalModel(Model):
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * torch.mean(
             distortion_loss(
                 outputs["ray_samples_list"][-1],
-                weights=outputs["weights_list"][-1],
-                scale_factor=1.0 / (self.config.far_plane - self.config.near_plane),
+                weights=outputs["weights_list"][-1]
             )
         )
         return loss_dict
