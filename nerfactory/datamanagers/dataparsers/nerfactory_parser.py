@@ -59,7 +59,7 @@ class Nerfactory(DataParser):
     config: NerfactoryDataParserConfig
 
     def _generate_dataset_inputs(self, split="train"):
-
+        # pylint: disable=too-many-statements
         abs_dir = get_absolute_path(self.config.data_directory)
 
         meta = load_from_json(abs_dir / "transforms.json")
