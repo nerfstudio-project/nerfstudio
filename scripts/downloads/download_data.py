@@ -2,7 +2,7 @@
 """Download datasets"""
 import zipfile
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import dcargs
 import gdown
@@ -63,7 +63,20 @@ def download_blender():
     download_path.unlink(missing_ok=True)
 
 
-def main(dataset: Literal["blender", "friends"]):
+def download_nerfactory(dataset_name: str, file_id: str):
+    url = f"https://drive.google.com/uc?id={file_id}"
+    download_path = Path(f"data/{dataset_name}.zip")
+    gdown.download(url, output=str(download_path), quiet=False)
+    with zipfile.ZipFile(download_path, "r") as zip_ref:
+        zip_ref.extractall(f"data/ours/{dataset_name}")
+    download_path.unlink(missing_ok=True)
+
+
+def main(
+    dataset: Literal["blender", "friends", "nerfactory"],
+    dataset_name: Optional[str] = None,
+    file_id: Optional[str] = None,
+):
     """Main download script to download all data"""
     save_dir = Path("data/")
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -72,6 +85,12 @@ def main(dataset: Literal["blender", "friends"]):
         download_blender()
     if dataset == "friends":
         download_friends()
+    if dataset == "nerfactory":
+        if dataset_name is None:
+            raise ValueError("must pass in dataset_name when downloading nerfactory data")
+        if file_id is None:
+            raise ValueError("must pass in google drive file_id when downloading nerfatory data")
+        download_nerfactory(dataset_name, file_id)
 
 
 if __name__ == "__main__":
