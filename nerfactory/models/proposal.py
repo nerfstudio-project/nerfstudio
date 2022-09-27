@@ -84,7 +84,7 @@ class ProposalModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
-        scene_contraction = SceneContraction()
+        scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
         if self.config.use_appearance_conditioning:

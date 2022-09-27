@@ -204,6 +204,46 @@ def get_sphere(
     )
 
 
+def get_cube(
+    side_length: float,
+    center: TensorType[3] = None,
+    color: str = "black",
+    opacity: float = 1.0,
+) -> go.Mesh3d:  # type: ignore
+    """Returns a cube object for plotting with plotly.
+
+    Args:
+        side_length: side_length of cube.
+        center: center of cube.
+        color: color of cube.
+        opacity: opacity of cube.
+
+    Returns:
+        cube object.
+    """
+
+    x = np.array([-1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0])
+    y = np.array([-1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0])
+    z = np.array([-1.0, -1.0, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0])
+
+    pts = np.stack((x, y, z), axis=0)
+
+    pts *= side_length / 2.0
+    if center is not None:
+        pts += center
+
+    return go.Mesh3d(
+        {
+            "x": pts[0],
+            "y": pts[1],
+            "z": pts[2],
+            "alphahull": 0,
+            "opacity": opacity,
+            "color": color,
+        }
+    )
+
+
 def get_gaussian_ellipsiod(
     mean: TensorType[3],
     cov: TensorType[3, 3],
