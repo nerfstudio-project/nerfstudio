@@ -74,7 +74,7 @@ docs = [
 ]
 
 [project.scripts]
-nerfactory-viewer-bridge-server = "nerfactory.viewer.server.server:run_viewer_bridge_server"
+nf-scripts-viewer-bridge-server = "nerfactory.viewer.server.server:main"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
