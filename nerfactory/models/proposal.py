@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
+import numpy as np
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
@@ -44,6 +45,11 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
 )
 from nerfactory.utils import colors, visualization
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 @dataclass
@@ -69,6 +75,12 @@ class ProposalModelConfig(ModelConfig):
     """Distortion loss multiplier."""
     use_appearance_conditioning: bool = True
     """Whether to use appearance conditioning."""
+    use_proposal_weight_anneal: bool = False
+    """Whether to use proposal weight annealing."""
+    proposal_weights_anneal_slope: float = 10.0
+    """Slope of the annealing function for the proposal weights."""
+    proposal_weights_anneal_max_num_iters: int = 10000
+    """Num num iterations for the annealing function"""
 
 
 class ProposalModel(Model):
@@ -123,6 +135,29 @@ class ProposalModel(Model):
         param_groups = {}
         param_groups["fields"] = list(self.proposal_network.parameters()) + list(self.field.parameters())
         return param_groups
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        callbacks = []
+        if self.config.use_proposal_weight_anneal:
+            N = self.config.proposal_weights_anneal_max_num_iters
+
+            def set_anneal(step):
+                # https://arxiv.org/pdf/2111.12077.pdf eq. 18
+                train_frac = np.clip(step / N, 0, 1)
+                bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
+                anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
+                self.proposal_sampler.set_anneal(anneal)
+
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=set_anneal,
+                )
+            )
+        return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(

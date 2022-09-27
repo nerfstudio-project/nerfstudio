@@ -19,8 +19,8 @@ Proposal network field.
 
 from typing import Optional
 
-import torch
 import numpy as np
+import torch
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
@@ -45,6 +45,7 @@ class DensityField(Field):
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
         spatial_distortion: spatial distortion module
+        use_linear: whether to skip the MLP and use a single linear layer instead
     """
 
     def __init__(

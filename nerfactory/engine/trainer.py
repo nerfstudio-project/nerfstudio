@@ -130,12 +130,12 @@ class Trainer:
 
         self._load_checkpoint()
 
-        # TODO(ethan): do this for pipeline, not pipeline.model
         self.callbacks = self.pipeline.get_training_callbacks(
             TrainingCallbackAttributes(
                 optimizers=self.optimizers,  # type: ignore
                 grad_scaler=self.grad_scaler,  # type: ignore
                 pipeline=self.pipeline,  # type: ignore
+                config=self.config.trainer,  # type: ignore
             )
         )
 
