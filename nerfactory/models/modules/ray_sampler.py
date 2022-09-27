@@ -18,7 +18,7 @@ Collection of sampling strategies
 
 import math
 from abc import abstractmethod
-from typing import Callable, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import nerfacc
 import torch
@@ -38,7 +38,10 @@ class Sampler(nn.Module):
     """
 
     def __init__(
-        self, num_samples: int, density_field: Optional[DensityGrid] = None, weight_threshold: float = 0.01
+        self,
+        num_samples: Optional[int] = None,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 0.01,
     ) -> None:
         super().__init__()
         self.num_samples = num_samples
@@ -75,9 +78,9 @@ class SpacedSampler(Sampler):
 
     def __init__(
         self,
-        num_samples: int,
         spacing_fn: Callable,
         spacing_fn_inv: Callable,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -106,13 +109,12 @@ class SpacedSampler(Sampler):
         assert ray_bundle.fars is not None
 
         num_samples = num_samples or self.num_samples
+        assert num_samples is not None
         num_rays = ray_bundle.origins.shape[0]
 
         bins = torch.linspace(0.0, 1.0, num_samples + 1).to(ray_bundle.origins.device)[None, ...]  # [1, num_samples+1]
 
-        s_near, s_far = (self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars))
-        bins = self.spacing_fn_inv(bins * s_far + (1 - bins) * s_near)  # [num_rays, num_samples+1]
-
+        # TODO More complicated than it needs to be.
         if self.train_stratified and self.training:
             t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
             bin_centers = (bins[..., 1:] + bins[..., :-1]) / 2.0
@@ -120,7 +122,17 @@ class SpacedSampler(Sampler):
             bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
             bins = bin_lower + (bin_upper - bin_lower) * t_rand
 
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
+        s_near, s_far = (self.spacing_fn(x) for x in (ray_bundle.nears, ray_bundle.fars))
+        spacing_to_euclidean_fn = lambda x: self.spacing_fn_inv(x * s_far + (1 - x) * s_near)
+        euclidean_bins = spacing_to_euclidean_fn(bins)  # [num_rays, num_samples+1]
+
+        ray_samples = ray_bundle.get_ray_samples(
+            bin_starts=euclidean_bins[..., :-1, None],
+            bin_ends=euclidean_bins[..., 1:, None],
+            spacing_starts=bins[..., :-1, None],
+            spacing_ends=bins[..., 1:, None],
+            spacing_to_euclidean_fn=spacing_to_euclidean_fn,
+        )
 
         return ray_samples
 
@@ -137,7 +149,7 @@ class UniformSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -164,7 +176,7 @@ class LinearDisparitySampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -191,7 +203,7 @@ class SqrtSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -218,7 +230,7 @@ class LogSampler(SpacedSampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified=True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
@@ -227,6 +239,35 @@ class LogSampler(SpacedSampler):
             num_samples=num_samples,
             spacing_fn=torch.log,
             spacing_fn_inv=torch.exp,
+            train_stratified=train_stratified,
+            density_field=density_field,
+            weight_threshold=weight_threshold,
+        )
+
+
+class UniformLinDispPiecewiseSampler(SpacedSampler):
+    """Piecewise sampler along a ray that allocates the first half of the samples uniformly and the second half
+    using linearly in disparity spacing.
+
+
+    Args:
+        num_samples: Number of samples per ray
+        train_stratified: Use stratified sampling during training. Defults to True
+        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
+        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
+    """
+
+    def __init__(
+        self,
+        num_samples: Optional[int] = None,
+        train_stratified=True,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 1e-2,
+    ) -> None:
+        super().__init__(
+            num_samples=num_samples,
+            spacing_fn=lambda x: torch.where(x < 1, x / 2, 1 - 1 / (2 * x)),
+            spacing_fn_inv=lambda x: torch.where(x < 0.5, 2 * x, 1 / (2 - 2 * x)),
             train_stratified=train_stratified,
             density_field=density_field,
             weight_threshold=weight_threshold,
@@ -247,7 +288,7 @@ class PDFSampler(Sampler):
 
     def __init__(
         self,
-        num_samples: int,
+        num_samples: Optional[int] = None,
         train_stratified: bool = True,
         include_original: bool = True,
         density_field: Optional[DensityGrid] = None,
@@ -284,6 +325,7 @@ class PDFSampler(Sampler):
             raise ValueError("ray_samples and ray_bundle must be provided")
 
         num_samples = num_samples or self.num_samples
+        assert num_samples is not None
         num_bins = num_samples + 1
 
         weights = weights[..., 0] + self.histogram_padding
@@ -309,12 +351,14 @@ class PDFSampler(Sampler):
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
         u = u.contiguous()
 
-        # Force bins to not have a gap between them. Kinda hacky, should reconsider.
+        assert (
+            ray_samples.spacing_starts is not None and ray_samples.spacing_ends is not None
+        ), "ray_sample spacing_starts and spacing_ends must be provided"
+        assert ray_samples.spacing_to_euclidean_fn is not None, "ray_samples.spacing_to_euclidean_fn must be provided"
         existing_bins = torch.cat(
             [
-                ray_samples.frustums.starts[..., :1, 0],
-                (ray_samples.frustums.starts[..., 1:, 0] + ray_samples.frustums.ends[..., :-1, 0]) / 2.0,
-                ray_samples.frustums.ends[..., -1:, 0],
+                ray_samples.spacing_starts[..., 0],
+                ray_samples.spacing_ends[..., -1:, 0],
             ],
             dim=-1,
         )
@@ -336,7 +380,15 @@ class PDFSampler(Sampler):
         # Stop gradients
         bins = bins.detach()
 
-        ray_samples = ray_bundle.get_ray_samples(bin_starts=bins[..., :-1, None], bin_ends=bins[..., 1:, None])
+        euclidean_bins = ray_samples.spacing_to_euclidean_fn(bins)
+
+        ray_samples = ray_bundle.get_ray_samples(
+            bin_starts=euclidean_bins[..., :-1, None],
+            bin_ends=euclidean_bins[..., 1:, None],
+            spacing_starts=bins[..., :-1, None],
+            spacing_ends=bins[..., 1:, None],
+            spacing_to_euclidean_fn=ray_samples.spacing_to_euclidean_fn,
+        )
 
         return ray_samples
 
@@ -479,3 +531,50 @@ class VolumetricSampler(Sampler):
             camera_indices=camera_indices,
         )
         return ray_samples, packed_info, ray_indices
+
+
+class ProposalNetworkSampler(Sampler):
+    """Sampler that uses a proposal network to generate samples."""
+
+    def __init__(
+        self,
+        num_proposal_samples_per_ray: int = 64,
+        num_nerf_samples_per_ray: int = 32,
+        num_proposal_network_iterations: int = 2,
+        density_field: Optional[DensityGrid] = None,
+        weight_threshold: float = 1e-2,
+    ) -> None:
+        super().__init__(density_field=density_field, weight_threshold=weight_threshold)
+        self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
+        self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
+        self.num_proposal_network_iterations = num_proposal_network_iterations
+
+        self.initial_sampler = UniformLinDispPiecewiseSampler()
+        self.pdf_sampler = PDFSampler(include_original=False)
+
+    def generate_ray_samples(
+        self,
+        ray_bundle: Optional[RayBundle] = None,
+        density_fn: Optional[Callable] = None,
+    ) -> Tuple[RaySamples, List, List]:
+
+        weights_list = []
+        ray_samples_list = []
+
+        n = self.num_proposal_network_iterations
+        for i_level in range(n + 1):
+            is_prop = i_level < n
+            num_samples = self.num_proposal_samples_per_ray if is_prop else self.num_nerf_samples_per_ray
+            if i_level == 0:
+                # Uniform sampling because we need to start with some samples
+                ray_samples = self.initial_sampler(ray_bundle, num_samples=num_samples)
+            else:
+                # PDF sampling based on the last samples and their weights
+                ray_samples = self.pdf_sampler(ray_bundle, ray_samples, weights, num_samples=num_samples)
+            if is_prop:
+                density = density_fn(ray_samples.frustums.get_positions())
+                weights = ray_samples.get_weights(density)
+                weights_list.append(weights)  # (num_rays, num_samples)
+                ray_samples_list.append(ray_samples)
+
+        return ray_samples, weights_list, ray_samples_list

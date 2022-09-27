@@ -19,6 +19,14 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import { Stack } from '@mui/system';
+import {
+  AllInclusiveOutlined,
+  ChangeHistory,
+  GestureOutlined,
+  RadioButtonUnchecked,
+  Replay,
+} from '@mui/icons-material';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
@@ -53,6 +61,7 @@ function CameraList(props) {
         'ViewerWindow-buttons',
       )[0];
       if (camera === transform_controls.object) {
+        // double click to remove controls from object
         transform_controls.detach();
         viewer_buttons.style.display = 'none';
       } else {
@@ -92,8 +101,8 @@ function CameraList(props) {
       }
       set_camera_position(camera_render, first_camera.matrix);
       camera_render_helper.set_visibility(true);
-      set_slider_value(slider_min);
     }
+    set_slider_value(slider_min);
   };
 
   const delete_camera = (index) => {
@@ -132,7 +141,9 @@ function CameraList(props) {
         </Button>
         <div className="CameraList-row-buttons">
           <Button
-            onClick={() => set_camera_position(camera_main, camera.matrix)}
+            onClick={() => {
+              set_camera_position(camera_main, camera.matrix);
+            }}
           >
             <VisibilityIcon />
           </Button>
@@ -175,7 +186,9 @@ export default function CameraPanel(props) {
   // react state
   const [cameras, setCameras] = React.useState([]);
   const [slider_value, set_slider_value] = React.useState(0);
+  const [smoothness_value, set_smoothness_value] = React.useState(0.5);
   const [is_playing, setIsPlaying] = React.useState(false);
+  const [is_cycle, setIsCycle] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
 
@@ -296,7 +309,11 @@ export default function CameraPanel(props) {
   }, [cameras, render_width, render_height]);
 
   // update the camera curve
-  const curve_object = get_curve_object_from_cameras(cameras);
+  const curve_object = get_curve_object_from_cameras(
+    cameras,
+    is_cycle,
+    smoothness_value,
+  );
 
   if (cameras.length > 1) {
     const num_points = fps * seconds;
@@ -480,11 +497,51 @@ export default function CameraPanel(props) {
         </Button>
       </div>
       <div className="CameraPanel-top-button">
+        <Tooltip title="Close/open camera curve">
+          {!is_cycle ? (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setIsCycle(true);
+              }}
+            >
+              <GestureOutlined />
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                setIsCycle(false);
+              }}
+            >
+              <AllInclusiveOutlined />
+            </Button>
+          )}
+        </Tooltip>
+      </div>
+      <div className="CameraPanel-top-button">
         <Tooltip title="Copy Cmd to Clipboard">
           <IconButton onClick={copy_cmd_to_clipboard}>
             <ContentPasteGoIcon />
           </IconButton>
         </Tooltip>
+      </div>
+      <div className="CameraPanel-slider-container">
+        <Stack spacing={2} direction="row" sx={{ mb: 1 }} alignItems="center">
+          <p style={{ fontSize: 'smaller', color: '#999999' }}>Smoothness</p>
+          <ChangeHistory />
+          <Slider
+            value={smoothness_value}
+            step={step_size}
+            valueLabelFormat={smoothness_value.toFixed(2)}
+            min={0}
+            max={1}
+            onChange={(event, value) => {
+              set_smoothness_value(value);
+            }}
+          />
+          <RadioButtonUnchecked />
+        </Stack>
       </div>
       <div className="CameraPanel-slider-container">
         <Slider
@@ -517,8 +574,17 @@ export default function CameraPanel(props) {
         >
           <ArrowBackIosNewIcon />
         </Button>
-
-        {!is_playing ? (
+        {/* eslint-disable-next-line no-nested-ternary */}
+        {!is_playing && slider_max === slider_value ? (
+          <Button
+            variant="outlined"
+            onClick={() => {
+              set_slider_value(slider_min);
+            }}
+          >
+            <Replay />
+          </Button>
+        ) : !is_playing ? (
           <Button
             variant="outlined"
             onClick={() => {

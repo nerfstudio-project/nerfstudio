@@ -45,6 +45,7 @@ from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
 from nerfactory.models.nerfw import NerfWModelConfig
+from nerfactory.models.proposal import ProposalModelConfig
 from nerfactory.models.semantic_nerf import SemanticNerfModel
 from nerfactory.models.tensorf import TensoRFModelConfig
 from nerfactory.models.vanilla_nerf import NeRFModel
@@ -55,7 +56,7 @@ base_configs: Dict[str, Config] = {}
 base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=VanillaPipelineConfig(
+    pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),
@@ -83,6 +84,25 @@ base_configs["instant-ngp"] = Config(
         }
     },
     viewer=ViewerConfig(enable=True),
+    logging=LoggingConfig(event_writer="none"),
+)
+
+base_configs["proposal"] = Config(
+    method_name="proposal",
+    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+        ),
+        model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(enable=True, num_rays_per_chunk=2 << 15),
     logging=LoggingConfig(event_writer="none"),
 )
 

@@ -32,8 +32,11 @@ python scripts/run_train.py instant-ngp nerfactory --pipeline.datamanager.datapa
 
 The COLMAP maintainers recommend using VCPKG to install COLAMP. If the following command do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods.
 
+::::::{tab-set}
+:::::{tab-item} Linux
+
 ::::{tab-set}
-:::{tab-item} Linux
+:::{tab-item} CUDA
 
 ```bash
 git clone https://github.com/microsoft/vcpkg
@@ -43,19 +46,35 @@ cd vcpkg
 ```
 
 :::
-
-:::{tab-item} OSX
+:::{tab-item} CPU
 
 ```bash
 git clone https://github.com/microsoft/vcpkg
 cd vcpkg
 ./bootstrap-vcpkg.sh
-./vcpkg install colmap[cuda]:x64-osx
+./vcpkg install colmap:x64-linux
 ```
 
 :::
+::::
 
-:::{tab-item} Windows
+:::::
+
+:::::{tab-item} OSX
+
+```bash
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg install colmap
+```
+
+:::::
+
+:::::{tab-item} Windows
+
+::::{tab-set}
+:::{tab-item} CUDA
 
 ```bash
 git clone https://github.com/microsoft/vcpkg
@@ -65,4 +84,17 @@ cd vcpkg
 ```
 
 :::
+:::{tab-item} CPU
+
+```bash
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg install colmap:x64-windows
+```
+
+:::
 ::::
+
+:::::
+::::::

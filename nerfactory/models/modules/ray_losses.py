@@ -21,7 +21,10 @@ from nerfactory.cameras.rays import RaySamples
 
 
 def distortion_loss(
-    ray_samples: RaySamples, densities: TensorType["bs":..., "num_samples", 1]
+    ray_samples: RaySamples,
+    densities: TensorType["bs":..., "num_samples", 1] = None,
+    weights: TensorType["bs":..., "num_samples", 1] = None,
+    scale_factor: float = 1.0,
 ) -> TensorType["bs":..., 1]:
     """Ray baserd distortion loss proposed in MipNeRF-360. Returns distortion Loss.
 
@@ -36,17 +39,25 @@ def distortion_loss(
     Args:
         ray_samples: Ray samples to compute loss over
         densities: Predicted sample densities
+        weights: Predicted weights from densities and sample locations
+        scale_factor: Scale the starts and ends by this factor
     """
+    if torch.is_tensor(densities):
+        assert not torch.is_tensor(weights), "Cannot use both densities and weights"
+        # Compute the weight at each sample location
+        weights = ray_samples.get_weights(densities)
+    if torch.is_tensor(weights):
+        assert not torch.is_tensor(densities), "Cannot use both densities and weights"
 
-    # Compute the weight at each sample location
-    weights = ray_samples.get_weights(densities)
+    starts = ray_samples.frustums.starts * scale_factor
+    ends = ray_samples.frustums.ends * scale_factor
 
-    midpoints = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2.0  # (..., num_samples, 1)
+    midpoints = (starts + ends) / 2.0  # (..., num_samples, 1)
 
     loss = (
         weights * weights[..., None, :, 0] * torch.abs(midpoints - midpoints[..., None, :, 0])
     )  # (..., num_samples, num_samples)
     loss = torch.sum(loss, dim=(-1, -2))[..., None]  # (..., num_samples)
-    loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ray_samples.frustums.ends - ray_samples.frustums.starts), dim=-2)
+    loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ends - starts), dim=-2)
 
     return loss

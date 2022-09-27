@@ -186,8 +186,16 @@ class CompoundModel(Model):
             "accumulation": accumulation,
             "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
+            "num_samples_per_ray": packed_info[:, 1],
         }
         return outputs
+
+    def get_metrics_dict(self, outputs, batch):
+        image = batch["image"].to(self.device)
+        metrics_dict = {}
+        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["num_samples_per_batch"] = outputs["num_samples_per_ray"].sum()
+        return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(self.device)

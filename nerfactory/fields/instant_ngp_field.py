@@ -28,6 +28,7 @@ from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.base import Field
 from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
+from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.utils.activations import trunc_exp
 
@@ -67,12 +68,13 @@ class TCNNInstantNGPField(Field):
         geo_feat_dim: int = 15,
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
+        spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
 
         self.aabb = Parameter(aabb, requires_grad=False)
-
         self.geo_feat_dim = geo_feat_dim
+        self.spatial_distortion = spatial_distortion
 
         # TODO: set this properly based on the aabb
         per_level_scale = 1.4472692012786865
@@ -118,7 +120,12 @@ class TCNNInstantNGPField(Field):
         )
 
     def get_density(self, ray_samples: RaySamples):
-        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        if self.spatial_distortion is not None:
+            positions = ray_samples.frustums.get_positions()
+            positions = self.spatial_distortion(positions)
+            positions = (positions + 2.0) / 4.0
+        else:
+            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         # assert all positions are in the range [0, 1]
         # otherwise print min and max values

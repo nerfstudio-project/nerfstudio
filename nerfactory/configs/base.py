@@ -146,6 +146,8 @@ class TrainerConfig(PrintableConfig):
     """whether or not to use mixed precision for training"""
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
+    num_ckpt_to_save: int = 1
+    """number of latest checkpoints that we want to save. Default 1 saves only the latest model"""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
@@ -232,6 +234,8 @@ from nerfactory.pipelines.base import VanillaPipelineConfig
 class Config(PrintableConfig):
     """Full config contents"""
 
+    output_dir: Path = Path("outputs")
+    """relative or absolute output directory to save all checkpoints and logging"""
     method_name: Optional[str] = None
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
@@ -262,7 +266,7 @@ class Config(PrintableConfig):
         # check the experiment and method names
         assert self.method_name is not None, "Please set method name in config or via the cli"
         self.set_experiment_name()
-        return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
+        return Path(f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}")
 
     def get_checkpoint_dir(self) -> Path:
         """Retrieve the checkpoint directory"""

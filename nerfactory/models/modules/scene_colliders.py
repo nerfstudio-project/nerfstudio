@@ -45,13 +45,13 @@ class AABBBoxCollider(SceneBoundsCollider):
         scene_bounds: scene bounds to apply to dataset
     """
 
-    def __init__(self, scene_bounds: SceneBounds, **kwargs) -> None:
+    def __init__(self, scene_bounds: SceneBounds, near_plane: float = 0.0, **kwargs) -> None:
         super().__init__(**kwargs)
         self.scene_bounds = scene_bounds
+        self.near_plane = near_plane
 
-    @classmethod
-    def intersect_with_aabb(
-        cls, rays_o: TensorType["num_rays", 3], rays_d: TensorType["num_rays", 3], aabb: TensorType[2, 3]
+    def _intersect_with_aabb(
+        self, rays_o: TensorType["num_rays", 3], rays_d: TensorType["num_rays", 3], aabb: TensorType[2, 3]
     ):
         """Returns collection of valid rays within a specified near/far bounding box along with a mask
         specifying which rays are valid
@@ -81,10 +81,12 @@ class AABBBoxCollider(SceneBoundsCollider):
             torch.cat([torch.maximum(t1, t2), torch.maximum(t3, t4), torch.maximum(t5, t6)], dim=1), dim=1
         ).values
 
+        # clamp to near plane
+        nears = torch.clamp(nears, min=self.near_plane)
+
         # fars < 0: means the ray is behind the camera
         # nears > fars: means no intersection
         valid_mask = ((fars > nears).float() * (fars > 0).float()).bool()
-        nears[nears < 0.0] = 0.0
         nears[~valid_mask] = 0.0
         fars[~valid_mask] = 0.0
         return nears, fars, valid_mask
@@ -97,7 +99,7 @@ class AABBBoxCollider(SceneBoundsCollider):
             ray_bundle: specified ray bundle to operate on
         """
         aabb = self.scene_bounds.aabb
-        nears, fars, valid_mask = self.intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
+        nears, fars, valid_mask = self._intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
         ray_bundle.nears = nears[..., None]
         ray_bundle.fars = fars[..., None]
         ray_bundle.valid_mask = valid_mask[..., None]
