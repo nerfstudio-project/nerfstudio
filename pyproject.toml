@@ -73,9 +73,6 @@ docs = [
     "sphinx-design==0.2.0"
 ]
 
-[project.scripts]
-nerfactory-viewer-bridge-server = "nerfactory.viewer.server.server:run_viewer_bridge_server"
-
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
 dependency_links = [

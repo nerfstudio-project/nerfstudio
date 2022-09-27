@@ -169,7 +169,7 @@ class ViewerConfig(PrintableConfig):
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
-    zmq_url: str = "tcp://127.0.0.1:6000"
+    zmq_port: int = 6000
     """the zmq port to connect to for communication"""
     launch_bridge_server: bool = True
     """whether or not to launch the zmq bridge server"""
