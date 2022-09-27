@@ -12,6 +12,13 @@
       "webRoot": "${workspaceFolder}/nerfactory/viewer/app"
     },
     {
+      "name": "Python: Attach using Process ID",
+      "type": "python",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "justMyCode": true
+    },
+    {
       "name": "Python: Current File",
       "type": "python",
       "request": "launch",
@@ -26,7 +33,9 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "vanilla_nerf"
+        "instant_ngp",
+        "--viewer.no-enable",
+        "--logging.event-writer=wandb"
       ]
     },
     {
@@ -47,15 +56,16 @@
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
-        "--experiment_name=nerfactory_experiment",
-        "--logging.writer.2.max-log-size=0",
+        // "--experiment_name=nerfactory_experiment",
+        "--logging.local-writer.max-log-size=0",
+        "--viewer.no-enable"
         // viewer
         // "--viewer.enable",
         // "--viewer.zmq-url=tcp://127.0.0.1:6001",
         // "--viewer.websocket-port=8014",
         // "--pipeline.model.randomize-background",
         // "--pipeline.model.cone-angle=0.00390625",
-        "nerfactory-data"
+        // "nerfactory-data"
       ]
     },
     {

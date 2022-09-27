@@ -18,7 +18,8 @@ NeRF-W (NeRF in the wild) implementation.
 
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Tuple, Type
 
 import torch
 from torchmetrics import PeakSignalNoiseRatio
@@ -26,12 +27,12 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.fields.modules.encoding import NeRFEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.fields.nerfw_field import VanillaNerfWField
-from nerfactory.models.base import Model
+from nerfactory.models.base import Model, VanillaModelConfig
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
 from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.optimizers.loss import MSELoss
@@ -44,6 +45,33 @@ from nerfactory.renderers.renderers import (
 from nerfactory.utils import colors, misc, visualization
 
 
+@dataclass
+class NerfWModelConfig(VanillaModelConfig):
+    """NerfW model config"""
+
+    _target: Type = field(default_factory=lambda: NerfWModel)
+    """target class to instantiate"""
+    loss_coefficients: Dict[str, float] = to_immutable_dict(
+        {"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "uncertainty_loss": 1.0, "density_loss": 0.01}
+    )
+    """Loss specific weights."""
+    num_coarse_samples: int = 64
+    """Number of samples in coarse field evaluation."""
+    num_importance_samples: int = 64
+    """Number of samples in fine field evaluation."""
+    uncertainty_min: float = 0.03
+    """This is added to the end of the uncertainty
+    rendering operation. It's called 'beta_min' in other repos.
+    This avoids calling torch.log() on a zero value, which would be undefined.
+    """
+    num_images: int = 10000  # TODO: don't hardcode this
+    """How many images exist in the dataset."""
+    appearance_embedding_dim: int = 48
+    """Dimension of appearance embedding."""
+    transient_embedding_dim: int = 16
+    """Dimension of transient embedding."""
+
+
 class NerfWModel(Model):
     """NeRF-W model
 
@@ -51,11 +79,11 @@ class NerfWModel(Model):
         config: NerfW configuration to instantiate model
     """
 
-    config: cfg.NerfWModelConfig
+    config: NerfWModelConfig
 
     def __init__(
         self,
-        config: cfg.NerfWModelConfig,
+        config: NerfWModelConfig,
         **kwargs,
     ) -> None:
         """A NeRF-W model.

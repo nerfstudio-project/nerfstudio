@@ -16,6 +16,8 @@
 Put all the method implementations in one location.
 """
 
+from __future__ import annotations
+
 import copy
 from typing import Dict, Type
 
@@ -24,33 +26,37 @@ from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     AdamOptimizerConfig,
-    BlenderDataParserConfig,
     Config,
     LoggingConfig,
-    MipNerf360DataParserConfig,
-    NerfWModelConfig,
-    PipelineConfig,
     RAdamOptimizerConfig,
     SchedulerConfig,
-    TensoRFModelConfig,
     TrainerConfig,
-    VanillaDataManagerConfig,
-    VanillaModelConfig,
     ViewerConfig,
 )
+from nerfactory.datamanagers.base import VanillaDataManagerConfig
+from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
+from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
+    MipNerf360DataParserConfig,
+)
+from nerfactory.models.base import VanillaModelConfig
 from nerfactory.models.compound import CompoundModelConfig
 from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
+from nerfactory.models.nerfw import NerfWModelConfig
+from nerfactory.models.proposal import ProposalModelConfig
 from nerfactory.models.semantic_nerf import SemanticNerfModel
+from nerfactory.models.tensorf import TensoRFModelConfig
 from nerfactory.models.vanilla_nerf import NeRFModel
+from nerfactory.pipelines.base import VanillaPipelineConfig
+from nerfactory.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 base_configs: Dict[str, Config] = {}
 base_configs["compound"] = Config(
     method_name="compound",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
     ),
@@ -67,7 +73,7 @@ base_configs["compound"] = Config(
 base_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
@@ -81,10 +87,29 @@ base_configs["instant-ngp"] = Config(
     logging=LoggingConfig(event_writer="none"),
 )
 
+base_configs["proposal"] = Config(
+    method_name="proposal",
+    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+        ),
+        model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(enable=True, num_rays_per_chunk=2 << 15),
+    logging=LoggingConfig(event_writer="none"),
+)
+
 base_configs["mipnerf-360"] = Config(
     method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=MipNerf360DataParserConfig(), train_num_rays_per_batch=8192),
         model=VanillaModelConfig(
             _target=MipNerf360Model,
@@ -105,7 +130,7 @@ base_configs["mipnerf-360"] = Config(
 
 base_configs["mipnerf"] = Config(
     method_name="mipnerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
         model=VanillaModelConfig(
             _target=MipNerfModel,
@@ -125,7 +150,7 @@ base_configs["mipnerf"] = Config(
 
 base_configs["nerfw"] = Config(
     method_name="nerfw",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=FriendsDataParserConfig(),
         ),
@@ -142,7 +167,7 @@ base_configs["nerfw"] = Config(
 
 base_configs["semantic-nerf"] = Config(
     method_name="semantic-nerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=FriendsDataParserConfig(),
         ),
@@ -163,7 +188,7 @@ base_configs["semantic-nerf"] = Config(
 
 base_configs["vanilla-nerf"] = Config(
     method_name="vanilla-nerf",
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),
         ),
@@ -180,7 +205,7 @@ base_configs["vanilla-nerf"] = Config(
 base_configs["tensorf"] = Config(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=True),
-    pipeline=PipelineConfig(
+    pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),
         ),

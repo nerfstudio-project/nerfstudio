@@ -20,19 +20,49 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import torch
 from torch import nn
 from torch.nn import Parameter
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
+from nerfactory.configs.base import InstantiateConfig
+from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfactory.utils.misc import get_masked_dict
+
+
+# Model related configs
+@dataclass
+class ModelConfig(InstantiateConfig):
+    """Configuration for model instantiation"""
+
+    _target: Type = field(default_factory=lambda: Model)
+    """target class to instantiate"""
+    enable_collider: bool = True
+    """Whether to create a scene collider to filter rays."""
+    collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
+    """parameters to instantiate scene collider with"""
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
+    """Loss specific weights."""
+    enable_density_field: bool = False
+    """Whether to create a density field to filter samples."""
+    density_field_params: Dict[str, Any] = to_immutable_dict(
+        {
+            "center": 0.0,  # simply set it as the center of the scene bbox
+            "base_scale": 3.0,  # simply set it as the scale of the scene bbox
+            "num_cascades": 1,  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
+            "resolution": 128,
+            "update_every_num_iters": 16,
+        }
+    )
+    """parameters to instantiate density field with"""
+    eval_num_rays_per_chunk: int = 4096
+    """specifies number of rays per chunk during eval"""
 
 
 class Model(nn.Module):
@@ -45,11 +75,11 @@ class Model(nn.Module):
         scene_bounds: dataset scene bounds
     """
 
-    config: cfg.ModelConfig
+    config: ModelConfig
 
     def __init__(
         self,
-        config: cfg.ModelConfig,
+        config: ModelConfig,
         scene_bounds: SceneBounds,
         num_train_data: int,
         **kwargs,
@@ -115,36 +145,28 @@ class Model(nn.Module):
             Outputs of model. (ie. rendered colors)
         """
 
-    def forward(
-        self, ray_bundle: RayBundle, batch: Optional[Dict[str, torch.Tensor]] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Run forward starting with a ray bundle. This outputs different things depending on the configuration
         of the model and whether or not the batch is provided (whether or not we are training basically)
 
         Args:
             ray_bundle: containing all the information needed to render that ray latents included
-            batch: containing all the auxilury things needed to train like masks and ground truth pixels.
         """
 
         if self.collider is not None:
             intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
             valid_mask = intersected_ray_bundle.valid_mask[..., 0]
+            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
         else:
             # NOTE(ruilongli): we don't need collider for ngp
             intersected_ray_bundle = ray_bundle
             valid_mask = None
 
-        if batch is None:
-            # during inference, keep all rays
-            outputs = self.get_outputs(intersected_ray_bundle)
-            return outputs
-
-        if valid_mask is not None:
-            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-            # during training, keep only the rays that intersect the scene. discard the rest
-            batch = get_masked_dict(batch, valid_mask)  # NOTE(ethan): this is really slow if on CPU!
-
         outputs = self.get_outputs(intersected_ray_bundle)
+        # TODO: update this once outputs is no longer a dictionary and is instead typed
+        if valid_mask is not None:
+            assert "valid_mask" not in outputs, "valid_mask should not be in outputs"
+            outputs["valid_mask"] = valid_mask
         return outputs
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
@@ -178,7 +200,6 @@ class Model(nn.Module):
         num_rays_per_chunk = self.config.eval_num_rays_per_chunk
         image_height, image_width = camera_ray_bundle.origins.shape[:2]
         num_rays = len(camera_ray_bundle)
-        outputs = {}
         outputs_lists = defaultdict(list)
         for i in range(0, num_rays, num_rays_per_chunk):
             start_idx = i
@@ -187,7 +208,11 @@ class Model(nn.Module):
             outputs = self.forward(ray_bundle=ray_bundle)
             for output_name, output in outputs.items():  # type: ignore
                 outputs_lists[output_name].append(output)
+        outputs = {}
         for output_name, outputs_list in outputs_lists.items():
+            if not torch.is_tensor(outputs_list[0]):
+                # TODO: handle lists of tensors as well
+                continue
             outputs[output_name] = torch.cat(outputs_list).view(image_height, image_width, -1)  # type: ignore
         return outputs
 
@@ -216,3 +241,13 @@ class Model(nn.Module):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
+
+
+@dataclass
+class VanillaModelConfig(ModelConfig):
+    """Vanilla Model Config"""
+
+    num_coarse_samples: int = 64
+    """Number of samples in coarse field evaluation"""
+    num_importance_samples: int = 128
+    """Number of samples in fine field evaluation"""

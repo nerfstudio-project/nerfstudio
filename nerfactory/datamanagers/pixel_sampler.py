@@ -87,6 +87,14 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         self.num_rays_per_batch = num_rays_per_batch
         self.keep_full_image = keep_full_image
 
+    def set_num_rays_per_batch(self, num_rays_per_batch: int):
+        """Set the number of rays to sample per batch.
+
+        Args:
+            num_rays_per_batch: number of rays to sample per batch
+        """
+        self.num_rays_per_batch = num_rays_per_batch
+
     def sample(self, image_batch: Dict):
         """Sample an image batch and return a pixel batch.
 

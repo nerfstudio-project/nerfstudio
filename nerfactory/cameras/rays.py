@@ -17,7 +17,7 @@ Some ray datastructures.
 """
 import random
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 import torch
 from torchtyping import TensorType
@@ -93,6 +93,12 @@ class RaySamples(TensorDataclass):
     """Rays that are valid."""
     deltas: Optional[TensorType["bs":..., 1]] = None
     """"width" of each sample."""
+    spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]] = None
+    """Start of normalized bin edges along ray [0,1], before warping is applied, ie. linear in disparity sampling."""
+    spacing_ends: Optional[TensorType["bs":..., "num_samples", 1]] = None
+    """Start of normalized bin edges along ray [0,1], before warping is applied, ie. linear in disparity sampling."""
+    spacing_to_euclidean_fn: Optional[Callable] = None
+    """Function to convert bins to euclidean distance."""
     metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
     """addtional information relevant to generating ray samples"""
 
@@ -207,7 +213,12 @@ class RayBundle(TensorDataclass):
         return self.flatten()[start_idx:end_idx]
 
     def get_ray_samples(
-        self, bin_starts: TensorType["bs":..., "num_samples", 1], bin_ends: TensorType["bs":..., "num_samples", 1]
+        self,
+        bin_starts: TensorType["bs":..., "num_samples", 1],
+        bin_ends: TensorType["bs":..., "num_samples", 1],
+        spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]],
+        spacing_ends: Optional[TensorType["bs":..., "num_samples", 1]],
+        spacing_to_euclidean_fn: Optional[Callable],
     ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction. Currently samples uniformly.
 
@@ -222,7 +233,7 @@ class RayBundle(TensorDataclass):
 
         valid_mask = torch.ones((bin_starts.shape), dtype=torch.bool, device=device)
 
-        dists = bin_ends - bin_starts  # [..., N_samples, 1]
+        dists = bin_ends - bin_starts  # [..., num_samples, 1]
         deltas = dists * torch.norm(self.directions[:, :], dim=-1)[..., None, None]
 
         if self.camera_indices is not None:
@@ -235,16 +246,19 @@ class RayBundle(TensorDataclass):
         frustums = Frustums(
             origins=shaped_raybundle_fields.origins,  # [..., 1, 3]
             directions=shaped_raybundle_fields.directions,  # [..., 1, 3]
-            starts=bin_starts,  # [..., N_samples, 1]
-            ends=bin_ends,  # [..., N_samples, 1]
+            starts=bin_starts,  # [..., num_samples, 1]
+            ends=bin_ends,  # [..., num_samples, 1]
             pixel_area=shaped_raybundle_fields.pixel_area,  # [..., 1, 1]
         ).to(device)
 
         ray_samples = RaySamples(
             frustums=frustums,
             camera_indices=camera_indices,  # [..., 1, 1]
-            valid_mask=valid_mask,  # [..., N_samples, 1]
-            deltas=deltas,  # [..., N_samples, 1]
+            valid_mask=valid_mask,  # [..., num_samples, 1]
+            deltas=deltas,  # [..., num_samples, 1]
+            spacing_starts=spacing_starts,  # [..., num_samples, 1]
+            spacing_ends=spacing_ends,  # [..., num_samples, 1]
+            spacing_to_euclidean_fn=spacing_to_euclidean_fn,
             metadata=shaped_raybundle_fields.metadata,
         )
 

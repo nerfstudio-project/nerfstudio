@@ -61,6 +61,18 @@ def check_viewer_enabled(func: Callable) -> Callable:
     return wrapper
 
 
+def check_eval_enabled(func: Callable) -> Callable:
+    """Decorator: check if evaluation step is enabled"""
+
+    def wrapper(self, *args, **kwargs):
+        ret = None
+        if self.config.logging.event_writer != "none":
+            ret = func(self, *args, **kwargs)
+        return ret
+
+    return wrapper
+
+
 def check_main_thread(func: Callable) -> Callable:
     """Decorator: check if you are on main thread"""
 

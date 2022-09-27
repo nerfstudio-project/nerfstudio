@@ -39,10 +39,9 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.configs import base as cfg
 from nerfactory.fields.compound_field import field_implementation_to_class
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.models.base import Model
+from nerfactory.models.base import Model, ModelConfig
 from nerfactory.models.modules.ray_sampler import VolumetricSampler
 from nerfactory.optimizers.loss import MSELoss
 from nerfactory.renderers.renderers import (
@@ -59,7 +58,7 @@ from nerfactory.utils.callbacks import (
 
 
 @dataclass
-class CompoundModelConfig(cfg.ModelConfig):
+class CompoundModelConfig(ModelConfig):
     """Compound Model Config"""
 
     _target: Type = field(
@@ -187,8 +186,16 @@ class CompoundModel(Model):
             "accumulation": accumulation,
             "depth": depth,
             "alive_ray_mask": alive_ray_mask,  # the rays we kept from sampler
+            "num_samples_per_ray": packed_info[:, 1],
         }
         return outputs
+
+    def get_metrics_dict(self, outputs, batch):
+        image = batch["image"].to(self.device)
+        metrics_dict = {}
+        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["num_samples_per_batch"] = outputs["num_samples_per_ray"].sum()
+        return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         image = batch["image"].to(self.device)
