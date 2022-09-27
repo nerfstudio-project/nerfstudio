@@ -74,7 +74,7 @@ docs = [
 ]
 
 [project.scripts]
-nf-install-cli = "scripts.completions.configure:entrypoint"
+nf-install-cli = "scripts.completions.install:entrypoint"
 nf-process-data = "scripts.process_data:entrypoint"
 nf-train = "scripts.train:entrypoint"
 nf-eval = "scripts.eval:entrypoint"
