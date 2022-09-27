@@ -64,6 +64,7 @@ def download_blender():
 
 
 def download_nerfactory(dataset_name: str, file_id: str):
+    """Download a zipped nerfactory dataset"""
     url = f"https://drive.google.com/uc?id={file_id}"
     download_path = Path(f"data/{dataset_name}.zip")
     gdown.download(url, output=str(download_path), quiet=False)
