@@ -33,9 +33,10 @@
       "program": "scripts/run_train.py",
       "console": "integratedTerminal",
       "args": [
-        "instant_ngp",
+        "proposal",
         "--viewer.no-enable",
-        "--logging.event-writer=wandb"
+        "--logging.event-writer=wandb",
+        "--logging.local-writer.max-log-size=0"
       ]
     },
     {
