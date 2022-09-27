@@ -115,7 +115,7 @@ function MenuItems(props: ListItemProps) {
   };
 
   const snap_to_camera = (matrix) => {
-    let camera = sceneTree.children.Cameras.children['Main Camera'].object;
+    const camera = sceneTree.children.Cameras.children['Main Camera'].object;
     const mat = new THREE.Matrix4();
     mat.fromArray(matrix.elements);
     mat.decompose(camera.position, camera.quaternion, camera.scale);
