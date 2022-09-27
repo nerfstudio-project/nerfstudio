@@ -205,7 +205,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         filename = f"frame_%05d{file_type}"
         ffmpeg_cmd = [
             f"ffmpeg -i {image_dir / filename} ",
-            f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+            f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
             f"{downscale_dir / filename}",
         ]
         ffmpeg_cmd = " ".join(ffmpeg_cmd)
