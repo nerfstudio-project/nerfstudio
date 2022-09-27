@@ -80,7 +80,7 @@ class ProposalModelConfig(ModelConfig):
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
-    """Num num iterations for the annealing function"""
+    """Max num iterations for the annealing function."""
 
 
 class ProposalModel(Model):
@@ -141,8 +141,8 @@ class ProposalModel(Model):
     ) -> List[TrainingCallback]:
         callbacks = []
         if self.config.use_proposal_weight_anneal:
+            # anneal the weights of the proposal network before doing PDF sampling
             N = self.config.proposal_weights_anneal_max_num_iters
-
             def set_anneal(step):
                 # https://arxiv.org/pdf/2111.12077.pdf eq. 18
                 train_frac = np.clip(step / N, 0, 1)
