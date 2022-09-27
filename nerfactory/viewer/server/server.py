@@ -14,10 +14,10 @@
 
 """Server bridge to faciliate interactions between python backend and javascript front end"""
 
-
 import sys
 from typing import Callable, List, Optional, Tuple
 
+import dcargs
 import msgpack
 import msgpack_numpy
 import tornado.gen
@@ -306,3 +306,13 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
         bridge.run()
     except KeyboardInterrupt:
         pass
+
+
+def main():
+    """The main entrypoint."""
+    dcargs.extras.set_accent_color("bright_yellow")
+    dcargs.cli(run_viewer_bridge_server)
+
+
+if __name__ == "__main__":
+    main()
