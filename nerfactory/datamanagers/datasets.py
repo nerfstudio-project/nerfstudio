@@ -34,7 +34,7 @@ class InputDataset(Dataset):
     """Dataset that returns images.
 
     Args:
-        config: the DataParserConfig used to instantiate class, which in turn is used to load dataset inputs
+        dataset_inputs: description of where and how to read input images.
     """
 
     def __init__(self, dataset_inputs: DatasetInputs):
