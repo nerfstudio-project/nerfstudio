@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Literal, Type
 
 import numpy as np
@@ -37,7 +37,7 @@ class NerfactoryDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Nerfactory)
     """target class to instantiate"""
-    data_directory: Path = Path("data/ours/posters_v3")
+    data_directory: Path = Path("data/ours/posterv2")
     """directory specifying location of data"""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
@@ -67,11 +67,14 @@ class Nerfactory(DataParser):
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
-            fname = abs_dir / Path(frame["file_path"])
-            if self.config.downscale_factor > 1:
-                fname = abs_dir / f"images_{self.config.downscale_factor}" / Path(frame["file_path"]).name
+            if "\\" in frame["file_path"]:
+                filepath = PureWindowsPath(frame["file_path"])
             else:
-                fname = abs_dir / Path(frame["file_path"])
+                filepath = Path(frame["file_path"])
+            if self.config.downscale_factor > 1:
+                fname = abs_dir / f"images_{self.config.downscale_factor}" / filepath.name
+            else:
+                fname = abs_dir / filepath
             if not fname:
                 num_skipped_image_filenames += 1
             else:
