@@ -3,6 +3,7 @@ import * as React from 'react';
 import Button from '@mui/material/Button';
 import { ButtonGroup } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
+import { useEffect } from 'react';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
@@ -39,6 +40,17 @@ export default function StatusPanel(props: StatusPanelProps) {
   const handleChange = () => {
     setValue(!value);
   };
+
+  useEffect(() => {
+    const labels = document.getElementsByClassName('label');
+      for(let i =0; i < labels.length; i+=1) {
+        if(!value){
+          labels[i].style.visibility = 'hidden';
+        } else {
+          labels[i].style.visibility = 'visible';
+        }
+      }
+  }, [value])
 
   const handlePlayChange = () => {
     dispatch({
