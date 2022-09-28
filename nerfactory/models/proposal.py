@@ -65,9 +65,9 @@ class ProposalModelConfig(ModelConfig):
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: int = 64
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 32
+    num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
-    num_proposal_network_iterations: int = 2
+    num_proposal_network_iterations: int = 1
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
     """Use the same proposal network. Otherwise use different ones."""
