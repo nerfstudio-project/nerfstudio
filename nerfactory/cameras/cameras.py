@@ -91,11 +91,15 @@ class Cameras:
         if not isinstance(cx, torch.Tensor):
             cx = torch.Tensor([cx])
         else:
-            assert torch.all(cx == cx[0]), "Batched cameras of different types will be allowed in the future."
+            assert torch.all(
+                cx == (cx[0] if cx.ndim > 0 else cx.item())
+            ), "Batched cameras of different types will be allowed in the future."
         if not isinstance(cy, torch.Tensor):
             cy = torch.Tensor([cy])
         else:
-            assert torch.all(cy == cy[0]), "Batched cameras of different types will be allowed in the future."
+            assert torch.all(
+                cy == (cy[0] if cy.ndim > 0 else cy.item())
+            ), "Batched cameras of different types will be allowed in the future."
         self.cx = cx.to(self.device).broadcast_to((self._num_cameras))
         self.cy = cy.to(self.device).broadcast_to((self._num_cameras))
 
