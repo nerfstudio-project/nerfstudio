@@ -85,8 +85,8 @@ class Cameras:
             fx = torch.Tensor([fx])
         if not isinstance(fy, torch.Tensor):
             fy = torch.Tensor([fy])
-        self.fx = fx.broadcast_to((self._num_cameras)).to(self.device)
-        self.fy = fy.broadcast_to((self._num_cameras)).to(self.device)
+        self.fx = fx.to(self.device).broadcast_to((self._num_cameras))
+        self.fy = fy.to(self.device).broadcast_to((self._num_cameras))
 
         if not isinstance(cx, torch.Tensor):
             cx = torch.Tensor([cx])
@@ -96,8 +96,8 @@ class Cameras:
             cy = torch.Tensor([cy])
         else:
             assert torch.all(cy == cy[0]), "Batched cameras of different types will be allowed in the future."
-        self.cx = cx.broadcast_to((self._num_cameras)).to(self.device)
-        self.cy = cy.broadcast_to((self._num_cameras)).to(self.device)
+        self.cx = cx.to(self.device).broadcast_to((self._num_cameras))
+        self.cy = cy.to(self.device).broadcast_to((self._num_cameras))
 
         if distortion_params is not None:
             self.distortion_params = distortion_params.broadcast_to((self._num_cameras, 6))
@@ -111,30 +111,31 @@ class Cameras:
         # If tensor, broadcast to all cameras
         # If none, use cx or cy * 2
         if isinstance(height, int):
-            height = torch.Tensor([height]).to(torch.int64)
-            self._image_heights = height.broadcast_to((self._num_cameras)).to(self.device)
+            height = torch.Tensor([height]).to(torch.int64).to(self.device)
+            self._image_heights = height.broadcast_to((self._num_cameras))
         elif isinstance(height, torch.Tensor):
-            self._image_heights = height.to(torch.int64).broadcast_to((self._num_cameras)).to(self.device)
+            self._image_heights = height.to(torch.int64).to(self.device).broadcast_to((self._num_cameras))
             assert torch.all(
                 self._image_heights == self._image_heights[0]
             ), "Batched cameras of different types will be allowed in the future."
         elif height is None:
-            self._image_heights = (
-                torch.Tensor(self.cy.to(torch.int64) * 2).broadcast_to((self._num_cameras)).to(self.device)
+            self._image_heights = torch.Tensor(self.cy.to(torch.int64).to(self.device) * 2).broadcast_to(
+                (self._num_cameras)
             )
+
         else:
             raise ValueError("Height must be an int, tensor, or None.")
         if isinstance(width, int):
-            width = torch.Tensor([width]).to(torch.int64)
-            self._image_widths = width.broadcast_to((self._num_cameras)).to(self.device)
+            width = torch.Tensor([width]).to(torch.int64).to(self.device)
+            self._image_widths = width.broadcast_to((self._num_cameras))
         elif isinstance(width, torch.Tensor):
-            self._image_widths = width.to(torch.int64).broadcast_to((self._num_cameras)).to(self.device)
+            self._image_widths = width.to(torch.int64).to(self.device).broadcast_to((self._num_cameras))
             assert torch.all(
                 self._image_widths == self._image_widths[0]
             ), "Batched cameras of different types will be allowed in the future."
         elif width is None:
-            self._image_widths = (
-                torch.Tensor(self.cx.to(torch.int64) * 2).broadcast_to((self._num_cameras)).to(self.device)
+            self._image_widths = torch.Tensor(self.cx.to(torch.int64).to(self.device) * 2).broadcast_to(
+                (self._num_cameras)
             )
         else:
             raise ValueError("Width must be an int, tensor, or None.")
