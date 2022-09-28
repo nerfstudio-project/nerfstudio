@@ -240,7 +240,7 @@ class Config(PrintableConfig):
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
-    timestamp: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
@@ -255,6 +255,10 @@ class Config(PrintableConfig):
             }
         }
     )
+
+    def set_timestamp(self) -> None:
+        """Dynamically set the experiment timestamp"""
+        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""

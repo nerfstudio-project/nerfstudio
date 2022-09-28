@@ -32,11 +32,11 @@ pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.py
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
-Experimental: install tab completion for nerfactory (bash and zsh)
+Install tab completion for nerfactory (bash and zsh)
 
 ```bash
 # If the CLI changes, we can also re-install to synchronize completions
-python scripts/completions/configure.py install
+nf-install-cli
 ```
 
 # Downloading data
