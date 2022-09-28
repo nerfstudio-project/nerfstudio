@@ -54,7 +54,7 @@ def check_viewer_enabled(func: Callable) -> Callable:
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.is_nerfviewer_enabled():
+        if self.config.is_viewer_enabled():
             ret = func(self, *args, **kwargs)
         return ret
 

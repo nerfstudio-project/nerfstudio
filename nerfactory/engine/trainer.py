@@ -106,7 +106,7 @@ class Trainer:
         self.prev_ckpt_paths = []
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
-        if self.config.is_nerfviewer_enabled():
+        if self.config.is_viewer_enabled():
             self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
         else:
             self.viewer_state, banner_messages = None, None
@@ -191,18 +191,18 @@ class Trainer:
 
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
-        if self.config.is_nerfviewer_enabled():
+        if self.config.is_viewer_enabled():
             is_logger_enabled = self.config.is_wandb_enabled() or self.config.is_tensorboard_enabled()
             if is_logger_enabled:
                 string = (
                     "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
-                    "Please set `--viewers nerfviewer` for faster rendering."
+                    "Please set `--vis viewer` for faster rendering."
                 )
                 CONSOLE.print(f"[bold red]{string}")
             else:
                 string = (
                     "[WARNING] Not running eval iterations since only viewer is enabled."
-                    " Please add 'wandb' or 'tensorboard' to the `--viewers` list to run evaluations."
+                    " Please add 'wandb' or 'tensorboard' to the `--vis` list to run evaluations."
                 )
                 CONSOLE.print(f"[bold red]{string}")
 

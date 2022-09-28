@@ -65,7 +65,7 @@ base_configs["compound"] = Config(
             "scheduler": None,
         }
     },
-    viewers=["nerfviewer"],
+    vis=["viewer"],
 )
 
 base_configs["instant-ngp"] = Config(
@@ -81,7 +81,7 @@ base_configs["instant-ngp"] = Config(
             "scheduler": None,
         }
     },
-    viewers=["nerfviewer"],
+    vis=["viewer"],
 )
 
 base_configs["proposal"] = Config(
@@ -104,7 +104,7 @@ base_configs["proposal"] = Config(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=2 << 15),
-    viewers=["nerfviewer"],
+    vis=["viewer"],
 )
 
 base_configs["mipnerf-360"] = Config(

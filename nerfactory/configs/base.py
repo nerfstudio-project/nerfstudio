@@ -251,19 +251,19 @@ class Config(PrintableConfig):
         }
     )
     """optionally specify a pre-defined config to load from"""
-    viewers: List[Literal["nerfviewer", "wandb", "tensorboard"]] = field(default_factory=lambda: ["wandb"])
+    vis: List[Literal["viewer", "wandb", "tensorboard"]] = field(default_factory=lambda: ["wandb"])
 
-    def is_nerfviewer_enabled(self) -> bool:
+    def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return "nerfviewer" in self.viewers
+        return "viewer" in self.vis
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""
-        return "wandb" in self.viewers
+        return "wandb" in self.vis
 
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
-        return "tensorboard" in self.viewers
+        return "tensorboard" in self.vis
 
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
