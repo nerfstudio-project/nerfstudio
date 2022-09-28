@@ -295,6 +295,7 @@ export default function CameraPanel(props) {
       labelDiv.className = 'label';
       labelDiv.textContent = i;
       labelDiv.style.color = 'black';
+      labelDiv.style.visibility = 'visible';
       const camera_label = new CSS2DObject(labelDiv);
       camera_label.position.set(0, -0.1, -0.1);
       camera_helper.add(camera_label);
