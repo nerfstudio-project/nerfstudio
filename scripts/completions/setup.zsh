@@ -21,8 +21,13 @@ for completion_path in ${completions_dir}/*
 do
   # /some/path/to/_our_completion_py => _our_completion_py
   completion_name=${completion_path##*/}
-  # _our_completion_py => our_completion.py
-  script_name="${completion_name:1:-3}.py"
+  if [[ $name == *_py ]]; then
+    # _our_completion_py => our_completion.py
+    script_name="${completion_name:1:-3}.py"
+  else
+    # _entry-point => entry-point
+    script_name="${completion_name:1}"
+  fi
 
   autoload -Uz $completion_path
   compdef $completion_name $script_name
