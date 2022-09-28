@@ -97,10 +97,14 @@ base_configs["proposal"] = Config(
         model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
-        }
+        },
     },
     viewer=ViewerConfig(enable=True, num_rays_per_chunk=2 << 15),
     logging=LoggingConfig(event_writer="none"),
