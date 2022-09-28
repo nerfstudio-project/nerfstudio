@@ -27,7 +27,7 @@ def set_reduced_config(config: Config):
     config.pipeline.datamanager.train_num_rays_per_batch = 4
 
     # use tensorboard logging instead of wandb
-    config.logging.event_writer = "tb"
+    config.vis = ["tensorboard"]
     config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors
