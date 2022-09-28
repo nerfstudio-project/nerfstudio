@@ -349,7 +349,8 @@ class PDFSampler(Sampler):
             u = u + torch.rand(size=(*cdf.shape[:-1], num_bins), device=cdf.device) / num_bins
         else:
             # Uniform samples between 0 and 1
-            u = torch.linspace(0.0, 1.0, steps=num_bins, device=cdf.device)
+            u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
+            u = u + 1.0 / (2 * num_bins)
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
         u = u.contiguous()
 
@@ -564,8 +565,10 @@ class ProposalNetworkSampler(Sampler):
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
-        density_fn: Optional[Callable] = None,
+        density_fns: Optional[List[Callable]] = None,
     ) -> Tuple[RaySamples, List, List]:
+        assert ray_bundle is not None
+        assert density_fns is not None
 
         weights_list = []
         ray_samples_list = []
@@ -583,7 +586,7 @@ class ProposalNetworkSampler(Sampler):
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
-                density = density_fn(ray_samples.frustums.get_positions())
+                density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)

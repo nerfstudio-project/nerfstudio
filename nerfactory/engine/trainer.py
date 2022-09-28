@@ -106,11 +106,14 @@ class Trainer:
         self.prev_ckpt_paths = []
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
-        self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        if self.config.is_viewer_enabled():
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        else:
+            self.viewer_state, banner_messages = None, None
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
-        writer.setup_event_writer(config.logging, log_dir=writer_log_path)
+        writer.setup_event_writer(config, log_dir=writer_log_path)
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
@@ -188,17 +191,18 @@ class Trainer:
 
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
-        if self.config.viewer.enable:
-            if self.config.logging.event_writer == "none":
+        if self.config.is_viewer_enabled():
+            is_logger_enabled = self.config.is_wandb_enabled() or self.config.is_tensorboard_enabled()
+            if is_logger_enabled:
                 string = (
-                    "[WARNING] Disabling eval iterations since viewer is enabled."
-                    "Please set `--logging.event_writer wandb` (or tb) to run evaluations."
+                    "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
+                    "Please set `--vis viewer` for faster rendering."
                 )
                 CONSOLE.print(f"[bold red]{string}")
             else:
                 string = (
-                    "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
-                    "Please set `--logging.event_writer none` for faster rendering"
+                    "[WARNING] Not running eval iterations since only viewer is enabled."
+                    " Please add 'wandb' or 'tensorboard' to the `--vis` list to run evaluations."
                 )
                 CONSOLE.print(f"[bold red]{string}")
 

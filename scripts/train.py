@@ -186,6 +186,8 @@ def launch(
 def main(config: cfg.Config) -> None:
     """Main function."""
 
+    config.set_timestamp()
+
     if config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)

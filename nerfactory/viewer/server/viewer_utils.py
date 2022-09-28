@@ -50,11 +50,9 @@ def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     Args:
         config: the configuration to instantiate viewer
     """
-    if config.enable:
-        viewer_state = ViewerState(config, log_filename=log_filename)
-        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
-        return viewer_state, banner_messages
-    return None, None
+    viewer_state = ViewerState(config, log_filename=log_filename)
+    banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+    return viewer_state, banner_messages
 
 
 class OutputTypes(str, enum.Enum):
