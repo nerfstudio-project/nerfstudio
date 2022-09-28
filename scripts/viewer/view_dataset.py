@@ -26,8 +26,8 @@ torch.backends.cudnn.benchmark = True  # type: ignore
 
 def main(config: cfg.Config) -> None:
     """Main function."""
-    if not config.viewer.enable:
-        config.viewer.enable = True
+    if not config.is_viewer_enabled():
+        config.vis.append("viewer")
         logging.info("Enabling viewer to view dataset")
     viewer_state = viewer_utils.ViewerState(config.viewer)
     datamanager = config.pipeline.datamanager.setup()
