@@ -142,7 +142,8 @@ function CameraList(props) {
           Camera {index}
         </Button>
         <div className="CameraList-row-buttons">
-          <Button size="small"
+          <Button
+            size="small"
             onClick={() => {
               set_camera_position(camera_main, camera.matrix);
             }}
@@ -504,7 +505,8 @@ export default function CameraPanel(props) {
           </Button>
         </div>
         <div className="CameraPanel-top-button">
-          <Button size="small"
+          <Button
+            size="small"
             className="CameraPanel-top-button"
             variant="outlined"
             onClick={export_camera_path}
@@ -524,7 +526,8 @@ export default function CameraPanel(props) {
         <div className="CameraPanel-top-button">
           <Tooltip className="curve-button" title="Close/Open camera spline">
             {!is_cycle ? (
-              <Button size="small" 
+              <Button
+                size="small"
                 variant="outlined"
                 onClick={() => {
                   setIsCycle(true);
@@ -533,7 +536,8 @@ export default function CameraPanel(props) {
                 <GestureOutlined />
               </Button>
             ) : (
-              <Button size="small"
+              <Button
+                size="small"
                 variant="outlined"
                 onClick={() => {
                   setIsCycle(false);
@@ -547,7 +551,8 @@ export default function CameraPanel(props) {
         <div className="CameraPanel-top-button">
           <Tooltip title="Non-linear/Linear camera speed">
             {!is_linear ? (
-              <Button size="small"
+              <Button
+                size="small"
                 variant="outlined"
                 onClick={() => {
                   setIsLinear(true);
@@ -556,7 +561,8 @@ export default function CameraPanel(props) {
                 <LinearScaleOutlined />
               </Button>
             ) : (
-              <Button size="small"
+              <Button
+                size="small"
                 variant="outlined"
                 onClick={() => {
                   setIsLinear(false);
@@ -568,7 +574,10 @@ export default function CameraPanel(props) {
           </Tooltip>
         </div>
       </div>
-      <div className="CameraPanel-slider-container" style={{marginTop: "5px"}}>
+      <div
+        className="CameraPanel-slider-container"
+        style={{ marginTop: '5px' }}
+      >
         <Stack spacing={2} direction="row" sx={{ mb: 1 }} alignItems="center">
           <p style={{ fontSize: 'smaller', color: '#999999' }}>Smoothness</p>
           <ChangeHistory />
@@ -601,7 +610,8 @@ export default function CameraPanel(props) {
         />
       </div>
       <div className="CameraPanel-slider-button-container">
-        <Button size="small"
+        <Button
+          size="small"
           variant="outlined"
           onClick={() => {
             setIsPlaying(false);
@@ -610,7 +620,8 @@ export default function CameraPanel(props) {
         >
           <FirstPageIcon />
         </Button>
-        <Button size="small"
+        <Button
+          size="small"
           variant="outlined"
           onClick={() => set_slider_value(slider_value - step_size)}
         >
@@ -618,7 +629,8 @@ export default function CameraPanel(props) {
         </Button>
         {/* eslint-disable-next-line no-nested-ternary */}
         {!is_playing && slider_max === slider_value ? (
-          <Button size="small"
+          <Button
+            size="small"
             variant="outlined"
             onClick={() => {
               set_slider_value(slider_min);
@@ -627,7 +639,8 @@ export default function CameraPanel(props) {
             <Replay />
           </Button>
         ) : !is_playing ? (
-          <Button size="small"
+          <Button
+            size="small"
             variant="outlined"
             onClick={() => {
               if (cameras.length > 1) {
@@ -638,7 +651,8 @@ export default function CameraPanel(props) {
             <PlayArrowIcon />
           </Button>
         ) : (
-          <Button size="small"
+          <Button
+            size="small"
             variant="outlined"
             onClick={() => {
               setIsPlaying(false);
@@ -647,13 +661,18 @@ export default function CameraPanel(props) {
             <PauseIcon />
           </Button>
         )}
-        <Button size="small"
+        <Button
+          size="small"
           variant="outlined"
           onClick={() => set_slider_value(slider_value + step_size)}
         >
           <ArrowForwardIosIcon />
         </Button>
-        <Button size="small" variant="outlined" onClick={() => set_slider_value(slider_max)}>
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => set_slider_value(slider_max)}
+        >
           <LastPageIcon />
         </Button>
       </div>

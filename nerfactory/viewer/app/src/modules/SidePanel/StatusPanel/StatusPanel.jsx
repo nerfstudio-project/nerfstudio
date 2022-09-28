@@ -43,14 +43,14 @@ export default function StatusPanel(props: StatusPanelProps) {
 
   useEffect(() => {
     const labels = document.getElementsByClassName('label');
-      for(let i =0; i < labels.length; i+=1) {
-        if(!value){
-          labels[i].style.visibility = 'hidden';
-        } else {
-          labels[i].style.visibility = 'visible';
-        }
+    for (let i = 0; i < labels.length; i += 1) {
+      if (!value) {
+        labels[i].style.visibility = 'hidden';
+      } else {
+        labels[i].style.visibility = 'visible';
       }
-  }, [value])
+    }
+  }, [value]);
 
   const handlePlayChange = () => {
     dispatch({
