@@ -565,8 +565,10 @@ class ProposalNetworkSampler(Sampler):
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
-        density_fn: Optional[Callable] = None,
+        density_fns: Optional[List[Callable]] = None,
     ) -> Tuple[RaySamples, List, List]:
+        assert ray_bundle is not None
+        assert density_fns is not None
 
         weights_list = []
         ray_samples_list = []
@@ -584,7 +586,7 @@ class ProposalNetworkSampler(Sampler):
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
-                density = density_fn(ray_samples.frustums.get_positions())
+                density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)

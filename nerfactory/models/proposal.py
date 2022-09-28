@@ -69,6 +69,8 @@ class ProposalModelConfig(ModelConfig):
     """Number of samples per ray for the nerf network."""
     num_proposal_network_iterations: int = 2
     """Number of proposal network iterations."""
+    use_same_proposal_network: bool = False
+    """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.01
@@ -105,7 +107,18 @@ class ProposalModel(Model):
             )
         else:
             self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
-        self.proposal_network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+
+        # Build the proposal network(s)
+        if self.config.use_same_proposal_network:
+            network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+            self.proposal_networks = [network]
+            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
+        else:
+            self.proposal_networks = []
+            for _ in range(self.config.num_proposal_network_iterations):
+                network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+                self.proposal_networks.append(network)
+            self.density_fns = [network.density_fn for network in self.proposal_networks]
 
         # Collider
         self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
@@ -133,7 +146,11 @@ class ProposalModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        param_groups["fields"] = list(self.proposal_network.parameters()) + list(self.field.parameters())
+        proposal_networks_params = []
+        for network in self.proposal_networks:
+            proposal_networks_params += list(network.parameters())
+        param_groups["proposal_networks"] = proposal_networks_params
+        param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
     def get_training_callbacks(
@@ -161,9 +178,7 @@ class ProposalModel(Model):
         return callbacks
 
     def get_outputs(self, ray_bundle: RayBundle):
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(
-            ray_bundle, density_fn=self.proposal_network.density_fn
-        )
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
@@ -179,6 +194,7 @@ class ProposalModel(Model):
 
         for i in range(self.config.num_proposal_network_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
