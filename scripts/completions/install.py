@@ -10,7 +10,7 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import List, Literal
+from typing import List, Literal, Union
 
 import dcargs
 from rich.console import Console
@@ -58,7 +58,9 @@ def _check_dcargs_cli(script_path: pathlib.Path) -> bool:
     return False
 
 
-def _generate_completion(script_path: pathlib.Path, shell: ShellType, completions_dir: pathlib.Path) -> pathlib.Path:
+def _generate_completion(
+    path_or_entrypoint: Union[pathlib.Path, str], shell: ShellType, completions_dir: pathlib.Path
+) -> pathlib.Path:
     """Given a path to a dcargs CLI, write a completion script to a target directory.
 
     Args:
@@ -69,12 +71,22 @@ def _generate_completion(script_path: pathlib.Path, shell: ShellType, completion
     Returns:
         Success flag.
     """
-    # Use zsh standard for naming completion scripts.
-    target_path = completions_dir / shell / ("_" + script_path.name.replace(".", "_"))
+    if isinstance(path_or_entrypoint, pathlib.Path):
+        # Scripts.
+        target_name = "_" + path_or_entrypoint.name.replace(".", "_")
+        args = [sys.executable, str(path_or_entrypoint), "--dcargs-print-completion", shell]
+    elif isinstance(path_or_entrypoint, str):
+        # Entry points.
+        target_name = "_" + path_or_entrypoint
+        args = [path_or_entrypoint, "--dcargs-print-completion", shell]
+    else:
+        assert_never(path_or_entrypoint)
+
+    target_path = completions_dir / shell / target_name
 
     # Generate and write the new completion.
     new = subprocess.run(
-        args=[sys.executable, str(script_path), "--dcargs-print-completion", shell],
+        args=args,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         encoding="utf8",
@@ -151,7 +163,7 @@ def _update_rc(
 
 
 def main(
-    mode: ConfigureMode,
+    mode: ConfigureMode = "install",
     /,
 ) -> None:
     """Main script.
@@ -194,8 +206,28 @@ def main(
             else:
                 CONSOLE.log(f":heavy_check_mark: No existing completions at: {target_dir}.")
     elif mode == "install":
+        # Set to True to install completions for scripts as well.
+        include_scripts = False
+
         # Find dcargs CLIs.
-        script_paths = list(filter(_check_dcargs_cli, scripts_dir.glob("**/*.py")))
+        script_paths = list(filter(_check_dcargs_cli, scripts_dir.glob("**/*.py"))) if include_scripts else []
+        entry_points = (
+            # Read pyproject.toml.
+            (scripts_dir.parent / "pyproject.toml")
+            .read_text()
+            # Get entrypoint lines.
+            .partition("[project.scripts]")[2]
+            .partition("[")[0]
+            # Split into list of strings, which should each be of the format:
+            # `entrypoint = "scripts.something:entrypoint"`
+            .strip()
+            .split("\n")
+        )
+        entry_points = list(
+            # nf-train = "..." ==> nf-train
+            e.partition("=")[0].strip()
+            for e in entry_points
+        )
         script_names = tuple(p.name for p in script_paths)
         assert len(set(script_names)) == len(script_names)
 
@@ -211,8 +243,10 @@ def main(
         with CONSOLE.status("[bold]:writing_hand:  Generating completions...", spinner="bouncingBall"):
             completion_paths = list(
                 concurrent_executor.map(
-                    lambda path_and_shell: _generate_completion(path_and_shell[0], path_and_shell[1], completions_dir),
-                    itertools.product(script_paths, shells_found),
+                    lambda path_or_entrypoint_and_shell: _generate_completion(
+                        path_or_entrypoint_and_shell[0], path_or_entrypoint_and_shell[1], completions_dir
+                    ),
+                    itertools.product(script_paths + entry_points, shells_found),
                 )
             )
 
@@ -233,16 +267,6 @@ def main(
         _update_rc(completions_dir, mode, shell)
 
     CONSOLE.print("[bold]All done![/bold]")
-    if mode == "install":
-        CONSOLE.print()
-        CONSOLE.print("Notes:")
-        CONSOLE.print(
-            ":warning: In bash, completions will trigger via [dim white]./scripts/train.py <TAB>[/dim white], but"
-            " not [dim white]python ./scripts/train.py <TAB>[/dim white]."
-        )
-        CONSOLE.print(
-            ":warning: Completions are in an experimental state. If you run into any issues, please file an issue!"
-        )
 
 
 def entrypoint():
