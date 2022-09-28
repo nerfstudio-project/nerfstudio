@@ -27,7 +27,6 @@ from typeguard import typeguard_ignore
 from nerfactory.configs.base import (
     AdamOptimizerConfig,
     Config,
-    LoggingConfig,
     RAdamOptimizerConfig,
     SchedulerConfig,
     TrainerConfig,
@@ -66,8 +65,7 @@ base_configs["compound"] = Config(
             "scheduler": None,
         }
     },
-    viewer=ViewerConfig(enable=True),
-    logging=LoggingConfig(event_writer="none"),
+    viewers=["nerfviewer"],
 )
 
 base_configs["instant-ngp"] = Config(
@@ -83,8 +81,7 @@ base_configs["instant-ngp"] = Config(
             "scheduler": None,
         }
     },
-    viewer=ViewerConfig(enable=True),
-    logging=LoggingConfig(event_writer="none"),
+    viewers=["nerfviewer"],
 )
 
 base_configs["proposal"] = Config(
@@ -106,8 +103,8 @@ base_configs["proposal"] = Config(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(enable=True, num_rays_per_chunk=2 << 15),
-    logging=LoggingConfig(event_writer="none"),
+    viewer=ViewerConfig(num_rays_per_chunk=2 << 15),
+    viewers=["nerfviewer"],
 )
 
 base_configs["mipnerf-360"] = Config(
