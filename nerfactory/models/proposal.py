@@ -109,12 +109,12 @@ class ProposalModel(Model):
             self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
 
         # Build the proposal network(s)
+        self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
             network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
-            self.proposal_networks = [network]
+            self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
         else:
-            self.proposal_networks = []
             for _ in range(self.config.num_proposal_network_iterations):
                 network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
@@ -146,10 +146,7 @@ class ProposalModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        proposal_networks_params = []
-        for network in self.proposal_networks:
-            proposal_networks_params += list(network.parameters())
-        param_groups["proposal_networks"] = proposal_networks_params
+        param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
