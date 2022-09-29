@@ -17,13 +17,20 @@ import mediapy as media
 import torch
 import yaml
 from rich.console import Console
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 from typing_extensions import assert_never
 
 from nerfactory.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfactory.cameras.cameras import Cameras
 from nerfactory.configs import base as cfg
 from nerfactory.pipelines.base import Pipeline
+from nerfactory.utils.rich import ItersPerSecColumn
 
 console = Console(width=120)
 
@@ -73,12 +80,21 @@ def _render_trajectory_video(
     console.print("[bold green]Creating trajectory video")
     images = []
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
-    for camera_idx in track(range(cameras.size), description=":movie_camera: Rendering :movie_camera:"):
-        camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
-        with torch.no_grad():
-            outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        image = outputs[rendered_output_name].cpu().numpy()
-        images.append(image)
+
+    progress = Progress(
+        TextColumn(":movie_camera: Rendering :movie_camera:"),
+        BarColumn(),
+        TaskProgressColumn(show_speed=True),
+        ItersPerSecColumn(suffix="fps"),
+        TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+    )
+    with progress:
+        for camera_idx in progress.track(range(cameras.size), description=""):
+            camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
+            with torch.no_grad():
+                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            image = outputs[rendered_output_name].cpu().numpy()
+            images.append(image)
 
     fps = len(images) / seconds
     with console.status("[yellow]Saving video", spinner="bouncingBall"):
