@@ -35,10 +35,11 @@ from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.models.base import Model, ModelConfig
-from nerfactory.models.modules.ray_losses import distortion_loss
+
+# from nerfactory.models.modules.ray_losses import distortion_loss
 from nerfactory.models.modules.ray_sampler import ProposalNetworkSampler
 from nerfactory.models.modules.scene_colliders import NearFarCollider
-from nerfactory.optimizers.loss import MSELoss, interlevel_loss
+from nerfactory.optimizers.loss import MSELoss, interlevel_loss, distortion_loss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -63,7 +64,7 @@ class ProposalModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     randomize_background: bool = True
     """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: int = 64
+    num_proposal_samples_per_ray: Tuple[int] = (64,)
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
@@ -198,22 +199,17 @@ class ProposalModel(Model):
         metrics_dict = {}
         image = batch["image"].to(self.device)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
+        metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
-    def get_loss_dict(self, outputs, batch, metrics_dict=None):
+    def get_loss_dict(self, outputs, batch, metrics_dict):
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
             outputs["weights_list"], outputs["ray_samples_list"]
         )
-        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * torch.mean(
-            distortion_loss(
-                outputs["ray_samples_list"][-1],
-                weights=outputs["weights_list"][-1],
-                scale_factor=1.0 / (self.config.far_plane - self.config.near_plane),
-            )
-        )
+        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
         return loss_dict
 
     def get_image_metrics_and_images(

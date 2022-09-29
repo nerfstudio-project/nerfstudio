@@ -49,8 +49,8 @@ def distortion_loss(
     if torch.is_tensor(weights):
         assert not torch.is_tensor(densities), "Cannot use both densities and weights"
 
-    starts = ray_samples.frustums.starts * scale_factor
-    ends = ray_samples.frustums.ends * scale_factor
+    starts = ray_samples.spacing_starts
+    ends = ray_samples.spacing_ends
 
     midpoints = (starts + ends) / 2.0  # (..., num_samples, 1)
 

@@ -117,7 +117,11 @@ class SpacedSampler(Sampler):
 
         # TODO More complicated than it needs to be.
         if self.train_stratified and self.training:
-            t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
+            single_jitter = True
+            if single_jitter:
+                t_rand = torch.rand((num_rays, 1), dtype=bins.dtype, device=bins.device)
+            else:
+                t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
             bin_centers = (bins[..., 1:] + bins[..., :-1]) / 2.0
             bin_upper = torch.cat([bin_centers, bins[..., -1:]], -1)
             bin_lower = torch.cat([bins[..., :1], bin_centers], -1)
@@ -541,7 +545,7 @@ class ProposalNetworkSampler(Sampler):
 
     def __init__(
         self,
-        num_proposal_samples_per_ray: int = 64,
+        num_proposal_samples_per_ray: Tuple[int] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
         density_field: Optional[DensityGrid] = None,
@@ -576,7 +580,7 @@ class ProposalNetworkSampler(Sampler):
         n = self.num_proposal_network_iterations
         for i_level in range(n + 1):
             is_prop = i_level < n
-            num_samples = self.num_proposal_samples_per_ray if is_prop else self.num_nerf_samples_per_ray
+            num_samples = self.num_proposal_samples_per_ray[i_level] if is_prop else self.num_nerf_samples_per_ray
             if i_level == 0:
                 # Uniform sampling because we need to start with some samples
                 ray_samples = self.initial_sampler(ray_bundle, num_samples=num_samples)
