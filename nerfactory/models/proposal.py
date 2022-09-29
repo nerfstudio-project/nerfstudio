@@ -39,7 +39,7 @@ from nerfactory.models.base import Model, ModelConfig
 # from nerfactory.models.modules.ray_losses import distortion_loss
 from nerfactory.models.modules.ray_sampler import ProposalNetworkSampler
 from nerfactory.models.modules.scene_colliders import NearFarCollider
-from nerfactory.optimizers.loss import MSELoss, interlevel_loss, distortion_loss
+from nerfactory.optimizers.loss import MSELoss, distortion_loss, interlevel_loss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -84,6 +84,8 @@ class ProposalModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
+    single_jitter: bool = True
+    """To use single jitter or not for first proposal network."""
 
 
 class ProposalModel(Model):
@@ -129,6 +131,7 @@ class ProposalModel(Model):
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
             num_proposal_network_iterations=self.config.num_proposal_network_iterations,
+            single_jitter=self.config.single_jitter,
         )
 
         # renderers
@@ -202,7 +205,7 @@ class ProposalModel(Model):
         metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
-    def get_loss_dict(self, outputs, batch, metrics_dict):
+    def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])

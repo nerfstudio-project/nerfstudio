@@ -82,11 +82,13 @@ class SpacedSampler(Sampler):
         spacing_fn_inv: Callable,
         num_samples: Optional[int] = None,
         train_stratified=True,
+        single_jitter=False,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(num_samples=num_samples, density_field=density_field, weight_threshold=weight_threshold)
         self.train_stratified = train_stratified
+        self.single_jitter = single_jitter
         self.spacing_fn = spacing_fn
         self.spacing_fn_inv = spacing_fn_inv
 
@@ -117,8 +119,7 @@ class SpacedSampler(Sampler):
 
         # TODO More complicated than it needs to be.
         if self.train_stratified and self.training:
-            single_jitter = True
-            if single_jitter:
+            if self.single_jitter:
                 t_rand = torch.rand((num_rays, 1), dtype=bins.dtype, device=bins.device)
             else:
                 t_rand = torch.rand((num_rays, num_samples + 1), dtype=bins.dtype, device=bins.device)
@@ -156,6 +157,7 @@ class UniformSampler(SpacedSampler):
         self,
         num_samples: Optional[int] = None,
         train_stratified=True,
+        single_jitter=False,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
@@ -164,6 +166,7 @@ class UniformSampler(SpacedSampler):
             spacing_fn=lambda x: x,
             spacing_fn_inv=lambda x: x,
             train_stratified=train_stratified,
+            single_jitter=single_jitter,
             density_field=density_field,
             weight_threshold=weight_threshold,
         )
@@ -183,6 +186,7 @@ class LinearDisparitySampler(SpacedSampler):
         self,
         num_samples: Optional[int] = None,
         train_stratified=True,
+        single_jitter=False,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
@@ -191,6 +195,7 @@ class LinearDisparitySampler(SpacedSampler):
             spacing_fn=lambda x: 1 / x,
             spacing_fn_inv=lambda x: 1 / x,
             train_stratified=train_stratified,
+            single_jitter=single_jitter,
             density_field=density_field,
             weight_threshold=weight_threshold,
         )
@@ -210,6 +215,7 @@ class SqrtSampler(SpacedSampler):
         self,
         num_samples: Optional[int] = None,
         train_stratified=True,
+        single_jitter=False,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
@@ -218,6 +224,7 @@ class SqrtSampler(SpacedSampler):
             spacing_fn=torch.sqrt,
             spacing_fn_inv=lambda x: x**2,
             train_stratified=train_stratified,
+            single_jitter=single_jitter,
             density_field=density_field,
             weight_threshold=weight_threshold,
         )
@@ -237,6 +244,7 @@ class LogSampler(SpacedSampler):
         self,
         num_samples: Optional[int] = None,
         train_stratified=True,
+        single_jitter=False,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
@@ -245,6 +253,7 @@ class LogSampler(SpacedSampler):
             spacing_fn=torch.log,
             spacing_fn_inv=torch.exp,
             train_stratified=train_stratified,
+            single_jitter=single_jitter,
             density_field=density_field,
             weight_threshold=weight_threshold,
         )
@@ -266,6 +275,7 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
         self,
         num_samples: Optional[int] = None,
         train_stratified=True,
+        single_jitter=False,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
@@ -274,6 +284,7 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
             spacing_fn=lambda x: torch.where(x < 1, x / 2, 1 - 1 / (2 * x)),
             spacing_fn_inv=lambda x: torch.where(x < 0.5, 2 * x, 1 / (2 - 2 * x)),
             train_stratified=train_stratified,
+            single_jitter=single_jitter,
             density_field=density_field,
             weight_threshold=weight_threshold,
         )
@@ -548,6 +559,7 @@ class ProposalNetworkSampler(Sampler):
         num_proposal_samples_per_ray: Tuple[int] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
+        single_jitter: bool = True,
         density_field: Optional[DensityGrid] = None,
         weight_threshold: float = 1e-2,
     ) -> None:
@@ -557,7 +569,7 @@ class ProposalNetworkSampler(Sampler):
         self.num_proposal_network_iterations = num_proposal_network_iterations
 
         # samplers
-        self.initial_sampler = UniformLinDispPiecewiseSampler()
+        self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
         self.pdf_sampler = PDFSampler(include_original=False)
 
         self._anneal = 1.0

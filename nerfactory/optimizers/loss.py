@@ -132,16 +132,8 @@ def lossfun_distortion(t, w):
 
 
 def distortion_loss(weights_list, ray_samples_list):
+    """From mipnerf360"""
     c = ray_samples_to_sdist(ray_samples_list[-1])
     w = weights_list[-1][..., 0]
     loss = torch.mean(lossfun_distortion(c, w))
     return loss
-
-
-# def distortion_loss(weights_list, ray_samples_list):
-#     loss = 0.0
-#     for ray_samples, weights in zip(ray_samples_list, weights_list):
-#         c = ray_samples_to_sdist(ray_samples)
-#         w = weights[..., 0]
-#         loss += torch.mean(lossfun_distortion(c, w))
-#     return loss

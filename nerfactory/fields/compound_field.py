@@ -94,7 +94,9 @@ class TCNNCompoundField(Field):
         self.num_images = num_images
         self.appearance_embedding_dim = appearance_embedding_dim
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
-        self.average_embedding_appearance = torch.nn.parameter.Parameter(data=torch.zeros(self.appearance_embedding_dim), requires_grad=False)
+        self.average_embedding_appearance = torch.nn.parameter.Parameter(
+            data=torch.zeros(self.appearance_embedding_dim), requires_grad=False
+        )
         self.counter = torch.nn.parameter.Parameter(torch.tensor(1.0), requires_grad=False)
 
         num_levels = 16
@@ -179,9 +181,10 @@ class TCNNCompoundField(Field):
             self.average_embedding_appearance.data = old * (n - 1) / n + new / n
             self.counter += 1
         else:
-            embedded_appearance = torch.ones(
-                (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-            ) * self.average_embedding_appearance
+            embedded_appearance = (
+                torch.ones((*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device)
+                * self.average_embedding_appearance
+            )
 
         if density_embedding is None:
             positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)

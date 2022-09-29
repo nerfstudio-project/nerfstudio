@@ -33,7 +33,6 @@ from nerfactory.configs.base import (
 from nerfactory.datamanagers.base import VanillaDataManagerConfig
 from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
 from nerfactory.datamanagers.dataparsers.friends_parser import FriendsDataParserConfig
-from nerfactory.datamanagers.dataparsers.nerfactory_parser import NerfactoryDataParserConfig
 from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
     MipNerf360DataParserConfig,
 )
