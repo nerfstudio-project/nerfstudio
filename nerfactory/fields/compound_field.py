@@ -97,11 +97,6 @@ class TCNNCompoundField(Field):
         self.appearance_embedding_dim = appearance_embedding_dim
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
         self.use_average_appearance_embedding = use_average_appearance_embedding
-        if self.use_average_appearance_embedding:
-            self.average_embedding_appearance = torch.nn.parameter.Parameter(
-                data=torch.zeros(self.appearance_embedding_dim), requires_grad=False
-            )
-            self.counter = torch.nn.parameter.Parameter(torch.tensor(1.0), requires_grad=False)
 
         num_levels = 16
         max_res = 1024
@@ -178,19 +173,11 @@ class TCNNCompoundField(Field):
 
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
-            if self.average_embedding_appearance:
-                # update the average weight embedding
-                old = self.average_embedding_appearance
-                new = embedded_appearance.mean(0)
-                n = self.counter
-                self.average_embedding_appearance.data = old * (n - 1) / n + new / n
-                self.counter += 1
         else:
-            if self.average_embedding_appearance:
-                embedded_appearance = (
-                    torch.ones((*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device)
-                    * self.average_embedding_appearance
-                )
+            if self.use_average_appearance_embedding:
+                embedded_appearance = torch.ones(
+                    (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                ) * self.embedding_appearance.mean(dim=0)
             else:
                 embedded_appearance = torch.zeros(
                     (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device

@@ -74,20 +74,20 @@ class ProposalModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.0
+    distortion_loss_mult: float = 0.001
     """Distortion loss multiplier."""
     use_appearance_conditioning: bool = True
     """Whether to use appearance conditioning."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
-    use_average_appearance_embedding: bool = False
+    use_average_appearance_embedding: bool = True
     """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
-    single_jitter: bool = True
-    """To use single jitter or not for first proposal network."""
+    use_single_jitter: bool = False
+    """Whether use single jitter or not for first proposal network."""
 
 
 class ProposalModel(Model):
@@ -136,7 +136,7 @@ class ProposalModel(Model):
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
             num_proposal_network_iterations=self.config.num_proposal_network_iterations,
-            single_jitter=self.config.single_jitter,
+            single_jitter=self.config.use_single_jitter,
         )
 
         # renderers
