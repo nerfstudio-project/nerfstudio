@@ -71,7 +71,7 @@ class ProposalModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.001
+    distortion_loss_mult: float = 0.01
     """Distortion loss multiplier."""
     use_appearance_conditioning: bool = True
     """Whether to use appearance conditioning."""
