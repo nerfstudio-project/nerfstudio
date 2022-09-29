@@ -21,6 +21,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
+from rich.console import Console
 from torch.utils.data import Dataset, default_collate
 from torch.utils.data.dataloader import DataLoader
 
@@ -28,6 +29,8 @@ from nerfactory.cameras.cameras import Cameras
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.utils.misc import get_dict_to_torch
+
+console = Console(width=120)
 
 
 class CacheDataloader(DataLoader):
@@ -69,8 +72,8 @@ class CacheDataloader(DataLoader):
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
-
-        batch_list = [self.dataset.__getitem__(idx) for idx in indices]
+        with console.status("[yellow]Loading data batch", spinner="bouncingBall"):
+            batch_list = [self.dataset.__getitem__(idx) for idx in indices]
         return batch_list
 
     def _get_collated_batch(self):

@@ -188,3 +188,4 @@ bash/
 nerfactory/ngp_pl/
 cache/
 renders/
+package-lock.json
