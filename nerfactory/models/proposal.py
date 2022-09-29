@@ -74,12 +74,14 @@ class ProposalModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.01
+    distortion_loss_mult: float = 0.0
     """Distortion loss multiplier."""
     use_appearance_conditioning: bool = True
     """Whether to use appearance conditioning."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
+    use_average_appearance_embedding: bool = False
+    """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
@@ -106,7 +108,10 @@ class ProposalModel(Model):
         # Fields
         if self.config.use_appearance_conditioning:
             self.field = TCNNCompoundField(
-                self.scene_bounds.aabb, spatial_distortion=scene_contraction, num_images=self.num_train_data
+                self.scene_bounds.aabb,
+                spatial_distortion=scene_contraction,
+                num_images=self.num_train_data,
+                use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             )
         else:
             self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
