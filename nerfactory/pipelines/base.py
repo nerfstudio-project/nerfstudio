@@ -131,8 +131,8 @@ class Pipeline(nn.Module):
             self.datamanager.eval_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_eval(step)
         model_outputs = self.model(ray_bundle, batch)
-        loss_dict = self.model.get_loss_dict(model_outputs, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
         self.train()
         return model_outputs, loss_dict, metrics_dict
 
@@ -271,8 +271,8 @@ class VanillaPipeline(Pipeline):
         if "valid_mask" in model_outputs:
             valid_mask = model_outputs["valid_mask"]
             batch = get_masked_dict(batch, valid_mask)
-        loss_dict = self.model.get_loss_dict(model_outputs, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
         self.train()
         return model_outputs, loss_dict, metrics_dict
 

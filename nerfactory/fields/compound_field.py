@@ -70,6 +70,7 @@ class TCNNCompoundField(Field):
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
         appearance_embedding_dim: dimension of appearance embedding
+        use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
     """
 
@@ -83,6 +84,7 @@ class TCNNCompoundField(Field):
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
         appearance_embedding_dim: int = 32,
+        use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
@@ -94,6 +96,7 @@ class TCNNCompoundField(Field):
         self.num_images = num_images
         self.appearance_embedding_dim = appearance_embedding_dim
         self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
+        self.use_average_appearance_embedding = use_average_appearance_embedding
 
         num_levels = 16
         max_res = 1024
@@ -171,9 +174,14 @@ class TCNNCompoundField(Field):
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
         else:
-            embedded_appearance = torch.zeros(
-                (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-            )
+            if self.use_average_appearance_embedding:
+                embedded_appearance = torch.ones(
+                    (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                ) * self.embedding_appearance.mean(dim=0)
+            else:
+                embedded_appearance = torch.zeros(
+                    (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                )
 
         if density_embedding is None:
             positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)

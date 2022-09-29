@@ -41,6 +41,10 @@ class Embedding(FieldModule):
     def build_nn_modules(self) -> None:
         self.embedding = torch.nn.Embedding(self.in_dim, self.out_dim)
 
+    def mean(self, dim=0):
+        """Return the mean of the embedding weights along a dim."""
+        return self.embedding.weight.mean(dim)
+
     def forward(self, in_tensor: TensorType[..., "input_dim"]) -> TensorType[..., "output_dim"]:
         """Call forward
 

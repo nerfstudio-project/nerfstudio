@@ -18,6 +18,7 @@ Collection of Losses.
 
 import torch
 from torch import nn
+from torchtyping import TensorType
 
 L1Loss = nn.L1Loss
 MSELoss = nn.MSELoss
@@ -27,10 +28,12 @@ LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 EPS = 1.0e-7
 
 
-def searchsorted(a, v):
+def searchsorted(a: TensorType[..., "N"], v: TensorType[..., "M"]) -> TensorType[..., "M"]:
     """
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L109
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L30
+
+
     """
     i = torch.arange(a.shape[-1], device=a.device)
     v_ge_a = v[..., None, :] >= a[..., :, None]
@@ -39,10 +42,17 @@ def searchsorted(a, v):
     return idx_lo, idx_hi
 
 
-def inner_outer(t0, t1, y1):
+def inner_outer(
+    t0: TensorType[..., "num_samples+1"], t1: TensorType[..., "num_samples+1"], y1: TensorType[..., "num_samples"]
+):
     """
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L117
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L64
+
+    Args:
+        t0: interval edges
+        t1: interval edges
+        y1: weights
     """
 
     cy1 = torch.cat([torch.zeros_like(y1[..., :1]), torch.cumsum(y1, dim=-1)], dim=-1)
@@ -61,10 +71,21 @@ def inner_outer(t0, t1, y1):
     return y0_inner, y0_outer
 
 
-def lossfun_outer(t, w, t_env, w_env):
+def lossfun_outer(
+    t: TensorType[..., "num_samples+1"],
+    w: TensorType[..., "num_samples"],
+    t_env: TensorType[..., "num_samples+1"],
+    w_env: TensorType[..., "num_samples"],
+):
     """
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L136
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L80
+
+    Args:
+        t: interval edges
+        w: weights
+        t_env: interval edges of the upper bound enveloping historgram
+        w_env: weights that should upper bound the inner (t,w) histogram
     """
     _, w_outer = inner_outer(t, t_env, w_env)
     return torch.clip(w - w_outer, min=0) ** 2 / (w + EPS)
@@ -93,3 +114,26 @@ def interlevel_loss(weights_list, ray_samples_list):
         wp = weights[..., 0]  # (num_rays, num_samples)
         loss_interlevel += torch.mean(lossfun_outer(c, w, cp, wp))
     return loss_interlevel
+
+
+# Verified
+def lossfun_distortion(t, w):
+    """
+    https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L142
+    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L266
+    """
+    ut = (t[..., 1:] + t[..., :-1]) / 2
+    dut = torch.abs(ut[..., :, None] - ut[..., None, :])
+    loss_inter = torch.sum(w * torch.sum(w[..., None, :] * dut, dim=-1), dim=-1)
+
+    loss_intra = torch.sum(w**2 * (t[..., 1:] - t[..., :-1]), dim=-1) / 3
+
+    return loss_inter + loss_intra
+
+
+def distortion_loss(weights_list, ray_samples_list):
+    """From mipnerf360"""
+    c = ray_samples_to_sdist(ray_samples_list[-1])
+    w = weights_list[-1][..., 0]
+    loss = torch.mean(lossfun_distortion(c, w))
+    return loss
