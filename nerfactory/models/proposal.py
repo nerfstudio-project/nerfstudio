@@ -31,7 +31,6 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.fields.compound_field import TCNNCompoundField
 from nerfactory.fields.density_field import DensityField
-from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.models.base import Model, ModelConfig
@@ -106,7 +105,7 @@ class ProposalModel(Model):
                 self.scene_bounds.aabb, spatial_distortion=scene_contraction, num_images=self.num_train_data
             )
         else:
-            self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+            raise NotImplementedError("Only appearance conditioning is supported.")
 
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()

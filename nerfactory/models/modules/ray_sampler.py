@@ -16,12 +16,12 @@
 Collection of sampling strategies
 """
 
-import math
 from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple
 
 import nerfacc
 import torch
+from nerfacc import OccupancyGrid
 from torch import nn
 from torchtyping import TensorType
 
@@ -398,46 +398,52 @@ class PDFSampler(Sampler):
 
 class VolumetricSampler(Sampler):
     """Sampler inspired by the one proposed in the Instant-NGP paper.
+    Generates samples along a ray by sampling the occupancy field.
+    Optionally removes occluded samples if the density_fn is provided.
 
-    This sampler does ray-box AABB test, ray samples generation and density check, all together.
-
-        Args:
-        aabb: Bounding box of the scene.
-        density_fn: Function that takes a tensor of points and returns a tensor of densities.
-        grid_resolution: Resolution of the density grid.
-        num_samples: Number of samples per ray.
+    Args:
+    occupancy_grid: Occupancy grid to sample from.
+    density_fn: Function that evaluates density at a given point.
+    scene_aabb: Axis-aligned bounding box of the scene, should be set to None if the scene is unbounded.
     """
 
     def __init__(
         self,
-        aabb: TensorType[2, 3],
-        density_fn: Callable[[TensorType["N", 3]], TensorType["N"]],
-        grid_resolution: int = 128,
-        num_samples: int = 1024,
+        occupancy_grid: Optional[OccupancyGrid] = None,
+        density_fn: Optional[Callable[[TensorType[..., 3]], TensorType[..., 1]]] = None,
+        scene_aabb: Optional[TensorType[2, 3]] = None,
     ) -> None:
 
-        super().__init__(num_samples=num_samples)
-        self.aabb = aabb
+        super().__init__()
+        self.scene_aabb = scene_aabb
         self.density_fn = density_fn
+        self.occupancy_grid = occupancy_grid
+        if self.scene_aabb is not None:
+            self.scene_aabb = self.scene_aabb.to("cuda").flatten()
+        print(self.scene_aabb)
 
-        self.render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
+    def get_sigma_fn(self, origins, directions) -> Optional[Callable]:
+        """Returns a function that returns the density of a point.
 
-        # setup occupancy field with eval function
-        def occ_eval_fn(x: torch.Tensor) -> torch.Tensor:
-            """Evaluate occupancy given positions.
+        Args:
+            origins: Origins of rays
+            directions: Directions of rays
+        Returns:
+            Function that returns the density of a point or None if a density function is not provided.
+        """
 
-            Args:
-                x: positions with shape (N, 3).
-            Returns:
-                occupancy values with shape (N, 1).
-            """
-            density_after_activation = density_fn(x)
-            # those two are similar when density is small.
-            # occupancy = 1.0 - torch.exp(-density_after_activation * render_step_size)
-            occupancy = density_after_activation * self.render_step_size
-            return occupancy
+        if self.density_fn is None or not self.training:
+            return None
 
-        self.occ_field = nerfacc.OccupancyField(occ_eval_fn=occ_eval_fn, aabb=aabb, resolution=grid_resolution)
+        density_fn = self.density_fn
+
+        def sigma_fn(t_starts, t_ends, ray_indices):
+            t_origins = origins[ray_indices]
+            t_dirs = directions[ray_indices]
+            positions = t_origins + t_dirs * (t_starts + t_ends) / 2.0
+            return density_fn(positions)
+
+        return sigma_fn
 
     def generate_ray_samples(self) -> RaySamples:
         raise RuntimeError(
@@ -448,17 +454,19 @@ class VolumetricSampler(Sampler):
     def forward(
         self,
         ray_bundle: RayBundle,
-        num_samples: Optional[int] = None,
+        render_step_size: float,
         near_plane: float = 0.0,
-        remove_occluded_samples: bool = True,
+        far_plane: Optional[float] = None,
+        cone_angle: float = 0.0,
     ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
 
         Args:
             ray_bundle: Rays to generate samples for
-            num_samples: Number of samples per ray
+            render_step_size: Minimum step size to use for rendering
             near_plane: Near plane for raymarching
-            remove_occluded_samples: Whether to remove occluded samples. (requires evaluating the density function)
+            far_plane: Far plane for raymarching
+            cone_angle: Cone angle for raymarching, set to 0 for uniform marching.
 
         Returns:
             a tuple of (ray_samples, packed_info, ray_indices)
@@ -470,12 +478,6 @@ class VolumetricSampler(Sampler):
         if self.density_field is not None:
             raise ValueError("NGPSpacedSampler does not support a density field")
 
-        if num_samples is not None:
-            render_step_size = ((self.aabb[3:] - self.aabb[:3]).max() * math.sqrt(3) / num_samples).item()
-        else:
-            num_samples = self.num_samples
-            render_step_size = self.render_step_size
-
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
         if ray_bundle.camera_indices is not None:
@@ -483,15 +485,17 @@ class VolumetricSampler(Sampler):
         else:
             camera_indices = None
 
-        packed_info, starts, ends = nerfacc.volumetric_marching(
+        packed_info, starts, ends = nerfacc.ray_marching(
             rays_o=rays_o,
             rays_d=rays_d,
-            aabb=self.aabb,
-            scene_resolution=self.occ_field.resolution,
-            scene_occ_binary=self.occ_field.occ_grid_binary,
+            scene_aabb=self.scene_aabb,
+            grid=self.occupancy_grid,
+            sigma_fn=self.get_sigma_fn(rays_o, rays_d),
             render_step_size=render_step_size,
             near_plane=near_plane,
+            far_plane=far_plane,
             stratified=self.training,
+            cone_angle=cone_angle,
         )
 
         num_samples = starts.shape[0]
@@ -507,20 +511,6 @@ class VolumetricSampler(Sampler):
         dirs = rays_d[ray_indices]
         if camera_indices is not None:
             camera_indices = camera_indices[ray_indices]
-
-        if remove_occluded_samples and self.training:
-            with torch.no_grad():
-                positions = origins + dirs * (starts + ends) / 2.0
-                densities = self.density_fn(positions)
-                if camera_indices is not None:
-                    packed_info, starts, ends, origins, dirs, camera_indices = nerfacc.volumetric_rendering_steps(
-                        packed_info, densities, starts, ends, origins, dirs, camera_indices
-                    )
-                else:
-                    packed_info, starts, ends, origins, dirs = nerfacc.volumetric_rendering_steps(
-                        packed_info, densities, starts, ends, origins, dirs
-                    )
-            ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
 
         zeros = torch.zeros_like(origins[:, :1])
         ray_samples = RaySamples(
