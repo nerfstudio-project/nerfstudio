@@ -19,17 +19,18 @@ Implementation of Instant NGP.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 import nerfacc
 import torch
+from nerfacc import ContractionType
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
-from nerfactory.fields.instant_ngp_field import field_implementation_to_class
+from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.models.base import Model, ModelConfig
 from nerfactory.models.modules.ray_sampler import VolumetricSampler
@@ -59,17 +60,23 @@ class InstantNGPModelConfig(ModelConfig):
     """Whether to create a scene collider to filter rays."""
     collider_params: Optional[Dict[str, float]] = None
     """Instant NGP doesn't use a collider."""
-    field_implementation: Literal["torch", "tcnn"] = "tcnn"  # torch, tcnn, ...
-    """one of "torch" or "tcnn", or other fields in 'field_implementation_to_class'"""
-    max_num_samples_per_ray: int = 1024
+    max_num_samples_per_ray: int = 24
     """Number of samples in field evaluation."""
     grid_resolution: int = 128
     """Resolution of the grid used for the field."""
-    cone_angle: float = 0.0
+    contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE
+    """Resolution of the grid used for the field."""
+    cone_angle: float = 0.004
     """Should be set to 0.0 for blender scenes but 1./256 for real scenes."""
+    render_step_size: float = 0.01
+    """Minimum step size for rendering."""
     near_plane: float = 0.05
     """How far along ray to start sampling."""
-    randomize_background: bool = False
+    far_plane: float = 1e3
+    """How far along ray to stop sampling."""
+    use_appearance_embedding: bool = False
+    """Whether to use an appearance embedding."""
+    randomize_background: bool = True
     """Whether to randomize the background color."""
 
 
@@ -81,27 +88,37 @@ class NGPModel(Model):
     """
 
     config: InstantNGPModelConfig
+    field: TCNNInstantNGPField
 
     def __init__(self, config: InstantNGPModelConfig, **kwargs) -> None:
-        assert config.field_implementation in field_implementation_to_class
-        self.field = None
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
         """Set the fields and modules."""
         super().populate_modules()
 
-        # torch or tiny-cuda-nn version
-        self.field = field_implementation_to_class[self.config.field_implementation](self.scene_bounds.aabb)
+        self.field = TCNNInstantNGPField(
+            aabb=self.scene_bounds.aabb,
+            contraction_type=self.config.contraction_type,
+            use_appearance_embedding=self.config.use_appearance_embedding,
+            num_images=self.num_train_data,
+        )
 
         self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
 
+        # Occupancy Grid
+        self.occupancy_grid = nerfacc.OccupancyGrid(
+            roi_aabb=self.scene_aabb,
+            resolution=self.config.grid_resolution,
+            contraction_type=self.config.contraction_type,
+        )
+
         # Sampler
+        vol_sampler_aabb = self.scene_bounds.aabb if self.config.contraction_type == ContractionType.AABB else None
         self.sampler = VolumetricSampler(
-            aabb=self.scene_aabb,
+            scene_aabb=vol_sampler_aabb,
+            occupancy_grid=self.occupancy_grid,
             density_fn=self.field.density_fn,
-            grid_resolution=self.config.grid_resolution,
-            num_samples=self.config.max_num_samples_per_ray,
         )
 
         # renderers
@@ -121,11 +138,17 @@ class NGPModel(Model):
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
+        def update_occupancy_grid(step: int):
+            self.occupancy_grid.every_n_step(
+                step=step,
+                occ_eval_fn=lambda x: self.field.get_opacity(x, self.config.render_step_size),
+            )
+
         return [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                 update_every_num_iters=1,
-                func=self.sampler.occ_field.every_n_step,
+                func=update_occupancy_grid,
             ),
         ]
 
@@ -144,16 +167,19 @@ class NGPModel(Model):
             ray_samples, packed_info, ray_indices = self.sampler(
                 ray_bundle=ray_bundle,
                 near_plane=self.config.near_plane,
+                far_plane=self.config.far_plane,
+                render_step_size=self.config.render_step_size,
+                cone_angle=self.config.cone_angle,
             )
 
         field_outputs = self.field(ray_samples)
 
         # accumulation
-        weights = nerfacc.volumetric_rendering_weights(
+        weights = nerfacc.render_weight_from_density(
             packed_info=packed_info,
             sigmas=field_outputs[FieldHeadNames.DENSITY],
-            frustum_starts=ray_samples.frustums.starts,
-            frustum_ends=ray_samples.frustums.ends,
+            t_starts=ray_samples.frustums.starts,
+            t_ends=ray_samples.frustums.ends,
         )
 
         rgb = self.renderer_rgb(

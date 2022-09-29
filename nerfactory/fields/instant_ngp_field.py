@@ -17,19 +17,18 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 """
 
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
+from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import RaySamples
 from nerfactory.datamanagers.structs import SceneBounds
 from nerfactory.fields.base import Field
-from nerfactory.fields.modules.encoding import Encoding, HashEncoding, SHEncoding
+from nerfactory.fields.modules.embedding import Embedding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
-from nerfactory.fields.nerf_field import NeRFField
 from nerfactory.utils.activations import trunc_exp
 
 try:
@@ -58,6 +57,10 @@ class TCNNInstantNGPField(Field):
         geo_feat_dim: output geo feat dimensions
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
+        use_appearance_embedding: whether to use appearance embedding
+        num_images: number of images, requried if use_appearance_embedding is True
+        appearance_embedding_dim: dimension of appearance embedding
+        contraction_type: type of contraction
     """
 
     def __init__(
@@ -68,13 +71,22 @@ class TCNNInstantNGPField(Field):
         geo_feat_dim: int = 15,
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
-        spatial_distortion: Optional[SpatialDistortion] = None,
+        use_appearance_embedding: bool = False,
+        num_images: Optional[int] = None,
+        appearance_embedding_dim: int = 32,
+        contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
     ) -> None:
         super().__init__()
 
         self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
-        self.spatial_distortion = spatial_distortion
+        self.contraction_type = contraction_type
+
+        self.use_appearance_embedding = use_appearance_embedding
+        if use_appearance_embedding:
+            assert num_images is not None
+            self.appearance_embedding_dim = appearance_embedding_dim
+            self.appearance_embedding = Embedding(num_images, appearance_embedding_dim)
 
         # TODO: set this properly based on the aabb
         per_level_scale = 1.4472692012786865
@@ -107,8 +119,11 @@ class TCNNInstantNGPField(Field):
             },
         )
 
+        in_dim = self.direction_encoding.n_output_dims + self.geo_feat_dim
+        if self.use_appearance_embedding:
+            in_dim += self.appearance_embedding_dim
         self.mlp_head = tcnn.Network(
-            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim,
+            n_input_dims=in_dim,
             n_output_dims=3,
             network_config={
                 "otype": "FullyFusedMLP",
@@ -120,18 +135,10 @@ class TCNNInstantNGPField(Field):
         )
 
     def get_density(self, ray_samples: RaySamples):
-        if self.spatial_distortion is not None:
-            positions = ray_samples.frustums.get_positions()
-            positions = self.spatial_distortion(positions)
-            positions = (positions + 2.0) / 4.0
-        else:
-            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = ray_samples.frustums.get_positions()
         positions_flat = positions.view(-1, 3)
-        # assert all positions are in the range [0, 1]
-        # otherwise print min and max values
-        # assert torch.all(positions >= 0.0) and torch.all(
-        #     positions <= 1.0
-        # ), f"positions: {positions.min()} {positions.max()}"
+        positions_flat = contract(x=positions_flat, roi=self.aabb, type=self.contraction_type)
+
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
 
@@ -142,49 +149,53 @@ class TCNNInstantNGPField(Field):
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
-        # TODO: add valid_mask masking!
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
-        # assert all directions are in the range [0, 1]
-        # assert torch.all(directions >= 0.0) and torch.all(
-        #     directions <= 1.0
-        # ), f"directions: {directions.min()} {directions.max()}"
+
         d = self.direction_encoding(directions_flat)
         if density_embedding is None:
             positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
             h = torch.cat([d, positions.view(-1, 3)], dim=-1)
         else:
             h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+
+        if self.use_appearance_embedding:
+            if ray_samples.camera_indices is None:
+                raise AttributeError("Camera indices are not provided.")
+            camera_indices = ray_samples.camera_indices.squeeze()
+            if self.training:
+                embedded_appearance = self.appearance_embedding(camera_indices)
+            else:
+                embedded_appearance = torch.zeros(
+                    (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                )
+            h = torch.cat([h, embedded_appearance.view(-1, self.appearance_embedding_dim)], dim=-1)
+
         rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
         return {FieldHeadNames.RGB: rgb}
 
+    def get_opacity(self, positions: TensorType["bs":..., 3], step_size) -> TensorType["bs":..., 1]:
+        """Returns the opacity for a position. Used primarily by the occupancy grid.
 
-class TorchInstantNGPField(NeRFField):
-    """
-    PyTorch implementation of the Instant-NGP field.
-    """
+        Args:
+            positions: the positions to evaluate the opacity at.
+            step_size: the step size to use for the opacity evaluation.
+        """
+        density = self.density_fn(positions)
+        ## TODO: We should scale step size based on the distortion. Currently it uses too much memory.
+        # aabb_min, aabb_max = self.aabb[0], self.aabb[1]
+        # if self.contraction_type is not ContractionType.AABB:
+        #     x = (positions - aabb_min) / (aabb_max - aabb_min)
+        #     x = x * 2 - 1  # aabb is at [-1, 1]
+        #     mag = x.norm(dim=-1, keepdim=True)
+        #     mask = mag.squeeze(-1) > 1
 
-    def __init__(
-        self,
-        aabb,
-        position_encoding: Encoding = HashEncoding(),
-        direction_encoding: Encoding = SHEncoding(),
-        base_mlp_num_layers: int = 3,
-        base_mlp_layer_width: int = 64,
-        head_mlp_num_layers: int = 2,
-        head_mlp_layer_width: int = 32,
-        skip_connections: Tuple = (4,),
-    ) -> None:
-        super().__init__(
-            position_encoding,
-            direction_encoding,
-            base_mlp_num_layers,
-            base_mlp_layer_width,
-            head_mlp_num_layers,
-            head_mlp_layer_width,
-            skip_connections,
-        )
-        self.aabb = Parameter(aabb, requires_grad=False)
+        #     dev = (2 * mag - 1) / mag**2 + 2 * x**2 * (1 / mag**3 - (2 * mag - 1) / mag**4)
+        #     dev[~mask] = 1.0
+        #     dev = torch.clamp(dev, min=1e-6)
+        #     step_size = step_size / dev.norm(dim=-1, keepdim=True)
+        # else:
+        #     step_size = step_size * (aabb_max - aabb_min)
 
-
-field_implementation_to_class = {"tcnn": TCNNInstantNGPField, "torch": TorchInstantNGPField}
+        opacity = density * step_size
+        return opacity
