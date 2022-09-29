@@ -35,8 +35,6 @@ from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.models.base import Model, ModelConfig
-
-# from nerfactory.models.modules.ray_losses import distortion_loss
 from nerfactory.models.modules.ray_sampler import ProposalNetworkSampler
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.optimizers.loss import MSELoss, distortion_loss, interlevel_loss
