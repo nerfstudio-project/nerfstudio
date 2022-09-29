@@ -627,6 +627,7 @@ class ViewerState:
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
 
+        oom = False
         with TimeWriter(None, None, write=False) as vis_t:
             check_thread.start()
             render_thread.start()
@@ -636,13 +637,15 @@ class ViewerState:
             except IOChangeException:
                 pass
             except RuntimeError as e:
-                del camera_ray_bundle
-                torch.cuda.empty_cache()
-                time.sleep(0.5)  # sleep to allow buffer to reset
+                oom = True
                 self.vis["renderingState/log_errors"].write(
                     "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                 )
                 print(f"Error: {e}")
+        if oom:
+            del camera_ray_bundle
+            torch.cuda.empty_cache()
+            time.sleep(0.5)  # sleep to allow buffer to reset
 
         graph.train()
         outputs = render_thread.vis_outputs
