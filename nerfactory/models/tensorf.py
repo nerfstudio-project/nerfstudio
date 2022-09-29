@@ -30,11 +30,12 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs.utils import to_immutable_dict
-from nerfactory.fields.modules.encoding import TensorVMEncoding
+from nerfactory.fields.modules.encoding import NeRFEncoding, TensorVMEncoding
 from nerfactory.fields.modules.field_heads import FieldHeadNames
-from nerfactory.fields.nerf_field import NeRFField
+from nerfactory.fields.tensorf_field import TensoRFField
 from nerfactory.models.base import Model, VanillaModelConfig
 from nerfactory.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfactory.models.modules.scene_colliders import AABBBoxCollider
 from nerfactory.optimizers.loss import L1Loss, MSELoss
 from nerfactory.optimizers.optimizers import Optimizers
 from nerfactory.renderers.renderers import (
@@ -60,7 +61,7 @@ class TensoRFModelConfig(VanillaModelConfig):
     """initial render resolution"""
     final_resolution: int = 200
     """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = (5000, 5500, 7000)
+    upsampling_iters: Tuple[int, ...] = ()  # (5000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "feature_loss": 8e-5})
     """Loss specific weights."""
@@ -108,8 +109,8 @@ class TensoRFModel(Model):
             # upsample the position and direction grids
             # TODO(ethan): ask Brent how to get typing to work on this... the Encoding base class type
             # in NeRFField is causing the issue
-            self.field.position_encoding.upsample_grid(resolution)
-            self.field.direction_encoding.upsample_grid(resolution)
+            self.field.density_encoding.upsample_grid(resolution)
+            self.field.color_encoding.upsample_grid(resolution)
 
             # reinitialize the optimizer
             optimizers_config = training_callback_attributes.optimizers.config
@@ -134,20 +135,29 @@ class TensoRFModel(Model):
         super().populate_modules()
 
         # setting up fields
-        position_encoding = TensorVMEncoding(
+        density_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=96,
+            num_components=8,
         )
-        direction_encoding = TensorVMEncoding(
+        color_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=96,
+            num_components=8,
+        )
+        position_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
+        )
+        direction_encoding = NeRFEncoding(
+            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
         )
 
-        self.field = NeRFField(
+        self.field = TensoRFField(
+            self.scene_bounds.aabb,
             position_encoding=position_encoding,
             direction_encoding=direction_encoding,
-            base_mlp_num_layers=2,
-            base_mlp_layer_width=128,
+            density_encoding=density_encoding,
+            color_encoding=color_encoding,
+            head_mlp_num_layers=2,
+            head_mlp_layer_width=128,
         )
 
         # samplers
@@ -170,11 +180,15 @@ class TensoRFModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
+        # colliders
+        if self.config.enable_collider:
+            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["fields"] = list(self.field.parameters())
-        param_groups["position_encoding"] = list(self.field.position_encoding.parameters())
-        param_groups["direction_encoding"] = list(self.field.direction_encoding.parameters())
+        # param_groups["color_encoding"] = list(self.field.color_encoding.parameters())
+        # param_groups["density_encoding"] = list(self.field.density_encoding.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
@@ -199,16 +213,17 @@ class TensoRFModel(Model):
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
         image = batch["image"].to(device)
-        assert isinstance(self.field.position_encoding, TensorVMEncoding)
+        assert isinstance(self.field.color_encoding, TensorVMEncoding)
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
-        plane_coef = self.field.position_encoding.plane_coef
-        line_coef = self.field.position_encoding.line_coef
+        plane_coef = self.field.color_encoding.plane_coef
+        line_coef = self.field.color_encoding.line_coef
 
         plane_feature_loss = self.feature_loss(plane_coef, torch.zeros_like(plane_coef))
         line_feature_loss = self.feature_loss(line_coef, torch.zeros_like(line_coef))
 
-        loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
+        # loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
+        loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
