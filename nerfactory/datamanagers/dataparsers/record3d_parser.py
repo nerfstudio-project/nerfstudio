@@ -28,7 +28,7 @@ from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils import poses as pose_utils
-from nerfactory.utils.io import get_absolute_path, load_from_json
+from nerfactory.utils.io import load_from_json
 
 
 @dataclass
@@ -57,9 +57,7 @@ class Record3D(DataParser):
     config: Record3DDataParserConfig
 
     def _generate_dataset_inputs(self, split: str = "train") -> DatasetInputs:
-        abs_dir = get_absolute_path(self.config.data_directory)
-
-        image_dir = abs_dir / "rgb"
+        image_dir = self.config.data_directory / "rgb"
 
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
@@ -73,7 +71,7 @@ class Record3D(DataParser):
         image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
-        metadata_path = abs_dir / "metadata.json"
+        metadata_path = self.config.data_directory / "metadata.json"
         metadata_dict = load_from_json(metadata_path)
 
         poses_data = np.array(metadata_dict["poses"])

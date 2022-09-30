@@ -26,7 +26,6 @@ import torch
 from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
-from nerfactory.utils.io import get_absolute_path
 
 
 @dataclass
@@ -76,11 +75,10 @@ class Mipnerf360(DataParser):
         return poses_orig
 
     def _generate_dataset_inputs(self, split="train"):
-        abs_dir = get_absolute_path(self.config.data_directory)
         image_dir = "images"
         if self.config.downscale_factor > 1:
             image_dir += f"_{self.config.downscale_factor}"
-        image_dir = abs_dir / image_dir
+        image_dir = self.config.data_directory / image_dir
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
@@ -94,7 +92,7 @@ class Mipnerf360(DataParser):
         image_filenames = sorted(image_filenames)
         num_images = len(image_filenames)
 
-        poses_data = np.load(abs_dir / "poses_bounds.npy")
+        poses_data = np.load(self.config.data_directory / "poses_bounds.npy")
         poses = poses_data[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
         bounds = poses_data[:, -2:].transpose([1, 0])
 

@@ -27,7 +27,7 @@ from nerfactory.cameras.cameras import Cameras, CameraType
 from nerfactory.datamanagers.dataparsers.base import DataParser, DataParserConfig
 from nerfactory.datamanagers.structs import DatasetInputs, SceneBounds
 from nerfactory.utils.colors import get_color
-from nerfactory.utils.io import get_absolute_path, load_from_json
+from nerfactory.utils.io import load_from_json
 
 
 @dataclass
@@ -64,12 +64,11 @@ class Blender(DataParser):
         else:
             alpha_color_tensor = None
 
-        abs_dir = get_absolute_path(self.data_directory)
-        meta = load_from_json(abs_dir / f"transforms_{split}.json")
+        meta = load_from_json(self.data_directory / f"transforms_{split}.json")
         image_filenames = []
         poses = []
         for frame in meta["frames"]:
-            fname = abs_dir / Path(frame["file_path"].replace("./", "") + ".png")
+            fname = self.data_directory / Path(frame["file_path"].replace("./", "") + ".png")
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
         poses = np.array(poses).astype(np.float32)
