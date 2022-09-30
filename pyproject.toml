@@ -23,8 +23,6 @@ dependencies = [
     "ninja==1.10.2.3",
     "functorch==0.2.1",
     "h5py>=2.9.0",
-    "hydra-colorlog==1.2.0",
-    "hydra-core==1.2.0",
     "imageio==2.21.1",
     "ipywidgets>=7.6",
     "jupyterlab==3.3.4",
