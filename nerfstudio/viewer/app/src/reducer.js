@@ -30,7 +30,7 @@ const initialState = {
     colormap_choice: 'default', // the selected colormap
     maxResolution: 1024,
     targetTrainUtil: 0.9,
-    eval_fps: 'Paused',
+    eval_res: '?',
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
     log_errors: '',

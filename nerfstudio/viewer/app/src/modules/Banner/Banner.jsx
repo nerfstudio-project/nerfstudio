@@ -2,8 +2,6 @@ import React from 'react';
 import { useDispatch } from 'react-redux';
 
 import Button from '@mui/material/Button';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import LandingModal from '../LandingModal';
@@ -25,17 +23,7 @@ function getWebsocketEndpoint() {
 }
 
 export default function Banner() {
-  // const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const [anchorEl, setAnchorEl] = React.useState(0);
   const dispatch = useDispatch();
-
-  const open = Boolean(anchorEl);
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
 
   let open_modal = true;
   const websocket_url_from_argument = getWebsocketEndpoint();
@@ -51,34 +39,6 @@ export default function Banner() {
   return (
     <div className="banner">
       <LandingModal initial_state={open_modal} />
-      <Button
-        id="basic-button"
-        className="banner-button"
-        variant="outlined"
-        size="small"
-        aria-controls={open ? 'basic-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        onClick={handleClick}
-      >
-        Options
-      </Button>
-      <Menu
-        id="basic-menu"
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleClose}
-        MenuListProps={{
-          'aria-labelledby': 'basic-button',
-        }}
-      >
-        <MenuItem onClick={handleClose}>Load Training Config</MenuItem>
-        <MenuItem onClick={handleClose}>Export Training Config</MenuItem>
-        <MenuItem onClick={handleClose}>Dark Mode</MenuItem>
-      </Menu>
-      <Button className="banner-button" variant="outlined" size="small">
-        Download Desktop App
-      </Button>
       <Button // button with view in ar icon
         className="banner-button"
         variant="outlined"
