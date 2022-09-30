@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-run_train_nerf.py
+train.py
 """
 
 from __future__ import annotations
@@ -186,6 +186,8 @@ def launch(
 def main(config: cfg.Config) -> None:
     """Main function."""
 
+    config.set_timestamp()
+
     if config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
@@ -204,7 +206,12 @@ def main(config: cfg.Config) -> None:
     )
 
 
-if __name__ == "__main__":
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
     # Choose a base configuration and override values.
     dcargs.extras.set_accent_color("bright_yellow")
     main(dcargs.cli(AnnotatedBaseConfigUnion))
+
+
+if __name__ == "__main__":
+    entrypoint()

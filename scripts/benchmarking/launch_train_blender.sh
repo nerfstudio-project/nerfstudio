@@ -52,7 +52,7 @@ len=${#GPU_IDX[@]}
 
 for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
-    python scripts/run_train.py \
+    python scripts/train.py \
            ${config_name} \
            --logging.writer.2.no-enable \
            --pipeline.datamanager.train-dataset.data-directory=data/blender/${dataset} \

@@ -33,10 +33,11 @@ class ViewerWindow:
 
     context = zmq.Context()
 
-    def __init__(self, zmq_url):
-        self.zmq_url = zmq_url
+    def __init__(self, zmq_port):
+        self.zmq_port = zmq_port
         self.client = self.context.socket(zmq.REQ)
-        self.client.connect(self.zmq_url)
+        zmq_url = f"tcp://127.0.0.1:{self.zmq_port}"
+        self.client.connect(zmq_url)
         self.assert_connected()
 
     def send(self, command):
@@ -90,15 +91,15 @@ class Viewer:
     """Viewer class for connecting to the bridge server.
 
     Args:
-        zmq_url: Where to connect with ZMQ.
+        zmq_port: Where to connect with ZMQ.
         window: An already existing ViewerWindow.
     """
 
-    def __init__(self, zmq_url: Optional[str] = None, window: Optional[ViewerWindow] = None):
-        if zmq_url is None and window is None:
-            raise ValueError("Must specify either zmq_url or window.")
+    def __init__(self, zmq_port: Optional[int] = None, window: Optional[ViewerWindow] = None):
+        if zmq_port is None and window is None:
+            raise ValueError("Must specify either zmq_port or window.")
         if window is None:
-            self.window = ViewerWindow(zmq_url=zmq_url)
+            self.window = ViewerWindow(zmq_port=zmq_port)
         else:
             self.window = window
         self.path = Path(())

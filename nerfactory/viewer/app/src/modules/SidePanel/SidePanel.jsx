@@ -33,7 +33,6 @@ import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
-// import { object } from 'prop-types';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -90,8 +89,10 @@ function MenuItems(props: ListItemProps) {
       name.includes('Camera')
     );
   };
-  const getCamera = () => {
-    return scene_node.object.children.filter((obj) => obj.isCamera)[0];
+  const getCamera = (node) => {
+    console.log(node);
+    // return node.object;
+    return node.object.children.filter((obj) => obj.isCamera)[0];
   };
 
   const num_children = Object.keys(scene_node.children).length;
@@ -115,10 +116,20 @@ function MenuItems(props: ListItemProps) {
   };
 
   const snap_to_camera = (matrix) => {
-    const camera = sceneTree.children.Cameras.children['Main Camera'].object;
+    const camera = sceneTree.metadata.camera;
     const mat = new THREE.Matrix4();
     mat.fromArray(matrix.elements);
     mat.decompose(camera.position, camera.quaternion, camera.scale);
+    const unit = new THREE.Vector3(0, 0, -1);
+    const viewDirection = unit.applyMatrix4(mat);
+    sceneTree.metadata.camera_controls.setLookAt(
+      camera.position.x,
+      camera.position.y,
+      camera.position.z,
+      viewDirection.x,
+      viewDirection.y,
+      viewDirection.z,
+    );
   };
 
   React.useEffect(() => {
@@ -162,7 +173,7 @@ function MenuItems(props: ListItemProps) {
         {isCamera() && (
           <IconButton
             aria-label="visibility"
-            onClick={() => snap_to_camera(getCamera().matrix)}
+            onClick={() => snap_to_camera(getCamera(scene_node).matrix)}
           >
             <Videocam />
           </IconButton>

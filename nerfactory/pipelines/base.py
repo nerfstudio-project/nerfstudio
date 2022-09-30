@@ -84,13 +84,13 @@ class Pipeline(nn.Module):
         local_rank: rank of current machine
 
     Attributes:
-        self.datamanager: The data manager that will be used
-        self.model: The model that will be used
+        datamanager: The data manager that will be used
+        model: The model that will be used
     """
 
     # pylint: disable=abstract-method
 
-    datamanger: DataManager
+    datamanager: DataManager
     model: Model
 
     @property
@@ -193,8 +193,8 @@ class VanillaPipeline(Pipeline):
         local_rank: rank of current machine
 
     Attributes:
-        self.datamanager: The data manager that will be used
-        self.model: The model that will be used
+        datamanager: The data manager that will be used
+        model: The model that will be used
     """
 
     def __init__(

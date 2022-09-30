@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
@@ -118,8 +118,6 @@ class LoggingConfig(PrintableConfig):
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
      e.g. if 20, averages will be computed over past 20 occurances."""
-    event_writer: Literal["tb", "wandb", "none"] = "wandb"
-    """specify which writer to use (tensorboard or wandb)"""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True
@@ -146,13 +144,14 @@ class TrainerConfig(PrintableConfig):
     """whether or not to use mixed precision for training"""
     relative_model_dir: Path = Path("nerfactory_models/")
     """relative path to save all checkpoints"""
+    num_ckpt_to_save: int = 1
+    """number of latest checkpoints that we want to save. Default 1 saves only the latest model"""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
     """optionally specify a pre-trained model directory to load from"""
     load_step: Optional[int] = None
     """optionally specify model step to load from; if none, will find most recent model in load_dir"""
     load_config: Optional[Path] = None
-    """optionally specify a pre-defined config to load from"""
 
 
 # Viewer related configs
@@ -160,14 +159,12 @@ class TrainerConfig(PrintableConfig):
 class ViewerConfig(PrintableConfig):
     """Configuration for viewer instantiation"""
 
-    enable: bool = False
-    """whether to enable viewer"""
     relative_log_filename: str = "viewer_log_filename.txt"
     """Filename to use for the log file."""
     start_train: bool = True
     """whether to immediately start training upon loading viewer
     if False, will just visualize dataset but you can toggle training in viewer"""
-    zmq_url: str = "tcp://127.0.0.1:6000"
+    zmq_port: int = 6000
     """the zmq port to connect to for communication"""
     launch_bridge_server: bool = True
     """whether or not to launch the zmq bridge server"""
@@ -232,11 +229,13 @@ from nerfactory.pipelines.base import VanillaPipelineConfig
 class Config(PrintableConfig):
     """Full config contents"""
 
+    output_dir: Path = Path("outputs")
+    """relative or absolute output directory to save all checkpoints and logging"""
     method_name: Optional[str] = None
     """Method name. Required to set in python or via cli"""
     experiment_name: Optional[str] = None
     """Experiment name. If None, will automatically be set to dataset name"""
-    timestamp: str = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
     logging: LoggingConfig = LoggingConfig()
@@ -251,6 +250,24 @@ class Config(PrintableConfig):
             }
         }
     )
+    """optionally specify a pre-defined config to load from"""
+    vis: List[Literal["viewer", "wandb", "tensorboard"]] = field(default_factory=lambda: ["wandb"])
+
+    def is_viewer_enabled(self) -> bool:
+        """Checks if a viewer is enabled."""
+        return "viewer" in self.vis
+
+    def is_wandb_enabled(self) -> bool:
+        """Checks if wandb is enabled."""
+        return "wandb" in self.vis
+
+    def is_tensorboard_enabled(self) -> bool:
+        """Checks if tensorboard is enabled."""
+        return "tensorboard" in self.vis
+
+    def set_timestamp(self) -> None:
+        """Dynamically set the experiment timestamp"""
+        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
@@ -262,7 +279,7 @@ class Config(PrintableConfig):
         # check the experiment and method names
         assert self.method_name is not None, "Please set method name in config or via the cli"
         self.set_experiment_name()
-        return Path(f"outputs/{self.experiment_name}/{self.method_name}/{self.timestamp}")
+        return Path(f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}")
 
     def get_checkpoint_dir(self) -> Path:
         """Retrieve the checkpoint directory"""

@@ -50,11 +50,9 @@ def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     Args:
         config: the configuration to instantiate viewer
     """
-    if config.enable:
-        viewer_state = ViewerState(config, log_filename=log_filename)
-        banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
-        return viewer_state, banner_messages
-    return None, None
+    viewer_state = ViewerState(config, log_filename=log_filename)
+    banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
+    return viewer_state, banner_messages
 
 
 class OutputTypes(str, enum.Enum):
@@ -209,10 +207,11 @@ class ViewerState:
         self.log_filename = log_filename
         if self.config.launch_bridge_server:
             # start the viewer bridge server
-            zmq_port = int(self.config.zmq_url.split(":")[-1])
             websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
-            run_viewer_bridge_server_as_subprocess(zmq_port, websocket_port, log_filename=str(self.log_filename))
+            run_viewer_bridge_server_as_subprocess(
+                self.config.zmq_port, websocket_port, log_filename=str(self.log_filename)
+            )
             # TODO(ethan): move this into the writer such that it's at the bottom
             # of the logging stack and easy to see and click
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
@@ -228,7 +227,7 @@ class ViewerState:
             console.print(dev_open_viewer_instructions_string)
             console.rule(characters="=")
             console.line()
-        self.vis = Viewer(zmq_url=self.config.zmq_url)
+        self.vis = Viewer(zmq_port=self.config.zmq_port)
 
         # viewer specific variables
         self.prev_camera_matrix = None

@@ -21,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
+import numpy as np
 import torch
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
@@ -28,20 +29,27 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfactory.cameras.rays import RayBundle
+from nerfactory.fields.compound_field import TCNNCompoundField
 from nerfactory.fields.density_field import DensityField
 from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
 from nerfactory.fields.modules.field_heads import FieldHeadNames
 from nerfactory.fields.modules.spatial_distortions import SceneContraction
 from nerfactory.models.base import Model, ModelConfig
+from nerfactory.models.modules.ray_losses import distortion_loss
 from nerfactory.models.modules.ray_sampler import ProposalNetworkSampler
 from nerfactory.models.modules.scene_colliders import NearFarCollider
-from nerfactory.optimizers.loss import MSELoss, distortion_loss, interlevel_loss
+from nerfactory.optimizers.loss import MSELoss, interlevel_loss
 from nerfactory.renderers.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
 from nerfactory.utils import colors, visualization
+from nerfactory.utils.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 
 @dataclass
@@ -51,20 +59,30 @@ class ProposalModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: ProposalModel)
     near_plane: float = 0.05
     """How far along the ray to start sampling."""
-    far_plane: float = 20.0
+    far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
     randomize_background: bool = True
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: int = 64
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 32
+    num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
-    num_proposal_network_iterations: int = 2
+    num_proposal_network_iterations: int = 1
     """Number of proposal network iterations."""
+    use_same_proposal_network: bool = False
+    """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.01
     """Distortion loss multiplier."""
+    use_appearance_conditioning: bool = True
+    """Whether to use appearance conditioning."""
+    use_proposal_weight_anneal: bool = True
+    """Whether to use proposal weight annealing."""
+    proposal_weights_anneal_slope: float = 10.0
+    """Slope of the annealing function for the proposal weights."""
+    proposal_weights_anneal_max_num_iters: int = 1000
+    """Max num iterations for the annealing function."""
 
 
 class ProposalModel(Model):
@@ -80,9 +98,27 @@ class ProposalModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
+        scene_contraction = SceneContraction(order=float("inf"))
+
         # Fields
-        self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
-        self.proposal_network = DensityField(self.scene_bounds.aabb, spatial_distortion=SceneContraction())
+        if self.config.use_appearance_conditioning:
+            self.field = TCNNCompoundField(
+                self.scene_bounds.aabb, spatial_distortion=scene_contraction, num_images=self.num_train_data
+            )
+        else:
+            self.field = TCNNInstantNGPField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+
+        # Build the proposal network(s)
+        self.proposal_networks = torch.nn.ModuleList()
+        if self.config.use_same_proposal_network:
+            network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+            self.proposal_networks.append(network)
+            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
+        else:
+            for _ in range(self.config.num_proposal_network_iterations):
+                network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+                self.proposal_networks.append(network)
+            self.density_fns = [network.density_fn for network in self.proposal_networks]
 
         # Collider
         self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
@@ -110,13 +146,36 @@ class ProposalModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        param_groups["fields"] = list(self.proposal_network.parameters()) + list(self.field.parameters())
+        param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
+        param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+        callbacks = []
+        if self.config.use_proposal_weight_anneal:
+            # anneal the weights of the proposal network before doing PDF sampling
+            N = self.config.proposal_weights_anneal_max_num_iters
+
+            def set_anneal(step):
+                # https://arxiv.org/pdf/2111.12077.pdf eq. 18
+                train_frac = np.clip(step / N, 0, 1)
+                bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
+                anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
+                self.proposal_sampler.set_anneal(anneal)
+
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=set_anneal,
+                )
+            )
+        return callbacks
+
     def get_outputs(self, ray_bundle: RayBundle):
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(
-            ray_bundle, density_fn=self.proposal_network.density_fn
-        )
+        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
@@ -129,6 +188,10 @@ class ProposalModel(Model):
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
         outputs["weights_list"] = weights_list
         outputs["ray_samples_list"] = ray_samples_list
+
+        for i in range(self.config.num_proposal_network_iterations):
+            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
@@ -142,16 +205,14 @@ class ProposalModel(Model):
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-            outputs["weights_list"],
-            outputs["ray_samples_list"],
-            self.config.near_plane,
-            self.config.far_plane,
+            outputs["weights_list"], outputs["ray_samples_list"]
         )
-        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
-            outputs["weights_list"],
-            outputs["ray_samples_list"],
-            self.config.near_plane,
-            self.config.far_plane,
+        loss_dict["distortion_loss"] = self.config.distortion_loss_mult * torch.mean(
+            distortion_loss(
+                outputs["ray_samples_list"][-1],
+                weights=outputs["weights_list"][-1],
+                scale_factor=1.0 / (self.config.far_plane - self.config.near_plane),
+            )
         )
         return loss_dict
 
@@ -180,9 +241,17 @@ class ProposalModel(Model):
         lpips = self.lpips(image, rgb)
 
         # all of these metrics will be logged as scalars
-        metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim), "lpips": float(lpips)}  # type: ignore
-        # TODO(ethan): return an image dictionary
+        metrics_dict = {"psnr": float(psnr.item()), "ssim": float(ssim)}  # type: ignore
+        metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+
+        for i in range(self.config.num_proposal_network_iterations):
+            key = f"prop_depth_{i}"
+            prop_depth_i = visualization.apply_depth_colormap(
+                outputs[key],
+                accumulation=outputs["accumulation"],
+            )
+            images_dict[key] = prop_depth_i
 
         return metrics_dict, images_dict

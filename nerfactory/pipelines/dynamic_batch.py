@@ -42,7 +42,7 @@ class DynamicBatchPipeline(VanillaPipeline):
     # pylint: disable=abstract-method
 
     config: DynamicBatchPipelineConfig
-    datamanger: VanillaDataManager
+    datamanager: VanillaDataManager
     dynamic_num_rays_per_batch: int
 
     def __init__(

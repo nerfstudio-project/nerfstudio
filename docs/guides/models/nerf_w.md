@@ -1,4 +1,5 @@
 # NeRF-W
+
 <h4>NeRF in the Wild</h4>
 
 ```{button-link} https://nerf-w.github.io/
@@ -10,5 +11,5 @@ Paper Website
 ### Running Model
 
 ```bash
-python scripts/run_train.py --config-name=graph_nerf_w.yaml
+python scripts/train.py --config-name=graph_nerf_w.yaml
 ```
