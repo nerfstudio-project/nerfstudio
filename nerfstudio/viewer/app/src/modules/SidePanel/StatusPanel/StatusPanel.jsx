@@ -29,8 +29,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const isWebrtcConnected = useSelector(
     (state) => state.webrtcState.isConnected,
   );
-  const eval_fps = useSelector((state) => state.renderingState.eval_fps);
-  const train_eta = useSelector((state) => state.renderingState.train_eta);
+  const eval_res = useSelector((state) => state.renderingState.eval_res);
   const vis_train_ratio = useSelector(
     (state) => state.renderingState.vis_train_ratio,
   );
@@ -109,10 +108,7 @@ export default function StatusPanel(props: StatusPanelProps) {
       <WebSocketUrlField />
       <div className="StatusPanel-metrics">
         <div>
-          <b>Eval FPS:</b> {eval_fps}
-        </div>
-        <div>
-          <b>Train ETA:</b> {train_eta}
+          <b>Resolution:</b> {eval_res}
         </div>
         <div>
           <b>Time Allocation:</b> {vis_train_ratio}

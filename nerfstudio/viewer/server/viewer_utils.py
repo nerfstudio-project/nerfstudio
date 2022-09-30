@@ -22,7 +22,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
@@ -464,22 +464,21 @@ class ViewerState:
         image = selected_output.cpu().numpy()
         self.vis.set_image(image)
 
-    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int) -> None:
+    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
 
         Args:
             render_time: total time spent rendering current view
             num_rays: number of rays rendered
             image_height: resolution of the current view
+            image_width: resolution of the current view
         """
         writer.put_time(
             name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
         )
         is_training = self.vis["renderingState/isTraining"].read()
+        self.vis["renderingState/eval_res"].write(f"{image_height}x{image_width}px")
         if is_training is None or is_training:
-            # process the  current rendering fps
-            eval_fps = f"{1 / render_time:.2f} fps at {image_height} res"
-            self.vis["renderingState/eval_fps"].write(eval_fps)
             # process remaining training ETA
             self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train
@@ -491,11 +490,10 @@ class ViewerState:
             else:
                 self.vis["renderingState/vis_train_ratio"].write("Starting")
         else:
-            self.vis["renderingState/eval_fps"].write("Paused")
             self.vis["renderingState/train_eta"].write("Paused")
             self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
 
-    def _calculate_image_height(self, camera_object, is_training: bool) -> Optional[int]:
+    def _calculate_image_res(self, camera_object, is_training: bool) -> Optional[Tuple[int, int]]:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
@@ -503,6 +501,7 @@ class ViewerState:
             is_training: whether or not we are training
         Returns:
             image_height: the maximum image height that can be rendered in the time budget
+            image_width: the maximum image width that can be rendered in the time budget
         """
         max_resolution = self.vis["renderingState/maxResolution"].read()
         if max_resolution:
@@ -535,7 +534,7 @@ class ViewerState:
         image_height = int(round(image_height, -1))
         image_height = min(self.max_resolution, image_height)
 
-        return image_height
+        return image_height, int(image_height * aspect_ratio)
 
     def _process_invalid_output(self, output_type: str) -> str:
         """Check to see whether we are in the corner case of RGB; if still invalid, throw error
@@ -587,7 +586,7 @@ class ViewerState:
 
         # Calculate camera pose and intrinsics
         try:
-            image_height = self._calculate_image_height(camera_object, is_training)
+            image_height, image_width = self._calculate_image_res(camera_object, is_training)
         except ZeroDivisionError as e:
             self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
             time.sleep(0.03)  # sleep to allow buffer to reset
@@ -649,4 +648,6 @@ class ViewerState:
         if outputs is not None:
             stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
             self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
-            self._update_viewer_stats(vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height)
+            self._update_viewer_stats(
+                vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
+            )

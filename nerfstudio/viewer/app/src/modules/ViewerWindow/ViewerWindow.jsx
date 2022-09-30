@@ -8,21 +8,11 @@ import { IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
 import PublicSharpIcon from '@mui/icons-material/PublicSharp';
-import Stats from 'stats.js';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
-
-function createStats() {
-  const stats = new Stats();
-  stats.setMode(0);
-  stats.domElement.style.position = 'absolute';
-  stats.domElement.style.left = '0';
-  stats.domElement.style.top = '0';
-  return stats;
-}
 
 function CameraToggle() {
   const dispatch = useDispatch();
@@ -129,8 +119,6 @@ export default function ViewerWindow(props) {
   // on change, update the camera and controls
   sceneTree.metadata.camera = sceneTree.find_object(['Cameras', camera_choice]);
 
-  let stats = null;
-
   const get_window_width = () => {
     const width = myRef.current.clientWidth;
     return width - (width % 2);
@@ -208,14 +196,11 @@ export default function ViewerWindow(props) {
     requestAnimationFrame(render);
     renderer.render(scene, sceneTree.metadata.camera);
     labelRenderer.render(scene, sceneTree.metadata.camera);
-    stats.update();
   };
 
   // start the three.js rendering loop
   // when the DOM is ready
   useEffect(() => {
-    stats = createStats();
-    myRef.current.append(stats.domElement);
     myRef.current.append(renderer.domElement);
     render();
   }, []);

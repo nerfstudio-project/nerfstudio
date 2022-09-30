@@ -19,7 +19,7 @@ from rich.text import Text
 
 
 class ItersPerSecColumn(ProgressColumn):
-    """Renders human readable fps."""
+    """Renders the iterations per second for a progress bar."""
 
     def __init__(self, suffix="it/s") -> None:
         super().__init__()
