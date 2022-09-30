@@ -34,6 +34,7 @@ from nerfactory.configs import base as cfg
 from nerfactory.datamanagers.datasets import InputDataset
 from nerfactory.models.base import Model
 from nerfactory.utils import profiler, visualization, writer
+from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.io import load_from_json, write_to_json
 from nerfactory.utils.misc import get_dict_to_torch
 from nerfactory.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -44,6 +45,7 @@ from nerfactory.viewer.server.visualizer import Viewer
 console = Console(width=120)
 
 
+@check_main_thread
 def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     """Sets up the viewer if enabled
 
@@ -193,6 +195,7 @@ class CheckThread(threading.Thread):
                     return
 
 
+@decorate_all([check_main_thread])
 class ViewerState:
     """Class to hold state for viewer variables
 
