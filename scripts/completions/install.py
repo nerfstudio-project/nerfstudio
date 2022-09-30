@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Configuration script for setting up tab completion for nerfactory in bash and zsh."""
+"""Configuration script for setting up tab completion for nerfstudio in bash and zsh."""
 
 import concurrent.futures
 import itertools
@@ -126,7 +126,7 @@ def _update_rc(
     source_lines = "\n".join(
         [
             "",
-            "# Source nerfactory autocompletions.",
+            "# Source nerfstudio autocompletions.",
             f"source {completions_dir / 'setup'}.{shell}",
         ]
     )

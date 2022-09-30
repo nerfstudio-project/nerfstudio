@@ -26,11 +26,11 @@ from rich.progress import (
 )
 from typing_extensions import assert_never
 
-from nerfactory.cameras.camera_paths import get_path_from_json, get_spiral_path
-from nerfactory.cameras.cameras import Cameras
-from nerfactory.configs import base as cfg
-from nerfactory.pipelines.base import Pipeline
-from nerfactory.utils.rich import ItersPerSecColumn
+from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.configs import base as cfg
+from nerfstudio.pipelines.base import Pipeline
+from nerfstudio.utils.rich import ItersPerSecColumn
 
 console = Console(width=120)
 

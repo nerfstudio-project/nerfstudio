@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Processes a video or image sequence to a nerfactory compatible dataset."""
+"""Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 import json
 import shutil
@@ -16,7 +16,7 @@ import requests
 from rich.console import Console
 from rich.progress import track
 
-from nerfactory.utils import colmap_utils
+from nerfstudio.utils import colmap_utils
 
 CONSOLE = Console(width=120)
 
@@ -78,7 +78,7 @@ def get_vocab_tree() -> Path:
     Returns:
         The path to the vocab tree.
     """
-    vocab_tree_filename = Path(appdirs.user_data_dir("nerfactory")) / "vocab_tree.fbow"
+    vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
 
     if not vocab_tree_filename.exists():
         r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)

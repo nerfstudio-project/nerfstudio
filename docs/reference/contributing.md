@@ -1,4 +1,4 @@
-# Contributing to nerfactory workflow
+# Contributing to nerfstudio workflow
 
 The project is set up for development in VSCode, we recommend using it if you plan to contribute.
 

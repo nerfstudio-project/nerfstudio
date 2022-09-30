@@ -3,6 +3,6 @@
 Encodings
 ===================
 
-.. automodule:: nerfactory.fields.modules.encoding
+.. automodule:: nerfstudio.fields.modules.encoding
    :members:
    :show-inheritance:

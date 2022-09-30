@@ -3,8 +3,8 @@ Test the fields
 """
 import torch
 
-from nerfactory.cameras.rays import Frustums, RaySamples
-from nerfactory.fields.instant_ngp_field import TCNNInstantNGPField
+from nerfstudio.cameras.rays import Frustums, RaySamples
+from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
 
 
 def test_tcnn_instant_ngp_field():

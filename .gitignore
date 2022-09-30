@@ -170,7 +170,7 @@ events.out.*
 # Data
 data
 data_*/
-!nerfactory/data
+!nerfstudio/data
 !configs/data
 configs_custom
 !docs/tutorials/data
@@ -183,8 +183,6 @@ external/
 __MACOSX/
 outputs*/
 node_modules/
-scripts/colmap2nerf.py
 bash/
-nerfactory/ngp_pl/
 cache/
 renders/
