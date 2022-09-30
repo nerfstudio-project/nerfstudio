@@ -11,10 +11,10 @@ from pathlib import Path
 import dcargs
 import torch
 
-from nerfactory.configs import base as cfg
-from nerfactory.datamanagers.base import AnnotatedDataParserUnion
-from nerfactory.datamanagers.datasets import InputDataset
-from nerfactory.viewer.server import viewer_utils
+from nerfstudio.configs import base as cfg
+from nerfstudio.datamanagers.base import AnnotatedDataParserUnion
+from nerfstudio.datamanagers.datasets import InputDataset
+from nerfstudio.viewer.server import viewer_utils
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
@@ -27,7 +27,7 @@ torch.backends.cudnn.benchmark = True  # type: ignore
 def main(
     dataparser: AnnotatedDataParserUnion,
     viewer: cfg.ViewerConfig,
-    log_base_dir: Path = Path("/tmp/nerfactory_viewer_logs"),
+    log_base_dir: Path = Path("/tmp/nerfstudio_viewer_logs"),
 ) -> None:
     """Main function."""
     viewer_state = viewer_utils.ViewerState(config.viewer)

@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import nn
 
-from nerfactory.fields.modules.field_heads import (
+from nerfstudio.fields.modules.field_heads import (
     DensityFieldHead,
     FieldHead,
     FieldHeadNames,

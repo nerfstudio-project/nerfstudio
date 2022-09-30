@@ -86,6 +86,11 @@ def run_code_checks(continue_on_fail: bool = False):
     # run_github_actions_file(filename=".github/workflows/viewer_build_deploy.yml", continue_on_fail=continue_on_fail)
 
 
-if __name__ == "__main__":
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
     dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(run_code_checks)
+
+
+if __name__ == "__main__":
+    entrypoint()
