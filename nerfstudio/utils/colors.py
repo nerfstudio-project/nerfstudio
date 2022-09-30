@@ -16,7 +16,6 @@
 from typing import Union
 
 import torch
-from omegaconf import ListConfig
 from torchtyping import TensorType
 
 WHITE = torch.tensor([1.0, 1.0, 1.0])
@@ -34,10 +33,10 @@ COLORS_DICT = {
 }
 
 
-def get_color(color: Union[str, list, ListConfig]) -> TensorType[3]:
+def get_color(color: Union[str, list]) -> TensorType[3]:
     """
     Args:
-        color (Union[str, list, ListConfig]): Color as a string or a rgb list
+        color (Union[str, list]): Color as a string or a rgb list
 
     Returns:
         TensorType[3]: Parsed color
@@ -47,7 +46,7 @@ def get_color(color: Union[str, list, ListConfig]) -> TensorType[3]:
         if color not in COLORS_DICT:
             raise ValueError(f"{color} is not a valid preset color")
         return COLORS_DICT[color]
-    if isinstance(color, (list, ListConfig)):
+    if isinstance(color, list):
         if len(color) != 3:
             raise ValueError(f"Color should be 3 values (RGB) instead got {color}")
         return torch.tensor(color)

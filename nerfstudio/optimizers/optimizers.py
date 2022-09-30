@@ -19,16 +19,13 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Union
 
-from omegaconf import DictConfig
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
 
 from nerfstudio.utils import writer
 
 
-def setup_optimizers(
-    config: Union[DictConfig, Dict[str, Any]], param_groups: Dict[str, List[Parameter]]
-) -> "Optimizers":
+def setup_optimizers(config: Union[Dict[str, Any]], param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
     """Helper to set up the optimizers
 
     Args:
@@ -49,7 +46,7 @@ class Optimizers:
         param_groups: A dictionary of parameter groups to optimize.
     """
 
-    def __init__(self, config: Union[DictConfig, Dict[str, Any]], param_groups: Dict[str, List[Parameter]]):
+    def __init__(self, config: Union[Dict[str, Any]], param_groups: Dict[str, List[Parameter]]):
         self.config = config
         self.optimizers = {}
         self.schedulers = {}
