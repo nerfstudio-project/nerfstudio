@@ -39,11 +39,6 @@ from nerfactory.renderers.renderers import (
     RGBRenderer,
 )
 from nerfactory.utils import colors, misc, visualization
-from nerfactory.utils.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
 
 
 class NeRFModel(Model):
@@ -66,23 +61,6 @@ class NeRFModel(Model):
             **kwargs,
         )
 
-    def get_training_callbacks(
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
-    ) -> List[TrainingCallback]:
-        if self.field_coarse is None:
-            raise ValueError("populate fields must be called before get_training_callbacks.")
-        callbacks = []
-        if self.density_field is not None:
-            callbacks = [
-                TrainingCallback(
-                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                    update_every_num_iters=self.density_field.update_every_num_iters,
-                    func=self.density_field.update_density_grid,
-                    kwargs={"density_eval_func": self.field_coarse.density_fn},  # type: ignore
-                )
-            ]
-        return callbacks
-
     def populate_modules(self):
         """Set the fields and modules"""
         super().populate_modules()
@@ -99,10 +77,8 @@ class NeRFModel(Model):
         self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
 
         # samplers
-        self.sampler_uniform = UniformSampler(
-            num_samples=self.config.num_coarse_samples, density_field=self.density_field
-        )
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples, density_field=self.density_field)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)

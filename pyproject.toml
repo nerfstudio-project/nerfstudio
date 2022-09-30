@@ -97,7 +97,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore-paths = ["scripts/colmap2nerf.py", "^nerfactory/cuda/.*$", "^tests/cuda/.*$"]
+ignore-paths = ["scripts/colmap2nerf.py"]
 jobs = 0
 
 disable = [
@@ -113,7 +113,7 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
+addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings"
 testpaths = [
     "tests",
 ]
@@ -124,7 +124,7 @@ include = ["nerfactory"]
 exclude = ["**/node_modules",
     "**/__pycache__",
 ]
-ignore = ["nerfactory/viewer", "nerfactory/cuda"]
+ignore = ["nerfactory/viewer"]
 defineConstant = { DEBUG = true }
 
 reportMissingImports = true

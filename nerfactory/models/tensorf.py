@@ -151,10 +151,8 @@ class TensoRFModel(Model):
         )
 
         # samplers
-        self.sampler_uniform = UniformSampler(
-            num_samples=self.config.num_coarse_samples, density_field=self.density_field
-        )
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples, density_field=self.density_field)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
