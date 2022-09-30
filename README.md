@@ -1,5 +1,5 @@
 <p align="center">
-    <a href="https://join.slack.com/t/nerfactory/shared_invite/zt-1fwqsgjgl-OE0VUJWSPtlVtbC5YXKZrg"><img src="https://img.shields.io/badge/Join-Slack-blue.svg"/></a>
+    <a href="https://join.slack.com/t/nerfstudio/shared_invite/zt-1fwqsgjgl-OE0VUJWSPtlVtbC5YXKZrg"><img src="https://img.shields.io/badge/Join-Slack-blue.svg"/></a>
     <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
         <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
     </a>
@@ -14,14 +14,14 @@
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
     </a>
     <!-- TODO: add version number badge -->
-    <a href="https://badge.fury.io/py/nerfactory"><img src="https://badge.fury.io/py/nerfactory.svg" alt="PyPI version" height="18"></a>
+    <a href="https://badge.fury.io/py/nerfactory"><img src="https://badge.fury.io/py/nerfstudio.svg" alt="PyPI version" height="18"></a>
 </p>
 
 <p align="center">
     <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
-    <img alt="nerfactory" src="docs/_static/imgs/logo.png" width="400">
+    <img alt="nerfstudio" src="docs/_static/imgs/logo.png" width="400">
     </picture>
 </p>
 
@@ -45,15 +45,15 @@
 
 All-in-one repository for state-of-the-art NeRFs.
 
-Nerfactory provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and visualizing NeRFs. The library supports a **more interpretable implementation of NeRFs by modularizing each component**. With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation.
+nerfstudio provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and visualizing NeRFs. The library supports a **more interpretable implementation of NeRFs by modularizing each component**. With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation.
 
-It’s as simple as plug and play with Nerfactory!
+It’s as simple as plug and play with nerfstudio!
 
 Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
 Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? We welcome any and all contributions!
 
-We hope Nerfactory enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
+We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
 # Quickstart
 
@@ -69,21 +69,21 @@ This repository is tested with CUDA 11.3. Make sure to install [Conda](https://d
 Create the python environment
 
 ```
-conda create --name nerfactory python=3.8.13
-conda activate nerfactory
+conda create --name nerfstudio python=3.8.13
+conda activate nerfstudio
 python -m pip install --upgrade pip
 ```
 
 Clone the repo
 
 ```
-git clone git@github.com:plenoptix/nerfactory.git
+git clone git@github.com:plenoptix/nerfstudio.git
 ```
 
-Install dependencies and nerfactory as a library
+Install dependencies and nerfstudio as a library
 
 ```
-cd nerfactory
+cd nerfstudio
 pip install -e .
 ```
 
@@ -94,7 +94,7 @@ pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.py
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
-Install tab completion for nerfactory (bash & zsh)
+Install tab completion for nerfstudio (bash & zsh)
 
 ```
 nf-install-cli
@@ -108,7 +108,7 @@ pytest tests
 
 #### 2. Getting the data
 
-Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
+Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfstudio.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
 
 ```
 python scripts/downloads/download_data.py --dataset=blender
@@ -117,7 +117,7 @@ python scripts/downloads/download_data.py --dataset=blender
 Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
 
 ```
-|─ nerfactory/
+|─ nerfstudio/
    ├─ data/
    |  ├─ blender/
    |     ├─ fern/
@@ -213,7 +213,7 @@ For a more in-depth tutorial on how to modify/implement your own NeRF Graph, ple
 | [Creating datsets](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html)        | Have a new dataset? Learn how to use it with Nerfactory.                                           |
 | [Mobile Capture to NerF](#)                                                                                        | Step-by-step tutorial on how to create beautiful renders with just your phone.                     |
 | [Contributing](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/reference/contributing.html)          | Walk-through for how you can start contributing now.                                               |
-| [Slack](https://join.slack.com/t/nerfactory/shared_invite/zt-1fwqsgjgl-OE0VUJWSPtlVtbC5YXKZrg)                     | Join our community to discuss more. We would love to hear from you!                                |
+| [Slack](https://join.slack.com/t/nerfstudio/shared_invite/zt-1fwqsgjgl-OE0VUJWSPtlVtbC5YXKZrg)                     | Join our community to discuss more. We would love to hear from you!                                |
 
 # Supported Features
 

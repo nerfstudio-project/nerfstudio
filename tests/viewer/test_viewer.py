@@ -4,7 +4,7 @@ Test communications with the viewer.
 
 import time
 
-from nerfactory.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
+from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 
 
 def test_run_subprocess():

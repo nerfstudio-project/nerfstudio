@@ -15,7 +15,7 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
    python scripts/train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
    ```
 
-This pulls up a hosted web-viewer which is the fastest way to get started with visualizing your nerfactory training progress!
+This pulls up a hosted web-viewer which is the fastest way to get started with visualizing your nerfstudio training progress!
 
 ![viewer](imgs/bulldozer.png)
 

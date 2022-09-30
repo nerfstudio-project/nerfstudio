@@ -3,6 +3,6 @@
 Colors
 ------------
 
-.. automodule:: nerfactory.utils.colors
+.. automodule:: nerfstudio.utils.colors
    :members:
    :show-inheritance:

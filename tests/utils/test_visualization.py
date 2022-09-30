@@ -3,7 +3,7 @@ Test visualizations
 """
 import torch
 
-from nerfactory.utils import visualization
+from nerfstudio.utils import visualization
 
 
 def test_apply_colormap():

@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nerfactory"
+name = "nerfstudio"
 version = "0.0.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
@@ -86,7 +86,7 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nerfactory", "scripts"]
+include = ["nerfstudio", "scripts"]
 
 # black
 [tool.black]
@@ -113,18 +113,18 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings"
+addopts = "-n=4 --typeguard-packages=nerfstudio --torchtyping-patch-typeguard --disable-warnings"
 testpaths = [
     "tests",
 ]
 
 # pyright
 [tool.pyright]
-include = ["nerfactory"]
+include = ["nerfstudio"]
 exclude = ["**/node_modules",
     "**/__pycache__",
 ]
-ignore = ["nerfactory/viewer"]
+ignore = ["nerfstudio/viewer"]
 defineConstant = { DEBUG = true }
 
 reportMissingImports = true

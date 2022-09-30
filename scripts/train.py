@@ -19,10 +19,10 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import yaml
 
-from nerfactory.configs import base as cfg
-from nerfactory.configs.base_configs import AnnotatedBaseConfigUnion
-from nerfactory.engine.trainer import train_loop
-from nerfactory.utils import comms, profiler
+from nerfstudio.configs import base as cfg
+from nerfstudio.configs.base_configs import AnnotatedBaseConfigUnion
+from nerfstudio.engine.trainer import train_loop
+from nerfstudio.utils import comms, profiler
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
 

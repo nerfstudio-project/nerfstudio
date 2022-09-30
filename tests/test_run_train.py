@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from nerfactory.configs.base import Config
-from nerfactory.configs.base_configs import base_configs
-from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
-from nerfactory.engine.trainer import train_loop
+from nerfstudio.configs.base import Config
+from nerfstudio.configs.base_configs import base_configs
+from nerfstudio.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
+from nerfstudio.engine.trainer import train_loop
 
 BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "proposal"]
 

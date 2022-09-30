@@ -1,4 +1,4 @@
-# Nerfactory completions for zsh.
+# nerfstudio completions for zsh.
 #
 # This should generally be installed automatically by `configure.py`.
 
@@ -6,7 +6,7 @@ completions_dir="${0:a:h}"/zsh
 
 if [ ! -d "${completions_dir}" ]; then
   echo "$0: Completions are missing!"
-  echo "Please generate them with nerfactory/scripts/completions/generate.py!"
+  echo "Please generate them with nerfstudio/scripts/completions/generate.py!"
   return 1
 fi
 
