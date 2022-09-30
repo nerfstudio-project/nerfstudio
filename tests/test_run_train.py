@@ -14,7 +14,7 @@ from nerfactory.configs.base_configs import base_configs
 from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
 from nerfactory.engine.trainer import train_loop
 
-BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "compound", "proposal"]
+BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "proposal"]
 
 
 def set_reduced_config(config: Config):
@@ -27,7 +27,7 @@ def set_reduced_config(config: Config):
     config.pipeline.datamanager.train_num_rays_per_batch = 4
 
     # use tensorboard logging instead of wandb
-    config.logging.event_writer = "tb"
+    config.vis = ["tensorboard"]
     config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors
@@ -46,7 +46,7 @@ def set_reduced_config(config: Config):
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_run_train():
+def test_train():
     """test run train script works properly"""
     all_config_names = base_configs.keys()
     for config_name in all_config_names:
@@ -61,4 +61,4 @@ def test_run_train():
 
 
 if __name__ == "__main__":
-    test_run_train()
+    test_train()

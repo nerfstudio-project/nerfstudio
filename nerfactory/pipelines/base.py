@@ -84,13 +84,13 @@ class Pipeline(nn.Module):
         local_rank: rank of current machine
 
     Attributes:
-        self.datamanager: The data manager that will be used
-        self.model: The model that will be used
+        datamanager: The data manager that will be used
+        model: The model that will be used
     """
 
     # pylint: disable=abstract-method
 
-    datamanger: DataManager
+    datamanager: DataManager
     model: Model
 
     @property
@@ -131,8 +131,8 @@ class Pipeline(nn.Module):
             self.datamanager.eval_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_eval(step)
         model_outputs = self.model(ray_bundle, batch)
-        loss_dict = self.model.get_loss_dict(model_outputs, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
         self.train()
         return model_outputs, loss_dict, metrics_dict
 
@@ -193,8 +193,8 @@ class VanillaPipeline(Pipeline):
         local_rank: rank of current machine
 
     Attributes:
-        self.datamanager: The data manager that will be used
-        self.model: The model that will be used
+        datamanager: The data manager that will be used
+        model: The model that will be used
     """
 
     def __init__(
@@ -273,8 +273,8 @@ class VanillaPipeline(Pipeline):
         if "valid_mask" in model_outputs:
             valid_mask = model_outputs["valid_mask"]
             batch = get_masked_dict(batch, valid_mask)
-        loss_dict = self.model.get_loss_dict(model_outputs, batch)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
         self.train()
         return model_outputs, loss_dict, metrics_dict
 

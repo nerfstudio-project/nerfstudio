@@ -20,6 +20,7 @@ Proposal network field.
 from typing import Optional
 
 import numpy as np
+import torch
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
@@ -44,15 +45,22 @@ class DensityField(Field):
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
         spatial_distortion: spatial distortion module
+        use_linear: whether to skip the MLP and use a single linear layer instead
     """
 
     def __init__(
-        self, aabb, num_layers: int = 2, hidden_dim: int = 64, spatial_distortion: Optional[SpatialDistortion] = None
+        self,
+        aabb,
+        num_layers: int = 2,
+        hidden_dim: int = 64,
+        spatial_distortion: Optional[SpatialDistortion] = None,
+        use_linear=False,
     ) -> None:
         super().__init__()
 
         self.aabb = Parameter(aabb, requires_grad=False)
         self.spatial_distortion = spatial_distortion
+        self.use_linear = use_linear
 
         num_levels = 8
         max_res = 1024
@@ -61,18 +69,8 @@ class DensityField(Field):
         features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
-        self.direction_encoding = tcnn.Encoding(
-            n_input_dims=3,
-            encoding_config={
-                "otype": "SphericalHarmonics",
-                "degree": 4,
-            },
-        )
-
-        self.mlp_base = tcnn.NetworkWithInputEncoding(
-            n_input_dims=3,
-            n_output_dims=1,
-            encoding_config={
+        config = {
+            "encoding": {
                 "otype": "HashGrid",
                 "n_levels": num_levels,
                 "n_features_per_level": features_per_level,
@@ -80,14 +78,25 @@ class DensityField(Field):
                 "base_resolution": base_res,
                 "per_level_scale": growth_factor,
             },
-            network_config={
+            "network": {
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
                 "output_activation": "None",
                 "n_neurons": hidden_dim,
                 "n_hidden_layers": num_layers - 1,
             },
-        )
+        }
+
+        if not self.use_linear:
+            self.mlp_base = tcnn.NetworkWithInputEncoding(
+                n_input_dims=3,
+                n_output_dims=1,
+                encoding_config=config["encoding"],
+                network_config=config["network"],
+            )
+        else:
+            self.encoding = tcnn.Encoding(n_input_dims=3, encoding_config=config["encoding"])
+            self.linear = torch.nn.Linear(self.encoding.n_output_dims, 1)
 
     def get_density(self, ray_samples: RaySamples):
         if self.spatial_distortion is not None:
@@ -101,12 +110,19 @@ class DensityField(Field):
         # assert torch.all(positions >= 0.0) and torch.all(
         #     positions <= 1.0
         # ), f"positions: {positions.min()} {positions.max()}"
-        density_before_activation = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
+
+        if not self.use_linear:
+            density_before_activation = (
+                self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1).to(positions)
+            )
+        else:
+            x = self.encoding(positions_flat).to(positions)
+            density_before_activation = self.linear(x).view(*ray_samples.frustums.shape, -1)
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
-        density = trunc_exp(density_before_activation.to(positions))
+        density = trunc_exp(density_before_activation)
         return density, None
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):

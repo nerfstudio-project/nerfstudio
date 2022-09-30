@@ -14,7 +14,7 @@
 
 """Space distortions."""
 
-from typing import Union
+from typing import Optional, Union
 
 import torch
 from functorch import jacrev, vmap
@@ -40,7 +40,7 @@ class SpatialDistortion(nn.Module):
 
 
 class SceneContraction(SpatialDistortion):
-    """Contract unbounded space into a sphere of radius 2. This contraction was proposed in MipNeRF-360.
+    """Contract unbounded space using the contraction was proposed in MipNeRF-360.
         We use the following contraction equation:
 
         .. math::
@@ -49,11 +49,23 @@ class SceneContraction(SpatialDistortion):
                 x & ||x|| \\leq 1 \\\\
                 (2 - \\frac{1}{||x||})(\\frac{x}{||x||}) & ||x|| > 1
             \\end{cases}
+
+        If the order is not specified, we use the Frobenius norm, this will contract the space to a sphere of
+        radius 1. If the order is L_inf (order=float("inf")), we will contract the space to a cube of side length 2.
+        If using voxel based encodings such as the Hash encoder, we recommend using the L_inf norm.
+
+        Args:
+            order: Order of the norm. Default to the Frobenius norm. Must be set to None for Gaussians.
+
     """
+
+    def __init__(self, order: Optional[Union[float, int]] = None) -> None:
+        super().__init__()
+        self.order = order
 
     def forward(self, positions):
         def contract(x):
-            mag = x.norm(dim=-1)
+            mag = torch.linalg.norm(x, ord=self.order, dim=-1)
             mask = mag >= 1
             x[mask] = (2 - (1 / mag[mask][..., None])) * (x[mask] / mag[mask][..., None])
 
@@ -62,7 +74,9 @@ class SceneContraction(SpatialDistortion):
         if isinstance(positions, Gaussians):
             means = contract(positions.mean.clone())
 
-            contract = lambda x: (2 - (1 / x.norm(dim=-1, keepdim=True))) * (x / x.norm(dim=-1, keepdim=True))
+            contract = lambda x: (2 - (1 / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True))) * (
+                x / torch.linalg.norm(x, ord=self.order, dim=-1, keepdim=True)
+            )
             jc_means = vmap(jacrev(contract))(positions.mean.view(-1, positions.mean.shape[-1]))
             jc_means = jc_means.view(list(positions.mean.shape) + [positions.mean.shape[-1]])
 

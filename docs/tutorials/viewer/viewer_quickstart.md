@@ -12,7 +12,7 @@ The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [R
 
 2. Run training script with viewer enabled. Note that you should only use the viewer with a fast pipeline, such as instant ngp.
    ```shell
-   python scripts/run_train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
+   python scripts/train.py --config-name=graph_instant_ngp.yaml viewer.enable=True
    ```
 
 This pulls up a hosted web-viewer which is the fastest way to get started with visualizing your nerfactory training progress!

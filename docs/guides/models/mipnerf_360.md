@@ -1,4 +1,5 @@
 # Mip-NeRF 360
+
 <h4>Unbounded Anti-Aliased Neural Radiance Fields</h4>
 
 ```{button-link} https://jonbarron.info/mipnerf360/
@@ -10,5 +11,5 @@ Paper Website
 ### Running Model
 
 ```bash
-python scripts/run_train.py --config-name=graph_mipnerf_360.yaml
+python scripts/train.py --config-name=graph_mipnerf_360.yaml
 ```

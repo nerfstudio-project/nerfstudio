@@ -18,16 +18,13 @@ Put all the method implementations in one location.
 
 from __future__ import annotations
 
-import copy
-from typing import Dict, Type
+from typing import Dict
 
 import dcargs
-from typeguard import typeguard_ignore
 
 from nerfactory.configs.base import (
     AdamOptimizerConfig,
     Config,
-    LoggingConfig,
     RAdamOptimizerConfig,
     SchedulerConfig,
     TrainerConfig,
@@ -40,7 +37,6 @@ from nerfactory.datamanagers.dataparsers.mipnerf_parser import (
     MipNerf360DataParserConfig,
 )
 from nerfactory.models.base import VanillaModelConfig
-from nerfactory.models.compound import CompoundModelConfig
 from nerfactory.models.instant_ngp import InstantNGPModelConfig
 from nerfactory.models.mipnerf import MipNerfModel
 from nerfactory.models.mipnerf_360 import MipNerf360Model
@@ -53,21 +49,28 @@ from nerfactory.pipelines.base import VanillaPipelineConfig
 from nerfactory.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 base_configs: Dict[str, Config] = {}
-base_configs["compound"] = Config(
-    method_name="compound",
-    trainer=TrainerConfig(mixed_precision=True),
-    pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
-        model=CompoundModelConfig(eval_num_rays_per_chunk=8192),
+
+base_configs["proposal"] = Config(
+    method_name="proposal",
+    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+        ),
+        model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
-        }
+        },
     },
-    viewer=ViewerConfig(enable=True),
-    logging=LoggingConfig(event_writer="none"),
+    viewer=ViewerConfig(num_rays_per_chunk=2 << 15),
+    vis=["viewer"],
 )
 
 base_configs["instant-ngp"] = Config(
@@ -83,27 +86,8 @@ base_configs["instant-ngp"] = Config(
             "scheduler": None,
         }
     },
-    viewer=ViewerConfig(enable=True),
-    logging=LoggingConfig(event_writer="none"),
-)
-
-base_configs["proposal"] = Config(
-    method_name="proposal",
-    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
-    pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
-        ),
-        model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
-    ),
-    optimizers={
-        "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        }
-    },
-    viewer=ViewerConfig(enable=True, num_rays_per_chunk=2 << 15),
-    logging=LoggingConfig(event_writer="none"),
+    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    vis=["viewer"],
 )
 
 base_configs["mipnerf-360"] = Config(
@@ -228,28 +212,7 @@ base_configs["tensorf"] = Config(
 )
 
 
-@typeguard_ignore  # TypeGuard doesn't understand the generic alias that's returned here.
-def _make_base_config_subcommand_type() -> Type[Config]:
-    """Generate a Union[] type over the possible base config types, with runtime
-    annotations containing default values. Used to generate CLIs.
-
-    Returns:
-        An annotated Union type, which can be used to pick a base configuration.
-    """
-    # When a base config is used to generate a CLI: replace the auto-generated timestamp
-    # with {timestamp}. This makes the CLI helptext (and, for zsh, autocomplete
-    # generation) consistent everytime you run a script with --help.
-    #
-    # Note that when a config is instantiated with dcargs.cli(), the __post_init__
-    # called when the config is instantiated will set the correct timestamp.
-    base_configs_placeholder_timestamp = {}
-    for name, config in base_configs.items():
-        base_configs_placeholder_timestamp[name] = copy.deepcopy(config)
-
-    return dcargs.extras.subcommand_type_from_defaults(base_configs_placeholder_timestamp)
-
-
-AnnotatedBaseConfigUnion = _make_base_config_subcommand_type()
+AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(base_configs)
 """Union[] type over config types, annotated with default instances for use with
 dcargs.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

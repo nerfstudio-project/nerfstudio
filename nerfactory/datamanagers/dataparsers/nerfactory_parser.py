@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Literal, Type
 
 import numpy as np
@@ -43,8 +43,8 @@ class NerfactoryDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     downscale_factor: int = 1
     """How much to downscale images."""
-    scene_scale: float = 4.0
-    """How much to scale the scene."""
+    scene_scale: float = 1.0
+    """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation."""
     train_split_percentage: float = 0.9
@@ -59,7 +59,7 @@ class Nerfactory(DataParser):
     config: NerfactoryDataParserConfig
 
     def _generate_dataset_inputs(self, split="train"):
-
+        # pylint: disable=too-many-statements
         abs_dir = get_absolute_path(self.config.data_directory)
 
         meta = load_from_json(abs_dir / "transforms.json")
@@ -67,11 +67,14 @@ class Nerfactory(DataParser):
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
-            fname = abs_dir / Path(frame["file_path"])
-            if self.config.downscale_factor > 1:
-                fname = abs_dir / f"images_{self.config.downscale_factor}" / Path(frame["file_path"]).name
+            if "\\" in frame["file_path"]:
+                filepath = PureWindowsPath(frame["file_path"])
             else:
-                fname = abs_dir / Path(frame["file_path"])
+                filepath = Path(frame["file_path"])
+            if self.config.downscale_factor > 1:
+                fname = abs_dir / f"images_{self.config.downscale_factor}" / filepath.name
+            else:
+                fname = abs_dir / filepath
             if not fname:
                 num_skipped_image_filenames += 1
             else:

@@ -1,4 +1,5 @@
 # Mip-NeRF
+
 <h4>A Multiscale Representation for Anti-Aliasing Neural Radiance Fields</h4>
 
 ```{button-link} https://jonbarron.info/mipnerf/
@@ -10,7 +11,7 @@ Paper Website
 ### Running Model
 
 ```bash
-python scripts/run_train.py --config-name=graph_mipnerf.yaml
+python scripts/train.py --config-name=graph_mipnerf.yaml
 ```
 
 ## Overview

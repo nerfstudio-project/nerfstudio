@@ -26,12 +26,15 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 import wandb
+from rich import console
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
 from nerfactory.configs import base as cfg
 from nerfactory.utils.decorators import check_main_thread, decorate_all
 from nerfactory.utils.misc import human_format
+
+CONSOLE = console.Console()
 
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 EVENT_WRITERS = []
@@ -187,7 +190,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
-def setup_event_writer(config: cfg.LoggingConfig, log_dir: Path) -> None:
+def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -195,15 +198,20 @@ def setup_event_writer(config: cfg.LoggingConfig, log_dir: Path) -> None:
         max_iter: maximum number of train iterations
         banner_messages: list of messages to always display at bottom of screen
     """
-    if config.event_writer == "tb":
-        curr_writer = TensorboardWriter(log_dir=log_dir)
-    elif config.event_writer == "wandb":
+    using_event_writer = False
+    if config.is_wandb_enabled():
         curr_writer = WandbWriter(log_dir=log_dir)
+        EVENT_WRITERS.append(curr_writer)
+        using_event_writer = True
+    if config.is_tensorboard_enabled():
+        curr_writer = TensorboardWriter(log_dir=log_dir)
+        EVENT_WRITERS.append(curr_writer)
+        using_event_writer = True
+    if using_event_writer:
+        string = f"logging events to: {log_dir}"
     else:
-        logging.info("disabled tensorboard/wandb event writers")
-        return
-    EVENT_WRITERS.append(curr_writer)
-    logging.info("logging %s events to: %s", config.event_writer, log_dir)
+        string = "disabled tensorboard/wandb event writers"
+    CONSOLE.print(f"[bold red]{string}")
 
 
 class Writer:
