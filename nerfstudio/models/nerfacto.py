@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Implementation of Instant NGP.
+NeRF implementation that combines many recent advancements.
 """
 
 from __future__ import annotations
@@ -51,10 +51,10 @@ from nerfstudio.utils.callbacks import (
 
 
 @dataclass
-class ProposalModelConfig(ModelConfig):
-    """Proposal Model Config"""
+class NerfactoModelConfig(ModelConfig):
+    """Nerfacto Model Config"""
 
-    _target: Type = field(default_factory=lambda: ProposalModel)
+    _target: Type = field(default_factory=lambda: NerfactoModel)
     near_plane: float = 0.05
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
@@ -87,14 +87,14 @@ class ProposalModelConfig(ModelConfig):
     """Whether use single jitter or not for first proposal network."""
 
 
-class ProposalModel(Model):
-    """Instant NGP model
+class NerfactoModel(Model):
+    """Nerfacto model
 
     Args:
-        config: instant NGP configuration to instantiate model
+        config: Nerfacto configuration to instantiate model
     """
 
-    config: ProposalModelConfig
+    config: NerfactoModelConfig
 
     def populate_modules(self):
         """Set the fields and modules."""

@@ -40,8 +40,8 @@ from nerfstudio.models.base import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.mipnerf_360 import MipNerf360Model
+from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.nerfw import NerfWModelConfig
-from nerfstudio.models.proposal import ProposalModelConfig
 from nerfstudio.models.semantic_nerf import SemanticNerfModel
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
@@ -50,14 +50,14 @@ from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 base_configs: Dict[str, Config] = {}
 
-base_configs["proposal"] = Config(
-    method_name="proposal",
+base_configs["nerfacto"] = Config(
+    method_name="nerfacto",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
-        model=ProposalModelConfig(eval_num_rays_per_chunk=1 << 16),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
     optimizers={
         "proposal_networks": {

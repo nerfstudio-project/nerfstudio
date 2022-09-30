@@ -100,11 +100,11 @@ def main(
         download_nerfactory(dataset_name)
 
 
-if __name__ == "__main__":
-    try:
-        # Requires dcargs>=0.3.3.
-        dcargs.extras.set_accent_color("bright_yellow")
-    except AttributeError:
-        pass
-
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
+    dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(main)
+
+
+if __name__ == "__main__":
+    entrypoint()

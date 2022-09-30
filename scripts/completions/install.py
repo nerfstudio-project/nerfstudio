@@ -224,7 +224,7 @@ def main(
             .split("\n")
         )
         entry_points = list(
-            # nf-train = "..." ==> nf-train
+            # ns-train = "..." ==> ns-train
             e.partition("=")[0].strip()
             for e in entry_points
         )
