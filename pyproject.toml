@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.0.3"
+version = "0.0.3.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -86,7 +86,7 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nerfstudio*", "scripts*"]
+include = ["*"]
 
 # black
 [tool.black]
