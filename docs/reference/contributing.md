@@ -1,4 +1,4 @@
-# Contributing to nerfactory workflow
+# Contributing to nerfstudio workflow
 
 The project is set up for development in VSCode, we recommend using it if you plan to contribute.
 
@@ -34,7 +34,7 @@ conda install -c conda-forge pandoc
    To ensure that you will be passing all tests and checks on github, you will need to run the following command:
 
    ```bash
-   python scripts/debugging/run_actions.py
+   ns-dev-test
    ```
 
 This will perform the following checks and actions:

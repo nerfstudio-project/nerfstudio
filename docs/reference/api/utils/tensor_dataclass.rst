@@ -3,6 +3,6 @@
 TensorDataclass
 =================
 
-.. automodule:: nerfactory.utils.tensor_dataclass
+.. automodule:: nerfstudio.utils.tensor_dataclass
    :members:
    :show-inheritance:

@@ -2,17 +2,17 @@
 
 The tutorial below shows you how to host the viewer yourself and how you can use it to visualize training.
 
-#### Connection between nerfactory and the Bridge Server
+#### Connection between nerfstudio and the Bridge Server
 
-In the center, we have the Bridge Server, which facilitates the connection between nerfactory code and the Client App. This server runs on the same machine that you are using nerfactory. It has a TCP Request/Reply (REQ/REP) connection that nerfactory can connect to with the Viewer object (left). We use [ZeroMQ](https://zeromq.org/), an open-sourced messaging library, to implement this lightweight TCP connection. The Viewer class can send commands to the Bridge Server and receive replies. The Bridge Server will either dispatch commands to the Client App via a websocket or it will return information stored in the Bridge Server state.
+In the center, we have the Bridge Server, which facilitates the connection between nerfstudio code and the Client App. This server runs on the same machine that you are using nerfstudio. It has a TCP Request/Reply (REQ/REP) connection that nerfstudio can connect to with the Viewer object (left). We use [ZeroMQ](https://zeromq.org/), an open-sourced messaging library, to implement this lightweight TCP connection. The Viewer class can send commands to the Bridge Server and receive replies. The Bridge Server will either dispatch commands to the Client App via a websocket or it will return information stored in the Bridge Server state.
 
 #### Connection between the Bridge Server and the Client App
 
 The connection between the Bridge Server and the Client App works with WebSockets and WebRTC.
 
-- **WebSocket connection** - The WebSocket is used by the Bridge Server to dispatch commands coming from the nerfactory TCP connection. Commands can be used for drawing primitives, for setting the transform of objects, for the setting various properties, and more.
+- **WebSocket connection** - The WebSocket is used by the Bridge Server to dispatch commands coming from the nerfstudio TCP connection. Commands can be used for drawing primitives, for setting the transform of objects, for the setting various properties, and more.
 
-- **WebRTC connection** - We use WebRTC to stream images being rendered from nerfactory. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the nerfactory code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
+- **WebRTC connection** - We use WebRTC to stream images being rendered from nerfstudio. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the nerfstudio code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
 
 ## Getting started
 
@@ -21,7 +21,7 @@ The connection between the Bridge Server and the Client App works with WebSocket
 The viewer server runs on the same machine that you use for training. The training code will connect to the server with a lightweight TCP connection.
 
 ```
-cd nerfactory
+cd nerfstudio
 
 # run the server on your machine
 # this will run in the background
@@ -36,7 +36,7 @@ It should print out something of the form:
 > We will host the viewer online in the future, but for now we have to run it locally.
 
 ```shell
-cd nerfactory/viewer/app
+cd nerfstudio/viewer/app
 ```
 
 Install npm (to install yarn) and yarn
@@ -75,7 +75,7 @@ PORT=4000
 ESLINT_NO_DEV_ERRORS=true
 ```
 
-#### Running the nerfactory Code
+#### Running the nerfstudio Code
 
 You can now simply run a training job and visualize progress by enabling the viewer during training:
 
@@ -83,7 +83,7 @@ You can now simply run a training job and visualize progress by enabling the vie
 python scripts/train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
 ```
 
-- **Notebook demo** - See [Programming the viewer](viewer_notebook.ipynb) for an overview for how to interact with the viewer with the Viewer object from nerfactory.
+- **Notebook demo** - See [Programming the viewer](viewer_notebook.ipynb) for an overview for how to interact with the viewer with the Viewer object from nerfstudio.
 
 ## Acknowledgements and references
 

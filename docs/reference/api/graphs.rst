@@ -6,34 +6,34 @@ Graphs
 Base
 ----------------
 
-.. automodule:: nerfactory.models.base
+.. automodule:: nerfstudio.models.base
    :members:
    :show-inheritance:
 
 Instant NGP
 ----------------
 
-.. automodule:: nerfactory.models.instant_ngp
+.. automodule:: nerfstudio.models.instant_ngp
    :members:
    :show-inheritance:
 
 Semantic NeRF
 ----------------
 
-.. automodule:: nerfactory.models.semantic_nerf
+.. automodule:: nerfstudio.models.semantic_nerf
    :members:
    :show-inheritance:
 
 TensoRF
 ----------------
 
-.. automodule:: nerfactory.models.tensorf
+.. automodule:: nerfstudio.models.tensorf
    :members:
    :show-inheritance:
 
 NeRF
 ----------------
 
-.. automodule:: nerfactory.models.vanilla_nerf
+.. automodule:: nerfstudio.models.vanilla_nerf
    :members:
    :show-inheritance:

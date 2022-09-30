@@ -3,6 +3,6 @@
 Spatial Distortions
 =====================
 
-.. automodule:: nerfactory.fields.modules.spatial_distortions
+.. automodule:: nerfstudio.fields.modules.spatial_distortions
    :members:
    :show-inheritance:

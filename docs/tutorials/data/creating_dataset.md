@@ -4,7 +4,7 @@ Training model on existing datasets is only so fun. If you would like to train o
 
 ## Nerfactory dataset
 
-To assist running on custom data we have a script that will process a video or folder of images into a format that is compatible with nerfactory. We use [COLMAP](https://colmap.github.io) and [FFmpeg](https://ffmpeg.org/download.html) in our data processing script, please have these installed. We have provided a quickstart to installing COLMAP below, FFmpeg can be downloaded from [here](https://ffmpeg.org/download.html)
+To assist running on custom data we have a script that will process a video or folder of images into a format that is compatible with nerfstudio. We use [COLMAP](https://colmap.github.io) and [FFmpeg](https://ffmpeg.org/download.html) in our data processing script, please have these installed. We have provided a quickstart to installing COLMAP below, FFmpeg can be downloaded from [here](https://ffmpeg.org/download.html)
 
 To process your data run:
 
