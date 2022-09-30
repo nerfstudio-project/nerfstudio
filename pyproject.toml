@@ -74,10 +74,12 @@ docs = [
 ]
 
 [project.scripts]
-nf-install-cli = "scripts.completions.install:entrypoint"
-nf-process-data = "scripts.process_data:entrypoint"
-nf-train = "scripts.train:entrypoint"
-nf-eval = "scripts.eval:entrypoint"
+ns-install-cli = "scripts.completions.install:entrypoint"
+ns-process-data = "scripts.process_data:entrypoint"
+ns-download-data = "scripts.downloads.download_data:entrypoint"
+ns-train = "scripts.train:entrypoint"
+ns-eval = "scripts.eval:entrypoint"
+ns-dev-test = "scripts.debugging.run_actions:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision

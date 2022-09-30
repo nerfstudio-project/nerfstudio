@@ -1,10 +1,8 @@
 # Installation
 
-This repository is tested with CUDA 11.3. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html#linux-installers) before preceding.
+### Create environment
 
-</details>
-
-Create the python environment
+We reccomend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
 
 ```bash
 conda create --name nerfstudio python=3.8.13
@@ -12,31 +10,46 @@ conda activate nerfstudio
 python -m pip install --upgrade pip
 ```
 
-Clone the repo
+### Dependencies
 
-```bash
-git clone git@github.com:plenoptix/nerfstudio.git
-```
-
-Install dependencies and nerfstudio as a library
-
-```bash
-cd nerfstudio
-pip install -e .
-```
-
-Install tiny-cuda-nn (tcnn) to run instant_ngp
+Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
 ```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
 
-Install tab completion for nerfstudio (bash and zsh)
+### Installing nerfstudio
+
+Easy option:
 
 ```bash
-# If the CLI changes, we can also re-install to synchronize completions
-nf-install-cli
+pip install nerfstudio
+```
+
+If you would want the latest and greatest:
+
+```bash
+git clone git@github.com:plenoptix/nerfstudio.git
+cd nerfstudio
+pip install -e .
+```
+
+### Optional Installs
+
+#### Tab completion (bash & zsh)
+
+This needs to be rerun when the CLI changes, for example if nerfstudio is updated.
+
+```bash
+ns-install-cli
+```
+
+### Development packages
+
+```bash
+pip install -e.[dev]
+pip install -e.[docs]
 ```
 
 # Downloading data
@@ -44,7 +57,7 @@ nf-install-cli
 Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
 
 ```
-python scripts/downloads/download_data.py --dataset=blender
+ns-download-data --dataset=blender
 ```
 
 Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
@@ -68,22 +81,14 @@ To run with all the defaults, e.g. vanilla nerf method with the blender lego ima
 Run a vanilla nerf model.
 
 ```bash
-python scripts/train.py
+ns-train vanilla-nerf
 ```
 
-Run a faster version with instant ngp using tcnn (without the viewer).
+Run a vanilla nerf model.
 
 ```bash
-python scripts/train.py --config-name=graph_instant_ngp.yaml
+ns-train nerfacto
 ```
-
-Run with the viewer. However, you'll have to start the viewer server first. (See [viewer docs](../tutorials/viewer/viewer_quickstart.md))
-
-```bash
-python scripts/train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
-```
-
-With support for [Hydra](https://hydra.cc/), you can run with other configurations by changing appropriate configs defined in `configs/` or by setting flags via command-line arguments.
 
 # Visualizing training runs
 
@@ -100,7 +105,7 @@ tensorboard --logdir outputs
 To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../tooling/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
-python scripts/eval.py render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
+ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
 ```
 
 Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.
