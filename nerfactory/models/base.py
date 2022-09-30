@@ -31,7 +31,6 @@ from nerfactory.cameras.rays import RayBundle
 from nerfactory.configs.base import InstantiateConfig
 from nerfactory.configs.utils import to_immutable_dict
 from nerfactory.datamanagers.structs import SceneBounds
-from nerfactory.fields.density_fields.density_grid import DensityGrid
 from nerfactory.models.modules.scene_colliders import NearFarCollider
 from nerfactory.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 
@@ -48,18 +47,6 @@ class ModelConfig(InstantiateConfig):
     collider_params: Optional[Dict[str, float]] = to_immutable_dict({"near_plane": 2.0, "far_plane": 6.0})
     """parameters to instantiate scene collider with"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0})
-    """Loss specific weights."""
-    enable_density_field: bool = False
-    """Whether to create a density field to filter samples."""
-    density_field_params: Dict[str, Any] = to_immutable_dict(
-        {
-            "center": 0.0,  # simply set it as the center of the scene bbox
-            "base_scale": 3.0,  # simply set it as the scale of the scene bbox
-            "num_cascades": 1,  # if using more than 1 cascade, the `base_scale` can be smaller than scene scale.
-            "resolution": 128,
-            "update_every_num_iters": 16,
-        }
-    )
     """parameters to instantiate density field with"""
     eval_num_rays_per_chunk: int = 4096
     """specifies number of rays per chunk during eval"""
@@ -88,7 +75,6 @@ class Model(nn.Module):
         self.config = config
         self.scene_bounds = scene_bounds
         self.num_train_data = num_train_data
-        self.density_field = None
         self.kwargs = kwargs
         self.collider = None
         self.populate_modules()  # populate the modules
@@ -112,14 +98,6 @@ class Model(nn.Module):
         # default instantiates optional modules that are common among many networks
         # NOTE: call `super().populate_modules()` in subclasses
 
-        if self.config.enable_density_field:
-            self.density_field = DensityGrid(
-                center=self.config.density_field_params["center"],
-                base_scale=self.config.density_field_params["base_scale"],
-                num_cascades=self.config.density_field_params["num_cascades"],
-                resolution=self.config.density_field_params["resolution"],
-                update_every_num_iters=self.config.density_field_params["update_every_num_iters"],
-            )
         if self.config.enable_collider:
             self.collider = NearFarCollider(
                 near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]

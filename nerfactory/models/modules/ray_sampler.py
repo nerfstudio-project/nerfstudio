@@ -26,7 +26,6 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfactory.cameras.rays import Frustums, RayBundle, RaySamples
-from nerfactory.fields.density_fields.density_grid import DensityGrid
 
 
 class Sampler(nn.Module):
@@ -34,34 +33,22 @@ class Sampler(nn.Module):
 
     Args:
         num_samples: number of samples to take
-        density_field: density grid specifying weighting of
     """
 
     def __init__(
         self,
         num_samples: Optional[int] = None,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 0.01,
     ) -> None:
         super().__init__()
         self.num_samples = num_samples
-        self.density_field = density_field
-        self.weight_threshold = weight_threshold
 
     @abstractmethod
     def generate_ray_samples(self) -> RaySamples:
         """Generate Ray Samples"""
 
     def forward(self, *args, **kwargs) -> RaySamples:
-        """Generate ray samples with optional density filtering"""
-        ray_samples = self.generate_ray_samples(*args, **kwargs)
-        if self.density_field is not None:
-            densities = self.density_field.get_densities(ray_samples)
-            deltas = torch.clamp(ray_samples.frustums.ends - ray_samples.frustums.starts, min=1e-10)
-            density_threshold = torch.clamp(self.weight_threshold / deltas, max=self.density_field.mean_density)
-            valid_mask = densities > density_threshold
-            ray_samples.set_valid_mask(valid_mask & ray_samples.valid_mask)
-        return ray_samples
+        """Generate ray samples"""
+        return self.generate_ray_samples(*args, **kwargs)
 
 
 class SpacedSampler(Sampler):
@@ -72,8 +59,6 @@ class SpacedSampler(Sampler):
         spacing_fn: Function that dictates sample spacing (ie `lambda x : x` is uniform).
         spacing_fn_inv: The inverse of spacing_fn.
         train_stratified: Use stratified sampling during training. Defults to True
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
     """
 
     def __init__(
@@ -83,10 +68,8 @@ class SpacedSampler(Sampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
-        super().__init__(num_samples=num_samples, density_field=density_field, weight_threshold=weight_threshold)
+        super().__init__(num_samples=num_samples)
         self.train_stratified = train_stratified
         self.single_jitter = single_jitter
         self.spacing_fn = spacing_fn
@@ -149,8 +132,6 @@ class UniformSampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
     """
 
     def __init__(
@@ -158,8 +139,6 @@ class UniformSampler(SpacedSampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(
             num_samples=num_samples,
@@ -167,8 +146,6 @@ class UniformSampler(SpacedSampler):
             spacing_fn_inv=lambda x: x,
             train_stratified=train_stratified,
             single_jitter=single_jitter,
-            density_field=density_field,
-            weight_threshold=weight_threshold,
         )
 
 
@@ -178,8 +155,6 @@ class LinearDisparitySampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
     """
 
     def __init__(
@@ -187,8 +162,6 @@ class LinearDisparitySampler(SpacedSampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(
             num_samples=num_samples,
@@ -196,8 +169,6 @@ class LinearDisparitySampler(SpacedSampler):
             spacing_fn_inv=lambda x: 1 / x,
             train_stratified=train_stratified,
             single_jitter=single_jitter,
-            density_field=density_field,
-            weight_threshold=weight_threshold,
         )
 
 
@@ -207,8 +178,6 @@ class SqrtSampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
     """
 
     def __init__(
@@ -216,8 +185,6 @@ class SqrtSampler(SpacedSampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(
             num_samples=num_samples,
@@ -225,8 +192,6 @@ class SqrtSampler(SpacedSampler):
             spacing_fn_inv=lambda x: x**2,
             train_stratified=train_stratified,
             single_jitter=single_jitter,
-            density_field=density_field,
-            weight_threshold=weight_threshold,
         )
 
 
@@ -236,8 +201,6 @@ class LogSampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
     """
 
     def __init__(
@@ -245,8 +208,6 @@ class LogSampler(SpacedSampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(
             num_samples=num_samples,
@@ -254,8 +215,6 @@ class LogSampler(SpacedSampler):
             spacing_fn_inv=torch.exp,
             train_stratified=train_stratified,
             single_jitter=single_jitter,
-            density_field=density_field,
-            weight_threshold=weight_threshold,
         )
 
 
@@ -267,8 +226,6 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
     """
 
     def __init__(
@@ -276,8 +233,6 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
         num_samples: Optional[int] = None,
         train_stratified=True,
         single_jitter=False,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
         super().__init__(
             num_samples=num_samples,
@@ -285,8 +240,6 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
             spacing_fn_inv=lambda x: torch.where(x < 0.5, 2 * x, 1 / (2 - 2 * x)),
             train_stratified=train_stratified,
             single_jitter=single_jitter,
-            density_field=density_field,
-            weight_threshold=weight_threshold,
         )
 
 
@@ -297,8 +250,6 @@ class PDFSampler(Sampler):
         num_samples: Number of samples per ray
         train_stratified: Randomize location within each bin during training.
         include_original: Add original samples to ray.
-        density_field: Density grid. If provides, samples below weight_threshold as set as invalid.
-        weight_threshold: Removes samples below threshold weight. Only used if density field is provided.
         histogram_padding: Amount to weights prior to computing PDF.
     """
 
@@ -307,11 +258,9 @@ class PDFSampler(Sampler):
         num_samples: Optional[int] = None,
         train_stratified: bool = True,
         include_original: bool = True,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
         histogram_padding: float = 0.01,
     ) -> None:
-        super().__init__(num_samples=num_samples, density_field=density_field, weight_threshold=weight_threshold)
+        super().__init__(num_samples=num_samples)
         self.train_stratified = train_stratified
         self.include_original = include_original
         self.histogram_padding = histogram_padding
@@ -490,9 +439,6 @@ class VolumetricSampler(Sampler):
             The ray_indices contains the indices of the rays that each sample belongs to.
         """
 
-        if self.density_field is not None:
-            raise ValueError("NGPSpacedSampler does not support a density field")
-
         rays_o = ray_bundle.origins.contiguous()
         rays_d = ray_bundle.directions.contiguous()
         if ray_bundle.camera_indices is not None:
@@ -550,10 +496,8 @@ class ProposalNetworkSampler(Sampler):
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
         single_jitter: bool = True,
-        density_field: Optional[DensityGrid] = None,
-        weight_threshold: float = 1e-2,
     ) -> None:
-        super().__init__(density_field=density_field, weight_threshold=weight_threshold)
+        super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
         self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
         self.num_proposal_network_iterations = num_proposal_network_iterations
