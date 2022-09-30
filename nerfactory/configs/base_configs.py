@@ -57,7 +57,7 @@ base_configs["proposal"] = Config(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
-        model=ProposalModelConfig(eval_num_rays_per_chunk=8192),
+        model=ProposalModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
     optimizers={
         "proposal_networks": {
@@ -69,7 +69,7 @@ base_configs["proposal"] = Config(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=2 << 15),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
     vis=["viewer"],
 )
 
