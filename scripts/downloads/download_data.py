@@ -1,65 +1,25 @@
-#!/usr/bin/env python
-"""Download datasets"""
+"""Download datasets and specific captures from the datasets."""
+import os
+import shutil
+import sys
 import zipfile
 from pathlib import Path
 from typing import Literal, Optional
 
 import dcargs
 import gdown
+from rich.console import Console
 
-nerfactory_file_ids = {
-    "dozer": "1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR",
-    "sf_street": "1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz",
-    "poster": "1dmjWGXlJnUxwosN6MVooCDQe970PkD-1",
-    "lion": "1bx0aDtHoqB3xTAVHL9UIrlTL_vqC6vaH",
-}
-
-
-def download_friends():
-    """Script ported from: https://github.com/ethanweber/sitcoms3D/blob/master/download_data.py"""
-    data_filename_to_file_id = [
-        ("./data/human_data.zip", "1zk12qxnZbReKqdvy-JYp1jQn2QA3oJzz"),
-        ("./data/human_pairs.zip", "1927rnmJ3mWcjsj0afqawSto2IK2lLwmA"),
-        ("./data/sparse_reconstruction_and_nerf_data.zip", "1RmwDUAp1T4RkwZg1S_7L9JAViWtBZfAG"),
-    ]
-
-    disk_data_filename_to_file_id = [  # pylint: disable=unused-variable
-        ("./data/sparse_reconstruction_and_nerf_data/ELR-apartment-disk.zip", "1YcTwMv5PP0uqXYdN-Lp8k0WnXUdHBXrY"),
-        ("./data/sparse_reconstruction_and_nerf_data/Frasier-apartment-disk.zip", "1vPqplDv5rrFu5LrxTHbET0FiePTGi8zE"),
-        (
-            "./data/sparse_reconstruction_and_nerf_data/Friends-monica_apartment-disk.zip",
-            "1yNpU4M44gIuWEaC5tSAOKy-A6KX8wTm8",
-        ),
-        (
-            "./data/sparse_reconstruction_and_nerf_data/HIMYM-red_apartment-disk.zip",
-            "1m76i46YYlpDKvlx-Jn7qDDAvkOVVVmqF",
-        ),
-        (
-            "./data/sparse_reconstruction_and_nerf_data/Seinfeld-jerry_living_room-disk.zip",
-            "1YFoV3Gd9asKsRarZvzRTYtri1755rBPx",
-        ),
-        ("./data/sparse_reconstruction_and_nerf_data/TAAHM-kitchen-disk.zip", "1QpF8kVGfgkqm_cDY5sY_E82BT8VOWL38"),
-        (
-            "./data/sparse_reconstruction_and_nerf_data/TBBT-big_living_room-disk.zip",
-            "175BjkpxMAOt75ZVIjYpArxWpO8uRexgJ",
-        ),
-    ]
-
-    # !!! Large files !!! Only uncomment if you need the disk correspondences.
-    # data_filename_to_file_id += disk_data_filename_to_file_id
-
-    for data_filename, file_id in data_filename_to_file_id:
-        # Download the files
-        url = f"https://drive.google.com/uc?id={file_id}"
-        gdown.download(url, output=data_filename, quiet=False)
-        with zipfile.ZipFile(data_filename, "r") as zip_ref:
-            zip_ref.extractall(data_filename.replace(".zip", "").replace("-disk", ""))
-        Path(data_filename).unlink(missing_ok=True)
+console = Console(width=120)
 
 
 def download_blender():
-    """Download blender dataset and format accordingly"""
-    url = "https://drive.google.com/uc?id=18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG"
+    """Download the blender dataset."""
+
+    # https://drive.google.com/uc?id=18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG
+    blender_file_id = "18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG"
+
+    url = f"https://drive.google.com/uc?id={blender_file_id}"
     download_path = Path("data/blender_data.zip")
     gdown.download(url, output=str(download_path), quiet=False)
     with zipfile.ZipFile(download_path, "r") as zip_ref:
@@ -70,19 +30,51 @@ def download_blender():
     download_path.unlink(missing_ok=True)
 
 
-def download_nerfactory(dataset_name: str):
-    """Download a zipped nerfactory dataset"""
-    url = f"https://drive.google.com/uc?id={nerfactory_file_ids[dataset_name]}"
-    download_path = Path(f"data/{dataset_name}.zip")
+def download_friends():
+    """Download the friends dataset."""
+
+    # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
+    friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
+
+    # Download the files
+    url = f"https://drive.google.com/uc?id={friends_file_id}"
+    download_path = "data/friends.zip"
+    gdown.download(url, output=download_path, quiet=False)
+    with zipfile.ZipFile(download_path, "r") as zip_ref:
+        zip_ref.extractall("data/")
+    os.remove(download_path)
+
+
+# https://drive.google.com/drive/folders/1Wh66z3qQTZ8o2MwPPwYOrdwQtXUEQFyq?usp=sharing
+nerfstudio_file_ids = {
+    "dozer": "1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR",
+    "sf_street": "1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz",
+    "poster": "1dmjWGXlJnUxwosN6MVooCDQe970PkD-1",
+}
+
+
+def download_nerfstudio(capture_name: str):
+    """Download specific captures from the nerfstudio dataset."""
+
+    url = f"https://drive.google.com/uc?id={nerfstudio_file_ids[capture_name]}"
+    target_path = f"data/nerfstudio/{capture_name}"
+    os.makedirs(target_path, exist_ok=True)
+    download_path = Path(f"{target_path}.zip")
     gdown.download(url, output=str(download_path), quiet=False)
     with zipfile.ZipFile(download_path, "r") as zip_ref:
-        zip_ref.extractall(f"data/ours/{dataset_name}")
-    download_path.unlink(missing_ok=True)
+        zip_ref.extractall(f"/tmp/{target_path}")
+    inner_folders = os.listdir(f"/tmp/{target_path}")
+    assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+    folder = os.path.join(f"/tmp/{target_path}", inner_folders[0])
+    shutil.rmtree(target_path)
+    shutil.move(folder, target_path)
+    shutil.rmtree(f"/tmp/{target_path}")
+    os.remove(download_path)
 
 
 def main(
-    dataset: Literal["blender", "friends", "nerfactory"],
-    dataset_name: Optional[str] = None,
+    dataset: Literal["blender", "friends", "nerfstudio"],
+    capture_name: Optional[str] = None,
 ):
     """Main download script to download all data"""
     save_dir = Path("data/")
@@ -92,12 +84,19 @@ def main(
         download_blender()
     if dataset == "friends":
         download_friends()
-    if dataset == "nerfactory":
-        if dataset_name is None or dataset_name not in nerfactory_file_ids:
-            raise ValueError(
-                f"must pass in dataset_name when downloading nerfactory data, options: {nerfactory_file_ids.keys()}"
+    if dataset == "nerfstudio":
+        if capture_name is None:
+            capture_names = sorted(nerfstudio_file_ids.keys())
+            console.print(
+                "[bold yellow]You must pass in --capture-name when downloading from the nerfstudio dataset."
+                f" Use one of the following: \n\t {capture_names}"
             )
-        download_nerfactory(dataset_name)
+            sys.exit()
+        if capture_name not in nerfstudio_file_ids:
+            capture_names = sorted(nerfstudio_file_ids.keys())
+            console.print(f"[bold yellow]Invalid --capture-name choice. Use one of the following: \n {capture_names}")
+            sys.exit()
+        download_nerfstudio(capture_name)
 
 
 def entrypoint():

@@ -415,6 +415,7 @@ def main(
     summary_log = []
 
     if data.is_file():
+
         if not verbose:
             with CONSOLE.status("[bold yellow]Converting video to images...", spinner="bouncingBall"):
                 num_vid_frames, num_frames = convert_video_to_images(

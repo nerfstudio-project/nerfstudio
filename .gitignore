@@ -168,12 +168,10 @@ outputs/
 events.out.*
 
 # Data
-data
+data/
 data_*/
 !nerfstudio/data
-!configs/data
-configs_custom
-!docs/tutorials/data
+!docs/tutorials/data/
 
 # Misc
 old/
