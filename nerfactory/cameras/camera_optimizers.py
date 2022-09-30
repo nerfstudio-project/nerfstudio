@@ -87,7 +87,7 @@ class BARFOptimizer(CameraOptimizer):
         super().__init__(config, num_cameras, device)
         self.noise_variance = config.noise_variance
         pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.noise_variance)
-        pose_noise[:, 3:] = 0.0  # remove rotation
+        pose_noise[:, :3] = 0.0  # remove linear
         self.pose_noise = self.exp_map(pose_noise).detach().to(device)
         print("ADDED POSE NOISE:", self.pose_noise[:2])
         self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)

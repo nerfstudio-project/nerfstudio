@@ -55,19 +55,24 @@ class ExponentialDecaySchedule(lr_scheduler.LambdaLR):
 
 class DelayerScheduler(lr_scheduler.LambdaLR):
     """Starts with a flat lr schedule until it reaches N epochs then applies a scheduler"""
+
     def __init__(
         self,
         optimizer: Optimizer,
-        lr_init, lr_final, # pylint: disable=unused-argument
-        max_steps, delay_epochs: int = 500, # pylint: disable=unused-argument
+        lr_init,
+        lr_final,  # pylint: disable=unused-argument
+        max_steps,
+        delay_epochs: int = 500,  # pylint: disable=unused-argument
         after_scheduler: Optional[lr_scheduler.LambdaLR] = None,
     ) -> None:
         def func(step):
             if step > delay_epochs:
                 if after_scheduler is not None:
-                    return after_scheduler.lr_lambdas[0](step - delay_epochs)  # type: ignore
+                    multiplier = after_scheduler.lr_lambdas[0](step - delay_epochs)  # type: ignore
+                    return multiplier
                 return 1.0
             return 0.0
+
         super().__init__(optimizer, lr_lambda=func)
 
 
@@ -75,10 +80,15 @@ class DelayedExponentialScheduler(DelayerScheduler):
     def __init__(
         self,
         optimizer: Optimizer,
-        lr_init, lr_final, # pylint: disable=unused-argument
-        max_steps, delay_epochs: int = 500, # pylint: disable=unused-argument
+        lr_init,
+        lr_final,  # pylint: disable=unused-argument
+        max_steps,
+        delay_epochs: int = 200,  # pylint: disable=unused-argument
     ):
         after_scheduler = ExponentialDecaySchedule(
-            optimizer, lr_init, lr_final, max_steps,
+            optimizer,
+            lr_init,
+            lr_final,
+            max_steps,
         )
         super().__init__(optimizer, lr_init, lr_final, max_steps, delay_epochs, after_scheduler=after_scheduler)

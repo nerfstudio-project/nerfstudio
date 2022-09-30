@@ -21,6 +21,7 @@ from typing import Type
 
 import torch
 
+from nerfactory.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfactory.datamanagers.base import VanillaDataManager
 from nerfactory.pipelines.base import VanillaPipeline, VanillaPipelineConfig
 
@@ -88,6 +89,8 @@ class DynamicBatchPipeline(VanillaPipeline):
         # add the number of rays
         assert "num_rays_per_batch" not in metrics_dict
         metrics_dict["num_rays_per_batch"] = torch.tensor(self.datamanager.train_pixel_sampler.num_rays_per_batch)
+        if "camera_opt" in self.datamanager.get_param_groups():
+            metrics_dict["camera_opt"] = self.datamanager.get_param_groups()["camera_opt"][0].data[:, :3].norm()
 
         return model_outputs, loss_dict, metrics_dict
 
