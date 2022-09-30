@@ -187,8 +187,8 @@ class TensoRFModel(Model):
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
         param_groups["fields"] = list(self.field.parameters())
-        # param_groups["color_encoding"] = list(self.field.color_encoding.parameters())
-        # param_groups["density_encoding"] = list(self.field.density_encoding.parameters())
+        param_groups["color_encoding"] = list(self.field.color_encoding.parameters())
+        param_groups["density_encoding"] = list(self.field.density_encoding.parameters())
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
