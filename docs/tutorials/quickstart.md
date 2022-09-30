@@ -61,6 +61,7 @@ Download the original NeRF Blender dataset. We support the major datasets and al
 
 ```
 ns-download-data --dataset=blender
+ns-download-data --dataset=nerfstudio --capture=poster
 ```
 
 Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
@@ -87,10 +88,16 @@ Run a vanilla nerf model.
 ns-train vanilla-nerf
 ```
 
-Run a vanilla nerf model.
+Run a nerfacto model.
 
 ```bash
 ns-train nerfacto
+```
+
+Run with nerfstudio data. You'll may have to change the ports, and be sure to forward the "websocket-port".
+
+```
+ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfactory-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
 ```
 
 # Visualizing training runs
