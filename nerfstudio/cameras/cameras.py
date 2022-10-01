@@ -114,61 +114,71 @@ class Cameras:
         else:
             self.distortion_params = None
 
-        # Height Calculation:
-        # If int, first go to tensor and then broadcast to all cameras
-        # If tensor, broadcast to all cameras
-        # If none, use cx or cy * 2
-        if isinstance(height, int):
-            height = torch.Tensor([height]).to(torch.int64).to(self.device)
-            self._image_heights = height.broadcast_to((self._num_cameras))
-        elif isinstance(height, torch.Tensor):
-            self._image_heights = height.to(torch.int64).to(self.device).broadcast_to((self._num_cameras))
-            assert torch.all(
-                self._image_heights == self._image_heights[0]
-            ), "Batched cameras of different types will be allowed in the future."
-        elif height is None:
-            self._image_heights = torch.Tensor(self.cy.to(torch.int64).to(self.device) * 2).broadcast_to(
-                (self._num_cameras)
-            )
-        else:
-            raise ValueError("Height must be an int, tensor, or None.")
+        self._image_heights = self._init_get_height_width(height, cy)
 
-        # Width Calculation:
-        # If int, first go to tensor and then broadcast to all cameras
-        # If tensor, broadcast to all cameras
-        # If none, use cx or cy * 2
-        if isinstance(width, int):
-            width = torch.Tensor([width]).to(torch.int64).to(self.device)
-            self._image_widths = width.broadcast_to((self._num_cameras))
-        elif isinstance(width, torch.Tensor):
-            self._image_widths = width.to(torch.int64).to(self.device).broadcast_to((self._num_cameras))
-            assert torch.all(
-                self._image_widths == self._image_widths[0]
-            ), "Batched cameras of different types will be allowed in the future."
-        elif width is None:
-            self._image_widths = torch.Tensor(self.cx.to(torch.int64).to(self.device) * 2).broadcast_to(
-                (self._num_cameras)
-            )
-        else:
-            raise ValueError("Width must be an int, tensor, or None.")
+        self._image_widths = self._init_get_height_width(width, cx)
 
-        # Camera Type Calculation:
-        # If CameraType, convert to int and then to tensor, then broadcast to all cameras
-        # If List of CameraTypes, convert to ints and then to tensor, then broadcast to all cameras
-        # If int, first go to tensor and then broadcast to all cameras
-        # If tensor, broadcast to all cameras
+        self.camera_type = self._init_get_camera_type(camera_type)
+
+    def _init_get_camera_type(
+        self, camera_type: Union[TensorType["num_cameras"], int, List[CameraType], CameraType]
+    ) -> TensorType["num_cameras"]:
+        """
+        Parses the __init__() argument camera_type
+
+        Camera Type Calculation:
+        If CameraType, convert to int and then to tensor, then broadcast to all cameras
+        If List of CameraTypes, convert to ints and then to tensor, then broadcast to all cameras
+        If int, first go to tensor and then broadcast to all cameras
+        If tensor, broadcast to all cameras
+
+        Args:
+            camera_type: camera_type argument from __init__()
+        """
         if isinstance(camera_type, CameraType):
-            self.camera_type = torch.tensor(camera_type.value, device=self.device).broadcast_to((self._num_cameras))
+            return torch.tensor(camera_type.value, device=self.device).broadcast_to((self._num_cameras))
         elif isinstance(camera_type, List):
-            self.camera_type = torch.tensor([c.value for c in camera_type], device=self.device).broadcast_to(
-                (self._num_cameras)
-            )
+            return torch.tensor([c.value for c in camera_type], device=self.device).broadcast_to((self._num_cameras))
         elif isinstance(camera_type, int):
-            self.camera_type = torch.tensor(camera_type, device=self.device).broadcast_to((self._num_cameras))
+            return torch.tensor(camera_type, device=self.device).broadcast_to((self._num_cameras))
         elif isinstance(camera_type, torch.Tensor):
             for cam_type in camera_type:
                 assert camera_type[0] == cam_type, "Batched cameras of different types will be allowed in the future."
-            self.camera_type = camera_type.to(self.device).broadcast_to((self._num_cameras))
+            return camera_type.to(self.device).broadcast_to((self._num_cameras))
+        else:
+            raise ValueError(
+                'Invalid camera_type. Must be CameraType, List[CameraType], int, or torch.Tensor["num_cameras"]. \
+                    Received: '
+                + str(type(camera_type))
+            )
+
+    def _init_get_height_width(
+        self, h_w: Union[TensorType["num_cameras"], int, None], c_x_y: TensorType["num_cameras"]
+    ) -> TensorType["num_cameras"]:
+        """
+        Parses the __init__() argument for height or width
+
+        Height/Width Calculation:
+        If int, first go to tensor and then broadcast to all cameras
+        If tensor, broadcast to all cameras
+        If none, use cx or cy * 2
+        Else raise error
+
+        Args:
+            h_w: height or width argument from __init__()
+            c_x_y: cx or cy for when h_w == None
+        """
+        if isinstance(h_w, int):
+            h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
+            return h_w.broadcast_to((self._num_cameras))
+        elif isinstance(h_w, torch.Tensor):
+            h_w = h_w.to(torch.int64).to(self.device).broadcast_to((self._num_cameras))
+            assert torch.all(h_w == h_w[0]), "Batched cameras of different types will be allowed in the future."
+            return h_w
+        elif h_w is None:
+            return torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2).broadcast_to((self._num_cameras))
+        else:
+            raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
 
     @property
     def device(self):
