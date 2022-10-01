@@ -10,10 +10,9 @@ TODO: Explanation of each component
     config
     data
     fields
-    fields/modules/index
-    graphs
-    graphs/modules/index
+    field_components/index
+    models
+    model_components/index
     optimizers
-    renderers/index
     utils/index
     viewer

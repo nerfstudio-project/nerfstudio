@@ -25,10 +25,10 @@ from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.datamanagers.structs import SceneBounds
-from nerfstudio.fields.base import Field
-from nerfstudio.fields.modules.embedding import Embedding
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
+from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.field_components.embedding import Embedding
+from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.fields.base_field import Field
 from nerfstudio.utils.activations import trunc_exp
 
 try:
