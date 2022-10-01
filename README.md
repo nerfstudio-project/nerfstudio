@@ -1,20 +1,20 @@
 <p align="center">
     <a href="https://discord.gg/NHGtYRAW"><img src="https://img.shields.io/badge/Join-Discord-blue.svg"/></a>
-    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml'>
-        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
+    <a href='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/core_code_checks.yml'>
+        <img src='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/core_code_checks.yml/badge.svg' alt='Test Status' />
     </a>
-    <a href='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml'>
-        <img src='https://github.com/plenoptix/nerfactory/actions/workflows/viewer_build_deploy.yml/badge.svg' alt='Viewer build Status' />
+    <a href='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/viewer_build_deploy.yml'>
+        <img src='https://github.com/nerfstudio-project/nerfstudio/actions/workflows/viewer_build_deploy.yml/badge.svg' alt='Viewer build Status' />
     </a>
-    <a href='https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest'>
-        <img src='https://readthedocs.com/projects/plenoptix-nerfactory/badge/?version=latest&token=2c5ba6bdd52600523fa8a8513170ae7170fd927a8c9dfbcf7c03af7ede551f96' alt='Documentation Status' />
+    <a href='https://plenoptix-nerfstudio.readthedocs-hosted.com/en/latest/?badge=latest'>
+        <img src='https://readthedocs.com/projects/plenoptix-nerfstudio/badge/?version=latest' alt='Documentation Status' />
     </a>
     <!-- TODO: add license and have it point to that -->
-    <a href="https://github.com/plenoptix/nerfactory/blob/master/LICENSE">
+    <a href="https://github.com/nerfstudio-project/nerfstudio/blob/master/LICENSE">
         <img alt="Documentation Status" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg">
     </a>
     <!-- TODO: add version number badge -->
-    <a href="https://badge.fury.io/py/nerfactory"><img src="https://badge.fury.io/py/nerfstudio.svg" alt="PyPI version" height="18"></a>
+    <a href="https://badge.fury.io/py/nerfstudio"><img src="https://badge.fury.io/py/nerfstudio.svg" alt="PyPI version" height="18"></a>
 </p>
 
 <p align="center">
@@ -28,10 +28,10 @@
 <p align="center"> The all-in-one repo for NeRFs </p>
 
 <p align="center">
-    <a href="http://www.nerfactory.com/">
+    <a href="https://docs.nerf.studio">
         <img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
     </a>
-    <a href="https://viewer.nerfactory.com/">
+    <a href="https://viewer.nerf.studio/">
         <img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
     </a>
 </p>
@@ -155,7 +155,7 @@ ns-train vanilla-nerf
 ns-train nerfacto
 
 # Run with nerfstudio data. You'll may have to change the ports, and be sure to forward the "websocket-port".
-ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfactory-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
+ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
 ```
 
 ### 3.x Training a model with the viewer
@@ -172,12 +172,12 @@ ns-train nerfacto --vis viewer --viewer.websocket-port=7008
 
 ### 4. Visualizing training runs
 
-We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tooling/logging_profiling.html).
+We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://docs.nerf.studio/en/latest/tooling/logging_profiling.html).
 
 <details>
 <summary>Real-time Viewer</summary>
 
-We have developed our own Real-time web viewer, more information can be found [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/viewer/index.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
+We have developed our own Real-time web viewer, more information can be found [here](https://docs.nerf.studio/en/latest/tutorials/viewer/index.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
 
 To turn on the viewer, simply add the flag `--vis viewer`.
 
@@ -209,20 +209,20 @@ ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07
 
 ## 6. In-depth guide
 
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/pipelines/index.html).
+For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://docs.nerf.studio/en/latest/tutorials/pipelines/index.html).
 
 # Learn More
 
-| Section                                                                                                            | Description                                                                                        |
-| ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| [Documentation](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/)                                    | Full API documentation and tutorials                                                               |
-| [Interactive Guides](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/guides/index.html)              | Go-to spot for learning how NeRFs and each of its modules work.                                    |
-| [Quick tour](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/quickstart_index.html)        | Example script on how to navigate Nerfactory from install, train, to test.                         |
-| [Creating pipelines](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/pipelines/index.html) | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
-| [Creating datsets](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html)        | Have a new dataset? Learn how to use it with Nerfactory.                                           |
-| [Mobile Capture to NerF](#)                                                                                        | Step-by-step tutorial on how to create beautiful renders with just your phone.                     |
-| [Contributing](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/reference/contributing.html)          | Walk-through for how you can start contributing now.                                               |
-| [Discord](https://discord.gg/NHGtYRAW)                     | Join our community to discuss more. We would love to hear from you!                                |
+| Section                                                                                 | Description                                                                                        |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Documentation](https://docs.nerf.studio/en/latest/)                                    | Full API documentation and tutorials                                                               |
+| [Interactive Guides](https://docs.nerf.studio/en/latest/guides/index.html)              | Go-to spot for learning how NeRFs and each of its modules work.                                    |
+| [Quick tour](https://docs.nerf.studio/en/latest/tutorials/quickstart_index.html)        | Example script on how to navigate nerfstudio from install, train, to test.                         |
+| [Creating pipelines](https://docs.nerf.studio/en/latest/tutorials/pipelines/index.html) | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
+| [Creating datsets](https://docs.nerf.studio/en/latest/tutorials/data/index.html)        | Have a new dataset? Learn how to use it with nerfstudio.                                           |
+| [Mobile Capture to NerF](#)                                                             | Step-by-step tutorial on how to create beautiful renders with just your phone.                     |
+| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)          | Walk-through for how you can start contributing now.                                               |
+| [Discord](https://discord.gg/NHGtYRAW)                                                  | Join our community to discuss more. We would love to hear from you!                                |
 
 # Supported Features
 

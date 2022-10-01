@@ -57,7 +57,7 @@ pip install -e.[docs]
 
 # Downloading data
 
-Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
+Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://docs.nerf.studio/en/latest/tutorials/data/index.html).
 
 ```
 ns-download-data --dataset=blender
@@ -97,7 +97,7 @@ ns-train nerfacto
 Run with nerfstudio data. You'll may have to change the ports, and be sure to forward the "websocket-port".
 
 ```
-ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfactory-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
+ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
 ```
 
 # Visualizing training runs
@@ -155,7 +155,7 @@ python -m pip install --upgrade pip
 
 (cuda-sources-error)=
 
-#### Runtime errors: "len(sources) > 0", "ctype = _C.ContractionType(type.value) ; TypeError: 'NoneType' object is not callable".
+#### Runtime errors: "len(sources) > 0", "ctype = \_C.ContractionType(type.value) ; TypeError: 'NoneType' object is not callable".
 
 When running `train.py `, an error occurs when installing cuda files in the backend code.
 

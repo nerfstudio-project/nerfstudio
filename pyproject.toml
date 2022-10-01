@@ -47,7 +47,7 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
+"Documentation" = "https://docs.nerf.studio"
 
 
 [project.optional-dependencies]
