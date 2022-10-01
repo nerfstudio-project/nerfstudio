@@ -135,7 +135,7 @@ class Cameras:
         Args:
             camera_type: camera_type argument from __init__()
         """
-        if isinstance(camera_type, CameraType):  # pylint: disable=no-else-return
+        if isinstance(camera_type, CameraType):
             return torch.tensor(camera_type.value, device=self.device).broadcast_to((self._num_cameras))
         elif isinstance(camera_type, List):
             return torch.tensor([c.value for c in camera_type], device=self.device).broadcast_to((self._num_cameras))
@@ -145,12 +145,11 @@ class Cameras:
             for cam_type in camera_type:
                 assert camera_type[0] == cam_type, "Batched cameras of different types will be allowed in the future."
             return camera_type.to(self.device).broadcast_to((self._num_cameras))
-        else:
-            raise ValueError(
-                'Invalid camera_type. Must be CameraType, List[CameraType], int, or torch.Tensor["num_cameras"]. \
-                    Received: '
-                + str(type(camera_type))
-            )
+        raise ValueError(
+            'Invalid camera_type. Must be CameraType, List[CameraType], int, or torch.Tensor["num_cameras"]. \
+                Received: '
+            + str(type(camera_type))
+        )
 
     def _init_get_height_width(
         self, h_w: Union[TensorType["num_cameras"], int, None], c_x_y: TensorType["num_cameras"]
@@ -168,7 +167,7 @@ class Cameras:
             h_w: height or width argument from __init__()
             c_x_y: cx or cy for when h_w == None
         """
-        if isinstance(h_w, int):  # pylint: disable=no-else-return
+        if isinstance(h_w, int):
             h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
             return h_w.broadcast_to((self._num_cameras))
         elif isinstance(h_w, torch.Tensor):
@@ -177,8 +176,7 @@ class Cameras:
             return h_w
         elif h_w is None:
             return torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2).broadcast_to((self._num_cameras))
-        else:
-            raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
+        raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
 
     @property
     def device(self):
