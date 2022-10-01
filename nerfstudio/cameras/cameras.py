@@ -18,7 +18,7 @@ Camera Models
 import base64
 import math
 from enum import Enum, auto
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import cv2
 import torch
@@ -77,10 +77,12 @@ class Cameras:
         width: Optional[Union[TensorType["num_cameras"], int]] = None,
         height: Optional[Union[TensorType["num_cameras"], int]] = None,
         distortion_params: Optional[TensorType["num_cameras", 6]] = None,
-        camera_type: Optional[Union[TensorType["num_cameras"], CameraType]] = CameraType.PERSPECTIVE,
+        camera_type: Optional[
+            Union[TensorType["num_cameras"], int, List[CameraType], CameraType]
+        ] = CameraType.PERSPECTIVE,
     ):
         self._num_cameras = camera_to_worlds.shape[0]
-        self.camera_to_worlds = camera_to_worlds
+        self.camera_to_worlds = camera_to_worlds  # This comes first since it determines @property self.device
 
         # fx fy calculation
         if not isinstance(fx, torch.Tensor):
@@ -151,9 +153,19 @@ class Cameras:
             raise ValueError("Width must be an int, tensor, or None.")
 
         # Camera Type Calculation:
-        if not isinstance(camera_type, torch.Tensor):
+        # If CameraType, convert to int and then to tensor, then broadcast to all cameras
+        # If List of CameraTypes, convert to ints and then to tensor, then broadcast to all cameras
+        # If int, first go to tensor and then broadcast to all cameras
+        # If tensor, broadcast to all cameras
+        if isinstance(camera_type, CameraType):
+            self.camera_type = torch.tensor(camera_type.value, device=self.device).broadcast_to((self._num_cameras))
+        elif isinstance(camera_type, List):
+            self.camera_type = torch.tensor([c.value for c in camera_type], device=self.device).broadcast_to(
+                (self._num_cameras)
+            )
+        elif isinstance(camera_type, int):
             self.camera_type = torch.tensor(camera_type, device=self.device).broadcast_to((self._num_cameras))
-        else:
+        elif isinstance(camera_type, torch.Tensor):
             for cam_type in camera_type:
                 assert camera_type[0] == cam_type, "Batched cameras of different types will be allowed in the future."
             self.camera_type = camera_type.to(self.device).broadcast_to((self._num_cameras))
@@ -269,11 +281,11 @@ class Cameras:
         if distortion_params is not None:
             coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
 
-        if self.camera_type[0] == CameraType.PERSPECTIVE:
+        if self.camera_type[0] == CameraType.PERSPECTIVE.value:
             directions_stack = torch.stack(
                 [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
             )
-        elif self.camera_type[0] == CameraType.FISHEYE:
+        elif self.camera_type[0] == CameraType.FISHEYE.value:
             theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
 
@@ -287,7 +299,7 @@ class Cameras:
                 dim=-1,
             )
         else:
-            raise ValueError(f"Camera type {self.camera_type} not supported.")
+            raise ValueError(f"Camera type {CameraType(self.camera_type[0])} not supported.")
 
         c2w = self.camera_to_worlds[camera_indices]
         if camera_to_world_delta is not None:
