@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./nerfactory/viewer/app
+        working-directory: ./nerfstudio/viewer/app
     steps:
       - name: Checkout code
         uses: actions/checkout@master
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 17.8.0
           cache: 'yarn'
-          cache-dependency-path: ./nerfactory/viewer/app/yarn.lock
+          cache-dependency-path: ./nerfstudio/viewer/app/yarn.lock
 
       - name: Install packages
         run: yarn install
@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: production-files
-          path: ./nerfactory/viewer/app/build
+          path: ./nerfstudio/viewer/app/build
 
   deploy:
     name: Deploy
@@ -54,13 +54,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r ./nerfactory/viewer/app/requirements.txt
+          pip install -r ./nerfstudio/viewer/app/requirements.txt
 
       - name: Download artifact
         uses: actions/download-artifact@v2
         with:
           name: production-files
-          path: ./nerfactory/viewer/app/build
+          path: ./nerfstudio/viewer/app/build
 
       - name: Get branch name (merge)
         if: github.event_name != 'pull_request'
@@ -80,7 +80,7 @@ jobs:
       #   id: changed-files-for-dir1
       #   uses: tj-actions/changed-files@v29.0.3
       #   with:
-      #     path: nerfactory/viewer/app
+      #     path: nerfstudio/viewer/app
 
       # - name: List all added files in dir1
       #   run: |
@@ -89,10 +89,10 @@ jobs:
       #     done
 
       - run: |
-          python ./nerfactory/viewer/app/run_deploy.py \
+          python ./nerfstudio/viewer/app/run_deploy.py \
             --branch-name ${{ env.BRANCH_NAME }} \
             --ssh-key-string "$SSH_KEY" \
-            --local-folder ./nerfactory/viewer/app/build \
-            --package-json-filename ./nerfactory/viewer/app/package.json \
+            --local-folder ./nerfstudio/viewer/app/build \
+            --package-json-filename ./nerfstudio/viewer/app/package.json \
             --increment-version "False"
       - run: cat ~/.ssh/config

@@ -52,12 +52,12 @@ len=${#GPU_IDX[@]}
 
 for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
-    python scripts/run_train.py \
+    python scripts/train.py \
            ${config_name} \
            --logging.writer.2.no-enable \
            --pipeline.datamanager.train-dataset.data-directory=data/blender/${dataset} \
            --experiment-name=blender_${dataset}_${tag} \
-           --trainer.model-dir=nerfactory_models/ \
+           --trainer.model-dir=nerfstudio_models/ \
            --trainer.steps-per-save=16000 \
            --trainer.max-num-iterations=16500 \
            --logging.no-enable-profiler &

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Processes a video or image sequence to a nerfactory compatible dataset."""
+"""Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 import json
 import shutil
@@ -16,7 +16,7 @@ import requests
 from rich.console import Console
 from rich.progress import track
 
-from nerfactory.utils import colmap_utils
+from nerfstudio.utils import colmap_utils
 
 CONSOLE = Console(width=120)
 
@@ -78,7 +78,7 @@ def get_vocab_tree() -> Path:
     Returns:
         The path to the vocab tree.
     """
-    vocab_tree_filename = Path(appdirs.user_data_dir("nerfactory")) / "vocab_tree.fbow"
+    vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
 
     if not vocab_tree_filename.exists():
         r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)
@@ -205,7 +205,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         filename = f"frame_%05d{file_type}"
         ffmpeg_cmd = [
             f"ffmpeg -i {image_dir / filename} ",
-            f"-vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+            f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
             f"{downscale_dir / filename}",
         ]
         ffmpeg_cmd = " ".join(ffmpeg_cmd)
@@ -380,7 +380,7 @@ def main(
     gpu: bool = True,
     verbose: bool = False,
 ):
-    """Process images or videos into a Nerfactory dataset.
+    """Process images or videos into a nerfstudio dataset.
 
     This script does the following:
     1) Converts the video into images (if video is provided).
@@ -415,6 +415,7 @@ def main(
     summary_log = []
 
     if data.is_file():
+
         if not verbose:
             with CONSOLE.status("[bold yellow]Converting video to images...", spinner="bouncingBall"):
                 num_vid_frames, num_frames = convert_video_to_images(
@@ -482,6 +483,11 @@ def main(
     CONSOLE.rule()
 
 
-if __name__ == "__main__":
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
     dcargs.extras.set_accent_color("bright_yellow")
     dcargs.cli(main)
+
+
+if __name__ == "__main__":
+    entrypoint()

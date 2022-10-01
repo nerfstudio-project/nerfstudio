@@ -3,6 +3,6 @@
 MLP
 ===================
 
-.. automodule:: nerfactory.fields.modules.mlp
+.. automodule:: nerfstudio.fields.modules.mlp
    :members:
    :show-inheritance:

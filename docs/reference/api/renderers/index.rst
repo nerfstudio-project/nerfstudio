@@ -3,6 +3,6 @@
 Renderers
 ============
 
-.. automodule:: nerfactory.renderers.renderers
+.. automodule:: nerfstudio.renderers.renderers
    :members:
    :show-inheritance:

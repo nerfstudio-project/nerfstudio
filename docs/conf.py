@@ -15,14 +15,14 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-import nerfactory.configs.base
-import nerfactory.datamanagers.base
+import nerfstudio.configs.base
+import nerfstudio.datamanagers.base
 
 # -- Project information -----------------------------------------------------
 
-project = "nerfactory"
-copyright = "2022, nerfactory Team"
-author = "nerfactory Team"
+project = "nerfstudio"
+copyright = "2022, nerfstudio Team"
+author = "nerfstudio Team"
 
 # The full version, including alpha/beta/rc tags
 release = "0.0.0"
