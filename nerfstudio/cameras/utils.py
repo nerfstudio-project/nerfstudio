@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pylint: skip-file
 """
 Camera transformation helper code.
 """
 
 import math
-from turtle import width
 from typing import List, Literal, Optional, Tuple
 
 import numpy as np
@@ -118,7 +116,7 @@ def quaternion_slerp(quat0, quat1, fraction: float, spin: int = 0, shortestpath:
         raise ValueError("Input quaternions invalid.")
     if fraction == 0.0:
         return q0
-    elif fraction == 1.0:
+    if fraction == 1.0:
         return q1
     d = np.dot(q0, q1)
     if abs(abs(d) - 1.0) < _EPS:
@@ -159,7 +157,7 @@ def quaternion_matrix(quaternion) -> np.ndarray:
     )
 
 
-def get_interpolated_poses(poseA, poseB, steps: int = 10) -> List[float]:
+def get_interpolated_poses(pose_a, pose_b, steps: int = 10) -> List[float]:
     """Return interpolation of poses with specified number of steps.
     Args:
         poseA: first pose
@@ -167,23 +165,23 @@ def get_interpolated_poses(poseA, poseB, steps: int = 10) -> List[float]:
         steps: number of steps the interpolated pose path should contain
     """
 
-    quatA = quaternion_from_matrix(poseA[:3, :3])
-    quatB = quaternion_from_matrix(poseB[:3, :3])
+    quat_a = quaternion_from_matrix(pose_a[:3, :3])
+    quat_b = quaternion_from_matrix(pose_b[:3, :3])
 
     ts = np.linspace(0, 1, steps)
-    quats = [quaternion_slerp(quatA, quatB, t) for t in ts]
-    trans = [(1 - t) * poseA[:3, 3] + t * poseB[:3, 3] for t in ts]
+    quats = [quaternion_slerp(quat_a, quat_b, t) for t in ts]
+    trans = [(1 - t) * pose_a[:3, 3] + t * pose_b[:3, 3] for t in ts]
 
-    posesAB = []
+    poses_ab = []
     for quat, tran in zip(quats, trans):
         pose = np.identity(4)
         pose[:3, :3] = quaternion_matrix(quat)[:3, :3]
         pose[:3, 3] = tran
-        posesAB.append(pose)
-    return posesAB
+        poses_ab.append(pose)
+    return poses_ab
 
 
-def get_interpolated_K(KA, KB, steps: int = 10) -> TensorType[3, 4]:
+def get_interpolated_k(k_a, k_b, steps: int = 10) -> TensorType[3, 4]:
     """
     Returns interpolated path between two camera poses with specified number of steps.
 
@@ -195,8 +193,8 @@ def get_interpolated_K(KA, KB, steps: int = 10) -> TensorType[3, 4]:
     Ks = []
     ts = np.linspace(0, 1, steps)
     for t in ts:
-        newK = KA * (1.0 - t) + KB * t
-        Ks.append(newK)
+        new_k = k_a * (1.0 - t) + k_b * t
+        Ks.append(new_k)
     return Ks
 
 
@@ -218,29 +216,12 @@ def get_interpolated_poses_many(
     traj = []
     Ks = []
     for idx in range(poses.shape[0] - 1):
-        poseA = poses[idx]
-        poseB = poses[idx + 1]
-        posesAB = get_interpolated_poses(poseA, poseB, steps=steps_per_transition)
-        traj += posesAB
-        Ks += get_interpolated_K(Ks[idx], Ks[idx + 1], steps_per_transition)
+        pose_a = poses[idx]
+        pose_b = poses[idx + 1]
+        poses_ab = get_interpolated_poses(pose_a, pose_b, steps=steps_per_transition)
+        traj += poses_ab
+        Ks += get_interpolated_k(Ks[idx], Ks[idx + 1], steps_per_transition)
     return torch.stack(traj, dim=0), torch.stack(Ks, dim=0)
-
-
-def get_swirl_poses(pose):
-    """
-    Returns a swirl around the camera poses.
-    # TODO(ethan): add parameters and make this work + add docstrings + return type
-    """
-    N_frames = 30 * 4
-    dx = np.linspace(0, 0.03, N_frames)
-    dy = np.linspace(0, -0.1, N_frames)
-    dz = np.linspace(0, 0.5, N_frames)
-    poses = np.tile(pose, (N_frames, 1, 1))
-    for i in range(N_frames):
-        poses[i, 0, 3] += dx[i]
-        poses[i, 1, 3] += dy[i]
-        poses[i, 2, 3] += dz[i]
-    return poses
 
 
 def normalize(x) -> TensorType[...]:
@@ -418,7 +399,7 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     # If vectors are exactly opposite, we add a little noise to one of them
     if c < -1 + 1e-8:
         eps = (torch.rand(3) - 0.5) * 0.01
-        return rotmat(a + eps, b)
+        return rotation_matrix(a + eps, b)
     s = torch.linalg.norm(v)
     skew_sym_mat = torch.Tensor(
         [
