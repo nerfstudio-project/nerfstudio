@@ -384,7 +384,7 @@ class Cameras:
         self._image_heights = (self._image_heights * scaling_factor).to(torch.int64)
         self._image_widths = (self._image_widths * scaling_factor).to(torch.int64)
 
-    def __getitem__(self, indices) -> Cameras:
+    def __getitem__(self, indices):
         if isinstance(indices, torch.Tensor):
             return Cameras(
                 self.camera_to_worlds[indices],
