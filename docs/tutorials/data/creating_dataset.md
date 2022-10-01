@@ -2,7 +2,7 @@
 
 Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into an existing format. Specifically we need to know the camera poses for each image. [COLMAP](https://github.com/colmap/colmap) is a standard tool for extracting poses. It is possible to use other methods like [SLAM](https://en.wikipedia.org/wiki/Simultaneous_localization_and_mapping) or hardware recorded poses. We intend to add documentation for these other methods in the future.
 
-## Nerfactory dataset
+## nerfstudio dataset
 
 To assist running on custom data we have a script that will process a video or folder of images into a format that is compatible with nerfstudio. We use [COLMAP](https://colmap.github.io) and [FFmpeg](https://ffmpeg.org/download.html) in our data processing script, please have these installed. We have provided a quickstart to installing COLMAP below, FFmpeg can be downloaded from [here](https://ffmpeg.org/download.html)
 
@@ -22,10 +22,10 @@ If your data was captured with a fisheye camera add `--camera-type fisheye`.
 
 ### Training on your data
 
-Simply specify that you are using the `nerfactory` dataparser and point the data directory to your processed data.
+Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-python scripts/train.py instant-ngp nerfactory --pipeline.datamanager.dataparser.data-directory PROCESSED_DATA_DIR
+python scripts/train.py instant-ngp nerfstudio-data --pipeline.datamanager.dataparser.data-directory PROCESSED_DATA_DIR
 ```
 
 ### Installing COLMAP

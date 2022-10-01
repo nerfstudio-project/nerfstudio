@@ -100,7 +100,7 @@ export default function LandingModel(props: LandingModalProps) {
           <center>
             <img
               style={{ height: 37, margin: 'auto' }}
-              src="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/_images/logo-dark.png"
+              src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
               alt="The favicon."
             />
           </center>

@@ -42,8 +42,8 @@ from nerfstudio.datamanagers.dataparsers.instant_ngp_parser import (
 from nerfstudio.datamanagers.dataparsers.mipnerf_parser import (
     MipNerf360DataParserConfig,
 )
-from nerfstudio.datamanagers.dataparsers.nerfactory_parser import (
-    NerfactoryDataParserConfig,
+from nerfstudio.datamanagers.dataparsers.nerfstudio_parser import (
+    NerfstudioDataParserConfig,
 )
 from nerfstudio.datamanagers.dataparsers.record3d_parser import Record3DDataParserConfig
 from nerfstudio.datamanagers.datasets import InputDataset
@@ -54,7 +54,7 @@ from nerfstudio.utils.misc import IterableWrapper
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
     {
-        "nerfactory-data": NerfactoryDataParserConfig(),
+        "nerfstudio-data": NerfstudioDataParserConfig(),
         "blender-data": BlenderDataParserConfig(),
         "friends-data": FriendsDataParserConfig(),
         "mipnerf-360-data": MipNerf360DataParserConfig(),

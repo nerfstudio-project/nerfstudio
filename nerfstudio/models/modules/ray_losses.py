@@ -50,6 +50,7 @@ def distortion_loss(
     starts = ray_samples.spacing_starts
     ends = ray_samples.spacing_ends
 
+    assert starts is not None and ends is not None, "Ray samples must have spacing starts and ends"
     midpoints = (starts + ends) / 2.0  # (..., num_samples, 1)
 
     loss = (

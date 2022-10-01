@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Data parser for nerfactory datasets. """
+""" Data parser for nerfstudio datasets. """
 
 from __future__ import annotations
 
@@ -32,10 +32,10 @@ from nerfstudio.utils.io import load_from_json
 
 
 @dataclass
-class NerfactoryDataParserConfig(DataParserConfig):
-    """Nerfactory dataset config"""
+class NerfstudioDataParserConfig(DataParserConfig):
+    """Nerfstudio dataset config"""
 
-    _target: Type = field(default_factory=lambda: Nerfactory)
+    _target: Type = field(default_factory=lambda: Nerfstudio)
     """target class to instantiate"""
     data_directory: Path = Path("data/nerfstudio/poster")
     """directory specifying location of data"""
@@ -53,10 +53,10 @@ class NerfactoryDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class Nerfactory(DataParser):
-    """Nerfactory Dataset"""
+class Nerfstudio(DataParser):
+    """Nerfstudio Dataset"""
 
-    config: NerfactoryDataParserConfig
+    config: NerfstudioDataParserConfig
 
     def _generate_dataset_inputs(self, split="train"):
         # pylint: disable=too-many-statements

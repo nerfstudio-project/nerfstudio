@@ -36,20 +36,6 @@ export default function WebRtcWindow() {
           username: 'openrelayproject',
           credential: 'openrelayproject',
         },
-        // Extra STUN and TURN server(s):
-        // {
-        //   urls: 'stun:stun.l.google.com:19302',
-        // },
-        // {
-        //   urls: 'turn:1830walnut.ddns.net',
-        //   username: 'turnuser',
-        //   credential: 'turnpassword',
-        // },
-        // {
-        //   urls: 'turn:turn.nerfactory.com:3478',
-        //   username: 'turnuser',
-        //   credential: 'turnpassword',
-        // },
       ],
     });
     // connect video
