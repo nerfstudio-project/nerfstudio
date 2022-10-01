@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.0.3.1"
+version = "0.0.3.4"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -49,6 +49,7 @@ dependencies = [
 [project.urls]
 "Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
 
+
 [project.optional-dependencies]
 # Development packages
 dev = [
@@ -72,6 +73,7 @@ docs = [
 ]
 
 [project.scripts]
+# Note, add entrypoint name to scripts/completions/install.py to include CLI completion
 ns-install-cli = "scripts.completions.install:entrypoint"
 ns-process-data = "scripts.process_data:entrypoint"
 ns-download-data = "scripts.downloads.download_data:entrypoint"
@@ -86,7 +88,10 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["*"]
+include = ["nerfstudio*","scripts*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]
 
 # black
 [tool.black]
