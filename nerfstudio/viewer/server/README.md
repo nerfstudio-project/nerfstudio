@@ -2,7 +2,7 @@
 
 > The purpose of this document is to explain how to communicate from Python with the Client Viewer app. We will eventually move this into the read the docs.
 
-- Python Kernel (nerfactory code)
+- Python Kernel (nerfstudio code)
 - Bridge Server
 - Client Viewer App
 

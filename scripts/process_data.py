@@ -380,7 +380,7 @@ def main(
     gpu: bool = True,
     verbose: bool = False,
 ):
-    """Process images or videos into a Nerfactory dataset.
+    """Process images or videos into a nerfstudio dataset.
 
     This script does the following:
     1) Converts the video into images (if video is provided).
