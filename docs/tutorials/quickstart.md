@@ -155,7 +155,7 @@ python -m pip install --upgrade pip
 
 (cuda-sources-error)=
 
-#### Runtime errors, "len(sources) > 0".
+#### Runtime errors: "len(sources) > 0", "ctype = _C.ContractionType(type.value) ; TypeError: 'NoneType' object is not callable".
 
 When running `train.py `, an error occurs when installing cuda files in the backend code.
 
