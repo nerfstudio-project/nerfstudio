@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """Helper that add tags to notebooks based on cell comments."""
 
 import sys

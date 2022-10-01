@@ -3,6 +3,6 @@
 Visualization
 ----------------
 
-.. automodule:: nerfactory.utils.visualization
+.. automodule:: nerfstudio.utils.visualization
    :members:
    :show-inheritance:

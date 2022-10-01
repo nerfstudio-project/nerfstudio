@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nerfactory"
-version = "0.0.1"
+name = "nerfstudio"
+version = "0.0.3.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -23,8 +23,6 @@ dependencies = [
     "ninja==1.10.2.3",
     "functorch==0.2.1",
     "h5py>=2.9.0",
-    "hydra-colorlog==1.2.0",
-    "hydra-core==1.2.0",
     "imageio==2.21.1",
     "ipywidgets>=7.6",
     "jupyterlab==3.3.4",
@@ -32,7 +30,7 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.0.9",
+    "nerfacc==0.1.1",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
@@ -74,10 +72,12 @@ docs = [
 ]
 
 [project.scripts]
-nf-install-cli = "scripts.completions.install:entrypoint"
-nf-process-data = "scripts.process_data:entrypoint"
-nf-train = "scripts.train:entrypoint"
-nf-eval = "scripts.eval:entrypoint"
+ns-install-cli = "scripts.completions.install:entrypoint"
+ns-process-data = "scripts.process_data:entrypoint"
+ns-download-data = "scripts.downloads.download_data:entrypoint"
+ns-train = "scripts.train:entrypoint"
+ns-eval = "scripts.eval:entrypoint"
+ns-dev-test = "scripts.debugging.run_actions:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -86,7 +86,7 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nerfactory", "scripts"]
+include = ["*"]
 
 # black
 [tool.black]
@@ -97,7 +97,7 @@ line-length = 120
 max-line-length = 120
 generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
-ignore-paths = ["scripts/colmap2nerf.py", "^nerfactory/cuda/.*$", "^tests/cuda/.*$"]
+ignore-paths = ["scripts/colmap2nerf.py"]
 jobs = 0
 
 disable = [
@@ -113,18 +113,18 @@ disable = [
 
 #pytest
 [tool.pytest.ini_options]
-addopts = "-n=4 --typeguard-packages=nerfactory --torchtyping-patch-typeguard --disable-warnings --ignore=tests/cuda"
+addopts = "-n=4 --typeguard-packages=nerfstudio --torchtyping-patch-typeguard --disable-warnings"
 testpaths = [
     "tests",
 ]
 
 # pyright
 [tool.pyright]
-include = ["nerfactory"]
+include = ["nerfstudio"]
 exclude = ["**/node_modules",
     "**/__pycache__",
 ]
-ignore = ["nerfactory/viewer", "nerfactory/cuda"]
+ignore = ["nerfstudio/viewer"]
 defineConstant = { DEBUG = true }
 
 reportMissingImports = true

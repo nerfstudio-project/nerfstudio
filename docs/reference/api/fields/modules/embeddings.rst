@@ -3,6 +3,6 @@
 Embeddings
 ===================
 
-.. automodule:: nerfactory.fields.modules.embedding
+.. automodule:: nerfstudio.fields.modules.embedding
    :members:
    :show-inheritance:

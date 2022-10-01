@@ -3,6 +3,6 @@
 Field Heads
 ===================
 
-.. automodule:: nerfactory.fields.modules.field_heads
+.. automodule:: nerfstudio.fields.modules.field_heads
    :members:
    :show-inheritance:

@@ -4,8 +4,8 @@ Test renderers
 import pytest
 import torch
 
-from nerfactory.cameras.rays import Frustums, RaySamples
-from nerfactory.renderers import renderers
+from nerfstudio.cameras.rays import Frustums, RaySamples
+from nerfstudio.renderers import renderers
 
 
 def test_rgb_renderer():

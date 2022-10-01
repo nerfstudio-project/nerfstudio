@@ -3,6 +3,6 @@
 Ray Sampler
 ===================
 
-.. automodule:: nerfactory.models.modules.ray_sampler
+.. automodule:: nerfstudio.models.modules.ray_sampler
    :members:
    :show-inheritance:

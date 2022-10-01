@@ -4,7 +4,7 @@ MLP Test
 import torch
 from torch import nn
 
-from nerfactory.fields.modules import MLP
+from nerfstudio.fields.modules import MLP
 
 
 def test_mlp():

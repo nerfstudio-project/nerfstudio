@@ -3,7 +3,7 @@
 Optimizers
 ============
 
-.. automodule:: nerfactory.optimizers.optimizers
+.. automodule:: nerfstudio.optimizers.optimizers
    :members:
    :show-inheritance:
 

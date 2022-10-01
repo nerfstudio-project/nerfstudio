@@ -9,12 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from nerfactory.configs.base import Config
-from nerfactory.configs.base_configs import base_configs
-from nerfactory.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
-from nerfactory.engine.trainer import train_loop
+from nerfstudio.configs.base import Config
+from nerfstudio.configs.base_configs import base_configs
+from nerfstudio.datamanagers.dataparsers.blender_parser import BlenderDataParserConfig
+from nerfstudio.engine.trainer import train_loop
 
-BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "compound", "proposal"]
+BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "nerfacto"]
 
 
 def set_reduced_config(config: Config):
@@ -27,7 +27,7 @@ def set_reduced_config(config: Config):
     config.pipeline.datamanager.train_num_rays_per_batch = 4
 
     # use tensorboard logging instead of wandb
-    config.logging.event_writer = "tb"
+    config.vis = ["tensorboard"]
     config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors
