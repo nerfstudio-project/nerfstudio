@@ -218,7 +218,7 @@ class ViewerState:
             console.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
-            self.viewer_url = f"https://viewer.nerf.studio/{version}/?websocket_url=localhost:{websocket_port}"
+            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url=localhost:{websocket_port}"
             viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
             pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
             dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
