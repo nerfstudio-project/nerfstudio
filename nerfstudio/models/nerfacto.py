@@ -214,6 +214,7 @@ class NerfactoModel(Model):
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
             outputs["weights_list"], outputs["ray_samples_list"]
         )
+        assert metrics_dict is not None and "distortion" in metrics_dict
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
         return loss_dict
 

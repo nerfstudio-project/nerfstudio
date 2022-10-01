@@ -502,6 +502,9 @@ class ProposalNetworkSampler(Sampler):
         self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
         self.num_proposal_network_iterations = num_proposal_network_iterations
 
+        if self.num_proposal_network_iterations < 1:
+            raise ValueError("num_proposal_network_iterations must be >= 1")
+
         # samplers
         self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
         self.pdf_sampler = PDFSampler(include_original=False)
@@ -524,6 +527,8 @@ class ProposalNetworkSampler(Sampler):
         ray_samples_list = []
 
         n = self.num_proposal_network_iterations
+        weights = None
+        ray_samples = None
         for i_level in range(n + 1):
             is_prop = i_level < n
             num_samples = self.num_proposal_samples_per_ray[i_level] if is_prop else self.num_nerf_samples_per_ray
@@ -533,6 +538,7 @@ class ProposalNetworkSampler(Sampler):
             else:
                 # PDF sampling based on the last samples and their weights
                 # Perform annealing to the weights. This will be a no-op if self._anneal is 1.0.
+                assert weights is not None
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
@@ -541,4 +547,5 @@ class ProposalNetworkSampler(Sampler):
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)
 
+        assert ray_samples is not None
         return ray_samples, weights_list, ray_samples_list
