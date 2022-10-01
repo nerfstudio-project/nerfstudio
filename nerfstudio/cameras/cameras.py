@@ -135,7 +135,7 @@ class Cameras:
         Args:
             camera_type: camera_type argument from __init__()
         """
-        if isinstance(camera_type, CameraType):
+        if isinstance(camera_type, CameraType):  # pylint: disable=no-else-return
             return torch.tensor(camera_type.value, device=self.device).broadcast_to((self._num_cameras))
         elif isinstance(camera_type, List):
             return torch.tensor([c.value for c in camera_type], device=self.device).broadcast_to((self._num_cameras))
@@ -168,7 +168,7 @@ class Cameras:
             h_w: height or width argument from __init__()
             c_x_y: cx or cy for when h_w == None
         """
-        if isinstance(h_w, int):
+        if isinstance(h_w, int):  # pylint: disable=no-else-return
             h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
             return h_w.broadcast_to((self._num_cameras))
         elif isinstance(h_w, torch.Tensor):
