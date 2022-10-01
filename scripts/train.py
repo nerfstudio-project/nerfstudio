@@ -19,8 +19,8 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import yaml
 
-from nerfstudio.configs import base as cfg
-from nerfstudio.configs.base_configs import AnnotatedBaseConfigUnion
+from nerfstudio.configs import base_config as cfg
+from nerfstudio.configs.model_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import train_loop
 from nerfstudio.utils import comms, profiler
 

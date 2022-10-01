@@ -84,7 +84,7 @@ field_fine = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
 An extra trick is necessary to make the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../model_components/visualize_encoders.ipynb).
 
 ```python
-from nerfstudio.fields.modules.encoding import NeRFEncoding
+from nerfstudio.field_components.encoding import NeRFEncoding
 
 pos_enc = NeRFEncoding(
     in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
@@ -108,7 +108,7 @@ dir_enc = NeRFEncoding(
 
 Now that we have a representation of space, we need some way to render new images of it. To accomplish this, we are going to _project_ a ray from the target pixel and evaluate points along that ray. We then rely on classic volumetric rendering techniques [[Kajiya, 1984]](https://dl.acm.org/doi/abs/10.1145/964965.808594) to composite the points into a predicted color. This compositing is similar to what happens in tools like Photoshop when you layer multiple objects of varying opacity on top of each other. The only difference is that NeRF takes into account the differences in spacing between points.
 
-Rending RGB images is not the only type of output render supported. It is possible to render other output types such as depth and semantics. Additional renderers can be found [Here](../../reference/api/renderers/index.rst).
+Rending RGB images is not the only type of output render supported. It is possible to render other output types such as depth and semantics. Additional renderers can be found [Here](../../reference/api/model_components/renderers.rst).
 
 Associated nerfstudio code:
 
@@ -142,7 +142,7 @@ How we sample points along rays in space is an important design decision. Variou
 Associated code:
 
 ```python
-from nerfstudio.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.model_components.ray_sampler import PDFSampler, UniformSampler
 
 sampler_uniform = UniformSampler(num_samples=num_coarse_samples)
 ray_samples_uniform = sampler_uniform(ray_bundle)

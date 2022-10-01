@@ -22,15 +22,15 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.fields.base import Field
-from nerfstudio.fields.modules.encoding import Encoding, Identity
-from nerfstudio.fields.modules.field_heads import (
+from nerfstudio.field_components.encoding import Encoding, Identity
+from nerfstudio.field_components.field_heads import (
     DensityFieldHead,
     FieldHeadNames,
     RGBFieldHead,
     SemanticFieldHead,
 )
-from nerfstudio.fields.modules.mlp import MLP
+from nerfstudio.field_components.mlp import MLP
+from nerfstudio.fields.base_field import Field
 
 
 class SemanticNerfField(Field):

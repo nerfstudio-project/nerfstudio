@@ -27,21 +27,21 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs.utils import to_immutable_dict
-from nerfstudio.fields.modules.encoding import NeRFEncoding
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
+from nerfstudio.configs.config_utils import to_immutable_dict
+from nerfstudio.field_components.encoding import NeRFEncoding
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.nerf_field import NeRFField
 from nerfstudio.fields.nerfw_field import VanillaNerfWField
-from nerfstudio.models.base import Model, VanillaModelConfig
-from nerfstudio.models.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfstudio.models.modules.scene_colliders import AABBBoxCollider
-from nerfstudio.optimizers.loss import MSELoss
-from nerfstudio.renderers.renderers import (
+from nerfstudio.model_components.loss import MSELoss
+from nerfstudio.model_components.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
     UncertaintyRenderer,
 )
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider
+from nerfstudio.models.base import Model, VanillaModelConfig
 from nerfstudio.utils import colors, misc, visualization
 
 

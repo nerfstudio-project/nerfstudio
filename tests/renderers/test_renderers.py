@@ -5,7 +5,7 @@ import pytest
 import torch
 
 from nerfstudio.cameras.rays import Frustums, RaySamples
-from nerfstudio.renderers import renderers
+from nerfstudio.model_components import renderers
 
 
 def test_rgb_renderer():

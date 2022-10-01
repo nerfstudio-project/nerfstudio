@@ -20,10 +20,10 @@ from typing import Any, Dict, Optional, Tuple
 
 import torch
 
-import nerfstudio.cameras.utils as camera_utils
 import nerfstudio.utils.poses as pose_utils
+from nerfstudio.cameras import camera_utils
+from nerfstudio.cameras.camera_utils import get_interpolated_poses_many
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.cameras.utils import get_interpolated_poses_many
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
 

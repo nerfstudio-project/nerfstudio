@@ -1,9 +1,18 @@
-.. _optimizers:
+.. _engine:
 
-Optimizers
+Engine
 ============
 
-.. automodule:: nerfstudio.optimizers.optimizers
+Optimizers
+----------------
+
+.. automodule:: nerfstudio.engine.optimizers
    :members:
    :show-inheritance:
 
+Schedulers
+----------------
+
+.. automodule:: nerfstudio.engine.schedulers
+   :members:
+   :show-inheritance:
