@@ -18,7 +18,7 @@ Camera Models
 import base64
 import math
 from enum import Enum, auto
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 
 import cv2
 import torch
@@ -63,7 +63,8 @@ class Cameras:
         width: Image width. If a single value is provided, it is broadcasted to all cameras.
         height: Image height. If a single value is provided, it is broadcasted to all cameras.
         distortion_params: OpenCV 6 radial distortion coefficients.
-        camera_type: Type of camera model. If a single value is provided, it is broadcasted to all cameras.
+        camera_type: Type of camera model. If a single value is provided, it is broadcasted to
+            all cameras. This will be an int corresponding to the CameraType enum.
     """
 
     def __init__(
@@ -76,10 +77,12 @@ class Cameras:
         width: Optional[Union[TensorType["num_cameras"], int]] = None,
         height: Optional[Union[TensorType["num_cameras"], int]] = None,
         distortion_params: Optional[TensorType["num_cameras", 6]] = None,
-        camera_type: Optional[Union[List[CameraType], CameraType]] = CameraType.PERSPECTIVE,
+        camera_type: Optional[Union[TensorType["num_cameras"], CameraType]] = CameraType.PERSPECTIVE,
     ):
         self._num_cameras = camera_to_worlds.shape[0]
         self.camera_to_worlds = camera_to_worlds
+
+        # fx fy calculation
         if not isinstance(fx, torch.Tensor):
             fx = torch.Tensor([fx])
         if not isinstance(fy, torch.Tensor):
@@ -87,6 +90,7 @@ class Cameras:
         self.fx = fx.to(self.device).broadcast_to((self._num_cameras))
         self.fy = fy.to(self.device).broadcast_to((self._num_cameras))
 
+        # cx cy calculation
         if not isinstance(cx, torch.Tensor):
             cx = torch.Tensor([cx])
         else:
@@ -102,14 +106,13 @@ class Cameras:
         self.cx = cx.to(self.device).broadcast_to((self._num_cameras))
         self.cy = cy.to(self.device).broadcast_to((self._num_cameras))
 
+        # Distortion Params Calculation:
         if distortion_params is not None:
             self.distortion_params = distortion_params.broadcast_to((self._num_cameras, 6))
         else:
             self.distortion_params = None
 
-        self._image_heights = self.cy.to(torch.int64) * 2 if height is None else height
-        self._image_widths = self.cx.to(torch.int64) * 2 if width is None else width
-
+        # Height Calculation:
         # If int, first go to tensor and then broadcast to all cameras
         # If tensor, broadcast to all cameras
         # If none, use cx or cy * 2
@@ -125,9 +128,13 @@ class Cameras:
             self._image_heights = torch.Tensor(self.cy.to(torch.int64).to(self.device) * 2).broadcast_to(
                 (self._num_cameras)
             )
-
         else:
             raise ValueError("Height must be an int, tensor, or None.")
+
+        # Width Calculation:
+        # If int, first go to tensor and then broadcast to all cameras
+        # If tensor, broadcast to all cameras
+        # If none, use cx or cy * 2
         if isinstance(width, int):
             width = torch.Tensor([width]).to(torch.int64).to(self.device)
             self._image_widths = width.broadcast_to((self._num_cameras))
@@ -143,12 +150,13 @@ class Cameras:
         else:
             raise ValueError("Width must be an int, tensor, or None.")
 
-        if not isinstance(camera_type, list):
-            self.camera_type = [camera_type] * self._num_cameras
+        # Camera Type Calculation:
+        if not isinstance(camera_type, torch.Tensor):
+            self.camera_type = torch.tensor(camera_type, device=self.device).broadcast_to((self._num_cameras))
         else:
             for cam_type in camera_type:
                 assert camera_type[0] == cam_type, "Batched cameras of different types will be allowed in the future."
-            self.camera_type = camera_type
+            self.camera_type = camera_type.to(self.device).broadcast_to((self._num_cameras))
 
     @property
     def device(self):
@@ -187,8 +195,8 @@ class Cameras:
             cy=self.cy.to(device),
             width=self.image_width.to(device),
             height=self.image_height.to(device),
-            distortion_params=distortion_params,
-            camera_type=self.camera_type,
+            distortion_params=distortion_params.to(device) if distortion_params is not None else None,
+            camera_type=self.camera_type.to(device),
         )
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
@@ -373,5 +381,32 @@ class Cameras:
         self.fy = self.fy * scaling_factor
         self.cx = self.cx * scaling_factor
         self.cy = self.cy * scaling_factor
-        self._image_heights = int(self._image_heights * scaling_factor)
-        self._image_widths = int(self._image_widths * scaling_factor)
+        self._image_heights = (self._image_heights * scaling_factor).to(torch.int64)
+        self._image_widths = (self._image_widths * scaling_factor).to(torch.int64)
+
+    def __getitem__(self, indices) -> Cameras:
+        if isinstance(indices, torch.Tensor):
+            return Cameras(
+                self.camera_to_worlds[indices],
+                self.fx[indices],
+                self.fy[indices],
+                self.cx[indices],
+                self.cy[indices],
+                height=self._image_heights[indices],
+                width=self._image_widths[indices],
+                distortion_params=self.distortion_params[indices] if self.distortion_params else None,
+                camera_type=self.camera_type[indices],
+            )
+        if isinstance(indices, (int, slice)):
+            indices = (indices,)
+        return Cameras(
+            self.camera_to_worlds[indices + (slice(None),)],
+            self.fx[indices + (slice(None),)],
+            self.fy[indices + (slice(None),)],
+            self.cx[indices + (slice(None),)],
+            self.cy[indices + (slice(None),)],
+            height=self._image_heights[indices + (slice(None),)],
+            width=self._image_widths[indices + (slice(None),)],
+            distortion_params=self.distortion_params[indices + (slice(None),)] if self.distortion_params else None,
+            camera_type=self.camera_type[indices + (slice(None),)],
+        )
