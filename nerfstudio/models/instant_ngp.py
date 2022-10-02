@@ -98,13 +98,13 @@ class NGPModel(Model):
         super().populate_modules()
 
         self.field = TCNNInstantNGPField(
-            aabb=self.scene_bounds.aabb,
+            aabb=self.scene_box.aabb,
             contraction_type=self.config.contraction_type,
             use_appearance_embedding=self.config.use_appearance_embedding,
             num_images=self.num_train_data,
         )
 
-        self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
+        self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
         # Occupancy Grid
         self.occupancy_grid = nerfacc.OccupancyGrid(
@@ -114,7 +114,7 @@ class NGPModel(Model):
         )
 
         # Sampler
-        vol_sampler_aabb = self.scene_bounds.aabb if self.config.contraction_type == ContractionType.AABB else None
+        vol_sampler_aabb = self.scene_box.aabb if self.config.contraction_type == ContractionType.AABB else None
         self.sampler = VolumetricSampler(
             scene_aabb=vol_sampler_aabb,
             occupancy_grid=self.occupancy_grid,

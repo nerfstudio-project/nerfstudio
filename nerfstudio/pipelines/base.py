@@ -210,10 +210,10 @@ class VanillaPipeline(Pipeline):
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
-        # TODO(ethan): get rid of scene_bounds from the model
+        # TODO(ethan): get rid of scene_box from the model
         assert self.datamanager.train_input_dataset is not None, "Missing input dataset"
         self.model = config.model.setup(
-            scene_bounds=self.datamanager.train_input_dataset.dataset_inputs.scene_bounds,
+            scene_box=self.datamanager.train_input_dataset.dataset_inputs.scene_box,
             num_train_data=len(self.datamanager.train_input_dataset),
         )
         self.model.to(device)

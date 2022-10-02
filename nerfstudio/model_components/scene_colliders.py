@@ -23,10 +23,10 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 
 
-class SceneBoundsCollider(nn.Module):
+class SceneBoxCollider(nn.Module):
     """Module for setting near and far values for rays."""
 
     def __init__(self, **kwargs) -> None:
@@ -38,16 +38,16 @@ class SceneBoundsCollider(nn.Module):
         raise NotImplementedError
 
 
-class AABBBoxCollider(SceneBoundsCollider):
-    """Module for colliding rays with the scene bounds to compute near and far values.
+class AABBBoxCollider(SceneBoxCollider):
+    """Module for colliding rays with the scene box to compute near and far values.
 
     Args:
-        scene_bounds: scene bounds to apply to dataset
+        scene_box: scene box to apply to dataset
     """
 
-    def __init__(self, scene_bounds: SceneBounds, near_plane: float = 0.0, **kwargs) -> None:
+    def __init__(self, scene_box: SceneBox, near_plane: float = 0.0, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.scene_bounds = scene_bounds
+        self.scene_box = scene_box
         self.near_plane = near_plane
 
     def _intersect_with_aabb(
@@ -92,13 +92,13 @@ class AABBBoxCollider(SceneBoundsCollider):
         return nears, fars, valid_mask
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
-        """Intersects the rays with the scene bounds and updates the near and far values.
+        """Intersects the rays with the scene box and updates the near and far values.
         Populates nears and fars fields and returns the ray_bundle.
 
         Args:
             ray_bundle: specified ray bundle to operate on
         """
-        aabb = self.scene_bounds.aabb
+        aabb = self.scene_box.aabb
         nears, fars, valid_mask = self._intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
         ray_bundle.nears = nears[..., None]
         ray_bundle.fars = fars[..., None]
@@ -106,7 +106,7 @@ class AABBBoxCollider(SceneBoundsCollider):
         return ray_bundle
 
 
-class NearFarCollider(SceneBoundsCollider):
+class NearFarCollider(SceneBoxCollider):
     """Sets the nears and fars with fixed values.
 
     Args:

@@ -27,7 +27,7 @@ from torchtyping import TensorType
 import nerfstudio.configs.base_config as cfg
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 
 
 @dataclass
@@ -58,8 +58,8 @@ class DataparserOutputs:
     """Camera object storing collection of camera information in dataset"""
     alpha_color: Optional[TensorType[3]] = None
     """color of dataset background"""
-    scene_bounds: SceneBounds = SceneBounds()
-    """scene bounds of dataset"""
+    scene_box: SceneBox = SceneBox()
+    """scene box of dataset. Could be used to bound the scene, or to provide the scene scale depending on model."""
     # we support additional input information/formats including mask/depth/semantics.
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).

@@ -29,7 +29,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataParserConfig,
     DataparserOutputs,
 )
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
 
@@ -88,7 +88,7 @@ class Blender(DataParser):
 
         # in x,y,z order
         camera_to_world[..., 3] *= self.scale_factor
-        scene_bounds = SceneBounds(aabb=torch.tensor([[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]], dtype=torch.float32))
+        scene_box = SceneBox(aabb=torch.tensor([[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]], dtype=torch.float32))
 
         cameras = Cameras(
             camera_to_worlds=camera_to_world,
@@ -103,7 +103,7 @@ class Blender(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             alpha_color=alpha_color_tensor,
-            scene_bounds=scene_bounds,
+            scene_box=scene_box,
         )
 
         return dataset_inputs

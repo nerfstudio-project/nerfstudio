@@ -139,7 +139,7 @@ class NerfWModel(Model):
 
         # colliders
         if self.config.enable_collider:
-            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
+            self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
     def get_param_groups(self):
         param_groups = {}

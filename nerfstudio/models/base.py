@@ -30,7 +30,7 @@ from torch.nn import Parameter
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 
@@ -59,7 +59,7 @@ class Model(nn.Module):
 
     Args:
         config: configuration for instantiating model
-        scene_bounds: dataset scene bounds
+        scene_box: dataset scene box
     """
 
     config: ModelConfig
@@ -67,13 +67,13 @@ class Model(nn.Module):
     def __init__(
         self,
         config: ModelConfig,
-        scene_bounds: SceneBounds,
+        scene_box: SceneBox,
         num_train_data: int,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
-        self.scene_bounds = scene_bounds
+        self.scene_box = scene_box
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
