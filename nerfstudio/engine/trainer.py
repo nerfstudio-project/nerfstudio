@@ -28,15 +28,15 @@ import torch
 from rich import console
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.configs import base as cfg
-from nerfstudio.optimizers.optimizers import Optimizers, setup_optimizers
-from nerfstudio.pipelines.base import VanillaPipeline
-from nerfstudio.utils import profiler, writer
-from nerfstudio.utils.callbacks import (
+from nerfstudio.configs import base_config as cfg
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline
+from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
     check_eval_enabled,
     check_main_thread,
@@ -106,10 +106,10 @@ class Trainer:
         self.prev_ckpt_paths = []
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
+        ret = None
         if self.config.is_viewer_enabled():
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
-        else:
-            self.viewer_state, banner_messages = None, None
+            ret = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        (self.viewer_state, banner_messages) = ret if ret else (None, None)
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
@@ -144,7 +144,7 @@ class Trainer:
 
     def train(self) -> None:
         """Train the model."""
-        assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
+        assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
         self._init_viewer_scene()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
@@ -209,9 +209,9 @@ class Trainer:
     @check_viewer_enabled
     def _init_viewer_scene(self) -> None:
         """Initializes viewer scene with given train dataset"""
-        assert self.viewer_state and self.pipeline.datamanager.train_input_dataset
+        assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
-            dataset=self.pipeline.datamanager.train_input_dataset,
+            dataset=self.pipeline.datamanager.train_dataset,
             start_train=self.config.viewer.start_train,
         )
 

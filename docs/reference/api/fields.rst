@@ -6,7 +6,7 @@ Fields
 Base
 ----------------
 
-.. automodule:: nerfstudio.fields.base
+.. automodule:: nerfstudio.fields.base_field
    :members:
    :show-inheritance:
 
@@ -17,9 +17,9 @@ Instant NGP
    :members:
    :show-inheritance:
 
-NeRF
+Vanilla NeRF
 ----------------
 
-.. automodule:: nerfstudio.fields.nerf_field
+.. automodule:: nerfstudio.fields.vanilla_nerf_field
    :members:
    :show-inheritance:

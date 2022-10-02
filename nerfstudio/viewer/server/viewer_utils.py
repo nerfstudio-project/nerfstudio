@@ -30,10 +30,11 @@ from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs import base as cfg
-from nerfstudio.datamanagers.datasets import InputDataset
-from nerfstudio.models.base import Model
-from nerfstudio.utils import profiler, visualization, writer
+from nerfstudio.configs import base_config as cfg
+from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.models.base_model import Model
+from nerfstudio.utils import colormaps, profiler, writer
+from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -44,6 +45,7 @@ from nerfstudio.viewer.server.visualizer import Viewer
 console = Console(width=120)
 
 
+@check_main_thread
 def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     """Sets up the viewer if enabled
 
@@ -193,6 +195,7 @@ class CheckThread(threading.Thread):
                     return
 
 
+@decorate_all([check_main_thread])
 class ViewerState:
     """Class to hold state for viewer variables
 
@@ -209,8 +212,8 @@ class ViewerState:
             # start the viewer bridge server
             websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
-            run_viewer_bridge_server_as_subprocess(
-                self.config.zmq_port, websocket_port, log_filename=str(self.log_filename)
+            zmq_port = run_viewer_bridge_server_as_subprocess(
+                websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
             # TODO(ethan): move this into the writer such that it's at the bottom
             # of the logging stack and easy to see and click
@@ -218,8 +221,8 @@ class ViewerState:
             console.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
-            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url=localhost:{websocket_port}"
-            viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
+            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
+            viewer_url_local = f"http://localhost:4000/?websocket_port={websocket_port}"
             pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
             dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
             console.rule(characters="=")
@@ -227,7 +230,10 @@ class ViewerState:
             console.print(dev_open_viewer_instructions_string)
             console.rule(characters="=")
             console.line()
-        self.vis = Viewer(zmq_port=self.config.zmq_port)
+            self.vis = Viewer(zmq_port=zmq_port)
+        else:
+            assert self.config.zmq_port is not None
+            self.vis = Viewer(zmq_port=self.config.zmq_port)
 
         # viewer specific variables
         self.prev_camera_matrix = None
@@ -258,7 +264,7 @@ class ViewerState:
         self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
 
         # clear the current scene
-        self.vis["sceneState/sceneBounds"].delete()
+        self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
 
         # draw the training cameras and images
@@ -269,9 +275,9 @@ class ViewerState:
             camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
-        # draw the scene bounds (i.e., the bounding box)
-        json_ = dataset.dataset_inputs.scene_bounds.to_json()
-        self.vis["sceneState/sceneBounds"].write(json_)
+        # draw the scene box (i.e., the bounding box)
+        json_ = dataset.dataset_inputs.scene_box.to_json()
+        self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
@@ -401,15 +407,13 @@ class ViewerState:
                 if OutputTypes.ACCUMULATION in self.output_list
                 else OutputTypes.ACCUMULATION_FINE
             )
-            return visualization.apply_depth_colormap(
-                outputs[reformatted_output], accumulation=outputs[accumulation_str]
-            )
+            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
 
         # rendering accumulation outputs
         if self.prev_colormap_type == ColormapTypes.TURBO or (
             self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
         ):
-            return visualization.apply_colormap(outputs[reformatted_output])
+            return colormaps.apply_colormap(outputs[reformatted_output])
 
         # rendering semantic outputs
         if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
@@ -424,7 +428,7 @@ class ViewerState:
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
             self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
         ):
-            return visualization.apply_boolean_colormap(outputs[reformatted_output])
+            return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
 
@@ -626,6 +630,7 @@ class ViewerState:
         check_thread = CheckThread(state=self)
         render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
 
+        oom = False
         with TimeWriter(None, None, write=False) as vis_t:
             check_thread.start()
             render_thread.start()
@@ -635,13 +640,15 @@ class ViewerState:
             except IOChangeException:
                 pass
             except RuntimeError as e:
-                del camera_ray_bundle
-                torch.cuda.empty_cache()
-                time.sleep(0.5)  # sleep to allow buffer to reset
+                oom = True
                 self.vis["renderingState/log_errors"].write(
                     "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
                 )
                 print(f"Error: {e}")
+        if oom:
+            del camera_ray_bundle
+            torch.cuda.empty_cache()
+            time.sleep(0.5)  # sleep to allow buffer to reset
 
         graph.train()
         outputs = render_thread.vis_outputs

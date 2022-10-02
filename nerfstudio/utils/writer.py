@@ -30,9 +30,9 @@ from rich import console
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
-from nerfstudio.configs import base as cfg
+from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
-from nerfstudio.utils.misc import human_format
+from nerfstudio.utils.printing import human_format
 
 CONSOLE = console.Console()
 
@@ -190,6 +190,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
+@check_main_thread
 def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
     """Initialization of all event writers specified in config
 

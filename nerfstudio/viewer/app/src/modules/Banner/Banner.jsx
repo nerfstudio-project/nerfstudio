@@ -18,7 +18,7 @@ function getParam(param_name) {
 }
 
 function getWebsocketEndpoint() {
-  const endpoint = getParam('websocket_url');
+  const endpoint = getParam('websocket_port');
   return endpoint;
 }
 
@@ -26,13 +26,13 @@ export default function Banner() {
   const dispatch = useDispatch();
 
   let open_modal = true;
-  const websocket_url_from_argument = getWebsocketEndpoint();
-  if (websocket_url_from_argument !== undefined) {
+  const websocket_port_from_argument = getWebsocketEndpoint();
+  if (websocket_port_from_argument !== undefined) {
     open_modal = false;
     dispatch({
       type: 'write',
-      path: 'websocketState/websocket_url',
-      data: websocket_url_from_argument,
+      path: 'websocketState/websocket_port',
+      data: websocket_port_from_argument,
     });
   }
 

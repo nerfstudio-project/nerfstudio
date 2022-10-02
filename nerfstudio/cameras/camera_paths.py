@@ -20,10 +20,10 @@ from typing import Any, Dict, Optional, Tuple
 
 import torch
 
-import nerfstudio.cameras.utils as camera_utils
 import nerfstudio.utils.poses as pose_utils
+from nerfstudio.cameras import camera_utils
+from nerfstudio.cameras.camera_utils import get_interpolated_poses_many
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.cameras.utils import get_interpolated_poses_many
 from nerfstudio.viewer.server.utils import three_js_perspective_camera_focal_length
 
 
@@ -99,7 +99,7 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
-    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx, cy=camera.cy, camera_to_worlds=new_c2ws)
+    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx[0], cy=camera.cy[0], camera_to_worlds=new_c2ws)
 
 
 def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:

@@ -23,15 +23,15 @@ import torch
 from torch import nn
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.datamanagers.structs import Semantics
-from nerfstudio.fields.modules.encoding import NeRFEncoding
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
-from nerfstudio.fields.nerf_field import NeRFField
+from nerfstudio.data.dataparsers.base_dataparser import Semantics
+from nerfstudio.field_components.encodings import NeRFEncoding
+from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.semantic_nerf_field import SemanticNerfField
-from nerfstudio.models.base import ModelConfig
-from nerfstudio.models.modules.scene_colliders import AABBBoxCollider
+from nerfstudio.fields.vanilla_nerf_field import NeRFField
+from nerfstudio.model_components.renderers import SemanticRenderer
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider
+from nerfstudio.models.base_model import ModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
-from nerfstudio.renderers.renderers import SemanticRenderer
 from nerfstudio.utils import misc
 
 
@@ -74,7 +74,7 @@ class SemanticNerfModel(NeRFModel):
 
         # colliders
         if self.config.enable_collider:
-            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
+            self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling

@@ -12,8 +12,8 @@ import dcargs
 import torch
 
 from nerfstudio.configs import base as cfg
-from nerfstudio.datamanagers.base import AnnotatedDataParserUnion
-from nerfstudio.datamanagers.datasets import InputDataset
+from nerfstudio.data.base import AnnotatedDataParserUnion
+from nerfstudio.data.datasets import InputDataset
 from nerfstudio.viewer.server import viewer_utils
 
 logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)

@@ -29,25 +29,25 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.fields.compound_field import TCNNCompoundField
-from nerfstudio.fields.density_field import DensityField
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
-from nerfstudio.fields.modules.spatial_distortions import SceneContraction
-from nerfstudio.models.base import Model, ModelConfig
-from nerfstudio.models.modules.ray_sampler import ProposalNetworkSampler
-from nerfstudio.models.modules.scene_colliders import NearFarCollider
-from nerfstudio.optimizers.loss import MSELoss, distortion_loss, interlevel_loss
-from nerfstudio.renderers.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-)
-from nerfstudio.utils import colors, visualization
-from nerfstudio.utils.callbacks import (
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.spatial_distortions import SceneContraction
+from nerfstudio.fields.density_fields import HashMLPDensityField
+from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
+from nerfstudio.model_components.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils import colormaps, colors
 
 
 @dataclass
@@ -104,8 +104,8 @@ class NerfactoModel(Model):
 
         # Fields
         if self.config.use_appearance_conditioning:
-            self.field = TCNNCompoundField(
-                self.scene_bounds.aabb,
+            self.field = TCNNNerfactoField(
+                self.scene_box.aabb,
                 spatial_distortion=scene_contraction,
                 num_images=self.num_train_data,
                 use_average_appearance_embedding=self.config.use_average_appearance_embedding,
@@ -116,12 +116,12 @@ class NerfactoModel(Model):
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
             self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
         else:
             for _ in range(self.config.num_proposal_network_iterations):
-                network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+                network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for network in self.proposal_networks]
 
@@ -224,8 +224,8 @@ class NerfactoModel(Model):
 
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
@@ -250,7 +250,7 @@ class NerfactoModel(Model):
 
         for i in range(self.config.num_proposal_network_iterations):
             key = f"prop_depth_{i}"
-            prop_depth_i = visualization.apply_depth_colormap(
+            prop_depth_i = colormaps.apply_depth_colormap(
                 outputs[key],
                 accumulation=outputs["accumulation"],
             )
