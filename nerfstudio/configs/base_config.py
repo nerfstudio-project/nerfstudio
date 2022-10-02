@@ -176,7 +176,7 @@ class ViewerConfig(PrintableConfig):
 
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.pipelines.base import VanillaPipelineConfig
+from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 
 @dataclass

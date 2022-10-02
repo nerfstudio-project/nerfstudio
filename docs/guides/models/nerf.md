@@ -73,7 +73,7 @@ NeRFs are a volumetric representation encoded into a neural network. They are no
 The associated NeRF fields can be instantiated with the following nerfstudio code (encoding described in next section):
 
 ```python
-from nerfstudio.fields.nerf_field import NeRFField
+from nerfstudio.fields.vanilla_nerf_field import NeRFField
 
 field_coarse = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
 field_fine = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
@@ -84,7 +84,7 @@ field_fine = NeRFField(position_encoding=pos_enc, direction_encoding=dir_enc)
 An extra trick is necessary to make the neural network expressive enough to represent fine details in the scene. The input coordinates $(x,y,z,\theta,\phi)$ need to be encoded to a higher dimensional space prior to being input into the network. You can learn more about encodings [here](../model_components/visualize_encoders.ipynb).
 
 ```python
-from nerfstudio.field_components.encoding import NeRFEncoding
+from nerfstudio.field_components.encodings import NeRFEncoding
 
 pos_enc = NeRFEncoding(
     in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
@@ -142,7 +142,7 @@ How we sample points along rays in space is an important design decision. Variou
 Associated code:
 
 ```python
-from nerfstudio.model_components.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 
 sampler_uniform = UniformSampler(num_samples=num_coarse_samples)
 ray_samples_uniform = sampler_uniform(ray_bundle)

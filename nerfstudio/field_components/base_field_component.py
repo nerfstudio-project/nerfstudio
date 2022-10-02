@@ -22,7 +22,7 @@ from torch import nn
 from torchtyping import TensorType
 
 
-class FieldModule(nn.Module):
+class FieldComponent(nn.Module):
     """Field modules that can be combined to store and compute the fields.
 
     Args:

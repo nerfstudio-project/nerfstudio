@@ -21,10 +21,10 @@ import torch
 from torch import nn
 from torchtyping import TensorType
 
-from nerfstudio.field_components.base import FieldModule
+from nerfstudio.field_components.base_field_component import FieldComponent
 
 
-class MLP(FieldModule):
+class MLP(FieldComponent):
     """Multilayer perceptron
 
     Args:

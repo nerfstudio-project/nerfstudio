@@ -14,6 +14,8 @@
 
 """A collection of common strings and print statements used throughout the codebase."""
 
+from math import floor, log
+
 from rich.console import Console
 
 console = Console(width=120)
@@ -29,3 +31,15 @@ def print_tcnn_speed_warning(method_name: str):
     )
     console.print("[yellow]pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch")
     console.line()
+
+
+def human_format(num):
+    """Format a number in a more human readable way
+
+    Args:
+        num: number to format
+    """
+    units = ["", "K", "M", "B", "T", "P"]
+    k = 1000.0
+    magnitude = int(floor(log(num, k)))
+    return f"{(num / k**magnitude):.2f} {units[magnitude]}"

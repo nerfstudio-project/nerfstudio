@@ -22,7 +22,7 @@ from typing import Type
 import torch
 
 from nerfstudio.data.datamanagers import VanillaDataManager
-from nerfstudio.pipelines.base import VanillaPipeline, VanillaPipelineConfig
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
 
 
 @dataclass

@@ -24,13 +24,13 @@ from torch import nn
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.dataparsers.base_dataparser import Semantics
-from nerfstudio.field_components.encoding import NeRFEncoding
+from nerfstudio.field_components.encodings import NeRFEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.nerf_field import NeRFField
 from nerfstudio.fields.semantic_nerf_field import SemanticNerfField
+from nerfstudio.fields.vanilla_nerf_field import NeRFField
 from nerfstudio.model_components.renderers import SemanticRenderer
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
-from nerfstudio.models.base import ModelConfig
+from nerfstudio.models.base_model import ModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
 from nerfstudio.utils import misc
 

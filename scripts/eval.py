@@ -29,7 +29,7 @@ from typing_extensions import assert_never
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.pipelines.base import Pipeline
+from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
 console = Console(width=120)

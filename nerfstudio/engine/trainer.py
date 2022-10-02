@@ -29,14 +29,14 @@ from rich import console
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
-from nerfstudio.pipelines.base import VanillaPipeline
-from nerfstudio.utils import profiler, writer
-from nerfstudio.utils.callbacks import (
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline
+from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
     check_eval_enabled,
     check_main_thread,
