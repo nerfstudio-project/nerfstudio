@@ -1,6 +1,6 @@
 # Models
 
-We provide a set of pre implemented nerfactory models. One of the goals of nerfactory is to modularize the various NeRF techniques as much as possible. As a result, many of the techniques from these pre-implemented models can be mixed.
+We provide a set of pre implemented nerfstudio models. One of the goals of nerfstudio is to modularize the various NeRF techniques as much as possible. As a result, many of the techniques from these pre-implemented models can be mixed.
 
 ## Running a model
 

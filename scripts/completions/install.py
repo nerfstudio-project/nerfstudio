@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Configuration script for setting up tab completion for nerfactory in bash and zsh."""
+"""Configuration script for setting up tab completion for nerfstudio in bash and zsh."""
 
 import concurrent.futures
 import itertools
@@ -21,6 +21,15 @@ ConfigureMode = Literal["install", "uninstall"]
 ShellType = Literal["zsh", "bash"]
 
 CONSOLE = Console(width=120)
+
+ENTRYPOINTS = [
+    "ns-install-cli",
+    "ns-process-data",
+    "ns-download-data",
+    "ns-train",
+    "ns-eval",
+    "ns-dev-test",
+]
 
 
 def _check_dcargs_cli(script_path: pathlib.Path) -> bool:
@@ -126,7 +135,7 @@ def _update_rc(
     source_lines = "\n".join(
         [
             "",
-            "# Source nerfactory autocompletions.",
+            "# Source nerfstudio autocompletions.",
             f"source {completions_dir / 'setup'}.{shell}",
         ]
     )
@@ -211,23 +220,6 @@ def main(
 
         # Find dcargs CLIs.
         script_paths = list(filter(_check_dcargs_cli, scripts_dir.glob("**/*.py"))) if include_scripts else []
-        entry_points = (
-            # Read pyproject.toml.
-            (scripts_dir.parent / "pyproject.toml")
-            .read_text()
-            # Get entrypoint lines.
-            .partition("[project.scripts]")[2]
-            .partition("[")[0]
-            # Split into list of strings, which should each be of the format:
-            # `entrypoint = "scripts.something:entrypoint"`
-            .strip()
-            .split("\n")
-        )
-        entry_points = list(
-            # nf-train = "..." ==> nf-train
-            e.partition("=")[0].strip()
-            for e in entry_points
-        )
         script_names = tuple(p.name for p in script_paths)
         assert len(set(script_names)) == len(script_names)
 
@@ -246,7 +238,7 @@ def main(
                     lambda path_or_entrypoint_and_shell: _generate_completion(
                         path_or_entrypoint_and_shell[0], path_or_entrypoint_and_shell[1], completions_dir
                     ),
-                    itertools.product(script_paths + entry_points, shells_found),
+                    itertools.product(script_paths + ENTRYPOINTS, shells_found),
                 )
             )
 

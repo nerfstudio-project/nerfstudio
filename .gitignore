@@ -168,12 +168,10 @@ outputs/
 events.out.*
 
 # Data
-data
+data/
 data_*/
-!nerfactory/data
-!configs/data
-configs_custom
-!docs/tutorials/data
+!nerfstudio/data
+!docs/tutorials/data/
 
 # Misc
 old/
@@ -183,9 +181,7 @@ external/
 __MACOSX/
 outputs*/
 node_modules/
-scripts/colmap2nerf.py
 bash/
-nerfactory/ngp_pl/
 cache/
 renders/
 package-lock.json
