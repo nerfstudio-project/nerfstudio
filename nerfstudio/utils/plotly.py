@@ -495,8 +495,8 @@ def vis_camera_rays(cameras: Cameras) -> go.Figure:  # type: ignore
     """
 
     coords = cameras.get_image_coords()
-    coords[..., 0] /= cameras.image_height
-    coords[..., 1] /= cameras.image_width
+    coords[..., 0] /= cameras.image_height[0]  # All the cameras have the same image height for now
+    coords[..., 1] /= cameras.image_width[0]  # All the cameras have the same image width for now
     coords = torch.cat([coords, torch.ones((*coords.shape[:-1], 1))], dim=-1)
 
     ray_bundle = cameras.generate_rays(camera_indices=0)
