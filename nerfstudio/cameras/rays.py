@@ -208,9 +208,9 @@ class RayBundle(TensorDataclass):
         self,
         bin_starts: TensorType["bs":..., "num_samples", 1],
         bin_ends: TensorType["bs":..., "num_samples", 1],
-        spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]],
-        spacing_ends: Optional[TensorType["bs":..., "num_samples", 1]],
-        spacing_to_euclidean_fn: Optional[Callable],
+        spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]] = None,
+        spacing_ends: Optional[TensorType["bs":..., "num_samples", 1]] = None,
+        spacing_to_euclidean_fn: Optional[Callable] = None,
     ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction. Currently samples uniformly.
 
