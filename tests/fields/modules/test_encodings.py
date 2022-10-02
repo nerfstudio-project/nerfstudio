@@ -1,8 +1,6 @@
 """
 Encoding Tests
 """
-from dis import dis
-
 import pytest
 import torch
 
