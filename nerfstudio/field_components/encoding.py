@@ -17,7 +17,7 @@ Encoding functions
 """
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -226,6 +226,7 @@ class HashEncoding(Encoding):
         log2_hashmap_size: Size of hash map is 2^log2_hashmap_size.
         features_per_level: Number of features per level.
         hash_init_scale: Value to initialize hash grid.
+        implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
     """
 
     def __init__(
@@ -236,6 +237,7 @@ class HashEncoding(Encoding):
         log2_hashmap_size: int = 19,
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
+        implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
 
         super().__init__(in_dim=3)
@@ -253,8 +255,21 @@ class HashEncoding(Encoding):
         self.hash_table *= hash_init_scale
         self.hash_table = nn.Parameter(self.hash_table)
 
-        if not TCNN_EXISTS:
-            print_tcnn_speed_warning()
+        self.tcnn_encoding = None
+        if not TCNN_EXISTS and implementation == "tcnn":
+            print_tcnn_speed_warning("HashEncoding")
+        elif implementation == "tcnn":
+            self.tcnn_encoding = tcnn.Encoding(
+                n_input_dims=3,
+                encoding_config={
+                    "otype": "HashGrid",
+                    "n_levels": self.num_levels,
+                    "n_features_per_level": self.features_per_level,
+                    "log2_hashmap_size": self.log2_hashmap_size,
+                    "base_resolution": min_res,
+                    "per_level_scale": growth_factor,
+                },
+            )
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
@@ -321,30 +336,9 @@ class HashEncoding(Encoding):
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
 
-    def tcnn_fwd(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
-        """Forward pass using TCNN"""
-
-        in_tensor = in_tensor[..., None, :]
-
-        encoding = tcnn.Encoding(
-            n_input_dims=in_tensor.shape[-1],
-            encoding_config=(
-                {
-                    "otype": "HashGrid",
-                    "n_levels": self.num_levels,
-                    "n_features_per_level": self.features_per_level,
-                    "log2_hashmap_size": self.log2_hashmap_size,
-                    "base_resolution": self.min_res,
-                    "per_level_scale": self.growth_factor,
-                },
-            ),
-        )
-
-        return encoding(in_tensor)
-
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
-        if TCNN_EXISTS:
-            return self.tcnn_fwd(in_tensor)
+        if TCNN_EXISTS and self.tcnn_encoding is not None:
+            return self.tcnn_encoding(in_tensor)
         return self.pytorch_fwd(in_tensor)
 
 
