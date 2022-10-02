@@ -17,7 +17,7 @@ Encoding functions
 """
 
 from abc import abstractmethod
-from typing import Optional
+from typing import Literal, Optional
 
 import numpy as np
 import torch
@@ -26,7 +26,15 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.field_components.base import FieldModule
+from nerfstudio.utils.comments import print_tcnn_speed_warning
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
+
+try:
+    import tinycudann as tcnn
+
+    TCNN_EXISTS = True
+except ImportError:
+    TCNN_EXISTS = False
 
 
 class Encoding(FieldModule):
@@ -215,9 +223,10 @@ class HashEncoding(Encoding):
         num_levels: Number of feature grids.
         min_res: Resolution of smallest feature grid.
         max_res: Resolution of largest feature grid.
-        hash_table_size: Size of hash table.
+        log2_hashmap_size: Size of hash map is 2^log2_hashmap_size.
         features_per_level: Number of features per level.
         hash_init_scale: Value to initialize hash grid.
+        implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
     """
 
     def __init__(
@@ -225,24 +234,42 @@ class HashEncoding(Encoding):
         num_levels: int = 16,
         min_res: int = 16,
         max_res: int = 1024,
-        hash_table_size: int = 2**19,
+        log2_hashmap_size: int = 19,
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
+        implementation: Literal["tcnn", "torch"] = "tcnn",
     ) -> None:
 
         super().__init__(in_dim=3)
         self.num_levels = num_levels
         self.features_per_level = features_per_level
-        self.hash_table_size = hash_table_size
+        self.log2_hashmap_size = log2_hashmap_size
+        self.hash_table_size = 2**log2_hashmap_size
 
         levels = torch.arange(num_levels)
         growth_factor = np.exp((np.log(max_res) - np.log(min_res)) / (num_levels - 1))
         self.scalings = torch.floor(min_res * growth_factor**levels)
 
-        self.hash_offset = levels * hash_table_size
-        self.hash_table = torch.rand(size=(hash_table_size * num_levels, features_per_level)) * 2 - 1
+        self.hash_offset = levels * self.hash_table_size
+        self.hash_table = torch.rand(size=(self.hash_table_size * num_levels, features_per_level)) * 2 - 1
         self.hash_table *= hash_init_scale
         self.hash_table = nn.Parameter(self.hash_table)
+
+        self.tcnn_encoding = None
+        if not TCNN_EXISTS and implementation == "tcnn":
+            print_tcnn_speed_warning("HashEncoding")
+        elif implementation == "tcnn":
+            self.tcnn_encoding = tcnn.Encoding(
+                n_input_dims=3,
+                encoding_config={
+                    "otype": "HashGrid",
+                    "n_levels": self.num_levels,
+                    "n_features_per_level": self.features_per_level,
+                    "log2_hashmap_size": self.log2_hashmap_size,
+                    "base_resolution": min_res,
+                    "per_level_scale": growth_factor,
+                },
+            )
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
@@ -266,9 +293,10 @@ class HashEncoding(Encoding):
         x += self.hash_offset.to(x.device)
         return x
 
-    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
-        assert in_tensor.shape[-1] == 3
+    def pytorch_fwd(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+        """Forward pass using pytorch. Significantly slower than TCNN implementation."""
 
+        assert in_tensor.shape[-1] == 3
         in_tensor = in_tensor[..., None, :]  # [..., 1, 3]
         scaled = in_tensor * self.scalings.view(-1, 1).to(in_tensor.device)  # [..., L, 3]
         scaled_c = torch.ceil(scaled).type(torch.int32)
@@ -307,6 +335,11 @@ class HashEncoding(Encoding):
         )  # [..., num_levels, features_per_level]
 
         return torch.flatten(encoded_value, start_dim=-2, end_dim=-1)  # [..., num_levels * features_per_level]
+
+    def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+        if TCNN_EXISTS and self.tcnn_encoding is not None:
+            return self.tcnn_encoding(in_tensor)
+        return self.pytorch_fwd(in_tensor)
 
 
 class TensorCPEncoding(Encoding):

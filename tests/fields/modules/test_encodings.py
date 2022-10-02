@@ -139,6 +139,38 @@ def test_tensor_sh_encoder():
     assert encoded.shape == (10, out_dim)
 
 
+def test_tensor_hash_encoder():
+    """Test Spherical Harmonic encoder"""
+
+    num_levels = 4
+    features_per_level = 4
+    out_dim = num_levels * features_per_level
+
+    encoder = encoding.HashEncoding(
+        num_levels=num_levels,
+        features_per_level=features_per_level,
+        log2_hashmap_size=5,
+        implementation="torch",
+    )
+    assert encoder.get_out_dim() == out_dim
+
+    in_tensor = torch.zeros((10, 3))
+    in_tensor[..., 1] = 1
+    encoded = encoder(in_tensor)
+    assert encoded.shape == (10, out_dim)
+
+    encoder = encoding.HashEncoding(
+        num_levels=num_levels,
+        features_per_level=features_per_level,
+        log2_hashmap_size=5,
+        implementation="tcnn",
+    )
+    in_tensor = torch.zeros((10, 3))
+    in_tensor[..., 1] = 1
+    encoded = encoder(in_tensor)
+    assert encoded.shape == (10, out_dim)
+
+
 if __name__ == "__main__":
     test_scaling_and_offset()
     test_nerf_encoder()
@@ -146,3 +178,4 @@ if __name__ == "__main__":
     test_tensor_vm_encoder()
     test_tensor_cp_encoder()
     test_tensor_sh_encoder()
+    test_tensor_hash_encoder()
