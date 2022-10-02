@@ -212,8 +212,8 @@ class ViewerState:
             # start the viewer bridge server
             websocket_port = self.config.websocket_port
             self.log_filename.parent.mkdir(exist_ok=True)
-            run_viewer_bridge_server_as_subprocess(
-                self.config.zmq_port, websocket_port, log_filename=str(self.log_filename)
+            zmq_port = run_viewer_bridge_server_as_subprocess(
+                websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
             # TODO(ethan): move this into the writer such that it's at the bottom
             # of the logging stack and easy to see and click
@@ -221,8 +221,8 @@ class ViewerState:
             console.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
-            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url=localhost:{websocket_port}"
-            viewer_url_local = f"http://localhost:4000/?websocket_url=localhost:{websocket_port}"
+            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
+            viewer_url_local = f"http://localhost:4000/?websocket_port={websocket_port}"
             pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
             dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
             console.rule(characters="=")
@@ -230,7 +230,10 @@ class ViewerState:
             console.print(dev_open_viewer_instructions_string)
             console.rule(characters="=")
             console.line()
-        self.vis = Viewer(zmq_port=self.config.zmq_port)
+            self.vis = Viewer(zmq_port=zmq_port)
+        else:
+            assert self.config.zmq_port is not None
+            self.vis = Viewer(zmq_port=self.config.zmq_port)
 
         # viewer specific variables
         self.prev_camera_matrix = None
