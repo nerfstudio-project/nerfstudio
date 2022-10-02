@@ -144,7 +144,7 @@ class Trainer:
 
     def train(self) -> None:
         """Train the model."""
-        assert self.pipeline.datamanager.train_input_dataset is not None, "Missing DatsetInputs"
+        assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
         self._init_viewer_scene()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
@@ -209,9 +209,9 @@ class Trainer:
     @check_viewer_enabled
     def _init_viewer_scene(self) -> None:
         """Initializes viewer scene with given train dataset"""
-        assert self.viewer_state and self.pipeline.datamanager.train_input_dataset
+        assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
-            dataset=self.pipeline.datamanager.train_input_dataset,
+            dataset=self.pipeline.datamanager.train_dataset,
             start_train=self.config.viewer.start_train,
         )
 
