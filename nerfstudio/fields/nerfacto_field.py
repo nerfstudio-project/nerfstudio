@@ -27,6 +27,7 @@ from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.encoding import Encoding, HashEncoding, SHEncoding
 from nerfstudio.field_components.field_heads import (
@@ -41,7 +42,6 @@ from nerfstudio.field_components.spatial_distortions import (
     SpatialDistortion,
 )
 from nerfstudio.fields.base_field import Field
-from nerfstudio.utils.activations import trunc_exp
 
 try:
     import tinycudann as tcnn
