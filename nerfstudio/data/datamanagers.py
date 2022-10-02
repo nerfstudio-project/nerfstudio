@@ -45,8 +45,8 @@ from nerfstudio.data.utils.dataloaders import (
     RandIndicesEvalDataloader,
 )
 from nerfstudio.data.utils.datasets import InputDataset
-from nerfstudio.model_components.ray_generator import RayGenerator
-from nerfstudio.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(

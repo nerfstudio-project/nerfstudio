@@ -15,10 +15,9 @@
 """
 Input/output utils.
 """
+
 import json
-import pickle
 from pathlib import Path
-from typing import Any
 
 
 def load_from_json(filename: Path):
@@ -42,26 +41,3 @@ def write_to_json(filename: Path, content: dict):
     assert filename.suffix == ".json"
     with open(filename, "w", encoding="UTF-8") as file:
         json.dump(content, file)
-
-
-def load_from_pkl(filename: Path):
-    """Load from a pickle file.
-
-    Args:
-        filename: The filename to load from.
-    """
-    assert filename.suffix == ".pkl"
-    with open(filename, "rb") as f:
-        return pickle.load(f)
-
-
-def write_to_pkl(filename: Path, content: Any):
-    """Write to a pickle file.
-
-    Args:
-        filename (str): The filename to write to.
-        content (Any): The data to write.
-    """
-    assert filename.suffix == ".pkl"
-    with open(filename, "wb") as f:
-        pickle.dump(content, f)

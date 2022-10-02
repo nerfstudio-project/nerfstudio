@@ -84,7 +84,7 @@ def run_viewer_bridge_server_as_subprocess(
             "You likely have to modify --viewer.zmq-port and/or --viewer.websocket-port in the "
             "config to avoid conflicting ports.\n"
         )
-        string += "Try modifying --viewer.zmq-port 6000 --viewer.websocket-port 7007\n"
+        string += "Try modifying --viewer.websocket-port 7007\n"
         CONSOLE.print(f"[bold red]{string}")
         cleanup(process)
         # This exists the entire program. sys.exit() will only kill the thread that this runs in.

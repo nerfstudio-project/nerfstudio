@@ -42,9 +42,9 @@ from nerfstudio.data.datamanagers import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
-from nerfstudio.models.base import Model, ModelConfig
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
-from nerfstudio.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.utils.misc import get_masked_dict
 
 

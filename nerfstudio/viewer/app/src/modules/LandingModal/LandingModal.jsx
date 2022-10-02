@@ -57,7 +57,7 @@ export default function LandingModel(props: LandingModalProps) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_intro = `At the top right is the Status Panel where you can connect to a WebSocket and see the train/eval status of your NeRF model. The WebSocket Port takes the form <domain-or-ip_address>:<port>.`;
+  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running.`;
 
   const websocket_port = useSelector(
     (state) => state.websocketState.websocket_port,

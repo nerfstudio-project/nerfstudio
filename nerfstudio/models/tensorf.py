@@ -30,24 +30,24 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
+from nerfstudio.engine.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfstudio.engine.optimizers import Optimizers
-from nerfstudio.field_components.encoding import TensorVMEncoding
+from nerfstudio.field_components.encodings import TensorVMEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.nerf_field import NeRFField
-from nerfstudio.model_components.loss import L1Loss, MSELoss
-from nerfstudio.model_components.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.fields.vanilla_nerf_field import NeRFField
+from nerfstudio.model_components.losses import L1Loss, MSELoss
+from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base import Model, VanillaModelConfig
-from nerfstudio.utils import colors, misc, visualization
-from nerfstudio.utils.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.models.base_model import Model, VanillaModelConfig
+from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
@@ -215,8 +215,8 @@ class TensoRFModel(Model):
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
             near_plane=self.config.collider_params["near_plane"],

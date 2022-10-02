@@ -29,7 +29,7 @@ from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConf
 from nerfstudio.data.dataparsers.mipnerf_dataparser import MipNerf360DataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.models.base import VanillaModelConfig
+from nerfstudio.models.base_model import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.mipnerf_360 import MipNerf360Model
@@ -38,7 +38,7 @@ from nerfstudio.models.nerfw import NerfWModelConfig
 from nerfstudio.models.semantic_nerf import SemanticNerfModel
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
-from nerfstudio.pipelines.base import VanillaPipelineConfig
+from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 model_configs: Dict[str, Config] = {}

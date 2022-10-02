@@ -16,9 +16,6 @@
 Miscellaneous helper code.
 """
 
-import hashlib
-import json
-from math import floor, log
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import torch
@@ -59,11 +56,6 @@ def get_dict_to_cpu(stuff: Any):
     return stuff
 
 
-def is_not_none(var: Any) -> bool:
-    """Return True if the variable var is None."""
-    return not isinstance(var, type(None))
-
-
 def get_masked_dict(d, mask):
     """Return a masked dictionary.
     TODO(ethan): add more asserts/checks so this doesn't have unpredictable behavior.
@@ -76,19 +68,6 @@ def get_masked_dict(d, mask):
     for key, value in d.items():
         masked_dict[key] = value[mask]
     return masked_dict
-
-
-def get_hash_str_from_dict(dictionary: Dict[str, Any]) -> str:
-    """MD5 hash of a dictionary. Based on
-    https://www.doc.ic.ac.uk/~nuric/coding/how-to-hash-a-dictionary-in-python.html
-
-    Args:
-        dictionary: dict to process
-    """
-    dhash = hashlib.md5()
-    encoded = json.dumps(dictionary, sort_keys=True).encode()
-    dhash.update(encoded)
-    return dhash.hexdigest()
 
 
 class IterableWrapper:  # pylint: disable=too-few-public-methods
@@ -133,18 +112,6 @@ class IterableWrapper:  # pylint: disable=too-few-public-methods
         return self
 
 
-def human_format(num):
-    """Format a number in a more human readable way
-
-    Args:
-        num: number to format
-    """
-    units = ["", "K", "M", "B", "T", "P"]
-    k = 1000.0
-    magnitude = int(floor(log(num, k)))
-    return f"{(num / k**magnitude):.2f} {units[magnitude]}"
-
-
 def scale_dict(dictionary: Dict[Any, Any], coefficients: Dict[str, float]) -> Dict[Any, Any]:
     """Scale a dictionary in-place given a coefficients dictionary.
 
@@ -168,7 +135,7 @@ def step_check(step, step_size, run_at_zero=False) -> bool:
     return (run_at_zero or step != 0) and step % step_size == 0
 
 
-def _update_avg(prev_avg: float, new_val: float, step: int) -> float:
+def update_avg(prev_avg: float, new_val: float, step: int) -> float:
     """helper to calculate the running average
 
     Args:

@@ -25,9 +25,9 @@ import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
 
-from nerfstudio.field_components.base import FieldModule
-from nerfstudio.utils.comments import print_tcnn_speed_warning
+from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin
+from nerfstudio.utils.printing import print_tcnn_speed_warning
 
 try:
     import tinycudann as tcnn
@@ -37,7 +37,7 @@ except ImportError:
     TCNN_EXISTS = False
 
 
-class Encoding(FieldModule):
+class Encoding(FieldComponent):
     """Encode an input tensor. Intended to be subclassed
 
     Args:
