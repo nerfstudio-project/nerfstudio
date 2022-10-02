@@ -75,7 +75,6 @@ class SpacedSampler(Sampler):
         self.spacing_fn = spacing_fn
         self.spacing_fn_inv = spacing_fn_inv
 
-    @torch.no_grad()
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,
@@ -265,7 +264,6 @@ class PDFSampler(Sampler):
         self.include_original = include_original
         self.histogram_padding = histogram_padding
 
-    @torch.no_grad()
     def generate_ray_samples(
         self,
         ray_bundle: Optional[RayBundle] = None,

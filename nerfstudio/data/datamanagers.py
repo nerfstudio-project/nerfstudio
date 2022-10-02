@@ -27,6 +27,7 @@ from torch import nn
 from torch.nn import Parameter
 from torch.utils.data.distributed import DistributedSampler
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
@@ -246,6 +247,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
+    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    """specifies the camera pose optimizer used during training"""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -303,7 +306,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_ray_generator = RayGenerator(self.train_input_dataset.dataset_inputs.cameras.to(self.device))
+        self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
+            num_cameras=self.train_input_dataset.dataset_inputs.cameras.size, device=self.device
+        )
+        self.train_ray_generator = RayGenerator(
+            self.train_input_dataset.dataset_inputs.cameras.to(self.device),
+            self.train_camera_optimizer,
+        )
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -324,7 +333,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
-        self.eval_ray_generator = RayGenerator(self.eval_input_dataset.dataset_inputs.cameras.to(self.device))
+        self.eval_ray_generator = RayGenerator(
+            self.eval_input_dataset.dataset_inputs.cameras.to(self.device),
+            self.train_camera_optimizer,  # should be shared between train and eval.
+        )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_input_dataset,
@@ -365,3 +377,15 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
             return image_idx, camera_ray_bundle, batch
         raise ValueError("No more eval images")
+
+    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+        """Get the param groups for the data manager.
+        Returns:
+            A list of dictionaries containing the data manager's param groups.
+        """
+        param_groups = {}
+
+        camera_opt_params = list(self.train_camera_optimizer.parameters())
+        if len(camera_opt_params) > 0:
+            param_groups["camera_opt"] = list(camera_opt_params)
+        return param_groups
