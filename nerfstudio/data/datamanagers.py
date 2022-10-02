@@ -102,8 +102,8 @@ class DataManager(nn.Module):
     Attributes:
         train_count (int): the step number of our train iteration, needs to be incremented manually
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
-        train_input_dataset (InputDataset): the input dataset for the train dataset
-        eval_input_dataset (InputDataset): the input dataset for the eval dataset
+        train_dataset (Dataset): the dataset for the train dataset
+        eval_dataset (Dataset): the dataset for the eval dataset
 
         Additional attributes specific to each subclass are defined in the setup_train and setup_eval
         functions.

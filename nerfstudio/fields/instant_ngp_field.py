@@ -25,7 +25,7 @@ from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.base_field import Field
@@ -154,7 +154,7 @@ class TCNNInstantNGPField(Field):
 
         d = self.direction_encoding(directions_flat)
         if density_embedding is None:
-            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+            positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
             h = torch.cat([d, positions.view(-1, 3)], dim=-1)
         else:
             h = torch.cat([d, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)

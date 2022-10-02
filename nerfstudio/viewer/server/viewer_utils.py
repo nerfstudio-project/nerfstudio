@@ -258,7 +258,7 @@ class ViewerState:
         self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
 
         # clear the current scene
-        self.vis["sceneState/sceneBounds"].delete()
+        self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
 
         # draw the training cameras and images
@@ -269,9 +269,9 @@ class ViewerState:
             camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
-        # draw the scene bounds (i.e., the bounding box)
-        json_ = dataset.dataset_inputs.scene_bounds.to_json()
-        self.vis["sceneState/sceneBounds"].write(json_)
+        # draw the scene box (i.e., the bounding box)
+        json_ = dataset.dataset_inputs.scene_box.to_json()
+        self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)

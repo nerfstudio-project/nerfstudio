@@ -31,7 +31,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
     Semantics,
 )
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console()
@@ -122,18 +122,18 @@ class Friends(DataParser):
 
         scene_scale = self.config.scene_scale
 
-        # -- set the scene bounds ---
-        scene_bounds = SceneBounds(aabb=bbox)
+        # -- set the scene box ---
+        scene_box = SceneBox(aabb=bbox)
         # center the box and adjust the cameras too
-        center = scene_bounds.get_center()
-        scene_bounds.aabb -= center
+        center = scene_box.get_center()
+        scene_box.aabb -= center
         camera_to_worlds[..., 3] -= center
         # scale the longest dimension to match the cube size
-        lengths = scene_bounds.aabb[1] - scene_bounds.aabb[0]
+        lengths = scene_box.aabb[1] - scene_box.aabb[0]
         longest_dim = torch.argmax(lengths)
         longest_length = lengths[longest_dim]
         scale = scene_scale / longest_length
-        scene_bounds.aabb = scene_bounds.aabb * scale  # box
+        scene_box.aabb = scene_box.aabb * scale  # box
         camera_to_worlds[..., 3] *= scale  # cameras
 
         # --- semantics ---
@@ -185,7 +185,7 @@ class Friends(DataParser):
         dataset_inputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            scene_bounds=scene_bounds,
+            scene_box=scene_box,
             additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
         )
         return dataset_inputs

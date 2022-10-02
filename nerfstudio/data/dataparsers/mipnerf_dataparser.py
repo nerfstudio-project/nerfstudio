@@ -29,7 +29,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataParserConfig,
     DataparserOutputs,
 )
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 
 
 @dataclass
@@ -142,7 +142,7 @@ class Mipnerf360(DataParser):
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
         aabb = torch.tensor([[-4, -4, -4], [4, 4, 4]], dtype=torch.float32) * self.config.aabb_scale
-        scene_bounds = SceneBounds(aabb=aabb)
+        scene_box = SceneBox(aabb=aabb)
 
         cameras = Cameras(
             fx=focal_length,
@@ -158,7 +158,7 @@ class Mipnerf360(DataParser):
         dataset_inputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            scene_bounds=scene_bounds,
+            scene_box=scene_box,
         )
 
         return dataset_inputs

@@ -24,8 +24,8 @@ from torchtyping import TensorType
 
 
 @dataclass
-class SceneBounds:
-    """Data to represent the scene bounds."""
+class SceneBox:
+    """Data to represent the scene box."""
 
     aabb: TensorType[2, 3] = None
     """aabb: axis-aligned bounding box.
@@ -43,14 +43,14 @@ class SceneBounds:
         diff = self.aabb[1] - self.aabb[0]
         return self.aabb[0] + diff / 2.0
 
-    def get_centered_and_scaled_scene_bounds(self, scale_factor: Union[float, torch.Tensor] = 1.0):
+    def get_centered_and_scaled_scene_box(self, scale_factor: Union[float, torch.Tensor] = 1.0):
         """Returns a new box that has been shifted and rescaled to be centered
         about the origin.
 
         Args:
             scale_factor: How much to scale the camera origins by.
         """
-        return SceneBounds(aabb=(self.aabb - self.get_center()) * scale_factor)
+        return SceneBox(aabb=(self.aabb - self.get_center()) * scale_factor)
 
     @staticmethod
     def get_normalized_positions(positions: TensorType[..., 3], aabb: TensorType[2, 3]):
@@ -69,19 +69,19 @@ class SceneBounds:
         return {"type": "aabb", "min_point": self.aabb[0].tolist(), "max_point": self.aabb[1].tolist()}
 
     @staticmethod
-    def from_json(json_: Dict) -> "SceneBounds":
-        """Returns the an instance of SceneBounds from a json dictionary.
+    def from_json(json_: Dict) -> "SceneBox":
+        """Returns the an instance of SceneBox from a json dictionary.
 
         Args:
-            json_: the json dictionary containing scene bound information
+            json_: the json dictionary containing scene box information
         """
         assert json_["type"] == "aabb"
         aabb = torch.tensor([json_[0], json_[1]])
-        return SceneBounds(aabb=aabb)
+        return SceneBox(aabb=aabb)
 
     @staticmethod
-    def from_camera_poses(poses: TensorType[..., 3, 4], scale_factor: float) -> "SceneBounds":
-        """Returns the instance of SceneBounds that fully envelopes a set of poses
+    def from_camera_poses(poses: TensorType[..., 3, 4], scale_factor: float) -> "SceneBox":
+        """Returns the instance of SceneBox that fully envelopes a set of poses
 
         Args:
             poses: tensor of camera pose matrices
@@ -89,4 +89,4 @@ class SceneBounds:
         """
         xyzs = poses[..., :3, -1]
         aabb = torch.stack([torch.min(xyzs, dim=0)[0], torch.max(xyzs, dim=0)[0]])
-        return SceneBounds(aabb=aabb * scale_factor)
+        return SceneBox(aabb=aabb * scale_factor)

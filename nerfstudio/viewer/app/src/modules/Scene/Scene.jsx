@@ -7,7 +7,7 @@ import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer';
 
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import { useDispatch } from 'react-redux';
-import { drawCamera, drawSceneBounds } from './drawing';
+import { drawCamera, drawSceneBox } from './drawing';
 
 import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
@@ -16,7 +16,7 @@ import { subscribe_to_changes } from '../../subscriber';
 
 const msgpack = require('msgpack-lite');
 
-const SCENE_BOUNDS_NAME = 'Scene Bounds';
+const SCENE_BOX_NAME = 'Scene Box';
 const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
@@ -169,19 +169,19 @@ export function get_scene_tree() {
   const light = new THREE.AmbientLight(color, intensity);
   sceneTree.set_object_from_path(['Light'], light);
 
-  // draw scene bounds
-  const selector_fn_scene_bounds = (state) => {
-    return state.sceneState.sceneBounds;
+  // draw scene box
+  const selector_fn_scene_box = (state) => {
+    return state.sceneState.sceneBox;
   };
-  const fn_value_scene_bounds = (previous, current) => {
+  const fn_value_scene_box = (previous, current) => {
     if (current !== null) {
-      const line = drawSceneBounds(current);
-      sceneTree.set_object_from_path([SCENE_BOUNDS_NAME], line);
+      const line = drawSceneBox(current);
+      sceneTree.set_object_from_path([SCENE_BOX_NAME], line);
     } else {
-      sceneTree.delete([SCENE_BOUNDS_NAME]);
+      sceneTree.delete([SCENE_BOX_NAME]);
     }
   };
-  subscribe_to_changes(selector_fn_scene_bounds, fn_value_scene_bounds);
+  subscribe_to_changes(selector_fn_scene_box, fn_value_scene_box);
 
   // draw camera
   // NOTE: this has some issues right now! it won't
