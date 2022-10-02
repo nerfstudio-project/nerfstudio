@@ -37,7 +37,7 @@ const initialState = {
   },
   // the scene state
   sceneState: {
-    sceneBounds: null,
+    sceneBox: null,
     cameras: null,
   },
   // ------------------------------------------------------------------------

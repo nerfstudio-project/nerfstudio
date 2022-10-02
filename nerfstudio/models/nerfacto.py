@@ -105,7 +105,7 @@ class NerfactoModel(Model):
         # Fields
         if self.config.use_appearance_conditioning:
             self.field = TCNNNerfactoField(
-                self.scene_bounds.aabb,
+                self.scene_box.aabb,
                 spatial_distortion=scene_contraction,
                 num_images=self.num_train_data,
                 use_average_appearance_embedding=self.config.use_average_appearance_embedding,
@@ -116,12 +116,12 @@ class NerfactoModel(Model):
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            network = HashMLPDensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
             self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
         else:
             for _ in range(self.config.num_proposal_network_iterations):
-                network = HashMLPDensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+                network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for network in self.proposal_networks]
 

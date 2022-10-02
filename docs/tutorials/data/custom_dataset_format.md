@@ -16,7 +16,7 @@ class DatasetInputs:
     camera_to_world: torch.tensor = None
     mask_filenames: List[str] = None
     depth_filenames: List[str] = None
-    scene_bounds: SceneBounds = SceneBounds()
+    scene_box: SceneBox = SceneBox()
     semantics: Semantics = Semantics()
     point_cloud: PointCloud = PointCloud()
     alpha_color: Optional[TensorType[3]] = None

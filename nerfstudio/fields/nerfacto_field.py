@@ -26,7 +26,7 @@ from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.encoding import Encoding, HashEncoding, SHEncoding
 from nerfstudio.field_components.field_heads import (
@@ -152,7 +152,7 @@ class TCNNNerfactoField(Field):
             positions = self.spatial_distortion(positions)
             positions = (positions + 2.0) / 4.0
         else:
-            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+            positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
         h = self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1)
         density_before_activation, base_mlp_out = torch.split(h, [1, self.geo_feat_dim], dim=-1)
@@ -184,7 +184,7 @@ class TCNNNerfactoField(Field):
                 )
 
         if density_embedding is None:
-            positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+            positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
             h = torch.cat([d, positions.view(-1, 3), embedded_appearance], dim=-1)
         else:
             h = torch.cat(

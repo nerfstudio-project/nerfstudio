@@ -30,7 +30,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataParserConfig,
     DataparserOutputs,
 )
-from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils import poses as pose_utils
 from nerfstudio.utils.io import load_from_json
 
@@ -132,9 +132,8 @@ class Record3D(DataParser):
         intrinsics = torch.ones((num_cameras, num_intrinsics_params), dtype=torch.float32)
         intrinsics *= torch.tensor([cx, cy, focal_length])
 
-        # scene_bounds = SceneBounds.from_camera_poses(camera_to_world, self.config.aabb_scale)
         aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.config.aabb_scale
-        scene_bounds = SceneBounds(aabb=aabb)
+        scene_box = SceneBox(aabb=aabb)
 
         cameras = Cameras(
             fx=focal_length,
@@ -148,7 +147,7 @@ class Record3D(DataParser):
         dataset_inputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
-            scene_bounds=scene_bounds,
+            scene_box=scene_box,
         )
 
         return dataset_inputs
