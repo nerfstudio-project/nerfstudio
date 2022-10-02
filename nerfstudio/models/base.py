@@ -28,10 +28,10 @@ from torch import nn
 from torch.nn import Parameter
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs.base import InstantiateConfig
-from nerfstudio.configs.utils import to_immutable_dict
-from nerfstudio.datamanagers.structs import SceneBounds
-from nerfstudio.models.modules.scene_colliders import NearFarCollider
+from nerfstudio.configs.base_config import InstantiateConfig
+from nerfstudio.configs.config_utils import to_immutable_dict
+from nerfstudio.data.scene_box import SceneBounds
+from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
 
 

@@ -26,7 +26,7 @@ import torchvision
 from torch.nn.functional import normalize
 from torchtyping import TensorType
 
-from nerfstudio.cameras import utils as camera_utils
+from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 
 

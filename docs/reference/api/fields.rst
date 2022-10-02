@@ -6,7 +6,7 @@ Fields
 Base
 ----------------
 
-.. automodule:: nerfstudio.fields.base
+.. automodule:: nerfstudio.fields.base_field
    :members:
    :show-inheritance:
 

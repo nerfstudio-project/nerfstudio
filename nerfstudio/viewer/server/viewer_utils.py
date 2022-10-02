@@ -30,8 +30,8 @@ from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs import base as cfg
-from nerfstudio.datamanagers.datasets import InputDataset
+from nerfstudio.configs import base_config as cfg
+from nerfstudio.data.utils.datasets import InputDataset
 from nerfstudio.models.base import Model
 from nerfstudio.utils import profiler, visualization, writer
 from nerfstudio.utils.io import load_from_json, write_to_json

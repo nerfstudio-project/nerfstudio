@@ -28,8 +28,8 @@ import torch
 from rich import console
 from torch.cuda.amp.grad_scaler import GradScaler
 
-from nerfstudio.configs import base as cfg
-from nerfstudio.optimizers.optimizers import Optimizers, setup_optimizers
+from nerfstudio.configs import base_config as cfg
+from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
 from nerfstudio.pipelines.base import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.callbacks import (
