@@ -19,11 +19,12 @@ Code to use the viewer as a subprocess.
 import atexit
 import os
 import signal
+import socket
 import subprocess
 import sys
 import threading
 import time
-from typing import Union
+from typing import Optional, Union
 
 from rich.console import Console
 
@@ -32,7 +33,9 @@ from nerfstudio.viewer.server import server
 CONSOLE = Console()
 
 
-def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, log_filename: Union[str, None]):
+def run_viewer_bridge_server_as_subprocess(
+    websocket_port: int, zmq_port: Optional[int] = None, log_filename: Union[str, None] = None
+):
     """Runs the viewer bridge server as a subprocess.
 
     Args:
@@ -44,6 +47,15 @@ def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, l
         None
     """
     args = [sys.executable, "-u", "-m", server.__name__]
+
+    # find an available port for zmq
+    if zmq_port is None:
+        sock = socket.socket()
+        sock.bind(("", 0))
+        zmq_port = sock.getsockname()[1]
+        string = f"Using ZMQ port: {zmq_port}"
+        CONSOLE.print(f"[bold red]{string}")
+
     args.append("--zmq-port")
     args.append(str(zmq_port))
     args.append("--websocket-port")
@@ -83,3 +95,4 @@ def run_viewer_bridge_server_as_subprocess(zmq_port: int, websocket_port: int, l
     t1.daemon = True
     t1.start()
     atexit.register(cleanup, process)
+    return zmq_port

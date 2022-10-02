@@ -4,15 +4,15 @@ import { TextField } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function WebSocketUrlField() {
-  const websocket_url = useSelector(
-    (state) => state.websocketState.websocket_url,
+  const websocket_port = useSelector(
+    (state) => state.websocketState.websocket_port,
   );
   const dispatch = useDispatch();
-  const websocket_url_onchange = (event) => {
+  const websocket_port_onchange = (event) => {
     const value = event.target.value;
     dispatch({
       type: 'write',
-      path: 'websocketState/websocket_url',
+      path: 'websocketState/websocket_port',
       data: value,
     });
   };
@@ -20,10 +20,10 @@ export default function WebSocketUrlField() {
   return (
     <TextField
       className="WebSocketUrlField"
-      label="WebSocket URL"
+      label="WebSocket Port"
       variant="outlined"
-      value={websocket_url}
-      onChange={websocket_url_onchange}
+      value={websocket_port}
+      onChange={websocket_port_onchange}
       size="small"
     />
   );
