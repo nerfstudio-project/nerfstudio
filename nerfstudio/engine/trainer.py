@@ -106,10 +106,10 @@ class Trainer:
         self.prev_ckpt_paths = []
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
+        ret = None
         if self.config.is_viewer_enabled():
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
-        else:
-            self.viewer_state, banner_messages = None, None
+            ret = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+        (self.viewer_state, banner_messages) = ret if ret else (None, None)
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir

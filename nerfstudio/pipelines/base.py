@@ -90,12 +90,17 @@ class Pipeline(nn.Module):
     # pylint: disable=abstract-method
 
     datamanager: DataManager
-    model: Model
+    _model: Model
+
+    @property
+    def model(self):
+        """Returns the unwrapped model if in ddp"""
+        return module_wrapper(self._model)
 
     @property
     def device(self):
         """Returns the device that the model is on."""
-        return module_wrapper(self.model).device
+        return self.model.device
 
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -210,9 +215,9 @@ class VanillaPipeline(Pipeline):
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
         self.datamanager.to(device)
-        # TODO(ethan): get rid of scene_box from the model
+        # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
-        self.model = config.model.setup(
+        self._model = config.model.setup(
             scene_box=self.datamanager.train_dataset.dataset_inputs.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
         )
@@ -220,15 +225,15 @@ class VanillaPipeline(Pipeline):
 
         self.world_size = world_size
         if world_size > 1:
-            self.model = typing.cast(
-                Model, typing.cast(Model, DDP(self.model, device_ids=[local_rank], find_unused_parameters=True))
+            self._model = typing.cast(
+                Model, typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
             )
             dist.barrier(device_ids=[local_rank])
 
     @property
     def device(self):
         """Returns the device that the model is on."""
-        return module_wrapper(self.model).device
+        return self.model.device
 
     @profiler.time_function
     def get_train_loss_dict(self, step: int):
@@ -285,8 +290,8 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        metrics_dict, images_dict = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
+        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+        metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
         assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
         assert "num_rays" not in metrics_dict
@@ -317,8 +322,8 @@ class VanillaPipeline(Pipeline):
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
-                outputs = module_wrapper(self.model).get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                metrics_dict, _ = module_wrapper(self.model).get_image_metrics_and_images(outputs, batch)
+                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
                 fps_str = f"fps_at_{height}x{width}"
@@ -349,7 +354,7 @@ class VanillaPipeline(Pipeline):
     ) -> List[TrainingCallback]:
         """Returns the training callbacks from both the Dataloader and the Model."""
         datamanager_callbacks = self.datamanager.get_training_callbacks(training_callback_attributes)
-        model_callbacks = module_wrapper(self.model).get_training_callbacks(training_callback_attributes)
+        model_callbacks = self.model.get_training_callbacks(training_callback_attributes)
         callbacks = datamanager_callbacks + model_callbacks
         return callbacks
 
@@ -360,6 +365,6 @@ class VanillaPipeline(Pipeline):
             A list of dictionaries containing the pipeline's param groups.
         """
         datamanager_params = self.datamanager.get_param_groups()
-        model_params = module_wrapper(self.model).get_param_groups()
+        model_params = self.model.get_param_groups()
         # TODO(ethan): assert that key names don't overlap
         return {**datamanager_params, **model_params}

@@ -184,3 +184,4 @@ node_modules/
 bash/
 cache/
 renders/
+package-lock.json

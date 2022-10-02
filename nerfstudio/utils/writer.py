@@ -190,6 +190,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
     GLOBAL_BUFFER["events"] = {}
 
 
+@check_main_thread
 def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
     """Initialization of all event writers specified in config
 
