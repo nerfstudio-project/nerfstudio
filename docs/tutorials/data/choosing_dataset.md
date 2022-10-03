@@ -2,7 +2,9 @@
 
 #### Specifying dataset
 
-The dataset path and type is specified in the model config. Both `dataset_inputs_train` and a `dataset_inputs_eval` need to be set. You can see `configs/graph_default.yaml` for more details on what a full config would look like.
+The dataset path and type is specified in the model config. Both `dataset_inputs_train` and a `dataset_inputs_eval` need to be set. 
+For each, the config requires you to set the 
+You can see `configs/graph_default.yaml` for more details on what a full config would look like.
 
 ```yaml
 data:
@@ -20,7 +22,7 @@ data:
 
 TODO
 
-#### Supported datasets
+#### Supported datasets formats
 
 We include support for a set of standard dataset formats.
 

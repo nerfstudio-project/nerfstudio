@@ -19,12 +19,16 @@ Neural Volumetric Rendering
 All-in-one repository for state-of-the-art NeRFs.
 
 nerfstudio provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and testing NeRFs.
-The library supports a more interpretable implementation of NeRFs by modularizing each component.
+The library supports a **more interpretable implementation of NeRFs by modularizing each component.**
 With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation. 
 
 It's as simple as plug and play with nerfstudio!
 
-If you have further questions or want a feature that is not yet supported, please do not hesitate to reach out to the Plenoptix team.
+Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
+
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the Nerf Studio team with any questions.
+
+We hope Nerf Studio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
 
 |
 
@@ -64,7 +68,8 @@ Contents
 
 This documentation is organized into 3 parts:
 
-* **Tutorials**: a great place to start if you are new to nerfstudio. Contains a quick tour, installation, and an overview of the core structures that will allow you to get up and running with nerfstudio |:metal:|
+* **Getting Started**: a great place to start if you are new to nerfstudio. Contains a quick tour, installation, and an overview of the core structures that will allow you to get up and running with nerfstudio.
+* **Guides**: want to learn more about the tech itself? We're here to help! We've provided some interactive guides that walk you through what each component is all about. 
 * **Tooling**: describes all of the additional support we provide to help you debug and improve your NeRFs (e.g logging, performance profiling)
 * **Reference**: describes each class and function. Develop a better understanding of the core of our technology and terminology. This section includes descriptions of each module and component in the codebase.
 
@@ -75,17 +80,31 @@ This documentation is organized into 3 parts:
 Supported Models
 """""""""""""""""""""""""""""
 
+* **Nerfacto**: our defacto NeRF model combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
+* `NeRF <https://www.matthewtancik.com/nerf>`_: Representing Scenes as Neural Radiance Fields for View Synthesis
+* `Instant NGP <https://nvlabs.github.io/instant-ngp/>`_: Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
+* `Mipnerf-360 <https://jonbarron.info/mipnerf360/>`_: Unbounded Anti-Aliased Neural Radiance Fields
+* `Mipnerf <https://jonbarron.info/mipnerf/>`_: A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
+* `NerfW <https://nerf-w.github.io/>`_: Neural Radiance Fields for Unconstrained Photo Collections
+* `Semantic NeRF <https://shuaifengzhi.com/Semantic-NeRF/>`_: In-Place Scene Labelling and Understanding with Implicit Scene Representation
+* `TensoRF <https://apchenstu.github.io/TensoRF/>`_: Tensorial Radiance Fields
 
-+------------------------+------------------------------+----------------------------+
-|                        |  PSNR                        | Rays / sec.                |
-+========================+==============================+============================+
-| NeRF                   |  |:hourglass_flowing_sand:|  | |:hourglass_flowing_sand:| |
-+------------------------+------------------------------+----------------------------+
-| Instant-NGP            |  |:hourglass_flowing_sand:|  | |:hourglass_flowing_sand:| |
-+------------------------+------------------------------+----------------------------+
+We'll be constantly growing this list! So make sure to check back in to see our updates.
 
+**Eager to contribute?**  We'd love to see you use Nerfactory in implementing new (or even existing) models! Feel free to contact us directly or view our `Contributor's Guide <https://docs.nerf.studio/en/latest/reference/contributing.html>`_ to see how you can get your model on this list!
 
-|
+Quicklinks
+"""""""""""""""""""""""""""""
+
+.. table::
+   :align: left
+   :widths: auto
+   
+   ============================================================ ======================
+   `Github <https://github.com/nerfstudio-project/nerfstudio>`_ Official Github Repo
+   `Discord <https://discord.com/invite/NHGtYRAW>`_             Join Discord Community
+   `Web-based Viewer <https://viewer.nerf.studio/>`_            Web-based Nerf Viewer
+   ============================================================ ======================
 
 
 Indices and Tables

@@ -17,14 +17,11 @@
 Neural Volumetric Rendering
 """""""""""""""""""""""""""""
 
-All-in-one repository for state-of-the-art NeRFs.
+Welcome to the NerfStudio guide! We're here to help you get started and playing with your favorite 3D renderings ASAP 🏃.
 
-nerfstudio provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and testing NeRFs.
-The library supports a more interpretable implementation of NeRFs by modularizing each component.
-With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation. 
+Starting with Installation, we'll walk you through how to install the software, download a ready-made dataset, train your very first model, and visualize the end product 🌟.
 
-
-# TODO: high level summary of what is in the quickstart tabs.
+If along the journey you have any questions, please check out the FAQ to see if it may contain a possible solution. If not, feel free to ping us or file a Github Issue with us and we'll be sure to provide support promptly.
 
 Quickstart
 -----------

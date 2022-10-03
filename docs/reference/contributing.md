@@ -1,5 +1,9 @@
 # Contributing to nerfstudio workflow
 
+**We're excited to have you join the NerfStudio family!** :love_letter: 
+
+Below, we document the contribution pipeline and good-to-knows for when you're ready to submit a PR. If you have any questions at all, please don't hesitate to reach out to us. We'd love to hear from you!
+
 The project is set up for development in VSCode, we recommend using it if you plan to contribute.
 
 ## TLDR
