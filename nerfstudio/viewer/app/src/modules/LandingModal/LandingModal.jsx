@@ -57,7 +57,7 @@ export default function LandingModel(props: LandingModalProps) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running.`;
+  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket Port below and click the link to connect to your training job.`;
 
   const websocket_port = useSelector(
     (state) => state.websocketState.websocket_port,
@@ -116,9 +116,6 @@ export default function LandingModel(props: LandingModalProps) {
             <div className="LandingModel-content">
               <h2>Getting Started</h2>
               <p>{text_intro}</p>
-              <p>
-                You can enter your WebSocket Port in the Status Panel or here:
-              </p>
               <WebSocketUrlField />
               <h3>Remote Server</h3>
               <p>

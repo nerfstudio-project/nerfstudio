@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { TextField } from '@mui/material';
+import { TextField, Link } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 
 export default function WebSocketUrlField() {
@@ -18,13 +18,18 @@ export default function WebSocketUrlField() {
   };
 
   return (
-    <TextField
-      className="WebSocketUrlField"
-      label="WebSocket Port"
-      variant="outlined"
-      value={websocket_port}
-      onChange={websocket_port_onchange}
-      size="small"
-    />
+    <div>
+      <TextField
+        className="WebSocketUrlField"
+        label="WebSocket Port"
+        variant="outlined"
+        value={websocket_port}
+        onChange={websocket_port_onchange}
+        size="small"
+      />
+      <Link href={`/?websocket_port=${  websocket_port}`}>
+        viewer.nerf.studio?websocket_port={websocket_port}
+      </Link>
+    </div>
   );
 }

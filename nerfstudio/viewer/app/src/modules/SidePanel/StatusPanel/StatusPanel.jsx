@@ -3,11 +3,9 @@ import * as React from 'react';
 import Button from '@mui/material/Button';
 import { ButtonGroup } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
-import { useEffect } from 'react';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
-import WebSocketUrlField from '../../WebSocketUrlField';
 
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 
@@ -33,23 +31,17 @@ export default function StatusPanel(props: StatusPanelProps) {
   const vis_train_ratio = useSelector(
     (state) => state.renderingState.vis_train_ratio,
   );
-
-  // simple toggle button
-  const [value, setValue] = React.useState(1);
-  const handleChange = () => {
-    setValue(!value);
-  };
-
-  useEffect(() => {
-    const labels = document.getElementsByClassName('label');
-    for (let i = 0; i < labels.length; i += 1) {
-      if (!value) {
-        labels[i].style.visibility = 'hidden';
-      } else {
-        labels[i].style.visibility = 'visible';
-      }
-    }
-  }, [value]);
+  
+  // logic for toggling visibility of the entire scene and just the training images
+  const [is_scene_visible, set_is_scene_visible] = React.useState(1);
+  const [is_images_visible, set_is_images_visible] = React.useState(1);
+  const scene_button = is_scene_visible ? 'Hide Scene' : 'Show Scene';
+  const cameras_button = is_images_visible ? 'Hide Images' : 'Show Images';
+  sceneTree.object.visible = is_scene_visible;
+  if (sceneTree.find_no_create(['Training Cameras']) !== null) {
+    sceneTree.find_no_create(['Training Cameras']).object.visible =
+      is_images_visible;
+  }
 
   const handlePlayChange = () => {
     dispatch({
@@ -68,7 +60,6 @@ export default function StatusPanel(props: StatusPanelProps) {
     const message = msgpack.encode(data);
     websocket.send(message);
   };
-  const scene_button = value ? 'Hide Scene' : 'Show Scene';
   const is_training_text = isTraining ? 'Pause Training' : 'Resume Training';
   const training_icon = isTraining ? <PauseIcon /> : <PlayArrowIcon />;
 
@@ -80,7 +71,6 @@ export default function StatusPanel(props: StatusPanelProps) {
     : 'Render Disconnected';
   const websocket_connected_color = isWebsocketConnected ? 'success' : 'error';
   const webrtc_connected_color = isWebrtcConnected ? 'success' : 'error';
-  sceneTree.object.visible = value;
 
   return (
     <div className="StatusPanel">
@@ -99,13 +89,25 @@ export default function StatusPanel(props: StatusPanelProps) {
       <Button
         className="StatusPanel-hide-scene-button"
         variant="outlined"
-        onClick={handleChange}
+        onClick={() => {
+          set_is_scene_visible(!is_scene_visible);
+        }}
         style={{ textTransform: 'none' }}
         startIcon={<ViewInArIcon />}
       >
         {scene_button}
       </Button>
-      <WebSocketUrlField />
+      <Button
+        className="StatusPanel-hide-scene-button"
+        variant="outlined"
+        onClick={() => {
+          set_is_images_visible(!is_images_visible);
+        }}
+        style={{ textTransform: 'none' }}
+        startIcon={<ViewInArIcon />}
+      >
+        {cameras_button}
+      </Button>
       <div className="StatusPanel-metrics">
         <div>
           <b>Resolution:</b> {eval_res}
