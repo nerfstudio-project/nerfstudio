@@ -105,7 +105,7 @@ def _render_trajectory_video(
             if rendered_output_name not in outputs:
                 console.rule("Error", style="red")
                 console.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
-                console.print(f"Please set --rendered_output_name to one of: {outputs.keys()}")
+                console.print(f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center")
                 sys.exit(1)
             image = outputs[rendered_output_name].cpu().numpy()
             images.append(image)
