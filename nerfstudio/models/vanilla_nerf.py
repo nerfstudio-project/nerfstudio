@@ -27,18 +27,18 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.field_components.encoding import NeRFEncoding
+from nerfstudio.field_components.encodings import NeRFEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.nerf_field import NeRFField
-from nerfstudio.model_components.loss import MSELoss
-from nerfstudio.model_components.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.fields.vanilla_nerf_field import NeRFField
+from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base import Model, ModelConfig
-from nerfstudio.utils import colors, misc, visualization
+from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils import colormaps, colors, misc
 
 
 class NeRFModel(Model):
@@ -159,15 +159,15 @@ class NeRFModel(Model):
         image = batch["image"].to(outputs["rgb_coarse"].device)
         rgb_coarse = outputs["rgb_coarse"]
         rgb_fine = outputs["rgb_fine"]
-        acc_coarse = visualization.apply_colormap(outputs["accumulation_coarse"])
-        acc_fine = visualization.apply_colormap(outputs["accumulation_fine"])
-        depth_coarse = visualization.apply_depth_colormap(
+        acc_coarse = colormaps.apply_colormap(outputs["accumulation_coarse"])
+        acc_fine = colormaps.apply_colormap(outputs["accumulation_fine"])
+        depth_coarse = colormaps.apply_depth_colormap(
             outputs["depth_coarse"],
             accumulation=outputs["accumulation_coarse"],
             near_plane=self.config.collider_params["near_plane"],
             far_plane=self.config.collider_params["far_plane"],
         )
-        depth_fine = visualization.apply_depth_colormap(
+        depth_fine = colormaps.apply_depth_colormap(
             outputs["depth_fine"],
             accumulation=outputs["accumulation_fine"],
             near_plane=self.config.collider_params["near_plane"],

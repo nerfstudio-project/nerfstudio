@@ -30,22 +30,22 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.engine.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
-from nerfstudio.model_components.loss import MSELoss
-from nerfstudio.model_components.ray_sampler import VolumetricSampler
+from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.ray_samplers import VolumetricSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.models.base import Model, ModelConfig
-from nerfstudio.utils import colors, visualization
-from nerfstudio.utils.callbacks import (
-    TrainingCallback,
-    TrainingCallbackAttributes,
-    TrainingCallbackLocation,
-)
+from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils import colormaps, colors
 
 
 @dataclass
@@ -223,12 +223,12 @@ class NGPModel(Model):
 
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
-        alive_ray_mask = visualization.apply_colormap(outputs["alive_ray_mask"])
+        alive_ray_mask = colormaps.apply_colormap(outputs["alive_ray_mask"])
 
         combined_rgb = torch.cat([image, rgb], dim=1)
         combined_acc = torch.cat([acc], dim=1)

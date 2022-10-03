@@ -1,12 +1,12 @@
 .. _graphs:
 
-Graphs
+Models
 ============
 
 Base
 ----------------
 
-.. automodule:: nerfstudio.models.base
+.. automodule:: nerfstudio.models.base_model
    :members:
    :show-inheritance:
 

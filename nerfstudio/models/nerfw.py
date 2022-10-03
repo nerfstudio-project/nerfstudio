@@ -28,12 +28,12 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.field_components.encoding import NeRFEncoding
+from nerfstudio.field_components.encodings import NeRFEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.nerf_field import NeRFField
 from nerfstudio.fields.nerfw_field import VanillaNerfWField
-from nerfstudio.model_components.loss import MSELoss
-from nerfstudio.model_components.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.fields.vanilla_nerf_field import NeRFField
+from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -41,8 +41,8 @@ from nerfstudio.model_components.renderers import (
     UncertaintyRenderer,
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
-from nerfstudio.models.base import Model, VanillaModelConfig
-from nerfstudio.utils import colors, misc, visualization
+from nerfstudio.models.base_model import Model, VanillaModelConfig
+from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
@@ -255,10 +255,10 @@ class NerfWModel(Model):
         depth_fine_static = outputs["depth_fine_static"]
         uncertainty = outputs["uncertainty"]
 
-        depth_coarse = visualization.apply_depth_colormap(depth_coarse)
-        depth_fine = visualization.apply_depth_colormap(depth_fine)
-        depth_fine_static = visualization.apply_depth_colormap(depth_fine_static)
-        uncertainty = visualization.apply_depth_colormap(uncertainty)
+        depth_coarse = colormaps.apply_depth_colormap(depth_coarse)
+        depth_fine = colormaps.apply_depth_colormap(depth_fine)
+        depth_fine_static = colormaps.apply_depth_colormap(depth_fine_static)
+        uncertainty = colormaps.apply_depth_colormap(uncertainty)
 
         row0 = torch.cat([image, uncertainty, torch.ones_like(rgb_fine)], dim=-2)
         row1 = torch.cat([rgb_fine, rgb_fine_static, rgb_coarse], dim=-2)

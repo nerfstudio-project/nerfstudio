@@ -25,6 +25,7 @@ import dcargs
 import torch
 from torch import nn
 from torch.nn import Parameter
+from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
@@ -45,8 +46,8 @@ from nerfstudio.data.utils.dataloaders import (
     RandIndicesEvalDataloader,
 )
 from nerfstudio.data.utils.datasets import InputDataset
-from nerfstudio.model_components.ray_generator import RayGenerator
-from nerfstudio.utils.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 
 AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
@@ -102,16 +103,16 @@ class DataManager(nn.Module):
     Attributes:
         train_count (int): the step number of our train iteration, needs to be incremented manually
         eval_count (int): the step number of our eval iteration, needs to be incremented manually
-        train_input_dataset (InputDataset): the input dataset for the train dataset
-        eval_input_dataset (InputDataset): the input dataset for the eval dataset
+        train_dataset (Dataset): the dataset for the train dataset
+        eval_dataset (Dataset): the dataset for the eval dataset
 
         Additional attributes specific to each subclass are defined in the setup_train and setup_eval
         functions.
 
     """
 
-    train_input_dataset: Optional[InputDataset] = None
-    eval_input_dataset: Optional[InputDataset] = None
+    train_dataset: Optional[Dataset] = None
+    eval_dataset: Optional[Dataset] = None
     train_sampler: Optional[DistributedSampler] = None
     eval_sampler: Optional[DistributedSampler] = None
 
@@ -127,9 +128,9 @@ class DataManager(nn.Module):
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
-        if self.train_input_dataset and self.train_input_dataset.dataset_inputs:
+        if self.train_dataset:
             self.setup_train()
-        if self.eval_input_dataset and self.eval_input_dataset.dataset_inputs:
+        if self.eval_dataset:
             self.setup_eval()
 
     def forward(self):
@@ -265,6 +266,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """
 
     config: VanillaDataManagerConfig
+    train_dataset: InputDataset
+    eval_dataset: InputDataset
 
     def __init__(
         self,
@@ -281,23 +284,23 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.local_rank = local_rank
         self.sampler = None
 
-        self.train_input_dataset = InputDataset(config.dataparser.setup().get_dataset_inputs(split="train"))
-        self.eval_input_dataset = InputDataset(
+        self.train_dataset = InputDataset(config.dataparser.setup().get_dataset_inputs(split="train"))
+        self.eval_dataset = InputDataset(
             config.dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
         )
         super().__init__()
 
     def setup_train(self):
         """Sets up the data loaders for training"""
-        assert self.train_input_dataset is not None
+        assert self.train_dataset is not None
         if self.world_size > 1:
             sampler = DistributedSampler(
-                self.train_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+                self.train_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
         else:
             sampler = None
         self.train_image_dataloader = CacheDataloader(
-            self.train_input_dataset,
+            self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
             device=self.device,
             num_workers=self.world_size * 4,
@@ -307,24 +310,24 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
-            num_cameras=self.train_input_dataset.dataset_inputs.cameras.size, device=self.device
+            num_cameras=self.train_dataset.dataset_inputs.cameras.size, device=self.device
         )
         self.train_ray_generator = RayGenerator(
-            self.train_input_dataset.dataset_inputs.cameras.to(self.device),
+            self.train_dataset.dataset_inputs.cameras.to(self.device),
             self.train_camera_optimizer,
         )
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-        assert self.eval_input_dataset is not None
+        assert self.eval_dataset is not None
         if self.world_size > 1:
             sampler = DistributedSampler(
-                self.eval_input_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+                self.eval_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
         else:
             sampler = None
         self.eval_image_dataloader = CacheDataloader(
-            self.eval_input_dataset,
+            self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
             device=self.device,
             num_workers=self.world_size * 4,
@@ -334,17 +337,17 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
-            self.eval_input_dataset.dataset_inputs.cameras.to(self.device),
+            self.eval_dataset.dataset_inputs.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
-            input_dataset=self.eval_input_dataset,
+            input_dataset=self.eval_dataset,
             device=self.device,
             num_workers=self.world_size * 4,
         )
         self.eval_dataloader = RandIndicesEvalDataloader(
-            input_dataset=self.eval_input_dataset,
+            input_dataset=self.eval_dataset,
             image_indices=self.config.eval_image_indices,
             device=self.device,
             num_workers=self.world_size * 4,

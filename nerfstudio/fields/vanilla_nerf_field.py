@@ -22,7 +22,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.field_components.encoding import Encoding, Identity
+from nerfstudio.field_components.encodings import Encoding, Identity
 from nerfstudio.field_components.field_heads import (
     DensityFieldHead,
     FieldHead,
