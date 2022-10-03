@@ -1,4 +1,4 @@
-Creating Pipelines
+Pipelines Overview
 -------------------------
 
 Here we show you how to create a custom pipeline.
@@ -12,7 +12,8 @@ Here we show you how to create a custom pipeline.
 .. toctree::
     :maxdepth: 1
 
-    creating_dataparsers.ipynb
-    creating_datamanagers.ipynb
-    creating_models.ipynb
-    creating_pipelines.ipynb
+    dataparsers.ipynb
+    datamanagers.ipynb
+    models.ipynb
+    pipelines.ipynb
+    creating_new_methods.ipynb
