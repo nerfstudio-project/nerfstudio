@@ -42,6 +42,17 @@ from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 model_configs: Dict[str, Config] = {}
+descriptions = {
+    "nerfacto": "[bold green]Recommended[/bold green] Real-time model tuned for real captures. "
+    + "This model will be continually updated.",
+    "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
+    "mipnerf-360": "High quality model for unbounded 360 degree scenes. [red]*slow*",
+    "mipnerf": "High quality model for bounded scenes. [red]*slow*",
+    "nerfw": "Model designed to handle inconsistent appearance between images. [red]*slow*",
+    "semantic-nerf": "Model that predicts dense semantic segmentations. [red]*slow*",
+    "vanilla-nerf": "Original NeRF model. [red]*slow*",
+    "tensorf": "Fast model designed for bounded scenes.",
+}
 
 model_configs["nerfacto"] = Config(
     method_name="nerfacto",
@@ -205,7 +216,9 @@ model_configs["tensorf"] = Config(
 )
 
 
-AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(model_configs)
+AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(
+    defaults=model_configs, descriptions=descriptions
+)
 """Union[] type over config types, annotated with default instances for use with
 dcargs.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

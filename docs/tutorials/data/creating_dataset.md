@@ -9,10 +9,10 @@ To assist running on custom data we have a script that will process a video or f
 To process your data run:
 
 ```bash
-python scripts/process_data.py --data FOLDER_OR_VIDEO --output-dir PROCESSED_DATA_DIR
+ns-process-data --data FOLDER_OR_VIDEO --output-dir PROCESSED_DATA_DIR
 ```
 
-If your data was captured with a fisheye camera add `--camera-type fisheye`.
+A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
 
 :::{admonition} Tip
 :class: info
