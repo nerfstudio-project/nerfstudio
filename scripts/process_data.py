@@ -97,7 +97,7 @@ def get_vocab_tree() -> Path:
     return vocab_tree_filename
 
 
-def run_command(cmd, verbose=False) -> Optional[str]:
+def run_command(cmd: str, verbose=False) -> Optional[str]:
     """Runs a command and returns the output.
 
     Args:
@@ -165,7 +165,7 @@ def convert_video_to_images(
     return num_frames, len(list(image_dir.glob("*.png")))
 
 
-def copy_images(data, image_dir, verbose) -> int:
+def copy_images(data: Path, image_dir: Path, verbose) -> int:
     """Copy images from a directory to a new directory.
 
     Args:
@@ -176,11 +176,15 @@ def copy_images(data, image_dir, verbose) -> int:
         The number of images copied.
     """
     image_paths = sorted(data.glob("*"))
-    for i, image_path in enumerate(image_paths):
-        i = i + 1  # 1-indexed
+    idx = 0
+    # Images should be 1-indexed for the rest of the pipeline.
+    for image_path in image_paths:
+        if image_path.name.startswith("."):
+            continue
+        idx += 1
         if verbose:
-            CONSOLE.log(f"Copying image {i + 1} of {len(image_paths)}...")
-        shutil.copy(image_path, image_dir / f"frame_{i:05d}{image_path.suffix}")
+            CONSOLE.log(f"Copying image {idx} of {len(image_paths)}...")
+        shutil.copy(image_path, image_dir / f"frame_{idx:05d}{image_path.suffix}")
 
     return len(image_paths)
 
@@ -383,10 +387,11 @@ def main(
     """Process images or videos into a nerfstudio dataset.
 
     This script does the following:
-    1) Converts the video into images (if video is provided).
-    2) Scales images to a specified size.
-    3) Calculates and stores the sharpness of each image.
-    4) Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
+
+    1. Converts the video into images (if video is provided).
+    2. Scales images to a specified size.
+    3. Calculates and stores the sharpness of each image.
+    4. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
 
 
     Args:
@@ -402,8 +407,6 @@ def main(
         gpu: If True, use GPU.
         verbose: If True, print extra logging.
     """
-
-    print(data)
 
     check_ffmpeg_installed()
     check_colmap_installed()
@@ -491,3 +494,6 @@ def entrypoint():
 
 if __name__ == "__main__":
     entrypoint()
+
+# For sphinx docs
+get_parser_fn = lambda: dcargs.extras.get_parser(main)  # noqa

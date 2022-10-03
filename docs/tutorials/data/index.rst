@@ -1,8 +1,6 @@
 Data Setup
 ----------
 
-# TODO: high level summary
-
 .. toctree::
     :maxdepth: 1
 
