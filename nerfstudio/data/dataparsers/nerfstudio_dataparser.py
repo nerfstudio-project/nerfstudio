@@ -19,10 +19,12 @@ import logging
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
-from typing import Literal, Type
+from typing import Literal, Optional, Type
 
 import numpy as np
 import torch
+from PIL import Image
+from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -33,6 +35,10 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
+
+console = Console()
+
+MAX_AUTO_RESOLUTION = 2000
 
 
 @dataclass
@@ -45,8 +51,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    downscale_factor: int = 1
-    """How much to downscale images."""
+    downscale_factor: Optional[int] = None
+    """How much to downscale images. If not set, images are chosen such that the max dimension is <2000px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up"] = "up"
@@ -61,6 +67,7 @@ class Nerfstudio(DataParser):
     """Nerfstudio Dataset"""
 
     config: NerfstudioDataParserConfig
+    downscale_factor: Optional[int] = None
 
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
@@ -69,15 +76,13 @@ class Nerfstudio(DataParser):
         image_filenames = []
         poses = []
         num_skipped_image_filenames = 0
+
         for frame in meta["frames"]:
             if "\\" in frame["file_path"]:
                 filepath = PureWindowsPath(frame["file_path"])
             else:
                 filepath = Path(frame["file_path"])
-            if self.config.downscale_factor > 1:
-                fname = self.config.data / f"images_{self.config.downscale_factor}" / filepath.name
-            else:
-                fname = self.config.data / filepath
+            fname = self._get_fname(filepath)
             if not fname:
                 num_skipped_image_filenames += 1
             else:
@@ -155,7 +160,8 @@ class Nerfstudio(DataParser):
             camera_type=camera_type,
         )
 
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
+        assert self.downscale_factor is not None
+        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
@@ -163,3 +169,28 @@ class Nerfstudio(DataParser):
             scene_box=scene_box,
         )
         return dataparser_outputs
+
+    def _get_fname(self, filepath):
+        """Get the filename of the image file."""
+
+        if self.downscale_factor is None:
+            if self.config.downscale_factor is None:
+                test_img = Image.open(self.config.data / filepath)
+                h, w = test_img.size
+                max_res = max(h, w)
+                df = 0
+                while True:
+                    if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
+                        break
+                    if not (self.config.data / f"images_{2**(df+1)}" / filepath.name).exists():
+                        break
+                    df += 1
+
+                console.print(f"Auto image downscale factor of {2**df}")
+                self.downscale_factor = 2**df
+            else:
+                self.downscale_factor = self.config.downscale_factor
+
+        if self.downscale_factor > 1:
+            return self.config.data / f"images_{self.downscale_factor}" / filepath.name
+        return self.config.data / filepath
