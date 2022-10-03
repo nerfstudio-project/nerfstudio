@@ -401,7 +401,7 @@ class Cameras:
             scaling_factor: Scaling factor to apply to the output resolution.
         """
         if isinstance(scaling_factor, float):
-            scaling_factor = torch.tensor([scaling_factor]).broadcast_to((self.size))
+            scaling_factor = torch.tensor([scaling_factor]).to(self.device).broadcast_to((self.size))
 
         self.fx = self.fx * scaling_factor
         self.fy = self.fy * scaling_factor
