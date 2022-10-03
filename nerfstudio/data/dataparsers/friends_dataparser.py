@@ -63,8 +63,8 @@ class FriendsDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Friends)
     """target class to instantiate"""
-    data_directory: Path = Path("data/friends/TBBT-big_living_room")
-    """directory specifying location of data"""
+    data: Path = Path("data/friends/TBBT-big_living_room")
+    """Directory specifying location of data."""
     include_semantics: bool = True
     """whether or not to include loading of semantics data"""
     downscale_factor: int = 8
@@ -83,7 +83,7 @@ class Friends(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
 
-        cameras_json = load_from_json(self.config.data_directory / "cameras.json")
+        cameras_json = load_from_json(self.config.data / "cameras.json")
         frames = cameras_json["frames"]
         bbox = torch.tensor(cameras_json["bbox"])
 
@@ -99,7 +99,7 @@ class Friends(DataParser):
         camera_to_worlds = []
         for frame in frames:
             # unpack data
-            image_filename = self.config.data_directory / images_folder / frame["image_name"]
+            image_filename = self.config.data / images_folder / frame["image_name"]
             intrinsics = torch.tensor(frame["intrinsics"])
             camtoworld = torch.tensor(frame["camtoworld"])[:3]
             # append data
@@ -155,7 +155,7 @@ class Friends(DataParser):
                 )
                 for image_filename in image_filenames
             ]
-            panoptic_classes = load_from_json(self.config.data_directory / "panoptic_classes.json")
+            panoptic_classes = load_from_json(self.config.data / "panoptic_classes.json")
             stuff_classes = panoptic_classes["stuff"]
             stuff_colors = torch.tensor(panoptic_classes["stuff_colors"], dtype=torch.float32) / 255.0
             thing_classes = panoptic_classes["thing"]

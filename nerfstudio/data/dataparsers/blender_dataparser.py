@@ -40,8 +40,8 @@ class BlenderDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Blender)
     """target class to instantiate"""
-    data_directory: Path = Path("data/blender/lego")
-    """directory specifying location of data"""
+    data: Path = Path("data/blender/lego")
+    """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
@@ -58,7 +58,7 @@ class Blender(DataParser):
 
     def __init__(self, config: BlenderDataParserConfig):
         super().__init__(config=config)
-        self.data_directory: Path = config.data_directory
+        self.data: Path = config.data
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
 
@@ -68,11 +68,11 @@ class Blender(DataParser):
         else:
             alpha_color_tensor = None
 
-        meta = load_from_json(self.data_directory / f"transforms_{split}.json")
+        meta = load_from_json(self.data / f"transforms_{split}.json")
         image_filenames = []
         poses = []
         for frame in meta["frames"]:
-            fname = self.data_directory / Path(frame["file_path"].replace("./", "") + ".png")
+            fname = self.data / Path(frame["file_path"].replace("./", "") + ".png")
             image_filenames.append(fname)
             poses.append(np.array(frame["transform_matrix"]))
         poses = np.array(poses).astype(np.float32)

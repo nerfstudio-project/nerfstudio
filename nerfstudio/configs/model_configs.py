@@ -27,6 +27,7 @@ from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.mipnerf_dataparser import MipNerf360DataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.models.base_model import VanillaModelConfig
@@ -59,7 +60,7 @@ model_configs["nerfacto"] = Config(
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
@@ -81,7 +82,7 @@ model_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={

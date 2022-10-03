@@ -41,8 +41,8 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: InstantNGP)
     """target class to instantiate"""
-    data_directory: Path = Path("data/ours/posterv2")
-    """directory specifying location of data"""
+    data: Path = Path("data/ours/posterv2")
+    """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     scene_scale: float = 0.33
@@ -57,12 +57,12 @@ class InstantNGP(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
 
-        meta = load_from_json(self.config.data_directory / "transforms.json")
+        meta = load_from_json(self.config.data / "transforms.json")
         image_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
-            fname = self.config.data_directory / Path(frame["file_path"])
+            fname = self.config.data / Path(frame["file_path"])
             if not fname:
                 num_skipped_image_filenames += 1
             else:
