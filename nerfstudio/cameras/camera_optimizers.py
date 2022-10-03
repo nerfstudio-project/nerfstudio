@@ -69,9 +69,9 @@ class CameraOptimizer(nn.Module):
     ) -> TensorType["num_cameras", 3, 4]:
         """Indexing into camera adjustments.
         Args:
-            indices (TensorType["num_cameras"]): indices of Cameras to optimize.
+            indices: indices of Cameras to optimize.
         Returns:
-            TensorType["num_cameras", 3, 4]: Tranformation matrices from optimized camera coordinates coordinates
+            Tranformation matrices from optimized camera coordinates coordinates
             to given camera coordinates.
         """
         return torch.eye(4, device=self.device).repeat(indices.shape[0], 1, 1)[:, :3, :4]  # no-op (Identity Transform)
@@ -94,9 +94,9 @@ class BARFOptimizer(CameraOptimizer):
     def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
         """Convert SE3 vector into [R|t] transformation matrix.
         Args:
-            tangent_vector (TensorType["num_cameras", 6]): SE3 vector
+            tangent_vector: SE3 vector
         Returns:
-            TensorType["num_cameras", 3, 4]: Respective [R|t] tranformation matrices.
+            Respective [R|t] tranformation matrices.
         """
 
         tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
