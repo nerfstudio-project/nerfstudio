@@ -170,6 +170,7 @@ function MenuItems(props: ListItemProps) {
           <IconButton
             aria-label="visibility"
             onClick={() => snap_to_camera(getCamera(scene_node).matrix)}
+            sx={{ mr: 1 }}
           >
             <Videocam />
           </IconButton>
