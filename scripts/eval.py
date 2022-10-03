@@ -8,6 +8,7 @@ import dataclasses
 import json
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Tuple, Union
@@ -48,6 +49,14 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     if config.load_step is None:
         console.print("Loading latest checkpoint from load_dir")
         # NOTE: this is specific to the checkpoint name format
+        if not os.path.exists(config.load_dir):
+            console.rule("Error", style="red")
+            console.print(f"No checkpoint directory found at {config.load_dir}, ", justify="center")
+            console.print(
+                "Please make sure the checkpoint exists, they should be generated periodically during training",
+                justify="center",
+            )
+            sys.exit(1)
         load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
         load_step = config.load_step
@@ -93,6 +102,11 @@ def _render_trajectory_video(
             camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
             with torch.no_grad():
                 outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            if rendered_output_name not in outputs:
+                console.rule("Error", style="red")
+                console.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
+                console.print(f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center")
+                sys.exit(1)
             image = outputs[rendered_output_name].cpu().numpy()
             images.append(image)
 

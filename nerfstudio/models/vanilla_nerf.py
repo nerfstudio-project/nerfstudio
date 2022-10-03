@@ -194,8 +194,6 @@ class NeRFModel(Model):
             "fine_psnr": float(fine_psnr),
             "fine_ssim": float(fine_ssim),
             "fine_lpips": float(fine_lpips),
-            "ray_loss_coarse": float(torch.mean(outputs["ray_loss_coarse"])),
-            "ray_loss_fine": float(torch.mean(outputs["ray_loss_fine"])),
         }
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
         return metrics_dict, images_dict

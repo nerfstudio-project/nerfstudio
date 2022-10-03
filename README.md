@@ -160,7 +160,7 @@ ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 80
 
 ### 3.x Training a model with the viewer
 
-Make sure to forward a port for the websocket to localhost. The default port is 7007, which you should be expose to localhost:7007.
+Make sure to forward a port for the websocket to localhost. The default port is 7007, which you should expose to localhost:7007.
 
 ```bash
 # with the default port
@@ -168,6 +168,9 @@ ns-train nerfacto --vis viewer
 
 # with a specified websocket port
 ns-train nerfacto --vis viewer --viewer.websocket-port=7008
+
+# port forward if running on remote
+ssh -L localhost:7008:localhost:7008 {REMOTE HOST}
 ```
 
 ### 4. Visualizing training runs
@@ -201,10 +204,10 @@ We support logging to weights and biases. To enable wandb logging, add the flag 
 
 </details>
 
-## 5. Rendering a trajectories during inference
+## 5. Rendering a trajectory during inference
 
 ```
-ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml--traj=spiral --output-path=output.mp4
+ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/{MOST_RECENT_RUN}/config.yml--traj=spiral --output-path=output.mp4
 ```
 
 ## 6. In-depth guide
