@@ -68,6 +68,8 @@ Please note, this quickstart allows you to preform everything in a headless mann
 ## FAQ
 
 - [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
+- [Installation errors, File "setup.py" not found](pip-install-error)
+- [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
 (tiny-cuda-error)=
 
@@ -80,8 +82,6 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 ```
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
-
-- [Installation errors, File "setup.py" not found](pip-install-error)
 
 (pip-install-error)=
 
@@ -96,7 +96,6 @@ This can be fixed by upgrading pip to the latest version:
 python -m pip install --upgrade pip
 ```
 
-- [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
 (cuda-sources-error)=
 
