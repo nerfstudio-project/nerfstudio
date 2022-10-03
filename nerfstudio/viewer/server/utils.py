@@ -15,10 +15,12 @@
 """Generic utility functions
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+import sys
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+import zmq
 
 
 def get_chunks(
@@ -86,3 +88,25 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     )
 
     return intrinsics_matrix, camera_to_world_h
+
+
+def find_available_port(func: Callable, default_port: int, max_attempts: int = 1000, **kwargs) -> None:
+    """Finds and attempts to connect to a port
+
+    Args:
+        func: function used on connecting to port
+        default_port: the default port
+        max_attempts: max number of attempts to try connection. Defaults to MAX_ATTEMPTS.
+    """
+    for i in range(max_attempts):
+        port = default_port + i
+        try:
+            return func(port, **kwargs), port
+        except (OSError, zmq.error.ZMQError):
+            print(f"Port: {port:d} in use, trying another...", file=sys.stderr)
+        except Exception as e:
+            print(type(e))
+            raise
+    raise (
+        Exception(f"Could not find an available port in the range: [{default_port:d}, {max_attempts + default_port:d})")
+    )

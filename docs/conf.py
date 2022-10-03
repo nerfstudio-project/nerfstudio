@@ -15,8 +15,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-import nerfstudio.configs.base
-import nerfstudio.datamanagers.base
+import nerfstudio.configs.base_config
 
 # -- Project information -----------------------------------------------------
 
@@ -34,6 +33,7 @@ release = "0.0.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinxarg.ext",
     "sphinx.ext.duration",
     "sphinx.ext.doctest",
     "sphinx.ext.autodoc",

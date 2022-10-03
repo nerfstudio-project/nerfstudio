@@ -21,7 +21,7 @@ import logging
 import time
 from typing import Callable
 
-from nerfstudio.configs import base as cfg
+from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
 from nerfstudio.utils.decorators import (
     check_main_thread,

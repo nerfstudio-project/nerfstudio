@@ -15,7 +15,7 @@
 """Server bridge to faciliate interactions between python backend and javascript front end"""
 
 import sys
-from typing import Callable, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import dcargs
 import msgpack
@@ -34,33 +34,6 @@ from zmq.eventloop.zmqstream import ZMQStream
 from nerfstudio.viewer.server.state.node import find_node, get_tree, walk
 from nerfstudio.viewer.server.state.state_node import StateNode
 from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
-
-MAX_ATTEMPTS = 1000
-DEFAULT_ZMQ_METHOD = "tcp"
-DEFAULT_ZMQ_PORT = 6000
-DEFAULT_WEBSOCKET_PORT = 8051
-
-
-def find_available_port(func: Callable, default_port: int, max_attempts: int = MAX_ATTEMPTS, **kwargs) -> None:
-    """Finds and attempts to connect to a port
-
-    Args:
-        func: function used on connecting to port
-        default_port: the default port
-        max_attempts: max number of attempts to try connection. Defaults to MAX_ATTEMPTS.
-    """
-    for i in range(max_attempts):
-        port = default_port + i
-        try:
-            return func(port, **kwargs), port
-        except (OSError, zmq.error.ZMQError):
-            print(f"Port: {port:d} in use, trying another...", file=sys.stderr)
-        except Exception as e:
-            print(type(e))
-            raise
-    raise (
-        Exception(f"Could not find an available port in the range: [{default_port:d}, {max_attempts + default_port:d})")
-    )
 
 
 def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
@@ -169,42 +142,25 @@ class ZMQWebSocketBridge:
 
     context = zmq.Context()
 
-    def __init__(
-        self,
-        zmq_port: Optional[int] = None,
-        host: str = "127.0.0.1",
-        websocket_address: str = "0.0.0.0",
-        websocket_port: Optional[int] = None,
-    ):
+    def __init__(self, zmq_port: int, websocket_port: int):
         self.zmq_port = zmq_port
-        self.host = host
-        self.websocket_address = websocket_address
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
         self.pcs = set()
         self.video_tracks = set()
 
-        if self.zmq_port is None:
+        # zmq
+        zmq_url = f"tcp://127.0.0.1:{self.zmq_port:d}"
+        self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
-            def f(port):
-                return self.setup_zmq(f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{port:d}")
+        # websocket
+        listen_kwargs = {"address": "0.0.0.0"}
+        self.app.listen(websocket_port, **listen_kwargs)
+        self.websocket_port = websocket_port
+        self.websocket_url = f"0.0.0.0:{self.websocket_port}"
 
-            (self.zmq_socket, self.zmq_stream, self.zmq_url), _ = find_available_port(f, DEFAULT_ZMQ_PORT)
-            self.zmq_port = int(self.zmq_url.split(":")[-1])
-        else:
-            zmq_url = f"{DEFAULT_ZMQ_METHOD:s}://{self.host:s}:{self.zmq_port:d}"
-            self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
-
-        listen_kwargs = {"address": self.websocket_address}
-
-        if websocket_port is None:
-            _, self.websocket_port = find_available_port(self.app.listen, DEFAULT_WEBSOCKET_PORT, **listen_kwargs)
-        else:
-            self.app.listen(websocket_port, **listen_kwargs)
-            self.websocket_port = websocket_port
-
-        self.websocket_url = f"{self.websocket_address}:{self.websocket_port}"
+        # state tree
         self.state_tree = get_tree(StateNode)
 
     def __str__(self) -> str:

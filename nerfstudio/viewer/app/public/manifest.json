@@ -1,5 +1,5 @@
 {
-  "short_name": "Nerfactory Viewer",
+  "short_name": "nerfstudio viewer",
   "name": "Interactive NeRF viewer",
   "start_url": ".",
   "display": "standalone",

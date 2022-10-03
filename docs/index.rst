@@ -57,8 +57,9 @@ Contents
    :hidden:
    :caption: Reference
 
-   Contributing<reference/contributing.md>
+   reference/cli/index
    reference/api/index
+   Contributing<reference/contributing.md>
 
 
 

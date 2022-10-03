@@ -47,14 +47,14 @@
       "args": ["instant_ngp"]
     },
     {
-      "name": "Python: train ngp nerfactory",
+      "name": "Python: train ngp nerfstudio",
       "type": "python",
       "request": "launch",
       "program": "scripts/train.py",
       "console": "integratedTerminal",
       "args": [
         "instant_ngp",
-        // "--experiment_name=nerfactory_experiment",
+        // "--experiment_name=nerfstudio_experiment",
         "--logging.local-writer.max-log-size=0",
         "--viewer.no-enable"
         // viewer
@@ -63,7 +63,7 @@
         // "--viewer.websocket-port=8014",
         // "--pipeline.model.randomize-background",
         // "--pipeline.model.cone-angle=0.00390625",
-        // "nerfactory-data"
+        // "nerfstudio-data"
       ]
     },
     {
