@@ -5,7 +5,7 @@ Test samplers
 import torch
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.model_components.ray_sampler import (
+from nerfstudio.model_components.ray_samplers import (
     LinearDisparitySampler,
     LogSampler,
     PDFSampler,

@@ -20,10 +20,10 @@ Code for embeddings.
 import torch
 from torchtyping import TensorType
 
-from nerfstudio.field_components.base import FieldModule
+from nerfstudio.field_components.base_field_component import FieldComponent
 
 
-class Embedding(FieldModule):
+class Embedding(FieldComponent):
     """Index into embeddings.
     # TODO: add different types of initializations
 

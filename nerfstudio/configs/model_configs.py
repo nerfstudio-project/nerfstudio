@@ -27,9 +27,10 @@ from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.mipnerf_dataparser import MipNerf360DataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.models.base import VanillaModelConfig
+from nerfstudio.models.base_model import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.mipnerf_360 import MipNerf360Model
@@ -38,17 +39,28 @@ from nerfstudio.models.nerfw import NerfWModelConfig
 from nerfstudio.models.semantic_nerf import SemanticNerfModel
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
-from nerfstudio.pipelines.base import VanillaPipelineConfig
+from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 model_configs: Dict[str, Config] = {}
+descriptions = {
+    "nerfacto": "[bold green]Recommended[/bold green] Real-time model tuned for real captures. "
+    + "This model will be continually updated.",
+    "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
+    "mipnerf-360": "High quality model for unbounded 360 degree scenes. [red]*slow*",
+    "mipnerf": "High quality model for bounded scenes. [red]*slow*",
+    "nerfw": "Model designed to handle inconsistent appearance between images. [red]*slow*",
+    "semantic-nerf": "Model that predicts dense semantic segmentations. [red]*slow*",
+    "vanilla-nerf": "Original NeRF model. [red]*slow*",
+    "tensorf": "Fast model designed for bounded scenes.",
+}
 
 model_configs["nerfacto"] = Config(
     method_name="nerfacto",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
@@ -63,14 +75,14 @@ model_configs["nerfacto"] = Config(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
-    vis=["viewer"],
+    vis="viewer",
 )
 
 model_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
@@ -80,7 +92,7 @@ model_configs["instant-ngp"] = Config(
         }
     },
     viewer=ViewerConfig(num_rays_per_chunk=64000),
-    vis=["viewer"],
+    vis="viewer",
 )
 
 model_configs["mipnerf-360"] = Config(
@@ -205,7 +217,9 @@ model_configs["tensorf"] = Config(
 )
 
 
-AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(model_configs)
+AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(
+    defaults=model_configs, descriptions=descriptions
+)
 """Union[] type over config types, annotated with default instances for use with
 dcargs.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

@@ -22,12 +22,12 @@ def set_reduced_config(config: Config):
     config.machine.num_gpus = 0
     config.trainer.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
-    config.pipeline.datamanager.dataparser = BlenderDataParserConfig(data_directory=Path("tests/data/lego_test"))
+    config.pipeline.datamanager.dataparser = BlenderDataParserConfig(data=Path("tests/data/lego_test"))
     config.pipeline.datamanager.train_num_images_to_sample_from = 1
     config.pipeline.datamanager.train_num_rays_per_batch = 4
 
     # use tensorboard logging instead of wandb
-    config.vis = ["tensorboard"]
+    config.vis = "tensorboard"
     config.logging.relative_log_dir = Path("/tmp/")
 
     # reduce model factors

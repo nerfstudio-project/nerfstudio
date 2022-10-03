@@ -41,7 +41,7 @@ class Record3DDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Record3D)
     """target class to instantiate"""
-    data_directory: Path = Path("data/record3d/garden")
+    data: Path = Path("data/record3d/garden")
     """Location of data"""
     val_skip: int = 8
     """1/val_skip images to use for validation."""
@@ -60,8 +60,8 @@ class Record3D(DataParser):
 
     config: Record3DDataParserConfig
 
-    def _generate_dataset_inputs(self, split: str = "train") -> DataparserOutputs:
-        image_dir = self.config.data_directory / "rgb"
+    def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
+        image_dir = self.config.data / "rgb"
 
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
@@ -75,7 +75,7 @@ class Record3D(DataParser):
         image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
-        metadata_path = self.config.data_directory / "metadata.json"
+        metadata_path = self.config.data / "metadata.json"
         metadata_dict = load_from_json(metadata_path)
 
         poses_data = np.array(metadata_dict["poses"])
@@ -144,10 +144,10 @@ class Record3D(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
 
-        return dataset_inputs
+        return dataparser_outputs

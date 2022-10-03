@@ -67,9 +67,10 @@ class SceneContraction(SpatialDistortion):
         def contract(x):
             mag = torch.linalg.norm(x, ord=self.order, dim=-1)
             mask = mag >= 1
-            x[mask] = (2 - (1 / mag[mask][..., None])) * (x[mask] / mag[mask][..., None])
+            x_new = x.clone()
+            x_new[mask] = (2 - (1 / mag[mask][..., None])) * (x[mask] / mag[mask][..., None])
 
-            return x
+            return x_new
 
         if isinstance(positions, Gaussians):
             means = contract(positions.mean.clone())

@@ -41,8 +41,8 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: InstantNGP)
     """target class to instantiate"""
-    data_directory: Path = Path("data/ours/posterv2")
-    """directory specifying location of data"""
+    data: Path = Path("data/ours/posterv2")
+    """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     scene_scale: float = 0.33
@@ -55,14 +55,14 @@ class InstantNGP(DataParser):
 
     config: InstantNGPDataParserConfig
 
-    def _generate_dataset_inputs(self, split="train"):
+    def _generate_dataparser_outputs(self, split="train"):
 
-        meta = load_from_json(self.config.data_directory / "transforms.json")
+        meta = load_from_json(self.config.data / "transforms.json")
         image_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
-            fname = self.config.data_directory / Path(frame["file_path"])
+            fname = self.config.data / Path(frame["file_path"])
             if not fname:
                 num_skipped_image_filenames += 1
             else:
@@ -107,10 +107,10 @@ class InstantNGP(DataParser):
         )
 
         # TODO(ethan): add alpha background color
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
 
-        return dataset_inputs
+        return dataparser_outputs

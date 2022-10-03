@@ -185,3 +185,4 @@ bash/
 cache/
 renders/
 package-lock.json
+camera_paths/

@@ -29,7 +29,7 @@ from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
-from nerfstudio.field_components.encoding import Encoding, HashEncoding, SHEncoding
+from nerfstudio.field_components.encodings import Encoding, HashEncoding, SHEncoding
 from nerfstudio.field_components.field_heads import (
     DensityFieldHead,
     FieldHead,

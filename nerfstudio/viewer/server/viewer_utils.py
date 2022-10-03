@@ -32,8 +32,8 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.utils.datasets import InputDataset
-from nerfstudio.models.base import Model
-from nerfstudio.utils import profiler, visualization, writer
+from nerfstudio.models.base_model import Model
+from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.misc import get_dict_to_torch
@@ -272,11 +272,11 @@ class ViewerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.dataset_inputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
+            camera_json = dataset.dataparser_outputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene box (i.e., the bounding box)
-        json_ = dataset.dataset_inputs.scene_box.to_json()
+        json_ = dataset.dataparser_outputs.scene_box.to_json()
         self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
@@ -407,15 +407,13 @@ class ViewerState:
                 if OutputTypes.ACCUMULATION in self.output_list
                 else OutputTypes.ACCUMULATION_FINE
             )
-            return visualization.apply_depth_colormap(
-                outputs[reformatted_output], accumulation=outputs[accumulation_str]
-            )
+            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
 
         # rendering accumulation outputs
         if self.prev_colormap_type == ColormapTypes.TURBO or (
             self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
         ):
-            return visualization.apply_colormap(outputs[reformatted_output])
+            return colormaps.apply_colormap(outputs[reformatted_output])
 
         # rendering semantic outputs
         if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
@@ -430,7 +428,7 @@ class ViewerState:
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
             self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
         ):
-            return visualization.apply_boolean_colormap(outputs[reformatted_output])
+            return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
 

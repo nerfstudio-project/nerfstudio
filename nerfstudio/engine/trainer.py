@@ -29,14 +29,14 @@ from rich import console
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
-from nerfstudio.pipelines.base import VanillaPipeline
-from nerfstudio.utils import profiler, writer
-from nerfstudio.utils.callbacks import (
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline
+from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
     check_eval_enabled,
     check_main_thread,
@@ -192,19 +192,11 @@ class Trainer:
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.is_viewer_enabled():
-            is_logger_enabled = self.config.is_wandb_enabled() or self.config.is_tensorboard_enabled()
-            if is_logger_enabled:
-                string = (
-                    "[WARNING]: Tensorboard or Wandb enabled with Viewer will slow down Viewer. "
-                    "Please set `--vis viewer` for faster rendering."
-                )
-                CONSOLE.print(f"[bold red]{string}")
-            else:
-                string = (
-                    "[WARNING] Not running eval iterations since only viewer is enabled."
-                    " Please add 'wandb' or 'tensorboard' to the `--vis` list to run evaluations."
-                )
-                CONSOLE.print(f"[bold red]{string}")
+            string = (
+                "[WARNING] Not running eval iterations since only viewer is enabled."
+                " Use `--vis wandb` or `--vis tensorboard` to run with eval instead."
+            )
+            CONSOLE.print(f"[bold red]{string}")
 
     @check_viewer_enabled
     def _init_viewer_scene(self) -> None:

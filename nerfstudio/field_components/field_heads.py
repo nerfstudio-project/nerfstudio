@@ -21,7 +21,7 @@ from typing import Callable, Optional, Union
 from torch import nn
 from torchtyping import TensorType
 
-from nerfstudio.field_components.base import FieldModule
+from nerfstudio.field_components.base_field_component import FieldComponent
 
 
 class FieldHeadNames(Enum):
@@ -36,7 +36,7 @@ class FieldHeadNames(Enum):
     SEMANTICS = "semantics"
 
 
-class FieldHead(FieldModule):
+class FieldHead(FieldComponent):
     """Base field output
 
     Args:

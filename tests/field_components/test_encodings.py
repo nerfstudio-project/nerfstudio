@@ -4,7 +4,7 @@ Encoding Tests
 import pytest
 import torch
 
-from nerfstudio.field_components import encoding
+from nerfstudio.field_components import encodings
 
 
 def test_scaling_and_offset():
@@ -14,7 +14,7 @@ def test_scaling_and_offset():
 
     scaling = 2.0
     offset = 4.5
-    encoder = encoding.ScalingAndOffset(in_dim=in_dim, scaling=scaling, offset=offset)
+    encoder = encodings.ScalingAndOffset(in_dim=in_dim, scaling=scaling, offset=offset)
 
     assert encoder.get_out_dim() == in_dim
     encoded = encoder(in_tensor)
@@ -22,7 +22,7 @@ def test_scaling_and_offset():
     assert in_tensor * 6.5 == pytest.approx(encoded)
 
     with pytest.raises(ValueError):
-        encoding.ScalingAndOffset(in_dim=-1)
+        encodings.ScalingAndOffset(in_dim=-1)
 
 
 def test_nerf_encoder():
@@ -34,7 +34,7 @@ def test_nerf_encoder():
     num_frequencies = 3
     min_freq_exp = 0
     max_freq_exp = 3
-    encoder = encoding.NeRFEncoding(
+    encoder = encodings.NeRFEncoding(
         in_dim=in_dim, num_frequencies=num_frequencies, min_freq_exp=min_freq_exp, max_freq_exp=max_freq_exp
     )
     assert encoder.get_out_dim() == out_dim
@@ -62,7 +62,7 @@ def test_rff_encoder():
 
     num_frequencies = 12
     scale = 5
-    encoder = encoding.RFFEncoding(in_dim=in_dim, num_frequencies=num_frequencies, scale=scale)
+    encoder = encodings.RFFEncoding(in_dim=in_dim, num_frequencies=num_frequencies, scale=scale)
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((2, 3, in_dim))
@@ -83,7 +83,7 @@ def test_tensor_vm_encoder():
     in_dim = 3
     out_dim = 3 * num_components
 
-    encoder = encoding.TensorVMEncoding(num_components=num_components, resolution=resolution)
+    encoder = encodings.TensorVMEncoding(num_components=num_components, resolution=resolution)
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((3, in_dim))
@@ -107,7 +107,7 @@ def test_tensor_cp_encoder():
     in_dim = 3
     out_dim = num_components
 
-    encoder = encoding.TensorCPEncoding(num_components=num_components, resolution=resolution)
+    encoder = encodings.TensorCPEncoding(num_components=num_components, resolution=resolution)
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.ones((3, in_dim))
@@ -128,9 +128,9 @@ def test_tensor_sh_encoder():
     out_dim = levels**2
 
     with pytest.raises(ValueError):
-        encoder = encoding.SHEncoding(levels=5)
+        encoder = encodings.SHEncoding(levels=5)
 
-    encoder = encoding.SHEncoding(levels=levels)
+    encoder = encodings.SHEncoding(levels=levels)
     assert encoder.get_out_dim() == out_dim
 
     in_tensor = torch.zeros((10, 3))
@@ -146,7 +146,7 @@ def test_tensor_hash_encoder():
     features_per_level = 4
     out_dim = num_levels * features_per_level
 
-    encoder = encoding.HashEncoding(
+    encoder = encodings.HashEncoding(
         num_levels=num_levels,
         features_per_level=features_per_level,
         log2_hashmap_size=5,
@@ -159,7 +159,7 @@ def test_tensor_hash_encoder():
     encoded = encoder(in_tensor)
     assert encoded.shape == (10, out_dim)
 
-    encoder = encoding.HashEncoding(
+    encoder = encodings.HashEncoding(
         num_levels=num_levels,
         features_per_level=features_per_level,
         log2_hashmap_size=5,

@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
@@ -176,7 +176,7 @@ class ViewerConfig(PrintableConfig):
 
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.pipelines.base import VanillaPipelineConfig
+from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 
 @dataclass
@@ -205,19 +205,22 @@ class Config(PrintableConfig):
         }
     )
     """optionally specify a pre-defined config to load from"""
-    vis: List[Literal["viewer", "wandb", "tensorboard"]] = field(default_factory=lambda: ["wandb"])
+    vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
+    """Which visualizer to use."""
+    data: Optional[Path] = None
+    """Alias for --pipeline.datamanager.dataparser.data"""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
-        return "viewer" in self.vis
+        return "viewer" == self.vis
 
     def is_wandb_enabled(self) -> bool:
         """Checks if wandb is enabled."""
-        return "wandb" in self.vis
+        return "wandb" == self.vis
 
     def is_tensorboard_enabled(self) -> bool:
         """Checks if tensorboard is enabled."""
-        return "tensorboard" in self.vis
+        return "tensorboard" == self.vis
 
     def set_timestamp(self) -> None:
         """Dynamically set the experiment timestamp"""
@@ -226,7 +229,7 @@ class Config(PrintableConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
