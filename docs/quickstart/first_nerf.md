@@ -1,63 +1,8 @@
-# Installation
+# Training First Model
 
-### Create environment
+## Downloading data
 
-We reccomend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
-
-```bash
-conda create --name nerfstudio -y python=3.8.13
-conda activate nerfstudio
-python -m pip install --upgrade pip
-
-```
-
-### Dependencies
-
-Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
-
-```bash
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
-pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
-
-```
-
-### Installing nerfstudio
-
-Easy option:
-
-```bash
-pip install nerfstudio
-```
-
-If you would want the latest and greatest:
-
-```bash
-git clone git@github.com:plenoptix/nerfstudio.git
-cd nerfstudio
-pip install -e .
-
-```
-
-### Optional Installs
-
-#### Tab completion (bash & zsh)
-
-This needs to be rerun when the CLI changes, for example if nerfstudio is updated.
-
-```bash
-ns-install-cli
-```
-
-### Development packages
-
-```bash
-pip install -e.[dev]
-pip install -e.[docs]
-```
-
-# Downloading data
-
-Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://docs.nerf.studio/en/latest/tutorials/data/index.html).
+Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here TODO].
 
 ```
 ns-download-data --dataset=blender
@@ -78,7 +23,7 @@ Use `--help` to view all currently available datasets. The resulting script shou
          ...
 ```
 
-# Training a model
+## Training a model
 
 To run with all the defaults, e.g. vanilla nerf method with the blender lego image
 
@@ -100,9 +45,9 @@ Run with nerfstudio data. You'll may have to change the ports, and be sure to fo
 ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
 ```
 
-# Visualizing training runs
+## Visualizing training runs
 
-If you using a fast NeRF variant (ie. Instant-NGP), we reccomend using our viewer. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
+If you using a fast NeRF variant (ie. Instant-NGP), we reccomend using our viewer. See our [viewer docs](viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
 
 Additionally, if you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
@@ -110,17 +55,17 @@ Additionally, if you run everything with the default configuration, by default, 
 tensorboard --logdir outputs
 ```
 
-# Rendering a Trajectory
+## Rendering a Trajectory
 
-To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../tooling/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
+To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../developer_guides/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
 ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
 ```
 
-Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](../tutorials/viewer/viewer_quickstart.md) for more.
+Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](viewer_quickstart.md) for more.
 
-# FAQ
+## FAQ
 
 - [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
 
