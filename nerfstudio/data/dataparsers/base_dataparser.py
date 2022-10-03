@@ -51,7 +51,7 @@ class Semantics:
 @dataclass
 class DataparserOutputs:
     """Dataparser outputs for the image dataset and the ray generator."""
-    
+
     image_filenames: List[Path]
     """Filenames for the images."""
     cameras: Cameras

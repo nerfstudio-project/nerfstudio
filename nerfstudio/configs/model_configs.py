@@ -25,9 +25,9 @@ import dcargs
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.mipnerf_dataparser import MipNerf360DataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.models.base_model import VanillaModelConfig
