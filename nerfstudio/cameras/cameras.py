@@ -26,6 +26,7 @@ import torchvision
 from torch.nn.functional import normalize
 from torchtyping import TensorType
 
+import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 
@@ -247,7 +248,7 @@ class Cameras:
         self,
         camera_indices: Union[TensorType["num_rays":...], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
-        camera_to_world_delta: Optional[TensorType["num_rays":..., 3, 4]] = None,
+        camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
@@ -258,7 +259,7 @@ class Cameras:
         Args:
             camera_indices: Indices of the cameras to generate rays for.
             coords: Coordinates of the pixels to generate rays for. If None, the full image will be rendered.
-            camera_to_world_delta: Optional delta for the camera to world matrices.
+            camera_opt_to_camera: Optional transform for the camera to world matrices.
             distortion_params_delta: Optional delta for the distortion parameters.
 
         Returns:
@@ -315,8 +316,8 @@ class Cameras:
             raise ValueError(f"Camera type {CameraType(self.camera_type[0])} not supported.")
 
         c2w = self.camera_to_worlds[camera_indices]
-        if camera_to_world_delta is not None:
-            c2w = c2w + camera_to_world_delta
+        if camera_opt_to_camera is not None:
+            c2w = pose_utils.multiply(c2w, camera_opt_to_camera)
         rotation = c2w[..., :3, :3]  # (..., 3, 3)
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
