@@ -235,7 +235,7 @@ For a more in-depth tutorial on how to modify/implement your own NeRF Graph, ple
 
 We provide the following support strucutures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerf.Studio team!**
+**If you are looking for a feature that is not currently supported, please do not hesitate to contact the nerfstudio team!**
 
 - :mag_right: Web-based visualizer that allows you to:
   - Visualize training in real-time + interact with the scene
