@@ -31,7 +31,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const vis_train_ratio = useSelector(
     (state) => state.renderingState.vis_train_ratio,
   );
-  
+
   // logic for toggling visibility of the entire scene and just the training images
   const [is_scene_visible, set_is_scene_visible] = React.useState(1);
   const [is_images_visible, set_is_images_visible] = React.useState(1);

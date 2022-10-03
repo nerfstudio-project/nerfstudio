@@ -27,7 +27,7 @@ export default function WebSocketUrlField() {
         onChange={websocket_port_onchange}
         size="small"
       />
-      <Link href={`/?websocket_port=${  websocket_port}`}>
+      <Link href={`/?websocket_port=${websocket_port}`}>
         viewer.nerf.studio?websocket_port={websocket_port}
       </Link>
     </div>
