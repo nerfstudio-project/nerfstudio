@@ -72,6 +72,7 @@ interface ListItemProps {
   scene_node: SceneNode;
   level: Number;
   groupVisible: Boolean;
+  canSnap: Boolean;
 }
 
 function MenuItems(props: ListItemProps) {
@@ -80,19 +81,14 @@ function MenuItems(props: ListItemProps) {
   const scene_node = props.scene_node;
   const level = props.level;
   const groupVisible = props.groupVisible;
+  const canSnap = props.canSnap;
 
   // TODO: sort the keys by string
   const terminal = Object.keys(scene_node.children).includes('<object>');
-  const isCamera = () => {
-    return (
-      scene_node.object.children.map((obj) => obj.isCamera).some((e) => e) ||
-      name.includes('Camera')
-    );
-  };
+
   const getCamera = (node) => {
     console.log(node);
-    // return node.object;
-    return node.object.children.filter((obj) => obj.isCamera)[0];
+    return node.object.children[0];
   };
 
   const num_children = Object.keys(scene_node.children).length;
@@ -170,7 +166,7 @@ function MenuItems(props: ListItemProps) {
         </ListItemIcon>
         <ListItemText primary={name} />
 
-        {isCamera() && (
+        {canSnap && (
           <IconButton
             aria-label="visibility"
             onClick={() => snap_to_camera(getCamera(scene_node).matrix)}
@@ -210,6 +206,7 @@ function MenuItems(props: ListItemProps) {
                   scene_node={scene_node.children[key]}
                   level={level + 1}
                   groupVisible={visible}
+                  canSnap={name === 'Training Cameras'}
                 />
               ))}
           </List>
