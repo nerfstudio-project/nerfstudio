@@ -55,7 +55,7 @@ class InstantNGP(DataParser):
 
     config: InstantNGPDataParserConfig
 
-    def _generate_dataset_inputs(self, split="train"):
+    def _generate_dataparser_outputs(self, split="train"):
 
         meta = load_from_json(self.config.data_directory / "transforms.json")
         image_filenames = []
@@ -107,10 +107,10 @@ class InstantNGP(DataParser):
         )
 
         # TODO(ethan): add alpha background color
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
 
-        return dataset_inputs
+        return dataparser_outputs

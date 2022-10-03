@@ -78,7 +78,7 @@ class Mipnerf360(DataParser):
         poses_orig[:, :3, :4] = poses[:, :3, :4]
         return poses_orig
 
-    def _generate_dataset_inputs(self, split="train"):
+    def _generate_dataparser_outputs(self, split="train"):
         image_dir = "images"
         if self.config.downscale_factor > 1:
             image_dir += f"_{self.config.downscale_factor}"
@@ -155,10 +155,10 @@ class Mipnerf360(DataParser):
 
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
 
-        return dataset_inputs
+        return dataparser_outputs

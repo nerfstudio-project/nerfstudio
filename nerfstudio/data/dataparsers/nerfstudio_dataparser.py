@@ -62,7 +62,7 @@ class Nerfstudio(DataParser):
 
     config: NerfstudioDataParserConfig
 
-    def _generate_dataset_inputs(self, split="train"):
+    def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
 
         meta = load_from_json(self.config.data_directory / "transforms.json")
@@ -157,9 +157,9 @@ class Nerfstudio(DataParser):
 
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
-        return dataset_inputs
+        return dataparser_outputs
