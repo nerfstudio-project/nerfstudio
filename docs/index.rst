@@ -13,22 +13,19 @@
   :alt: nerfstudio
   :class: only-dark
 
-Neural Volumetric Rendering
-"""""""""""""""""""""""""""""
-
-All-in-one repository for state-of-the-art NeRFs.
-
-nerfstudio provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and testing NeRFs.
+Nerf.Studio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
 The library supports a **more interpretable implementation of NeRFs by modularizing each component.**
-With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation. 
+With more modular NeRFs, we hope to create a more user-friendly experience in exploring the technology. 
+Nerf.Studio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions. 
 
-It's as simple as plug and play with nerfstudio!
+It's as simple as plug and play with Nerf.Studio!
 
-Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
+Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. 
+As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the Nerf Studio team with any questions.
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the Nerf.Studio team with any questions.
 
-We hope Nerf Studio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
+We hope Nerf.Studio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
 
 |
 
@@ -87,7 +84,7 @@ This documentation is organized into 3 parts:
 Supported Models
 """""""""""""""""""""""""""""
 
-* **Nerfacto**: our defacto NeRF model combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
+* **Nerfacto**: our defacto NeRF model combines modules focused on quality with modules focused on faster rendering. Nerf.Studio easily lets us experiment with the best of both worlds!
 * `NeRF <https://www.matthewtancik.com/nerf>`_: Representing Scenes as Neural Radiance Fields for View Synthesis
 * `Instant NGP <https://nvlabs.github.io/instant-ngp/>`_: Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
 * `Mipnerf-360 <https://jonbarron.info/mipnerf360/>`_: Unbounded Anti-Aliased Neural Radiance Fields
@@ -98,7 +95,7 @@ Supported Models
 
 We'll be constantly growing this list! So make sure to check back in to see our updates.
 
-**Eager to contribute?**  We'd love to see you use Nerfactory in implementing new (or even existing) models! Feel free to contact us directly or view our `Contributor's Guide <https://docs.nerf.studio/en/latest/reference/contributing.html>`_ to see how you can get your model on this list!
+**Eager to contribute?**  We'd love to see you use Nerf.Studio in implementing new (or even existing) models! Feel free to contact us directly or view our `Contributor's Guide <https://docs.nerf.studio/en/latest/reference/contributing.html>`_ to see how you can get your model on this list!
 
 Quicklinks
 """""""""""""""""""""""""""""

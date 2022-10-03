@@ -44,20 +44,23 @@
 - [Supported Features](#supported-features)
 - [See what's possible](#see-whats-possible)
 
-# Philosophy
+# About
 
 All-in-one repository for state-of-the-art NeRFs.
 
-nerfstudio provides a simple API that allows for a seamless and simplified end-to-end process of creating, training, and visualizing NeRFs. The library supports a **more interpretable implementation of NeRFs by modularizing each component**. With more modular NeRFs, not only does your code become far more user-friendly, but using this framework also makes it easier for the community to build upon your implementation.
+Nerf.Studio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
+The library supports a **more interpretable implementation of NeRFs by modularizing each component.**
+With more modular NeRFs, we hope to create a more user-friendly experience in exploring the technology. 
+Nerf.Studio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions. 
 
-It’s as simple as plug and play with nerfstudio!
+It’s as simple as plug and play with Nerf.Studio!
 
 Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the Nerf Studio team with any questions.
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the Nerf.Studio team with any questions.
 
 
-We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
+We hope Nerf.Studio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
 # Quickstart
 
@@ -232,7 +235,7 @@ For a more in-depth tutorial on how to modify/implement your own NeRF Graph, ple
 
 We provide the following support strucutures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Plenoptix team!**
+**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerf.Studio team!**
 
 - :mag_right: Web-based visualizer that allows you to:
   - Visualize training in real-time + interact with the scene
