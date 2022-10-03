@@ -52,7 +52,10 @@ def _load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
         if not os.path.exists(config.load_dir):
             console.rule("Error", style="red")
             console.print(f"No checkpoint directory found at {config.load_dir}, ", justify="center")
-            console.print("Please make sure the checkpoint exists, they should be generated periodically during training", justify="center")
+            console.print(
+                "Please make sure the checkpoint exists, they should be generated periodically during training",
+                justify="center",
+            )
             sys.exit(1)
         load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
     else:
