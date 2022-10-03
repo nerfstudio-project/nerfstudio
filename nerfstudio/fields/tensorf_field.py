@@ -22,19 +22,19 @@ from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
-from nerfactory.cameras.rays import RaySamples
-from nerfactory.datamanagers.structs import SceneBounds
-from nerfactory.fields.base import Field
-from nerfactory.fields.modules.encoding import Encoding, Identity
-from nerfactory.fields.modules.field_heads import (
+from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.datamanagers.structs import SceneBounds
+from nerfstudio.fields.base import Field
+from nerfstudio.fields.modules.encoding import Encoding, Identity
+from nerfstudio.fields.modules.field_heads import (
     DensityFieldHead,
     FieldHead,
     FieldHeadNames,
     RGBFieldHead,
 )
-from nerfactory.fields.modules.mlp import MLP
-from nerfactory.fields.modules.spatial_distortions import SpatialDistortion
-from nerfactory.utils.activations import trunc_exp
+from nerfstudio.fields.modules.mlp import MLP
+from nerfstudio.fields.modules.spatial_distortions import SpatialDistortion
+from nerfstudio.utils.activations import trunc_exp
 
 
 class TensoRFField(Field):
@@ -51,7 +51,7 @@ class TensoRFField(Field):
     def __init__(
         self,
         aabb,
-        position_encoding: Encoding = Identity(in_dim=3),
+        feature_encoding: Encoding = Identity(in_dim=3),
         direction_encoding: Encoding = Identity(in_dim=3),
         density_encoding: Encoding = Identity(in_dim=3),
         color_encoding: Encoding = Identity(in_dim=3),
@@ -62,13 +62,13 @@ class TensoRFField(Field):
         super().__init__()
         self.aabb = Parameter(aabb, requires_grad=False)
         self.spatial_distortion = spatial_distortion
-        self.position_encoding = position_encoding
+        self.feature_encoding = feature_encoding
         self.direction_encoding = direction_encoding
         self.density_encoding = density_encoding
         self.color_encoding = color_encoding
 
         self.mlp_head = MLP(
-            in_dim=27 + 3,
+            in_dim=27 + 3 + self.direction_encoding.get_out_dim() + self.feature_encoding.get_out_dim(),
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
             activation=nn.ReLU(),
@@ -90,11 +90,14 @@ class TensoRFField(Field):
     ) -> Dict[FieldHeadNames, TensorType]:
         d = ray_samples.frustums.directions
         positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-        rgb_encoded = self.color_encoding(positions)
+        rgb_features = self.color_encoding(positions)
 
         B = nn.Linear(in_features=self.color_encoding.get_out_dim(), out_features=27, bias=False, device=d.device)
-        rgb_features = B(rgb_encoded)
+        rgb_features = B(rgb_features)
 
-        mlp_out = self.mlp_head(torch.cat([d, rgb_features], dim=-1))  # type: ignore
+        d_encoded = self.direction_encoding(d)
+        rgb_features_encoded = self.feature_encoding(rgb_features)
+
+        mlp_out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
         rgb = self.field_output_rgb(mlp_out)
         return {FieldHeadNames.RGB: rgb}

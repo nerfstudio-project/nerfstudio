@@ -202,11 +202,11 @@ base_configs["tensorf"] = Config(
         },
         "color_encoding": {
             "optimizer": RAdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
         },
         "density_encoding": {
             "optimizer": RAdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
+            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
         },
     },
 )

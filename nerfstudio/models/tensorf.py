@@ -30,11 +30,12 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.utils import to_immutable_dict
-from nerfstudio.fields.modules.encoding import TensorVMEncoding
+from nerfstudio.fields.modules.encoding import RFFEncoding, TensorVMEncoding
 from nerfstudio.fields.modules.field_heads import FieldHeadNames
-from nerfstudio.fields.nerf_field import NeRFField
+from nerfstudio.fields.tensorf_field import TensoRFField
 from nerfstudio.models.base import Model, VanillaModelConfig
 from nerfstudio.models.modules.ray_sampler import PDFSampler, UniformSampler
+from nerfstudio.models.modules.scene_colliders import AABBBoxCollider
 from nerfstudio.optimizers.loss import L1Loss, MSELoss
 from nerfstudio.optimizers.optimizers import Optimizers
 from nerfstudio.renderers.renderers import (
@@ -58,9 +59,9 @@ class TensoRFModelConfig(VanillaModelConfig):
     """target class to instantiate"""
     init_resolution: int = 128
     """initial render resolution"""
-    final_resolution: int = 200
+    final_resolution: int = 300
     """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = ()  # (5000, 5500, 7000)
+    upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0, "feature_loss": 8e-5})
     """Loss specific weights."""
@@ -140,18 +141,14 @@ class TensoRFModel(Model):
         )
         color_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=8,
+            num_components=24,
         )
-        position_encoding = NeRFEncoding(
-            in_dim=3, num_frequencies=10, min_freq_exp=0.0, max_freq_exp=8.0, include_input=True
-        )
-        direction_encoding = NeRFEncoding(
-            in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
-        )
+        feature_encoding = RFFEncoding(in_dim=27, num_frequencies=6, scale=2 * torch.pi)
+        direction_encoding = RFFEncoding(in_dim=3, num_frequencies=6, scale=2 * torch.pi)
 
         self.field = TensoRFField(
             self.scene_bounds.aabb,
-            position_encoding=position_encoding,
+            feature_encoding=feature_encoding,
             direction_encoding=direction_encoding,
             density_encoding=density_encoding,
             color_encoding=color_encoding,
@@ -183,7 +180,7 @@ class TensoRFModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        param_groups["fields"] = list(self.field.parameters())
+        param_groups["fields"] = list(self.field.mlp_head.parameters())
         param_groups["color_encoding"] = list(self.field.color_encoding.parameters())
         param_groups["density_encoding"] = list(self.field.density_encoding.parameters())
         return param_groups
@@ -194,6 +191,7 @@ class TensoRFModel(Model):
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
         # coarse field:
+
         field_outputs_coarse = self.field.forward(ray_samples_uniform)
         weights = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
         rgb = self.renderer_rgb(
@@ -219,8 +217,8 @@ class TensoRFModel(Model):
         plane_feature_loss = self.feature_loss(plane_coef, torch.zeros_like(plane_coef))
         line_feature_loss = self.feature_loss(line_coef, torch.zeros_like(line_coef))
 
-        # loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
-        loss_dict = {"rgb_loss": rgb_loss}
+        loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
+        # loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
