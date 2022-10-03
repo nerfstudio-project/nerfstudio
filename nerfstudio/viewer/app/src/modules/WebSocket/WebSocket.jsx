@@ -15,7 +15,7 @@ export default function WebSocketContextFunction({ children }) {
   let ws = null;
   let socket = null;
 
-  // this code will rerender anytime the webosocket changes now
+  // this code will rerender anytime the websocket changes now
   const websocket_port = useSelector(
     (state) => state.websocketState.websocket_port,
   );
