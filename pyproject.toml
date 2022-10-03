@@ -68,6 +68,7 @@ docs = [
     "nbformat==5.4.0",
     "sphinx==4.5.0",
     "sphinxemoji==0.2.0",
+    "sphinx-argparse==0.3.1"
     "sphinx-copybutton==0.5.0",
     "sphinx-design==0.2.0"
 ]
