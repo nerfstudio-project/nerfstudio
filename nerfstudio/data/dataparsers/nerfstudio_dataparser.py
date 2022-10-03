@@ -38,7 +38,7 @@ from nerfstudio.utils.io import load_from_json
 
 console = Console()
 
-MAX_AUTO_RESOLUTION = 2000
+MAX_AUTO_RESOLUTION = 1600
 
 
 @dataclass
@@ -52,7 +52,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
-    """How much to downscale images. If not set, images are chosen such that the max dimension is <2000px."""
+    """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up"] = "up"
