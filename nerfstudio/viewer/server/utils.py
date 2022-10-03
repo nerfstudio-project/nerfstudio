@@ -120,7 +120,7 @@ def timeout(timeout_in_sec):
     def deco(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            res = [Exception("function [%s] timeout [%s seconds] exceeded!" % (func.__name__, timeout_in_sec))]
+            res = [Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")]
 
             def new_func():
                 try:
