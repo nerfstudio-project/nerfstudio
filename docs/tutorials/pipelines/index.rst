@@ -6,7 +6,6 @@ Here we show you how to create a custom pipeline.
 # TODO: show a figure of what a pipeline is here
 
 .. image:: imgs/pipelines_overview.png
-  :width: 400
   :align: center
 
 .. toctree::
