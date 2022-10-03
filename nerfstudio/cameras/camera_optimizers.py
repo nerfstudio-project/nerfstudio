@@ -19,7 +19,7 @@ Pose and Intrinsics Optimizers
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Type, Union
+from typing import Optional, Type, Union
 
 import torch
 from torch import nn
@@ -42,7 +42,7 @@ class BARFPoseOptimizerConfig(CameraOptimizerConfig):
     """BARF camera optimizer."""
 
     _target: Type = field(default_factory=lambda: BARFOptimizer)
-    noise_variance: float = 0.0
+    noise_variance: Optional[float] = None
     """Optional additional noise to add to poses. Useful for debugging pose optimization."""
 
 
@@ -84,9 +84,9 @@ class BARFOptimizer(CameraOptimizer):
 
     def __init__(self, config: BARFPoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
         super().__init__(config, num_cameras, device)
-        self.noise_variance = config.noise_variance
-        pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.noise_variance)
-        self.pose_noise = self.exp_map(pose_noise).detach().to(device)
+        if self.config.noise_variance is not None:
+            pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.config.noise_variance)
+            self.pose_noise = self.exp_map(pose_noise).detach().to(device)
         self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
         nn.init.zeros_(self.pose_adjustment.weight)
 
@@ -145,5 +145,6 @@ class BARFOptimizer(CameraOptimizer):
 
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
         c_opt2c = self.exp_map(self.pose_adjustment.weight[indices])
-        c_opt2c = pose_utils.multiply(c_opt2c, self.pose_noise[indices])
+        if self.config.noise_variance is not None:
+            c_opt2c = pose_utils.multiply(c_opt2c, self.pose_noise[indices])
         return c_opt2c
