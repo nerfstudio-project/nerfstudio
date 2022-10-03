@@ -181,7 +181,7 @@ class RenderTrajectory:
     # Path to config YAML file.
     load_config: Path
     # Name of the renderer output to use. rgb, depth, etc.
-    rendered_output_name: str = "rgb_fine"
+    rendered_output_name: str = "rgb"
     #  Trajectory to render.
     traj: Literal["spiral", "interp", "filename"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
