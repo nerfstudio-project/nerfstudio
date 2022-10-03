@@ -13,19 +13,19 @@
   :alt: nerfstudio
   :class: only-dark
 
-Nerf.Studio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
+Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
 The library supports a **more interpretable implementation of NeRFs by modularizing each component.**
 With more modular NeRFs, we hope to create a more user-friendly experience in exploring the technology. 
-Nerf.Studio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions. 
+Nerfstudio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions. 
 
-It's as simple as plug and play with Nerf.Studio!
+It's as simple as plug and play with nerfstudio!
 
 Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. 
 As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the Nerf.Studio team with any questions.
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the nerfstudio team with any questions.
 
-We hope Nerf.Studio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
+We hope nerfstudio enables you to build faster 🔨 learn together 📚 and contribute to our NeRF community 💖.
 
 |
 
@@ -72,10 +72,10 @@ Contents
 
 This documentation is organized into 3 parts:
 
-* **Getting Started**: a great place to start if you are new to nerfstudio. Contains a quick tour, installation, and an overview of the core structures that will allow you to get up and running with nerfstudio.
-* **Guides**: want to learn more about the tech itself? We're here to help! We've provided some interactive guides that walk you through what each component is all about. 
-* **Tooling**: describes all of the additional support we provide to help you debug and improve your NeRFs (e.g logging, performance profiling)
-* **Reference**: describes each class and function. Develop a better understanding of the core of our technology and terminology. This section includes descriptions of each module and component in the codebase.
+* **🏃‍♀️ Getting Started**: a great place to start if you are new to nerfstudio. Contains a quick tour, installation, and an overview of the core structures that will allow you to get up and running with nerfstudio.
+* **🧪 Nerfology**: want to learn more about the tech itself? We're here to help with our educational guides. We've provided some interactive notebooks that walk you through what each component is all about. 
+* **🤓 Developer Guides**: describes all of the components and additional support we provide to help you construct, train, and debug your NeRFs. Learn how to set up a model pipeline, use the viewer, create a custom config, and more.
+* **📚 Reference**: describes each class and function. Develop a better understanding of the core of our technology and terminology. This section includes descriptions of each module and component in the codebase.
 
 
 |
@@ -84,7 +84,7 @@ This documentation is organized into 3 parts:
 Supported Models
 """""""""""""""""""""""""""""
 
-* **Nerfacto**: our defacto NeRF model combines modules focused on quality with modules focused on faster rendering. Nerf.Studio easily lets us experiment with the best of both worlds!
+* **Nerfacto**: our defacto NeRF model combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
 * `NeRF <https://www.matthewtancik.com/nerf>`_: Representing Scenes as Neural Radiance Fields for View Synthesis
 * `Instant NGP <https://nvlabs.github.io/instant-ngp/>`_: Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
 * `Mipnerf-360 <https://jonbarron.info/mipnerf360/>`_: Unbounded Anti-Aliased Neural Radiance Fields
@@ -95,7 +95,7 @@ Supported Models
 
 We'll be constantly growing this list! So make sure to check back in to see our updates.
 
-**Eager to contribute?**  We'd love to see you use Nerf.Studio in implementing new (or even existing) models! Feel free to contact us directly or view our `Contributor's Guide <https://docs.nerf.studio/en/latest/reference/contributing.html>`_ to see how you can get your model on this list!
+**Eager to contribute?**  We'd love to see you use nerfstudio in implementing new (or even existing) models! Feel free to contact us directly or view our `Contributor's Guide <https://docs.nerf.studio/en/latest/reference/contributing.html>`_ to see how you can get your model on this list!
 
 Quicklinks
 """""""""""""""""""""""""""""
