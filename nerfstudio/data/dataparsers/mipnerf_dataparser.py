@@ -38,8 +38,8 @@ class MipNerf360DataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Mipnerf360)
     """target class to instantiate"""
-    data_directory: Path = Path("data/mipnerf_360/garden")
-    """directory specifying location of data"""
+    data: Path = Path("data/mipnerf_360/garden")
+    """Directory specifying location of data."""
     downscale_factor: int = 1
     """How much to downscale images."""
     val_skip: int = 8
@@ -82,7 +82,7 @@ class Mipnerf360(DataParser):
         image_dir = "images"
         if self.config.downscale_factor > 1:
             image_dir += f"_{self.config.downscale_factor}"
-        image_dir = self.config.data_directory / image_dir
+        image_dir = self.config.data / image_dir
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
@@ -96,7 +96,7 @@ class Mipnerf360(DataParser):
         image_filenames = sorted(image_filenames)
         num_images = len(image_filenames)
 
-        poses_data = np.load(self.config.data_directory / "poses_bounds.npy")
+        poses_data = np.load(self.config.data / "poses_bounds.npy")
         poses = poses_data[:, :-2].reshape([-1, 3, 5]).astype(np.float32)
         bounds = poses_data[:, -2:].transpose([1, 0])
 

@@ -51,7 +51,7 @@ class Semantics:
 @dataclass
 class DataparserOutputs:
     """Dataparser outputs for the image dataset and the ray generator."""
-
+    
     image_filenames: List[Path]
     """Filenames for the images."""
     cameras: Cameras
@@ -80,6 +80,8 @@ class DataParserConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: DataParser)
     """_target: target class to instantiate"""
+    data: Path = Path()
+    """Directory specifying location of data."""
 
 
 @dataclass

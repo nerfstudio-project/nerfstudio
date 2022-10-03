@@ -54,7 +54,7 @@ def run_viewer_bridge_server_as_subprocess(
         sock.bind(("", 0))
         zmq_port = sock.getsockname()[1]
         string = f"Using ZMQ port: {zmq_port}"
-        CONSOLE.print(f"[bold red]{string}")
+        CONSOLE.print(f"[bold yellow]{string}")
 
     args.append("--zmq-port")
     args.append(str(zmq_port))

@@ -187,6 +187,9 @@ def main(config: cfg.Config) -> None:
     """Main function."""
 
     config.set_timestamp()
+    if config.data:
+        logging.info("Using --data alias for --data.pipeline.datamanager.dataparser.data")
+        config.pipeline.datamanager.dataparser.data = config.data
 
     if config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")

@@ -206,6 +206,9 @@ class Config(PrintableConfig):
     )
     """optionally specify a pre-defined config to load from"""
     vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
+    """Which visualizer to use."""
+    data: Optional[Path] = None
+    """Alias for --pipeline.datamanager.dataparser.data"""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
@@ -226,7 +229,7 @@ class Config(PrintableConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
