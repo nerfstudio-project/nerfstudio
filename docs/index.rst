@@ -36,22 +36,29 @@ Contents
    :hidden:
    :caption: Getting Started
 
-   Quickstart<tutorials/quickstart_index>
-   tutorials/data/index
-   tutorials/pipelines/index
-   tutorials/viewer/index
+   quickstart/installation
+   quickstart/first_nerf
+   quickstart/custom_dataset
+   quickstart/viewer_quickstart
+   Contributing<reference/contributing.md>
 
 .. toctree::
    :hidden:
-   :caption: Guides
+   :caption: NeRFology
 
-   guides/index
+   nerfology/models/index
+   nerfology/model_components/index
+   nerfology/dataloader_components/index
 
 .. toctree::
    :hidden:
-   :caption: Tooling
+   :caption: Developer Guides
 
-   tooling/index
+   developer_guides/pipelines/index
+   developer_guides/viewer/index
+   developer_guides/config
+   developer_guides/logging_profiling
+   developer_guides/benchmarking
    
 .. toctree::
    :hidden:
@@ -59,7 +66,6 @@ Contents
 
    reference/cli/index
    reference/api/index
-   Contributing<reference/contributing.md>
 
 
 
