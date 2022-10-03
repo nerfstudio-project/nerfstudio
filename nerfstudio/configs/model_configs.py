@@ -74,7 +74,7 @@ model_configs["nerfacto"] = Config(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
-    vis=["viewer"],
+    vis="viewer",
 )
 
 model_configs["instant-ngp"] = Config(
@@ -91,7 +91,7 @@ model_configs["instant-ngp"] = Config(
         }
     },
     viewer=ViewerConfig(num_rays_per_chunk=64000),
-    vis=["viewer"],
+    vis="viewer",
 )
 
 model_configs["mipnerf-360"] = Config(
