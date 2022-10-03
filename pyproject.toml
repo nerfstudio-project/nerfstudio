@@ -18,7 +18,7 @@ dependencies = [
     "aiortc==1.3.2",
     "appdirs>=1.4",
     "av==9.2.0",
-    "dcargs>=0.3.14",
+    "dcargs>=0.3.17",
     "gdown==4.5.1",
     "ninja==1.10.2.3",
     "functorch==0.2.1",
