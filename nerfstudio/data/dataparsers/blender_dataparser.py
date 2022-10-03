@@ -62,7 +62,7 @@ class Blender(DataParser):
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
 
-    def _generate_dataset_inputs(self, split="train"):
+    def _generate_dataparser_outputs(self, split="train"):
         if self.alpha_color is not None:
             alpha_color_tensor = get_color(self.alpha_color)
         else:
@@ -99,11 +99,11 @@ class Blender(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             alpha_color=alpha_color_tensor,
             scene_box=scene_box,
         )
 
-        return dataset_inputs
+        return dataparser_outputs

@@ -60,7 +60,7 @@ class Record3D(DataParser):
 
     config: Record3DDataParserConfig
 
-    def _generate_dataset_inputs(self, split: str = "train") -> DataparserOutputs:
+    def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
         image_dir = self.config.data_directory / "rgb"
 
         if not image_dir.exists():
@@ -144,10 +144,10 @@ class Record3D(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
         )
 
-        return dataset_inputs
+        return dataparser_outputs

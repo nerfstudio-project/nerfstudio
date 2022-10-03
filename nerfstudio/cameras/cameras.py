@@ -49,7 +49,7 @@ CAMERA_MODEL_TO_TYPE = {
 
 
 class Cameras:
-    """Dataset inputs for the image dataset and the ray generator.
+    """Dataparser outputs for the image dataset and the ray generator.
 
     Note: currently only supports cameras with the same principal points and types. The reason we type
     the focal lengths, principal points, and image sizes as tensors is to allow for batched cameras

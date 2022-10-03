@@ -284,9 +284,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.local_rank = local_rank
         self.sampler = None
 
-        self.train_dataset = InputDataset(config.dataparser.setup().get_dataset_inputs(split="train"))
+        self.train_dataset = InputDataset(config.dataparser.setup().get_dataparser_outputs(split="train"))
         self.eval_dataset = InputDataset(
-            config.dataparser.setup().get_dataset_inputs(split="val" if not test_mode else "test")
+            config.dataparser.setup().get_dataparser_outputs(split="val" if not test_mode else "test")
         )
         super().__init__()
 
@@ -310,10 +310,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
-            num_cameras=self.train_dataset.dataset_inputs.cameras.size, device=self.device
+            num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
         self.train_ray_generator = RayGenerator(
-            self.train_dataset.dataset_inputs.cameras.to(self.device),
+            self.train_dataset.dataparser_outputs.cameras.to(self.device),
             self.train_camera_optimizer,
         )
 
@@ -337,7 +337,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.dataset_inputs.cameras.to(self.device),
+            self.eval_dataset.dataparser_outputs.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
         )
         # for loading full images

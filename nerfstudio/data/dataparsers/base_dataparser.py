@@ -50,7 +50,7 @@ class Semantics:
 
 @dataclass
 class DataparserOutputs:
-    """Dataset inputs for the image dataset and the ray generator."""
+    """Dataparser outputs for the image dataset and the ray generator."""
 
     image_filenames: List[Path]
     """Filenames for the images."""
@@ -64,7 +64,7 @@ class DataparserOutputs:
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
     {input_name:
-    ... {"func": function to process additional dataset inputs,
+    ... {"func": function to process additional dataparser outputs,
     ... "kwargs": dictionary of data to pass into "func"}
     }
     """
@@ -97,24 +97,24 @@ class DataParser:
         self.config = config
 
     @abstractmethod
-    def _generate_dataset_inputs(self, split: str = "train") -> DataparserOutputs:
-        """Abstract method that returns the dataset inputs for the given split.
+    def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
+        """Abstract method that returns the dataparser outputs for the given split.
 
         Args:
             split: Which dataset split to generate (train/test).
 
         Returns:
-            DatasetInputs containing data for the specified dataset and split
+            DataparserOutputs containing data for the specified dataset and split
         """
 
-    def get_dataset_inputs(self, split: str = "train") -> DataparserOutputs:
-        """Returns the dataset inputs for the given split.
+    def get_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
+        """Returns the dataparser outputs for the given split.
 
         Args:
             split: Which dataset split to generate (train/test).
 
         Returns:
-            DatasetInputs containing data for the specified dataset and split
+            DataparserOutputs containing data for the specified dataset and split
         """
-        dataset_inputs = self._generate_dataset_inputs(split)
-        return dataset_inputs
+        dataparser_outputs = self._generate_dataparser_outputs(split)
+        return dataparser_outputs

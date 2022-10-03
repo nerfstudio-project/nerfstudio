@@ -33,15 +33,15 @@ class InputDataset(Dataset):
     """Dataset that returns images.
 
     Args:
-        dataset_inputs: description of where and how to read input images.
+        dataparser_outputs: description of where and how to read input images.
     """
 
-    def __init__(self, dataset_inputs: DataparserOutputs):
+    def __init__(self, dataparser_outputs: DataparserOutputs):
         super().__init__()
-        self.dataset_inputs = dataset_inputs
+        self.dataparser_outputs = dataparser_outputs
 
     def __len__(self):
-        return len(self.dataset_inputs.image_filenames)
+        return len(self.dataparser_outputs.image_filenames)
 
     def get_numpy_image(self, image_idx: int) -> npt.NDArray[np.uint8]:
         """Returns the image of shape (H, W, 3 or 4).
@@ -49,7 +49,7 @@ class InputDataset(Dataset):
         Args:
             image_idx: The image index in the dataset.
         """
-        image_filename = self.dataset_inputs.image_filenames[image_idx]
+        image_filename = self.dataparser_outputs.image_filenames[image_idx]
         pil_image = Image.open(image_filename)
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
@@ -64,9 +64,9 @@ class InputDataset(Dataset):
             image_idx: The image index in the dataset.
         """
         image = torch.from_numpy(self.get_numpy_image(image_idx).astype("float32") / 255.0)
-        if self.dataset_inputs.alpha_color is not None and image.shape[-1] == 4:
+        if self.dataparser_outputs.alpha_color is not None and image.shape[-1] == 4:
             assert image.shape[-1] == 4
-            image = image[:, :, :3] * image[:, :, -1:] + self.dataset_inputs.alpha_color * (1.0 - image[:, :, -1:])
+            image = image[:, :, :3] * image[:, :, -1:] + self.dataparser_outputs.alpha_color * (1.0 - image[:, :, -1:])
         else:
             image = image[:, :, :3]
         return image
@@ -80,7 +80,7 @@ class InputDataset(Dataset):
         image = self.get_image(image_idx)
         data = {"image_idx": image_idx}
         data["image"] = image
-        for _, data_func_dict in self.dataset_inputs.additional_inputs.items():
+        for _, data_func_dict in self.dataparser_outputs.additional_inputs.items():
             assert "func" in data_func_dict, "Missing function to process data: specify `func` in `additional_inputs`"
             func = data_func_dict["func"]
             assert "kwargs" in data_func_dict, "No data to process: specify `kwargs` in `additional_inputs`"

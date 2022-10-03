@@ -81,7 +81,7 @@ class Friends(DataParser):
 
     config: FriendsDataParserConfig
 
-    def _generate_dataset_inputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
+    def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
 
         cameras_json = load_from_json(self.config.data_directory / "cameras.json")
         frames = cameras_json["frames"]
@@ -182,10 +182,10 @@ class Friends(DataParser):
         )
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
-        dataset_inputs = DataparserOutputs(
+        dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
             additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
         )
-        return dataset_inputs
+        return dataparser_outputs
