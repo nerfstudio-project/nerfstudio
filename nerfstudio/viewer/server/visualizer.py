@@ -15,11 +15,8 @@
 """Code to connect and send commands to the viewer.
 """
 
-import functools
 import logging
-import signal
 import sys
-from threading import Thread
 from typing import Dict, Optional, Union
 
 import msgpack
@@ -28,38 +25,7 @@ import umsgpack
 import zmq
 
 from nerfstudio.viewer.server.path import Path
-
-
-def timeout(timeout_in_sec):
-    """Timeout if function fails to complete in timeout_in_secs seconds"""
-
-    def deco(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            res = [Exception("function [%s] timeout [%s seconds] exceeded!" % (func.__name__, timeout_in_sec))]
-
-            def newFunc():
-                try:
-                    res[0] = func(*args, **kwargs)
-                except Exception as e:
-                    res[0] = e
-
-            t = Thread(target=newFunc)
-            t.daemon = True
-            try:
-                t.start()
-                t.join(timeout_in_sec)
-            except Exception as je:
-                print("error starting thread")
-                raise je
-            ret = res[0]
-            if isinstance(ret, BaseException):
-                raise ret
-            return ret
-
-        return wrapper
-
-    return deco
+from nerfstudio.viewer.server.utils import timeout
 
 
 class ViewerWindow:
@@ -99,17 +65,13 @@ class ViewerWindow:
         )
         return umsgpack.unpackb(self.client.recv())
 
-    def assert_connected(self, timeout_in_sec: int = 5):
+    def assert_connected(self, timeout_in_sec: int = 10):
         """Check if the connection was established properly within some time.
 
         Args:
             timeout_in_sec (int): The maximum time to wait for the connection to be established.
         """
-
-        def timeout_handler(signum, frame):
-            raise Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")
-
-        try_ping = timeout(timeout=timeout_in_sec)(self.send_ping)
+        try_ping = timeout(timeout_in_sec=timeout_in_sec)(self.send_ping)
         try:
             logging.info("Sending ping to the viewer Bridge Server...")
             _ = try_ping()
