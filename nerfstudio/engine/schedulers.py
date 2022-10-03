@@ -15,10 +15,10 @@
 """Scheduler Classes"""
 
 from dataclasses import dataclass, field
-from typing import Any, Type
+from typing import Any, Optional, Type
 
 import numpy as np
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim import Optimizer, lr_scheduler
 
 from nerfstudio.configs.base_config import InstantiateConfig
 
@@ -38,7 +38,7 @@ class SchedulerConfig(InstantiateConfig):
         return self._target(optimizer, lr_init, self.lr_final, self.max_steps)
 
 
-class ExponentialDecaySchedule(LambdaLR):
+class ExponentialDecaySchedule(lr_scheduler.LambdaLR):
     """Exponential learning rate decay function.
     See https://github.com/google-research/google-research/blob/
     fd2cea8cdd86b3ed2c640cbe5561707639e682f3/jaxnerf/nerf/utils.py#L360
@@ -71,3 +71,46 @@ class ExponentialDecaySchedule(LambdaLR):
             return delay_rate * multiplier
 
         super().__init__(optimizer, lr_lambda=func)
+
+
+class DelayerScheduler(lr_scheduler.LambdaLR):
+    """Starts with a flat lr schedule until it reaches N epochs then applies a given scheduler"""
+
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        lr_init,  # pylint: disable=unused-argument
+        lr_final,  # pylint: disable=unused-argument
+        max_steps,  # pylint: disable=unused-argument
+        delay_epochs: int = 500,
+        after_scheduler: Optional[lr_scheduler.LambdaLR] = None,
+    ) -> None:
+        def func(step):
+            if step > delay_epochs:
+                if after_scheduler is not None:
+                    multiplier = after_scheduler.lr_lambdas[0](step - delay_epochs)  # type: ignore
+                    return multiplier
+                return 1.0
+            return 0.0
+
+        super().__init__(optimizer, lr_lambda=func)
+
+
+class DelayedExponentialScheduler(DelayerScheduler):
+    """Delayer Scheduler with an Exponential Scheduler initialized afterwards."""
+
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        lr_init,
+        lr_final,
+        max_steps,
+        delay_epochs: int = 200,
+    ):
+        after_scheduler = ExponentialDecaySchedule(
+            optimizer,
+            lr_init,
+            lr_final,
+            max_steps,
+        )
+        super().__init__(optimizer, lr_init, lr_final, max_steps, delay_epochs, after_scheduler=after_scheduler)

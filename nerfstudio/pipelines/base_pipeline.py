@@ -250,6 +250,14 @@ class VanillaPipeline(Pipeline):
             valid_mask = model_outputs["valid_mask"]
             batch = get_masked_dict(batch, valid_mask)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        if "camera_opt" in self.datamanager.get_param_groups():
+            # Report the camera optimization metrics
+            metrics_dict["camera_opt_translation"] = (
+                self.datamanager.get_param_groups()["camera_opt"][0].data[:, :3].norm()
+            )
+            metrics_dict["camera_opt_rotation"] = (
+                self.datamanager.get_param_groups()["camera_opt"][0].data[:, 3:].norm()
+            )
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
         return model_outputs, loss_dict, metrics_dict

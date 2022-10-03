@@ -18,21 +18,24 @@ Ray generator.
 from torch import nn
 from torchtyping import TensorType
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizer
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 
 
 class RayGenerator(nn.Module):
     """torch.nn Module for generating rays.
-    This class will store the intrinsics and extrinsics parameters of the cameras.
+    This class is the interface between the scene's cameras/camera optimizer and the ray sampler.
 
     Args:
-        cameras: Camera objects containing camera info
+        cameras: Camera objects containing camera info.
+        pose_optimizer: pose optimization module, for optimizing noisy camera intrisics/extrinsics.
     """
 
-    def __init__(self, cameras: Cameras) -> None:
+    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
         super().__init__()
         self.cameras = cameras
+        self.pose_optimizer = pose_optimizer
         self.image_coords = nn.Parameter(cameras.get_image_coords(), requires_grad=False)
 
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
@@ -46,8 +49,11 @@ class RayGenerator(nn.Module):
         x = ray_indices[:, 2]  # col indices
         coords = self.image_coords[y, x]
 
+        camera_opt_to_camera = self.pose_optimizer(c)
+
         ray_bundle = self.cameras.generate_rays(
             camera_indices=c,
             coords=coords,
+            camera_opt_to_camera=camera_opt_to_camera,
         )
         return ray_bundle
