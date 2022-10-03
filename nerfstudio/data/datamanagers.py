@@ -50,17 +50,19 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 
-AnnotatedDataParserUnion = dcargs.extras.subcommand_type_from_defaults(
-    {
-        "nerfstudio-data": NerfstudioDataParserConfig(),
-        "blender-data": BlenderDataParserConfig(),
-        "friends-data": FriendsDataParserConfig(),
-        "mipnerf-360-data": MipNerf360DataParserConfig(),
-        "instant-ngp-data": InstantNGPDataParserConfig(),
-        "record3d-data": Record3DDataParserConfig(),
-    },
-    prefix_names=False,
-)
+AnnotatedDataParserUnion = dcargs.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
+    dcargs.extras.subcommand_type_from_defaults(
+        {
+            "nerfstudio-data": NerfstudioDataParserConfig(),
+            "blender-data": BlenderDataParserConfig(),
+            "friends-data": FriendsDataParserConfig(),
+            "mipnerf-360-data": MipNerf360DataParserConfig(),
+            "instant-ngp-data": InstantNGPDataParserConfig(),
+            "record3d-data": Record3DDataParserConfig(),
+        },
+        prefix_names=False,  # Omit prefixes in subcommands themselves.
+    )
+]
 """Union over possible dataparser types, annotated with metadata for dcargs. This is the
 same as the vanilla union, but results in shorter subcommand names."""
 
