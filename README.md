@@ -65,7 +65,7 @@ We hope nerfstudio enables you to build faster :hammer: learn together :books: a
 # Quickstart
 
 The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene.
-For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please refer to our [references](#learn-more).
+For more complex changes (e.g. running with your own data/setting up a new NeRF graph, please refer to our [references](#learn-more).
 
 ## 1. Installation: Setup the environment
 
