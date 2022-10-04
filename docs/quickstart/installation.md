@@ -32,7 +32,7 @@ pip install nerfstudio
 **From source**
 
 ```bash
-git clone git@github.com:plenoptix/nerfstudio.git
+git clone git@github.com:nerfstudio-project/nerfstudio.git
 cd nerfstudio
 pip install -e .
 
