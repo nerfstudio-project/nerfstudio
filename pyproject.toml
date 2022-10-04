@@ -81,7 +81,7 @@ ns-download-data = "scripts.downloads.download_data:entrypoint"
 ns-train = "scripts.train:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
 ns-render = "scripts.render:entrypoint"
-ns-dev-test = "scripts.debugging.run_actions:entrypoint"
+ns-dev-test = "scripts.github.run_actions:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision

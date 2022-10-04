@@ -41,7 +41,7 @@ quickstart/installation
 quickstart/first_nerf
 quickstart/custom_dataset
 quickstart/viewer_quickstart
-Contributing<reference/contributing.md>
+Contributing<reference/contributing>
 ```
 
 ```{toctree}
@@ -60,8 +60,7 @@ nerfology/dataloader_components/index
 developer_guides/pipelines/index
 developer_guides/viewer/index
 developer_guides/config
-developer_guides/logging_profiling
-developer_guides/benchmarking
+developer_guides/debugging_tools/index
 ```
 
 ```{toctree}

@@ -100,4 +100,4 @@ Calculate the psnr of your trained model and save to a json file.
 ns-eval --load-config={PATH_TO_CONFIG} --output-path=output.json
 ```
 
-We also provide a train and evaluation script that allows you to do benchmarking on the classical Blender dataset (see our [benchmarking workflow](../developer_guides/benchmarking.md)).
+We also provide a train and evaluation script that allows you to do benchmarking on the classical Blender dataset (see our [benchmarking workflow](../developer_guides/debugging_tools/benchmarking.md)).

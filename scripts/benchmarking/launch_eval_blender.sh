@@ -63,7 +63,7 @@ for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
     config_path="${output_dir}/blender_${dataset}_${timestamp::-7}/${method_name}/${timestamp}/config.yml"
     ns-eval --load-config=${config_path} \
-            --output-path=${output_dir}/${method_name}/blender_${timestamp}.json &
+            --output-path=${output_dir}/${method_name}/blender_${dataset}_${timestamp}.json &
     echo "Launched ${config_path} on gpu ${GPU_IDX[$idx]}"
 
     # update gpu
