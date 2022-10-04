@@ -289,6 +289,19 @@ class ViewerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
+    def _check_camera_path_payload(self, trainer, step: int):
+        """Check to see if the camera path export button was pressed."""
+        # check if we should interrupt from a button press?
+        camera_path_payload = self.vis["camera_path_payload"].read()
+        if camera_path_payload:
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
+            # write to json file
+            camera_path_filename = camera_path_payload["camera_path_filename"]
+            camera_path = camera_path_payload["camera_path"]
+            write_to_json(Path(camera_path_filename), camera_path)
+            self.vis["camera_path_payload"].delete()
+
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
@@ -300,16 +313,7 @@ class ViewerState:
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
 
-        # check if we should interrupt from a button press?
-        camera_path_payload = self.vis["camera_path_payload"].read()
-        if camera_path_payload:
-            # save a model checkpoint
-            trainer.save_checkpoint(step)
-            # write to json file
-            camera_path_filename = camera_path_payload["camera_path_filename"]
-            camera_path = camera_path_payload["camera_path"]
-            write_to_json(Path(camera_path_filename), camera_path)
-            self.vis["camera_path_payload"].delete()
+        self._check_camera_path_payload(trainer, step)
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -353,6 +357,7 @@ class ViewerState:
                     self._render_image_in_viewer(camera_object, graph, is_training)
                     camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
+                self._check_camera_path_payload(trainer, step)
                 run_loop = not is_training
                 local_step += 1
 
