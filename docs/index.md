@@ -16,10 +16,10 @@
 
 <br/>
 
-Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
-The library supports a **more interpretable implementation of NeRFs by modularizing each component.**
-With more modular NeRFs, we hope to create a more user-friendly experience in exploring the technology.
-Nerfstudio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions.
+Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and visualizing NeRFs.
+The library supports an **interpretable implementation of NeRFs by modularizing each component.**
+With modular NeRF components, we hope to create a user-friendly experience in exploring the technology.
+Nerfstudio is a contributer friendly repo with the goal of building a community where users can easily build upon each other's contributions.
 
 It's as simple as plug and play with nerfstudio!
 
