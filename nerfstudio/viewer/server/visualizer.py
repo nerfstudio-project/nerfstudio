@@ -16,8 +16,8 @@
 """
 
 import logging
-import signal
 import sys
+from threading import Thread
 from typing import Dict, Optional, Union
 
 import msgpack
@@ -65,23 +65,38 @@ class ViewerWindow:
         )
         return umsgpack.unpackb(self.client.recv())
 
+    def timeout_ping(self, timeout_in_sec: int = 5):
+        """Timeout if ping fails to complete in timeout_in_secs seconds"""
+
+        res = [Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")]
+
+        def wrapper_func():
+            res[0] = self.send_ping()
+
+        t = Thread(target=wrapper_func)
+        t.daemon = True
+        try:
+            t.start()
+            t.join(timeout_in_sec)
+        except Exception as je:
+            logging.info("Error starting thread")
+            raise je
+        ret = res[0]
+        if isinstance(ret, BaseException):
+            raise ret
+        return ret
+
     def assert_connected(self, timeout_in_sec: int = 5):
         """Check if the connection was established properly within some time.
 
         Args:
             timeout_in_sec (int): The maximum time to wait for the connection to be established.
         """
-
-        def timeout_handler(signum, frame):
-            raise Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")
-
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(timeout_in_sec)
         try:
             logging.info("Sending ping to the viewer Bridge Server...")
-            _ = self.send_ping()
+            _ = self.timeout_ping(timeout_in_sec)
             logging.info("Successfully connected.")
-            signal.alarm(0)  # cancel the alarm
+
         except Exception as e:  # pylint: disable=broad-except
             logging.info(e)
             sys.exit()

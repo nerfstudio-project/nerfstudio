@@ -30,7 +30,7 @@ python scripts/train.py instant-ngp nerfstudio-data --pipeline.datamanager.datap
 
 ### Installing COLMAP
 
-The COLMAP maintainers recommend using VCPKG to install COLAMP. If the following command do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods.
+The COLMAP maintainers recommend using VCPKG to install COLMAP. If the following command do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our [Discord](https://discord.gg/NHGtYRAW).
 
 ::::::{tab-set}
 :::::{tab-item} Linux
