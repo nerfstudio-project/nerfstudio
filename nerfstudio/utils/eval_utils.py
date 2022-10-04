@@ -32,6 +32,37 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 console = Console(width=120)
 
 
+def eval_load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
+    ## TODO: ideally eventually want to get this to be the same as whatever is used to load train checkpoint too
+    """Helper function to load checkpointed pipeline
+
+    Args:
+        config (DictConfig): Configuration of pipeline to load
+        pipeline (Pipeline): Pipeline instance of which to load weights
+    """
+    assert config.load_dir is not None
+    if config.load_step is None:
+        console.print("Loading latest checkpoint from load_dir")
+        # NOTE: this is specific to the checkpoint name format
+        if not os.path.exists(config.load_dir):
+            console.rule("Error", style="red")
+            console.print(f"No checkpoint directory found at {config.load_dir}, ", justify="center")
+            console.print(
+                "Please make sure the checkpoint exists, they should be generated periodically during training",
+                justify="center",
+            )
+            sys.exit(1)
+        load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
+    else:
+        load_step = config.load_step
+    load_path = config.load_dir / f"step-{load_step:09d}.ckpt"
+    assert load_path.exists(), f"Checkpoint {load_path} does not exist"
+    loaded_state = torch.load(load_path, map_location="cpu")
+    pipeline.load_pipeline(loaded_state["pipeline"])
+    console.print(f":white_check_mark: Done loading checkpoint from {load_path}")
+    return load_path
+
+
 def eval_setup(config_path: Path) -> Tuple[cfg.Config, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
