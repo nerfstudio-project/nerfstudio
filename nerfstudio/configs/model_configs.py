@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ model_configs["nerfacto"] = Config(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 16),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
     optimizers={
         "proposal_networks": {
@@ -72,7 +72,7 @@ model_configs["nerfacto"] = Config(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
     vis="viewer",
 )
 
