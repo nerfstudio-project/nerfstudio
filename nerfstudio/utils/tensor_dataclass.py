@@ -29,6 +29,8 @@ class TensorDataclass:
     Fields that are not Tensors will not be batched unless they are also a TensorDataclass.
     Any fields that are dictionaries will have their Tensors or TensorDataclasses batched, and
     dictionaries will have their tensors or TensorDataclasses considered in the initial broadcast.
+    Tensor fields must have at least 1 dimension, meaning that you must convert a field like torch.Tensor(1)
+    to torch.Tensor([1])
 
     Example:
 

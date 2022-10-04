@@ -91,7 +91,7 @@ class Blender(DataParser):
         scene_box = SceneBox(aabb=torch.tensor([[-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]], dtype=torch.float32))
 
         cameras = Cameras(
-            camera_to_worlds=camera_to_world,
+            c2ws=camera_to_world,
             fx=focal_length,
             fy=focal_length,
             cx=cx,

@@ -102,7 +102,7 @@ class InstantNGP(DataParser):
             distortion_params=distortion_params,
             height=int(meta["h"]),
             width=int(meta["w"]),
-            camera_to_worlds=camera_to_world,
+            c2ws=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
 

@@ -156,7 +156,7 @@ class Nerfstudio(DataParser):
             distortion_params=distortion_params,
             height=int(meta["h"]),
             width=int(meta["w"]),
-            camera_to_worlds=poses[:, :3, :4],
+            c2ws=poses[:, :3, :4],
             camera_type=camera_type,
         )
 

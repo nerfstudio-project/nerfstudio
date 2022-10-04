@@ -140,7 +140,7 @@ class Record3D(DataParser):
             fy=focal_length,
             cx=cx,
             cy=cy,
-            camera_to_worlds=poses,
+            c2ws=poses,
             camera_type=CameraType.PERSPECTIVE,
         )
 
