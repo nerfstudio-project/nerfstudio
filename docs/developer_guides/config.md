@@ -50,7 +50,7 @@ The same logic applies to all other custom configs you want to create. For more 
 For how to create the actual data and model classes that follow the configs, please refer to [pipeline overview](pipelines/index.rst).
 :::
 
-### Updating model configs
+### Updating method configs
 
 If you are interested in creating a new model config, you will have to modify the `nerfstudio/configs/method_configs.py` file. This is where all of the configs for implemented models are housed. You can browse this file to see how we construct various existing models by modifying the `Config` class and specifying new or modified default components.
 
