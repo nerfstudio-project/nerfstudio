@@ -59,7 +59,7 @@ class Cameras(TensorDataclass):
     down the line in cases where your batches of camera data don't come from the same cameras.
 
     Args:
-        c2ws: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format.
+        camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format, optionally flattened
         fx: Focal length x. If a single value is provided, it is broadcasted to all cameras.
         fy: Focal length y. If a single value is provided, it is broadcasted to all cameras.
         cx: Principal point x. If a single value is provided, it is broadcasted to all cameras.
@@ -71,19 +71,19 @@ class Cameras(TensorDataclass):
             all cameras. This will be an int corresponding to the CameraType enum.
     """
 
-    c2ws: TensorType["num_cameras":..., 12]  # Accessed by .camera_to_worlds to get the [..., 3, 4] shaped c2ws
-    fx: TensorType["num_cameras":...]
-    fy: TensorType["num_cameras":...]
-    cx: TensorType["num_cameras":...]
-    cy: TensorType["num_cameras":...]
-    width: TensorType["num_cameras":...]
-    height: TensorType["num_cameras":...]
-    distortion_params: Union[TensorType["num_cameras":...], None]
-    camera_type: TensorType["num_cameras":...]
+    camera_to_worlds: TensorType["num_cameras":..., 3, 4]
+    fx: TensorType["num_cameras":..., 1]
+    fy: TensorType["num_cameras":..., 1]
+    cx: TensorType["num_cameras":..., 1]
+    cy: TensorType["num_cameras":..., 1]
+    width: TensorType["num_cameras":..., 1]
+    height: TensorType["num_cameras":..., 1]
+    distortion_params: Union[TensorType["num_cameras":..., 6], None]
+    camera_type: TensorType["num_cameras":..., 1]
 
     def __init__(
         self,
-        c2ws: TensorType["num_cameras":..., 3, 4],
+        camera_to_worlds: TensorType["num_cameras":..., 3, 4],
         fx: Union[TensorType["num_cameras":...], float],
         fy: Union[TensorType["num_cameras":...], float],
         cx: Union[TensorType["num_cameras":...], float],
@@ -95,14 +95,18 @@ class Cameras(TensorDataclass):
             Union[TensorType["num_cameras":...], int, List[CameraType], CameraType]
         ] = CameraType.PERSPECTIVE,
     ):
-        self.c2ws = c2ws.flatten(-2, -1)
+
+        # This will notify the tensordataclass that we have a field with more than 1 dimension
+        self._field_custom_dimensions = {"camera_to_worlds": 2}
+
+        self.camera_to_worlds = camera_to_worlds
 
         # fx fy calculation
         if isinstance(fx, float):
             fx = torch.Tensor([fx], device=self.device)
         elif isinstance(fx, torch.Tensor):
-            if fx.ndim == 0:
-                fx = fx.unsqueeze(0)
+            if fx.ndim == 0 or fx.shape[-1] != 1:
+                fx = fx.unsqueeze(-1)
             fx = fx.to(self.device)
         else:
             raise ValueError(f"fx must be a float or tensor, got {type(fx)}")
@@ -111,8 +115,8 @@ class Cameras(TensorDataclass):
         if isinstance(fy, float):
             fy = torch.Tensor([fy], device=self.device)
         elif isinstance(fy, torch.Tensor):
-            if fy.ndim == 0:
-                fy = fy.unsqueeze(0)
+            if fy.ndim == 0 or fy.shape[-1] != 1:
+                fy = fy.unsqueeze(-1)
             fy = fy.to(self.device)
         else:
             raise ValueError(f"fy must be a float or tensor, got {type(fy)}")
@@ -122,8 +126,8 @@ class Cameras(TensorDataclass):
         if isinstance(cx, float):
             cx = torch.Tensor([cx], device=self.device)
         elif isinstance(cx, torch.Tensor):
-            if cx.ndim == 0:
-                cx = cx.unsqueeze(0)
+            if cx.ndim == 0 or cx.shape[-1] != 1:
+                cx = cx.unsqueeze(-1)
             assert torch.all(cx == cx.ravel()[0]), "Batched cameras of different cx will be allowed in the future."
             cx = cx.to(self.device)
         else:
@@ -133,8 +137,8 @@ class Cameras(TensorDataclass):
         if isinstance(cy, float):
             cy = torch.Tensor([cy], device=self.device)
         elif isinstance(cy, torch.Tensor):
-            if cy.ndim == 0:
-                cy = cy.unsqueeze(0)
+            if cy.ndim == 0 or cy.shape[-1] != 1:
+                cy = cy.unsqueeze(-1)
             assert torch.all(cy == cy.ravel()[0]), "Batched cameras of different cy will be allowed in the future."
             cy = cy.to(self.device)
         else:
@@ -169,7 +173,7 @@ class Cameras(TensorDataclass):
         if isinstance(camera_type, CameraType):
             camera_type = torch.tensor([camera_type.value], device=self.device)
         elif isinstance(camera_type, List) and isinstance(camera_type[0], CameraType):
-            camera_type = torch.tensor([c.value for c in camera_type], device=self.device)
+            camera_type = torch.tensor([[c.value] for c in camera_type], device=self.device)
         elif isinstance(camera_type, int):
             camera_type = torch.tensor([camera_type], device=self.device)
         elif isinstance(camera_type, torch.Tensor):
@@ -177,8 +181,8 @@ class Cameras(TensorDataclass):
                 camera_type
             ), f"camera_type tensor must be of type int, not: {camera_type.dtype}"
             camera_type = camera_type.to(self.device)
-            if camera_type.ndim == 0:
-                camera_type = camera_type.unsqueeze(0)
+            if camera_type.ndim == 0 or camera_type.shape[-1] != 1:
+                camera_type = camera_type.unsqueeze(-1)
             assert torch.all(
                 camera_type.ravel()[0] == camera_type
             ), "Batched cameras of different camera_types will be allowed in the future."
@@ -207,12 +211,12 @@ class Cameras(TensorDataclass):
             c_x_y: cx or cy for when h_w == None
         """
         if isinstance(h_w, int):
-            h_w = torch.Tensor([h_w]).to(self.device)
+            h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
         elif isinstance(h_w, torch.Tensor):
             assert not torch.is_floating_point(h_w), f"height and width tensor must be of type int, not: {h_w.dtype}"
             h_w = h_w.to(torch.int64).to(self.device)
-            if h_w.ndim == 0:
-                h_w = h_w.unsqueeze(0)
+            if h_w.ndim == 0 or h_w.shape[-1] != 1:
+                h_w = h_w.unsqueeze(-1)
             assert torch.all(h_w == h_w.ravel()[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
             h_w = (c_x_y * 2).to(torch.int64).to(self.device)
@@ -223,7 +227,7 @@ class Cameras(TensorDataclass):
     @property
     def device(self):
         """Returns the device that the camera is on."""
-        return self.c2ws.device
+        return self.camera_to_worlds.device
 
     @property
     def image_height(self) -> TensorType["num_cameras"]:
@@ -234,11 +238,6 @@ class Cameras(TensorDataclass):
     def image_width(self) -> TensorType["num_cameras"]:
         """Returns the height of the images."""
         return self.width
-
-    @property
-    def camera_to_worlds(self) -> TensorType["num_cameras", 3, 4]:
-        """Returns the camera_to_world matrix for each camera."""
-        return self.c2ws.reshape(*self.shape, 3, 4)
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
         """This gets the image coordinates of one of the cameras in this object
@@ -281,8 +280,6 @@ class Cameras(TensorDataclass):
             Rays for the given camera indices and coords.
         """
 
-        print(self.shape)
-
         if isinstance(camera_indices, torch.Tensor):
             camera_indices = camera_indices.to(self.device)
 
@@ -292,10 +289,8 @@ class Cameras(TensorDataclass):
         assert coords is not None
         y = coords[..., 0]  # (..., 1)
         x = coords[..., 1]  # (..., 1)
-        fx, fy = self.fx[camera_indices], self.fy[camera_indices]
-        cx, cy = self.cx[camera_indices], self.cy[camera_indices]
-
-        print(cx.shape, x.shape, fx.shape)
+        fx, fy = self.fx[camera_indices].squeeze(-1), self.fy[camera_indices].squeeze(-1)
+        cx, cy = self.cx[camera_indices].squeeze(-1), self.cy[camera_indices].squeeze(-1)
 
         coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)
         coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)
@@ -406,21 +401,31 @@ class Cameras(TensorDataclass):
             Pinhole camera intrinsics matrices
         """
         K = torch.zeros((*self.shape, 3, 3), dtype=torch.float32)
-        K[:, 0, 0] = self.fx
-        K[:, 1, 1] = self.fy
-        K[:, 0, 2] = self.cx
-        K[:, 1, 2] = self.cy
-        K[:, 2, 2] = 1.0
+        K[..., 0, 0] = self.fx.squeeze(-1)
+        K[..., 1, 1] = self.fy.squeeze(-1)
+        K[..., 0, 2] = self.cx.squeeze(-1)
+        K[..., 1, 2] = self.cy.squeeze(-1)
+        K[..., 2, 2] = 1.0
         return K
 
-    def rescale_output_resolution(self, scaling_factor: Union[TensorType["num_cameras"], float]) -> None:
+    def rescale_output_resolution(
+        self, scaling_factor: Union[TensorType["num_cameras":...], TensorType["num_cameras":..., 1], float, int]
+    ) -> None:
         """Rescale the output resolution of the cameras.
 
         Args:
             scaling_factor: Scaling factor to apply to the output resolution.
         """
-        if isinstance(scaling_factor, float):
-            scaling_factor = torch.tensor([scaling_factor]).to(self.device).broadcast_to((self.shape))
+        if isinstance(scaling_factor, (float, int)):
+            scaling_factor = torch.tensor([scaling_factor]).to(self.device).broadcast_to((self.cx.shape))
+        elif isinstance(scaling_factor, torch.Tensor) and scaling_factor.shape == self.shape:
+            scaling_factor = scaling_factor.unsqueeze(-1)
+        elif isinstance(scaling_factor, torch.Tensor) and scaling_factor.shape == (*self.shape, 1):
+            pass
+        else:
+            raise ValueError(
+                f"Scaling factor must be a float, int, or a tensor of shape {self.shape} or {(*self.shape, 1)}."
+            )
 
         self.fx = self.fx * scaling_factor
         self.fy = self.fy * scaling_factor

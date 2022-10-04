@@ -177,7 +177,7 @@ class Friends(DataParser):
             fy=fy,
             cx=float(cx[0]),
             cy=float(cy[0]),
-            c2ws=camera_to_worlds,
+            camera_to_worlds=camera_to_worlds,
             camera_type=CameraType.PERSPECTIVE,
         )
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)

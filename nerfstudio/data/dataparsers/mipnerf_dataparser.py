@@ -149,7 +149,7 @@ class Mipnerf360(DataParser):
             fy=focal_length,
             cx=cx,
             cy=cy,
-            c2ws=camera_to_world,
+            camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
 
