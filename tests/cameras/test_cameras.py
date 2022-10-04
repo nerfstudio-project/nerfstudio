@@ -23,7 +23,9 @@ def test_pinhole_camera():
 
 
 def test_camera_as_tensordataclass():
+    """Test that the camera class move to Tensordataclass works."""
     batch_size = 2
+    # pylint: disable=unnecessary-comprehension
     c2w_flat = torch.tensor([i for i in range(12)]).reshape((3, 4))
     camera_to_worlds = [
         c2w_flat,
@@ -48,6 +50,7 @@ def test_camera_as_tensordataclass():
         camera_types[0],
     )
 
+    # pylint: disable=too-many-nested-blocks
     for camera_to_world in camera_to_worlds:
         for fx in fx_ys:
             for fy in fx_ys:
