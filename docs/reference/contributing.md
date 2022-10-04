@@ -33,8 +33,8 @@ conda install -c conda-forge pandoc
 
 ## Committing code
 
-1. ✏️ Make your modifications
-2. ✅ Perform local checks
+1. Make your modifications ✏️ 
+2. Perform local checks ✅ 
 
    To ensure that you will be passing all tests and checks on github, you will need to run the following command:
 
@@ -48,10 +48,13 @@ conda install -c conda-forge pandoc
    - Pytests: Runs pytests locally to make sure added code does not break existing logic.
    - Documentation build: Builds docs locally. Ensures changes do not result in warnings/errors.
    - Licensing: Automatically adds licensing headers to the correct files.
+   
+   :::{admonition} Attention
+   :class: attention
+      In order to merge changes to the code base, all of these checks must be passing. If you pass these tests locally, you will likely pass on github servers as well (results in a green checkmark next to your commit).
+      :::
 
-   In order to merge changes to the code base, all of these checks must be passing. If you pass these tests locally, you will likely pass on github servers as well (results in a green checkmark next to your commit).
-
-3. 💌 Open pull request!
+3. Open pull request! 💌 
 
 ## Maintaining documentation
 
@@ -63,12 +66,23 @@ Run the following to build the documentation:
 python scripts/docs/build_docs.py
 ```
 
-Rerun `make html` when documentation changes are made, `make clean` is necessary if the documentation structure changes.
+:::{admonition} Tip
+:class: info
+
+- Rerun `make html` when documentation changes are made
+- make clean` is necessary if the documentation structure changes.
+  :::
 
 ### Auto build
 
 As you change or add models/components, the auto-generated [Reference API](https://docs.nerf.studio/en/latest/reference/api/index.html) may change.
-If you want the code to build on save you can use [sphinx autobuild](https://github.com/executablebooks/sphinx-autobuild). If changes to the structure are made, the build files may be incorrect.
+If you want the code to build on save you can use [sphinx autobuild](https://github.com/executablebooks/sphinx-autobuild).
+
+:::{admonition} Tip
+:class: info
+
+If changes to the structure are made, the build files may be incorrect.
+  :::
 
 ```bash
 pip install sphinx-autobuild
