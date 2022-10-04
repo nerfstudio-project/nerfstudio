@@ -60,7 +60,7 @@ class TensorDataclass:
 
     # Any field or key in a dictionary with this name and a corresponding torch.Tensor will be
     # assumed to have n dimensions before the batch dims
-    _field_custom_dimensions: Union[Dict[str, int], None] = None
+    _field_custom_dimensions: Optional[Dict[str, int]] = None
 
     def __post_init__(self) -> None:
         """Finishes setting up the TensorDataclass
@@ -166,6 +166,8 @@ class TensorDataclass:
         raise RuntimeError("Index assignment is not supported for TensorDataclass")
 
     def __len__(self) -> int:
+        if len(self._shape) == 0:
+            raise TypeError("len() of a 0-d tensor")
         return self.shape[0]
 
     def __bool__(self) -> bool:
