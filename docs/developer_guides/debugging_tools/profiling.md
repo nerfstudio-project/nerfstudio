@@ -4,24 +4,20 @@ We provide built-in performance profiling capabilities to make it easier for you
 
 #### In-house profiler
 
-You can use our built-in profiler by enabling the profiler in the config:
+You can use our built-in profiler. By default, it is enabled and will print at the termination of the program. You can disable it via CLI using the flag `--logging.no-enable-profiler`.
 
-```yaml
-# e.g. configs/graphs_default.yaml
-
-logging:
-  enable_profiler: True
-```
 
 The profiler computes the average total time of execution for any function with the `@profiler.time_function` decorator.
-For instance, if you wanted to profile the total time it takes to generate rays given pixel and camera indices via the `RayGenerator` class, you would want to evaluate its `forward()` function. In that class, you would need to add the decorator to the function.
+For instance, if you wanted to profile the total time it takes to generate rays given pixel and camera indices via the `RayGenerator` class, you might want to time its `forward()` function. In that case, you would need to add the decorator to the function.
 
 ```python
+"""nerfstudio/model_components/ray_generators.py""""
+
 class RayGenerator(nn.Module):
 
     ...
 
-    @profiler.time_function     # add the profiler decorator before the function
+    @profiler.time_function     # <-- add the profiler decorator before the function
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         # implementation here
         ...
@@ -29,11 +25,16 @@ class RayGenerator(nn.Module):
 
 At termination of training or end of the training run, the profiler will print out the average execution time for all of the functions that have the profiler tag.
 
-Use this profiler if there are specific functions that you want to measure the times for.
+:::{admonition} Tip
+:class: info
+
+Use this profiler if there are *specific/individual functions* you want to measure the times for.
+  :::
+
 
 #### Profiling with PySpy
 
-If you want to profile the entire codebase, we provide functionality to generate flame graphs or get real-time reports using [PySpy](https://github.com/benfred/py-spy).
+If you want to profile the entire codebase, consider using [PySpy](https://github.com/benfred/py-spy).
 
 Install PySpy
 
@@ -44,17 +45,17 @@ pip install py-spy
 To perform the profiling, you can either specify that you want to generate a flame graph or generate a live-view of the profiler.
 
 ```bash
-## for flame graph
-
-./scripts/debugging/profile.sh -t flame -o flame.svg -p <python_command>
-
-## for live view of functions
-
-./scripts/debugging/profile.sh -t top -p <python_command>
+## flame graph: with wandb logging and our inhouse logging disabled
+program="ns-train nerfacto -- --vis=wandb --logging.no-enable-profiler blender-data"
+py-spy record -o {PATH_TO_OUTPUT_SVG} $program
 ```
-
-In both cases, `<python_command>` can be replaced with any command you would normally run in the terminal. For instance, you can replace `<python_function>` with `scripts/train.py data/dataset=blender_lego`. Then the full command would be e.g.:
 
 ```bash
-./scripts/debugging/profile.sh -t flame -o flame.svg -p scripts/train.py data/dataset=blender_lego
+## top-down stats: running same program configuration as above
+py-spy top $program
 ```
+:::{admonition} Attention
+:class: attention
+
+In defining `program`, you will need to add an extra `--` before you specify your program's arguments.
+  :::

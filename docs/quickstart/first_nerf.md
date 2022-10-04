@@ -47,7 +47,7 @@ ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 80
 
 ## Visualizing training runs
 
-If you are using a fast NeRF variant (ie. Instant-NGP), we recommend using our viewer. See our [viewer docs](viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
+If you are using a fast NeRF variant (ie. Instant-NGP), we recommend using our viewer. See our [viewer docs](./viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
 
 Additionally, if you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
 
@@ -57,7 +57,7 @@ tensorboard --logdir outputs
 
 ## Rendering a Trajectory
 
-To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../developer_guides/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
+To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../developer_guides/debugging_tools/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
 ns-render --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
