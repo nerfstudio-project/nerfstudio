@@ -45,7 +45,7 @@ class NerfactoModel(Model):
 The same logic applies to all other custom configs you want to create. For more examples, you can see `nerfstudio/data/dataparsers/nerfstudio_dataparsers.py`, `nerfstudio/data/datamanagers.py`.
 
 :::{admonition} See Also
-:class: info
+:class: seealso
 
 For how to create the actual data and model classes that follow the configs, please refer to [pipeline overview](pipelines/index.rst).
   :::
@@ -87,19 +87,19 @@ Often times, you just want to play with the parameters of an existing model with
 # list out all existing models
 ns-train --help
 
-# list out all exist configurable parameters for MODEL_NAME
-ns-train MODEL_NAME --help
+# list out all exist configurable parameters for {MODEL_NAME}
+ns-train {MODEL_NAME} --help
 
 # change the train/eval dataset
-ns-train MODEL_NAME --data DATA_PATH
+ns-train {MODEL_NAME} --data DATA_PATH
 
 # enable the viewer
-ns-train MODEL_NAME --vis viewer
+ns-train {MODEL_NAME} --vis viewer
 
-# see what dataparser options are available
-# NOTE: if you change the dataparser, you have to specify it at the very end.
-ns-train MODEL_NAME blender-data --help
+# see what options are available for the specified dataparser (e.g. blender-data)
+ns-train {MODEL_NAME} {DATA_PARSER} --help
 
 # run with changed dataparser attributes and viewer on
-ns-train MODEL_NAME --vis viewer blender-data --scale-factor 0.5
+# NOTE: the dataparser and associated configurations go at the end of the command
+ns-train {MODEL_NAME} --vis viewer {DATA_PARSER} --scale-factor 0.5
 ```
