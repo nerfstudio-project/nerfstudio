@@ -76,11 +76,11 @@ def get_spiral_path(
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
 
-    up = camera.camera_to_worlds[0, :3, 2]  # scene is z up
+    up = camera.flatten().camera_to_worlds[0, :3, 2]  # scene is z up
     focal = torch.min(camera.fx.ravel()[0], camera.fy.ravel()[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
 
-    c2w = camera.camera_to_worlds[0]
+    c2w = camera.flatten().camera_to_worlds[0]
     c2wh_global = pose_utils.to4x4(c2w)
 
     local_c2whs = []
