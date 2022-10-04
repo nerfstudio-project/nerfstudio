@@ -3,6 +3,6 @@
 Configs
 ============
 
-.. automodule:: nerfactory.configs.base
+.. automodule:: nerfstudio.configs.base_config
    :members:
    :show-inheritance:

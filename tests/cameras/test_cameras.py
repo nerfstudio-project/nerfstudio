@@ -4,8 +4,8 @@ Test the camera classes.
 
 import torch
 
-from nerfactory.cameras.cameras import Cameras
-from nerfactory.cameras.rays import RayBundle
+from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.rays import RayBundle
 
 
 def test_pinhole_camera():

@@ -3,6 +3,6 @@
 Math
 ============
 
-.. automodule:: nerfactory.utils.math
+.. automodule:: nerfstudio.utils.math
    :members:
    :show-inheritance:

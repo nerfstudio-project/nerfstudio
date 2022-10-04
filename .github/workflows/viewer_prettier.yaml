@@ -18,4 +18,4 @@ jobs:
         uses: creyD/prettier_action@v4.2
         with:
           # This part is also where you can pass other options, for example:
-          prettier_options: --write ./nerfactory/viewer/app/**/*.{js,md,yaml,json,html,jsx,css,yml}
+          prettier_options: --write ./nerfstudio/viewer/app/**/*.{js,md,yaml,json,html,jsx,css,yml}

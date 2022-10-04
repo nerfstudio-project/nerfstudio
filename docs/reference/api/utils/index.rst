@@ -7,5 +7,5 @@ Utils
 
    colors
    math
-   visualization
+   colormaps
    tensor_dataclass
