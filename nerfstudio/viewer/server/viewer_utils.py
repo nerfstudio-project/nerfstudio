@@ -537,8 +537,12 @@ class ViewerState:
         image_height = (num_vis_rays / aspect_ratio) ** 0.5
         image_height = int(round(image_height, -1))
         image_height = min(self.max_resolution, image_height)
+        image_width = int(image_height * aspect_ratio)
+        if image_width > self.max_resolution:
+            image_width = self.max_resolution
+            image_height = int(image_width / aspect_ratio)
 
-        return image_height, int(image_height * aspect_ratio)
+        return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
         """Check to see whether we are in the corner case of RGB; if still invalid, throw error

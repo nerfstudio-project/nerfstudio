@@ -27,7 +27,7 @@ Example:
 
 """
 import math
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 import nerfacc
 import torch
@@ -45,7 +45,7 @@ class RGBRenderer(nn.Module):
         background_color: Background color as RGB. Uses random colors if None.
     """
 
-    def __init__(self, background_color: Optional[TensorType[3]] = None) -> None:
+    def __init__(self, background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random") -> None:
         super().__init__()
         self.background_color = background_color
 
@@ -54,7 +54,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
-        background_color: Optional[TensorType[3]] = None,
+        background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random",
         ray_indices: Optional[TensorType["num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 3]:
@@ -63,7 +63,7 @@ class RGBRenderer(nn.Module):
         Args:
             rgb: RGB for each sample
             weights: Weights for each sample
-            background_color: Background color as RGB. Uses random colors if None.
+            background_color: Background color as RGB.
             ray_indices: Ray index for each sample, used when samples are packed.
             num_rays: Number of rays, used when samples are packed.
 
@@ -72,18 +72,23 @@ class RGBRenderer(nn.Module):
         """
         if ray_indices is not None and num_rays is not None:
             # Necessary for packed samples from volumetric ray sampler
-            rgb = nerfacc.accumulate_along_rays(weights, ray_indices, rgb, num_rays)
+            if background_color == "last_sample":
+                raise NotImplementedError("Background color 'last_sample' not implemented for packed samples.")
+            comp_rgb = nerfacc.accumulate_along_rays(weights, ray_indices, rgb, num_rays)
             accumulated_weight = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
         else:
-            rgb = torch.sum(weights * rgb, dim=-2)
+            comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
 
-        if background_color is None:
-            background_color = torch.rand_like(rgb).to(rgb.device)
+        if background_color == "last_sample":
+            background_color = rgb[..., -1, :]
+        if background_color == "random":
+            background_color = torch.rand_like(comp_rgb).to(rgb.device)
 
-        rgb = rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
+        assert isinstance(background_color, torch.Tensor)
+        comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)
 
-        return rgb
+        return comp_rgb
 
     def forward(
         self,
@@ -121,7 +126,9 @@ class SHRenderer(nn.Module):
     """
 
     def __init__(
-        self, background_color: Optional[TensorType[3]] = None, activation: Optional[nn.Module] = nn.Sigmoid()
+        self,
+        background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random",
+        activation: Optional[nn.Module] = nn.Sigmoid(),
     ) -> None:
         super().__init__()
         self.background_color = background_color
