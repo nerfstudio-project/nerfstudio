@@ -96,14 +96,14 @@ pip install nerfstudio
 If you would want the latest and greatest:
 
 ```bash
-git clone git@github.com:plenoptix/nerfstudio.git
+git clone git@github.com:nerfstudio-project/nerfstudio.git
 cd nerfstudio
 pip install -e .
 ```
 
 ## 2. Setting up the data
 
-Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfstudio.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
+Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html).
 
 ```bash
 ns-download-data --dataset=blender
@@ -111,7 +111,8 @@ ns-download-data --dataset=nerfstudio --capture=poster
 ```
 
 ### 2.x Using custom data
-If you have custom data in the form of a video or folder of images, we've provided some [COLMAP](https://colmap.github.io/) and [FFmpeg](https://ffmpeg.org/download.html) scripts to help you process your data so it is compatible with nerfstudio. 
+
+If you have custom data in the form of a video or folder of images, we've provided some [COLMAP](https://colmap.github.io/) and [FFmpeg](https://ffmpeg.org/download.html) scripts to help you process your data so it is compatible with nerfstudio.
 
 After installing both software, you can process your data via:
 
@@ -168,31 +169,30 @@ After your model has trained, you can headlessly render out a video of the scene
 ns-render --load-config=outputs/data-nerfstudio-poster/nerfacto/{TIMESTAMP}/config.yml --traj=spiral --output-path=output.mp4
 ```
 
-
 # Learn More
 
-And that's it for getting started with the basics of nerfstudio. 
+And that's it for getting started with the basics of nerfstudio.
 
 If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the qucklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
 
-| Section                                                                                 | Description                                                                                        |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Documentation](https://docs.nerf.studio/en/latest/)                                     | Full API documentation and tutorials                                                               |
-| [Viewer](https://viewer.nerf.studio/)                                     | Home page for our web viewer                                                               |
-| 🎒 **Educational** |
-| [Model Descriptions](https://docs.nerf.studio/en/latest/guides/index.html)               | Description of all the models supported by nerfstudio and explanations of component parts.                                    |
-| [Component Descriptions](https://docs.nerf.studio/en/latest/nerfology/model_components/index.html) | Interactive notebooks that explain notable/commonly used modules in various models. |
-| 🏃 **Tutorials** |
-| [Getting Started](https://docs.nerf.studio/en/latest/quickstart/installation.html)         | A more in-depth guide on how to get started with nerfstudio from installation to contributing.                         |
-| [Using the Viewer](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html) | A quick demo video on how to navigate the viewer. |
-| 💻 **For Developers** |
-| [Creating pipelines](https://docs.nerf.studio/en/latest/developer_guides/pipelines/index.html)  | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
-| [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)        | Have a new dataset? Learn how to run it with nerfstudio.                                           |        |        
-| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)           | Walk-through for how you can start contributing now.                                               |
-| 💖 **Community** |
-| [Discord](https://discord.gg/NHGtYRAW)                                                   | Join our community to discuss more. We would love to hear from you!                                |
-| [Twitter](#)                                                   | Follow us on Twitter to see cool updates and announcements                                |
-| [TikTok](#)                                                   | Comming soon! Follow us on TikTok to see some of our fan favorite results                               |
+| Section                                                                                            | Description                                                                                        |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --- |
+| [Documentation](https://docs.nerf.studio/en/latest/)                                               | Full API documentation and tutorials                                                               |
+| [Viewer](https://viewer.nerf.studio/)                                                              | Home page for our web viewer                                                                       |
+| 🎒 **Educational**                                                                                 |
+| [Model Descriptions](https://docs.nerf.studio/en/latest/guides/index.html)                         | Description of all the models supported by nerfstudio and explanations of component parts.         |
+| [Component Descriptions](https://docs.nerf.studio/en/latest/nerfology/model_components/index.html) | Interactive notebooks that explain notable/commonly used modules in various models.                |
+| 🏃 **Tutorials**                                                                                   |
+| [Getting Started](https://docs.nerf.studio/en/latest/quickstart/installation.html)                 | A more in-depth guide on how to get started with nerfstudio from installation to contributing.     |
+| [Using the Viewer](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html)           | A quick demo video on how to navigate the viewer.                                                  |
+| 💻 **For Developers**                                                                              |
+| [Creating pipelines](https://docs.nerf.studio/en/latest/developer_guides/pipelines/index.html)     | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
+| [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |     |
+| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
+| 💖 **Community**                                                                                   |
+| [Discord](https://discord.gg/NHGtYRAW)                                                             | Join our community to discuss more. We would love to hear from you!                                |
+| [Twitter](#)                                                                                       | Follow us on Twitter to see cool updates and announcements                                         |
+| [TikTok](#)                                                                                        | Comming soon! Follow us on TikTok to see some of our fan favorite results                          |
 
 # Supported Features
 
@@ -207,7 +207,7 @@ We provide the following support strucutures to make life easier for getting sta
   - And more!
 - :pencil2: Support for multiple logging interfaces (Tensorboard, Wandb), code profiling, and other built-in debugging tools
 - :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
-- :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render. 
+- :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render.
 
 # See what's possible
 
