@@ -77,8 +77,7 @@ We reccomend using conda to manage dependencies. Make sure to install [Conda](ht
 ```
 conda create --name nerfstudio -y python=3.8.13;
 conda activate nerfstudio
-python -m 
---upgrade pip
+python -m --upgrade pip
 ```
 
 ### Dependencies
