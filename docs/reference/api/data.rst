@@ -6,34 +6,34 @@ Data
 Data Parsers
 ----------------
 
-.. automodule:: nerfstudio.datamanagers.dataparsers
+.. automodule:: nerfstudio.data.dataparsers
    :members:
    :show-inheritance:
 
 Datasets
 ----------------
 
-.. automodule:: nerfstudio.datamanagers.datasets
+.. automodule:: nerfstudio.data.utils.datasets
    :members:
    :show-inheritance:
 
 Dataloaders
 ----------------
 
-.. automodule:: nerfstudio.datamanagers.dataloaders
+.. automodule:: nerfstudio.data.utils.dataloaders
    :members:
    :show-inheritance:
 
 Pixel Samplers
 ----------------
 
-.. automodule:: nerfstudio.datamanagers.pixel_sampler
+.. automodule:: nerfstudio.data.pixel_samplers
    :members:
    :show-inheritance:
 
-Structures
+Scene Box
 ----------------
 
-.. automodule:: nerfstudio.datamanagers.structs
+.. automodule:: nerfstudio.data.scene_box
    :members:
    :show-inheritance:

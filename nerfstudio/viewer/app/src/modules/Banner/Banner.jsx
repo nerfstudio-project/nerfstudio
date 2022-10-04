@@ -18,7 +18,7 @@ function getParam(param_name) {
 }
 
 function getWebsocketEndpoint() {
-  const endpoint = getParam('websocket_url');
+  const endpoint = getParam('websocket_port');
   return endpoint;
 }
 
@@ -26,13 +26,13 @@ export default function Banner() {
   const dispatch = useDispatch();
 
   let open_modal = true;
-  const websocket_url_from_argument = getWebsocketEndpoint();
-  if (websocket_url_from_argument !== undefined) {
+  const websocket_port_from_argument = getWebsocketEndpoint();
+  if (websocket_port_from_argument !== undefined) {
     open_modal = false;
     dispatch({
       type: 'write',
-      path: 'websocketState/websocket_url',
-      data: websocket_url_from_argument,
+      path: 'websocketState/websocket_port',
+      data: websocket_port_from_argument,
     });
   }
 
@@ -44,7 +44,7 @@ export default function Banner() {
         variant="outlined"
         startIcon={<GitHubIcon />}
         target="_blank"
-        href="https://github.com/plenoptix/nerfactory"
+        href="https://github.com/nerfstudio-project/nerfstudio"
         size="small"
       >
         Github
@@ -54,7 +54,7 @@ export default function Banner() {
         variant="outlined"
         startIcon={<DescriptionRoundedIcon />}
         target="_blank"
-        href="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/"
+        href="https://docs.nerf.studio"
         size="small"
       >
         Documentation
@@ -63,7 +63,7 @@ export default function Banner() {
       <div className="banner-logo">
         <img
           style={{ height: 30, margin: 'auto' }}
-          src="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/_images/logo-dark.png"
+          src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
           alt="The favicon."
         />
       </div>

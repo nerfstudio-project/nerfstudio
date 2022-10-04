@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ from typing import Type
 
 import torch
 
-from nerfstudio.datamanagers.base import VanillaDataManager
-from nerfstudio.pipelines.base import VanillaPipeline, VanillaPipelineConfig
+from nerfstudio.data.datamanagers import VanillaDataManager
+from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
 
 
 @dataclass

@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,22 +30,22 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
-from nerfstudio.models.base import Model, ModelConfig
-from nerfstudio.models.modules.ray_sampler import VolumetricSampler
-from nerfstudio.optimizers.loss import MSELoss
-from nerfstudio.renderers.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-)
-from nerfstudio.utils import colors, visualization
-from nerfstudio.utils.callbacks import (
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.fields.instant_ngp_field import TCNNInstantNGPField
+from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.ray_samplers import VolumetricSampler
+from nerfstudio.model_components.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils import colormaps, colors
 
 
 @dataclass
@@ -98,13 +98,13 @@ class NGPModel(Model):
         super().populate_modules()
 
         self.field = TCNNInstantNGPField(
-            aabb=self.scene_bounds.aabb,
+            aabb=self.scene_box.aabb,
             contraction_type=self.config.contraction_type,
             use_appearance_embedding=self.config.use_appearance_embedding,
             num_images=self.num_train_data,
         )
 
-        self.scene_aabb = Parameter(self.scene_bounds.aabb.flatten(), requires_grad=False)
+        self.scene_aabb = Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
 
         # Occupancy Grid
         self.occupancy_grid = nerfacc.OccupancyGrid(
@@ -114,7 +114,7 @@ class NGPModel(Model):
         )
 
         # Sampler
-        vol_sampler_aabb = self.scene_bounds.aabb if self.config.contraction_type == ContractionType.AABB else None
+        vol_sampler_aabb = self.scene_box.aabb if self.config.contraction_type == ContractionType.AABB else None
         self.sampler = VolumetricSampler(
             scene_aabb=vol_sampler_aabb,
             occupancy_grid=self.occupancy_grid,
@@ -122,7 +122,7 @@ class NGPModel(Model):
         )
 
         # renderers
-        background_color = None if self.config.randomize_background else colors.WHITE
+        background_color = "random" if self.config.randomize_background else colors.WHITE
         self.renderer_rgb = RGBRenderer(background_color=background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
@@ -223,12 +223,12 @@ class NGPModel(Model):
 
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
-        alive_ray_mask = visualization.apply_colormap(outputs["alive_ray_mask"])
+        alive_ray_mask = colormaps.apply_colormap(outputs["alive_ray_mask"])
 
         combined_rgb = torch.cat([image, rgb], dim=1)
         combined_acc = torch.cat([acc], dim=1)

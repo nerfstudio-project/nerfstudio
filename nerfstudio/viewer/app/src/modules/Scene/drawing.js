@@ -2,13 +2,10 @@
 // ---- code for drawing with three.js ----
 import * as THREE from 'three';
 
-export function drawSceneBounds(sceneBounds): THREE.Object3D {
-  console.assert(
-    sceneBounds.type === 'aabb',
-    'The scene bounds must be an AABB',
-  );
+export function drawSceneBox(sceneBox): THREE.Object3D {
+  console.assert(sceneBox.type === 'aabb', 'The scene box must be an AABB');
 
-  const box = sceneBounds;
+  const box = sceneBox;
 
   const w = 1.0;
   const aaa = new THREE.Vector3(w, w, w);

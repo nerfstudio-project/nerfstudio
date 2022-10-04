@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
+import { useSelector } from 'react-redux';
 import WebSocketUrlField from '../WebSocketUrlField';
 
 interface LandingModalProps {
@@ -56,9 +57,12 @@ export default function LandingModel(props: LandingModalProps) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_intro = `At the top right is the Status Panel where you can connect to a WebSocket and see the train/eval status of your NeRF model. The WebSocket URL takes the form <domain-or-ip_address>:<port>.`;
+  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket Port below and click the link to connect to your training job.`;
 
-  const command = `ssh -L localhost:7007:localhost:7007 USER@REMOTE.SERVER.IP`;
+  const websocket_port = useSelector(
+    (state) => state.websocketState.websocket_port,
+  );
+  const command = `ssh -L ${websocket_port}:localhost:${websocket_port} USER@REMOTE.SERVER.IP`;
 
   const platform = window.navigator.platform.toLowerCase();
   let initial_tab = 0;
@@ -100,7 +104,7 @@ export default function LandingModel(props: LandingModalProps) {
           <center>
             <img
               style={{ height: 37, margin: 'auto' }}
-              src="https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/_images/logo-dark.png"
+              src="https://docs.nerf.studio/en/latest/_images/logo-dark.png"
               alt="The favicon."
             />
           </center>
@@ -112,9 +116,6 @@ export default function LandingModel(props: LandingModalProps) {
             <div className="LandingModel-content">
               <h2>Getting Started</h2>
               <p>{text_intro}</p>
-              <p>
-                You can enter your WebSocket URL in the Status Panel or here:
-              </p>
               <WebSocketUrlField />
               <h3>Remote Server</h3>
               <p>

@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -115,19 +115,11 @@ class RaySamples(TensorDataclass):
         delta_density = self.deltas * densities
         alphas = 1 - torch.exp(-delta_density)
 
-        # TODO: put both versions of the transmittance calculation somewhere
-        # mip-nerf version of transmittance calculation:
         transmittance = torch.cumsum(delta_density[..., :-1, :], dim=-2)
         transmittance = torch.cat(
             [torch.zeros((*transmittance.shape[:1], 1, 1), device=densities.device), transmittance], dim=-2
         )
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
-
-        # most nerf codebases do the following:
-        # transmittance = torch.cat(
-        #     [torch.ones((*alphas.shape[:1], 1)).to(densities.device), 1.0 - alphas + 1e-10], dim=-1
-        # )
-        # transmittance = torch.cumprod(transmittance, dim=-1)[..., :-1]  # [..., "num_samples"]
 
         weights = alphas * transmittance  # [..., "num_samples"]
 
@@ -216,9 +208,9 @@ class RayBundle(TensorDataclass):
         self,
         bin_starts: TensorType["bs":..., "num_samples", 1],
         bin_ends: TensorType["bs":..., "num_samples", 1],
-        spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]],
-        spacing_ends: Optional[TensorType["bs":..., "num_samples", 1]],
-        spacing_to_euclidean_fn: Optional[Callable],
+        spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]] = None,
+        spacing_ends: Optional[TensorType["bs":..., "num_samples", 1]] = None,
+        spacing_to_euclidean_fn: Optional[Callable] = None,
     ) -> RaySamples:
         """Produces samples for each ray by projection points along the ray direction. Currently samples uniformly.
 

@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,11 +50,11 @@ def check_profiler_enabled(func: Callable) -> Callable:
 
 
 def check_viewer_enabled(func: Callable) -> Callable:
-    """Decorator: check if viewer is enabled"""
+    """Decorator: check if viewer is enabled and only run on main process"""
 
     def wrapper(self, *args, **kwargs):
         ret = None
-        if self.config.is_viewer_enabled():
+        if self.config.is_viewer_enabled() and comms.is_main_process():
             ret = func(self, *args, **kwargs)
         return ret
 

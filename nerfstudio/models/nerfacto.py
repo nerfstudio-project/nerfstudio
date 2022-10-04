@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type
 
 import numpy as np
 import torch
@@ -29,25 +29,25 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.fields.compound_field import TCNNCompoundField
-from nerfstudio.fields.density_field import DensityField
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
-from nerfstudio.fields.modules.spatial_distortions import SceneContraction
-from nerfstudio.models.base import Model, ModelConfig
-from nerfstudio.models.modules.ray_sampler import ProposalNetworkSampler
-from nerfstudio.models.modules.scene_colliders import NearFarCollider
-from nerfstudio.optimizers.loss import MSELoss, distortion_loss, interlevel_loss
-from nerfstudio.renderers.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-)
-from nerfstudio.utils import colors, visualization
-from nerfstudio.utils.callbacks import (
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.field_components.spatial_distortions import SceneContraction
+from nerfstudio.fields.density_fields import HashMLPDensityField
+from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
+from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
+from nerfstudio.model_components.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.utils import colormaps
 
 
 @dataclass
@@ -59,7 +59,7 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    randomize_background: bool = True
+    background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: Tuple[int] = (64,)
     """Number of samples per ray for the proposal network."""
@@ -71,10 +71,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.01
+    distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
-    use_appearance_conditioning: bool = True
-    """Whether to use appearance conditioning."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     use_average_appearance_embedding: bool = True
@@ -83,8 +81,8 @@ class NerfactoModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = False
-    """Whether use single jitter or not for first proposal network."""
+    use_single_jitter: bool = True
+    """Whether use single jitter or not for the proposal networks."""
 
 
 class NerfactoModel(Model):
@@ -103,25 +101,22 @@ class NerfactoModel(Model):
         scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
-        if self.config.use_appearance_conditioning:
-            self.field = TCNNCompoundField(
-                self.scene_bounds.aabb,
-                spatial_distortion=scene_contraction,
-                num_images=self.num_train_data,
-                use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            )
-        else:
-            raise NotImplementedError("Only appearance conditioning is supported.")
+        self.field = TCNNNerfactoField(
+            self.scene_box.aabb,
+            spatial_distortion=scene_contraction,
+            num_images=self.num_train_data,
+            use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+        )
 
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
             self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
         else:
             for _ in range(self.config.num_proposal_network_iterations):
-                network = DensityField(self.scene_bounds.aabb, spatial_distortion=scene_contraction)
+                network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for network in self.proposal_networks]
 
@@ -137,8 +132,7 @@ class NerfactoModel(Model):
         )
 
         # renderers
-        background_color = None if self.config.randomize_background else colors.WHITE
-        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
 
@@ -214,6 +208,7 @@ class NerfactoModel(Model):
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
             outputs["weights_list"], outputs["ray_samples_list"]
         )
+        assert metrics_dict is not None and "distortion" in metrics_dict
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
         return loss_dict
 
@@ -223,8 +218,8 @@ class NerfactoModel(Model):
 
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
@@ -249,7 +244,7 @@ class NerfactoModel(Model):
 
         for i in range(self.config.num_proposal_network_iterations):
             key = f"prop_depth_{i}"
-            prop_depth_i = visualization.apply_depth_colormap(
+            prop_depth_i = colormaps.apply_depth_colormap(
                 outputs[key],
                 accumulation=outputs["accumulation"],
             )

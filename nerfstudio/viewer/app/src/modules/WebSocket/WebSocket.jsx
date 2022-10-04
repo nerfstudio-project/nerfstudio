@@ -15,13 +15,14 @@ export default function WebSocketContextFunction({ children }) {
   let ws = null;
   let socket = null;
 
-  // this code will rerender anytime the webosocket changes now
-  const websocket_url = useSelector(
-    (state) => state.websocketState.websocket_url,
+  // this code will rerender anytime the websocket changes now
+  const websocket_port = useSelector(
+    (state) => state.websocketState.websocket_port,
   );
 
   const connect = () => {
-    const url = `ws://${websocket_url}/`;
+    const url = `ws://localhost:${websocket_port}/`;
+    console.log(url);
     socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
@@ -57,7 +58,7 @@ export default function WebSocketContextFunction({ children }) {
     return () => {
       socket.close();
     };
-  }, [websocket_url]);
+  }, [websocket_port]);
 
   connect();
   ws = {

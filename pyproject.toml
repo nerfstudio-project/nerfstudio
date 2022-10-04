@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.0.3.1"
+version = "0.0.3.4"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -18,7 +18,7 @@ dependencies = [
     "aiortc==1.3.2",
     "appdirs>=1.4",
     "av==9.2.0",
-    "dcargs>=0.3.11",
+    "dcargs>=0.3.17",
     "gdown==4.5.1",
     "ninja==1.10.2.3",
     "functorch==0.2.1",
@@ -30,7 +30,7 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.1.1",
+    "nerfacc==0.1.3",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
@@ -47,7 +47,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Documentation" = "https://plenoptix-nerfactory.readthedocs-hosted.com/en/latest/?badge=latest"
+"Documentation" = "https://docs.nerf.studio"
+
 
 [project.optional-dependencies]
 # Development packages
@@ -67,17 +68,20 @@ docs = [
     "nbformat==5.4.0",
     "sphinx==4.5.0",
     "sphinxemoji==0.2.0",
+    "sphinx-argparse==0.3.1",
     "sphinx-copybutton==0.5.0",
     "sphinx-design==0.2.0"
 ]
 
 [project.scripts]
+# Note, add entrypoint name to scripts/completions/install.py to include CLI completion
 ns-install-cli = "scripts.completions.install:entrypoint"
 ns-process-data = "scripts.process_data:entrypoint"
 ns-download-data = "scripts.downloads.download_data:entrypoint"
 ns-train = "scripts.train:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
-ns-dev-test = "scripts.debugging.run_actions:entrypoint"
+ns-render = "scripts.render:entrypoint"
+ns-dev-test = "scripts.github.run_actions:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -86,7 +90,10 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["*"]
+include = ["nerfstudio*","scripts*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]
 
 # black
 [tool.black]

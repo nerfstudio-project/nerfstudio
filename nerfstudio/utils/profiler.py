@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import logging
 import time
 from typing import Callable
 
-from nerfstudio.configs import base as cfg
+from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
 from nerfstudio.utils.decorators import (
     check_main_thread,

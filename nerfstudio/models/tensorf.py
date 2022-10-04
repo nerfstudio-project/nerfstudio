@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,26 +29,26 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs.utils import to_immutable_dict
-from nerfstudio.fields.modules.encoding import RFFEncoding, TensorVMEncoding
-from nerfstudio.fields.modules.field_heads import FieldHeadNames
-from nerfstudio.fields.tensorf_field import TensoRFField
-from nerfstudio.models.base import Model, VanillaModelConfig
-from nerfstudio.models.modules.ray_sampler import PDFSampler, UniformSampler
-from nerfstudio.models.modules.scene_colliders import AABBBoxCollider
-from nerfstudio.optimizers.loss import L1Loss, MSELoss
-from nerfstudio.optimizers.optimizers import Optimizers
-from nerfstudio.renderers.renderers import (
-    AccumulationRenderer,
-    DepthRenderer,
-    RGBRenderer,
-)
-from nerfstudio.utils import colors, misc, visualization
-from nerfstudio.utils.callbacks import (
+from nerfstudio.configs.config_utils import to_immutable_dict
+from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
+from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.field_components.encodings import RFFEncoding, TensorVMEncoding
+from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.fields.tensorf_field import TensoRFField
+from nerfstudio.model_components.losses import L1Loss, MSELoss
+from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
+from nerfstudio.model_components.renderers import (
+    AccumulationRenderer,
+    DepthRenderer,
+    RGBRenderer,
+)
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider
+from nerfstudio.models.base_model import Model, VanillaModelConfig
+from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
@@ -147,7 +147,7 @@ class TensoRFModel(Model):
         direction_encoding = RFFEncoding(in_dim=3, num_frequencies=6, scale=2 * torch.pi)
 
         self.field = TensoRFField(
-            self.scene_bounds.aabb,
+            self.scene_box.aabb,
             feature_encoding=feature_encoding,
             direction_encoding=direction_encoding,
             density_encoding=density_encoding,
@@ -176,7 +176,7 @@ class TensoRFModel(Model):
 
         # colliders
         if self.config.enable_collider:
-            self.collider = AABBBoxCollider(scene_bounds=self.scene_bounds)
+            self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -227,8 +227,8 @@ class TensoRFModel(Model):
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
-        acc = visualization.apply_colormap(outputs["accumulation"])
-        depth = visualization.apply_depth_colormap(
+        acc = colormaps.apply_colormap(outputs["accumulation"])
+        depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
             near_plane=self.config.collider_params["near_plane"],
