@@ -60,6 +60,8 @@ class DataparserOutputs:
     """color of dataset background"""
     scene_box: SceneBox = SceneBox()
     """scene box of dataset. Could be used to bound the scene, or to provide the scene scale depending on model."""
+    semantics: Optional[Semantics] = None
+    """Semantics information."""
     # we support additional input information/formats including mask/depth/semantics.
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
