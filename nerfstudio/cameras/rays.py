@@ -89,8 +89,6 @@ class RaySamples(TensorDataclass):
     """Frustums along ray."""
     camera_indices: Optional[TensorType["bs":..., 1]] = None
     """Camera index."""
-    valid_mask: Optional[TensorType["bs":..., 1]] = None
-    """Rays that are valid."""
     deltas: Optional[TensorType["bs":..., 1]] = None
     """"width" of each sample."""
     spacing_starts: Optional[TensorType["bs":..., "num_samples", 1]] = None
@@ -125,24 +123,6 @@ class RaySamples(TensorDataclass):
 
         return weights
 
-    def set_valid_mask(self, valid_mask: TensorType[..., "num_samples"]) -> None:
-        """Sets valid mask
-
-        Args:
-            valid_mask: the mask to use
-        """
-        self.valid_mask = valid_mask
-
-    def apply_masks(self) -> "RaySamples":
-        """Use valid_mask to mask samples.
-
-        Returns:
-            New set of masked samples.
-        """
-        if self.valid_mask is not None:
-            return self[self.valid_mask[..., 0]]
-        return self
-
 
 @dataclass
 class RayBundle(TensorDataclass):
@@ -161,8 +141,6 @@ class RayBundle(TensorDataclass):
     """Distance along ray to start sampling"""
     fars: Optional[TensorType[..., 1]] = None
     """Rays Distance along ray to stop sampling"""
-    valid_mask: Optional[TensorType[..., 1, bool]] = None
-    """Rays that are valid"""
     metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
     """Additional metadata or data needed for interpolation, will mimic shape of rays"""
 
@@ -223,8 +201,6 @@ class RayBundle(TensorDataclass):
         """
         device = self.origins.device
 
-        valid_mask = torch.ones((bin_starts.shape), dtype=torch.bool, device=device)
-
         dists = bin_ends - bin_starts  # [..., num_samples, 1]
         deltas = dists * torch.norm(self.directions[:, :], dim=-1)[..., None, None]
 
@@ -246,7 +222,6 @@ class RayBundle(TensorDataclass):
         ray_samples = RaySamples(
             frustums=frustums,
             camera_indices=camera_indices,  # [..., 1, 1]
-            valid_mask=valid_mask,  # [..., num_samples, 1]
             deltas=deltas,  # [..., num_samples, 1]
             spacing_starts=spacing_starts,  # [..., num_samples, 1]
             spacing_ends=spacing_ends,  # [..., num_samples, 1]
