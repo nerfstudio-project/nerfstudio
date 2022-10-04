@@ -21,6 +21,7 @@
 </p>
 
 <p align="center">
+    <!-- Broken on Pypi.org -->
     <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
