@@ -26,14 +26,15 @@ To view all the arguments and annotations, you can run `./scripts/benchmarking/l
 
 A full example would be:
 
-```bash
+- With `-g` specifying gpus
+    ```bash
+    ./scripts/benchmarking/launch_train_blender.sh -m nerfacto -g 0 1 2 3
+    ```
 
-# with -g specifying gpus
-./scripts/benchmarking/launch_train_blender.sh -m nerfacto -g 0 1 2 3
-
-# without -g automatically finds available gpus
-./scripts/benchmarking/launch_train_blender.sh -m nerfacto
-```
+- Without `-g` automatically finds available gpus
+    ```bash
+    ./scripts/benchmarking/launch_train_blender.sh -m nerfacto
+    ```
 
 The script will automatically launch training on all of the items and save the checkpoints in an output directory with the experiment name and current timestamp.
 

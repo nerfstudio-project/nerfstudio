@@ -44,16 +44,16 @@ pip install py-spy
 
 To perform the profiling, you can either specify that you want to generate a flame graph or generate a live-view of the profiler.
 
-```bash
-## flame graph: with wandb logging and our inhouse logging disabled
-program="ns-train nerfacto -- --vis=wandb --logging.no-enable-profiler blender-data"
-py-spy record -o {PATH_TO_OUTPUT_SVG} $program
-```
-
-```bash
-## top-down stats: running same program configuration as above
-py-spy top $program
-```
+- flame graph: with wandb logging and our inhouse logging disabled
+    ```bash
+    program="ns-train nerfacto -- --vis=wandb --logging.no-enable-profiler blender-data"
+    py-spy record -o {PATH_TO_OUTPUT_SVG} $program
+    ```
+- top-down stats: running same program configuration as above
+    ```bash
+    py-spy top $program
+    ```
+    
 :::{admonition} Attention
 :class: attention
 

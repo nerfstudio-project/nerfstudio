@@ -23,13 +23,13 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 
 ## Installing nerfstudio
 
-Pip package:
+**From pip**
 
 ```bash
 pip install nerfstudio
 ```
 
-If you want the latest and greatest:
+**From source**
 
 ```bash
 git clone git@github.com:nerfstudio-project/nerfstudio.git
@@ -38,9 +38,12 @@ pip install -e .
 
 ```
 
-### Optional
+:::{admonition} Note
+:class: info
+Below are optional installations, but makes developing with nerfstudio much more convenient.
+:::
 
-#### Tab completion (bash & zsh)
+**Tab completion (bash & zsh)**
 
 This needs to be rerun when the CLI changes, for example if nerfstudio is updated.
 
@@ -48,7 +51,7 @@ This needs to be rerun when the CLI changes, for example if nerfstudio is update
 ns-install-cli
 ```
 
-### Development packages
+**Development packages**
 
 ```bash
 pip install -e.[dev]
@@ -61,9 +64,11 @@ pip install -e.[docs]
 - [Installation errors, File "setup.py" not found](pip-install-error)
 - [Runtime errors, "len(sources) > 0".](cuda-sources-error)
 
+ <br />
+
 (tiny-cuda-error)=
 
-#### TinyCUDA installation errors out with cuda mismatch
+**TinyCUDA installation errors out with cuda mismatch**
 
 While installing tiny-cuda, you run into: `The detected CUDA version mismatches the version that was used to compile PyTorch (10.2). Please make sure to use the same CUDA versions.`
 
@@ -73,9 +78,11 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
+ <br />
+
 (pip-install-error)=
 
-#### Installation errors, File "setup.py" not found
+**Installation errors, File "setup.py" not found**
 
 When installing dependencies and nerfstudio with `pip install -e .`, you run into: `ERROR: File "setup.py" not found. Directory cannot be installed in editable mode`
 
@@ -86,9 +93,11 @@ This can be fixed by upgrading pip to the latest version:
 python -m pip install --upgrade pip
 ```
 
+ <br />
+
 (cuda-sources-error)=
 
-#### Runtime errors: "len(sources) > 0", "ctype = \_C.ContractionType(type.value) ; TypeError: 'NoneType' object is not callable".
+**Runtime errors: "len(sources) > 0", "ctype = \_C.ContractionType(type.value) ; TypeError: 'NoneType' object is not callable".**
 
 When running `train.py `, an error occurs when installing cuda files in the backend code.
 

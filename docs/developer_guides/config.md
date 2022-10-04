@@ -83,23 +83,33 @@ After placing your new `Config` class into the `model_configs` dictionary, you c
 ### Modifying from CLI
 Often times, you just want to play with the parameters of an existing model without having to specify a new one. You can easily do so via CLI. Below, we showcase some useful CLI commands.
 
-```bash
-# list out all existing models
-ns-train --help
+- List out all existing models
+    ```bash
+    ns-train --help
+    ```
 
-# list out all exist configurable parameters for {MODEL_NAME}
-ns-train {MODEL_NAME} --help
+- List out all exist configurable parameters for `{MODEL_NAME}`
+    ```bash
+    ns-train {MODEL_NAME} --help
+    ```
 
-# change the train/eval dataset
-ns-train {MODEL_NAME} --data DATA_PATH
+- Change the train/eval dataset
+    ```bash
+    ns-train {MODEL_NAME} --data DATA_PATH
+    ```
 
-# enable the viewer
-ns-train {MODEL_NAME} --vis viewer
+- Enable the viewer
+    ```bash
+    ns-train {MODEL_NAME} --vis viewer
+    ```
 
-# see what options are available for the specified dataparser (e.g. blender-data)
-ns-train {MODEL_NAME} {DATA_PARSER} --help
+- See what options are available for the specified dataparser (e.g. blender-data)
+    ```bash
+    ns-train {MODEL_NAME} {DATA_PARSER} --help
+    ```
 
-# run with changed dataparser attributes and viewer on
-# NOTE: the dataparser and associated configurations go at the end of the command
-ns-train {MODEL_NAME} --vis viewer {DATA_PARSER} --scale-factor 0.5
-```
+- Run with changed dataparser attributes and viewer on
+    ```bash
+    # NOTE: the dataparser and associated configurations go at the end of the command
+    ns-train {MODEL_NAME} --vis viewer {DATA_PARSER} --scale-factor 0.5
+    ```
