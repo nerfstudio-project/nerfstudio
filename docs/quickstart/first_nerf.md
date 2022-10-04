@@ -9,7 +9,13 @@ ns-download-data --dataset=blender
 ns-download-data --dataset=nerfstudio --capture=poster
 ```
 
-Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
+:::{admonition} Tip
+:class: info
+
+Use `ns-download-data --help` to view all currently available datasets.
+  :::
+
+The resulting script should download and unpack the dataset as follows:
 
 ```
 |─ nerfstudio/
@@ -39,31 +45,44 @@ Run a nerfacto model.
 ns-train nerfacto
 ```
 
-Run with nerfstudio data. You'll may have to change the ports, and be sure to forward the "websocket-port".
-
+Run with nerfstudio data with our web-based viewer enabled. 
 ```
 ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
 ```
 
+:::{admonition} Tip
+:class: info
+
+* You may have to change the ports, and be sure to forward the "websocket-port".
+* All data configurations must go at the end. In this case, `nerfstudio-data` and all of its corresponding configurations come at the end after the model and viewer specification.
+  :::
+
 ## Visualizing training runs
 
-If you using a fast NeRF variant (ie. Instant-NGP), we reccomend using our viewer. See our [viewer docs](viewer_quickstart.md) for more details. The viewer will allow interactive visualization of training in realtime.
+If you using a fast NeRF variant (ie. Nerfacto/Instant-NGP), we reccomend using our viewer. See our [viewer docs](viewer_quickstart.md) for a tutorial on using the viewer. The viewer will allow interactive, real-time visualization of training.
 
-Additionally, if you run everything with the default configuration, by default, we use [TensorBoard](https://www.tensorflow.org/tensorboard) to log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in `outputs/blender_lego/vanilla_nerf/<timestamp>/<events.tfevents>`.
+We provide default `--vis` options depending on the model. For all other slower methods for which the viewer is not recommended, we default to [Wandb](https://wandb.ai/site) to log all training curves, test images, and other stats. 
 
-```bash
-tensorboard --logdir outputs
-```
+:::{admonition} Note
+:class: info
+
+Currently we only support using a single viewer at a time. To toggle between Wandb, Tensorboard, or our Web-based Viewer, you can specify `--vis VIS_OPTION`, where VIS_OPTION is one of {viewer,wandb,tensorboard}.
+  :::
 
 ## Rendering a Trajectory
 
-To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../developer_guides/benchmarking.md)) or to render out the scene with a custom trajectory and save the output to a video.
+To evaluate the trained NeRF, we provide an evaluation script that allows you to do benchmarking (see our [benchmarking workflow](../developer_guides/benchmarking.md)).
+
+We also provide options to render out the scene with a custom trajectory and save the output to a video.
 
 ```bash
-ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/config.yml --traj=spiral --output-path=output.mp4
+ns-render --load-config={PATH_TO_CONFIG} --traj=spiral --output-path=output.mp4
 ```
 
-Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](viewer_quickstart.md) for more.
+:::{admonition} See Also
+:class: info
+This quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](viewer_quickstart.md) for more.
+  :::
 
 ## FAQ
 

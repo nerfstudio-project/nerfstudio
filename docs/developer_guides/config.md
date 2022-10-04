@@ -15,7 +15,11 @@ If you are interested in creating a brand new model or data format, you will nee
 
 Let's say you want to create a new model called Nerfacto. You can create a new `Model` class that extends the base class as described [here](pipelines/models.ipynb). Before the model definition, you define the actual `NerfactoModelConfig` which points to the `NerfactoModel` class (make sure to wrap the `_target` classes in a `field` as shown below).
 
+:::{admonition} Tip
+:class: info
+
 You can then enable type/auto complete on the config passed into the `NerfactoModel` by specifying the config type below the class definition.
+  :::
 
 ```python
 """nerfstudio/models/nerfacto.py"""
@@ -38,7 +42,13 @@ class NerfactoModel(Model):
     ...
 ```
 
-The same logic applies to all other custom configs you want to create. For more examples, you can see `nerfstudio/data/dataparsers/nerfstudio_dataparsers.py`, `nerfstudio/data/datamanagers.py`. For more on how to create the data and model classes that follow the configs, please refer to [pipeline overview](pipelines/index.rst).
+The same logic applies to all other custom configs you want to create. For more examples, you can see `nerfstudio/data/dataparsers/nerfstudio_dataparsers.py`, `nerfstudio/data/datamanagers.py`.
+
+:::{admonition} See Also
+:class: info
+
+For how to create the actual data and model classes that follow the configs, please refer to [pipeline overview](pipelines/index.rst).
+  :::
 
 ### Updating model configs
 
