@@ -86,23 +86,7 @@
       ]
     },
     {
-      "name": "Python: train tensorf",
-      "type": "python",
-      "request": "launch",
-      "program": "scripts/train.py",
-      "console": "integratedTerminal",
-      "args": ["tensorf"]
-    },
-    {
-      "name": "Python: train nerfw",
-      "type": "python",
-      "request": "launch",
-      "program": "scripts/train.py",
-      "console": "integratedTerminal",
-      "args": ["nerfw"]
-    },
-    {
-      "name": "Python: train semantic_nerf",
+      "name": "Python: train semantic_nerfw",
       "type": "python",
       "request": "launch",
       "program": "scripts/train.py",

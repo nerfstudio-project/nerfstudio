@@ -34,7 +34,6 @@ from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
-from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
@@ -47,7 +46,6 @@ descriptions = {
     "mipnerf": "High quality model for bounded scenes. [red]*slow*",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. [red]*slow*",
-    "tensorf": "Fast model designed for bounded scenes.",
 }
 
 method_configs["nerfacto"] = Config(
@@ -146,31 +144,6 @@ method_configs["vanilla-nerf"] = Config(
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
             "scheduler": None,
         }
-    },
-)
-
-method_configs["tensorf"] = Config(
-    method_name="tensorf",
-    trainer=TrainerConfig(mixed_precision=True),
-    pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=BlenderDataParserConfig(),
-        ),
-        model=TensoRFModelConfig(),
-    ),
-    optimizers={
-        "fields": {
-            "optimizer": RAdamOptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
-        },
-        "position_encoding": {
-            "optimizer": RAdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
-        },
-        "direction_encoding": {
-            "optimizer": RAdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.005, max_steps=15000),
-        },
     },
 )
 
