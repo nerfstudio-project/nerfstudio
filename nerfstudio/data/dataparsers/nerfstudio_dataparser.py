@@ -58,13 +58,12 @@ class NerfstudioDataParserConfig(DataParserConfig):
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation."""
     train_split_percentage: float = 0.9
-    """The percent of images to use for training. The remaining images are for eval.
-    """
+    """The percent of images to use for training. The remaining images are for eval."""
 
 
 @dataclass
 class Nerfstudio(DataParser):
-    """Nerfstudio Dataset"""
+    """Nerfstudio DatasetParser"""
 
     config: NerfstudioDataParserConfig
     downscale_factor: Optional[int] = None
