@@ -28,6 +28,7 @@ ENTRYPOINTS = [
     "ns-download-data",
     "ns-train",
     "ns-eval",
+    "ns-render",
     "ns-dev-test",
 ]
 

@@ -80,6 +80,7 @@ ns-process-data = "scripts.process_data:entrypoint"
 ns-download-data = "scripts.downloads.download_data:entrypoint"
 ns-train = "scripts.train:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
+ns-render = "scripts.render:entrypoint"
 ns-dev-test = "scripts.debugging.run_actions:entrypoint"
 
 [options]
