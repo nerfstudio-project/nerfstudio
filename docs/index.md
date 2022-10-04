@@ -82,7 +82,6 @@ This documentation is organized into 3 parts:
 - [**Nerfacto**](https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/models/nerfacto.py): our defacto NeRF method combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
 - [NeRF](https://www.matthewtancik.com/nerf): Representing Scenes as Neural Radiance Fields for View Synthesis
 - [Instant NGP](https://nvlabs.github.io/instant-ngp/): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
-- [Mipnerf-360](https://jonbarron.info/mipnerf360/): Unbounded Anti-Aliased Neural Radiance Fields
 - [Mipnerf](https://jonbarron.info/mipnerf/): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
 - [NerfW](https://nerf-w.github.io/): Neural Radiance Fields for Unconstrained Photo Collections
 - [Semantic NeRF](https://shuaifengzhi.com/Semantic-NeRF/): In-Place Scene Labelling and Understanding with Implicit Scene Representation
