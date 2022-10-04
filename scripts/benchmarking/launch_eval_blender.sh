@@ -1,32 +1,36 @@
 helpFunction_launch_eval()
 {
-   echo "Usage: $0 -c config_name -g gpu_list"
-   echo -e "\t-c name of method to benchmark (e.g. graph_mipnerf, graph_instant_ngp)"
-   echo -o "\t-o base directory for where all the benchmarks are stored (e.g. outputs/)"
-   echo -e "\t-m month of the benchmark of format xx (e.g. 08)"
-   echo -e "\t-d date of the benchmark of format xx (e.g. 01)"
-   echo -e "\t-y year of the benchmark of format xxxx (e.g. 2022)"
-   echo -e "\t-s second timestamp of the benchmark of format xxxxxx (e.g. 003603)"
-   echo -e "\t-g list of space-separated gpu numbers to launch train on (e.g. 0 2 4 5)"
+   echo "Usage: $0 -m method_name -o output_dir -t timestamp -g [OPTIONAL] gpu_list"
+   echo -e "\t-m name of method to benchmark (e.g. nerfacto, instant-ngp)"
+   echo -e "\t-o base directory for where all the benchmarks are stored (e.g. outputs/)"
+   echo -e "\t-t timstamp, if using launch_train_blender.sh will be of format %Y-%m-%d_%H%M%S"
+   echo -e "\t-g [OPTIONAL] list of space-separated gpu numbers to launch train on (e.g. 0 2 4 5)"
    exit 1 # Exit program after printing help
 }
 
-while getopts "c:o:m:d:y:s:g" opt; do
+while getopts "m:o:t:g" opt; do
     case "$opt" in
-        c ) config_name="$OPTARG" ;;
+        m ) method_name="$OPTARG" ;;
         o ) output_dir="$OPTARG" ;;
-        m ) month="$OPTARG" ;;
-        d ) date="$OPTARG" ;;
-        y ) year="$OPTARG" ;;
-        s ) seconds="$OPTARG" ;;
+        t ) timestamp="$OPTARG" ;;
         g ) gpu_list="$OPTARG" ;;
         ? ) helpFunction_launch_eval ;; 
     esac
 done
 
-if [ -z "$config_name" ]; then
+if [ -z "$method_name" ]; then
     echo "Missing method name"
-    helpFunction_launch_train
+    helpFunction_launch_eval
+fi
+
+if [ -z "$output_dir" ]; then
+    echo "Missing output directory location"
+    helpFunction_launch_eval
+fi
+
+if [ -z "$timestamp" ]; then
+    echo "Missing timestamp specification"
+    helpFunction_launch_eval
 fi
 
 shift $((OPTIND-1))
@@ -57,12 +61,10 @@ len=${#GPU_IDX[@]}
 
 for dataset in ${DATASETS[@]}; do
     export CUDA_VISIBLE_DEVICES=${GPU_IDX[$idx]}
-    base_config_name=${config_name/"graph_"/""}
-    config_path="${output_dir}/blender_${dataset}_${month}-${date}-${year}/${base_config_name}/${year}-${month}-${date}_${seconds}/nerfstudio_models/"
-    python scripts/eval.py compute-psnr \
-        --load-config=${config_path} \
-        --output-path=${output_dir}/${base_config_name}/blender_${dataset}_${month}-${date}-${year}_${seconds}.json &
-    echo "Launched ${checkpoint_dir} on gpu ${GPU_IDX[$idx]}"
+    config_path="${output_dir}/blender_${dataset}_${timestamp::-7}/${method_name}/${timestamp}/config.yml"
+    ns-eval --load-config=${config_path} \
+            --output-path=${output_dir}/${method_name}/blender_${timestamp}.json &
+    echo "Launched ${config_path} on gpu ${GPU_IDX[$idx]}"
 
     # update gpu
     if [ $idx == $len ]; then
