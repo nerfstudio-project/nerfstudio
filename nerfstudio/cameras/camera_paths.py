@@ -41,7 +41,7 @@ def get_interpolated_camera_path(cameras: Cameras, steps: int) -> Cameras:
     poses = cameras.camera_to_worlds().cpu().numpy()
     poses, Ks = get_interpolated_poses_many(poses, Ks, steps_per_transition=steps)
 
-    cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], camera_to_worlds=poses)
+    cameras = Cameras(fx=Ks[:, 0, 0], fy=Ks[:, 1, 1], cx=Ks[0, 0, 2], cy=Ks[0, 1, 2], c2ws=poses)
     return cameras
 
 
@@ -104,7 +104,7 @@ def get_spiral_path(
         fy=camera.fy.ravel()[0],
         cx=camera.cx.ravel()[0],
         cy=camera.cy.ravel()[0],
-        camera_to_worlds=new_c2ws,
+        c2ws=new_c2ws,
     )
 
 
@@ -142,5 +142,5 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         fy=fy,
         cx=image_width / 2,
         cy=image_height / 2,
-        camera_to_worlds=camera_to_worlds,
+        c2ws=camera_to_worlds,
     )
