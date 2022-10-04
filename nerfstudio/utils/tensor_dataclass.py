@@ -144,10 +144,9 @@ class TensorDataclass:
         return new_dict
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
-        print(indices + (slice(None),))
         if isinstance(indices, torch.Tensor):
             return self._apply_fn_to_fields(lambda x: x[indices])
-        if isinstance(indices, (int, slice)):
+        if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
         tensor_fn = lambda x: x[indices + (slice(None),)]
         dataclass_fn = lambda x: x[indices]
@@ -157,7 +156,7 @@ class TensorDataclass:
                 self._field_custom_dimensions, dict
             ), "Must have custom dimensions to broadcast to custom dimensions"
             custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
-            return v[indices + (slice(None),) * custom_dims]
+            return v[indices + ((slice(None),) * custom_dims)]
 
         return self._apply_fn_to_fields(tensor_fn, dataclass_fn, custom_tensor_dims_fn=custom_tensor_dims_fn)
 
