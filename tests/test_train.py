@@ -14,7 +14,7 @@ from nerfstudio.configs.model_configs import model_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.engine.trainer import train_loop
 
-BLACKLIST = ["base", "semantic-nerf", "mipnerf-360", "instant-ngp", "nerfacto"]
+BLACKLIST = ["base", "semantic-nerfw", "mipnerf-360", "instant-ngp", "nerfacto"]
 
 
 def set_reduced_config(config: Config):

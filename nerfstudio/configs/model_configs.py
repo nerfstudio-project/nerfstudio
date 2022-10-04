@@ -35,8 +35,7 @@ from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.mipnerf_360 import MipNerf360Model
 from nerfstudio.models.nerfacto import NerfactoModelConfig
-from nerfstudio.models.nerfw import NerfWModelConfig
-from nerfstudio.models.semantic_nerf import SemanticNerfModel
+from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
@@ -49,8 +48,7 @@ descriptions = {
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
     "mipnerf-360": "High quality model for unbounded 360 degree scenes. [red]*slow*",
     "mipnerf": "High quality model for bounded scenes. [red]*slow*",
-    "nerfw": "Model designed to handle inconsistent appearance between images. [red]*slow*",
-    "semantic-nerf": "Model that predicts dense semantic segmentations. [red]*slow*",
+    "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. [red]*slow*",
     "tensorf": "Fast model designed for bounded scenes.",
 }
@@ -137,42 +135,27 @@ model_configs["mipnerf"] = Config(
     },
 )
 
-model_configs["nerfw"] = Config(
-    method_name="nerfw",
+model_configs["semantic-nerfw"] = Config(
+    method_name="semantic-nerfw",
+    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=FriendsDataParserConfig(),
+            dataparser=FriendsDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
-        model=NerfWModelConfig(),
+        model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
     optimizers={
-        "fields": {
-            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
-        }
-    },
-)
-
-
-model_configs["semantic-nerf"] = Config(
-    method_name="semantic-nerf",
-    pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=FriendsDataParserConfig(),
-        ),
-        model=VanillaModelConfig(
-            _target=SemanticNerfModel,
-            loss_coefficients={"rgb_loss_coarse": 1.0, "rgb_loss_fine": 1.0, "semantic_loss_fine": 0.05},
-            num_coarse_samples=64,
-            num_importance_samples=64,
-        ),
-    ),
-    optimizers={
+        },
         "fields": {
-            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
-        }
+        },
     },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
+    vis="viewer",
 )
 
 model_configs["vanilla-nerf"] = Config(
