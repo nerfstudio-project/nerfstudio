@@ -139,7 +139,7 @@ ns-train nerfacto --help
 # Run with nerfacto model.
 ns-train nerfacto
 
-# We provide support for many existing models. E.g. to run mipnerf.
+# We provide support for other models. E.g. to run instant-ngp.
 ns-train instant-ngp
 
 # To train on your custom data.

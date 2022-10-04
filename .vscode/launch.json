@@ -86,14 +86,6 @@
       ]
     },
     {
-      "name": "Python: train mipnerf 360",
-      "type": "python",
-      "request": "launch",
-      "program": "scripts/train.py",
-      "console": "integratedTerminal",
-      "args": ["mipnerf_360"]
-    },
-    {
       "name": "Python: train tensorf",
       "type": "python",
       "request": "launch",
