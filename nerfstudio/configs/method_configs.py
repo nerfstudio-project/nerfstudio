@@ -41,7 +41,7 @@ from nerfstudio.models.vanilla_nerf import NeRFModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
-model_configs: Dict[str, Config] = {}
+method_configs: Dict[str, Config] = {}
 descriptions = {
     "nerfacto": "[bold green]Recommended[/bold green] Real-time model tuned for real captures. "
     + "This model will be continually updated.",
@@ -53,7 +53,7 @@ descriptions = {
     "tensorf": "Fast model designed for bounded scenes.",
 }
 
-model_configs["nerfacto"] = Config(
+method_configs["nerfacto"] = Config(
     method_name="nerfacto",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
@@ -76,7 +76,7 @@ model_configs["nerfacto"] = Config(
     vis="viewer",
 )
 
-model_configs["instant-ngp"] = Config(
+method_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=DynamicBatchPipelineConfig(
@@ -93,7 +93,7 @@ model_configs["instant-ngp"] = Config(
     vis="viewer",
 )
 
-model_configs["mipnerf-360"] = Config(
+method_configs["mipnerf-360"] = Config(
     method_name="mipnerf-360",
     trainer=TrainerConfig(steps_per_eval_batch=200),
     pipeline=VanillaPipelineConfig(
@@ -115,7 +115,7 @@ model_configs["mipnerf-360"] = Config(
     },
 )
 
-model_configs["mipnerf"] = Config(
+method_configs["mipnerf"] = Config(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=BlenderDataParserConfig(), train_num_rays_per_batch=8192),
@@ -135,7 +135,7 @@ model_configs["mipnerf"] = Config(
     },
 )
 
-model_configs["semantic-nerfw"] = Config(
+method_configs["semantic-nerfw"] = Config(
     method_name="semantic-nerfw",
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
@@ -158,7 +158,7 @@ model_configs["semantic-nerfw"] = Config(
     vis="viewer",
 )
 
-model_configs["vanilla-nerf"] = Config(
+method_configs["vanilla-nerf"] = Config(
     method_name="vanilla-nerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -174,7 +174,7 @@ model_configs["vanilla-nerf"] = Config(
     },
 )
 
-model_configs["tensorf"] = Config(
+method_configs["tensorf"] = Config(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=True),
     pipeline=VanillaPipelineConfig(
@@ -201,7 +201,7 @@ model_configs["tensorf"] = Config(
 
 
 AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(
-    defaults=model_configs, descriptions=descriptions
+    defaults=method_configs, descriptions=descriptions
 )
 """Union[] type over config types, annotated with default instances for use with
 dcargs.cli(). Allows the user to pick between one of several base configurations, and

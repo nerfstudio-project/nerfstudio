@@ -34,11 +34,11 @@ In the following sections, we describe the Pipeline components and look at their
 .. toctree::
     :maxdepth: 1
 
-    dataparsers.md
-    datamanagers.md
-    models.md
-    fields.md
-    pipelines.md
+    dataparsers
+    datamanagers
+    models
+    fields
+    pipelines
 
 Implementing NeRF Papers
 
@@ -47,4 +47,4 @@ Let's say you want to create a custom Pipeline that has a custom DataManager and
 .. toctree::
     :maxdepth: 1
 
-    creating_new_methods.ipynb
+    creating_new_methods

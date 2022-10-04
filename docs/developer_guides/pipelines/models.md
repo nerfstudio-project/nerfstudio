@@ -14,7 +14,7 @@
 
 ## What is a Model?
 
-A Model is probably what you think of when you think of a NeRF paper. Often the phrases "Model" and "Method" are used interchangeably and for this reason, our [implemented models](/nerfology/models/index) are actually methods. However, most of the implementations details of a method happen in the model code, as you'll see in this section.
+A Model is probably what you think of when you think of a NeRF paper. Often the phrases "Model" and "Method" are used interchangeably and for this reason, our implemented [Methods](/nerfology/methods/index) typically only change the model code.
 
 A model, at a high level, takes in regions of space described by RayBundle objects, samples points along these rays, and returns rendered values for each ray. So, let's take a look at what it takes to create your own model!
 
