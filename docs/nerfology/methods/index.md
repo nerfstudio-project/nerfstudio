@@ -7,10 +7,13 @@ We provide a set of pre implemented nerfstudio methods. One of the goals of nerf
 It's easy!
 
 ```bash
-# to see the implemented methods
+ns-train METHOD_NAME
+```
+
+To list the available methods run:
+
+```bash
 ns-train --help
-# to see the method arguments
-ns-train {METHOD_NAME} --help
 ```
 
 ## Guides
