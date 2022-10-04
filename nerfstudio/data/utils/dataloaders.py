@@ -50,6 +50,7 @@ class CacheDataloader(DataLoader):
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
+        collate_fn=default_collate,
         **kwargs,
     ):
         self.dataset = dataset
@@ -57,6 +58,7 @@ class CacheDataloader(DataLoader):
         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.device = device
+        self.collate_fn = collate_fn
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.first_time = True
@@ -94,7 +96,7 @@ class CacheDataloader(DataLoader):
     def _get_collated_batch(self):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
-        collated_batch = default_collate(batch_list)
+        collated_batch = self.collate_fn(batch_list)
         collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
         return collated_batch
 
