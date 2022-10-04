@@ -60,7 +60,7 @@ nerfstudio_file_ids = {
     "sf_street": "1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz",
     "poster": "1dmjWGXlJnUxwosN6MVooCDQe970PkD-1",
     # Angjoo's captures
-    "bunnys": grab_file_id("https://drive.google.com/file/d/1oVytSgd1gQclF0CybJ6JdXDmaqKOx7Wg/view?usp=sharing"),
+    "bunny": grab_file_id("https://drive.google.com/file/d/1oVytSgd1gQclF0CybJ6JdXDmaqKOx7Wg/view?usp=sharing"),
 }
 
 
