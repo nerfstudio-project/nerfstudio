@@ -77,7 +77,8 @@ We reccomend using conda to manage dependencies. Make sure to install [Conda](ht
 ```
 conda create --name nerfstudio -y python=3.8.13;
 conda activate nerfstudio
-python -m pip install --upgrade pip
+python -m 
+--upgrade pip
 ```
 
 ### Dependencies
@@ -100,9 +101,7 @@ pip install nerfstudio
 If you would want the latest and greatest:
 
 ```
-git clone git@github.com:plenoptix/nerfstudio.git
-cd nerfstudio
-pip install -e .
+pip install -e git+https://github.com/nerfstudio-project/nerfstudio.git
 ```
 
 ### Optional Installs
