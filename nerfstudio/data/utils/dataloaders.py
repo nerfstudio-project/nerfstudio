@@ -136,22 +136,7 @@ class EvalDataloader(DataLoader):
         Args:
             image_idx: Camera image index
         """
-        distortion_params = None
-        if self.cameras.distortion_params is not None:
-            distortion_params = self.cameras.distortion_params[image_idx]
-
-        camera = Cameras(
-            fx=self.cameras.fx[image_idx : image_idx + 1],
-            fy=self.cameras.fy[image_idx : image_idx + 1],
-            cx=self.cameras.cx[image_idx : image_idx + 1],
-            cy=self.cameras.cy[image_idx : image_idx + 1],
-            height=self.cameras.image_height[image_idx : image_idx + 1],
-            width=self.cameras.image_width[image_idx : image_idx + 1],
-            camera_to_worlds=self.cameras.camera_to_worlds[image_idx : image_idx + 1],
-            distortion_params=distortion_params,
-            camera_type=self.cameras.camera_type[image_idx : image_idx + 1],
-        )
-        return camera
+        return self.cameras[image_idx]
 
     def get_data_from_image_idx(self, image_idx: int) -> Tuple[RayBundle, Dict]:
         """Returns the data for a specific image index.
