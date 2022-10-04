@@ -15,7 +15,7 @@
 """TensoRF Field"""
 
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 import torch
 from torch import nn
@@ -23,18 +23,13 @@ from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.datamanagers.structs import SceneBounds
-from nerfstudio.fields.base import Field
-from nerfstudio.fields.modules.encoding import Encoding, Identity
-from nerfstudio.fields.modules.field_heads import (
-    DensityFieldHead,
-    FieldHead,
-    FieldHeadNames,
-    RGBFieldHead,
-)
-from nerfstudio.fields.modules.mlp import MLP
-from nerfstudio.fields.modules.spatial_distortions import SpatialDistortion
-from nerfstudio.utils.activations import trunc_exp
+from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.field_components.activations import trunc_exp
+from nerfstudio.field_components.encodings import Encoding, Identity
+from nerfstudio.field_components.field_heads import FieldHeadNames, RGBFieldHead
+from nerfstudio.field_components.mlp import MLP
+from nerfstudio.field_components.spatial_distortions import SpatialDistortion
+from nerfstudio.fields.base_field import Field
 
 
 class TensoRFField(Field):
@@ -77,7 +72,7 @@ class TensoRFField(Field):
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim(), activation=nn.Sigmoid())
 
     def get_density(self, ray_samples: RaySamples):
-        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
 
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(positions)
@@ -89,7 +84,7 @@ class TensoRFField(Field):
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
         d = ray_samples.frustums.directions
-        positions = SceneBounds.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         rgb_features = self.color_encoding(positions)
 
         B = nn.Linear(in_features=self.color_encoding.get_out_dim(), out_features=27, bias=False, device=d.device)
