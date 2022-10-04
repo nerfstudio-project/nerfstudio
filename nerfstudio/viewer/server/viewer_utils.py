@@ -729,7 +729,7 @@ class ViewerState:
             fy=intrinsics_matrix[1, 1],
             cx=intrinsics_matrix[0, 2],
             cy=intrinsics_matrix[1, 2],
-            c2ws=camera_to_world[None, ...],
+            camera_to_worlds=camera_to_world[None, ...],
         )
         camera = camera.to(graph.device)
 
