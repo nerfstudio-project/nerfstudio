@@ -51,10 +51,15 @@ def get_semantics_and_masks(image_idx: int, semantics: Semantics):
     thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
     mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
     # handle semantics
+    # stuff
     stuff_image_filename = semantics.stuff_filenames[image_idx]
     pil_image = Image.open(stuff_image_filename)
     stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-    return {"mask": mask, "semantics": stuff_semantics}
+    # thing
+    thing_image_filename = semantics.thing_filenames[image_idx]
+    pil_image = Image.open(thing_image_filename)
+    thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+    return {"mask": mask, "semantics_stuff": stuff_semantics, "semantics_thing": thing_semantics}
 
 
 @dataclass
@@ -67,8 +72,8 @@ class FriendsDataParserConfig(DataParserConfig):
     """Directory specifying location of data."""
     include_semantics: bool = True
     """whether or not to include loading of semantics data"""
-    downscale_factor: int = 8
-    scene_scale: float = 4.0
+    downscale_factor: int = 4
+    scene_scale: float = 2.0
     """
     Sets the bounding cube to have edge length of this size.
     The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
@@ -187,5 +192,6 @@ class Friends(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
+            semantics=semantics,
         )
         return dataparser_outputs
