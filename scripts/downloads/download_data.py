@@ -48,11 +48,19 @@ def download_friends(save_dir: Path):
     os.remove(download_path)
 
 
+def grab_file_id(zip_url: str) -> str:
+    """Get the file id from the google drive zip url."""
+    s = zip_url.split("/d/")[1]
+    return s.split("/")[0]
+
+
 # https://drive.google.com/drive/folders/1Wh66z3qQTZ8o2MwPPwYOrdwQtXUEQFyq?usp=sharing
 nerfstudio_file_ids = {
     "dozer": "1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR",
     "sf_street": "1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz",
     "poster": "1dmjWGXlJnUxwosN6MVooCDQe970PkD-1",
+    # Angjoo's captures
+    "bunnys": grab_file_id("https://drive.google.com/file/d/1oVytSgd1gQclF0CybJ6JdXDmaqKOx7Wg/view?usp=sharing"),
 }
 
 
