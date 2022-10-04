@@ -7,7 +7,13 @@ We provide a set of pre implemented nerfstudio models. One of the goals of nerfs
 It's easy!
 
 ```bash
-python scripts/train.py --config-name MODEL_CONFIG
+ns-train MODEL_NAME
+```
+
+To list the available models run:
+
+```bash
+ns-train --help
 ```
 
 ## Guides
@@ -16,9 +22,9 @@ In addition to their implementations, we have provided guides that walk through 
 
 ```{toctree}
     :maxdepth: 1
-    NeRF<nerf.md>
-    Mip-NeRF<mipnerf.md>
-    Mip-NeRF 360<mipnerf_360.md>
-    Instant-NGP<instant_ngp.md>
-    Semantic NeRF-W<semantic_nerfw.md>
+    NeRF<nerf>
+    Mip-NeRF<mipnerf>
+    Mip-NeRF 360<mipnerf_360>
+    Instant-NGP<instant_ngp>
+    Semantic NeRF-W<semantic_nerfw>
 ```
