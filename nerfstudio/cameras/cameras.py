@@ -84,18 +84,49 @@ class Cameras(TensorDataclass):
 
     def __init__(
         self,
-        camera_to_worlds: TensorType["num_cameras":..., 3, 4],
-        fx: Union[TensorType["num_cameras":...], float],
-        fy: Union[TensorType["num_cameras":...], float],
-        cx: Union[TensorType["num_cameras":...], float],
-        cy: Union[TensorType["num_cameras":...], float],
-        width: Optional[Union[TensorType["num_cameras":...], int]] = None,
-        height: Optional[Union[TensorType["num_cameras":...], int]] = None,
-        distortion_params: Optional[TensorType["num_cameras":..., 6]] = None,
+        camera_to_worlds: TensorType["batch_c2ws":..., 3, 4],
+        fx: Union[TensorType["batch_fxs":..., 1], TensorType["batch_fxs":...], float],
+        fy: Union[TensorType["batch_fys":..., 1], TensorType["batch_fys":...], float],
+        cx: Union[TensorType["batch_cxs":..., 1], TensorType["batch_cxs":...], float],
+        cy: Union[TensorType["batch_cys":..., 1], TensorType["batch_cys":...], float],
+        width: Optional[Union[TensorType["batch_ws":..., 1], TensorType["batch_ws":...], int]] = None,
+        height: Optional[Union[TensorType["batch_hs":..., 1], TensorType["batch_hs":...], int]] = None,
+        distortion_params: Optional[TensorType["batch_dist_params":..., 6]] = None,
         camera_type: Optional[
-            Union[TensorType["num_cameras":...], int, List[CameraType], CameraType]
+            Union[
+                TensorType["batch_cam_types":..., 1],
+                TensorType["batch_cam_types":...],
+                int,
+                List[CameraType],
+                CameraType,
+            ]
         ] = CameraType.PERSPECTIVE,
     ):
+        """Initializes the Cameras object.
+
+        Note on Input Tensor Dimensions: All of these tensors have items of dimensions TensorType[3, 4]
+        (in the case of the c2w matrices), TensorType[6] (in the case of distortion params), or
+        TensorType[1] (in the case of the rest of the elements). The dimensions before that are
+        considered the batch dimension of that tensor (batch_c2ws, batch_fxs, etc.). We will broadcast
+        all the tensors to be the same batch dimension. This means you can use any combination of the
+        input types in the function signature and it won't break. Your batch size for all tensors
+        must be broadcastable to the same size, and the resulting number of batch dimensions will be
+        the batch dimension with the largest number of dimensions.
+
+
+        Args:
+            camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format,
+                optionally flattened
+            fx: Focal length x. If a single value is provided, it is broadcasted to all cameras.
+            fy: Focal length y. If a single value is provided, it is broadcasted to all cameras.
+            cx: Principal point x. If a single value is provided, it is broadcasted to all cameras.
+            cy: Principal point y. If a single value is provided, it is broadcasted to all cameras.
+            width: Image width. If a single value is provided, it is broadcasted to all cameras.
+            height: Image height. If a single value is provided, it is broadcasted to all cameras.
+            distortion_params: OpenCV 6 radial distortion coefficients.
+            camera_type: Type of camera model. If a single value is provided, it is broadcasted to
+                all cameras. This will be an int corresponding to the CameraType enum.
+        """
 
         # This will notify the tensordataclass that we have a field with more than 1 dimension
         self._field_custom_dimensions = {"camera_to_worlds": 2}
@@ -196,7 +227,9 @@ class Cameras(TensorDataclass):
         return camera_type
 
     def _init_get_height_width(
-        self, h_w: Union[TensorType["num_cameras":...], int, None], c_x_y: TensorType["num_cameras":...]
+        self,
+        h_w: Union[TensorType["batch_hs":..., 1], TensorType["batch_hs":...], int, None],
+        c_x_y: TensorType["num_cameras":...],
     ) -> TensorType["num_cameras":...]:
         """
         Parses the __init__() argument for height or width
@@ -281,17 +314,28 @@ class Cameras(TensorDataclass):
             Rays for the given camera indices and coords.
         """
 
+        if self.shape == ():
+            cameras = self.flatten()
+        else:
+            cameras = self
+
+        print("INDICES", camera_indices)
+
         if isinstance(camera_indices, torch.Tensor):
-            camera_indices = camera_indices.to(self.device)
+            camera_indices = camera_indices.to(cameras.device)
 
         if coords is None:
-            coords = self.get_image_coords().to(self.device)
+            coords = cameras.get_image_coords().to(cameras.device)
 
         assert coords is not None
         y = coords[..., 0]  # (..., 1)
         x = coords[..., 1]  # (..., 1)
-        fx, fy = self.fx[camera_indices].squeeze(-1), self.fy[camera_indices].squeeze(-1)
-        cx, cy = self.cx[camera_indices].squeeze(-1), self.cy[camera_indices].squeeze(-1)
+        fx, fy = cameras.fx[camera_indices].squeeze(-1), cameras.fy[camera_indices].squeeze(-1)
+        cx, cy = cameras.cx[camera_indices].squeeze(-1), cameras.cy[camera_indices].squeeze(-1)
+
+        print("RAY GENERATOR SHAPES")
+        print(self.shape, cameras.shape)
+        print(x.shape, cx.shape, fx.shape, y.shape, cy.shape, fy.shape)
 
         coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)
         coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)
@@ -300,8 +344,8 @@ class Cameras(TensorDataclass):
         coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
 
         distortion_params = None
-        if self.distortion_params is not None:
-            distortion_params = self.distortion_params[camera_indices]
+        if cameras.distortion_params is not None:
+            distortion_params = cameras.distortion_params[camera_indices]
             if distortion_params_delta is not None:
                 distortion_params = distortion_params + distortion_params_delta
         elif distortion_params_delta is not None:
@@ -310,11 +354,11 @@ class Cameras(TensorDataclass):
         if distortion_params is not None:
             coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
 
-        if self.camera_type.ravel()[0] == CameraType.PERSPECTIVE.value:
+        if cameras.camera_type.ravel()[0] == CameraType.PERSPECTIVE.value:
             directions_stack = torch.stack(
                 [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
             )
-        elif self.camera_type.ravel()[0] == CameraType.FISHEYE.value:
+        elif cameras.camera_type.ravel()[0] == CameraType.FISHEYE.value:
             theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
 
@@ -328,9 +372,9 @@ class Cameras(TensorDataclass):
                 dim=-1,
             )
         else:
-            raise ValueError(f"Camera type {CameraType(self.camera_type.ravel()[0])} not supported.")
+            raise ValueError(f"Camera type {CameraType(cameras.camera_type.ravel()[0])} not supported.")
 
-        c2w = self.camera_to_worlds[camera_indices]
+        c2w = cameras.camera_to_worlds[camera_indices]
         if camera_opt_to_camera is not None:
             c2w = pose_utils.multiply(c2w, camera_opt_to_camera)
         rotation = c2w[..., :3, :3]  # (..., 3, 3)
@@ -348,7 +392,7 @@ class Cameras(TensorDataclass):
         pixel_area = (dx * dy)[..., None]
 
         if not isinstance(camera_indices, torch.Tensor):
-            ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to(pixel_area.shape).to(self.device)
+            ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to(pixel_area.shape).to(cameras.device)
         else:
             ray_bundle_camera_indices = camera_indices.view(pixel_area.shape)
 
@@ -375,12 +419,13 @@ class Cameras(TensorDataclass):
         Returns:
             A JSON representation of the camera
         """
+        flattened = self.flatten()
         json_ = {
             "type": "PinholeCamera",
-            "cx": self.cx.ravel()[camera_idx].item(),
-            "cy": self.cy.ravel()[camera_idx].item(),
-            "fx": self.fx.ravel()[camera_idx].tolist(),
-            "fy": self.fy.ravel()[camera_idx].tolist(),
+            "cx": flattened[camera_idx].item(),
+            "cy": flattened[camera_idx].item(),
+            "fx": flattened[camera_idx].item(),
+            "fy": flattened[camera_idx].item(),
             "camera_to_world": self.camera_to_worlds.ravel()[camera_idx].tolist(),
             "camera_index": camera_idx,
         }
