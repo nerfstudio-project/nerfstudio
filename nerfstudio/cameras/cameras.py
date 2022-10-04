@@ -59,7 +59,8 @@ class Cameras(TensorDataclass):
     down the line in cases where your batches of camera data don't come from the same cameras.
 
     Args:
-        camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format, optionally flattened
+        camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format,
+            optionally flattened
         fx: Focal length x. If a single value is provided, it is broadcasted to all cameras.
         fy: Focal length y. If a single value is provided, it is broadcasted to all cameras.
         cx: Principal point x. If a single value is provided, it is broadcasted to all cameras.
