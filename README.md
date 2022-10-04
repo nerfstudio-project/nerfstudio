@@ -208,7 +208,7 @@ We support logging to weights and biases. To enable wandb logging, add the flag 
 ## 5. Rendering a trajectory during inference
 
 ```
-ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/{MOST_RECENT_RUN}/config.yml--traj=spiral --output-path=output.mp4
+ns-render --load-config=outputs/blender_lego/instant_ngp/{MOST_RECENT_RUN}/config.yml--traj=spiral --output-path=output.mp4
 ```
 
 ## 6. In-depth guide
