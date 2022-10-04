@@ -1,4 +1,4 @@
-# Training First Model
+# Training your first model
 
 ## Downloading data
 
@@ -64,50 +64,3 @@ ns-render --load-config=outputs/blender_lego/instant_ngp/2022-07-07_230905/confi
 ```
 
 Please note, this quickstart allows you to preform everything in a headless manner. We also provide a web-based viewer that allows you to easily monitor training or render out trajectories. See our [viewer docs](viewer_quickstart.md) for more.
-
-## FAQ
-
-- [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
-- [Installation errors, File "setup.py" not found](pip-install-error)
-- [Runtime errors, "len(sources) > 0".](cuda-sources-error)
-
-(tiny-cuda-error)=
-
-#### TinyCUDA installation errors out with cuda mismatch
-
-While installing tiny-cuda, you run into: `The detected CUDA version mismatches the version that was used to compile PyTorch (10.2). Please make sure to use the same CUDA versions.`
-
-**Solution**:
-
-```
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
-```
-
-(pip-install-error)=
-
-#### Installation errors, File "setup.py" not found
-
-When installing dependencies and nerfstudio with `pip install -e .`, you run into: `ERROR: File "setup.py" not found. Directory cannot be installed in editable mode`
-
-**Solution**:
-This can be fixed by upgrading pip to the latest version:
-
-```
-python -m pip install --upgrade pip
-```
-
-
-(cuda-sources-error)=
-
-#### Runtime errors: "len(sources) > 0", "ctype = \_C.ContractionType(type.value) ; TypeError: 'NoneType' object is not callable".
-
-When running `train.py `, an error occurs when installing cuda files in the backend code.
-
-**Solution**:
-This is a problem with not being able to detect the correct CUDA version, and can be fixed by updating the CUDA path environment variables:
-
-```
-export CUDA_HOME=/usr/local/cuda
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
-export PATH=$PATH:$CUDA_HOME/bin
-```

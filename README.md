@@ -28,7 +28,7 @@
     </picture>
 </p>
 
-<p align="center"> The all-in-one repo for NeRFs </p>
+<p align="center"> A collaboration friendly studio for NeRFs </p>
 
 <p align="center">
     <a href="https://docs.nerf.studio">
@@ -55,7 +55,7 @@ It’s as simple as plug and play with nerfstudio!
 
 Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the nerfstudio team with any questions.
+Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/NHGtYRAW).
 
 We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
@@ -70,7 +70,7 @@ For more complex changes (e.g. running with your own data/ setting up a new NeRF
 
 We reccomend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
 
-```
+```bash
 conda create --name nerfstudio -y python=3.8.13;
 conda activate nerfstudio
 python -m pip install --upgrade pip
@@ -80,7 +80,7 @@ python -m pip install --upgrade pip
 
 Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
 
-```
+```bash
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 ```
@@ -89,77 +89,60 @@ pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/to
 
 Easy option:
 
-```
+```bash
 pip install nerfstudio
 ```
 
 If you would want the latest and greatest:
 
-```
+```bash
 git clone git@github.com:plenoptix/nerfstudio.git
 cd nerfstudio
 pip install -e .
 ```
 
-### Optional Installs
-
-**Tab completion (bash & zsh)**
-
-This needs to be rerun when the CLI changes, for example if nerfstudio is updated.
-
-```bash
-ns-install-cli
-```
-
-**Development packages**
-
-```bash
-pip install -e.[dev]
-pip install -e.[docs]
-```
-
-#### 2. Getting the data
+## 2. Setting up the data
 
 Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://plenoptix-nerfstudio.readthedocs-hosted.com/en/latest/tutorials/data/index.html).
 
-```
+```bash
 ns-download-data --dataset=blender
 ns-download-data --dataset=nerfstudio --capture=poster
 ```
 
-Use `--help` to view all currently available datasets. The resulting script should download and unpack the dataset as follows:
+### 2.x Using custom data
+If you have custom data in the form of a video or folder of images, we've provided some [COLMAP](https://colmap.github.io/) and [FFmpeg](https://ffmpeg.org/download.html) scripts to help you process your data so it is compatible with nerfstudio. 
 
-```
-|─ nerfstudio/
-   ├─ data/
-   |  ├─ blender/
-   |     ├─ fern/
-   |     ├─ lego/
-         ...
-      |- <dataset_format>/
-         |- <scene>
-         ...
+After installing both software, you can process your data via:
+
+```bash
+ns-process-data --data FOLDER_OR_VIDEO --output-dir PROCESSED_DATA_DIR
 ```
 
 ## 3. Training a model
 
 To run with all the defaults, e.g. vanilla nerf method with the blender lego image
 
-```
+```bash
 # To see what models are available.
 ns-train --help
 
-# Run a vanilla nerf model.
-ns-train vanilla-nerf
+# To see what model-specific cli arguments are available.
+ns-train nerfacto --help
 
 # Run with nerfacto model.
 ns-train nerfacto
 
-# Run with nerfstudio data. You'll may have to change the ports, and be sure to forward the "websocket-port".
-ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
+# We provide support for many existing models. E.g. to run mipnerf.
+ns-train instant-ngp
+
+# To train on your custom data.
+ns-train nerfacto --data PROCESSED_DATA_DIR
 ```
 
 ### 3.x Training a model with the viewer
+
+You can visualize training in real-time using our web-based viewer.
 
 Make sure to forward a port for the websocket to localhost. The default port is 7007, which you should expose to localhost:7007.
 
@@ -174,59 +157,39 @@ ns-train nerfacto --vis viewer --viewer.websocket-port=7008
 ssh -L localhost:7008:localhost:7008 {REMOTE HOST}
 ```
 
-### 4. Visualizing training runs
+For more details on how to interact with the visualizer, please visit our viewer [walk-through]().
 
-We support multiple methods to visualize training, the default configuration uses Tensorboard. More information on logging can be found [here](https://docs.nerf.studio/en/latest/tooling/logging_profiling.html).
+## 4. Rendering a trajectory during inference
 
-<details>
-<summary>Real-time Viewer</summary>
-
-We have developed our own Real-time web viewer, more information can be found [here](https://docs.nerf.studio/en/latest/tutorials/viewer/index.html). This viewer runs during training and is designed to work with models that have fast rendering pipelines.
-
-To turn on the viewer, simply add the flag `--vis viewer`.
-
-</details>
-
-<details>
-<summary>Tensorboard</summary>
-
-If you run everything with the default configuration we log all training curves, test images, and other stats. Once the job is launched, you will be able to track training by launching the tensorboard in your base experiment directory (Default: `outputs/`).
+After your model has trained, you can headlessly render out a video of the scene with a pre-defined trajectory.
 
 ```bash
-tensorboard --logdir outputs/
+ns-eval render-trajectory --load-config=outputs/blender_lego/instant_ngp/{MOST_RECENT_RUN}/config.yml--traj=spiral --output-path=output.mp4
 ```
 
-</details>
-
-<details>
-<summary>Weights & Biases</summary>
-
-We support logging to weights and biases. To enable wandb logging, add the flag `--logging.writer.1.enable`.
-
-</details>
-
-## 5. Rendering a trajectory during inference
-
-```
-ns-render --load-config=outputs/blender_lego/instant_ngp/{MOST_RECENT_RUN}/config.yml--traj=spiral --output-path=output.mp4
-```
-
-## 6. In-depth guide
-
-For a more in-depth tutorial on how to modify/implement your own NeRF Graph, please see our [walk-through](https://docs.nerf.studio/en/latest/tutorials/pipelines/index.html).
 
 # Learn More
 
+And that's it for getting started with the basics of nerfstudio. If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the qucklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
+
 | Section                                                                                 | Description                                                                                        |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Documentation](https://docs.nerf.studio/en/latest/)                                    | Full API documentation and tutorials                                                               |
-| [Interactive Guides](https://docs.nerf.studio/en/latest/guides/index.html)              | Go-to spot for learning how NeRFs and each of its modules work.                                    |
-| [Quick tour](https://docs.nerf.studio/en/latest/tutorials/quickstart_index.html)        | Example script on how to navigate nerfstudio from install, train, to test.                         |
-| [Creating pipelines](https://docs.nerf.studio/en/latest/tutorials/pipelines/index.html) | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
-| [Creating datasets](https://docs.nerf.studio/en/latest/tutorials/data/index.html)       | Have a new dataset? Learn how to use it with nerfstudio.                                           |
-| [Mobile Capture to NerF](#)                                                             | Step-by-step tutorial on how to create beautiful renders with just your phone.                     |
-| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)          | Walk-through for how you can start contributing now.                                               |
-| [Discord](https://discord.gg/NHGtYRAW)                                                  | Join our community to discuss more. We would love to hear from you!                                |
+| [Documentation](https://docs.nerf.studio/en/latest/)                                     | Full API documentation and tutorials                                                               |
+| [Viewer](https://viewer.nerf.studio/)                                     | Home page for our web viewer                                                               |
+| **Educational Guides** |
+| [Model Descriptions](https://docs.nerf.studio/en/latest/guides/index.html)               | Description of all the models supported by nerfstudio and explanations of component parts.                                    |
+| [Component Descriptions](https://docs.nerf.studio/en/latest/nerfology/model_components/index.html) | Interactive notebooks that explain notable/commonly used modules in various models. |
+| **Tutorials** |
+| [Getting Started](https://docs.nerf.studio/en/latest/quickstart/installation.html)         | A more in-depth guide on how to get started with nerfstudio from installation to contributing.                         |
+| [Using the Viewer](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html) | A quick demo video on how to navigate the viewer. |
+| **Developer Resources** |
+| [Creating pipelines](https://docs.nerf.studio/en/latest/developer_guides/pipelines/index.html)  | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
+| [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)        | Have a new dataset? Learn how to run it with nerfstudio.                                           |        |        
+| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)           | Walk-through for how you can start contributing now.                                               |
+| **Community** |
+| [Discord](https://discord.gg/NHGtYRAW)                                                   | Join our community to discuss more. We would love to hear from you!                                |
+| [Twitter](#)                                                   | Follow us on Twitter to see cool updates and announcements                                |
+| [TikTok](#)                                                   | Comming soon! Follow us on TikTok to see some of our fan favorite results                               |
 
 # Supported Features
 
