@@ -15,9 +15,7 @@
 """Generic utility functions
 """
 
-import functools
 import sys
-from threading import Thread
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -112,35 +110,3 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = 1
     raise (
         Exception(f"Could not find an available port in the range: [{default_port:d}, {max_attempts + default_port:d})")
     )
-
-
-def timeout(timeout_in_sec):
-    """Timeout if function fails to complete in timeout_in_secs seconds"""
-
-    def deco(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            res = [Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")]
-
-            def new_func():
-                try:
-                    res[0] = func(*args, **kwargs)
-                except Exception as e:
-                    res[0] = e
-
-            t = Thread(target=new_func)
-            t.daemon = True
-            try:
-                t.start()
-                t.join(timeout_in_sec)
-            except Exception as je:
-                print("error starting thread")
-                raise je
-            ret = res[0]
-            if isinstance(ret, BaseException):
-                raise ret
-            return ret
-
-        return wrapper
-
-    return deco

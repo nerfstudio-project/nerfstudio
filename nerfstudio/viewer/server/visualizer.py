@@ -17,6 +17,7 @@
 
 import logging
 import sys
+from threading import Thread
 from typing import Dict, Optional, Union
 
 import msgpack
@@ -25,7 +26,6 @@ import umsgpack
 import zmq
 
 from nerfstudio.viewer.server.path import Path
-from nerfstudio.viewer.server.utils import timeout
 
 
 class ViewerWindow:
@@ -65,16 +65,36 @@ class ViewerWindow:
         )
         return umsgpack.unpackb(self.client.recv())
 
-    def assert_connected(self, timeout_in_sec: int = 10):
+    def timeout_ping(self, timeout_in_sec: int = 5):
+        """Timeout if ping fails to complete in timeout_in_secs seconds"""
+
+        res = [Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")]
+
+        def wrapper_func():
+            res[0] = self.send_ping()
+
+        t = Thread(target=wrapper_func)
+        t.daemon = True
+        try:
+            t.start()
+            t.join(timeout_in_sec)
+        except Exception as je:
+            logging.info("Error starting thread")
+            raise je
+        ret = res[0]
+        if isinstance(ret, BaseException):
+            raise ret
+        return ret
+
+    def assert_connected(self, timeout_in_sec: int = 5):
         """Check if the connection was established properly within some time.
 
         Args:
             timeout_in_sec (int): The maximum time to wait for the connection to be established.
         """
-        try_ping = timeout(timeout_in_sec=timeout_in_sec)(self.send_ping)
         try:
             logging.info("Sending ping to the viewer Bridge Server...")
-            _ = try_ping()
+            _ = self.timeout_ping(timeout_in_sec)
             logging.info("Successfully connected.")
 
         except Exception as e:  # pylint: disable=broad-except
