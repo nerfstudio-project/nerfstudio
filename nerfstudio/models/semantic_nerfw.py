@@ -1,4 +1,4 @@
-# Copyright 2022 The Nerfstudio Team. All rights reserved.
+# Copyright 2022 The Plenoptix Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,13 @@
 # limitations under the License.
 
 """
-NeRF implementation that combines many recent advancements.
+Semantic NeRF-W implementation which should be fast enough to view in the viewer.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Tuple, Type
+from typing import Dict, List, Tuple, Type
 
 import numpy as np
 import torch
@@ -29,6 +29,7 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.data.dataparsers.base_dataparser import Semantics
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -44,55 +45,36 @@ from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
     RGBRenderer,
+    SemanticRenderer,
+    UncertaintyRenderer,
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
-from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps
+from nerfstudio.models.base_model import Model
+from nerfstudio.models.nerfacto import NerfactoModelConfig
+from nerfstudio.utils import colormaps, colors
 
 
 @dataclass
-class NerfactoModelConfig(ModelConfig):
+class SemanticNerfWModelConfig(NerfactoModelConfig):
     """Nerfacto Model Config"""
 
-    _target: Type = field(default_factory=lambda: NerfactoModel)
-    near_plane: float = 0.05
-    """How far along the ray to start sampling."""
-    far_plane: float = 1000.0
-    """How far along the ray to stop sampling."""
-    background_color: Literal["background", "last_sample"] = "last_sample"
-    """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: Tuple[int] = (64,)
-    """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 64
-    """Number of samples per ray for the nerf network."""
-    num_proposal_network_iterations: int = 1
-    """Number of proposal network iterations."""
-    use_same_proposal_network: bool = False
-    """Use the same proposal network. Otherwise use different ones."""
-    interlevel_loss_mult: float = 1.0
-    """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.002
-    """Distortion loss multiplier."""
-    use_proposal_weight_anneal: bool = True
-    """Whether to use proposal weight annealing."""
-    use_average_appearance_embedding: bool = True
-    """Whether to use average appearance embedding or zeros for inference."""
-    proposal_weights_anneal_slope: float = 10.0
-    """Slope of the annealing function for the proposal weights."""
-    proposal_weights_anneal_max_num_iters: int = 1000
-    """Max num iterations for the annealing function."""
-    use_single_jitter: bool = True
-    """Whether use single jitter or not for the proposal networks."""
+    _target: Type = field(default_factory=lambda: SemanticNerfWModel)
+    use_transient_embedding: bool = False
+    """Whether to use transient embedding."""
 
 
-class NerfactoModel(Model):
+class SemanticNerfWModel(Model):
     """Nerfacto model
 
     Args:
         config: Nerfacto configuration to instantiate model
     """
 
-    config: NerfactoModelConfig
+    config: SemanticNerfWModelConfig
+
+    def __init__(self, config: SemanticNerfWModelConfig, semantics: Semantics, **kwargs) -> None:
+        self.semantics = semantics
+        super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
         """Set the fields and modules."""
@@ -100,12 +82,19 @@ class NerfactoModel(Model):
 
         scene_contraction = SceneContraction(order=float("inf"))
 
+        if self.config.use_transient_embedding:
+            raise ValueError("Transient embedding is not fully working for semantic nerf-w.")
+
         # Fields
         self.field = TCNNNerfactoField(
             self.scene_box.aabb,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+            use_transient_embedding=self.config.use_transient_embedding,
+            use_semantics=True,
+            num_semantics_stuff_classes=len(self.semantics.stuff_classes),
+            num_semantics_thing_classes=len(self.semantics.thing_classes),
         )
 
         # Build the proposal network(s)
@@ -132,12 +121,16 @@ class NerfactoModel(Model):
         )
 
         # renderers
-        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
+        background_color = None if self.config.randomize_background else colors.WHITE
+        self.renderer_rgb = RGBRenderer(background_color=background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
+        self.renderer_uncertainty = UncertaintyRenderer()
+        self.renderer_semantics = SemanticRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
+        self.cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction="mean")
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -177,13 +170,25 @@ class NerfactoModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples)
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        weights_list.append(weights)
+
+        if self.training and self.config.use_transient_embedding:
+            density = field_outputs[FieldHeadNames.DENSITY] + field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
+            weights = ray_samples.get_weights(density)
+            weights_static = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+            rgb_static_component = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+            rgb_transient_component = self.renderer_rgb(
+                rgb=field_outputs[FieldHeadNames.TRANSIENT_RGB], weights=weights
+            )
+            rgb = rgb_static_component + rgb_transient_component
+        else:
+            weights_static = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
+            weights = weights_static
+            rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        weights_list.append(weights_static)
         ray_samples_list.append(ray_samples)
 
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
-        accumulation = self.renderer_accumulation(weights=weights)
+        depth = self.renderer_depth(weights=weights_static, ray_samples=ray_samples)
+        accumulation = self.renderer_accumulation(weights=weights_static)
 
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
         outputs["weights_list"] = weights_list
@@ -191,6 +196,29 @@ class NerfactoModel(Model):
 
         for i in range(self.config.num_proposal_network_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
+
+        # transients
+        if self.training and self.config.use_transient_embedding:
+            weights_transient = ray_samples.get_weights(field_outputs[FieldHeadNames.TRANSIENT_DENSITY])
+            uncertainty = self.renderer_uncertainty(field_outputs[FieldHeadNames.UNCERTAINTY], weights_transient)
+            outputs["uncertainty"] = uncertainty + 0.03  # NOTE(ethan): this is the uncertainty min
+            outputs["density_transient"] = field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
+
+        # semantics
+        outputs["semantics_thing"] = self.renderer_semantics(
+            field_outputs[FieldHeadNames.SEMANTICS_THING], weights=weights_static.detach()
+        )
+        outputs["semantics_stuff"] = self.renderer_semantics(
+            field_outputs[FieldHeadNames.SEMANTICS_STUFF], weights=weights_static.detach()
+        )
+
+        # semantics colormaps
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_stuff"], dim=-1), dim=-1)
+        outputs["semantics_colormap_stuff"] = self.semantics.stuff_colors[semantic_labels]
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_thing"], dim=-1), dim=-1)
+        outputs["semantics_colormap_thing"] = self.semantics.thing_colors[semantic_labels]
+        # TODO: adding these together is incorrect and produces weird results
+        outputs["semantics_colormap"] = outputs["semantics_colormap_stuff"] + outputs["semantics_colormap_thing"]
 
         return outputs
 
@@ -204,12 +232,28 @@ class NerfactoModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
             outputs["weights_list"], outputs["ray_samples_list"]
         )
         assert metrics_dict is not None and "distortion" in metrics_dict
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
+
+        # transient loss
+        if self.training and self.config.use_transient_embedding:
+            betas = outputs["uncertainty"]
+            loss_dict["uncertainty_loss"] = 3 + torch.log(betas).mean()
+            loss_dict["density_loss"] = 0.01 * outputs["density_transient"].mean()
+            loss_dict["rgb_loss"] = (((image - outputs["rgb"]) ** 2).sum(-1) / (betas[..., 0] ** 2)).mean()
+        else:
+            loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+
+        # semantic loss
+        loss_dict["semantics_stuff_loss"] = self.cross_entropy_loss(
+            outputs["semantics_stuff"], batch["semantics_stuff"][..., 0].long()
+        )
+        loss_dict["semantics_thing_loss"] = self.cross_entropy_loss(
+            outputs["semantics_thing"], batch["semantics_thing"][..., 0].long()
+        )
         return loss_dict
 
     def get_image_metrics_and_images(
@@ -218,6 +262,7 @@ class NerfactoModel(Model):
 
         image = batch["image"].to(self.device)
         rgb = outputs["rgb"]
+        rgb = torch.clamp(rgb, min=0, max=1)
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
@@ -249,5 +294,18 @@ class NerfactoModel(Model):
                 accumulation=outputs["accumulation"],
             )
             images_dict[key] = prop_depth_i
+
+        # semantics
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_stuff"], dim=-1), dim=-1)
+        images_dict["semantics_colormap_stuff"] = self.semantics.stuff_colors[semantic_labels]
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_thing"], dim=-1), dim=-1)
+        images_dict["semantics_colormap_thing"] = self.semantics.thing_colors[semantic_labels]
+        # TODO: adding these together is incorrect and produces weird results
+        images_dict["semantics_colormap"] = (
+            images_dict["semantics_colormap_stuff"] + images_dict["semantics_colormap_thing"]
+        )
+
+        # valid mask
+        images_dict["mask"] = batch["mask"].repeat(1, 1, 3)
 
         return metrics_dict, images_dict

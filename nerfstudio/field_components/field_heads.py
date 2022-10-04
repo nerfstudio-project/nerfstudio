@@ -34,6 +34,8 @@ class FieldHeadNames(Enum):
     TRANSIENT_RGB = "transient_rgb"
     TRANSIENT_DENSITY = "transient_density"
     SEMANTICS = "semantics"
+    SEMANTICS_STUFF = "semantics_stuff"
+    SEMANTICS_THING = "semantics_thing"
 
 
 class FieldHead(FieldComponent):
@@ -179,3 +181,33 @@ class SemanticFieldHead(FieldHead):
 
     def __init__(self, num_classes: int, in_dim: Optional[int] = None) -> None:
         super().__init__(in_dim=in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS, activation=None)
+
+
+class SemanticStuffFieldHead(FieldHead):
+    """Semantic stuff output
+
+    Args:
+        num_classes: Number of semantic classes
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
+    """
+
+    def __init__(self, num_classes: int, in_dim: Optional[int] = None) -> None:
+        super().__init__(
+            in_dim=in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS_STUFF, activation=None
+        )
+
+
+class SemanticThingFieldHead(FieldHead):
+    """Semantic thing output
+
+    Args:
+        num_classes: Number of semantic classes
+        in_dim: input dimension. If not defined in constructor, it must be set later.
+        activation: output head activation
+    """
+
+    def __init__(self, num_classes: int, in_dim: Optional[int] = None) -> None:
+        super().__init__(
+            in_dim=in_dim, out_dim=num_classes, field_head_name=FieldHeadNames.SEMANTICS_THING, activation=None
+        )

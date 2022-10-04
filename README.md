@@ -22,9 +22,9 @@
 
 <p align="center">
     <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/_static/imgs/logo-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/_static/imgs/logo.png">
-    <img alt="nerfstudio" src="docs/_static/imgs/logo.png" width="400">
+    <source media="(prefers-color-scheme: dark)" srcset="https://docs.nerf.studio/en/latest/_images/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://docs.nerf.studio/en/latest/_images/logo.png">
+    <img alt="nerfstudio" src="https://docs.nerf.studio/en/latest/_images/logo.png" width="400">
     </picture>
 </p>
 
@@ -48,15 +48,14 @@
 
 Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and testing NeRFs.
 The library supports a **more interpretable implementation of NeRFs by modularizing each component.**
-With more modular NeRFs, we hope to create a more user-friendly experience in exploring the technology. 
-Nerfstudio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions. 
+With more modular NeRFs, we hope to create a more user-friendly experience in exploring the technology.
+Nerfstudio is a contributer friendly repo with the goal of buiding a community where users can more easily build upon each other's contributions.
 
 It’s as simple as plug and play with nerfstudio!
 
 Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
 Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all contributions!** Please do not hesitate to reach out to the nerfstudio team with any questions.
-
 
 We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
@@ -220,14 +219,14 @@ For a more in-depth tutorial on how to modify/implement your own NeRF Graph, ple
 
 | Section                                                                                 | Description                                                                                        |
 | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Documentation](https://docs.nerf.studio/en/latest/)                                     | Full API documentation and tutorials                                                               |
-| [Interactive Guides](https://docs.nerf.studio/en/latest/guides/index.html)               | Go-to spot for learning how NeRFs and each of its modules work.                                    |
-| [Quick tour](https://docs.nerf.studio/en/latest/tutorials/quickstart_index.html)         | Example script on how to navigate nerfstudio from install, train, to test.                         |
-| [Creating pipelines](https://docs.nerf.studio/en/latest/tutorials/pipelines/index.html)  | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
-| [Creating datasets](https://docs.nerf.studio/en/latest/tutorials/data/index.html)        | Have a new dataset? Learn how to use it with nerfstudio.                                           |
-| [Mobile Capture to NerF](#)                                                              | Step-by-step tutorial on how to create beautiful renders with just your phone.                     |
-| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)           | Walk-through for how you can start contributing now.                                               |
-| [Discord](https://discord.gg/NHGtYRAW)                                                   | Join our community to discuss more. We would love to hear from you!                                |
+| [Documentation](https://docs.nerf.studio/en/latest/)                                    | Full API documentation and tutorials                                                               |
+| [Interactive Guides](https://docs.nerf.studio/en/latest/guides/index.html)              | Go-to spot for learning how NeRFs and each of its modules work.                                    |
+| [Quick tour](https://docs.nerf.studio/en/latest/tutorials/quickstart_index.html)        | Example script on how to navigate nerfstudio from install, train, to test.                         |
+| [Creating pipelines](https://docs.nerf.studio/en/latest/tutorials/pipelines/index.html) | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
+| [Creating datasets](https://docs.nerf.studio/en/latest/tutorials/data/index.html)       | Have a new dataset? Learn how to use it with nerfstudio.                                           |
+| [Mobile Capture to NerF](#)                                                             | Step-by-step tutorial on how to create beautiful renders with just your phone.                     |
+| [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)          | Walk-through for how you can start contributing now.                                               |
+| [Discord](https://discord.gg/NHGtYRAW)                                                  | Join our community to discuss more. We would love to hear from you!                                |
 
 # Supported Features
 
