@@ -62,7 +62,7 @@ model_configs["nerfacto"] = Config(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 16),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
     optimizers={
         "proposal_networks": {
@@ -74,7 +74,7 @@ model_configs["nerfacto"] = Config(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 16),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
     vis="viewer",
 )
 
