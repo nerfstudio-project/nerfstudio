@@ -21,7 +21,8 @@ def download_blender(save_dir: Path):
     blender_file_id = "18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG"
 
     final_path = save_dir / Path("blender")
-    os.remove(str(final_path))
+    if os.path.exists(final_path):
+        shutil.rmtree(str(final_path))
     url = f"https://drive.google.com/uc?id={blender_file_id}"
     download_path = save_dir / "blender_data.zip"
     gdown.download(url, output=str(download_path))
