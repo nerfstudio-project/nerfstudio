@@ -3,8 +3,17 @@ Pipelines Overview
 
 Here we describe what a Pipeline is and how it works. You can see an overview figure with the major Pipeline components below.
 
-.. image:: imgs/pipelines_overview.png
+.. image:: imgs/pipeline_overview-light.png
+  :width: 600
   :align: center
+  :alt: pipeline figure
+  :class: only-light
+
+.. image:: imgs/pipeline_overview-dark.png
+  :width: 600
+  :align: center
+  :alt: pipeline figure
+  :class: only-dark
 
 
 .. admonition:: Note
