@@ -50,19 +50,19 @@ class Semantics:
 
 @dataclass
 class DataparserOutputs:
-    """Dataparser outputs for the image dataset and the ray generator."""
+    """Dataparser outputs for the which will be used by the DataManager
+    for creating RayBundle and RayGT objects."""
 
     image_filenames: List[Path]
     """Filenames for the images."""
     cameras: Cameras
-    """Camera object storing collection of camera information in dataset"""
+    """Camera object storing collection of camera information in dataset."""
     alpha_color: Optional[TensorType[3]] = None
-    """color of dataset background"""
+    """Color of dataset background."""
     scene_box: SceneBox = SceneBox()
-    """scene box of dataset. Could be used to bound the scene, or to provide the scene scale depending on model."""
+    """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     semantics: Optional[Semantics] = None
     """Semantics information."""
-    # we support additional input information/formats including mask/depth/semantics.
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
     {input_name:
