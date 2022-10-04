@@ -1,7 +1,15 @@
 # DataManagers
 
-```{image} imgs/datamanagers.png
+```{image} imgs/pipeline_datamanager-light.png
 :align: center
+:class: only-light
+:width: 600
+```
+
+```{image} imgs/pipeline_datamanager-dark.png
+:align: center
+:class: only-dark
+:width: 600
 ```
 
 ## What is a DataManager?

@@ -1,7 +1,15 @@
 # DataParsers
 
-```{image} imgs/dataparsers.png
+```{image} imgs/pipeline_parser-light.png
 :align: center
+:class: only-light
+:width: 600
+```
+
+```{image} imgs/pipeline_parser-dark.png
+:align: center
+:class: only-dark
+:width: 600
 ```
 
 ## What is a DataParser?

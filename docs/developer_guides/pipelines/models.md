@@ -1,7 +1,15 @@
 # Models
 
-```{image} imgs/models.png
+```{image} imgs/pipeline_model-light.png
 :align: center
+:class: only-light
+:width: 600
+```
+
+```{image} imgs/pipeline_model-dark.png
+:align: center
+:class: only-dark
+:width: 600
 ```
 
 ## What is a Model?
