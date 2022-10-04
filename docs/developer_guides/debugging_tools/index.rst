@@ -7,6 +7,6 @@ As we grow, we hope to provide more updated and extensive tooling support.
 .. toctree::
     :maxdepth: 1
 
-    local_logger.md
-    profiling.md
-    benchmarking.md
+    local_logger
+    profiling
+    benchmarking
