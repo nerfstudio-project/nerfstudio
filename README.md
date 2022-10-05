@@ -218,3 +218,8 @@ We provide the following support strucutures to make life easier for getting sta
 
 TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
 TODO: For more see gallery
+
+# Contributors
+<a href="https://github.com/nerfstudio-project/nerfstudio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nerfstudio-project/nerfstudio" />
+</a>
