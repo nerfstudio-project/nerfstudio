@@ -305,7 +305,7 @@ class Cameras(TensorDataclass):
         TODO - add support for distortions.
 
         Args:
-            camera_indices: Indices of the cameras to generate rays for.
+            camera_indices: Camera indices of the flattened cameras object to generate rays for.
             coords: Coordinates of the pixels to generate rays for. If None, the full image will be rendered.
             camera_opt_to_camera: Optional transform for the camera to world matrices.
             distortion_params_delta: Optional delta for the distortion parameters.
@@ -314,10 +314,7 @@ class Cameras(TensorDataclass):
             Rays for the given camera indices and coords.
         """
 
-        if self.shape == ():
-            cameras = self.flatten()
-        else:
-            cameras = self
+        cameras = self.flatten()
 
         print("INDICES", camera_indices)
 
@@ -327,9 +324,11 @@ class Cameras(TensorDataclass):
         if coords is None:
             coords = cameras.get_image_coords().to(cameras.device)
 
+        print("COORDS", coords.shape)
+
         assert coords is not None
-        y = coords[..., 0]  # (..., 1)
-        x = coords[..., 1]  # (..., 1)
+        y = coords[..., 0]  # (...,)
+        x = coords[..., 1]  # (...,)
         fx, fy = cameras.fx[camera_indices].squeeze(-1), cameras.fy[camera_indices].squeeze(-1)
         cx, cy = cameras.cx[camera_indices].squeeze(-1), cameras.cy[camera_indices].squeeze(-1)
 
@@ -422,10 +421,10 @@ class Cameras(TensorDataclass):
         flattened = self.flatten()
         json_ = {
             "type": "PinholeCamera",
-            "cx": flattened[camera_idx].item(),
-            "cy": flattened[camera_idx].item(),
-            "fx": flattened[camera_idx].item(),
-            "fy": flattened[camera_idx].item(),
+            "cx": flattened[camera_idx].cx.item(),
+            "cy": flattened[camera_idx].cy.item(),
+            "fx": flattened[camera_idx].fx.tolist(),
+            "fy": flattened[camera_idx].fy.tolist(),
             "camera_to_world": self.camera_to_worlds.ravel()[camera_idx].tolist(),
             "camera_index": camera_idx,
         }
