@@ -18,7 +18,7 @@ import { snap_to_camera } from '../SidePanel/SidePanel';
 const msgpack = require('msgpack-lite');
 
 const SCENE_BOX_NAME = 'Scene Box';
-export const CAMERAS_NAME = 'Training Cameras';
+const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
   const scene = new THREE.Scene();
@@ -204,7 +204,6 @@ export function get_scene_tree() {
         if (!prev.has(key)) {
           // keys_valid.push(key);
           const json = current[key];
-          console.log(json);
           const camera = drawCamera(json, key);
           sceneTree.set_object_from_path([CAMERAS_NAME, key], camera);
         }
@@ -227,15 +226,20 @@ export function get_scene_tree() {
   const raycaster = new THREE.Raycaster();
   const size = new THREE.Vector2();
 
-  const onMouseMove = (e) => {
-    // try {
-    // const cameras = sceneTree.find_no_create([CAMERAS_NAME]).children;
+  let drag = false;
+  const onMouseDown = () => {
+    drag = false;
+  };
+  const onMouseMove = () => {
+    drag = true;
+  };
+  const onMouseUp = (e) => {
+    if (drag === true) {
+      return;
+    }
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
     ).map((obj) => obj.object.children[0].children[1]);
-
-    console.log('CAMERAS');
-    console.log(cameras);
 
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
@@ -245,16 +249,6 @@ export function get_scene_tree() {
     let selectedPlane = raycaster.intersectObjects(cameras, true)[0];
     if (selectedPlane != null) {
       selectedPlane = selectedPlane.object;
-      console.log(selectedPlane);
-      console.log('FIND NO CREATE');
-      console.log(
-        sceneTree.find_object_no_create([CAMERAS_NAME, selectedPlane.name]),
-      );
-      // console.log(
-      //   sceneTree.find_object_no_create([CAMERAS_NAME, selectedPlane.name])
-      //     .children[0],
-      // );
-      console.log(selectedPlane.name);
       snap_to_camera(
         sceneTree,
         sceneTree.metadata.camera,
@@ -263,7 +257,9 @@ export function get_scene_tree() {
       );
     }
   };
-  window.addEventListener('mousedown', onMouseMove, false);
+  window.addEventListener('mousedown', onMouseDown, false);
+  window.addEventListener('mousemove', onMouseMove, false);
+  window.addEventListener('mouseup', onMouseUp, false);
   return sceneTree;
 }
 

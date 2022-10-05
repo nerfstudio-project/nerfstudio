@@ -33,7 +33,6 @@ import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
-import { CAMERAS_NAME } from '../Scene/Scene';
 
 export const snap_to_camera = (sceneTree, camera, matrix) => {
   const mat = new THREE.Matrix4();
@@ -212,7 +211,7 @@ function MenuItems(props: ListItemProps) {
                   scene_node={scene_node.children[key]}
                   level={level + 1}
                   groupVisible={visible}
-                  canSnap={name === CAMERAS_NAME}
+                  canSnap={name === 'Training Cameras'}
                 />
               ))}
           </List>
