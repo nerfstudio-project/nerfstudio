@@ -21,7 +21,6 @@
 </p>
 
 <p align="center">
-    <!-- Broken on Pypi.org -->
     <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://docs.nerf.studio/en/latest/_images/logo-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="https://docs.nerf.studio/en/latest/_images/logo.png">
