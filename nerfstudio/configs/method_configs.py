@@ -21,8 +21,10 @@ from __future__ import annotations
 from typing import Dict
 
 import dcargs
+from rich.console import Console
 
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
+from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
@@ -46,6 +48,8 @@ descriptions = {
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. [red]*slow*",
 }
+descriptions = {k: convert_markup_to_ansi(v) for k, v in descriptions.items()}
+
 
 method_configs["nerfacto"] = Config(
     method_name="nerfacto",
@@ -147,9 +151,9 @@ method_configs["vanilla-nerf"] = Config(
 )
 
 
-AnnotatedBaseConfigUnion = dcargs.extras.subcommand_type_from_defaults(
-    defaults=method_configs, descriptions=descriptions
-)
+AnnotatedBaseConfigUnion = dcargs.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+    dcargs.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+]
 """Union[] type over config types, annotated with default instances for use with
 dcargs.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""
