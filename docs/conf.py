@@ -15,6 +15,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
+sys.path.append(os.path.abspath("./_pygments"))
 import nerfstudio.configs.base_config
 
 # -- Project information -----------------------------------------------------
@@ -24,7 +25,7 @@ copyright = "2022, nerfstudio Team"
 author = "nerfstudio Team"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.0"
+release = "0.1.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -44,6 +45,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.mathjax",
+    "sphinxext.opengraph",
 ]
 
 # List of patterns, relative to source directory, that match files and
@@ -72,24 +74,29 @@ html_js_files = [
 myst_enable_extensions = ["amsmath", "colon_fence", "deflist", "dollarmath", "html_image"]
 
 
+# -- Options for open graph -------------------------------------------------
+
+ogp_site_url = "http://docs.nerf.studio/"
+ogp_image = "https://assets.nerf.studio/opg.png"
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "furo"
-html_title = ""
+html_title = "nerfstudio"
 
 autosectionlabel_prefix_document = True
 
 html_theme_options = {
     "light_css_variables": {
-        "color-brand-primary": "#ba3e00",
+        "color-brand-primary": "#d34600",
         "color-brand-content": "#ff6f00",
     },
     "dark_css_variables": {
         "color-brand-primary": "#fdd06c",
-        "color-brand-content": "#ff903b",
+        "color-brand-content": "##fea96a",
     },
     "light_logo": "imgs/logo.png",
     "dark_logo": "imgs/logo-dark.png",
@@ -97,8 +104,8 @@ html_theme_options = {
 
 # -- Code block theme --------------------------------------------------------
 
-pygments_style = "one-dark"
-pygments_dark_style = "one-dark"
+pygments_style = "style.NerfstudioStyleLight"
+pygments_dark_style = "style.NerfstudioStyleDark"
 
 # -- Napoleon settings -------------------------------------------------------
 

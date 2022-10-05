@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -192,10 +192,15 @@ class Config(PrintableConfig):
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
+    """Machine configuration"""
     logging: LoggingConfig = LoggingConfig()
+    """Logging configuration"""
     viewer: ViewerConfig = ViewerConfig()
+    """Viewer configuration"""
     trainer: TrainerConfig = TrainerConfig()
+    """Trainer configuration"""
     pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
+    """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {
             "fields": {
@@ -204,8 +209,11 @@ class Config(PrintableConfig):
             }
         }
     )
-    """optionally specify a pre-defined config to load from"""
+    """Dictionary of optimizer groups and their schedulers"""
     vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
+    """Which visualizer to use."""
+    data: Optional[Path] = None
+    """Alias for --pipeline.datamanager.dataparser.data"""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
@@ -226,7 +234,7 @@ class Config(PrintableConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data_directory).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""

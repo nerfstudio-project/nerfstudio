@@ -20,7 +20,7 @@ import torch.multiprocessing as mp
 import yaml
 
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.configs.model_configs import AnnotatedBaseConfigUnion
+from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import train_loop
 from nerfstudio.utils import comms, profiler
 
@@ -187,6 +187,9 @@ def main(config: cfg.Config) -> None:
     """Main function."""
 
     config.set_timestamp()
+    if config.data:
+        logging.info("Using --data alias for --data.pipeline.datamanager.dataparser.data")
+        config.pipeline.datamanager.dataparser.data = config.data
 
     if config.trainer.load_config:
         logging.info(f"Loading pre-set config from: {config.trainer.load_config}")

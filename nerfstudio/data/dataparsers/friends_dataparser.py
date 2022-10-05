@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,10 +51,15 @@ def get_semantics_and_masks(image_idx: int, semantics: Semantics):
     thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
     mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
     # handle semantics
+    # stuff
     stuff_image_filename = semantics.stuff_filenames[image_idx]
     pil_image = Image.open(stuff_image_filename)
     stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-    return {"mask": mask, "semantics": stuff_semantics}
+    # thing
+    thing_image_filename = semantics.thing_filenames[image_idx]
+    pil_image = Image.open(thing_image_filename)
+    thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
+    return {"mask": mask, "semantics_stuff": stuff_semantics, "semantics_thing": thing_semantics}
 
 
 @dataclass
@@ -63,12 +68,12 @@ class FriendsDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Friends)
     """target class to instantiate"""
-    data_directory: Path = Path("data/friends/TBBT-big_living_room")
-    """directory specifying location of data"""
+    data: Path = Path("data/friends/TBBT-big_living_room")
+    """Directory specifying location of data."""
     include_semantics: bool = True
     """whether or not to include loading of semantics data"""
-    downscale_factor: int = 8
-    scene_scale: float = 4.0
+    downscale_factor: int = 4
+    scene_scale: float = 2.0
     """
     Sets the bounding cube to have edge length of this size.
     The longest dimension of the Friends axis-aligned bbox will be scaled to this value.
@@ -83,7 +88,7 @@ class Friends(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):  # pylint: disable=unused-argument,too-many-statements
 
-        cameras_json = load_from_json(self.config.data_directory / "cameras.json")
+        cameras_json = load_from_json(self.config.data / "cameras.json")
         frames = cameras_json["frames"]
         bbox = torch.tensor(cameras_json["bbox"])
 
@@ -99,7 +104,7 @@ class Friends(DataParser):
         camera_to_worlds = []
         for frame in frames:
             # unpack data
-            image_filename = self.config.data_directory / images_folder / frame["image_name"]
+            image_filename = self.config.data / images_folder / frame["image_name"]
             intrinsics = torch.tensor(frame["intrinsics"])
             camtoworld = torch.tensor(frame["camtoworld"])[:3]
             # append data
@@ -155,7 +160,7 @@ class Friends(DataParser):
                 )
                 for image_filename in image_filenames
             ]
-            panoptic_classes = load_from_json(self.config.data_directory / "panoptic_classes.json")
+            panoptic_classes = load_from_json(self.config.data / "panoptic_classes.json")
             stuff_classes = panoptic_classes["stuff"]
             stuff_colors = torch.tensor(panoptic_classes["stuff_colors"], dtype=torch.float32) / 255.0
             thing_classes = panoptic_classes["thing"]
@@ -187,5 +192,6 @@ class Friends(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
+            semantics=semantics,
         )
         return dataparser_outputs

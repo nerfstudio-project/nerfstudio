@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ class Record3DDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Record3D)
     """target class to instantiate"""
-    data_directory: Path = Path("data/record3d/garden")
+    data: Path = Path("data/record3d/garden")
     """Location of data"""
     val_skip: int = 8
     """1/val_skip images to use for validation."""
@@ -61,7 +61,7 @@ class Record3D(DataParser):
     config: Record3DDataParserConfig
 
     def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
-        image_dir = self.config.data_directory / "rgb"
+        image_dir = self.config.data / "rgb"
 
         if not image_dir.exists():
             raise ValueError(f"Image directory {image_dir} doesn't exist")
@@ -75,7 +75,7 @@ class Record3D(DataParser):
         image_filenames = np.array(image_filenames)
         num_images = len(image_filenames)
 
-        metadata_path = self.config.data_directory / "metadata.json"
+        metadata_path = self.config.data / "metadata.json"
         metadata_dict = load_from_json(metadata_path)
 
         poses_data = np.array(metadata_dict["poses"])
@@ -104,9 +104,6 @@ class Record3D(DataParser):
 
         # convert to Tensors
         poses = torch.from_numpy(poses[:, :3, :4])
-
-        # convert OpenGL to OpenCV coordinate system
-        poses = poses @ torch.diag(torch.tensor([1.0, -1.0, -1.0, 1.0]))
 
         poses = camera_utils.auto_orient_poses(pose_utils.to4x4(poses), method=self.config.orientation_method)[
             :, :3, :4
