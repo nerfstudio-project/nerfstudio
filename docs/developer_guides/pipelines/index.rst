@@ -22,6 +22,7 @@ Here we describe what a Pipeline is and how it works. You can see an overview fi
 
 
 Why Pipelines?
+==========================
 
 Our goal is for any NeRF paper to be implemented as a Pipeline.
 
@@ -41,6 +42,7 @@ In the following sections, we describe the Pipeline components and look at their
     pipelines
 
 Implementing NeRF Papers
+==========================
 
 Let's say you want to create a custom Pipeline that has a custom DataManager and a custom Model. Perhaps you care about dynmically adding cameras to the DataManager during training or you want to importance sample and generate rays from pixels where the loss is high. This can be accomplished by mixing and matching components into a Pipeline. The following guide will take you through an example of this.
 
