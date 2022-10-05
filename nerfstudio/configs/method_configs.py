@@ -22,6 +22,7 @@ from typing import Dict
 
 import dcargs
 
+from nerfstudio.cameras.camera_optimizers import BARFPoseOptimizerConfig
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
@@ -29,6 +30,7 @@ from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConf
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
+from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.models.base_model import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -55,7 +57,10 @@ method_configs["nerfacto"] = Config(
     trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=8192,
+            train_camera_optimizer=BARFPoseOptimizerConfig(),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
@@ -67,6 +72,10 @@ method_configs["nerfacto"] = Config(
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
+        },
+        "camera_opt": {
+            "optimizer": AdamOptimizerConfig(lr=6e-4, eps=1e-15),
+            "scheduler": SchedulerConfig(max_steps=10000),
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
