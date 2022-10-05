@@ -169,7 +169,6 @@ class Model(nn.Module):
         num_rays = len(camera_ray_bundle)
         outputs_lists = defaultdict(list)
         for i in range(0, num_rays, num_rays_per_chunk):
-            print(self.config.eval_num_rays_per_chunk)
             start_idx = i
             end_idx = i + num_rays_per_chunk
             ray_bundle = camera_ray_bundle.get_row_major_sliced_ray_bundle(start_idx, end_idx)
