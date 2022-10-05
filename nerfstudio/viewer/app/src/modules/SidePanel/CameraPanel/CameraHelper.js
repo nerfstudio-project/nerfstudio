@@ -106,9 +106,9 @@ class CameraHelper extends THREE.Mesh {
     const geometry = this.line_geometry;
     const pointMap = this.pointMap;
 
-    const w = 1;
-    const h = 1;
-    const z = 0.1;
+    const w = 0.6;
+    const h = 0.6;
+    const z = 0.01;
 
     // we need just camera projection matrix inverse
     // world matrix must be identity
