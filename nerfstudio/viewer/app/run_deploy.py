@@ -118,7 +118,7 @@ def main(
     run_cmd(f"""scp -r {local_folder} {host}:/home/eweb0124/build""")
 
     # update the symlink of latest
-    if branch_name == "master":
+    if branch_name == "main":
 
         # move the build folder to the correct location
         run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/{version}'""")

@@ -3,7 +3,7 @@ name: Run prettier for Nerfviewer.
 on:
   pull_request:
     branches:
-      - master
+      - main
     types: [closed]
 
 jobs:
