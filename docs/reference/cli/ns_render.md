@@ -9,6 +9,6 @@ Make sure to have [FFmpeg](https://ffmpeg.org/download.html) installed.
 .. argparse::
     :module: scripts.render
     :func: get_parser_fn
-    :prog: ns-process-data
+    :prog: ns-render
     :nodefault:
 ```

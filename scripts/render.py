@@ -9,7 +9,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import dcargs
 import mediapy as media
@@ -103,10 +103,18 @@ class RenderTrajectory:
     output_path: Path = Path("output.mp4")
     # How long the video should be.
     seconds: float = 5.0
+    # A hack to double the number of samples for the nerfacto method.
+    double_nerfacto_nerf_samples: bool = True
+    # Specifies number of rays per chunk during eval.
+    eval_num_rays_per_chunk: Optional[int] = None
 
     def main(self) -> None:
         """Main function."""
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(
+            self.load_config,
+            double_nerfacto_nerf_samples=self.double_nerfacto_nerf_samples,
+            eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
+        )
 
         seconds = self.seconds
 

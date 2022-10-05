@@ -45,6 +45,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinx.ext.mathjax",
+    "sphinxext.opengraph",
 ]
 
 # List of patterns, relative to source directory, that match files and
@@ -72,6 +73,11 @@ html_js_files = [
 # To enable admonitions:
 myst_enable_extensions = ["amsmath", "colon_fence", "deflist", "dollarmath", "html_image"]
 
+
+# -- Options for open graph -------------------------------------------------
+
+ogp_site_url = "http://docs.nerf.studio/"
+ogp_image = "https://assets.nerf.studio/opg.png"
 
 # -- Options for HTML output -------------------------------------------------
 

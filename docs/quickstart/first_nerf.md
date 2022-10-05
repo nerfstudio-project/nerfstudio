@@ -24,8 +24,8 @@ The resulting script should download and unpack the dataset as follows:
    |     ├─ fern/
    |     ├─ lego/
          ...
-      |- <dataset_format>/
-         |- <scene>
+      |- nerfstudio/
+         |- poster
          ...
 ```
 
@@ -48,9 +48,9 @@ Run a nerfacto model.
 ns-train nerfacto
 ```
 
-Run with nerfstudio data with our web-based viewer enabled. 
+Run a nerfacto model with different data and port.
 ```
-ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
+ns-train nerfacto --vis viewer --data data/nerfstudio/poster --viewer.websocket-port 7007
 ```
 
 :::{admonition} Warning

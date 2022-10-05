@@ -218,3 +218,36 @@ We provide the following support strucutures to make life easier for getting sta
 
 TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
 TODO: For more see gallery
+
+# Built On
+
+#### [dcargs](https://github.com/brentyi/dcargs)
+
+- Easy to use config system
+- Developed by [Brent Yi](https://brentyi.com/)
+
+#### [nerfacc](https://www.nerfacc.com/en/latest/)
+
+- Library for accelerating NeRF renders
+- Developed by [Ruilong Li](https://www.liruilong.cn/)
+
+# Citation
+
+If you use this library or find the doumentation useful for your research, please conside citing:
+
+```
+@misc{nerfstudio,
+      title={Nerfstudio: A Framework for Neural Radiance Field Development},
+      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, 
+              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, 
+              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
+      year={2022},
+      url={https://github.com/nerfstudio-project/nerfstudio},
+}
+```
+
+# Contributors
+
+<a href="https://github.com/nerfstudio-project/nerfstudio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nerfstudio-project/nerfstudio" />
+</a>
