@@ -1,6 +1,6 @@
 ```{eval-rst}
 :og:description: Nerfstudio Documentation
-:og:image: "https://assets.nerf.studio/opg.png"
+:og:image: https://assets.nerf.studio/opg.png
 ```
 
 <br/>
