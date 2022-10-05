@@ -44,7 +44,4 @@ Implementing NeRF Papers
 
 Let's say you want to create a custom Pipeline that has a custom DataManager and a custom Model. Perhaps you care about dynmically adding cameras to the DataManager during training or you want to importance sample and generate rays from pixels where the loss is high. This can be accomplished by mixing and matching components into a Pipeline. The following guide will take you through an example of this.
 
-.. toctree::
-    :maxdepth: 1
-
-    creating_new_methods
+This guide is coming soon!
