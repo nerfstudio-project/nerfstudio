@@ -11,5 +11,5 @@ Paper Website
 ### Running Model
 
 ```bash
-python scripts/train.py --config-name=graph_instant_ngp.yaml
+ns-train instant-ngp
 ```

@@ -11,7 +11,7 @@ Paper Website
 ### Running the Model
 
 ```bash
-python scripts/train.py --config-name=graph_vanilla_nerf.yaml
+ns-train vanilla-nerf
 ```
 
 ## Method
