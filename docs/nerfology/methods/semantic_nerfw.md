@@ -16,7 +16,7 @@ Paper Website
 Paper Website
 ```
 
-```{admonition} Notice
+```{admonition} Coming Soon
 The transient embeddings are still under development. Please stay tuned.
 ```
 

@@ -9,7 +9,7 @@ To assist running on custom data we have a script that will process a video or f
 To process your data run:
 
 ```bash
-ns-process-data --data FOLDER_OR_VIDEO --output-dir PROCESSED_DATA_DIR
+ns-process-data --data {FOLDER_OR_VIDEO} --output-dir {PROCESSED_DATA_DIR}
 ```
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
@@ -25,7 +25,7 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-ns-train instant-ngp nerfstudio-data --data PROCESSED_DATA_DIR
+ns-train instant-ngp nerfstudio-data --data {PROCESSED_DATA_DIR}
 ```
 
 ### Installing COLMAP

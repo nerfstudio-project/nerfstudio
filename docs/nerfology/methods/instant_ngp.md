@@ -13,3 +13,8 @@ Paper Website
 ```bash
 ns-train instant-ngp
 ```
+
+
+```{admonition} Coming Soon
+This guide is coming soon.
+```

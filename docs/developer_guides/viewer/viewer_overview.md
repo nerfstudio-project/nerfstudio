@@ -1,4 +1,4 @@
-# Viewer Overview
+# Viewer overview
 
 > We have a real-time web viewer that requires no installation. It's available at [https://viewer.nerf.studio/](https://viewer.nerf.studio/), where you can connect to your training job. If you want to understand how the viewer works and contribute to it's features, this section is for you!
 

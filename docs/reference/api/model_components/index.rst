@@ -1,6 +1,6 @@
 .. _graph_modules:
 
-Model Components
+Model components
 ===================
 
 .. toctree::
