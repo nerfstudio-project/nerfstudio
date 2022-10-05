@@ -1,4 +1,4 @@
-Pipelines Overview
+Pipelines overview
 -------------------------
 
 Here we describe what a Pipeline is and how it works. You can see an overview figure with the major Pipeline components below.
