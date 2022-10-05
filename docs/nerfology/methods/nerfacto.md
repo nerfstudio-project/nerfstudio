@@ -18,7 +18,7 @@ This guide is coming soon. This is our flagship method that we encourage creator
 
 Most of the code for this method takes place in the `NerfactoModel` class.
 
-```{button-link} https://www.matthewtancik.com/nerf
+```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/main/nerfstudio/models/nerfacto.py
 :color: primary
 :outline:
 See the code!

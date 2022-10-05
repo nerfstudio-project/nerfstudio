@@ -37,17 +37,19 @@
 
 <p align="center">
     <a href="https://docs.nerf.studio">
-        <img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
+        <img alt="documentation" src="https://user-images.githubusercontent.com/3310961/194022636-a9efb85a-14fd-4002-8ed4-4ca434898b5a.png" width="150">
     </a>
     <a href="https://viewer.nerf.studio/">
-        <img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
+        <img alt="viewer" src="https://user-images.githubusercontent.com/3310961/194022638-b591ce16-76e3-4ba6-9d70-3be252b36084.png" width="150">
     </a>
 </p>
+
+<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" width="52%"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" width="46%"/>
+
 
 - [Quickstart](#quickstart)
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
-- [See what's possible](#see-whats-possible)
 
 # About
 
@@ -213,11 +215,6 @@ We provide the following support strucutures to make life easier for getting sta
 - :pencil2: Support for multiple logging interfaces (Tensorboard, Wandb), code profiling, and other built-in debugging tools
 - :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
 - :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render.
-
-# See what's possible
-
-TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
-TODO: For more see gallery
 
 # Built On
 
