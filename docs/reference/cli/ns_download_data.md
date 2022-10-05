@@ -4,6 +4,6 @@
 .. argparse::
     :module: scripts.downloads.download_data
     :func: get_parser_fn
-    :prog: ns-process-data
+    :prog: ns-download-data
     :nodefault:
 ```

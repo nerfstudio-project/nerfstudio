@@ -4,6 +4,6 @@
 .. argparse::
     :module: scripts.eval
     :func: get_parser_fn
-    :prog: ns-process-data
+    :prog: ns-eval
     :nodefault:
 ```
