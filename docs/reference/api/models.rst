@@ -17,17 +17,10 @@ Instant NGP
    :members:
    :show-inheritance:
 
-Semantic NeRF
+Semantic NeRF-W
 ----------------
 
-.. automodule:: nerfstudio.models.semantic_nerf
-   :members:
-   :show-inheritance:
-
-TensoRF
-----------------
-
-.. automodule:: nerfstudio.models.tensorf
+.. automodule:: nerfstudio.models.semantic_nerfw
    :members:
    :show-inheritance:
 

@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-ZSFJZK8LVS"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+
+      gtag('config', 'G-ZSFJZK8LVS');
+    </script>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -34,13 +48,17 @@
     <meta
       property="og:description"
       content="At the Hub, you can visualize training,
-      interact with your NeRF, and easily create your ideal 3D video."
+      interact with your NeRF, and easily render videos."
     />
     <meta
       property="og:image"
-      content="https://docs.nerf.studio/en/latest/_images/bulldozer.png"
+      content="https://assets.nerf.studio/opg.png"
       alt="nerfstudio"
     />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@nerfstudioteam" />
+    <meta name="twitter:title" content="Nerfstudio Viewer" />
+    <meta name="twitter:image" content="https://assets.nerf.studio/opg.png" />
   </head>
 
   <body>

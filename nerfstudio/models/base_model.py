@@ -132,20 +132,9 @@ class Model(nn.Module):
         """
 
         if self.collider is not None:
-            intersected_ray_bundle = self.collider(ray_bundle)  # pylint: disable=not-callable
-            valid_mask = intersected_ray_bundle.valid_mask[..., 0]
-            intersected_ray_bundle = intersected_ray_bundle[valid_mask]
-        else:
-            # NOTE(ruilongli): we don't need collider for ngp
-            intersected_ray_bundle = ray_bundle
-            valid_mask = None
+            ray_bundle = self.collider(ray_bundle)
 
-        outputs = self.get_outputs(intersected_ray_bundle)
-        # TODO: update this once outputs is no longer a dictionary and is instead typed
-        if valid_mask is not None:
-            assert "valid_mask" not in outputs, "valid_mask should not be in outputs"
-            outputs["valid_mask"] = valid_mask
-        return outputs
+        return self.get_outputs(ray_bundle)
 
     def get_metrics_dict(self, outputs, batch) -> Dict[str, torch.Tensor]:
         """Compute and returns metrics.

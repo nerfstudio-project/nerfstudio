@@ -19,7 +19,7 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type
 
 import numpy as np
 import torch
@@ -47,7 +47,7 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors
+from nerfstudio.utils import colormaps
 
 
 @dataclass
@@ -59,7 +59,7 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    randomize_background: bool = True
+    background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: Tuple[int] = (64,)
     """Number of samples per ray for the proposal network."""
@@ -71,10 +71,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.01
+    distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
-    use_appearance_conditioning: bool = True
-    """Whether to use appearance conditioning."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     use_average_appearance_embedding: bool = True
@@ -83,8 +81,8 @@ class NerfactoModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = False
-    """Whether use single jitter or not for first proposal network."""
+    use_single_jitter: bool = True
+    """Whether use single jitter or not for the proposal networks."""
 
 
 class NerfactoModel(Model):
@@ -103,15 +101,12 @@ class NerfactoModel(Model):
         scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
-        if self.config.use_appearance_conditioning:
-            self.field = TCNNNerfactoField(
-                self.scene_box.aabb,
-                spatial_distortion=scene_contraction,
-                num_images=self.num_train_data,
-                use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            )
-        else:
-            raise NotImplementedError("Only appearance conditioning is supported.")
+        self.field = TCNNNerfactoField(
+            self.scene_box.aabb,
+            spatial_distortion=scene_contraction,
+            num_images=self.num_train_data,
+            use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+        )
 
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
@@ -137,8 +132,7 @@ class NerfactoModel(Model):
         )
 
         # renderers
-        background_color = None if self.config.randomize_background else colors.WHITE
-        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
 

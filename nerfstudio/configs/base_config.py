@@ -192,10 +192,15 @@ class Config(PrintableConfig):
     timestamp: str = "{timestamp}"
     """Experiment timestamp."""
     machine: MachineConfig = MachineConfig()
+    """Machine configuration"""
     logging: LoggingConfig = LoggingConfig()
+    """Logging configuration"""
     viewer: ViewerConfig = ViewerConfig()
+    """Viewer configuration"""
     trainer: TrainerConfig = TrainerConfig()
+    """Trainer configuration"""
     pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
+    """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
         {
             "fields": {
@@ -204,7 +209,7 @@ class Config(PrintableConfig):
             }
         }
     )
-    """optionally specify a pre-defined config to load from"""
+    """Dictionary of optimizer groups and their schedulers"""
     vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
     """Which visualizer to use."""
     data: Optional[Path] = None

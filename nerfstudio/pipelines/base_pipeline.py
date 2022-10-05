@@ -45,7 +45,6 @@ from nerfstudio.data.datamanagers import (
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
-from nerfstudio.utils.misc import get_masked_dict
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -217,9 +216,12 @@ class VanillaPipeline(Pipeline):
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
+
         self._model = config.model.setup(
             scene_box=self.datamanager.train_dataset.dataparser_outputs.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
+            semantics=self.datamanager.train_dataset.dataparser_outputs.semantics,
+            device=device,
         )
         self.model.to(device)
 
@@ -246,9 +248,6 @@ class VanillaPipeline(Pipeline):
         """
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)
-        if "valid_mask" in model_outputs:
-            valid_mask = model_outputs["valid_mask"]
-            batch = get_masked_dict(batch, valid_mask)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         if "camera_opt" in self.datamanager.get_param_groups():
             # Report the camera optimization metrics
@@ -280,9 +279,6 @@ class VanillaPipeline(Pipeline):
         self.eval()
         ray_bundle, batch = self.datamanager.next_eval(step)
         model_outputs = self.model(ray_bundle)
-        if "valid_mask" in model_outputs:
-            valid_mask = model_outputs["valid_mask"]
-            batch = get_masked_dict(batch, valid_mask)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
         self.train()
