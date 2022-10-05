@@ -61,5 +61,5 @@ def get_train_loss_dict(self, step: int):
 :::{admonition} Note
 :class: info
 
-The VanillaPipeline works for most of our methods because dataloading
+The VanillaPipeline works for most of our methods.
 :::
