@@ -316,7 +316,7 @@ class Cameras(TensorDataclass):
 
         cameras = self.flatten()
 
-        print("INDICES", camera_indices)
+        # print("INDICES", camera_indices)
 
         if isinstance(camera_indices, torch.Tensor):
             camera_indices = camera_indices.to(cameras.device)
@@ -324,7 +324,7 @@ class Cameras(TensorDataclass):
         if coords is None:
             coords = cameras.get_image_coords().to(cameras.device)
 
-        print("COORDS", coords.shape)
+        # print("COORDS", coords.shape)
 
         assert coords is not None
         y = coords[..., 0]  # (...,)
@@ -332,9 +332,9 @@ class Cameras(TensorDataclass):
         fx, fy = cameras.fx[camera_indices].squeeze(-1), cameras.fy[camera_indices].squeeze(-1)
         cx, cy = cameras.cx[camera_indices].squeeze(-1), cameras.cy[camera_indices].squeeze(-1)
 
-        print("RAY GENERATOR SHAPES")
-        print(self.shape, cameras.shape)
-        print(x.shape, cx.shape, fx.shape, y.shape, cy.shape, fy.shape)
+        # print("RAY GENERATOR SHAPES")
+        # print(self.shape, cameras.shape)
+        # print(x.shape, cx.shape, fx.shape, y.shape, cy.shape, fy.shape)
 
         coord = torch.stack([(x - cx) / fx, -(y - cy) / fy], -1)
         coord_x_offset = torch.stack([(x - cx + 1) / fx, -(y - cy) / fy], -1)
