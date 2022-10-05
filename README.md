@@ -44,10 +44,12 @@
     </a>
 </p>
 
+<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" height="300"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" height="300"/>
+
+
 - [Quickstart](#quickstart)
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
-- [See what's possible](#see-whats-possible)
 
 # About
 
@@ -213,11 +215,6 @@ We provide the following support strucutures to make life easier for getting sta
 - :pencil2: Support for multiple logging interfaces (Tensorboard, Wandb), code profiling, and other built-in debugging tools
 - :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
 - :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render.
-
-# See what's possible
-
-TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
-TODO: For more see gallery
 
 # Built On
 
