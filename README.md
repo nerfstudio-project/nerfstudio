@@ -219,9 +219,9 @@ We provide the following support strucutures to make life easier for getting sta
 
 # Built On
 
-#### [dcargs](https://github.com/brentyi/dcargs)
+#### [tyro](https://github.com/brentyi/tyro)
 
-- Easy to use config system
+- Easy-to-use config system
 - Developed by [Brent Yi](https://brentyi.com/)
 
 #### [nerfacc](https://www.nerfacc.com/en/latest/)

@@ -11,9 +11,9 @@ import sys
 from pathlib import Path
 from typing import Literal, Optional
 
-import dcargs
 import mediapy as media
 import torch
+import tyro
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -148,12 +148,12 @@ class RenderTrajectory:
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(RenderTrajectory).main()
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(RenderTrajectory).main()
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: dcargs.extras.get_parser(RenderTrajectory)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(RenderTrajectory)  # noqa

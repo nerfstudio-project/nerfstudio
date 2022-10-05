@@ -12,11 +12,11 @@ import traceback
 from datetime import timedelta
 from typing import Any, Callable, Optional
 
-import dcargs
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+import tyro
 import yaml
 
 from nerfstudio.configs import base_config as cfg
@@ -212,8 +212,8 @@ def main(config: cfg.Config) -> None:
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     # Choose a base configuration and override values.
-    dcargs.extras.set_accent_color("bright_yellow")
-    main(dcargs.cli(AnnotatedBaseConfigUnion))
+    tyro.extras.set_accent_color("bright_yellow")
+    main(tyro.cli(AnnotatedBaseConfigUnion))
 
 
 if __name__ == "__main__":

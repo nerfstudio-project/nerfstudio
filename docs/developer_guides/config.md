@@ -1,7 +1,7 @@
 # Customizable configs
 
-Our python dataclass configs allow you to easily plug in different permutations of models, dataloaders, modules, etc.
-and modify all parameters from a typed CLI supported by [dcargs](https://pypi.org/project/dcargs/).
+Our dataclass configs allow you to easily plug in different permutations of models, dataloaders, modules, etc.
+and modify all parameters from a typed CLI supported by [tyro](https://pypi.org/project/tyro/).
 
 ### Base components
 

@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-import dcargs
+import tyro
 import yaml
 from rich.console import Console
 from rich.style import Style
@@ -88,8 +88,8 @@ def run_code_checks(continue_on_fail: bool = False):
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(run_code_checks)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(run_code_checks)
 
 
 if __name__ == "__main__":
