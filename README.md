@@ -238,7 +238,9 @@ If you use this library or find the doumentation useful for your research, pleas
 ```
 @misc{nerfstudio,
       title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, Abhik Ahuja, David McAllister, Angjoo Kanazawa},
+      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, 
+              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, 
+              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
       year={2022},
       url={https://github.com/nerfstudio-project/nerfstudio},
 }
