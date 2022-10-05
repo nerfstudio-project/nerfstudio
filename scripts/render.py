@@ -146,3 +146,6 @@ def entrypoint():
 
 if __name__ == "__main__":
     entrypoint()
+
+# For sphinx docs
+get_parser_fn = lambda: dcargs.extras.get_parser(RenderTrajectory)  # noqa
