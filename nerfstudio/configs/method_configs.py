@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import Dict
 
 import dcargs
-from rich.console import Console
 
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
