@@ -57,19 +57,20 @@ def grab_file_id(zip_url: str) -> str:
 
 # https://drive.google.com/drive/folders/1Wh66z3qQTZ8o2MwPPwYOrdwQtXUEQFyq?usp=sharing
 nerfstudio_file_ids = {
-    "dozer": grab_file_id("https://drive.google.com/file/d/1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR/view?usp=sharing"),
-    "sf_street": grab_file_id("https://drive.google.com/file/d/1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz/view?usp=sharing"),
-    "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
     "bunny": grab_file_id("https://drive.google.com/file/d/1oVytSgd1gQclF0CybJ6JdXDmaqKOx7Wg/view?usp=sharing"),
     "bww_entrance": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
     "bww_tree": grab_file_id("https://drive.google.com/file/d/1N_OQejT0MblK1UP05KORxy25SXjKqZN1/view?usp=sharing"),
     "campanelle": grab_file_id("https://drive.google.com/file/d/13aOfGJRRH05pOOk9ikYGTwqFc2L1xskU/view?usp=sharing"),
+    "desolation": grab_file_id("https://drive.google.com/file/d/14IzOOQm9KBJ3kPbunQbUTHPnXnmZus-f/view?usp=sharing"),
+    "dozer": grab_file_id("https://drive.google.com/file/d/1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR/view?usp=sharing"),
     "japanese_maple": grab_file_id(
         "https://drive.google.com/file/d/1ytCnaAEqm-fIziuQXbBp5yVbZ_cmkHlj/view?usp=sharing"
     ),
     "kushikatsu": grab_file_id("https://drive.google.com/file/d/1mTNbDW1EyX_fi_ffeP-6Q_0STxr3WfU6/view?usp=sharing"),
     "library": grab_file_id("https://drive.google.com/file/d/1Hjbh_-BuaWETQExn2x2qGD74UwrFugHx/view?usp=sharing"),
+    "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
+    "sf_street": grab_file_id("https://drive.google.com/file/d/1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
 }
