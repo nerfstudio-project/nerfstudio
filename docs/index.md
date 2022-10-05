@@ -98,8 +98,33 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 | [Discord](https://discord.com/invite/NHGtYRAW)             | Join Discord Community |
 | [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
 
-## Indices and Tables
+## Built On
 
-- {ref}`genindex`
-- {ref}`modindex`
-- {ref}`search`
+#### [dcargs](https://github.com/brentyi/dcargs)
+
+- Easy to use config system
+- Developed by [Brent Yi](https://brentyi.com/)
+
+#### [nerfacc](https://www.nerfacc.com/en/latest/)
+
+- Library for accelerating NeRF renders
+- Developed by [Ruilong Li](https://www.liruilong.cn/)
+
+## Citation
+
+If you use this library or find the documentation useful for your research, please conside citing:
+
+```none
+@misc{nerfstudio,
+      title={Nerfstudio: A Framework for Neural Radiance Field Development},
+      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, Abhik Ahuja, David McAllister, Angjoo Kanazawa},
+      year={2022},
+      url={https://github.com/nerfstudio-project/nerfstudio},
+}
+```
+
+## Contributors
+
+<a href="https://github.com/nerfstudio-project/nerfstudio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nerfstudio-project/nerfstudio" />
+</a>
