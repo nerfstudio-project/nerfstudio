@@ -50,7 +50,7 @@ Local vs. remote compute
 """"""""""""""""""""""""""
 
 Training on a local machine
-------------------------
+---------------------------
 
 You should be able to click the link obtained while running a script to open the viewer in your browser.
 
@@ -59,7 +59,7 @@ You should be able to click the link obtained while running a script to open the
   :alt: Visualize dataset
 
 Training on a remote machine
-------------------------
+----------------------------
 
 If you are training on a remote maching, the viewer will still let you view your trainings. 
 You will need to forward the port that the viewer is running on.
