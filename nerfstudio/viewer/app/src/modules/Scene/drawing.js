@@ -100,7 +100,7 @@ export function getCameraWireframe(
   return lines;
 }
 
-export function drawCameraImagePlane(width, height, imageString) {
+export function drawCameraImagePlane(width, height, imageString, name) {
   // imageString is the texture as a base64 string
   const geometry = new THREE.PlaneGeometry(width, height);
   const material = new THREE.MeshBasicMaterial({
@@ -109,6 +109,7 @@ export function drawCameraImagePlane(width, height, imageString) {
   const texture = new THREE.TextureLoader().load(imageString);
   material.map = texture;
   const plane = new THREE.Mesh(geometry, material);
+  plane.name = name;
   return plane;
 }
 
@@ -116,7 +117,7 @@ function transpose(matrix) {
   return matrix[0].map((col, i) => matrix.map((row) => row[i]));
 }
 
-export function drawCamera(camera): THREE.Object3D {
+export function drawCamera(camera, name): THREE.Object3D {
   const group = new THREE.Group();
 
   console.assert(
@@ -139,6 +140,7 @@ export function drawCamera(camera): THREE.Object3D {
     width * 2,
     height * 2,
     camera.image,
+    name,
   );
   group.add(cameraImagePlaneObject);
 

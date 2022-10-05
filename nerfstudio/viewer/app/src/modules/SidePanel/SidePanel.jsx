@@ -35,6 +35,22 @@ import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
 import { CAMERAS_NAME } from '../Scene/Scene';
 
+export const snap_to_camera = (sceneTree, camera, matrix) => {
+  const mat = new THREE.Matrix4();
+  mat.fromArray(matrix.elements);
+  mat.decompose(camera.position, camera.quaternion, camera.scale);
+  const unit = new THREE.Vector3(0, 0, -1);
+  const viewDirection = unit.applyMatrix4(mat);
+  sceneTree.metadata.camera_controls.setLookAt(
+    camera.position.x,
+    camera.position.y,
+    camera.position.z,
+    viewDirection.x,
+    viewDirection.y,
+    viewDirection.z,
+  );
+};
+
 interface TabPanelProps {
   children: React.ReactNode;
   index: number;
@@ -88,7 +104,6 @@ function MenuItems(props: ListItemProps) {
   const terminal = Object.keys(scene_node.children).includes('<object>');
 
   const getCamera = (node) => {
-    console.log(node);
     return node.object.children[0];
   };
 
@@ -110,23 +125,6 @@ function MenuItems(props: ListItemProps) {
   const toggleVisible = (e) => {
     e.stopPropagation();
     setVisible(!visible);
-  };
-
-  const snap_to_camera = (matrix) => {
-    const camera = sceneTree.metadata.camera;
-    const mat = new THREE.Matrix4();
-    mat.fromArray(matrix.elements);
-    mat.decompose(camera.position, camera.quaternion, camera.scale);
-    const unit = new THREE.Vector3(0, 0, -1);
-    const viewDirection = unit.applyMatrix4(mat);
-    sceneTree.metadata.camera_controls.setLookAt(
-      camera.position.x,
-      camera.position.y,
-      camera.position.z,
-      viewDirection.x,
-      viewDirection.y,
-      viewDirection.z,
-    );
   };
 
   React.useEffect(() => {
@@ -170,7 +168,13 @@ function MenuItems(props: ListItemProps) {
         {canSnap && (
           <IconButton
             aria-label="visibility"
-            onClick={() => snap_to_camera(getCamera(scene_node).matrix)}
+            onClick={() =>
+              snap_to_camera(
+                sceneTree,
+                sceneTree.metadata.camera,
+                getCamera(scene_node).matrix,
+              )
+            }
             sx={{ mr: 1 }}
           >
             <Videocam />

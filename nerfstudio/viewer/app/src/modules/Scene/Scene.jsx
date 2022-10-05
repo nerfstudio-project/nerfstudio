@@ -13,6 +13,7 @@ import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
+import { snap_to_camera } from '../SidePanel/SidePanel';
 
 const msgpack = require('msgpack-lite');
 
@@ -203,7 +204,8 @@ export function get_scene_tree() {
         if (!prev.has(key)) {
           // keys_valid.push(key);
           const json = current[key];
-          const camera = drawCamera(json);
+          console.log(json);
+          const camera = drawCamera(json, key);
           sceneTree.set_object_from_path([CAMERAS_NAME, key], camera);
         }
       }
@@ -231,19 +233,35 @@ export function get_scene_tree() {
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
     ).map((obj) => obj.object.children[0].children[1]);
+
     console.log('CAMERAS');
     console.log(cameras);
+
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * (e.clientY / size.y);
-    // console.log(sceneTree.metadata.camera);
+
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
-    const intersects = raycaster.intersectObjects(cameras, true);
-    // intersects.forEach((element) => {
-    //   console.log(intersects);
-    // });
-    console.log(intersects.length);
-    console.log(intersects);
+    let selectedPlane = raycaster.intersectObjects(cameras, true)[0];
+    if (selectedPlane != null) {
+      selectedPlane = selectedPlane.object;
+      console.log(selectedPlane);
+      console.log('FIND NO CREATE');
+      console.log(
+        sceneTree.find_object_no_create([CAMERAS_NAME, selectedPlane.name]),
+      );
+      // console.log(
+      //   sceneTree.find_object_no_create([CAMERAS_NAME, selectedPlane.name])
+      //     .children[0],
+      // );
+      console.log(selectedPlane.name);
+      snap_to_camera(
+        sceneTree,
+        sceneTree.metadata.camera,
+        sceneTree.find_object_no_create([CAMERAS_NAME, selectedPlane.name])
+          .matrix,
+      );
+    }
   };
   window.addEventListener('mousedown', onMouseMove, false);
   return sceneTree;
