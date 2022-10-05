@@ -11,3 +11,7 @@
 :class: only-dark
 :width: 600
 ```
+
+## What is a Pipeline?
+
+The Pipeline contains all the code you need to implement a NeRF method.
