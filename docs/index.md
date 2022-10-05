@@ -21,6 +21,10 @@
 
 <br/>
 
+<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" width="52%"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" width="46%"/>
+
+<br/>
+
 Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and visualizing NeRFs.
 The library supports an **interpretable implementation of NeRFs by modularizing each component.**
 With modular NeRF components, we hope to create a user-friendly experience in exploring the technology.
@@ -105,12 +109,12 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 
 ## Built On
 
-#### [dcargs](https://github.com/brentyi/dcargs)
+[**dcargs**](https://github.com/brentyi/dcargs)
 
 - Easy to use config system
 - Developed by [Brent Yi](https://brentyi.com/)
 
-#### [nerfacc](https://www.nerfacc.com/en/latest/)
+[**nerfacc**](https://www.nerfacc.com/en/latest/)
 
 - Library for accelerating NeRF renders
 - Developed by [Ruilong Li](https://www.liruilong.cn/)
