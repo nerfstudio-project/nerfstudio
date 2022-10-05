@@ -55,7 +55,6 @@ def grab_file_id(zip_url: str) -> str:
     return s.split("/")[0]
 
 
-# https://drive.google.com/drive/folders/1Wh66z3qQTZ8o2MwPPwYOrdwQtXUEQFyq?usp=sharing
 nerfstudio_file_ids = {
     "bunny": grab_file_id("https://drive.google.com/file/d/1oVytSgd1gQclF0CybJ6JdXDmaqKOx7Wg/view?usp=sharing"),
     "bww_entrance": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
@@ -105,7 +104,14 @@ def main(
     capture_name: Optional[DatasetName] = None,  # type: ignore
     save_dir: Path = Path("data/"),
 ):
-    """Main download script to download all data.
+    """Script to download existing datasets.
+
+    We currently support the following datasets:
+
+    - nerfstudio: Growing collection of real-world scenes. Use the `capture_name` argument to specify
+        which capture to download.
+    - blender: Blender synthetic scenes realeased with NeRF.
+    - friends: Friends TV show scenes.
 
     Args:
         dataset: The dataset to download (from).
