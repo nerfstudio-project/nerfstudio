@@ -60,7 +60,7 @@ Nerfstudio is a contributer friendly repo with the goal of buiding a community w
 
 It’s as simple as plug and play with nerfstudio!
 
-We are committed to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
+We are committed to providing learning resources to help you understand the basics of (if you're just getting started), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
 Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/NHGtYRAW).
 
@@ -75,7 +75,7 @@ For more complex changes (e.g. running with your own data/setting up a new NeRF 
 
 ### Create environment
 
-We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
+We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -181,7 +181,7 @@ ns-render --load-config=outputs/data-nerfstudio-poster/nerfacto/{TIMESTAMP}/conf
 
 And that's it for getting started with the basics of nerfstudio.
 
-If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the qucklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
+If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the quicklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
 
 | Section                                                                                            | Description                                                                                        |
 | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -231,7 +231,7 @@ We provide the following support strucutures to make life easier for getting sta
 
 # Citation
 
-If you use this library or find the doumentation useful for your research, please conside citing:
+If you use this library or find the doumentation useful for your research, please consider citing:
 
 ```
 @misc{nerfstudio,
