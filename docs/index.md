@@ -57,7 +57,7 @@ nerfology/model_components/index
 :caption: Developer Guides
 
 developer_guides/pipelines/index
-developer_guides/viewer/index
+developer_guides/viewer/viewer_overview
 developer_guides/config
 developer_guides/debugging_tools/index
 ```

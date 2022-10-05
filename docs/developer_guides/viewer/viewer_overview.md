@@ -1,6 +1,12 @@
-# For developers
+# Viewer Overview
 
-The tutorial below shows you how to host the viewer yourself and how you can use it to visualize training.
+> We have a real-time web viewer that requires no installation. It's available at [https://viewer.nerf.studio/](https://viewer.nerf.studio/), where you can connect to your training job. If you want to understand how the viewer works and contribute to it's features, this section is for you!
+
+The viewer is built using [ThreeJS](https://threejs.org/) and packaged into a [ReactJS](https://reactjs.org/) application. This client viewer application will connect via a websocket to a server running on your machine. The following figure helps to illustrate how our viewer framework works:
+
+![visualize_dataset](imgs/viewer_figure.png)
+
+## System design
 
 #### Connection between nerfstudio and the Bridge Server
 
@@ -14,26 +20,17 @@ The connection between the Bridge Server and the Client App works with WebSocket
 
 - **WebRTC connection** - We use WebRTC to stream images being rendered from nerfstudio. The websocket connection if first used to establish the WebRTC connection. Then, the Client App constantly publishes camera pose information to the Bridge Server and stores the camera information (intrinsics and extrinsics). This information is then queried from the nerfstudio code, used to render an image with some Graph, and then the image is send over the TCP connection and dispatched via WebRTC to render the stream of images.
 
-## Getting started
+## Installing and running locally
 
 #### Running the Bridge Server
 
-The viewer server runs on the same machine that you use for training. The training code will connect to the server with a lightweight TCP connection.
+The viewer bridge server runs on the same machine that you use for training. The training code will connect to this server with a lightweight TCP connection using ZMQ. The training job will launch the viewer bridge server is you specify `--viewer.launch-bridge-server` in the terminal. Otherwise, you can launch the bridge server manually with the following script.
 
-```
-cd nerfstudio
-
-# run the server on your machine
-# this will run in the background
-python scripts/run_viewer_bridge_server.py
-
-It should print out something of the form:
-"ZMQWebSocketBridge using zmq_url=tcp://127.0.0.1:6000 and websocket_port=8051"
+```python
+python scripts/viewer/run_bridge_server.py --help
 ```
 
 #### Running the Client App
-
-> We will host the viewer online in the future, but for now we have to run it locally.
 
 ```shell
 cd nerfstudio/viewer/app
@@ -61,43 +58,32 @@ yarn install
 yarn start
 ```
 
-Forward port and open in your local browser. The URL takes the following form, `http://localhost:<forwarded_react_port>?localhost:<forwarded_backend_tcp_port>`. Notice the "?" character.
-
-- http://localhost:4000?localhost:8051
-
-Possibly edit the port in `app/.env.development` file with the following to adjust the PORT, for example.
-
-```
-BROWSER=none
-FAST_REFRESH=false
-HOST=0.0.0.0
-PORT=4000
-ESLINT_NO_DEV_ERRORS=true
-```
-
-#### Running the nerfstudio Code
-
-You can now simply run a training job and visualize progress by enabling the viewer during training:
-
-```bash
-python scripts/train.py --config-name=graph_instant_ngp.yaml viewer.enable=true
-```
-
-- **Notebook demo** - See [Programming the viewer](viewer_notebook.ipynb) for an overview for how to interact with the viewer with the Viewer object from nerfstudio.
-
 ## Acknowledgements and references
 
-We thank [Robin Deits](https://github.com/rdeits) and other contributors to the following repos, which we've started with and modified and extended for our use.
+We thank the authors and contributors to the following repos, which we've started, used, and modified for our use-cases.
 
-- [meshcat-python](https://github.com/rdeits/meshcat-python)
-- [meshcat](https://github.com/rdeits/meshcat)
-
-Here are other resources that we've used and/or have found helpful while building the viewer code.
-
+- [meshcat-python](https://github.com/rdeits/meshcat-python) - made by [Robin Deits](https://github.com/rdeits)
+- [meshcat](https://github.com/rdeits/meshcat) - made by [Robin Deits](https://github.com/rdeits)
 - [ThreeJS](https://threejs.org/)
 - [ReactJS](https://reactjs.org/)
 - [WebRTC](https://webrtc.org/) - WebRTC is a framework for real-time communication that allows two peers to send video, audio, or general data to and from each other with low latency. We've adopted WebRTC to stream rendered images to our viewer.
 
+## FAQ
+
+#### Engine node incompatible
+
+While running `yarn install`, you run into: `The engine "node" is incompatible with this module.`
+
+**Solution**:
+
+Install nvm with instructions at [instructions](https://heynode.com/tutorial/install-nodejs-locally-nvm/).
+
+```shell
+nvm install 17.8.0
 ```
 
+If you cannot install nvm, try ignoring the engines
+
+```
+yarn install --ignore-engines
 ```
