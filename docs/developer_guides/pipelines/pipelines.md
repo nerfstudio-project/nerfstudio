@@ -63,3 +63,11 @@ def get_train_loss_dict(self, step: int):
 
 The VanillaPipeline works for most of our methods.
 :::
+
+We also have a DynamicBatchPipeline that is used with InstantNGP to dynamically choose the number of rays to use per training and evaluation iteration.
+
+```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/pipelines/dynamic_batch.py
+:color: primary
+:outline:
+See the code!
+```
