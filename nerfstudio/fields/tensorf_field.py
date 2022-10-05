@@ -76,7 +76,10 @@ class TensoRFField(Field):
 
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(positions)
-        density_enc = torch.sum(self.density_encoding(positions), dim=1).view(-1, 1)
+        density = self.density_encoding(positions)
+        print(density.shape)
+        density_enc = torch.sum(density, dim=1).view(-1, 1)
+        print(density_enc.shape)
         density_enc = trunc_exp(density_enc)
         return density_enc, None
 

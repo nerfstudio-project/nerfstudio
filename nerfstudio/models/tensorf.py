@@ -186,7 +186,6 @@ class TensoRFModel(Model):
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
-
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
 
