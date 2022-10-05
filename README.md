@@ -44,10 +44,12 @@
     </a>
 </p>
 
+<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" height="245"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" height="245"/>
+
+
 - [Quickstart](#quickstart)
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
-- [See what's possible](#see-whats-possible)
 
 # About
 
@@ -181,7 +183,7 @@ And that's it for getting started with the basics of nerfstudio.
 If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the qucklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
 
 | Section                                                                                            | Description                                                                                        |
-| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --- |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Documentation](https://docs.nerf.studio/en/latest/)                                               | Full API documentation and tutorials                                                               |
 | [Viewer](https://viewer.nerf.studio/)                                                              | Home page for our web viewer                                                                       |
 | 🎒 **Educational**                                                                                 |
@@ -214,11 +216,6 @@ We provide the following support strucutures to make life easier for getting sta
 - :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
 - :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render.
 
-# See what's possible
-
-TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
-TODO: For more see gallery
-
 # Built On
 
 #### [dcargs](https://github.com/brentyi/dcargs)
@@ -238,7 +235,9 @@ If you use this library or find the doumentation useful for your research, pleas
 ```
 @misc{nerfstudio,
       title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, Abhik Ahuja, David McAllister, Angjoo Kanazawa},
+      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, 
+              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, 
+              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
       year={2022},
       url={https://github.com/nerfstudio-project/nerfstudio},
 }

@@ -2,9 +2,9 @@ name: Viewer Build and Deploy.
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   build:
@@ -40,7 +40,6 @@ jobs:
     name: Deploy
     needs: build
     runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/master'
 
     env:
       SSH_KEY: ${{secrets.SSH_KEY}}

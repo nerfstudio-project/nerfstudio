@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <!-- Google tag (gtag.js) -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-ZSFJZK8LVS"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+
+      gtag('config', 'G-ZSFJZK8LVS');
+    </script>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -41,6 +55,10 @@
       content="https://assets.nerf.studio/opg.png"
       alt="nerfstudio"
     />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@nerfstudioteam" />
+    <meta name="twitter:title" content="Nerfstudio Viewer" />
+    <meta name="twitter:image" content="https://assets.nerf.studio/opg.png" />
   </head>
 
   <body>
