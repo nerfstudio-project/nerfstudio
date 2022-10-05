@@ -24,13 +24,6 @@ Semantic NeRF-W
    :members:
    :show-inheritance:
 
-TensoRF
-----------------
-
-.. automodule:: nerfstudio.models.tensorf
-   :members:
-   :show-inheritance:
-
 NeRF
 ----------------
 
