@@ -137,6 +137,8 @@ def test_camera_as_tensordataclass():
         camera_types[0],
     )
 
+    _ = c2_dist[torch.tensor([0]), torch.tensor([0])]
+
     assert c0.shape == ()
     assert c1[...].shape == torch.Size([batch_size])
 
@@ -146,11 +148,12 @@ def test_camera_as_tensordataclass():
 
     c0.generate_rays(0)
     c1.generate_rays(0)
+    c1.generate_rays(torch.tensor([0, 1]))
 
     # Make sure rays generated are same when distortion params are identity (all zeros) and None
     assert c2.shape == c2_dist.shape
-    c2_rays = c2.generate_rays(0)
-    c_dist_rays = c2_dist.generate_rays(0)
+    c2_rays = c2.generate_rays(torch.tensor([0, 0]))
+    c_dist_rays = c2_dist.generate_rays(torch.tensor([0, 0]))
     assert _check_dataclass_allclose(c2_rays, c_dist_rays)
 
     # assert tensor_dataclass.size == 24
