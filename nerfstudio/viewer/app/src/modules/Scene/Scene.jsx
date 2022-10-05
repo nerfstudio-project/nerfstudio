@@ -17,7 +17,7 @@ import { subscribe_to_changes } from '../../subscriber';
 const msgpack = require('msgpack-lite');
 
 const SCENE_BOX_NAME = 'Scene Box';
-const CAMERAS_NAME = 'Training Cameras';
+export const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
   const scene = new THREE.Scene();
@@ -220,6 +220,32 @@ export function get_scene_tree() {
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
 
+  // Check for clicks on training cameras
+  const mouseVector = new THREE.Vector2();
+  const raycaster = new THREE.Raycaster();
+  const size = new THREE.Vector2();
+
+  const onMouseMove = (e) => {
+    // try {
+    // const cameras = sceneTree.find_no_create([CAMERAS_NAME]).children;
+    const cameras = Object.values(
+      sceneTree.find_no_create([CAMERAS_NAME]).children,
+    ).map((obj) => obj.object.children[0].children[1]);
+    console.log('CAMERAS');
+    console.log(cameras);
+    sceneTree.metadata.renderer.getSize(size);
+    mouseVector.x = 2 * (e.clientX / size.x) - 1;
+    mouseVector.y = 1 - 2 * (e.clientY / size.y);
+    // console.log(sceneTree.metadata.camera);
+    raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+    const intersects = raycaster.intersectObjects(cameras, true);
+    // intersects.forEach((element) => {
+    //   console.log(intersects);
+    // });
+    console.log(intersects.length);
+    console.log(intersects);
+  };
+  window.addEventListener('mousedown', onMouseMove, false);
   return sceneTree;
 }
 

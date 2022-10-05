@@ -33,6 +33,7 @@ import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
+import { CAMERAS_NAME } from '../Scene/Scene';
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -207,7 +208,7 @@ function MenuItems(props: ListItemProps) {
                   scene_node={scene_node.children[key]}
                   level={level + 1}
                   groupVisible={visible}
-                  canSnap={name === 'Training Cameras'}
+                  canSnap={name === CAMERAS_NAME}
                 />
               ))}
           </List>
