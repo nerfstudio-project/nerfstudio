@@ -126,6 +126,8 @@ After installing both software, you can process your data via:
 
 ```bash
 ns-process-data --data FOLDER_OR_VIDEO --output-dir {PROCESSED_DATA_DIR}
+# Or if you're on a system without an attached display (i.e. colab):
+ns-process-data --data FOLDER_OR_VIDEO --output-dir {PROCESSED_DATA_DIR} --no-gpu
 ```
 
 ## 3. Training a model
