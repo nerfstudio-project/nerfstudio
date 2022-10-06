@@ -40,15 +40,12 @@ from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 method_configs: Dict[str, Config] = {}
 descriptions = {
-    "nerfacto": "[bold green]Recommended[/bold green] Real-time model tuned for real captures. "
-    + "This model will be continually updated.",
+    "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
-    "mipnerf": "High quality model for bounded scenes. [red]*slow*",
+    "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
-    "vanilla-nerf": "Original NeRF model. [red]*slow*",
+    "vanilla-nerf": "Original NeRF model. (slow)",
 }
-descriptions = {k: convert_markup_to_ansi(v) for k, v in descriptions.items()}
-
 
 method_configs["nerfacto"] = Config(
     method_name="nerfacto",
