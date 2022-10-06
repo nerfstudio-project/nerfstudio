@@ -23,7 +23,6 @@ from typing import Dict
 import tyro
 
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
-from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
