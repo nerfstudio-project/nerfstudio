@@ -109,7 +109,7 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 
 ## Built On
 
-[**dcargs**](https://github.com/brentyi/dcargs)
+[**tyro**](https://github.com/brentyi/tyro)
 
 - Easy to use config system
 - Developed by [Brent Yi](https://brentyi.com/)

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-import dcargs
+import tyro
 
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
@@ -150,9 +150,9 @@ method_configs["vanilla-nerf"] = Config(
 )
 
 
-AnnotatedBaseConfigUnion = dcargs.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    dcargs.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+    tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
 ]
 """Union[] type over config types, annotated with default instances for use with
-dcargs.cli(). Allows the user to pick between one of several base configurations, and
+tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

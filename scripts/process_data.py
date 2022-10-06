@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Literal, Optional, Tuple
 
 import appdirs
-import dcargs
 import numpy as np
 import requests
+import tyro
 from rich.console import Console
 from rich.progress import track
 
@@ -488,12 +488,12 @@ def main(
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: dcargs.extras.get_parser(main)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa

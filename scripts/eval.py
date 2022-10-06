@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-import dcargs
+import tyro
 from rich.console import Console
 
 from nerfstudio.utils.eval_utils import eval_setup
@@ -48,12 +48,12 @@ class ComputePSNR:
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(ComputePSNR).main()
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(ComputePSNR).main()
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: dcargs.extras.get_parser(ComputePSNR)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(ComputePSNR)  # noqa

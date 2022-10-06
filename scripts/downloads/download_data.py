@@ -6,8 +6,8 @@ import zipfile
 from pathlib import Path
 from typing import Literal, Optional
 
-import dcargs
 import gdown
+import tyro
 from rich.console import Console
 
 console = Console(width=120)
@@ -74,7 +74,7 @@ nerfstudio_file_ids = {
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
 }
 
-DatasetName = dcargs.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
+DatasetName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
 
 
 def download_nerfstudio(save_dir: Path, capture_name: str):
@@ -141,12 +141,12 @@ def main(
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: dcargs.extras.get_parser(main)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa
