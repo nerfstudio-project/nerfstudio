@@ -107,3 +107,27 @@ cd vcpkg
 
 :::::
 ::::::
+
+## Record3D Capture
+
+Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed. 
+
+Record a video and export with the EXR + JPG sequence format. 
+
+```{image} imgs/record_3d_video_selection.png
+:align: center
+:class: only-dark
+:width: 600
+```
+
+```{image} imgs/record_3d_export_selection.png
+:align: center
+:class: only-dark
+:width: 600
+```
+
+Then, move the exported from the Files app to your computer using airdrop. Everything should be unzipped within the capture folder before training.
+
+```
+ns-train instant-ngp record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
+```

@@ -145,7 +145,7 @@ See the code!
 
 ###### Record3D
 
-This dataparser can use recorded data from a >= iPhone 12 Pro using the Record3D app. Record a video and export with the `EXR + JPG sequence` format. Unzip export and `rgb` folder before training.
+This dataparser can use recorded data from a >= iPhone 12 Pro using the [Record3D app](https://record3d.app/) . Record a video and export with the `EXR + JPG sequence` format. Unzip export and `rgb` folder before training.
 
 ```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/data/dataparsers/record3d_dataparser.py
 :color: primary
