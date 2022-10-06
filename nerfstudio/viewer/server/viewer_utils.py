@@ -215,19 +215,13 @@ class ViewerState:
             zmq_port = run_viewer_bridge_server_as_subprocess(
                 websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
-            # TODO(ethan): move this into the writer such that it's at the bottom
-            # of the logging stack and easy to see and click
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             console.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
-            viewer_url_local = f"http://localhost:4000/?websocket_port={websocket_port}"
-            pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
-            dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
             console.rule(characters="=")
-            console.print(pub_open_viewer_instructions_string)
-            console.print(dev_open_viewer_instructions_string)
+            console.print(f"[Public] Open the viewer at {self.viewer_url}")
             console.rule(characters="=")
             console.line()
             self.vis = Viewer(zmq_port=zmq_port)

@@ -23,7 +23,7 @@ from os.path import expanduser
 from pathlib import Path
 from typing import Optional
 
-import dcargs
+import tyro
 from sshconf import empty_ssh_config_file, read_ssh_config
 
 
@@ -135,5 +135,5 @@ def main(
 
 
 if __name__ == "__main__":
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)

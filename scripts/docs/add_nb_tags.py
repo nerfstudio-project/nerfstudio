@@ -3,8 +3,8 @@
 import sys
 from glob import glob
 
-import dcargs
 import nbformat as nbf
+import tyro
 from rich.console import Console
 
 console = Console(width=120)
@@ -75,5 +75,5 @@ def main(check: bool = False):
 
 
 if __name__ == "__main__":
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)

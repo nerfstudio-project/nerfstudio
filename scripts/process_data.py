@@ -10,13 +10,13 @@ from pathlib import Path
 from typing import Literal, Optional, Tuple
 
 import appdirs
-import dcargs
 import numpy as np
 import requests
+import tyro
 from rich.console import Console
 from rich.progress import track
 
-from nerfstudio.utils import colmap_utils
+from nerfstudio.utils import colmap_utils, install_checks
 
 CONSOLE = Console(width=120)
 
@@ -32,25 +32,6 @@ CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
 }
-
-
-def check_ffmpeg_installed():
-    """Checks if ffmpeg is installed."""
-    ffmpeg_path = shutil.which("ffmpeg")
-    if ffmpeg_path is None:
-        CONSOLE.print("[bold red]Could not find ffmpeg. Please install ffmpeg.")
-        print("See https://ffmpeg.org/download.html for installation instructions.")
-        print("ffmpeg is only necissary if using videos as input.")
-        sys.exit(1)
-
-
-def check_colmap_installed():
-    """Checks if colmap is installed."""
-    colmap_path = shutil.which("colmap")
-    if colmap_path is None:
-        CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
-        print("See https://colmap.github.io/install.html for installation instructions.")
-        sys.exit(1)
 
 
 def get_colmap_version(default_version=3.8) -> float:
@@ -408,8 +389,8 @@ def main(
         verbose: If True, print extra logging.
     """
 
-    check_ffmpeg_installed()
-    check_colmap_installed()
+    install_checks.check_ffmpeg_installed()
+    install_checks.check_colmap_installed()
 
     output_dir.mkdir(parents=True, exist_ok=True)
     image_dir = output_dir / "images"
@@ -488,12 +469,12 @@ def main(
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: dcargs.extras.get_parser(main)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa

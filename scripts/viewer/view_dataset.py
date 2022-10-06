@@ -8,8 +8,8 @@ import time
 from datetime import timedelta
 from pathlib import Path
 
-import dcargs
 import torch
+import tyro
 
 from nerfstudio.configs import base as cfg
 from nerfstudio.data.base import AnnotatedDataParserUnion
@@ -38,5 +38,5 @@ def main(
 
 
 if __name__ == "__main__":
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)

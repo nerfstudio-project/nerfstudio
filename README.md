@@ -37,17 +37,19 @@
 
 <p align="center">
     <a href="https://docs.nerf.studio">
-        <img alt="documentation" src="docs/_static/imgs/readme_documentation.png" width="150">
+        <img alt="documentation" src="https://user-images.githubusercontent.com/3310961/194022638-b591ce16-76e3-4ba6-9d70-3be252b36084.png" width="150">
     </a>
     <a href="https://viewer.nerf.studio/">
-        <img alt="viewer" src="docs/_static/imgs/readme_viewer.png" width="150">
+        <img alt="viewer" src="https://user-images.githubusercontent.com/3310961/194022636-a9efb85a-14fd-4002-8ed4-4ca434898b5a.png" width="150">
     </a>
 </p>
+
+<img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" width="52%"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" width="46%"/>
+
 
 - [Quickstart](#quickstart)
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
-- [See what's possible](#see-whats-possible)
 
 # About
 
@@ -58,25 +60,25 @@ Nerfstudio is a contributer friendly repo with the goal of buiding a community w
 
 It’s as simple as plug and play with nerfstudio!
 
-Ontop of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
+We are committed to providing learning resources to help you understand the basics of (if you're just getting started), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/NHGtYRAW).
+Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/NHGtYRAW).
 
 We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
 # Quickstart
 
 The quickstart will help you get started with the default vanilla nerf trained on the classic blender lego scene.
-For more complex changes (e.g. running with your own data/ setting up a new NeRF graph, please refer to our [references](#learn-more).
+For more complex changes (e.g. running with your own data/setting up a new NeRF graph, please refer to our [references](#learn-more).
 
 ## 1. Installation: Setup the environment
 
 ### Create environment
 
-We reccomend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
+We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
-conda create --name nerfstudio -y python=3.8;
+conda create --name nerfstudio -y python=3.8
 conda activate nerfstudio
 python -m pip install --upgrade pip
 ```
@@ -101,8 +103,9 @@ pip install nerfstudio
 If you would want the latest and greatest:
 
 ```bash
-git clone git@github.com:nerfstudio-project/nerfstudio.git
+git clone https://github.com/nerfstudio-project/nerfstudio.git
 cd nerfstudio
+pip install --upgrade pip setuptools
 pip install -e .
 ```
 
@@ -123,6 +126,8 @@ After installing both software, you can process your data via:
 
 ```bash
 ns-process-data --data FOLDER_OR_VIDEO --output-dir {PROCESSED_DATA_DIR}
+# Or if you're on a system without an attached display (i.e. colab):
+ns-process-data --data FOLDER_OR_VIDEO --output-dir {PROCESSED_DATA_DIR} --no-gpu
 ```
 
 ## 3. Training a model
@@ -178,10 +183,10 @@ ns-render --load-config=outputs/data-nerfstudio-poster/nerfacto/{TIMESTAMP}/conf
 
 And that's it for getting started with the basics of nerfstudio.
 
-If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the qucklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
+If you're interested in learning more on how to create your own pipelines, develop with the viewer, run benchmarks, and more, please check out some of the quicklinks below or visit our [documentation](https://docs.nerf.studio/en/latest/) directly.
 
 | Section                                                                                            | Description                                                                                        |
-| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --- |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | [Documentation](https://docs.nerf.studio/en/latest/)                                               | Full API documentation and tutorials                                                               |
 | [Viewer](https://viewer.nerf.studio/)                                                              | Home page for our web viewer                                                                       |
 | 🎒 **Educational**                                                                                 |
@@ -196,7 +201,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
 | 💖 **Community**                                                                                   |
 | [Discord](https://discord.gg/NHGtYRAW)                                                             | Join our community to discuss more. We would love to hear from you!                                |
-| [Twitter](#)                                                                                       | Follow us on Twitter to see cool updates and announcements                                         |
+| [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                                         |
 | [TikTok](#)                                                                                        | Comming soon! Follow us on TikTok to see some of our fan favorite results                          |
 
 # Supported Features
@@ -214,16 +219,11 @@ We provide the following support strucutures to make life easier for getting sta
 - :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
 - :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render.
 
-# See what's possible
-
-TODO: insert some gallery stuff here (gifs/pretty pictures w/ visualizer)
-TODO: For more see gallery
-
 # Built On
 
-#### [dcargs](https://github.com/brentyi/dcargs)
+#### [tyro](https://github.com/brentyi/tyro)
 
-- Easy to use config system
+- Easy-to-use config system
 - Developed by [Brent Yi](https://brentyi.com/)
 
 #### [nerfacc](https://www.nerfacc.com/en/latest/)
@@ -233,12 +233,14 @@ TODO: For more see gallery
 
 # Citation
 
-If you use this library or find the doumentation useful for your research, please conside citing:
+If you use this library or find the doumentation useful for your research, please consider citing:
 
 ```
 @misc{nerfstudio,
       title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, Abhik Ahuja, David McAllister, Angjoo Kanazawa},
+      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, 
+              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, 
+              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
       year={2022},
       url={https://github.com/nerfstudio-project/nerfstudio},
 }
