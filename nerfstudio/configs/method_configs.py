@@ -22,7 +22,10 @@ from typing import Dict
 
 import dcargs
 
-from nerfstudio.cameras.camera_optimizers import BARFPoseOptimizerConfig
+from nerfstudio.cameras.camera_optimizers import (
+    BARFPoseOptimizerConfig,
+    SO3PoseOptimizerConfig,
+)
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
@@ -60,7 +63,7 @@ method_configs["nerfacto"] = Config(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=8192,
-            train_camera_optimizer=BARFPoseOptimizerConfig(),
+            train_camera_optimizer=SO3PoseOptimizerConfig(),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),

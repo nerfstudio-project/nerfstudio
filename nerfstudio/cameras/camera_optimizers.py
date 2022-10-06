@@ -18,6 +18,8 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
+from ast import Return
+from cmath import tan
 from dataclasses import dataclass, field
 from typing import Optional, Type, Union
 
@@ -42,6 +44,15 @@ class BARFPoseOptimizerConfig(CameraOptimizerConfig):
     """BARF camera optimizer."""
 
     _target: Type = field(default_factory=lambda: BARFOptimizer)
+    noise_variance: Optional[float] = None
+    """Optional additional noise to add to poses. Useful for debugging pose optimization."""
+
+
+@dataclass
+class SO3PoseOptimizerConfig(CameraOptimizerConfig):
+    """BARF camera optimizer with SO3 approx."""
+
+    _target: Type = field(default_factory=lambda: SO3Optimizer)
     noise_variance: Optional[float] = None
     """Optional additional noise to add to poses. Useful for debugging pose optimization."""
 
@@ -77,6 +88,61 @@ class CameraOptimizer(nn.Module):
         return torch.eye(4, device=self.device).repeat(indices.shape[0], 1, 1)[:, :3, :4]  # no-op (Identity Transform)
 
 
+class SO3Optimizer(CameraOptimizer):
+    """Bundle-Adjusting NeRF (BARF) Pose Optimization but using an S03 approximation to the full SE3 exp map"""
+
+    config: SO3PoseOptimizerConfig
+
+    def __init__(self, config: SO3PoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
+        super().__init__(config, num_cameras, device)
+        if self.config.noise_variance is not None:
+            pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.config.noise_variance)
+            self.pose_noise = self.exp_map(pose_noise).detach().to(device)
+        self.pose_adjustment = torch.nn.Parameter(torch.zeros((self.num_cameras, 6), device=device))
+
+    @classmethod
+    def exp_map(cls, tangent_vector: torch.Tensor) -> torch.Tensor:
+        """Convert SE3 vector into [R|t] transformation matrix. Breaks the computation into
+            R=SO3_exp_map(tangent_vector[3:]) and t=tangent_vector[:3] for efficiency.
+        Args:
+            tangent_vector: SE3 vector
+        Returns:
+            Respective [R|t] tranformation matrices.
+        """
+        # code for SO3 map grabbed from pytorch3d and stripped down to bare-bones
+        log_rot = tangent_vector[:, 3:]
+        nrms = (log_rot * log_rot).sum(1)
+        rot_angles = torch.clamp(nrms, 1e-4).sqrt()
+        rot_angles_inv = 1.0 / rot_angles
+        fac1 = rot_angles_inv * rot_angles.sin()
+        fac2 = rot_angles_inv * rot_angles_inv * (1.0 - rot_angles.cos())
+        skews = torch.zeros((log_rot.shape[0], 3, 3), dtype=log_rot.dtype, device=log_rot.device)
+        skews[:, 0, 1] = -log_rot[:, 2]
+        skews[:, 0, 2] = log_rot[:, 1]
+        skews[:, 1, 0] = log_rot[:, 2]
+        skews[:, 1, 2] = -log_rot[:, 0]
+        skews[:, 2, 0] = -log_rot[:, 1]
+        skews[:, 2, 1] = log_rot[:, 0]
+        skews_square = torch.bmm(skews, skews)
+
+        ret = torch.zeros(tangent_vector.shape[0], 3, 4, dtype=tangent_vector.dtype, device=tangent_vector.device)
+        ret[:, :3, :3] = (
+            fac1[:, None, None] * skews
+            + fac2[:, None, None] * skews_square
+            + torch.eye(3, dtype=log_rot.dtype, device=log_rot.device)[None]
+        )
+
+        # Compute the translation
+        ret[:, :3, 3] = tangent_vector[:, :3]
+        return ret
+
+    def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
+        c_opt2c = self.exp_map(self.pose_adjustment[indices])
+        if self.config.noise_variance is not None:
+            c_opt2c = pose_utils.multiply(c_opt2c, self.pose_noise[indices])
+        return c_opt2c
+
+
 class BARFOptimizer(CameraOptimizer):
     """Bundle-Adjusting NeRF (BARF) Pose Optimization"""
 
@@ -91,7 +157,7 @@ class BARFOptimizer(CameraOptimizer):
         nn.init.zeros_(self.pose_adjustment.weight)
 
     @classmethod
-    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
+    def exp_map(cls, tangent_vector: torch.Tensor) -> torch.Tensor:
         """Convert SE3 vector into [R|t] transformation matrix.
         Args:
             tangent_vector: SE3 vector
@@ -99,30 +165,27 @@ class BARFOptimizer(CameraOptimizer):
             Respective [R|t] tranformation matrices.
         """
 
-        tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
+        # tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
         tangent_vector_ang = tangent_vector[:, 3:].view(-1, 3, 1)
 
         theta = torch.linalg.norm(tangent_vector_ang, dim=1).unsqueeze(1)
         theta2 = theta**2
-        theta3 = theta**3
+        # theta3 = theta**3
 
         near_zero = theta < 1e-2
         non_zero = torch.ones(1, dtype=tangent_vector.dtype, device=tangent_vector.device)
         theta_nz = torch.where(near_zero, non_zero, theta)
         theta2_nz = torch.where(near_zero, non_zero, theta2)
-        theta3_nz = torch.where(near_zero, non_zero, theta3)
+        # theta3_nz = torch.where(near_zero, non_zero, theta3)
 
         # Compute the rotation
         sine = theta.sin()
         cosine = torch.where(near_zero, 8 / (4 + theta2) - 1, theta.cos())
         sine_by_theta = torch.where(near_zero, 0.5 * cosine + 0.5, sine / theta_nz)
         one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 * sine_by_theta, (1 - cosine) / theta2_nz)
-        ret = torch.zeros(tangent_vector.shape[0], 3, 4).to(dtype=tangent_vector.dtype, device=tangent_vector.device)
+        ret = torch.zeros(tangent_vector.shape[0], 3, 4, dtype=tangent_vector.dtype, device=tangent_vector.device)
         ret[:, :3, :3] = one_minus_cosine_by_theta2 * tangent_vector_ang @ tangent_vector_ang.transpose(1, 2)
-
-        ret[:, 0, 0] += cosine.view(-1)
-        ret[:, 1, 1] += cosine.view(-1)
-        ret[:, 2, 2] += cosine.view(-1)
+        ret[:, :3, :3] += torch.eye(3, device=tangent_vector.device).unsqueeze(0) * (cosine.view(-1))[:, None, None]
         temp = sine_by_theta.view(-1, 1) * tangent_vector_ang.view(-1, 3)
         ret[:, 0, 1] -= temp[:, 2]
         ret[:, 1, 0] += temp[:, 2]
@@ -132,15 +195,16 @@ class BARFOptimizer(CameraOptimizer):
         ret[:, 2, 1] += temp[:, 0]
 
         # Compute the translation
-        sine_by_theta = torch.where(near_zero, 1 - theta2 / 6, sine_by_theta)
-        one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 - theta2 / 24, one_minus_cosine_by_theta2)
-        theta_minus_sine_by_theta3_t = torch.where(near_zero, 1.0 / 6 - theta2 / 120, (theta - sine) / theta3_nz)
+        ret[:, :3, 3] += tangent_vector[:, :3]
+        # sine_by_theta = torch.where(near_zero, 1 - theta2 / 6, sine_by_theta)
+        # one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 - theta2 / 24, one_minus_cosine_by_theta2)
+        # theta_minus_sine_by_theta3_t = torch.where(near_zero, 1.0 / 6 - theta2 / 120, (theta - sine) / theta3_nz)
 
-        ret[:, :, 3:] = sine_by_theta * tangent_vector_lin
-        ret[:, :, 3:] += one_minus_cosine_by_theta2 * torch.cross(tangent_vector_ang, tangent_vector_lin, dim=1)
-        ret[:, :, 3:] += theta_minus_sine_by_theta3_t * (
-            tangent_vector_ang @ (tangent_vector_ang.transpose(1, 2) @ tangent_vector_lin)
-        )
+        # ret[:, :, 3:] = sine_by_theta * tangent_vector_lin
+        # ret[:, :, 3:] += one_minus_cosine_by_theta2 * torch.cross(tangent_vector_ang, tangent_vector_lin, dim=1)
+        # ret[:, :, 3:] += theta_minus_sine_by_theta3_t * (
+        #     tangent_vector_ang @ (tangent_vector_ang.transpose(1, 2) @ tangent_vector_lin)
+        # )
         return ret
 
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
