@@ -1,6 +1,32 @@
 #!/usr/bin/env python
-"""
-train.py
+"""Train a radiance field with nerfstudio.
+For real captures, we recommend using the [bright_yellow]nerfacto[/bright_yellow] model.
+
+Nerfstudio allows for customizing your training and eval configs from the CLI in a powerful way, but there are some
+things to understand.
+
+The most demonstrative and helpful example of the CLI structure is the difference in output between the following
+commands:
+
+    ns-train -h
+    ns-train nerfacto -h nerfstudio-data
+    ns-train nerfacto nerfstudio-data -h
+
+In each of these examples, the -h applies to the previous subcommand (ns-train, nerfacto, and nerfstudio-data).
+
+In the first example, we get the help menu for the ns-train script.
+In the second example, we get the help menu for the nerfacto model.
+In the third example, we get the help menu for the nerfstudio-data dataparser.
+
+With our scripts, your arguments will apply to the preceding subcommand in your command, and thus where you put your
+arguments matters! Any optional arguments you discover from running
+
+    ns-train nerfacto -h nerfstudio-data
+
+need to come directly after the nerfacto subcommand, since these optional arguments only belong to the nerfacto
+subcommand:
+
+    ns-train nerfacto {nerfacto optional args} nerfstudio-data
 """
 
 from __future__ import annotations
@@ -20,6 +46,7 @@ import tyro
 import yaml
 
 from nerfstudio.configs import base_config as cfg
+from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import train_loop
 from nerfstudio.utils import comms, profiler
@@ -213,7 +240,12 @@ def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     # Choose a base configuration and override values.
     tyro.extras.set_accent_color("bright_yellow")
-    main(tyro.cli(AnnotatedBaseConfigUnion))
+    main(
+        tyro.cli(
+            AnnotatedBaseConfigUnion,
+            description=convert_markup_to_ansi(__doc__),
+        )
+    )
 
 
 if __name__ == "__main__":
