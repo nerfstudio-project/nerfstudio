@@ -28,11 +28,11 @@
 Nerfstudio provides a simple API that allows for a simplified end-to-end process of creating, training, and visualizing NeRFs.
 The library supports an **interpretable implementation of NeRFs by modularizing each component.**
 With modular NeRF components, we hope to create a user-friendly experience in exploring the technology.
-Nerfstudio is a contributer friendly repo with the goal of building a community where users can easily build upon each other's contributions.
+Nerfstudio is a contributor-friendly repo with the goal of building a community where users can easily build upon each other's contributions.
 
 It's as simple as plug and play with nerfstudio!
 
-On top of our API, we are commited to providing learning resources to help you understand the basics of (if you're just getting start), and keep up-to-date with (if you're a seasoned veteran) all things NeRF.
+On top of our API, we are committed to providing learning resources to help you understand the basics of (if you're just getting started), and keep up-to-date with (if you're a seasoned veteran) all things NeRF.
 As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
 Finally, have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](reference/contributing)!**
@@ -83,12 +83,12 @@ This documentation is organized into 3 parts:
 
 - **🏃‍♀️ Getting Started**: a great place to start if you are new to nerfstudio. Contains a quick tour, installation, and an overview of the core structures that will allow you to get up and running with nerfstudio.
 - **🧪 Nerfology**: want to learn more about the tech itself? We're here to help with our educational guides. We've provided some interactive notebooks that walk you through what each component is all about.
-- **🤓 Developer Guides**: describes all of the components and additional support we provide to help you construct, train, and debug your NeRFs. Learn how to set up a model pipeline, use the viewer, create a custom config, and more.
+- **🤓 Developer Guides**: describe all of the components and additional support we provide to help you construct, train, and debug your NeRFs. Learn how to set up a model pipeline, use the viewer, create a custom config, and more.
 - **📚 Reference**: describes each class and function. Develop a better understanding of the core of our technology and terminology. This section includes descriptions of each module and component in the codebase.
 
 ## Supported Methods
 
-- [**Nerfacto**](https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/models/nerfacto.py): our defacto NeRF method combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
+- [**Nerfacto**](https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/models/nerfacto.py): our de facto NeRF method combines modules focused on quality with modules focused on faster rendering. Nerfstudio easily lets us experiment with the best of both worlds!
 - [NeRF](https://www.matthewtancik.com/nerf): Representing Scenes as Neural Radiance Fields for View Synthesis
 - [Instant NGP](https://nvlabs.github.io/instant-ngp/): Instant Neural Graphics Primitives with a Multiresolution Hash Encoding
 - [Mipnerf](https://jonbarron.info/mipnerf/): A Multiscale Representation for Anti-Aliasing Neural Radiance Fields
@@ -121,7 +121,7 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 
 ## Citation
 
-If you use this library or find the documentation useful for your research, please conside citing:
+If you use this library or find the documentation useful for your research, please consider citing:
 
 ```none
 @misc{nerfstudio,
