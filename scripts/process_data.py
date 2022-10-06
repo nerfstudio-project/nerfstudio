@@ -16,7 +16,7 @@ import tyro
 from rich.console import Console
 from rich.progress import track
 
-from nerfstudio.utils import colmap_utils
+from nerfstudio.utils import colmap_utils, install_checks
 
 CONSOLE = Console(width=120)
 
@@ -32,25 +32,6 @@ CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
 }
-
-
-def check_ffmpeg_installed():
-    """Checks if ffmpeg is installed."""
-    ffmpeg_path = shutil.which("ffmpeg")
-    if ffmpeg_path is None:
-        CONSOLE.print("[bold red]Could not find ffmpeg. Please install ffmpeg.")
-        print("See https://ffmpeg.org/download.html for installation instructions.")
-        print("ffmpeg is only necissary if using videos as input.")
-        sys.exit(1)
-
-
-def check_colmap_installed():
-    """Checks if colmap is installed."""
-    colmap_path = shutil.which("colmap")
-    if colmap_path is None:
-        CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
-        print("See https://colmap.github.io/install.html for installation instructions.")
-        sys.exit(1)
 
 
 def get_colmap_version(default_version=3.8) -> float:
@@ -408,8 +389,8 @@ def main(
         verbose: If True, print extra logging.
     """
 
-    check_ffmpeg_installed()
-    check_colmap_installed()
+    install_checks.check_ffmpeg_installed()
+    install_checks.check_colmap_installed()
 
     output_dir.mkdir(parents=True, exist_ok=True)
     image_dir = output_dir / "images"
