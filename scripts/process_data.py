@@ -34,6 +34,25 @@ CAMERA_MODELS = {
 }
 
 
+def get_colmap_version(default_version=3.8) -> float:
+    """Returns the version of COLMAP.
+    This code assumes that colmap returns a version string of the form
+    "COLMAP 3.8 ..." which may not be true for all versions of COLMAP.
+
+    Args:
+        default_version: Default version to return if COLMAP version can't be determined.
+    Returns:
+        The version of COLMAP.
+    """
+    output = run_command("colmap", verbose=False)
+    assert output is not None
+    for line in output.split("\n"):
+        if line.startswith("COLMAP"):
+            return float(line.split(" ")[1])
+    CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
+    return default_version
+
+
 def get_vocab_tree() -> Path:
     """Return path to vocab tree. Downloads vocab tree if it doesn't exist.
 
@@ -196,7 +215,7 @@ def run_colmap(
         verbose: If True, logs the output of the command.
     """
 
-    colmap_version = install_checks.get_colmap_version()
+    colmap_version = get_colmap_version()
 
     (colmap_dir / "database.db").unlink(missing_ok=True)
 
