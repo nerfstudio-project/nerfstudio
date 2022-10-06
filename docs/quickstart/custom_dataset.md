@@ -114,11 +114,8 @@ Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [
 
 Record a video and export with the EXR + JPG sequence format. 
 
-
-<p align="center">
-    <img alt="documentation" src="imgs/record_3d_video_selection.png" width="150">
-    <img alt="documentation" src="imgs/record_3d_export_selection.png" width="150">
-</p>
+<img src="imgs/record_3d_video_selection.png" width=150>
+<img src="imgs/record_3d_export_selection.png" width=150>
 
 Then, move the exported from the Files app to your computer using airdrop. Everything should be unzipped within the capture folder before training.
 
