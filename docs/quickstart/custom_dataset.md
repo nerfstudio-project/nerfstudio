@@ -117,8 +117,7 @@ Record a video and export with the EXR + JPG sequence format.
 <img src="imgs/record_3d_video_selection.png" width=150>
 <img src="imgs/record_3d_export_selection.png" width=150>
 
-Then, move the exported from the Files app to your computer using airdrop. Everything should be unzipped within the capture folder before training.
-
+Then, move the exported capture folder from your iPhone to your computer.
 ```
 ns-train instant-ngp record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
 ```
