@@ -69,6 +69,8 @@ class TensoRFField(Field):
             activation=nn.ReLU(),
         )
 
+        self.B = nn.Linear(in_features=self.color_encoding.get_out_dim(), out_features=27, bias=False)
+
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim(), activation=nn.Sigmoid())
 
     def get_density(self, ray_samples: RaySamples):
@@ -77,9 +79,11 @@ class TensoRFField(Field):
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(positions)
         density = self.density_encoding(positions)
-        density_enc = torch.sum(density, dim=-1)
-        density_enc = density_enc[:, :, None]
-        density_enc = trunc_exp(density_enc)
+        density_enc = torch.sum(density, dim=-1)[:, :, None]
+        softplus = torch.nn.Softplus()
+        relu = torch.nn.ReLU()
+        density_enc = softplus(density_enc - 10.0)
+        # density_enc = relu(density_enc)
         return density_enc, None
 
     def get_outputs(
@@ -88,9 +92,7 @@ class TensoRFField(Field):
         d = ray_samples.frustums.directions
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         rgb_features = self.color_encoding(positions)
-
-        B = nn.Linear(in_features=self.color_encoding.get_out_dim(), out_features=27, bias=False, device=d.device)
-        rgb_features = B(rgb_features)
+        rgb_features = self.B(rgb_features)
 
         d_encoded = self.direction_encoding(d)
         rgb_features_encoded = self.feature_encoding(rgb_features)

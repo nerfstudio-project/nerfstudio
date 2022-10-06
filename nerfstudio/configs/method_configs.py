@@ -22,7 +22,12 @@ from typing import Dict
 
 import tyro
 
-from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
+from nerfstudio.configs.base_config import (
+    Config,
+    SchedulerConfig,
+    TrainerConfig,
+    ViewerConfig,
+)
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
@@ -34,6 +39,7 @@ from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
+from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
@@ -165,16 +171,20 @@ method_configs["tensorf"] = Config(
     ),
     optimizers={
         "fields": {
-            "optimizer": RAdamOptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
+            "optimizer": AdamOptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.00001),
         },
         "color_encoding": {
-            "optimizer": RAdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
+            "optimizer": AdamOptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.000002),
         },
         "density_encoding": {
-            "optimizer": RAdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.00005, max_steps=15000),
+            "optimizer": AdamOptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.000002),
+        },
+        "basis_matrix": {
+            "optimizer": AdamOptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.00001),
         },
     },
 )
