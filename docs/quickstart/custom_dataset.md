@@ -119,5 +119,5 @@ Record a video and export with the EXR + JPG sequence format.
 
 Then, move the exported capture folder from your iPhone to your computer.
 ```
-ns-train instant-ngp record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
+ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
 ```
