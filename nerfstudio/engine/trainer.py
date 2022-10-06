@@ -184,10 +184,16 @@ class Trainer:
 
                 self.eval_iteration(step)
 
-                if step != 0 and self.config.trainer.steps_per_save and step % self.config.trainer.steps_per_save == 0:
+                if step_check(step, self.config.trainer.steps_per_save):
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
+            # save checkpoint at the end of training
+            self.save_checkpoint(step)
+            if self.config.is_viewer_enabled():
+                while True:
+                    self.viewer_state.vis["renderingState/isTraining"].write(False)
+                    self._update_viewer_state(step)
 
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
