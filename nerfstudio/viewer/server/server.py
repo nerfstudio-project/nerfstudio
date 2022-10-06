@@ -17,13 +17,13 @@
 import sys
 from typing import List, Optional, Tuple
 
-import dcargs
 import msgpack
 import msgpack_numpy
 import tornado.gen
 import tornado.ioloop
 import tornado.web
 import tornado.websocket
+import tyro
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
@@ -266,8 +266,8 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
 
 def main():
     """The main entrypoint."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(run_viewer_bridge_server)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(run_viewer_bridge_server)
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ pip install -e .[dev]
 pip install -e .[docs]
 ```
 
+This will ensure you have the required packages to run the tests, linter, build the docs, etc.
+
 You may also need to install [pandoc](https://pandoc.org/). If you are using `conda` you can run the following:
 
 ```bash

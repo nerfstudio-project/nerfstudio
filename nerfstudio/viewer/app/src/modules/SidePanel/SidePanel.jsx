@@ -19,7 +19,6 @@ import {
   CameraAltRounded,
   ExpandLess,
   ExpandMore,
-  ReceiptLongRounded,
   TuneRounded,
   Visibility,
   VisibilityOff,
@@ -214,12 +213,12 @@ export function BasicTabs(props: BasicTabsProps) {
           <Tabs
             value={value}
             onChange={handleChange}
-            aria-label="basic tabs example"
+            aria-label="panel tabs"
+            centered
           >
             <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
-            <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(1)} />
-            <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(2)} />
-            <Tab icon={<ReceiptLongRounded />} label="Logs" {...a11yProps(3)} />
+            <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
+            <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(2)} />
           </Tabs>
         </Box>
         <TabPanel value={value} index={0}>
@@ -235,15 +234,15 @@ export function BasicTabs(props: BasicTabsProps) {
           </div>
         </TabPanel>
         <TabPanel value={value} index={1}>
-          <div className="Scene-container">
-            <ClickableList sceneTree={sceneTree} />
-          </div>
-        </TabPanel>
-        <TabPanel value={value} index={2}>
           <CameraPanel
             sceneTree={sceneTree}
             // camera_controls={sceneTree.metadata.camera_controls}
           />
+        </TabPanel>
+        <TabPanel value={value} index={2}>
+          <div className="Scene-container">
+            <ClickableList sceneTree={sceneTree} />
+          </div>
         </TabPanel>
 
         <TabPanel value={value} index={3}>

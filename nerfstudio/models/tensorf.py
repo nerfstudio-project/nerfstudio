@@ -38,6 +38,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.field_components.encodings import RFFEncoding, TensorVMEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
+from nerfstudio.fields.base_field import Field
 from nerfstudio.fields.tensorf_field import TensoRFField
 from nerfstudio.model_components.losses import L1Loss, MSELoss
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
@@ -188,11 +189,9 @@ class TensoRFModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
-
-        # coarse field:
-
         field_outputs_coarse = self.field.forward(ray_samples_uniform)
-        weights = ray_samples_uniform.get_weights(field_outputs_coarse[FieldHeadNames.DENSITY])
+        d = field_outputs_coarse[FieldHeadNames.DENSITY]
+        weights = ray_samples_uniform.get_weights(d)
         rgb = self.renderer_rgb(
             rgb=field_outputs_coarse[FieldHeadNames.RGB],
             weights=weights,

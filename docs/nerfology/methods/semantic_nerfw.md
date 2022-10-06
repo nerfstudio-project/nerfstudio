@@ -16,11 +16,17 @@ Paper Website
 Paper Website
 ```
 
-```{admonition} Notice
+```{admonition} Coming Soon
 The transient embeddings are still under development. Please stay tuned.
 ```
 
 ### Running Model
+
+Download the Friends Dataset
+
+```bash
+ns-download-data --dataset friends
+```
 
 ```bash
 ns-train semantic-nerfw

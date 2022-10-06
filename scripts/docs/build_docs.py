@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-import dcargs
+import tyro
 from rich.console import Console
 from rich.style import Style
 
@@ -48,5 +48,5 @@ def main(clean_cache: bool = False):
 
 
 if __name__ == "__main__":
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)

@@ -39,7 +39,7 @@ function CameraToggle() {
       varient="filled"
     >
       <ToggleButton value="Main Camera">Viewport</ToggleButton>
-      <ToggleButton value="Render Camera">Render</ToggleButton>
+      <ToggleButton value="Render Camera">Render View</ToggleButton>
     </ToggleButtonGroup>
   );
 }

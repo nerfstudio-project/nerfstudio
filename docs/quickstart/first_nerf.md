@@ -24,8 +24,8 @@ The resulting script should download and unpack the dataset as follows:
    |     ├─ fern/
    |     ├─ lego/
          ...
-      |- <dataset_format>/
-         |- <scene>
+      |- nerfstudio/
+         |- poster
          ...
 ```
 
@@ -48,9 +48,9 @@ Run a nerfacto model.
 ns-train nerfacto
 ```
 
-Run with nerfstudio data with our web-based viewer enabled. 
+Run a nerfacto model with different data and port.
 ```
-ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 8002 nerfstudio-data --pipeline.datamanager.dataparser.data-directory data/nerfstudio/poster --pipeline.datamanager.dataparser.downscale-factor 4
+ns-train nerfacto --vis viewer --data data/nerfstudio/poster --viewer.websocket-port 7007
 ```
 
 :::{admonition} Warning
@@ -59,6 +59,39 @@ ns-train nerfacto --vis viewer --viewer.zmq-port 8001 --viewer.websocket-port 80
 * You may have to change the ports, and be sure to forward the "websocket-port".
 * All data configurations must go at the end. In this case, `nerfstudio-data` and all of its corresponding configurations come at the end after the model and viewer specification.
   :::
+
+## Intro to nerfstudio CLI and Configs
+Nerfstudio allows for customizing your training runs, eval runs, configs from the CLI in a powerful way, but there are some things to understand.
+
+The most demonstrative and helpful example of this in action is the difference in output between the following commands:
+```bash
+ns-train -h
+```
+```bash
+ns-train nerfacto -h nerfstudio-data
+```
+```bash
+ns-train nerfacto nerfstudio-data -h
+```
+
+In each of these examples, the -h applies to the previous subcommand (`ns-train`, `nerfacto`, and `nerfstudio-data`). 
+
+In the first example, this shows us the help menu for the `ns-train` script. 
+
+In the second examples, we will get the help menu for the `nerfacto` model. 
+
+In the third examples, we will get the help menu for the `nerfstudio-data` dataparser.
+
+With our scripts, your arguments will apply to the previous subcommand in your command, and thus where you put your arguments matters! Any optional arguments you discover while doing
+```bash
+ns-train nerfacto -h nerfstudio-data
+```
+need to come directly after the `nerfacto` subcommand since these optional arguments only belong to the `nerfacto` subcommand:
+```bash
+ns-train nerfacto <nerfacto optional args> nerfstudio-data
+```
+
+Each script will have some other minor quirks (like the training script dataparser subcommand needing to come after the model subcommand), read up on them [here](../reference/cli/index.md).
 
 ## Visualizing training runs
 

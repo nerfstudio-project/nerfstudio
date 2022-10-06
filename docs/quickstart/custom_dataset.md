@@ -9,7 +9,7 @@ To assist running on custom data we have a script that will process a video or f
 To process your data run:
 
 ```bash
-ns-process-data --data FOLDER_OR_VIDEO --output-dir PROCESSED_DATA_DIR
+ns-process-data --data {FOLDER_OR_VIDEO} --output-dir {PROCESSED_DATA_DIR}
 ```
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
@@ -25,16 +25,23 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-python scripts/train.py instant-ngp nerfstudio-data --pipeline.datamanager.dataparser.data-directory PROCESSED_DATA_DIR
+ns-train instant-ngp nerfstudio-data --data {PROCESSED_DATA_DIR}
 ```
 
 ### Installing COLMAP
 
-The COLMAP maintainers recommend using VCPKG to install COLMAP. If the following command do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our [Discord](https://discord.gg/NHGtYRAW).
+There are many ways to install COLMAP, unfortunately it can sometimes be a bit finicky. If the following commands do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our [Discord](https://discord.gg/NHGtYRAW).
 
 ::::::{tab-set}
 :::::{tab-item} Linux
 
+We recommend trying `apt`:
+
+```
+sudo apt install colmap
+```
+
+If that doesn't work, you can try VKPG:
 ::::{tab-set}
 :::{tab-item} CUDA
 
@@ -57,6 +64,8 @@ cd vcpkg
 
 :::
 ::::
+
+If that doesn't work, you will need to build from source. Refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for details.
 
 :::::
 
