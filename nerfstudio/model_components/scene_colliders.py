@@ -82,7 +82,8 @@ class AABBBoxCollider(SceneBoxCollider):
         ).values
 
         # clamp to near plane
-        nears = torch.clamp(nears, min=self.near_plane)
+        near_plane = self.near_plane if self.training else 0
+        nears = torch.clamp(nears, min=near_plane)
 
         return nears, fars
 
@@ -115,6 +116,7 @@ class NearFarCollider(SceneBoxCollider):
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
         ones = torch.ones_like(ray_bundle.origins[..., 0:1])
-        ray_bundle.nears = ones * self.near_plane
+        near_plane = self.near_plane if self.training else 0
+        ray_bundle.nears = ones * near_plane
         ray_bundle.fars = ones * self.far_plane
         return ray_bundle
