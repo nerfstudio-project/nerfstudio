@@ -24,13 +24,13 @@ import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
 
-from nerfstudio.configs.base_config import PrintableConfig
+import nerfstudio.configs.base_config as base_config
 from nerfstudio.utils import writer
 
 
 # Optimizer related configs
 @dataclass
-class OptimizerConfig(PrintableConfig):
+class OptimizerConfig(base_config.PrintableConfig):
     """Basic optimizer config with RAdam"""
 
     _target: Type = torch.optim.Adam
@@ -60,17 +60,26 @@ class RAdamOptimizerConfig(OptimizerConfig):
     _target: Type = torch.optim.RAdam
 
 
-def setup_optimizers(config: Dict[str, Any], param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
+def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
     """Helper to set up the optimizers
 
     Args:
-        config: The optimizer configuration object.
+        config: The trainer configuration object.
         param_groups: A dictionary of parameter groups to optimize.
 
     Returns:
         The optimizers object.
     """
-    return Optimizers(config, param_groups)
+    optimizer_config = config.optimizers.copy()
+
+    # Add the camera optimizer if enabled.
+    camera_optimizer_config = config.pipeline.datamanager.train_camera_optimizer
+    if camera_optimizer_config.mode != "off":
+        assert camera_optimizer_config.param_group not in optimizer_config
+        optimizer_config[
+            camera_optimizer_config.param_group
+        ] = config.pipeline.datamanager.train_camera_optimizer.optimizer
+    return Optimizers(optimizer_config, param_groups)
 
 
 class Optimizers:

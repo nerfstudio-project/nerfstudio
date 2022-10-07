@@ -18,7 +18,6 @@ Put all the method implementations in one location.
 
 from __future__ import annotations
 
-import copy
 from typing import Dict
 
 import tyro

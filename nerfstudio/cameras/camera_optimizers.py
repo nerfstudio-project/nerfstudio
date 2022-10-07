@@ -20,15 +20,18 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Type, Union
+from typing import Any, Callable, Dict, Literal, Optional, Type, Union
 
 import torch
+import tyro
 from torch import nn
 from torchtyping import TensorType
 from typing_extensions import assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs import base_config as cfg
+from nerfstudio.engine.optimizers import AdamOptimizerConfig
+from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.utils import poses as pose_utils
 
 
@@ -46,6 +49,18 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
 
     orientation_noise_std: float = 0.0
     """Noise to add to initial orientations. Useful for debugging."""
+
+    optimizer: Dict[str, Any] = field(
+        default_factory={
+            "optimizer": AdamOptimizerConfig(lr=6e-4, eps=1e-15),
+            "scheduler": SchedulerConfig(max_steps=10000),
+        }.copy
+    )
+    """Optimizer settings. Only added if the camera optimization mode is not `off`."""
+
+    param_group: tyro.conf.Suppress[str] = "camera_opt"
+    """Name of the parameter group used for pose optimization. Can be any string that doesn't conflict with other
+    groups."""
 
 
 class CameraOptimizer(nn.Module):
