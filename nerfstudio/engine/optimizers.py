@@ -41,9 +41,8 @@ class OptimizerConfig(base_config.PrintableConfig):
     # but also not sure how to go about passing things into predefined torch objects.
     def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
-        kwargs = vars(self)
-        if "_target" in kwargs:
-            del kwargs["_target"]
+        kwargs = vars(self).copy()
+        kwargs.pop("_target")
         return self._target(params, **kwargs)
 
 
