@@ -250,7 +250,7 @@ class VanillaPipeline(Pipeline):
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
-        camera_opt_param_group = self.config.datamanager.train_camera_optimizer.param_group
+        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
         if camera_opt_param_group in self.datamanager.get_param_groups():
             # Report the camera optimization metrics
             metrics_dict["camera_opt_translation"] = (
