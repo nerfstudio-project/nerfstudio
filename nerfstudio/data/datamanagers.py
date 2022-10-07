@@ -28,10 +28,7 @@ from torch.nn import Parameter
 from torch.utils.data import Dataset
 from torch.utils.data.distributed import DistributedSampler
 
-from nerfstudio.cameras.camera_optimizers import (
-    CameraOptimizerConfig,
-    SO3PoseOptimizerConfig,
-)
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
@@ -251,7 +248,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
-    train_camera_optimizer: CameraOptimizerConfig = SO3PoseOptimizerConfig()
+    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """specifies the camera pose optimizer used during training"""
 
 
@@ -391,7 +388,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         """
         param_groups = {}
 
-        camera_opt_params = list(self.train_camera_optimizer.parameters())
-        if len(camera_opt_params) > 0:
-            param_groups["camera_opt"] = list(camera_opt_params)
+        if type(self.config.train_camera_optimizer) != CameraOptimizerConfig: # pylint: disable=unidiomatic-typecheck
+            camera_opt_params = list(self.train_camera_optimizer.parameters())
+            if len(camera_opt_params) > 0:
+                param_groups["camera_opt"] = list(camera_opt_params)
         return param_groups

@@ -18,6 +18,7 @@ Put all the method implementations in one location.
 
 from __future__ import annotations
 
+import copy
 from typing import Dict
 
 import tyro
@@ -55,10 +56,7 @@ method_configs["nerfacto"] = Config(
     ),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=8192,
-            train_camera_optimizer=SO3PoseOptimizerConfig(),
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
@@ -79,6 +77,9 @@ method_configs["nerfacto"] = Config(
     viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
     vis="viewer",
 )
+
+method_configs["nerfacto_with_camera_opt"] = copy.deepcopy(method_configs["nerfacto"])
+method_configs["nerfacto_with_camera_opt"].pipeline.datamanager.train_camera_optimizer = SO3PoseOptimizerConfig()
 
 method_configs["instant-ngp"] = Config(
     method_name="instant-ngp",

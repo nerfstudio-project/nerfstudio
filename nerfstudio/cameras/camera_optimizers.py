@@ -163,18 +163,15 @@ class BARFOptimizer(CameraOptimizer):
             Respective [R|t] tranformation matrices.
         """
 
-        # tangent_vector_lin = tangent_vector[:, :3].view(-1, 3, 1)
         tangent_vector_ang = tangent_vector[:, 3:].view(-1, 3, 1)
 
         theta = torch.linalg.norm(tangent_vector_ang, dim=1).unsqueeze(1)
         theta2 = theta**2
-        # theta3 = theta**3
 
         near_zero = theta < 1e-2
         non_zero = torch.ones(1, dtype=tangent_vector.dtype, device=tangent_vector.device)
         theta_nz = torch.where(near_zero, non_zero, theta)
         theta2_nz = torch.where(near_zero, non_zero, theta2)
-        # theta3_nz = torch.where(near_zero, non_zero, theta3)
 
         # Compute the rotation
         sine = theta.sin()
@@ -194,15 +191,6 @@ class BARFOptimizer(CameraOptimizer):
 
         # Compute the translation
         ret[:, :3, 3] += tangent_vector[:, :3]
-        # sine_by_theta = torch.where(near_zero, 1 - theta2 / 6, sine_by_theta)
-        # one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 - theta2 / 24, one_minus_cosine_by_theta2)
-        # theta_minus_sine_by_theta3_t = torch.where(near_zero, 1.0 / 6 - theta2 / 120, (theta - sine) / theta3_nz)
-
-        # ret[:, :, 3:] = sine_by_theta * tangent_vector_lin
-        # ret[:, :, 3:] += one_minus_cosine_by_theta2 * torch.cross(tangent_vector_ang, tangent_vector_lin, dim=1)
-        # ret[:, :, 3:] += theta_minus_sine_by_theta3_t * (
-        #     tangent_vector_ang @ (tangent_vector_ang.transpose(1, 2) @ tangent_vector_lin)
-        # )
         return ret
 
     def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
