@@ -78,7 +78,7 @@ def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Pa
         assert camera_optimizer_config.param_group not in optimizer_config
         optimizer_config[camera_optimizer_config.param_group] = {
             "optimizer": config.pipeline.datamanager.camera_optimizer.optimizer,
-            "scheduler": config.pipeline.datamanager.camera_optimizer.optimizer,
+            "scheduler": config.pipeline.datamanager.camera_optimizer.scheduler,
         }
     return Optimizers(optimizer_config, param_groups)
 
