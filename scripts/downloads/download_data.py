@@ -102,13 +102,15 @@ def download_nerfstudio(save_dir: Path, capture_name: str):
     """Download specific captures for the nerfstudio dataset."""
     download_capture_name(save_dir, "nerfstudio", capture_name, capture_name_to_file_id=nerfstudio_file_ids)
 
+
 record3d_file_ids = {
-    "bear": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
+    "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing"),
 }
+
 
 def download_record3d(save_dir: Path, capture_name: str):
     """Download specific captures for the record3d dataset."""
-    download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=nerfstudio_file_ids)
+    download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=record3d_file_ids)
 
 
 def main(
