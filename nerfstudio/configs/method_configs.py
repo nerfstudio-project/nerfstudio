@@ -70,10 +70,6 @@ method_configs["nerfacto"] = Config(
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
-        "camera_opt": {
-            "optimizer": AdamOptimizerConfig(lr=6e-4, eps=1e-15),
-            "scheduler": SchedulerConfig(max_steps=10000),
-        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
     vis="viewer",
