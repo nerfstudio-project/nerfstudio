@@ -13,7 +13,7 @@ ns-download-data --dataset=nerfstudio --capture=poster
 :class: info
 
 Use `ns-download-data --help` to view all currently available datasets.
-  :::
+:::
 
 The resulting script should download and unpack the dataset as follows:
 
@@ -32,6 +32,7 @@ The resulting script should download and unpack the dataset as follows:
 ## Training a model
 
 See which models are available.
+
 ```bash
 ns-train --help
 ```
@@ -49,6 +50,7 @@ ns-train nerfacto
 ```
 
 Run a nerfacto model with different data and port.
+
 ```
 ns-train nerfacto --vis viewer --data data/nerfstudio/poster --viewer.websocket-port 7007
 ```
@@ -56,37 +58,44 @@ ns-train nerfacto --vis viewer --data data/nerfstudio/poster --viewer.websocket-
 :::{admonition} Warning
 :class: warning
 
-* You may have to change the ports, and be sure to forward the "websocket-port".
-* All data configurations must go at the end. In this case, `nerfstudio-data` and all of its corresponding configurations come at the end after the model and viewer specification.
+- You may have to change the ports, and be sure to forward the "websocket-port".
+- All data configurations must go at the end. In this case, `nerfstudio-data` and all of its corresponding configurations come at the end after the model and viewer specification.
   :::
 
 ## Intro to nerfstudio CLI and Configs
+
 Nerfstudio allows customization of training and eval configs from the CLI in a powerful way, but there are some things to understand.
 
 The most demonstrative and helpful example of the CLI structure is the difference in output between the following commands:
+
 ```bash
 ns-train -h
 ```
+
 ```bash
 ns-train nerfacto -h nerfstudio-data
 ```
+
 ```bash
 ns-train nerfacto nerfstudio-data -h
 ```
 
-In each of these examples, the -h applies to the previous subcommand (`ns-train`, `nerfacto`, and `nerfstudio-data`). 
+In each of these examples, the -h applies to the previous subcommand (`ns-train`, `nerfacto`, and `nerfstudio-data`).
 
-In the first example, we get the help menu for the `ns-train` script. 
+In the first example, we get the help menu for the `ns-train` script.
 
-In the second example, we get the help menu for the `nerfacto` model. 
+In the second example, we get the help menu for the `nerfacto` model.
 
 In the third example, we get the help menu for the `nerfstudio-data` dataparser.
 
 With our scripts, your arguments will apply to the preceding subcommand in your command, and thus where you put your arguments matters! Any optional arguments you discover from running
+
 ```bash
 ns-train nerfacto -h nerfstudio-data
 ```
+
 need to come directly after the `nerfacto` subcommand since these optional arguments only belong to the `nerfacto` subcommand:
+
 ```bash
 ns-train nerfacto <nerfacto optional args> nerfstudio-data
 ```
@@ -102,33 +111,36 @@ For slower methods where the viewer is not recommended, we default to [Wandb](ht
 :::{admonition} Attention
 :class: attention
 
-- Currently we only support using a single viewer at a time. 
+- Currently we only support using a single viewer at a time.
 - To toggle between Wandb, Tensorboard, or our Web-based Viewer, you can specify `--vis VIS_OPTION`, where `VIS_OPTION` is one of {viewer,wandb,tensorboard}.
   :::
 
 #### Rendering videos
+
 We also provide options to render out the scene of a trained model with a custom trajectory and save the output to a video.
 
 ```bash
 ns-render --load-config={PATH_TO_CONFIG} --traj=spiral --output-path=output.mp4
 ```
 
-While we provide pre-specified trajectory options, `--traj={spiral, interp, filename}` we can also specify a custom trajectory if we specify `--traj=filename  --camera-path-filename {PATH}`. 
+While we provide pre-specified trajectory options, `--traj={spiral, interp, filename}` we can also specify a custom trajectory if we specify `--traj=filename --camera-path-filename {PATH}`.
 
 :::{admonition} Tip
 :class: info
 After running the training, the config path is logged to the terminal under "[base_config.py:263] Saving config to:"
-  :::
+:::
 
 :::{admonition} See Also
 :class: seealso
-This quickstart allows you to preform everything in a headless manner. 
-We also provide a web-based viewer that allows you to easily monitor training or render out custom trajectories. 
+This quickstart allows you to preform everything in a headless manner.
+We also provide a web-based viewer that allows you to easily monitor training or render out custom trajectories.
 See our [viewer docs](viewer_quickstart.md) for more.
-  :::
+:::
 
 ## Evaluating Runs
+
 Calculate the psnr of your trained model and save to a json file.
+
 ```bash
 ns-eval --load-config={PATH_TO_CONFIG} --output-path=output.json
 ```
