@@ -50,13 +50,11 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     orientation_noise_std: float = 0.0
     """Noise to add to initial orientations. Useful for debugging."""
 
-    optimizer: Dict[str, Any] = field(
-        default_factory={
-            "optimizer": AdamOptimizerConfig(lr=6e-4, eps=1e-15),
-            "scheduler": SchedulerConfig(max_steps=10000),
-        }.copy
-    )
-    """Optimizer settings. Only added if the camera optimization mode is not `off`."""
+    optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
+    """ADAM parameters for camera optimization."""
+
+    scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000)
+    """Learning rate scheduler for camera optimizer.."""
 
     param_group: tyro.conf.Suppress[str] = "camera_opt"
     """Name of the parameter group used for pose optimization. Can be any string that doesn't conflict with other

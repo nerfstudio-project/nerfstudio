@@ -73,12 +73,13 @@ def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Pa
     optimizer_config = config.optimizers.copy()
 
     # Add the camera optimizer if enabled.
-    camera_optimizer_config = config.pipeline.datamanager.train_camera_optimizer
+    camera_optimizer_config = config.pipeline.datamanager.camera_optimizer
     if camera_optimizer_config.mode != "off":
         assert camera_optimizer_config.param_group not in optimizer_config
-        optimizer_config[
-            camera_optimizer_config.param_group
-        ] = config.pipeline.datamanager.train_camera_optimizer.optimizer
+        optimizer_config[camera_optimizer_config.param_group] = {
+            "optimizer": config.pipeline.datamanager.camera_optimizer.optimizer,
+            "scheduler": config.pipeline.datamanager.camera_optimizer.optimizer,
+        }
     return Optimizers(optimizer_config, param_groups)
 
 

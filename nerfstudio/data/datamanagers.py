@@ -248,7 +248,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Number of images to sample during eval iteration."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
-    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
 
@@ -310,7 +310,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
+        self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
         self.train_ray_generator = RayGenerator(
@@ -390,7 +390,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         param_groups = {}
 
         camera_opt_params = list(self.train_camera_optimizer.parameters())
-        assert len(camera_opt_params) > 0 or self.config.train_camera_optimizer.mode == "off"
-        param_groups[self.config.train_camera_optimizer.param_group] = list(camera_opt_params)
+        assert len(camera_opt_params) > 0 or self.config.camera_optimizer.mode == "off"
+        param_groups[self.config.camera_optimizer.param_group] = list(camera_opt_params)
 
         return param_groups
