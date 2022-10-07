@@ -469,7 +469,7 @@ export default function CameraPanel(props) {
     // Copy the text inside the text field
     const config_filename = `${config_base_dir}/config.yml`;
     const camera_path_filename = `${config_base_dir}/camera_path.json`;
-    const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path output.mp4`;
+    const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/output.mp4`;
     navigator.clipboard.writeText(cmd);
 
     const camera_path_payload = {

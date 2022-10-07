@@ -176,7 +176,7 @@ After your model has trained, you can headlessly render out a video of the scene
 
 ```bash
 # assuming previously ran `ns-train nerfacto`
-ns-render --load-config=outputs/data-nerfstudio-poster/nerfacto/{TIMESTAMP}/config.yml --traj=spiral --output-path=output.mp4
+ns-render --load-config=outputs/data-nerfstudio-poster/nerfacto/{TIMESTAMP}/config.yml --traj=spiral --output-path=renders/output.mp4
 ```
 
 # Learn More
