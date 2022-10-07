@@ -21,12 +21,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Tuple, Type
 
+import nerfacc
 import numpy as np
 import torch
+from nerfacc import ContractionType
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -39,7 +42,10 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
-from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
+from nerfstudio.model_components.ray_samplers import (
+    ProposalNetworkSampler,
+    VolumetricSampler,
+)
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -61,11 +67,14 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: Tuple[int] = (64,)
+    num_proposal_samples_per_ray: Tuple[int] = (
+        128,
+        64,
+    )
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
-    num_proposal_network_iterations: int = 1
+    num_proposal_network_iterations: int = 2
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
     """Use the same proposal network. Otherwise use different ones."""
@@ -107,21 +116,29 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
+        # Occupancy Grid
+        self.occupancy_grid = nerfacc.OccupancyGrid(
+            roi_aabb=self.scene_box.aabb.flatten(),
+            resolution=128,  # TODO(justin)remove magic number
+            contraction_type=ContractionType.UN_BOUNDED_SPHERE,
+        )
+
+        def occ_grid_density(positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
+            return torch.ones((*positions.shape[:-1], 1), device=positions.device, dtype=positions.dtype)
+
+        self.density_fns = [occ_grid_density]
 
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
             network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
             self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
+            self.density_fns.extend([network.density_fn for _ in range(self.config.num_proposal_network_iterations)])
         else:
             for _ in range(self.config.num_proposal_network_iterations):
                 network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for network in self.proposal_networks]
-
-        # Collider
-        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+            self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
         self.proposal_sampler = ProposalNetworkSampler(
@@ -130,6 +147,9 @@ class NerfactoModel(Model):
             num_proposal_network_iterations=self.config.num_proposal_network_iterations,
             single_jitter=self.config.use_single_jitter,
         )
+
+        # Collider
+        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
@@ -154,6 +174,22 @@ class NerfactoModel(Model):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         callbacks = []
+
+        def update_occupancy_grid(step: int):
+            self.occupancy_grid.every_n_step(
+                step=step,
+                occ_eval_fn=lambda x: self.field.get_opacity(
+                    x, 0.01
+                ),  # TODO(justin) remove magic number, comes from "step size" of ngp implementation
+            )
+
+        callbacks.append(
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                update_every_num_iters=1,
+                func=update_occupancy_grid,
+            )
+        )
         if self.config.use_proposal_weight_anneal:
             # anneal the weights of the proposal network before doing PDF sampling
             N = self.config.proposal_weights_anneal_max_num_iters

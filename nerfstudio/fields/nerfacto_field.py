@@ -217,6 +217,19 @@ class TCNNNerfactoField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
+    def get_opacity(self, positions: TensorType["bs":..., 3], step_size) -> TensorType["bs":..., 1]:
+        """Returns the opacity for a position. Used primarily by the occupancy grid.
+
+        Args:
+            positions: the positions to evaluate the opacity at.
+            step_size: the step size to use for the opacity evaluation.
+        """
+        h = self.mlp_base(positions).view(positions.shape[0], -1)
+        density_before_activation, _ = torch.split(h, [1, self.geo_feat_dim], dim=-1)
+        density = trunc_exp(density_before_activation.to(positions))
+        opacity = density * step_size
+        return opacity
+
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         assert density_embedding is not None
         outputs = {}
