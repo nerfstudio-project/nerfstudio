@@ -64,7 +64,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """number of images to sample during eval iteration"""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """specifies the image indices to use during eval; if None, uses all"""
-    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """specifies the camera pose optimizer used during training"""
 ```
 

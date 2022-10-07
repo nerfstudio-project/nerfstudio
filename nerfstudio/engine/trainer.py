@@ -129,7 +129,7 @@ class Trainer:
         self.pipeline: VanillaPipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
-        self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
+        self.optimizers = setup_optimizers(self.config, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 

@@ -119,5 +119,19 @@ Record a video and export with the EXR + JPG sequence format.
 
 Then, move the exported capture folder from your iPhone to your computer.
 ```
-ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
+ns-train nerfacto --pipeline.datamanager.train-camera-optimizer.mode SO3xR3 record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
 ```
+
+You can try with our data to see the correct formatting.
+
+```shell
+ns-download-data --dataset record3d
+```
+
+This will download data to `data/record3d/bear`. Then you can train, and don't forget to open up the viewer.
+
+```python
+ns-train nerfacto --pipeline.datamanager.train-camera-optimizer.mode SO3xR3 record3d-data --data data/record3d/bear
+```
+
+Notice we are adding the option `--pipeline.datamanager.train-camera-optimizer.mode SO3xR3`, which is experimental but turns on camera pose optimization for higher quality results with record3d. This is because the camera poses from record3d are quite noisy, unlike those from COLMAP (from the `ns-process-data` script).
