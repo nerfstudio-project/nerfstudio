@@ -390,7 +390,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         param_groups = {}
 
         camera_opt_params = list(self.train_camera_optimizer.parameters())
-        assert len(camera_opt_params) > 0 or self.config.camera_optimizer.mode == "off"
-        param_groups[self.config.camera_optimizer.param_group] = list(camera_opt_params)
+        if self.config.camera_optimizer.mode != "off":
+            assert len(camera_opt_params) > 0
+            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
+        else:
+            assert len(camera_opt_params) == 0
 
         return param_groups
