@@ -235,21 +235,22 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
-    """target class to instantiate"""
+    """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
-    """specifies the dataparser used to unpack the data"""
+    """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per training iteration"""
+    """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = -1
-    """number of images to sample during training iteration"""
+    """Number of images to sample during training iteration."""
     eval_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per eval iteration"""
+    """Number of rays per batch to use per eval iteration."""
     eval_num_images_to_sample_from: int = -1
-    """number of images to sample during eval iteration"""
+    """Number of images to sample during eval iteration."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """specifies the image indices to use during eval; if None, uses all"""
-    train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
-    """specifies the camera pose optimizer used during training"""
+    """Specifies the image indices to use during eval; if None, uses all."""
+    camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
+    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
+    Record3D."""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -309,7 +310,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
-        self.train_camera_optimizer = self.config.train_camera_optimizer.setup(
+        self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
         self.train_ray_generator = RayGenerator(
@@ -389,6 +390,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         param_groups = {}
 
         camera_opt_params = list(self.train_camera_optimizer.parameters())
-        if len(camera_opt_params) > 0:
-            param_groups["camera_opt"] = list(camera_opt_params)
+        if self.config.camera_optimizer.mode != "off":
+            assert len(camera_opt_params) > 0
+            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
+        else:
+            assert len(camera_opt_params) == 0
+
         return param_groups
