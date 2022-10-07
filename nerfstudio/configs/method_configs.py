@@ -22,10 +22,7 @@ from typing import Dict
 
 import tyro
 
-from nerfstudio.cameras.camera_optimizers import (
-    BARFPoseOptimizerConfig,
-    SO3PoseOptimizerConfig,
-)
+from nerfstudio.cameras.camera_optimizers import SO3PoseOptimizerConfig
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig

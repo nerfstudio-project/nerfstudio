@@ -18,8 +18,6 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
-from ast import Return
-from cmath import tan
 from dataclasses import dataclass, field
 from typing import Optional, Type, Union
 
