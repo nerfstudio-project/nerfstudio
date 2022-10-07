@@ -11,9 +11,9 @@ import sys
 from pathlib import Path
 from typing import Literal, Optional
 
-import dcargs
 import mediapy as media
 import torch
+import tyro
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -28,6 +28,7 @@ from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.base_config import Config  # pylint: disable=unused-import
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
@@ -79,6 +80,8 @@ def _render_trajectory_video(
             images.append(image)
 
     fps = len(images) / seconds
+    # make the folder if it doesn't exist
+    output_filename.parent.mkdir(parents=True, exist_ok=True)
     with console.status("[yellow]Saving video", spinner="bouncingBall"):
         media.write_video(output_filename, images, fps=fps)
     console.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
@@ -100,7 +103,7 @@ class RenderTrajectory:
     # Filename of the camera path to render.
     camera_path_filename: Path = Path("camera_path.json")
     # Name of the output file.
-    output_path: Path = Path("output.mp4")
+    output_path: Path = Path("renders/output.mp4")
     # How long the video should be.
     seconds: float = 5.0
     # A hack to double the number of samples for the nerfacto method.
@@ -115,6 +118,8 @@ class RenderTrajectory:
             double_nerfacto_nerf_samples=self.double_nerfacto_nerf_samples,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
         )
+
+        install_checks.check_ffmpeg_installed()
 
         seconds = self.seconds
 
@@ -148,12 +153,12 @@ class RenderTrajectory:
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(RenderTrajectory).main()
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(RenderTrajectory).main()
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: dcargs.extras.get_parser(RenderTrajectory)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(RenderTrajectory)  # noqa

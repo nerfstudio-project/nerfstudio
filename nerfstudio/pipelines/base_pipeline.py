@@ -249,14 +249,17 @@ class VanillaPipeline(Pipeline):
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
-        if "camera_opt" in self.datamanager.get_param_groups():
+
+        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
+        if camera_opt_param_group in self.datamanager.get_param_groups():
             # Report the camera optimization metrics
             metrics_dict["camera_opt_translation"] = (
-                self.datamanager.get_param_groups()["camera_opt"][0].data[:, :3].norm()
+                self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, :3].norm()
             )
             metrics_dict["camera_opt_rotation"] = (
-                self.datamanager.get_param_groups()["camera_opt"][0].data[:, 3:].norm()
+                self.datamanager.get_param_groups()[camera_opt_param_group][0].data[:, 3:].norm()
             )
+
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
         return model_outputs, loss_dict, metrics_dict

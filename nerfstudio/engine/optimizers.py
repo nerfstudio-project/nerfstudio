@@ -24,13 +24,13 @@ import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
 
-from nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.configs import base_config
 from nerfstudio.utils import writer
 
 
 # Optimizer related configs
 @dataclass
-class OptimizerConfig(PrintableConfig):
+class OptimizerConfig(base_config.PrintableConfig):
     """Basic optimizer config with RAdam"""
 
     _target: Type = torch.optim.Adam
@@ -41,8 +41,8 @@ class OptimizerConfig(PrintableConfig):
     # but also not sure how to go about passing things into predefined torch objects.
     def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
-        kwargs = vars(self)
-        del kwargs["_target"]
+        kwargs = vars(self).copy()
+        kwargs.pop("_target")
         return self._target(params, **kwargs)
 
 
@@ -60,17 +60,27 @@ class RAdamOptimizerConfig(OptimizerConfig):
     _target: Type = torch.optim.RAdam
 
 
-def setup_optimizers(config: Dict[str, Any], param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
+def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
     """Helper to set up the optimizers
 
     Args:
-        config: The optimizer configuration object.
+        config: The trainer configuration object.
         param_groups: A dictionary of parameter groups to optimize.
 
     Returns:
         The optimizers object.
     """
-    return Optimizers(config, param_groups)
+    optimizer_config = config.optimizers.copy()
+
+    # Add the camera optimizer if enabled.
+    camera_optimizer_config = config.pipeline.datamanager.camera_optimizer
+    if camera_optimizer_config.mode != "off":
+        assert camera_optimizer_config.param_group not in optimizer_config
+        optimizer_config[camera_optimizer_config.param_group] = {
+            "optimizer": config.pipeline.datamanager.camera_optimizer.optimizer,
+            "scheduler": config.pipeline.datamanager.camera_optimizer.scheduler,
+        }
+    return Optimizers(optimizer_config, param_groups)
 
 
 class Optimizers:

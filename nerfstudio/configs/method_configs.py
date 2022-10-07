@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import Dict
 
-import dcargs
+import tyro
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
-from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
@@ -40,22 +40,24 @@ from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 method_configs: Dict[str, Config] = {}
 descriptions = {
-    "nerfacto": "[bold green]Recommended[/bold green] Real-time model tuned for real captures. "
-    + "This model will be continually updated.",
+    "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
-    "mipnerf": "High quality model for bounded scenes. [red]*slow*",
+    "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
-    "vanilla-nerf": "Original NeRF model. [red]*slow*",
+    "vanilla-nerf": "Original NeRF model. (slow)",
 }
-descriptions = {k: convert_markup_to_ansi(v) for k, v in descriptions.items()}
-
 
 method_configs["nerfacto"] = Config(
     method_name="nerfacto",
-    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
+    trainer=TrainerConfig(
+        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
+    ),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=8192,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
@@ -75,7 +77,9 @@ method_configs["nerfacto"] = Config(
 
 method_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
-    trainer=TrainerConfig(steps_per_eval_batch=500, steps_per_save=2000, mixed_precision=True),
+    trainer=TrainerConfig(
+        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
+    ),
     pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
@@ -150,9 +154,9 @@ method_configs["vanilla-nerf"] = Config(
 )
 
 
-AnnotatedBaseConfigUnion = dcargs.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    dcargs.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+    tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
 ]
 """Union[] type over config types, annotated with default instances for use with
-dcargs.cli(). Allows the user to pick between one of several base configurations, and
+tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""

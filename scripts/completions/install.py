@@ -12,7 +12,7 @@ import subprocess
 import sys
 from typing import List, Literal, Union
 
-import dcargs
+import tyro
 from rich.console import Console
 from rich.prompt import Confirm
 from typing_extensions import assert_never
@@ -33,8 +33,8 @@ ENTRYPOINTS = [
 ]
 
 
-def _check_dcargs_cli(script_path: pathlib.Path) -> bool:
-    """Check if a path points to a script containing a dcargs.cli() call. Also checks
+def _check_tyro_cli(script_path: pathlib.Path) -> bool:
+    """Check if a path points to a script containing a tyro.cli() call. Also checks
     for any permissions/shebang issues.
 
     Args:
@@ -48,7 +48,7 @@ def _check_dcargs_cli(script_path: pathlib.Path) -> bool:
 
     if '\nif __name__ == "__main__":\n' in script_src:
         # Check script for execute permissions. For consistency, note that we apply this
-        # and the shebang check even if dcargs isn't used.
+        # and the shebang check even if tyro isn't used.
         execute_flags = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
         if not script_path.stat().st_mode & execute_flags and Confirm.ask(
             f"[yellow]:warning: {script_path} is not marked as executable. Fix?[/yellow]",
@@ -63,15 +63,15 @@ def _check_dcargs_cli(script_path: pathlib.Path) -> bool:
         ):
             script_path.write_text("#!/usr/bin/env python\n" + script_src)
 
-        # Return True only if compatible with dcargs.
-        return "import dcargs" in script_src and "dcargs.cli" in script_src
+        # Return True only if compatible with tyro.
+        return "import tyro" in script_src and "tyro.cli" in script_src
     return False
 
 
 def _generate_completion(
     path_or_entrypoint: Union[pathlib.Path, str], shell: ShellType, completions_dir: pathlib.Path
 ) -> pathlib.Path:
-    """Given a path to a dcargs CLI, write a completion script to a target directory.
+    """Given a path to a tyro CLI, write a completion script to a target directory.
 
     Args:
         script_path: Path to Python CLI to generate completion script for.
@@ -84,11 +84,11 @@ def _generate_completion(
     if isinstance(path_or_entrypoint, pathlib.Path):
         # Scripts.
         target_name = "_" + path_or_entrypoint.name.replace(".", "_")
-        args = [sys.executable, str(path_or_entrypoint), "--dcargs-print-completion", shell]
+        args = [sys.executable, str(path_or_entrypoint), "--tyro-print-completion", shell]
     elif isinstance(path_or_entrypoint, str):
         # Entry points.
         target_name = "_" + path_or_entrypoint
-        args = [path_or_entrypoint, "--dcargs-print-completion", shell]
+        args = [path_or_entrypoint, "--tyro-print-completion", shell]
     else:
         assert_never(path_or_entrypoint)
 
@@ -204,7 +204,7 @@ def main(
     assert completions_dir.name == "completions"
     assert scripts_dir.name == "scripts"
 
-    # Install mode: Generate completion for each dcargs script.
+    # Install mode: Generate completion for each tyro script.
     if mode == "uninstall":
         for shell in shells_supported:
             # Reset target directory for each shell type.
@@ -219,8 +219,8 @@ def main(
         # Set to True to install completions for scripts as well.
         include_scripts = False
 
-        # Find dcargs CLIs.
-        script_paths = list(filter(_check_dcargs_cli, scripts_dir.glob("**/*.py"))) if include_scripts else []
+        # Find tyro CLIs.
+        script_paths = list(filter(_check_tyro_cli, scripts_dir.glob("**/*.py"))) if include_scripts else []
         script_names = tuple(p.name for p in script_paths)
         assert len(set(script_names)) == len(script_names)
 
@@ -264,8 +264,8 @@ def main(
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main, description=__doc__)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main, description=__doc__)
 
 
 if __name__ == "__main__":
