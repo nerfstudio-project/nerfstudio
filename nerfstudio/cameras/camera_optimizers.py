@@ -18,41 +18,34 @@ Pose and Intrinsics Optimizers
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
-from typing import Optional, Type, Union
+from typing import Callable, Literal, Optional, Type, Union
 
 import torch
 from torch import nn
 from torchtyping import TensorType
+from typing_extensions import assert_never
 
+from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import poses as pose_utils
 
 
-# Camera Optimization related configs
 @dataclass
 class CameraOptimizerConfig(cfg.InstantiateConfig):
-    """Default camera optimizer config. Note: This is a no-op class and will not optimize cameras."""
+    """Configuration of optimization for camera poses."""
 
     _target: Type = field(default_factory=lambda: CameraOptimizer)
 
+    mode: Literal["off", "SO3xR3", "SE3"] = "off"
+    """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
-@dataclass
-class BARFPoseOptimizerConfig(CameraOptimizerConfig):
-    """BARF camera optimizer."""
+    position_noise_std: float = 0.0
+    """Noise to add to initial positions. Useful for debugging."""
 
-    _target: Type = field(default_factory=lambda: BARFOptimizer)
-    noise_variance: Optional[float] = None
-    """Optional additional noise to add to poses. Useful for debugging pose optimization."""
-
-
-@dataclass
-class SO3PoseOptimizerConfig(CameraOptimizerConfig):
-    """BARF camera optimizer with SO3 approx."""
-
-    _target: Type = field(default_factory=lambda: SO3Optimizer)
-    noise_variance: Optional[float] = None
-    """Optional additional noise to add to poses. Useful for debugging pose optimization."""
+    orientation_noise_std: float = 0.0
+    """Noise to add to initial orientations. Useful for debugging."""
 
 
 class CameraOptimizer(nn.Module):
@@ -72,6 +65,24 @@ class CameraOptimizer(nn.Module):
         self.num_cameras = num_cameras
         self.device = device
 
+        # Initialize learnable parameters.
+        if self.config.mode == "off":
+            pass
+        elif self.config.mode in ("SO3xR3", "SE3"):
+            self.pose_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
+        else:
+            assert_never(self.config.mode)
+
+        # Initialize pose noise; useful for debugging.
+        if config.position_noise_std != 0.0 or config.orientation_noise_std != 0.0:
+            assert config.position_noise_std >= 0.0 and config.orientation_noise_std >= 0.0
+            std_vector = torch.tensor(
+                [config.position_noise_std] * 3 + [config.orientation_noise_std] * 3, device=device
+            )
+            self.pose_noise = exp_map_SE3(torch.normal(torch.zeros((num_cameras, 6), device=device), std_vector))
+        else:
+            self.pose_noise = None
+
     def forward(
         self,
         indices: TensorType["num_cameras"],
@@ -83,118 +94,24 @@ class CameraOptimizer(nn.Module):
             Tranformation matrices from optimized camera coordinates coordinates
             to given camera coordinates.
         """
-        return torch.eye(4, device=self.device).repeat(indices.shape[0], 1, 1)[:, :3, :4]  # no-op (Identity Transform)
+        outputs = []
 
+        # Apply learned transformation delta.
+        if self.config.mode == "off":
+            pass
+        elif self.config.mode == "SO3xR3":
+            outputs.append(exp_map_SO3xR3(self.pose_adjustment[indices, :]))
+        elif self.config.mode == "SE3":
+            outputs.append(exp_map_SE3(self.pose_adjustment[indices, :]))
+        else:
+            assert_never(self.config.mode)
 
-class SO3Optimizer(CameraOptimizer):
-    """Bundle-Adjusting NeRF (BARF) Pose Optimization but using an S03 approximation to the full SE3 exp map"""
+        # Apply initial pose noise.
+        if self.pose_noise is not None:
+            outputs.append(self.pose_noise[indices, :, :])
 
-    config: SO3PoseOptimizerConfig
-
-    def __init__(self, config: SO3PoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
-        super().__init__(config, num_cameras, device)
-        if self.config.noise_variance is not None:
-            pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.config.noise_variance)
-            self.pose_noise = self.exp_map(pose_noise).detach().to(device)
-        self.pose_adjustment = torch.nn.Parameter(torch.zeros((self.num_cameras, 6), device=device))
-
-    @classmethod
-    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
-        """Convert SE3 vector into [R|t] transformation matrix. Breaks the computation into
-            R=SO3_exp_map(tangent_vector[3:]) and t=tangent_vector[:3] for efficiency.
-        Args:
-            tangent_vector: SE3 vector
-        Returns:
-            Respective [R|t] tranformation matrices.
-        """
-        # code for SO3 map grabbed from pytorch3d and stripped down to bare-bones
-        log_rot = tangent_vector[:, 3:]
-        nrms = (log_rot * log_rot).sum(1)
-        rot_angles = torch.clamp(nrms, 1e-4).sqrt()
-        rot_angles_inv = 1.0 / rot_angles
-        fac1 = rot_angles_inv * rot_angles.sin()
-        fac2 = rot_angles_inv * rot_angles_inv * (1.0 - rot_angles.cos())
-        skews = torch.zeros((log_rot.shape[0], 3, 3), dtype=log_rot.dtype, device=log_rot.device)
-        skews[:, 0, 1] = -log_rot[:, 2]
-        skews[:, 0, 2] = log_rot[:, 1]
-        skews[:, 1, 0] = log_rot[:, 2]
-        skews[:, 1, 2] = -log_rot[:, 0]
-        skews[:, 2, 0] = -log_rot[:, 1]
-        skews[:, 2, 1] = log_rot[:, 0]
-        skews_square = torch.bmm(skews, skews)
-
-        ret = torch.zeros(tangent_vector.shape[0], 3, 4, dtype=tangent_vector.dtype, device=tangent_vector.device)
-        ret[:, :3, :3] = (
-            fac1[:, None, None] * skews
-            + fac2[:, None, None] * skews_square
-            + torch.eye(3, dtype=log_rot.dtype, device=log_rot.device)[None]
-        )
-
-        # Compute the translation
-        ret[:, :3, 3] = tangent_vector[:, :3]
-        return ret
-
-    def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
-        c_opt2c = self.exp_map(self.pose_adjustment[indices])
-        if self.config.noise_variance is not None:
-            c_opt2c = pose_utils.multiply(c_opt2c, self.pose_noise[indices])
-        return c_opt2c
-
-
-class BARFOptimizer(CameraOptimizer):
-    """Bundle-Adjusting NeRF (BARF) Pose Optimization"""
-
-    config: BARFPoseOptimizerConfig
-
-    def __init__(self, config: BARFPoseOptimizerConfig, num_cameras: int, device: Union[torch.device, str]) -> None:
-        super().__init__(config, num_cameras, device)
-        if self.config.noise_variance is not None:
-            pose_noise = torch.normal(torch.zeros(self.num_cameras, 6), self.config.noise_variance)
-            self.pose_noise = self.exp_map(pose_noise).detach().to(device)
-        self.pose_adjustment = nn.Embedding(self.num_cameras, 6, device=device)
-        nn.init.zeros_(self.pose_adjustment.weight)
-
-    @classmethod
-    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
-        """Convert SE3 vector into [R|t] transformation matrix.
-        Args:
-            tangent_vector: SE3 vector
-        Returns:
-            Respective [R|t] tranformation matrices.
-        """
-
-        tangent_vector_ang = tangent_vector[:, 3:].view(-1, 3, 1)
-
-        theta = torch.linalg.norm(tangent_vector_ang, dim=1).unsqueeze(1)
-        theta2 = theta**2
-
-        near_zero = theta < 1e-2
-        non_zero = torch.ones(1, dtype=tangent_vector.dtype, device=tangent_vector.device)
-        theta_nz = torch.where(near_zero, non_zero, theta)
-        theta2_nz = torch.where(near_zero, non_zero, theta2)
-
-        # Compute the rotation
-        sine = theta.sin()
-        cosine = torch.where(near_zero, 8 / (4 + theta2) - 1, theta.cos())
-        sine_by_theta = torch.where(near_zero, 0.5 * cosine + 0.5, sine / theta_nz)
-        one_minus_cosine_by_theta2 = torch.where(near_zero, 0.5 * sine_by_theta, (1 - cosine) / theta2_nz)
-        ret = torch.zeros(tangent_vector.shape[0], 3, 4, dtype=tangent_vector.dtype, device=tangent_vector.device)
-        ret[:, :3, :3] = one_minus_cosine_by_theta2 * tangent_vector_ang @ tangent_vector_ang.transpose(1, 2)
-        ret[:, :3, :3] += torch.eye(3, device=tangent_vector.device).unsqueeze(0) * (cosine.view(-1))[:, None, None]
-        temp = sine_by_theta.view(-1, 1) * tangent_vector_ang.view(-1, 3)
-        ret[:, 0, 1] -= temp[:, 2]
-        ret[:, 1, 0] += temp[:, 2]
-        ret[:, 0, 2] += temp[:, 1]
-        ret[:, 2, 0] -= temp[:, 1]
-        ret[:, 1, 2] -= temp[:, 0]
-        ret[:, 2, 1] += temp[:, 0]
-
-        # Compute the translation
-        ret[:, :3, 3] += tangent_vector[:, :3]
-        return ret
-
-    def forward(self, indices: TensorType["num_cameras"]) -> TensorType["num_cameras", 3, 4]:
-        c_opt2c = self.exp_map(self.pose_adjustment.weight[indices])
-        if self.config.noise_variance is not None:
-            c_opt2c = pose_utils.multiply(c_opt2c, self.pose_noise[indices])
-        return c_opt2c
+        # Return: identity if no transforms are needed, otherwise multiply transforms together.
+        if len(outputs) == 0:
+            # Note that using repeat() instead of tile() here would result in unnecessary copies.
+            return torch.eye(4, device=self.device)[None, :3, :4].repeat(indices.shape[0], 1, 1)
+        return functools.reduce(pose_utils.multiply, outputs)
