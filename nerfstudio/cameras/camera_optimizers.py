@@ -99,7 +99,7 @@ class SO3Optimizer(CameraOptimizer):
         self.pose_adjustment = torch.nn.Parameter(torch.zeros((self.num_cameras, 6), device=device))
 
     @classmethod
-    def exp_map(cls, tangent_vector: torch.Tensor) -> torch.Tensor:
+    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
         """Convert SE3 vector into [R|t] transformation matrix. Breaks the computation into
             R=SO3_exp_map(tangent_vector[3:]) and t=tangent_vector[:3] for efficiency.
         Args:
@@ -155,7 +155,7 @@ class BARFOptimizer(CameraOptimizer):
         nn.init.zeros_(self.pose_adjustment.weight)
 
     @classmethod
-    def exp_map(cls, tangent_vector: torch.Tensor) -> torch.Tensor:
+    def exp_map(cls, tangent_vector: TensorType["num_cameras", 6]) -> TensorType["num_cameras", 3, 4]:
         """Convert SE3 vector into [R|t] transformation matrix.
         Args:
             tangent_vector: SE3 vector
