@@ -131,6 +131,6 @@ ns-download-data --dataset record3d
 
 This will download data to `data/record3d/bear`. Then you can train, and don't forget to open up the viewer.
 
-```python
+```shell
 ns-train nerfacto record3d-data --data data/record3d/bear
 ```
