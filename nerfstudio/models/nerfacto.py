@@ -18,6 +18,7 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
+from cmath import isnan
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Tuple, Type
 
@@ -68,11 +69,11 @@ class NerfactoModelConfig(ModelConfig):
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: Tuple[int] = (
-        128,
+        256,
         64,
     )
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 64
+    num_nerf_samples_per_ray: int = 32
     """Number of samples per ray for the nerf network."""
     num_proposal_network_iterations: int = 2
     """Number of proposal network iterations."""
@@ -124,7 +125,8 @@ class NerfactoModel(Model):
         )
 
         def occ_grid_density(positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
-            return torch.ones((*positions.shape[:-1], 1), device=positions.device, dtype=positions.dtype)
+            density = self.occupancy_grid.query_occ(positions.view(-1, 3))
+            return density.view(*positions.shape[:-1], 1)
 
         self.density_fns = [occ_grid_density]
 

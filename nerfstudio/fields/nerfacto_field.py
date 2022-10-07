@@ -224,10 +224,15 @@ class TCNNNerfactoField(Field):
             positions: the positions to evaluate the opacity at.
             step_size: the step size to use for the opacity evaluation.
         """
+        if self.spatial_distortion is not None:
+            positions = self.spatial_distortion(positions)
+            positions = (positions + 2.0) / 4.0
+        else:
+            positions = SceneBox.get_normalized_positions(positions, self.aabb)
         h = self.mlp_base(positions).view(positions.shape[0], -1)
         density_before_activation, _ = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         density = trunc_exp(density_before_activation.to(positions))
-        opacity = density * step_size
+        opacity = 1.0 - torch.exp(-density * step_size)
         return opacity
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
