@@ -112,18 +112,27 @@ cd vcpkg
 
 Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
 
-Record a video and export with the EXR + JPG sequence format.
+Click on the image down below 👇 for a 1-minute tutorial on how to run nerfstudio with Record3D from start to finish.
 
-<img src="imgs/record_3d_video_selection.png" width=150>
-<img src="imgs/record_3d_export_selection.png" width=150>
 
-Then, move the exported capture folder from your iPhone to your computer.
+[![How to easily use nerfstudio with Record3D](imgs/record3d_promo.png)](https://youtu.be/XwKq7qDQCQk "How to easily use nerfstudio with Record3D")
 
-```
-ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
-```
+At a high level, you can follow these 3 steps:
 
-You can try with our data to see the correct formatting.
+1. Record a video and export with the EXR + JPG sequence format.
+
+  <img src="imgs/record_3d_video_selection.png" width=150>
+  <img src="imgs/record_3d_export_selection.png" width=150>
+
+2. Then, move the exported capture folder from your iPhone to your computer.
+
+3. Train with nerfstudio!
+  ```
+  ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
+  ```
+
+
+We provide some example recordings for you to try out and to see the correct formatting.
 
 ```shell
 ns-download-data --dataset record3d
