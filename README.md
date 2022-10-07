@@ -166,7 +166,7 @@ ns-train nerfacto --vis viewer --viewer.websocket-port=7008
 ssh -L localhost:7008:localhost:7008 {REMOTE HOST}
 ```
 
-For more details on how to interact with the visualizer, please visit our viewer [walk-through]().
+For more details on how to interact with the visualizer, please visit our viewer [walk-through](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html).
 
 ## 4. Rendering a trajectory during inference
 
