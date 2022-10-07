@@ -27,7 +27,7 @@ torch.backends.cudnn.benchmark = True  # type: ignore
 def main(
     dataparser: AnnotatedDataParserUnion,
     viewer: cfg.ViewerConfig,
-    log_base_dir: Path = Path("/tmp/nerfactory_viewer_logs"),
+    log_base_dir: Path = Path("/tmp/nerfstudio_viewer_logs"),
 ) -> None:
     """Main function."""
     viewer_state = viewer_utils.ViewerState(
