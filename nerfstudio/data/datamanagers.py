@@ -235,21 +235,22 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """
 
     _target: Type = field(default_factory=lambda: VanillaDataManager)
-    """target class to instantiate"""
+    """Target class to instantiate."""
     dataparser: AnnotatedDataParserUnion = BlenderDataParserConfig()
-    """specifies the dataparser used to unpack the data"""
+    """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per training iteration"""
+    """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = -1
-    """number of images to sample during training iteration"""
+    """Number of images to sample during training iteration."""
     eval_num_rays_per_batch: int = 1024
-    """number of rays per batch to use per eval iteration"""
+    """Number of rays per batch to use per eval iteration."""
     eval_num_images_to_sample_from: int = -1
-    """number of images to sample during eval iteration"""
+    """Number of images to sample during eval iteration."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
-    """specifies the image indices to use during eval; if None, uses all"""
+    """Specifies the image indices to use during eval; if None, uses all."""
     train_camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
-    """specifies the camera pose optimizer used during training"""
+    """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
+    Record3D."""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
