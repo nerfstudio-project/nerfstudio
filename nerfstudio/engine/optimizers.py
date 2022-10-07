@@ -24,7 +24,7 @@ import torch
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
 
-import nerfstudio.configs.base_config as base_config
+from nerfstudio.configs import base_config
 from nerfstudio.utils import writer
 
 
