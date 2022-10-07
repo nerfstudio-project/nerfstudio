@@ -69,10 +69,6 @@ method_configs["nerfacto"] = Config(
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },
-        "camera_opt": {
-            "optimizer": AdamOptimizerConfig(lr=6e-4, eps=1e-15),
-            "scheduler": SchedulerConfig(max_steps=10000),
-        },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
     vis="viewer",
@@ -80,6 +76,10 @@ method_configs["nerfacto"] = Config(
 
 method_configs["nerfacto_with_camera_opt"] = copy.deepcopy(method_configs["nerfacto"])
 method_configs["nerfacto_with_camera_opt"].pipeline.datamanager.train_camera_optimizer = SO3PoseOptimizerConfig()
+method_configs["nerfacto_with_camera_opt"].optimizers["camera_opt"] = {
+    "optimizer": AdamOptimizerConfig(lr=6e-4, eps=1e-15),
+    "scheduler": SchedulerConfig(max_steps=10000),
+}
 
 method_configs["instant-ngp"] = Config(
     method_name="instant-ngp",
