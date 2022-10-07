@@ -80,6 +80,8 @@ def _render_trajectory_video(
             images.append(image)
 
     fps = len(images) / seconds
+    # make the folder if it doesn't exist
+    output_filename.parent.mkdir(parents=True, exist_ok=True)
     with console.status("[yellow]Saving video", spinner="bouncingBall"):
         media.write_video(output_filename, images, fps=fps)
     console.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
@@ -101,7 +103,7 @@ class RenderTrajectory:
     # Filename of the camera path to render.
     camera_path_filename: Path = Path("camera_path.json")
     # Name of the output file.
-    output_path: Path = Path("output.mp4")
+    output_path: Path = Path("renders/output.mp4")
     # How long the video should be.
     seconds: float = 5.0
     # A hack to double the number of samples for the nerfacto method.

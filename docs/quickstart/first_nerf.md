@@ -120,7 +120,7 @@ For slower methods where the viewer is not recommended, we default to [Wandb](ht
 We also provide options to render out the scene of a trained model with a custom trajectory and save the output to a video.
 
 ```bash
-ns-render --load-config={PATH_TO_CONFIG} --traj=spiral --output-path=output.mp4
+ns-render --load-config={PATH_TO_CONFIG} --traj=spiral --output-path=renders/output.mp4
 ```
 
 While we provide pre-specified trajectory options, `--traj={spiral, interp, filename}` we can also specify a custom trajectory if we specify `--traj=filename --camera-path-filename {PATH}`.
