@@ -41,7 +41,7 @@ class Record3DDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Record3D)
     """target class to instantiate"""
-    data: Path = Path("data/record3d/garden")
+    data: Path = Path("data/record3d/bear")
     """Location of data"""
     val_skip: int = 8
     """1/val_skip images to use for validation."""

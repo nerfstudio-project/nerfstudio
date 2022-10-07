@@ -285,6 +285,9 @@ class Trainer:
             pipeline = self.pipeline.module.state_dict()  # type: ignore
         else:
             pipeline = self.pipeline.state_dict()
+        if len(self.prev_ckpt_paths) == self.config.trainer.num_ckpt_to_save:
+            self.prev_ckpt_paths[0].unlink(missing_ok=True)
+            self.prev_ckpt_paths.pop(0)
         torch.save(
             {
                 "step": step,
@@ -295,9 +298,6 @@ class Trainer:
             ckpt_path,
         )
         self.prev_ckpt_paths.append(ckpt_path)
-        if len(self.prev_ckpt_paths) > self.config.trainer.num_ckpt_to_save:
-            self.prev_ckpt_paths[0].unlink(missing_ok=True)
-            self.prev_ckpt_paths.pop(0)
 
     @profiler.time_function
     def train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
