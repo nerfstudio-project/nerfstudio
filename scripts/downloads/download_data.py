@@ -76,10 +76,10 @@ nerfstudio_file_ids = {
 DatasetName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
 
 
-def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str):
+def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, capture_name_to_file_id: dict):
     """Download specific captures a given dataset and capture name."""
 
-    url = f"https://drive.google.com/uc?id={nerfstudio_file_ids[capture_name]}"
+    url = f"https://drive.google.com/uc?id={capture_name_to_file_id[capture_name]}"
     target_path = str(save_dir / f"{dataset_name}/{capture_name}")
     os.makedirs(target_path, exist_ok=True)
     download_path = Path(f"{target_path}.zip")
@@ -100,16 +100,19 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str):
 
 def download_nerfstudio(save_dir: Path, capture_name: str):
     """Download specific captures for the nerfstudio dataset."""
-    download_capture_name(save_dir, "nerfstudio", capture_name)
+    download_capture_name(save_dir, "nerfstudio", capture_name, capture_name_to_file_id=nerfstudio_file_ids)
 
+record3d_file_ids = {
+    "bear": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
+}
 
 def download_record3d(save_dir: Path, capture_name: str):
     """Download specific captures for the record3d dataset."""
-    download_capture_name(save_dir, "record3d", capture_name)
+    download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=nerfstudio_file_ids)
 
 
 def main(
-    dataset: Literal["blender", "friends", "nerfstudio"],
+    dataset: Literal["blender", "friends", "nerfstudio", "record3d"],
     capture_name: Optional[DatasetName] = None,  # type: ignore
     save_dir: Path = Path("data/"),
 ):
@@ -146,6 +149,8 @@ def main(
             console.print(f"\t {capture_names}")
             sys.exit()
         download_nerfstudio(save_dir, capture_name)
+    if dataset == "record3d":
+        download_record3d(save_dir, "bear")
 
 
 def entrypoint():

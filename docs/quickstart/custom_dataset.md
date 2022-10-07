@@ -25,7 +25,7 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-ns-train instant-ngp nerfstudio-data --data {PROCESSED_DATA_DIR}
+ns-train nerfacto nerfstudio-data --data {PROCESSED_DATA_DIR}
 ```
 
 ### Installing COLMAP
