@@ -42,7 +42,8 @@ class OptimizerConfig(base_config.PrintableConfig):
     def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
         kwargs = vars(self)
-        del kwargs["_target"]
+        if "_target" in kwargs:
+            del kwargs["_target"]
         return self._target(params, **kwargs)
 
 
