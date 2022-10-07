@@ -25,7 +25,7 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-ns-train instant-ngp nerfstudio-data --data {PROCESSED_DATA_DIR}
+ns-train nerfacto nerfstudio-data --data {PROCESSED_DATA_DIR}
 ```
 
 ### Installing COLMAP
@@ -107,3 +107,30 @@ cd vcpkg
 
 :::::
 ::::::
+
+## Record3D Capture
+
+Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
+
+Record a video and export with the EXR + JPG sequence format.
+
+<img src="imgs/record_3d_video_selection.png" width=150>
+<img src="imgs/record_3d_export_selection.png" width=150>
+
+Then, move the exported capture folder from your iPhone to your computer.
+
+```
+ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
+```
+
+You can try with our data to see the correct formatting.
+
+```shell
+ns-download-data --dataset record3d
+```
+
+This will download data to `data/record3d/bear`. Then you can train, and don't forget to open up the viewer.
+
+```shell
+ns-train nerfacto record3d-data --data data/record3d/bear
+```

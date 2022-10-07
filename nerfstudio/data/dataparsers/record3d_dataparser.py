@@ -41,7 +41,7 @@ class Record3DDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Record3D)
     """target class to instantiate"""
-    data: Path = Path("data/record3d/garden")
+    data: Path = Path("data/record3d/bear")
     """Location of data"""
     val_skip: int = 8
     """1/val_skip images to use for validation."""
@@ -49,7 +49,7 @@ class Record3DDataParserConfig(DataParserConfig):
     """Scene scale."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation"""
-    max_dataset_size: int = 150
+    max_dataset_size: int = 300
     """Max number of images to train on. If the dataset has
     more, images will be sampled approximately evenly."""
 
@@ -69,7 +69,7 @@ class Record3D(DataParser):
         image_filenames = []
         for f in image_dir.iterdir():
             if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
-                image_filenames.append(image_dir / f)
+                image_filenames.append(f)
 
         image_filenames = sorted(image_filenames, key=lambda fn: int(fn.stem))
         image_filenames = np.array(image_filenames)
