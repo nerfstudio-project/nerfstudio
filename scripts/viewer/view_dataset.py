@@ -32,7 +32,7 @@ def main(
     """Main function."""
     viewer_state = viewer_utils.ViewerState(config.viewer)
     datamanager = config.pipeline.datamanager.setup()
-    viewer_state.init_scene(dataset=datamanager.train_input_dataset, start_train=False)
+    viewer_state.init_scene(dataset=datamanager.train_input_dataset, allow_train=False)
     logging.info("Please refresh and load page at: %s", viewer_state.viewer_url)
     time.sleep(30)  # allowing time to refresh page
 

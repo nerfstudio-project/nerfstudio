@@ -246,12 +246,12 @@ class ViewerState:
 
         self.output_list = None
 
-    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
+    def init_scene(self, dataset: InputDataset, allow_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
             dataset: dataset to render in the scene
-            start_train: whether to start train when viewer init;
+            allow_train: whether to start train when viewer init;
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
@@ -274,7 +274,7 @@ class ViewerState:
         self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
-        self.vis["renderingState/isTraining"].write(start_train)
+        self.vis["renderingState/isTraining"].write(allow_train)
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -520,7 +520,7 @@ class ViewerState:
         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
         else:
-            return None
+            return None, None
         if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
         else:
@@ -540,7 +540,6 @@ class ViewerState:
         if image_width > self.max_resolution:
             image_width = self.max_resolution
             image_height = int(image_width / aspect_ratio)
-
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
