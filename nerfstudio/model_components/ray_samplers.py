@@ -553,7 +553,11 @@ class ProposalNetworkSampler(Sampler):
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
-                density = density_fns[i_level](ray_samples.frustums.get_positions())
+                if i_level < n - 1:
+                    with torch.no_grad():
+                        density = density_fns[i_level](ray_samples.frustums.get_positions())
+                else:
+                    density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)

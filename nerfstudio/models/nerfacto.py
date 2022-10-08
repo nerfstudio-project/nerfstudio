@@ -69,13 +69,13 @@ class NerfactoModelConfig(ModelConfig):
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: Tuple[int] = (
-        128,
-        64,
+        148,
+        48,
     )
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 64
+    num_nerf_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""
-    use_occupancy_grid: bool = True
+    use_occupancy_grid: bool = False
     """Whether to use an occupancy grid as the first proposal network"""
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
@@ -125,7 +125,7 @@ class NerfactoModel(Model):
             # Occupancy Grid
             self.occupancy_grid = nerfacc.OccupancyGrid(
                 roi_aabb=self.scene_box.aabb.flatten(),
-                resolution=64,  # TODO(justin)remove magic number
+                resolution=128,  # TODO(justin)remove magic number
                 contraction_type=ContractionType.UN_BOUNDED_SPHERE,
             )
 
@@ -194,7 +194,7 @@ class NerfactoModel(Model):
                     step=step,
                     warmup_steps=500,
                     n=5,
-                    ema_decay=0.99,
+                    ema_decay=0.992,
                     occ_eval_fn=lambda x: self.field.get_opacity(
                         x, 0.01
                     ),  # TODO(justin) remove magic number, comes from "step size" of ngp implementation
