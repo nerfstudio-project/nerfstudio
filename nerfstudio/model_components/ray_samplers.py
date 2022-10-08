@@ -315,7 +315,6 @@ class PDFSampler(Sampler):
             # Stratified samples between 0 and 1
             u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
-            # u = u + torch.rand(size=(*cdf.shape[:-1], num_bins), device=cdf.device) / num_bins
             if self.single_jitter:
                 rand = torch.rand((*cdf.shape[:-1], 1), device=cdf.device) / num_bins
             else:

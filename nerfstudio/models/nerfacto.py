@@ -73,11 +73,13 @@ class NerfactoModelConfig(ModelConfig):
         64,
     )
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 32
+    num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
-    num_proposal_network_iterations: int = 2
+    use_occupancy_grid: bool = True
+    """Whether to use an occupancy grid as the first proposal network"""
+    num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
-    use_same_proposal_network: bool = False
+    use_same_proposal_network: bool = True
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
@@ -117,28 +119,36 @@ class NerfactoModel(Model):
             num_images=self.num_train_data,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
-        # Occupancy Grid
-        self.occupancy_grid = nerfacc.OccupancyGrid(
-            roi_aabb=self.scene_box.aabb.flatten(),
-            resolution=128,  # TODO(justin)remove magic number
-            contraction_type=ContractionType.UN_BOUNDED_SPHERE,
-        )
 
-        def occ_grid_density(positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
-            density = self.occupancy_grid.query_occ(positions.view(-1, 3))
-            return density.view(*positions.shape[:-1], 1)
+        self.density_fns = []
+        if self.config.use_occupancy_grid:
+            # Occupancy Grid
+            self.occupancy_grid = nerfacc.OccupancyGrid(
+                roi_aabb=self.scene_box.aabb.flatten(),
+                resolution=64,  # TODO(justin)remove magic number
+                contraction_type=ContractionType.UN_BOUNDED_SPHERE,
+            )
 
-        self.density_fns = [occ_grid_density]
+            def occ_grid_density(positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
+                density = self.occupancy_grid.query_occ(positions.view(-1, 3))
+                return density.view(*positions.shape[:-1], 1)
 
+            self.density_fns.append(occ_grid_density)
+        num_prop_nets = self.config.num_proposal_iterations - (1 if self.config.use_occupancy_grid else 0)
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
+        proposal_net_args = {"hidden_dim": 16, "log2_hashmap_size": 14}
         if self.config.use_same_proposal_network:
-            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
+            network = HashMLPDensityField(
+                self.scene_box.aabb, spatial_distortion=scene_contraction, **proposal_net_args
+            )
             self.proposal_networks.append(network)
-            self.density_fns.extend([network.density_fn for _ in range(self.config.num_proposal_network_iterations)])
+            self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
-            for _ in range(self.config.num_proposal_network_iterations):
-                network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
+            for _ in range(num_prop_nets):
+                network = HashMLPDensityField(
+                    self.scene_box.aabb, spatial_distortion=scene_contraction, **proposal_net_args
+                )
                 self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
@@ -146,7 +156,8 @@ class NerfactoModel(Model):
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
-            num_proposal_network_iterations=self.config.num_proposal_network_iterations,
+            # add 1 to the number of prop networks if we're using an occupancy grid
+            num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
         )
 
@@ -176,22 +187,26 @@ class NerfactoModel(Model):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         callbacks = []
+        if self.config.use_occupancy_grid:
 
-        def update_occupancy_grid(step: int):
-            self.occupancy_grid.every_n_step(
-                step=step,
-                occ_eval_fn=lambda x: self.field.get_opacity(
-                    x, 0.01
-                ),  # TODO(justin) remove magic number, comes from "step size" of ngp implementation
-            )
+            def update_occupancy_grid(step: int):
+                self.occupancy_grid.every_n_step(
+                    step=step,
+                    warmup_steps=500,
+                    n=5,
+                    ema_decay=0.99,
+                    occ_eval_fn=lambda x: self.field.get_opacity(
+                        x, 0.01
+                    ),  # TODO(justin) remove magic number, comes from "step size" of ngp implementation
+                )
 
-        callbacks.append(
-            TrainingCallback(
-                where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
-                update_every_num_iters=1,
-                func=update_occupancy_grid,
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=update_occupancy_grid,
+                )
             )
-        )
         if self.config.use_proposal_weight_anneal:
             # anneal the weights of the proposal network before doing PDF sampling
             N = self.config.proposal_weights_anneal_max_num_iters
@@ -227,7 +242,7 @@ class NerfactoModel(Model):
         outputs["weights_list"] = weights_list
         outputs["ray_samples_list"] = ray_samples_list
 
-        for i in range(self.config.num_proposal_network_iterations):
+        for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         return outputs
@@ -280,7 +295,7 @@ class NerfactoModel(Model):
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
-        for i in range(self.config.num_proposal_network_iterations):
+        for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
             prop_depth_i = colormaps.apply_depth_colormap(
                 outputs[key],
