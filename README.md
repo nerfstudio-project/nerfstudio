@@ -200,7 +200,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |     |
 | [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
 | 💖 **Community**                                                                                   |
-| [Discord](https://discord.gg/NHGtYRAW)                                                             | Join our community to discuss more. We would love to hear from you!                                |
+| [Discord](https://discord.gg/uMbNqcraFc)                                                             | Join our community to discuss more. We would love to hear from you!                                |
 | [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                                         |
 | [TikTok](#)                                                                                        | Coming soon! Follow us on TikTok to see some of our fan favorite results                          |
 
