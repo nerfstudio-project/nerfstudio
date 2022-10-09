@@ -213,9 +213,9 @@ class Trainer:
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
             dataset=self.pipeline.datamanager.train_dataset,
-            allow_train=self.config.viewer.allow_train,
+            start_train=self.config.viewer.start_train,
         )
-        if not self.config.viewer.allow_train:
+        if not self.config.viewer.start_train:
             self._always_render(self._start_step)
 
     @check_viewer_enabled

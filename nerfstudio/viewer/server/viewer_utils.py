@@ -246,12 +246,12 @@ class ViewerState:
 
         self.output_list = None
 
-    def init_scene(self, dataset: InputDataset, allow_train=True) -> None:
+    def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
         Args:
             dataset: dataset to render in the scene
-            allow_train: whether to start train when viewer init;
+            start_train: whether to start train when viewer init;
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
@@ -274,7 +274,7 @@ class ViewerState:
         self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
-        self.vis["renderingState/isTraining"].write(allow_train)
+        self.vis["renderingState/isTraining"].write(start_train)
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -485,7 +485,10 @@ class ViewerState:
             # process remaining training ETA
             self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train
-            if EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]:
+            if (
+                EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
+                and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
+            ):
                 vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
                 train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
@@ -519,6 +522,10 @@ class ViewerState:
 
         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+        elif not is_training:
+            train_rays_per_sec = (
+                80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
+            )
         else:
             return None, None
         if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
