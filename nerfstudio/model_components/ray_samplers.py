@@ -467,6 +467,7 @@ class VolumetricSampler(Sampler):
             far_plane=far_plane,
             stratified=self.training,
             cone_angle=cone_angle,
+            alpha_thre=1e-2,
         )
 
         num_samples = starts.shape[0]
