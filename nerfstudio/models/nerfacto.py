@@ -69,8 +69,8 @@ class NerfactoModelConfig(ModelConfig):
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: Tuple[int] = (
-        148,
-        48,
+        128,
+        64,
     )
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 48
