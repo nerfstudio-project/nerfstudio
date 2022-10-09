@@ -156,8 +156,8 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     Returns:
         The number of images copied.
     """
-    allowed_exts = ['.jpg', '.jpeg', '.png', '.tif', '.tiff']
-    image_paths = sorted([p for p in data.glob('[!.]*') if p.suffix.lower() in allowed_exts])
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
 
     # Remove original directory only if we provide a proper image folder path
     if image_dir.is_dir() and len(image_paths):
