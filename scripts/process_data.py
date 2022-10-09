@@ -156,16 +156,18 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     Returns:
         The number of images copied.
     """
-    image_paths = sorted(data.glob("*"))
-    idx = 0
+    if image_dir.is_dir():
+        shutil.rmtree(image_dir)
+        image_dir.mkdir(exist_ok=True, parents=True)
+
+    allowed_exts = ['.jpg', '.png']
+    image_paths = sorted([p for p in data.glob('[!.]*') if p.suffix.lower() in allowed_exts])
+
     # Images should be 1-indexed for the rest of the pipeline.
-    for image_path in image_paths:
-        if image_path.name.startswith("."):
-            continue
-        idx += 1
+    for idx, image_path in enumerate(image_paths):
         if verbose:
-            CONSOLE.log(f"Copying image {idx} of {len(image_paths)}...")
-        shutil.copy(image_path, image_dir / f"frame_{idx:05d}{image_path.suffix}")
+            CONSOLE.log(f"Copying image {idx+1} of {len(image_paths)}...")
+        shutil.copy(image_path, image_dir / f"frame_{idx+1:05d}{image_path.suffix}")
 
     return len(image_paths)
 
