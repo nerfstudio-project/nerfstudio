@@ -404,11 +404,14 @@ def main(
     if data.is_file():
 
         if not verbose:
+            CONSOLE.log("[bold yellow]Copying file to output directory.")
+            shutil.copy(data, output_dir)
             with CONSOLE.status("[bold yellow]Converting video to images...", spinner="bouncingBall"):
                 num_vid_frames, num_frames = convert_video_to_images(
                     data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose
                 )
         else:
+            shutil.copy(data, output_dir)
             num_vid_frames, num_frames = convert_video_to_images(
                 data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose
             )
@@ -425,7 +428,7 @@ def main(
             num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
 
         if num_frames == 0:
-            CONSOLE.log("[bold red]:tada: No usable images in the data folder.")
+            CONSOLE.log("[bold red]No usable images in the data folder.")
         else:
             CONSOLE.log("[bold green]:tada: Done copying images.")
         summary_log.append(f"Starting with {num_frames} images")
