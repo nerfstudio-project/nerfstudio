@@ -68,18 +68,15 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: Tuple[int] = (
-        128,
-        64,
-    )
+    num_proposal_samples_per_ray: Tuple[int] = (200, 64)
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 48
+    num_nerf_samples_per_ray: int = 32
     """Number of samples per ray for the nerf network."""
     use_occupancy_grid: bool = False
     """Whether to use an occupancy grid as the first proposal network"""
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
-    use_same_proposal_network: bool = True
+    use_same_proposal_network: bool = False
     """Use the same proposal network. Otherwise use different ones."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
@@ -93,7 +90,7 @@ class NerfactoModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = True
+    use_single_jitter: bool = False
     """Whether use single jitter or not for the proposal networks."""
 
 
@@ -137,17 +134,20 @@ class NerfactoModel(Model):
         num_prop_nets = self.config.num_proposal_iterations - (1 if self.config.use_occupancy_grid else 0)
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
-        proposal_net_args = {"hidden_dim": 16, "log2_hashmap_size": 14}
+        proposal_net_args = [
+            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 64},
+            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 256},
+        ]
         if self.config.use_same_proposal_network:
             network = HashMLPDensityField(
-                self.scene_box.aabb, spatial_distortion=scene_contraction, **proposal_net_args
+                self.scene_box.aabb, spatial_distortion=scene_contraction, **proposal_net_args[0]
             )
             self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
-            for _ in range(num_prop_nets):
+            for i in range(num_prop_nets):
                 network = HashMLPDensityField(
-                    self.scene_box.aabb, spatial_distortion=scene_contraction, **proposal_net_args
+                    self.scene_box.aabb, spatial_distortion=scene_contraction, **(proposal_net_args[i])
                 )
                 self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])

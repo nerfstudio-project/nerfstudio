@@ -50,7 +50,7 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     orientation_noise_std: float = 0.0
     """Noise to add to initial orientations. Useful for debugging."""
 
-    optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
+    optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-3)
     """ADAM parameters for camera optimization."""
 
     scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000)
@@ -59,6 +59,7 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     param_group: tyro.conf.Suppress[str] = "camera_opt"
     """Name of the parameter group used for pose optimization. Can be any string that doesn't conflict with other
     groups."""
+
 
 class CameraOptimizer(nn.Module):
     """Layer that modifies camera poses to be optimized as well as the field during training."""
