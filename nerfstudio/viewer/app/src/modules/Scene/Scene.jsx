@@ -27,9 +27,8 @@ export function get_scene_tree() {
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  main_camera.position.x = 0.7;
-  main_camera.position.y = -0.7;
-  main_camera.position.z = 0.3;
+  const start_position = new THREE.Vector3(0.7, -0.7, 0.3);
+  main_camera.position.set(start_position.x, start_position.y, start_position.z);
   main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
@@ -68,18 +67,16 @@ export function get_scene_tree() {
   camera_controls.polarRotateSpeed = 0.3;
   camera_controls.minDistance = 0.3;
   camera_controls.maxDistance = 20;
-
   camera_controls.dollySpeed = 0.1;
   camera_controls.saveState();
 
   const keyMap = [];
-  const moveSpeed = 0.04;
+  const moveSpeed = 0.035;
   const EPS = 1e-5;
 
-  var firstPerson = true
+  // var firstPerson = true
 
   function firstPersonCamera() {
-
     if (keyMap.ArrowLeft === true) {
       camera_controls.rotate(0.02, 0, true);
     }
@@ -134,12 +131,11 @@ export function get_scene_tree() {
   }
 
   function moveCamera() {
-    if (firstPerson === true) {
+    if (sceneTree.metadata.first_person === true) {
       const curTar = camera_controls.getTarget();
       const curPos = camera_controls.getPosition();
       const diff = curTar.sub(curPos).normalize().multiplyScalar(EPS);
       camera_controls.setTarget(curPos.x +  diff.x, curPos.y + diff.y, curPos.z + diff.z);
-
       firstPersonCamera();
     } else {
       camera_controls.setTarget(0, 0, 0);
@@ -161,7 +157,8 @@ export function get_scene_tree() {
 
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
-      firstPerson = !firstPerson
+      camera_controls.setTarget(0, 0, 0);
+      camera_controls.setPosition(start_position.x, start_position.y, start_position.z);
     }
   });
 
