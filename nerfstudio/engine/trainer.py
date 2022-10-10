@@ -129,7 +129,7 @@ class Trainer:
         self.pipeline: VanillaPipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
-        self.optimizers = setup_optimizers(self.config.optimizers, self.pipeline.get_param_groups())
+        self.optimizers = setup_optimizers(self.config, self.pipeline.get_param_groups())
 
         self._load_checkpoint()
 
@@ -190,10 +190,13 @@ class Trainer:
                 writer.write_out_storage()
             # save checkpoint at the end of training
             self.save_checkpoint(step)
-            if self.config.is_viewer_enabled():
-                while True:
-                    self.viewer_state.vis["renderingState/isTraining"].write(False)
-                    self._update_viewer_state(step)
+            self._always_render(step)
+
+    def _always_render(self, step):
+        if self.config.is_viewer_enabled():
+            while True:
+                self.viewer_state.vis["renderingState/isTraining"].write(False)
+                self._update_viewer_state(step)
 
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
@@ -212,6 +215,8 @@ class Trainer:
             dataset=self.pipeline.datamanager.train_dataset,
             start_train=self.config.viewer.start_train,
         )
+        if not self.config.viewer.start_train:
+            self._always_render(self._start_step)
 
     @check_viewer_enabled
     def _update_viewer_state(self, step: int):
@@ -285,6 +290,9 @@ class Trainer:
             pipeline = self.pipeline.module.state_dict()  # type: ignore
         else:
             pipeline = self.pipeline.state_dict()
+        if len(self.prev_ckpt_paths) == self.config.trainer.num_ckpt_to_save:
+            self.prev_ckpt_paths[0].unlink(missing_ok=True)
+            self.prev_ckpt_paths.pop(0)
         torch.save(
             {
                 "step": step,
@@ -295,9 +303,6 @@ class Trainer:
             ckpt_path,
         )
         self.prev_ckpt_paths.append(ckpt_path)
-        if len(self.prev_ckpt_paths) > self.config.trainer.num_ckpt_to_save:
-            self.prev_ckpt_paths[0].unlink(missing_ok=True)
-            self.prev_ckpt_paths.pop(0)
 
     @profiler.time_function
     def train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:

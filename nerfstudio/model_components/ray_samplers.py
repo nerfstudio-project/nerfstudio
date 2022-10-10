@@ -467,6 +467,7 @@ class VolumetricSampler(Sampler):
             far_plane=far_plane,
             stratified=self.training,
             cone_angle=cone_angle,
+            alpha_thre=1e-2,
         )
 
         num_samples = starts.shape[0]
@@ -477,7 +478,7 @@ class VolumetricSampler(Sampler):
             starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
             ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
 
-        ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
+        ray_indices = nerfacc.unpack_info(packed_info)
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]
         if camera_indices is not None:

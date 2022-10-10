@@ -485,7 +485,10 @@ class ViewerState:
             # process remaining training ETA
             self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train
-            if EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]:
+            if (
+                EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
+                and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
+            ):
                 vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
                 train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
@@ -519,8 +522,12 @@ class ViewerState:
 
         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+        elif not is_training:
+            train_rays_per_sec = (
+                80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
+            )
         else:
-            return None
+            return None, None
         if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
         else:
@@ -540,7 +547,6 @@ class ViewerState:
         if image_width > self.max_resolution:
             image_width = self.max_resolution
             image_height = int(image_width / aspect_ratio)
-
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
