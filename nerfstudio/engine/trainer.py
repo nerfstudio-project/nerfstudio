@@ -190,10 +190,13 @@ class Trainer:
                 writer.write_out_storage()
             # save checkpoint at the end of training
             self.save_checkpoint(step)
-            if self.config.is_viewer_enabled():
-                while True:
-                    self.viewer_state.vis["renderingState/isTraining"].write(False)
-                    self._update_viewer_state(step)
+            self._always_render(step)
+
+    def _always_render(self, step):
+        if self.config.is_viewer_enabled():
+            while True:
+                self.viewer_state.vis["renderingState/isTraining"].write(False)
+                self._update_viewer_state(step)
 
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
@@ -212,6 +215,8 @@ class Trainer:
             dataset=self.pipeline.datamanager.train_dataset,
             start_train=self.config.viewer.start_train,
         )
+        if not self.config.viewer.start_train:
+            self._always_render(self._start_step)
 
     @check_viewer_enabled
     def _update_viewer_state(self, step: int):
