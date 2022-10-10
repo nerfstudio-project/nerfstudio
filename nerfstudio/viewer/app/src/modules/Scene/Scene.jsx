@@ -73,20 +73,24 @@ export function get_scene_tree() {
   camera_controls.saveState();
 
   const keyMap = [];
-  const moveSpeed = 0.02;
+  const moveSpeed = 0.04;
+  const EPS = 1e-5;
 
-  function moveCamera() {
+  var firstPerson = true
+
+  function firstPersonCamera() {
+
     if (keyMap.ArrowLeft === true) {
-      camera_controls.rotate(-0.02, 0, true);
-    }
-    if (keyMap.ArrowRight === true) {
       camera_controls.rotate(0.02, 0, true);
     }
+    if (keyMap.ArrowRight === true) {
+      camera_controls.rotate(-0.02, 0, true);
+    }
     if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, -0.01, true);
+      camera_controls.rotate(0, 0.01, true);
     }
     if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, 0.01, true);
+      camera_controls.rotate(0, -0.01, true);
     }
     if (keyMap.KeyD === true) {
       camera_controls.truck(moveSpeed, 0, true);
@@ -108,6 +112,41 @@ export function get_scene_tree() {
     }
   }
 
+  function orbitCamera() {
+    if (keyMap.KeyA === true) {
+      camera_controls.rotate(-0.02, 0, true);
+    }
+    if (keyMap.KeyD === true) {
+      camera_controls.rotate(0.02, 0, true);
+    }
+    if (keyMap.KeyW === true) {
+      camera_controls.rotate(0, -0.01, true);
+    }
+    if (keyMap.KeyS === true) {
+      camera_controls.rotate(0, 0.01, true);
+    }
+    if (keyMap.KeyQ === true) {
+      camera_controls.dolly(0.05, true);
+    } 
+    if (keyMap.KeyE === true) {
+      camera_controls.dolly(-0.05, true);
+    }
+  }
+
+  function moveCamera() {
+    if (firstPerson === true) {
+      const curTar = camera_controls.getTarget();
+      const curPos = camera_controls.getPosition();
+      const diff = curTar.sub(curPos).normalize().multiplyScalar(EPS);
+      camera_controls.setTarget(curPos.x +  diff.x, curPos.y + diff.y, curPos.z + diff.z);
+
+      firstPersonCamera();
+    } else {
+      camera_controls.setTarget(0, 0, 0);
+      orbitCamera();
+    }
+  }
+
   function onKeyUp(event) {
     const keyCode = event.code;
     keyMap[keyCode] = false;
@@ -122,7 +161,7 @@ export function get_scene_tree() {
 
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
-      camera_controls.setTarget(0, 0, 0);
+      firstPerson = !firstPerson
     }
   });
 
