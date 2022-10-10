@@ -13,6 +13,7 @@ import appdirs
 import numpy as np
 import requests
 import tyro
+from PIL import Image
 from rich.console import Console
 from rich.progress import track
 
@@ -435,6 +436,24 @@ def main(
 
     if num_frames > 0:
         if num_downscales > 0:
+
+            # Change image_dir for COLMAP to use the one closest to the 2000px longest side
+            # To improve the solve speed
+
+            max_side = max(Image.open(next(image_dir.glob("[!.]*"))).size)
+            factor = max_side // 2000
+
+            # Since downscales are powers of 2, get the closest power that's closer to zero
+            nearest_pow = np.floor(np.log2(factor))
+            downscale = num_downscales
+
+            if nearest_pow <= num_downscales:
+                downscale = 2**nearest_pow
+
+            # Grab the folder that's supposedly there already
+            if downscale != 1:
+                image_dir = image_dir.parent.joinpath(f"{image_dir.name}_{int(downscale)}")
+
             if not verbose:
                 with CONSOLE.status("[bold yellow]Downscaling images...", spinner="growVertical"):
                     downscale_images(image_dir, num_downscales, verbose=verbose)
