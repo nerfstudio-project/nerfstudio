@@ -168,7 +168,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        shutil.copy(image_path, image_dir / f"frame_{idx:05d}{image_path.suffix}")
+        shutil.copy(image_path, image_dir / f"frame_{idx + 1:05d}{image_path.suffix}")
 
     return len(image_paths)
 
