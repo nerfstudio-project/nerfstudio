@@ -40,7 +40,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const [is_first_person, set_is_first_person] = React.useState(0);
   const scene_button = is_scene_visible ? 'Hide Scene' : 'Show Scene';
   const cameras_button = is_images_visible ? 'Hide Images' : 'Show Images';
-  const first_person_button = is_first_person ? 'First Person Controls' : 'Scene Focused Controls';
+  const first_person_button = is_first_person ? 'First Person Controls' : 'Orbit Controls';
   sceneTree.object.visible = is_scene_visible;
   sceneTree.metadata.first_person = is_first_person;
   if (sceneTree.find_no_create(['Training Cameras']) !== null) {
