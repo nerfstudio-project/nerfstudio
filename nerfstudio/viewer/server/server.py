@@ -248,7 +248,7 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, host: str = "0.0.0.0"):
+def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
     """Run the viewer bridge server.
 
     Args:
@@ -256,7 +256,7 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, h
         websocket_port: port to use for websocket
         host: host to connect to
     """
-    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port, host=host)
+    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port)
     print(bridge)
     try:
         bridge.run()
@@ -264,11 +264,11 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, h
         pass
 
 
-def main():
+def entrypoint():
     """The main entrypoint."""
     tyro.extras.set_accent_color("bright_yellow")
     tyro.cli(run_viewer_bridge_server)
 
 
 if __name__ == "__main__":
-    main()
+    entrypoint()
