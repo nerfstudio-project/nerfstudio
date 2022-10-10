@@ -237,17 +237,28 @@ export function get_scene_tree() {
     if (drag === true) {
       return;
     }
+
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
     ).map((obj) => obj.object.children[0].children[1]);
+
+    // cameras.map((camera) => {
+    //   const material = new THREE.MeshPhongMaterial();
+    //   material.color.setHSL(0, 1, 0.5); // red
+    //   material.flatShading = true;
+    //   material.side = THREE.DoubleSide;
+    //   camera.material = material;
+    // });
 
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * (e.clientY / size.y);
 
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
-    let selectedPlane = raycaster.intersectObjects(cameras, true)[0];
-    if (selectedPlane != null) {
+    const intersections = raycaster.intersectObjects(cameras, true);
+    console.log(intersections);
+    if (intersections.length > 0) {
+      let selectedPlane = intersections[0];
       selectedPlane = selectedPlane.object;
       snap_to_camera(
         sceneTree,
