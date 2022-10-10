@@ -167,9 +167,11 @@ class ViewerConfig(PrintableConfig):
     zmq_port: Optional[int] = None
     """The zmq port to connect to for communication. If None, find an available port."""
     launch_bridge_server: bool = True
-    """whether or not to launch the zmq bridge server"""
+    """whether or not to launch the bridge server"""
     websocket_port: int = 7007
     """the default websocket port to connect to"""
+    ip_address: str = "0.0.0.0"
+    """the ip address where the bridge server is running"""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
 

@@ -136,7 +136,6 @@ class ZMQWebSocketBridge:
 
     Args:
         zmq_port: zmq port to connect to. Defaults to None.
-        host: host of server. Defaults to "127.0.0.1".
         websocket_port: websocket port to connect to. Defaults to None.
     """
 
@@ -151,7 +150,7 @@ class ZMQWebSocketBridge:
         self.video_tracks = set()
 
         # zmq
-        zmq_url = f"tcp://127.0.0.1:{self.zmq_port:d}"
+        zmq_url = f"tcp://0.0.0.0:{self.zmq_port:d}"
         self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
         # websocket
@@ -249,14 +248,15 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
+def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, host: str = "0.0.0.0"):
     """Run the viewer bridge server.
 
     Args:
         zmq_port: port to use for zmq
         websocket_port: port to use for websocket
+        host: host to connect to
     """
-    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port)
+    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port, host=host)
     print(bridge)
     try:
         bridge.run()

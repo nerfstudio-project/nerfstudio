@@ -4,6 +4,7 @@ const initialState = {
   // the websocket connection state
   websocketState: {
     websocket_port: 7007,
+    ip_address: 'localhost',
     isConnected: false,
   },
   // the webrtc connection state

@@ -19,9 +19,10 @@ export default function WebSocketContextFunction({ children }) {
   const websocket_port = useSelector(
     (state) => state.websocketState.websocket_port,
   );
+  const ip_address = useSelector((state) => state.websocketState.ip_address);
 
   const connect = () => {
-    const url = `ws://localhost:${websocket_port}/`;
+    const url = `ws://${ip_address}:${websocket_port}/`;
     console.log(url);
     socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
@@ -58,7 +59,7 @@ export default function WebSocketContextFunction({ children }) {
     return () => {
       socket.close();
     };
-  }, [websocket_port]);
+  }, [websocket_port, ip_address]);
 
   connect();
   ws = {

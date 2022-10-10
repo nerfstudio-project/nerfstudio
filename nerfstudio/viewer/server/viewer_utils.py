@@ -227,7 +227,7 @@ class ViewerState:
             self.vis = Viewer(zmq_port=zmq_port)
         else:
             assert self.config.zmq_port is not None
-            self.vis = Viewer(zmq_port=self.config.zmq_port)
+            self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
         self.prev_camera_matrix = None
