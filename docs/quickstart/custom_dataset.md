@@ -30,7 +30,7 @@ ns-train nerfacto nerfstudio-data --data {PROCESSED_DATA_DIR}
 
 ### Installing COLMAP
 
-There are many ways to install COLMAP, unfortunately it can sometimes be a bit finicky. If the following commands do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our [Discord](https://discord.gg/NHGtYRAW).
+There are many ways to install COLMAP, unfortunately it can sometimes be a bit finicky. If the following commands do not work, please refer to the [COLMAP installation guide](https://colmap.github.io/install.html) for additional installation methods. COLMAP install issues are common! Feel free to ask for help in on our [Discord](https://discord.gg/uMbNqcraFc).
 
 ::::::{tab-set}
 :::::{tab-item} Linux
