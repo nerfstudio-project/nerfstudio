@@ -57,7 +57,12 @@ method_configs["nerfacto"] = Config(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
+<<<<<<< HEAD
             eval_num_rays_per_batch=4096,
+=======
+            eval_num_rays_per_batch=8192,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
+>>>>>>> main
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
