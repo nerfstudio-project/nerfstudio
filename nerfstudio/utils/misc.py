@@ -17,6 +17,7 @@ Miscellaneous helper code.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Union
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 import torch
 
