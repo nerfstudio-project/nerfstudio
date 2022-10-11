@@ -29,7 +29,6 @@ from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConf
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.models.base_model import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -51,7 +50,7 @@ descriptions = {
 method_configs["nerfacto"] = Config(
     method_name="nerfacto",
     trainer=TrainerConfig(
-        steps_per_eval_batch=100, steps_per_save=2000, max_num_iterations=50000, mixed_precision=True
+        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
     ),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
