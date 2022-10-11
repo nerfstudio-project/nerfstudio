@@ -310,6 +310,7 @@ class ViewerState:
         """Check if there is a webrtc offer to respond to."""
         data = self.vis["webrtc/offer"].read()
         if data:
+            # TODO(ethan): I think this is what breaks webrtc from working
             asyncio.run(self.send_webrtc_answer(data))
             self.vis["webrtc/offer"].delete()
 
