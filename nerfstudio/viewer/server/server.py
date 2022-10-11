@@ -76,17 +76,8 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
             data = find_node(self.bridge.state_tree, path).data
             self.write_message(data, binary=True)
         elif type_ == "offer":
-
             find_node(self.bridge.state_tree, ["webrtc", "offer", "sdp"]).data = m["data"]["sdp"]
             find_node(self.bridge.state_tree, ["webrtc", "offer", "type"]).data = m["data"]["type"]
-
-            cmd_data = {
-                "type": "answer",
-                "path": "",
-                "data": {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type},
-            }
-            data = umsgpack.packb(cmd_data)
-            self.write_message(data, binary=True)
         else:
             cmd_data = {
                 "type": "error",
