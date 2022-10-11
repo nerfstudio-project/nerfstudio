@@ -26,6 +26,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
+from aiortc import RTCPeerConnection, RTCSessionDescription
 from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras
@@ -39,7 +40,11 @@ from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
-from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfstudio.viewer.server.utils import (
+    force_codec,
+    get_intrinsics_matrix_and_camera_to_world_h,
+)
+from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
 from nerfstudio.viewer.server.visualizer import Viewer
 
 console = Console(width=120)
@@ -246,6 +251,10 @@ class ViewerState:
 
         self.output_list = None
 
+        # webrtc
+        self.pcs = set()
+        self.video_tracks = set()
+
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
@@ -431,6 +440,40 @@ class ViewerState:
 
         raise NotImplementedError
 
+    async def setup_webrtc(self):
+
+        data_sdp = self.vis["webrtc/offer/sdp"].read()
+        data_type = self.vis["webrtc/offer/type"].read()
+
+        # returns the description to for WebRTC to the specific websocket connection
+        offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
+
+        pc = RTCPeerConnection()
+        self.pcs.add(pc)
+
+        video = SingleFrameStreamTrack()
+        self.video_tracks.add(video)
+        video_sender = pc.addTrack(video)
+        force_codec(pc, video_sender, "video/VP8")
+
+        await pc.setRemoteDescription(offer)
+        answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+
+        cmd_data = {
+            "type": "answer",
+            "path": "",
+            "data": {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type},
+        }
+        self.vis["webrtc/answer"].write(cmd_data)
+
+    def set_image(self, image):
+        """Write the image over webrtc."""
+        print("writing the image!")
+        print(image)
+        for video_track in self.video_tracks:
+            video_track.put_frame(image)
+
     def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
         """Chooses the correct output and sends it to the viewer
 
@@ -465,7 +508,7 @@ class ViewerState:
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, stuff_colors) * 255).type(torch.uint8)
         image = selected_output.cpu().numpy()
-        self.vis.set_image(image)
+        self.set_image(image)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly

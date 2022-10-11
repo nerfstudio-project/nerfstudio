@@ -17,8 +17,6 @@
 import sys
 from typing import List, Optional, Tuple
 
-import msgpack
-import msgpack_numpy
 import tornado.gen
 import tornado.ioloop
 import tornado.web
@@ -27,27 +25,10 @@ import tyro
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
-from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.rtcrtpsender import RTCRtpSender
 from zmq.eventloop.zmqstream import ZMQStream
 
 from nerfstudio.viewer.server.state.node import find_node, get_tree, walk
 from nerfstudio.viewer.server.state.state_node import StateNode
-from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
-
-
-def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
-    """Sets the codec preferences on a connection between sender and reciever
-
-    Args:
-        pc: peer connection point
-        sender: sender that will send to connection point
-        forced_codec: codec to set
-    """
-    kind = forced_codec.split("/")[0]
-    codecs = RTCRtpSender.getCapabilities(kind).codecs
-    transceiver = next(t for t in pc.getTransceivers() if t.sender == sender)
-    transceiver.setCodecPreferences([codec for codec in codecs if codec.mimeType == forced_codec])
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=abstract-method
@@ -95,20 +76,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
             data = find_node(self.bridge.state_tree, path).data
             self.write_message(data, binary=True)
         elif type_ == "offer":
-            # returns the description to for WebRTC to the specific websocket connection
-            offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
 
-            pc = RTCPeerConnection()
-            self.bridge.pcs.add(pc)
-
-            video = SingleFrameStreamTrack()
-            self.bridge.video_tracks.add(video)
-            video_sender = pc.addTrack(video)
-            force_codec(pc, video_sender, "video/VP8")
-
-            await pc.setRemoteDescription(offer)
-            answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
+            find_node(self.bridge.state_tree, ["webrtc", "offer", "sdp"]).data = m["data"]["sdp"]
+            find_node(self.bridge.state_tree, ["webrtc", "offer", "type"]).data = m["data"]["type"]
 
             cmd_data = {
                 "type": "answer",
@@ -146,8 +116,6 @@ class ZMQWebSocketBridge:
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
-        self.pcs = set()
-        self.video_tracks = set()
 
         # zmq
         zmq_url = f"tcp://0.0.0.0:{self.zmq_port:d}"
@@ -194,13 +162,6 @@ class ZMQWebSocketBridge:
             # TODO(ethan): handle the "data" key...
             read_data = find_node(self.state_tree, path).data
             self.zmq_socket.send(umsgpack.packb(read_data))
-        elif type_ == "set_image":
-            image = msgpack.unpackb(
-                data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
-            )
-            for video_track in self.video_tracks:
-                video_track.put_frame(image)
-            self.zmq_socket.send(umsgpack.packb(b"ok"))
         else:
             self.zmq_socket.send(umsgpack.packb(b"error: unknown command"))
 
