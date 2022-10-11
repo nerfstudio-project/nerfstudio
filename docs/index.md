@@ -50,6 +50,7 @@ quickstart/installation
 quickstart/first_nerf
 quickstart/custom_dataset
 quickstart/viewer_quickstart
+quickstart/google_colab
 Contributing<reference/contributing>
 ```
 
