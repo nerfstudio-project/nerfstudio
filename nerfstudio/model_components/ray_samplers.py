@@ -315,7 +315,6 @@ class PDFSampler(Sampler):
             # Stratified samples between 0 and 1
             u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
-            # u = u + torch.rand(size=(*cdf.shape[:-1], num_bins), device=cdf.device) / num_bins
             if self.single_jitter:
                 rand = torch.rand((*cdf.shape[:-1], 1), device=cdf.device) / num_bins
             else:
@@ -469,7 +468,6 @@ class VolumetricSampler(Sampler):
             cone_angle=cone_angle,
             alpha_thre=1e-2,
         )
-
         num_samples = starts.shape[0]
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
@@ -506,7 +504,7 @@ class ProposalNetworkSampler(Sampler):
         num_proposal_samples_per_ray: Tuple[int] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
-        single_jitter: bool = True,
+        single_jitter: bool = False,
     ) -> None:
         super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray

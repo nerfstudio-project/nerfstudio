@@ -55,6 +55,11 @@ class HashMLPDensityField(Field):
         hidden_dim: int = 64,
         spatial_distortion: Optional[SpatialDistortion] = None,
         use_linear=False,
+        num_levels=8,
+        max_res=1024,
+        base_res=16,
+        log2_hashmap_size=18,
+        features_per_level=2,
     ) -> None:
         super().__init__()
 
@@ -62,11 +67,6 @@ class HashMLPDensityField(Field):
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
 
-        num_levels = 8
-        max_res = 1024
-        base_res = 16
-        log2_hashmap_size = 18
-        features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         config = {
