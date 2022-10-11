@@ -248,7 +248,7 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
+def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, use_ngrok: bool = False):
     """Run the viewer bridge server.
 
     Args:
@@ -256,6 +256,16 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
         websocket_port: port to use for websocket
         host: host to connect to
     """
+
+    # whether to launch pyngrok or not
+    from pyngrok import ngrok
+
+    if use_ngrok:
+        # Open a HTTP tunnel on the default port 80
+        # <NgrokTunnel: "http://<public_sub>.ngrok.io" -> "http://localhost:80">
+        http_tunnel = ngrok.connect(addr=str(zmq_port))
+        print(http_tunnel)
+
     bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port)
     print(bridge)
     try:
