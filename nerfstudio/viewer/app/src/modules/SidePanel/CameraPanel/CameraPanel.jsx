@@ -497,24 +497,6 @@ export default function CameraPanel(props) {
     });
   };
 
-<<<<<<< HEAD
-  const setUp = () => {
-    const rot = camera_main.rotation;
-    const unitY = new THREE.Vector3(0, 1, 0);
-    const upVec = unitY.applyEuler(rot);
-
-    const grid = sceneTree.find_object_no_create(['Grid']);
-    grid.setRotationFromEuler(rot);
-
-    const pos = new THREE.Vector3();
-    camera_main.getWorldPosition(pos);
-    camera_main.up.set(upVec.x, upVec.y, upVec.z);
-    sceneTree.metadata.camera_controls.updateCameraUp();
-    sceneTree.metadata.camera_controls.setLookAt(pos.x, pos.y, pos.z, 0, 0, 0);
-  };
-
-||||||| merged common ancestors
-=======
   const setUp = () => {
     const rot = camera_main.rotation;
     const unitY = new THREE.Vector3(0, 1, 0);
@@ -538,21 +520,13 @@ export default function CameraPanel(props) {
     sceneTree.set_object_from_path(['Viewer Up Vector'], line);
   };
 
->>>>>>> 569a698d4ecdf4a58529c8f634a4c58bff5c03dc
   return (
     <div className="CameraPanel">
-<<<<<<< HEAD
-      <Button size="small" variant="text" onClick={setUp}>
-        Reset Up Vector
-      </Button>
-||||||| merged common ancestors
-=======
       <div className="CameraPanel-top-button">
         <Button size="small" variant="outlined" onClick={setUp}>
           Reset Up Direction
         </Button>
       </div>
->>>>>>> 569a698d4ecdf4a58529c8f634a4c58bff5c03dc
       <div>
         <div className="CameraPanel-top-button">
           <Button size="small" variant="outlined" onClick={add_camera}>
