@@ -88,7 +88,7 @@ class NerfactoModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = False
+    use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
 
 
