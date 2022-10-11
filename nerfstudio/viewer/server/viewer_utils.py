@@ -448,16 +448,10 @@ class ViewerState:
     async def setup_webrtc(self):
         """Setup the webrtc connection."""
 
-        data_sdp = self.vis["webrtc/offer/sdp"].read()
-        data_type = self.vis["webrtc/offer/type"].read()
-
-        print("data_sdp")
-        print(data_sdp)
-        print("data_type")
-        print(data_type)
+        data = self.vis["webrtc/offer"].read()
 
         # returns the description to for WebRTC to the specific websocket connection
-        offer = RTCSessionDescription(data_sdp, data_type)
+        offer = RTCSessionDescription(data["sdp"], data["type"])
 
         pc = RTCPeerConnection()
         self.pcs.add(pc)

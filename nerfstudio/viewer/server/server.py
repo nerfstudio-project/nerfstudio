@@ -25,6 +25,7 @@ import tyro
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
+from pyngrok import ngrok
 from zmq.eventloop.zmqstream import ZMQStream
 
 from nerfstudio.viewer.server.state.node import find_node, get_tree, walk
@@ -76,8 +77,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
             data = find_node(self.bridge.state_tree, path).data
             self.write_message(data, binary=True)
         elif type_ == "offer":
-            find_node(self.bridge.state_tree, ["webrtc", "offer", "sdp"]).data = m["data"]["sdp"]
-            find_node(self.bridge.state_tree, ["webrtc", "offer", "type"]).data = m["data"]["type"]
+            find_node(self.bridge.state_tree, ["webrtc", "offer"]).data = m["data"]
         else:
             cmd_data = {
                 "type": "error",
@@ -210,8 +210,6 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, u
     """
 
     # whether to launch pyngrok or not
-    from pyngrok import ngrok
-
     if use_ngrok:
         # Open a HTTP tunnel on the default port 80
         # <NgrokTunnel: "http://<public_sub>.ngrok.io" -> "http://localhost:80">

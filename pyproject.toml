@@ -34,6 +34,7 @@ dependencies = [
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
+    "pyngrok==5.1.0",
     "python-socketio==5.7.1",
     "requests",
     "rich==12.5.1",
@@ -72,11 +73,6 @@ docs = [
     "sphinx-copybutton==0.5.0",
     "sphinx-design==0.2.0",
     "sphinxext-opengraph==0.6.3"
-]
-
-# Viewer server related packages
-viewer = [
-    "pyngrok==5.1.0",
 ]
 
 [project.scripts]
