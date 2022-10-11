@@ -50,7 +50,7 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     orientation_noise_std: float = 0.0
     """Noise to add to initial orientations. Useful for debugging."""
 
-    optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-3)
+    optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
     """ADAM parameters for camera optimization."""
 
     scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000)
