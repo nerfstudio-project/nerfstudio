@@ -122,8 +122,8 @@ export default function WebRtcWindow() {
         // send the offer
         console.log('[webrtc] sending offer');
         const offer = pcRef.current.localDescription;
-        const cmd = 'offer';
-        const path = '';
+        const cmd = 'write';
+        const path = 'webrtc/offer';
         const data = {
           type: cmd,
           path,

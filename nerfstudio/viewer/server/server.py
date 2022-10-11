@@ -64,7 +64,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         if type_ == "write":
             # writes the data coming from the websocket
             find_node(self.bridge.state_tree, path).data = m["data"]
-            if m["path"] != "renderingState/camera":
+            if m["path"] != "renderingState/camera" and m["path"] != "webrtc/offer":
                 # dispatch to the websockets if not a camera update!
                 # TODO(ethan): handle the camera properly!
                 # TODO: but don't update the current websocket
@@ -76,8 +76,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
             # reads and returns the data
             data = find_node(self.bridge.state_tree, path).data
             self.write_message(data, binary=True)
-        elif type_ == "offer":
-            find_node(self.bridge.state_tree, ["webrtc", "offer"]).data = m["data"]
         else:
             cmd_data = {
                 "type": "error",

@@ -151,17 +151,3 @@ class Viewer:
     def delete(self):
         """Delete data."""
         return self.write(data=None)
-
-    # def set_image(self, image):
-    #     """Sends an image to the viewer with WebRTC."""
-    #     type_ = "set_image"
-    #     path = self.path.lower()
-    #     data = msgpack.packb(image, default=msgpack_numpy.encode, use_bin_type=True)
-    #     self.window.client.send_multipart(
-    #         [
-    #             type_.encode("utf-8"),
-    #             path.encode("utf-8"),
-    #             data,
-    #         ]
-    #     )
-    #     return self.window.client.recv()
