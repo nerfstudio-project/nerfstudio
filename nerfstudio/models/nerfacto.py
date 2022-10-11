@@ -18,19 +18,15 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
-from cmath import isnan
 from dataclasses import dataclass, field
 from typing import Dict, List, Literal, Tuple, Type
 
-import nerfacc
 import numpy as np
 import torch
-from nerfacc import ContractionType
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -43,10 +39,7 @@ from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
 from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
-from nerfstudio.model_components.ray_samplers import (
-    ProposalNetworkSampler,
-    VolumetricSampler,
-)
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -76,6 +69,13 @@ class NerfactoModelConfig(ModelConfig):
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
     """Use the same proposal network. Otherwise use different ones."""
+    proposal_net_args_list: List[Dict] = field(
+        default_factory=lambda: [
+            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 64},
+            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 256},
+        ]
+    )
+    """Arguments for the proposal density fields."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.002
@@ -119,20 +119,17 @@ class NerfactoModel(Model):
         num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
-        proposal_net_args = [
-            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 64},
-            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 256},
-        ]
         if self.config.use_same_proposal_network:
-            network = HashMLPDensityField(
-                self.scene_box.aabb, spatial_distortion=scene_contraction, **proposal_net_args[0]
-            )
+            assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
+            prop_net_args = self.config.proposal_net_args_list[0]
+            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args)
             self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
             for i in range(num_prop_nets):
+                prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
                 network = HashMLPDensityField(
-                    self.scene_box.aabb, spatial_distortion=scene_contraction, **(proposal_net_args[i])
+                    self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args
                 )
                 self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
