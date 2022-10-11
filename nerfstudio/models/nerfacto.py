@@ -70,7 +70,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to randomize the background color."""
     num_proposal_samples_per_ray: Tuple[int] = (200, 64)
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 32
+    num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
     use_occupancy_grid: bool = False
     """Whether to use an occupancy grid as the first proposal network"""
