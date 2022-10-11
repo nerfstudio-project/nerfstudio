@@ -156,16 +156,19 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     Returns:
         The number of images copied.
     """
-    image_paths = sorted(data.glob("*"))
-    idx = 0
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+
+    # Remove original directory only if we provide a proper image folder path
+    if image_dir.is_dir() and len(image_paths):
+        shutil.rmtree(image_dir, ignore_errors=True)
+        image_dir.mkdir(exist_ok=True, parents=True)
+
     # Images should be 1-indexed for the rest of the pipeline.
-    for image_path in image_paths:
-        if image_path.name.startswith("."):
-            continue
-        idx += 1
+    for idx, image_path in enumerate(image_paths):
         if verbose:
-            CONSOLE.log(f"Copying image {idx} of {len(image_paths)}...")
-        shutil.copy(image_path, image_dir / f"frame_{idx:05d}{image_path.suffix}")
+            CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
+        shutil.copy(image_path, image_dir / f"frame_{idx + 1:05d}{image_path.suffix}")
 
     return len(image_paths)
 
@@ -420,51 +423,56 @@ def main(
                 num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
         else:
             num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
-        CONSOLE.log("[bold green]:tada: Done copying images.")
+
+        if num_frames == 0:
+            CONSOLE.log("[bold red]:tada: No usable images in the data folder.")
+        else:
+            CONSOLE.log("[bold green]:tada: Done copying images.")
         summary_log.append(f"Starting with {num_frames} images")
 
-    if num_downscales > 0:
-        if not verbose:
-            with CONSOLE.status("[bold yellow]Downscaling images...", spinner="growVertical"):
+    if num_frames > 0:
+        if num_downscales > 0:
+            if not verbose:
+                with CONSOLE.status("[bold yellow]Downscaling images...", spinner="growVertical"):
+                    downscale_images(image_dir, num_downscales, verbose=verbose)
+            else:
                 downscale_images(image_dir, num_downscales, verbose=verbose)
-        else:
-            downscale_images(image_dir, num_downscales, verbose=verbose)
-        CONSOLE.log("[bold green]:tada: Done downscaling images.")
-        downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
-        downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
-        summary_log.append(f"We downsampled the images by {downscale_text}")
+            CONSOLE.log("[bold green]:tada: Done downscaling images.")
+            downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
+            downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
+            summary_log.append(f"We downsampled the images by {downscale_text}")
 
-    camera_model = CAMERA_MODELS[camera_type]
-    colmap_dir = output_dir / "colmap"
-    if not skip_colmap:
-        colmap_dir.mkdir(parents=True, exist_ok=True)
+        camera_model = CAMERA_MODELS[camera_type]
+        colmap_dir = output_dir / "colmap"
+        if not skip_colmap:
+            colmap_dir.mkdir(parents=True, exist_ok=True)
 
-        run_colmap(
-            image_dir=image_dir,
-            colmap_dir=colmap_dir,
-            camera_model=camera_model,
-            gpu=gpu,
-            verbose=verbose,
-            matching_method=matching_method,
-        )
-
-    if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
-        with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
-            num_matched_frames = colmap_to_json(
-                cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                images_path=colmap_dir / "sparse" / "0" / "images.bin",
-                output_dir=output_dir,
+            run_colmap(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
                 camera_model=camera_model,
+                gpu=gpu,
+                verbose=verbose,
+                matching_method=matching_method,
             )
-            summary_log.append(f"Colmap matched {num_matched_frames} images")
-    else:
-        CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
-    CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+                num_matched_frames = colmap_to_json(
+                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
+                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    output_dir=output_dir,
+                    camera_model=camera_model,
+                )
+                summary_log.append(f"Colmap matched {num_matched_frames} images")
+        else:
+            CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
-    for summary in summary_log:
-        CONSOLE.print(summary, justify="center")
-    CONSOLE.rule()
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
 
 
 def entrypoint():
