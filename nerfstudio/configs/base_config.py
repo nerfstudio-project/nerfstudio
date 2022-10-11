@@ -131,26 +131,26 @@ class TrainerConfig(PrintableConfig):
     """Configuration for training regimen"""
 
     steps_per_save: int = 1000
-    """number of steps between saves"""
+    """Number of steps between saves."""
     steps_per_eval_batch: int = 500
-    """number of steps between randomly sampled batches of rays"""
+    """Number of steps between randomly sampled batches of rays."""
     steps_per_eval_image: int = 500
-    """number of steps between single eval images"""
+    """Number of steps between single eval images."""
     steps_per_eval_all_images: int = 25000
-    """number of steps between eval all images"""
+    """Number of steps between eval all images."""
     max_num_iterations: int = 1000000
-    """maximum number of iterations to run"""
+    """Maximum number of iterations to run."""
     mixed_precision: bool = False
-    """whether or not to use mixed precision for training"""
+    """Whether or not to use mixed precision for training."""
     relative_model_dir: Path = Path("nerfstudio_models/")
-    """relative path to save all checkpoints"""
-    num_ckpt_to_save: int = 1
-    """number of latest checkpoints that we want to save. Default 1 saves only the latest model"""
+    """Relative path to save all checkpoints."""
+    save_only_latest_checkpoint: bool = True
+    """Whether to only save the latest checkpoint or all checkpoints."""
     # optional parameters if we want to resume training
     load_dir: Optional[Path] = None
-    """optionally specify a pre-trained model directory to load from"""
+    """Optionally specify a pre-trained model directory to load from."""
     load_step: Optional[int] = None
-    """optionally specify model step to load from; if none, will find most recent model in load_dir"""
+    """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
     load_config: Optional[Path] = None
 
 
