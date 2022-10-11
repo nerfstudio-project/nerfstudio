@@ -20,8 +20,6 @@ import sys
 from threading import Thread
 from typing import Dict, Optional, Union
 
-import msgpack
-import msgpack_numpy
 import umsgpack
 import zmq
 

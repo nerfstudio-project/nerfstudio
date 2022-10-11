@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import enum
 import os
 import sys
@@ -270,6 +271,10 @@ class ViewerState:
         self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
 
+        # webrtc setup
+        print("calling webrtc setup")
+        asyncio.run(self.setup_webrtc())
+
         # draw the training cameras and images
         image_indices = range(len(dataset))
         for idx in image_indices:
@@ -441,6 +446,7 @@ class ViewerState:
         raise NotImplementedError
 
     async def setup_webrtc(self):
+        """Setup the webrtc connection."""
 
         data_sdp = self.vis["webrtc/offer/sdp"].read()
         data_type = self.vis["webrtc/offer/type"].read()
@@ -465,13 +471,10 @@ class ViewerState:
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
 
-        self.vis["webrtc/answer/sdp"].write(pc.localDescription.sdp)
-        self.vis["webrtc/answer/type"].write(pc.localDescription.type)
+        self.vis["webrtc/answer"].write({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
 
     def set_image(self, image):
         """Write the image over webrtc."""
-        print("writing the image!")
-        print(image)
         for video_track in self.video_tracks:
             video_track.put_frame(image)
 

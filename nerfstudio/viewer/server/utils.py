@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 import zmq
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection
 from aiortc.rtcrtpsender import RTCRtpSender
 
 

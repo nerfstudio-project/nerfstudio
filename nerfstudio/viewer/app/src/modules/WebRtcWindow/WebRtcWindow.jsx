@@ -141,7 +141,7 @@ export default function WebRtcWindow() {
     websocket.addEventListener('message', (originalCmd) => {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
-      if (cmd.type === 'answer') {
+      if (cmd.path === '/webrtc/answer') {
         console.log('[webrtc] received answer');
         const answer = cmd.data;
         console.log(answer);
