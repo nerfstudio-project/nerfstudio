@@ -5,7 +5,7 @@
 We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
 
 ```bash
-conda create --name nerfstudio -y python=3.8
+conda create --name nerfstudio -y python=3.10.6
 conda activate nerfstudio
 python -m pip install --upgrade pip
 
