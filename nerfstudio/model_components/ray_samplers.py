@@ -468,9 +468,7 @@ class VolumetricSampler(Sampler):
             cone_angle=cone_angle,
             alpha_thre=1e-2,
         )
-        import pdb
-
-        pdb.set_trace()
+        
         num_samples = starts.shape[0]
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
