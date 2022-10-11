@@ -468,7 +468,6 @@ class VolumetricSampler(Sampler):
             cone_angle=cone_angle,
             alpha_thre=1e-2,
         )
-        
         num_samples = starts.shape[0]
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
@@ -552,10 +551,6 @@ class ProposalNetworkSampler(Sampler):
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
-                # if i_level < n - 1:
-                #     with torch.no_grad():
-                #         density = density_fns[i_level](ray_samples.frustums.get_positions())
-                # else:
                 density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)

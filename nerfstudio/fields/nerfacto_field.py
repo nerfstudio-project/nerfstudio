@@ -232,7 +232,7 @@ class TCNNNerfactoField(Field):
         h = self.mlp_base(positions).view(positions.shape[0], -1)
         density_before_activation, _ = torch.split(h, [1, self.geo_feat_dim], dim=-1)
         density = trunc_exp(density_before_activation.to(positions))
-        
+
         aabb_min, aabb_max = self.aabb[0], self.aabb[1]
         if self.spatial_distortion is not None:
             x = (positions - aabb_min) / (aabb_max - aabb_min)
