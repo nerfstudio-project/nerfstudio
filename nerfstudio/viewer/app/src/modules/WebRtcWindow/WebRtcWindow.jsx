@@ -145,7 +145,9 @@ export default function WebRtcWindow() {
         console.log('[webrtc] received answer');
         const answer = cmd.data;
         console.log(answer);
-        pcRef.current.setRemoteDescription(answer);
+        if (answer !== null) {
+          pcRef.current.setRemoteDescription(answer);
+        }
       }
     });
 

@@ -271,10 +271,6 @@ class ViewerState:
         self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
 
-        # webrtc setup
-        print("calling webrtc setup")
-        asyncio.run(self.setup_webrtc())
-
         # draw the training cameras and images
         image_indices = range(len(dataset))
         for idx in image_indices:
@@ -310,6 +306,13 @@ class ViewerState:
             write_to_json(Path(camera_path_filename), camera_path)
             self.vis["camera_path_payload"].delete()
 
+    def _check_webrtc_offer(self):
+        """Check if there is a webrtc offer to respond to."""
+        data = self.vis["webrtc/offer"].read()
+        if data:
+            asyncio.run(self.send_webrtc_answer(data))
+            self.vis["webrtc/offer"].delete()
+
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
@@ -322,6 +325,7 @@ class ViewerState:
         self.step = step
 
         self._check_camera_path_payload(trainer, step)
+        self._check_webrtc_offer()
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -366,6 +370,7 @@ class ViewerState:
                     camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
                 self._check_camera_path_payload(trainer, step)
+                self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
 
@@ -445,10 +450,8 @@ class ViewerState:
 
         raise NotImplementedError
 
-    async def setup_webrtc(self):
+    async def send_webrtc_answer(self, data):
         """Setup the webrtc connection."""
-
-        data = self.vis["webrtc/offer"].read()
 
         # returns the description to for WebRTC to the specific websocket connection
         offer = RTCSessionDescription(data["sdp"], data["type"])
@@ -466,6 +469,7 @@ class ViewerState:
         await pc.setLocalDescription(answer)
 
         self.vis["webrtc/answer"].write({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
+        self.vis["webrtc/answer"].delete()
 
     def set_image(self, image):
         """Write the image over webrtc."""
