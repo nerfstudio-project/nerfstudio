@@ -62,7 +62,7 @@ It’s as simple as plug and play with nerfstudio!
 
 We are committed to providing learning resources to help you understand the basics of (if you're just getting started), and keep up-to-date with (if you're a seasoned veteran) all things NeRF. As researchers, we know just how hard it is to get onboarded with this next-gen technology. So we're here to help with tutorials, documentation, and more!
 
-Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/NHGtYRAW).
+Have feature requests? Want to add your brand-spankin'-new NeRF model? Have a new dataset? **We welcome any and all [contributions](https://docs.nerf.studio/en/latest/reference/contributing.html)!** Please do not hesitate to reach out to the nerfstudio team with any questions via [Discord](https://discord.gg/uMbNqcraFc).
 
 We hope nerfstudio enables you to build faster :hammer: learn together :books: and contribute to our NeRF community :sparkling_heart:.
 
@@ -200,7 +200,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |     |
 | [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
 | 💖 **Community**                                                                                   |
-| [Discord](https://discord.gg/NHGtYRAW)                                                             | Join our community to discuss more. We would love to hear from you!                                |
+| [Discord](https://discord.gg/uMbNqcraFc)                                                             | Join our community to discuss more. We would love to hear from you!                                |
 | [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                                         |
 | [TikTok](#)                                                                                        | Coming soon! Follow us on TikTok to see some of our fan favorite results                          |
 
@@ -208,7 +208,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 
 We provide the following support structures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
 
-**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerfstudio Team on [Discord](https://discord.gg/NHGtYRAW)!**
+**If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerfstudio Team on [Discord](https://discord.gg/uMbNqcraFc)!**
 
 - :mag_right: Web-based visualizer that allows you to:
   - Visualize training in real-time + interact with the scene
