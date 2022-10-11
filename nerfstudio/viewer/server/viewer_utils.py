@@ -445,8 +445,13 @@ class ViewerState:
         data_sdp = self.vis["webrtc/offer/sdp"].read()
         data_type = self.vis["webrtc/offer/type"].read()
 
+        print("data_sdp")
+        print(data_sdp)
+        print("data_type")
+        print(data_type)
+
         # returns the description to for WebRTC to the specific websocket connection
-        offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
+        offer = RTCSessionDescription(data_sdp, data_type)
 
         pc = RTCPeerConnection()
         self.pcs.add(pc)
@@ -460,12 +465,8 @@ class ViewerState:
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
 
-        cmd_data = {
-            "type": "answer",
-            "path": "",
-            "data": {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type},
-        }
-        self.vis["webrtc/answer"].write(cmd_data)
+        self.vis["webrtc/answer/sdp"].write(pc.localDescription.sdp)
+        self.vis["webrtc/answer/type"].write(pc.localDescription.type)
 
     def set_image(self, image):
         """Write the image over webrtc."""
