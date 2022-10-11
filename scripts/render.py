@@ -106,8 +106,6 @@ class RenderTrajectory:
     output_path: Path = Path("renders/output.mp4")
     # How long the video should be.
     seconds: float = 5.0
-    # A hack to double the number of samples for the nerfacto method.
-    double_nerfacto_nerf_samples: bool = True
     # Specifies number of rays per chunk during eval.
     eval_num_rays_per_chunk: Optional[int] = None
 
@@ -115,7 +113,6 @@ class RenderTrajectory:
         """Main function."""
         _, pipeline, _ = eval_setup(
             self.load_config,
-            double_nerfacto_nerf_samples=self.double_nerfacto_nerf_samples,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
         )
 

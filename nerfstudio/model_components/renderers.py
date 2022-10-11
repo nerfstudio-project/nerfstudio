@@ -236,7 +236,7 @@ class DepthRenderer(nn.Module):
             else:
                 depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
 
-            depth = torch.clip(depth, steps[..., 0, :], steps[..., -1, :])
+            depth = torch.clip(depth, steps.min(), steps.max())
 
             return depth
 
