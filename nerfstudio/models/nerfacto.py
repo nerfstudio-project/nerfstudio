@@ -65,6 +65,10 @@ class NerfactoModelConfig(ModelConfig):
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
+    proposal_sample_every: int = 10
+    """Sample every n steps after the warmup"""
+    proposal_warmup: int = 10000
+    """Scales n from 1 to proposal_sample_every over this many steps"""
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
@@ -135,11 +139,17 @@ class NerfactoModel(Model):
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
+        update_schedule = lambda step: np.clip(
+            np.interp(step, [0, self.config.proposal_warmup], [1, self.config.proposal_sample_every]),
+            1,
+            self.config.proposal_sample_every,
+        )
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
             num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
+            update_sched=update_schedule,
         )
 
         # Collider
@@ -184,6 +194,13 @@ class NerfactoModel(Model):
                     where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                     update_every_num_iters=1,
                     func=set_anneal,
+                )
+            )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.proposal_sampler.step_cb,
                 )
             )
         return callbacks
