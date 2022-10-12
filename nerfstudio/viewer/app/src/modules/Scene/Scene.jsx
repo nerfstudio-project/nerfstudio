@@ -243,9 +243,18 @@ export function get_scene_tree() {
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * ((e.clientY - 50) / size.y);
 
+    // hacky out of bounds fix
+    if (mouseVector.x > 1 || mouseVector.x < -1) {
+      // some value that won't hit
+      mouseVector.x = -100;
+    }
+    if (mouseVector.y > 1 || mouseVector.y < -1) {
+      mouseVector.y = -100;
+    }
+
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
     const intersections = raycaster.intersectObjects(cameras, true);
-    
+
     if (selectedCam !== null) {
       selectedCam.material.color = new THREE.Color(1, 1, 1);
       selectedCam = null;
@@ -261,12 +270,11 @@ export function get_scene_tree() {
       return;
     }
     if (selectedCam !== null) {
-      const clickedCam = sceneTree.find_object_no_create([CAMERAS_NAME, selectedCam.name]);
-      snap_to_camera(
-        sceneTree,
-        sceneTree.metadata.camera,
-        clickedCam.matrix,
-      );
+      const clickedCam = sceneTree.find_object_no_create([
+        CAMERAS_NAME,
+        selectedCam.name,
+      ]);
+      snap_to_camera(sceneTree, sceneTree.metadata.camera, clickedCam.matrix);
     }
   };
   window.addEventListener('mousedown', onMouseDown, false);
