@@ -118,8 +118,13 @@ class InstantNGP(DataParser):
         return dataparser_outputs
 
     @classmethod
-    def get_focal_lengths(cls, meta) -> Tuple[float, float]:
-        """Reads or computes the focal length from transforms dict."""
+    def get_focal_lengths(cls, meta: Dict) -> Tuple[float, float]:
+        """Reads or computes the focal length from transforms dict.
+        Args:
+            meta: metadata from transforms.json file.
+        Returns:
+            Focal lengths in the x and y directions. Error is raised if these cannot be calculated.
+        """
         fl_x, fl_y = 0, 0
 
         def fov_to_focal_length(rad, res):
@@ -138,5 +143,8 @@ class InstantNGP(DataParser):
             fl_y = fov_to_focal_length(np.deg2rad(meta["y_fov"]), meta["h"])
         elif "camera_angle_y" in meta:
             fl_y = fov_to_focal_length(meta["camera_angle_y"], meta["h"])
+
+        if fl_x == 0 or fl_y == 0:
+            raise AttributeError("Focal length cannot be calculated from transforms.json (missing fields).")
 
         return (fl_x, fl_y)
