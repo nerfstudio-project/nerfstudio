@@ -122,7 +122,7 @@ export function get_scene_tree() {
 
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
-      camera_controls.setTarget(0, 0, 0);
+      camera_controls.setLookAt(0.7, -0.7, 0.3, 0, 0, 0);
     }
   });
 

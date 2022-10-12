@@ -56,16 +56,10 @@ def grab_file_id(zip_url: str) -> str:
 
 
 nerfstudio_file_ids = {
-    "bunny": grab_file_id("https://drive.google.com/file/d/1oVytSgd1gQclF0CybJ6JdXDmaqKOx7Wg/view?usp=sharing"),
     "bww_entrance": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
-    "bww_tree": grab_file_id("https://drive.google.com/file/d/1N_OQejT0MblK1UP05KORxy25SXjKqZN1/view?usp=sharing"),
     "campanile": grab_file_id("https://drive.google.com/file/d/13aOfGJRRH05pOOk9ikYGTwqFc2L1xskU/view?usp=sharing"),
     "desolation": grab_file_id("https://drive.google.com/file/d/14IzOOQm9KBJ3kPbunQbUTHPnXnmZus-f/view?usp=sharing"),
     "dozer": grab_file_id("https://drive.google.com/file/d/1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR/view?usp=sharing"),
-    "japanese_maple": grab_file_id(
-        "https://drive.google.com/file/d/1ytCnaAEqm-fIziuQXbBp5yVbZ_cmkHlj/view?usp=sharing"
-    ),
-    "kushikatsu": grab_file_id("https://drive.google.com/file/d/1mTNbDW1EyX_fi_ffeP-6Q_0STxr3WfU6/view?usp=sharing"),
     "library": grab_file_id("https://drive.google.com/file/d/1Hjbh_-BuaWETQExn2x2qGD74UwrFugHx/view?usp=sharing"),
     "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
@@ -77,11 +71,11 @@ nerfstudio_file_ids = {
 DatasetName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
 
 
-def download_nerfstudio(save_dir: Path, capture_name: str):
-    """Download specific captures from the nerfstudio dataset."""
+def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, capture_name_to_file_id: dict):
+    """Download specific captures a given dataset and capture name."""
 
-    url = f"https://drive.google.com/uc?id={nerfstudio_file_ids[capture_name]}"
-    target_path = str(save_dir / f"nerfstudio/{capture_name}")
+    url = f"https://drive.google.com/uc?id={capture_name_to_file_id[capture_name]}"
+    target_path = str(save_dir / f"{dataset_name}/{capture_name}")
     os.makedirs(target_path, exist_ok=True)
     download_path = Path(f"{target_path}.zip")
     tmp_path = str(save_dir / ".temp")
@@ -99,8 +93,23 @@ def download_nerfstudio(save_dir: Path, capture_name: str):
     os.remove(download_path)
 
 
+def download_nerfstudio(save_dir: Path, capture_name: str):
+    """Download specific captures for the nerfstudio dataset."""
+    download_capture_name(save_dir, "nerfstudio", capture_name, capture_name_to_file_id=nerfstudio_file_ids)
+
+
+record3d_file_ids = {
+    "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing"),
+}
+
+
+def download_record3d(save_dir: Path, capture_name: str):
+    """Download specific captures for the record3d dataset."""
+    download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=record3d_file_ids)
+
+
 def main(
-    dataset: Literal["blender", "friends", "nerfstudio"],
+    dataset: Literal["blender", "friends", "nerfstudio", "record3d"],
     capture_name: Optional[DatasetName] = None,  # type: ignore
     save_dir: Path = Path("data/"),
 ):
@@ -137,6 +146,8 @@ def main(
             console.print(f"\t {capture_names}")
             sys.exit()
         download_nerfstudio(save_dir, capture_name)
+    if dataset == "record3d":
+        download_record3d(save_dir, "bear")
 
 
 def entrypoint():

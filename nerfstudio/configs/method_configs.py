@@ -22,13 +22,13 @@ from typing import Dict
 
 import tyro
 
+from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import (
     Config,
     SchedulerConfig,
     TrainerConfig,
     ViewerConfig,
 )
-from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
@@ -46,16 +46,13 @@ from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 method_configs: Dict[str, Config] = {}
 descriptions = {
-    "nerfacto": "[bold green]Recommended[/bold green] Real-time model tuned for real captures. "
-    + "This model will be continually updated.",
+    "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
-    "mipnerf": "High quality model for bounded scenes. [red]*slow*",
+    "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
-    "vanilla-nerf": "Original NeRF model. [red]*slow*",
+    "vanilla-nerf": "Original NeRF model. (slow)",
     "tensorf": "tensorf",
 }
-descriptions = {k: convert_markup_to_ansi(v) for k, v in descriptions.items()}
-
 
 method_configs["nerfacto"] = Config(
     method_name="nerfacto",
@@ -64,7 +61,10 @@ method_configs["nerfacto"] = Config(
     ),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=8192,
+            camera_optimizer=CameraOptimizerConfig(mode="SO3xR3"),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
     ),
@@ -171,20 +171,12 @@ method_configs["tensorf"] = Config(
     ),
     optimizers={
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00001),
+            "optimizer": AdamOptimizerConfig(lr=0.0001),
+            "scheduler": SchedulerConfig(lr_final=0.000001),
         },
-        "color_encoding": {
+        "encodings": {
             "optimizer": AdamOptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.000002),
-        },
-        "density_encoding": {
-            "optimizer": AdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.000002),
-        },
-        "basis_matrix": {
-            "optimizer": AdamOptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.00001),
         },
     },
 )
