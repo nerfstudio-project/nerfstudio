@@ -225,18 +225,15 @@ export function get_scene_tree() {
   const mouseVector = new THREE.Vector2();
   const raycaster = new THREE.Raycaster();
   const size = new THREE.Vector2();
+  var selectedCam = null;
 
   let drag = false;
   const onMouseDown = () => {
     drag = false;
   };
-  const onMouseMove = () => {
+
+  const onMouseMove = (e) => {
     drag = true;
-  };
-  const onMouseUp = (e) => {
-    if (drag === true) {
-      return;
-    }
 
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
@@ -248,15 +245,28 @@ export function get_scene_tree() {
 
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
     const intersections = raycaster.intersectObjects(cameras, true);
-    console.log(intersections);
+    
+    if (selectedCam !== null) {
+      selectedCam.material.color = new THREE.Color(1, 1, 1);
+      selectedCam = null;
+    }
     if (intersections.length > 0) {
       let selectedPlane = intersections[0];
-      selectedPlane = selectedPlane.object;
+      selectedCam = selectedPlane.object;
+      selectedCam.material.color = new THREE.Color(0xfab300);
+    }
+  };
+
+  const onMouseUp = (e) => {
+    if (drag === true) {
+      return;
+    }
+    if (selectedCam !== null) {
+      const clickedCam = sceneTree.find_object_no_create([CAMERAS_NAME, selectedCam.name]);
       snap_to_camera(
         sceneTree,
         sceneTree.metadata.camera,
-        sceneTree.find_object_no_create([CAMERAS_NAME, selectedPlane.name])
-          .matrix,
+        clickedCam.matrix,
       );
     }
   };
