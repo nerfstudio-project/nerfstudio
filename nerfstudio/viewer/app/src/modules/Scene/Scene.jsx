@@ -240,7 +240,7 @@ export function get_scene_tree() {
 
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
-    ).map((obj) => obj.object.children[0].children[2]);
+    ).map((obj) => obj.object.children[0].children[1]);
     console.log('cameras');
     console.log(cameras);
 
@@ -254,7 +254,7 @@ export function get_scene_tree() {
 
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
-    mouseVector.y = 1 - 2 * (e.clientY / size.y);
+    mouseVector.y = 1 - 2 * ((e.clientY - 50) / size.y);
 
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
     const intersections = raycaster.intersectObjects(cameras, true);
