@@ -107,6 +107,7 @@ generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
 ignore-paths = ["scripts/colmap2nerf.py"]
 jobs = 0
+ignored-classes = ["TensorDataclass"]
 
 disable = [
   "duplicate-code",

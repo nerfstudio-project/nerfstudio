@@ -51,6 +51,7 @@ class AdamOptimizerConfig(OptimizerConfig):
     """Basic optimizer config with Adam"""
 
     _target: Type = torch.optim.Adam
+    weight_decay: float = 0
 
 
 @dataclass
