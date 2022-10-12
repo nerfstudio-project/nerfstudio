@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Literal, Type
+from typing import Dict, Type
 
 import numpy as np
 import torch
@@ -77,7 +77,7 @@ class InstantNGP(DataParser):
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
         poses = np.array(poses).astype(np.float32)
-        poses[:3, 3] *= self.config.scene_scale
+        poses[:, :3, 3] *= self.config.scene_scale
 
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 
