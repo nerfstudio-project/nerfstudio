@@ -117,14 +117,6 @@ function transpose(matrix) {
   return matrix[0].map((col, i) => matrix.map((row) => row[i]));
 }
 
-function drawClickTarget(radius, name) {
-  const geometry = new THREE.SphereGeometry(radius, 4, 4);
-  const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-  const sphere = new THREE.Mesh(geometry, material);
-  sphere.name = name + '-target';
-  return sphere;
-}
-
 export function drawCamera(camera, name): THREE.Object3D {
   const group = new THREE.Group();
 
@@ -151,9 +143,6 @@ export function drawCamera(camera, name): THREE.Object3D {
     name,
   );
   group.add(cameraImagePlaneObject);
-
-  const clickTarget = drawClickTarget(width * 1.1, name);
-  group.add(clickTarget);
 
   // make homogeneous coordinates and then
   // transpose and flatten the matrix into an array

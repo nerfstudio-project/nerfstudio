@@ -241,16 +241,6 @@ export function get_scene_tree() {
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
     ).map((obj) => obj.object.children[0].children[1]);
-    console.log('cameras');
-    console.log(cameras);
-
-    // cameras.map((camera) => {
-    //   const material = new THREE.MeshPhongMaterial();
-    //   material.color.setHSL(0, 1, 0.5); // red
-    //   material.flatShading = true;
-    //   material.side = THREE.DoubleSide;
-    //   camera.material = material;
-    // });
 
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
