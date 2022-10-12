@@ -179,10 +179,17 @@ export default function LandingModel(props: LandingModalProps) {
                 </p>
               </TabPanel>
               <h3>Camera Keyboard Controls</h3>
+              <div>R - toggle between Orbit Controls and First Person Controls <br />
+                   Spacebar - reset camera to starting position <br />
+              </div>
               <p>
-                <div>WASD - horizontal camera translation, QE - vertical camera translation</div> 
-                <div>Arrow Keys - camera rotation</div>
-                <div>Spacebar - reset camera orbit point and view direction to origin</div>
+                <b>Orbit Controls</b> <br />
+                WASD - orbit around origin, QE - zoom in and out
+              </p>
+              <p>
+                <b>First Person Controls</b> <br />
+                WASD - horizontal camera translation, QE - vertical camera translation <br />
+                Arrow Keys - camera rotation
               </p>
             </div>
           </Typography>

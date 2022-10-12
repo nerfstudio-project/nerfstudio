@@ -74,8 +74,6 @@ export function get_scene_tree() {
   const moveSpeed = 0.035;
   const EPS = 1e-5;
 
-  // var firstPerson = true
-
   function firstPersonCamera() {
     if (keyMap.ArrowLeft === true) {
       camera_controls.rotate(0.02, 0, true);
@@ -84,10 +82,10 @@ export function get_scene_tree() {
       camera_controls.rotate(-0.02, 0, true);
     }
     if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, 0.01, true);
+      camera_controls.rotate(0, 0.02, true);
     }
     if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, -0.01, true);
+      camera_controls.rotate(0, -0.02, true);
     }
     if (keyMap.KeyD === true) {
       camera_controls.truck(moveSpeed, 0, true);
@@ -117,10 +115,10 @@ export function get_scene_tree() {
       camera_controls.rotate(0.02, 0, true);
     }
     if (keyMap.KeyW === true) {
-      camera_controls.rotate(0, -0.01, true);
+      camera_controls.rotate(0, -0.02, true);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.rotate(0, 0.01, true);
+      camera_controls.rotate(0, 0.02, true);
     }
     if (keyMap.KeyQ === true) {
       camera_controls.dolly(0.05, true);
