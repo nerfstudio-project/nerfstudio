@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Dict, Literal, Type
 
 import numpy as np
 import torch
@@ -94,9 +94,11 @@ class InstantNGP(DataParser):
             )
         )
 
+        focal_lengths = InstantNGP.get_focal_lengths(meta)
+
         cameras = Cameras(
-            fx=float(meta["fl_x"]),
-            fy=float(meta["fl_y"]),
+            fx=float(focal_lengths["fl_x"]),
+            fy=float(focal_lengths["fl_y"]),
             cx=float(meta["cx"]),
             cy=float(meta["cy"]),
             distortion_params=distortion_params,
@@ -114,3 +116,27 @@ class InstantNGP(DataParser):
         )
 
         return dataparser_outputs
+
+    @classmethod
+    def get_focal_lengths(cls, meta) -> Dict[str, float]:
+        """Reads or computes the focal length from transforms dict."""
+        fl_dict = {}
+
+        def fov_to_focal_length(rad, res):
+            return 0.5 * res / np.tanh(0.5 * rad)
+
+        if "fl_x" in meta:
+            fl_dict["fl_x"] = meta["fl_x"]
+        elif "x_fov" in meta:
+            fl_dict["fl_x"] = fov_to_focal_length(np.deg2rad(meta["x_fov"]), meta["w"])
+        elif "camera_angle_x" in meta:
+            fl_dict["fl_x"] = fov_to_focal_length(meta["camera_angle_x"], meta["w"])
+
+        if "fl_y" in meta:
+            fl_dict["fl_y"] = meta["fl_y"]
+        elif "y_fov" in meta:
+            fl_dict["fl_y"] = fov_to_focal_length(np.deg2rad(meta["y_fov"]), meta["h"])
+        elif "camera_angle_y" in meta:
+            fl_dict["fl_y"] = fov_to_focal_length(meta["camera_angle_y"], meta["h"])
+
+        return fl_dict
