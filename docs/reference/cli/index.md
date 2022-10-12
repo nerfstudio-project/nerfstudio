@@ -4,14 +4,16 @@ We provide a command line interface for training your own NeRFs (no coding neces
 
 ## Commands
 
-| Command          | Description                                      |
-| ---------------- | ------------------------------------------------ |
-| ns_process_data  | Generate a dataset from your own photos or video |
-| ns_download_data | Download existing captures                       |
-| ns_train         | Generate a NeRF                                  |
-| ns_render        | Render out a video of your NeRF                  |
-| ns_eval          | Run evaluation metrics for your Model            |
-| ns_install_cli   | Install tab completion for all scripts           |
+Here are the popular commands that we offer. If you've cloned the repo, you can also look at the [pyproject.toml file](https://github.com/nerfstudio-project/nerfstudio/blob/main/pyproject.toml) at the `[project.scripts]` section for details.
+
+| Command          | Description                                      | Filename                           |
+| ---------------- | ------------------------------------------------ | ---------------------------------- |
+| ns-install-cli   | Install tab completion for all scripts           | scripts/completions/install.py     |
+| ns-process-data  | Generate a dataset from your own photos or video | scripts/process_data.py            |
+| ns-download-data | Download existing captures                       | scripts/downloads/download_data.py |
+| ns-train         | Generate a NeRF                                  | scripts/train.py                   |
+| ns-eval          | Run evaluation metrics for your Model            | scripts/eval.py                    |
+| ns-render        | Render out a video of your NeRF                  | scripts/render.py                  |
 
 ```{toctree}
 :maxdepth: 1
