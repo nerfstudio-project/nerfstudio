@@ -61,7 +61,7 @@ class TensoRFModelConfig(VanillaModelConfig):
     """initial render resolution"""
     final_resolution: int = 300
     """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
+    upsampling_iters: Tuple[int, ...] = (200, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
@@ -125,7 +125,7 @@ class TensoRFModel(Model):
             if optimizers_config["encodings"]["scheduler"]:
                 training_callback_attributes.optimizers.schedulers["encodings"] = optimizers_config["encodings"][
                     "scheduler"
-                ].setup(optimizer=self.optimizers["encodings"], lr_init=lr_init)
+                ].setup(optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init)
 
             # optimizers_config = training_callback_attributes.optimizers.config
             # training_callback_attributes.optimizers = Optimizers(
