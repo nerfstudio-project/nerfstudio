@@ -103,7 +103,6 @@ class Trainer:
         # directory to save checkpoints
         self.checkpoint_dir = config.get_checkpoint_dir()
         logging.info("Saving checkpoints to: %s", self.checkpoint_dir)
-        self.prev_ckpt_paths = []
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         ret = None
@@ -283,26 +282,28 @@ class Trainer:
         Args:
             step: number of steps in training for given checkpoint
         """
+        # possibly make the checkpoint directory
         if not self.checkpoint_dir.exists():
             self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        # save the checkpoint
         ckpt_path = self.checkpoint_dir / f"step-{step:09d}.ckpt"
-        if hasattr(self.pipeline, "module"):
-            pipeline = self.pipeline.module.state_dict()  # type: ignore
-        else:
-            pipeline = self.pipeline.state_dict()
-        if len(self.prev_ckpt_paths) == self.config.trainer.num_ckpt_to_save:
-            self.prev_ckpt_paths[0].unlink(missing_ok=True)
-            self.prev_ckpt_paths.pop(0)
         torch.save(
             {
                 "step": step,
-                "pipeline": pipeline,
+                "pipeline": self.pipeline.module.state_dict()  # type: ignore
+                if hasattr(self.pipeline, "module")
+                else self.pipeline.state_dict(),
                 "optimizers": {k: v.state_dict() for (k, v) in self.optimizers.optimizers.items()},
                 "scalers": self.grad_scaler.state_dict(),
             },
             ckpt_path,
         )
-        self.prev_ckpt_paths.append(ckpt_path)
+        # possibly delete old checkpoints
+        if self.config.trainer.save_only_latest_checkpoint:
+            # delete everything else in the checkpoint folder
+            for f in self.checkpoint_dir.glob("*"):
+                if f != ckpt_path:
+                    f.unlink()
 
     @profiler.time_function
     def train_iteration(self, step: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
