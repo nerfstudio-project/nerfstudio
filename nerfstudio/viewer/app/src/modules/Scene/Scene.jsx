@@ -225,7 +225,7 @@ export function get_scene_tree() {
   const mouseVector = new THREE.Vector2();
   const raycaster = new THREE.Raycaster();
   const size = new THREE.Vector2();
-  var selectedCam = null;
+  let selectedCam = null;
 
   let drag = false;
   const onMouseDown = () => {
@@ -251,13 +251,12 @@ export function get_scene_tree() {
       selectedCam = null;
     }
     if (intersections.length > 0) {
-      let selectedPlane = intersections[0];
-      selectedCam = selectedPlane.object;
+      selectedCam = intersections[0].object;
       selectedCam.material.color = new THREE.Color(0xfab300);
     }
   };
 
-  const onMouseUp = (e) => {
+  const onMouseUp = () => {
     if (drag === true) {
       return;
     }
