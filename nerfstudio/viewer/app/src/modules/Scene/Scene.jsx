@@ -234,13 +234,15 @@ export function get_scene_tree() {
     drag = true;
   };
   const onMouseUp = (e) => {
-    if (drag === true) {
-      return;
-    }
+    // if (drag === true) {
+    //   return;
+    // }
 
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
-    ).map((obj) => obj.object.children[0].children[1]);
+    ).map((obj) => obj.object.children[0].children[2]);
+    console.log('cameras');
+    console.log(cameras);
 
     // cameras.map((camera) => {
     //   const material = new THREE.MeshPhongMaterial();
