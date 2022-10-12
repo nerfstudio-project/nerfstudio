@@ -65,6 +65,8 @@ class TensoRFModelConfig(VanillaModelConfig):
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0})
     """Loss specific weights."""
+    num_samples: int = 64
+    """Number of samples in field evaluation"""
 
 
 class TensoRFModel(Model):
@@ -155,8 +157,7 @@ class TensoRFModel(Model):
         )
 
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_importance_samples)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -200,6 +201,7 @@ class TensoRFModel(Model):
             weights=weights,
         )
         accumulation = self.renderer_accumulation(weights)
+        # accumulation = torch.clamp(accumulation, min=0)
         depth = self.renderer_depth(weights, ray_samples_uniform)
 
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}

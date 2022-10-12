@@ -79,10 +79,8 @@ class TensoRFField(Field):
             positions = self.spatial_distortion(positions)
         density = self.density_encoding(positions)
         density_enc = torch.sum(density, dim=-1)[:, :, None]
-        softplus = torch.nn.Softplus()
         relu = torch.nn.ReLU()
-        density_enc = softplus(density_enc - 10.0)
-        # density_enc = relu(density_enc)
+        density_enc = relu(density_enc)
         return density_enc, None
 
     def get_outputs(

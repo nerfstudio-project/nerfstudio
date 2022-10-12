@@ -445,10 +445,11 @@ class TensorVMEncoding(Encoding):
         Args:
             resolution: Target resolution.
         """
-        self.plane_coef = F.interpolate(
+        plane_coef = F.interpolate(
             self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
         )
-        self.line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
+        line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
+
         # TODO(ethan): are these torch.nn.Parameters needed?
         self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
         self.resolution = resolution
