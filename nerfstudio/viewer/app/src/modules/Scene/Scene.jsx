@@ -234,9 +234,9 @@ export function get_scene_tree() {
     drag = true;
   };
   const onMouseUp = (e) => {
-    // if (drag === true) {
-    //   return;
-    // }
+    if (drag === true) {
+      return;
+    }
 
     const cameras = Object.values(
       sceneTree.find_no_create([CAMERAS_NAME]).children,
