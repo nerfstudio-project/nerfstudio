@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.0.3.4"
+version = "0.1.3"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -18,7 +18,7 @@ dependencies = [
     "aiortc==1.3.2",
     "appdirs>=1.4",
     "av==9.2.0",
-    "dcargs>=0.3.17",
+    "tyro>=0.3.23",
     "gdown==4.5.1",
     "ninja==1.10.2.3",
     "functorch==0.2.1",
@@ -30,7 +30,7 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.1.3",
+    "nerfacc==0.2.0",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
@@ -70,7 +70,8 @@ docs = [
     "sphinxemoji==0.2.0",
     "sphinx-argparse==0.3.1",
     "sphinx-copybutton==0.5.0",
-    "sphinx-design==0.2.0"
+    "sphinx-design==0.2.0",
+    "sphinxext-opengraph==0.6.3"
 ]
 
 [project.scripts]
@@ -80,7 +81,8 @@ ns-process-data = "scripts.process_data:entrypoint"
 ns-download-data = "scripts.downloads.download_data:entrypoint"
 ns-train = "scripts.train:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
-ns-dev-test = "scripts.debugging.run_actions:entrypoint"
+ns-render = "scripts.render:entrypoint"
+ns-dev-test = "scripts.github.run_actions:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -105,6 +107,7 @@ generated-members = ["numpy.*", "torch.*", "cv2.*", "cv.*"]
 good-names-rgxs = "^[_a-zA-Z][_a-z0-9]?$"
 ignore-paths = ["scripts/colmap2nerf.py"]
 jobs = 0
+ignored-classes = ["TensorDataclass"]
 
 disable = [
   "duplicate-code",

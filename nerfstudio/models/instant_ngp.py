@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ class NGPModel(Model):
         )
 
         # renderers
-        background_color = None if self.config.randomize_background else colors.WHITE
+        background_color = "random" if self.config.randomize_background else colors.WHITE
         self.renderer_rgb = RGBRenderer(background_color=background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
@@ -139,6 +139,8 @@ class NGPModel(Model):
         self, training_callback_attributes: TrainingCallbackAttributes
     ) -> List[TrainingCallback]:
         def update_occupancy_grid(step: int):
+            # TODO: needs to get access to the sampler, on how the step size is determinated at each x. See
+            # https://github.com/KAIR-BAIR/nerfacc/blob/127223b11401125a9fce5ce269bb0546ee4de6e8/examples/train_ngp_nerf.py#L190-L213
             self.occupancy_grid.every_n_step(
                 step=step,
                 occ_eval_fn=lambda x: self.field.get_opacity(x, self.config.render_step_size),

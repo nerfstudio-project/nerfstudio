@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ from os.path import expanduser
 from pathlib import Path
 from typing import Optional
 
-import dcargs
+import tyro
 from sshconf import empty_ssh_config_file, read_ssh_config
 
 
@@ -118,7 +118,7 @@ def main(
     run_cmd(f"""scp -r {local_folder} {host}:/home/eweb0124/build""")
 
     # update the symlink of latest
-    if branch_name == "master":
+    if branch_name == "main":
 
         # move the build folder to the correct location
         run_cmd(f"""ssh {host} 'rm -rf {remote_folder}/{version}'""")
@@ -135,5 +135,5 @@ def main(
 
 
 if __name__ == "__main__":
-    dcargs.extras.set_accent_color("bright_yellow")
-    dcargs.cli(main)
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(main)

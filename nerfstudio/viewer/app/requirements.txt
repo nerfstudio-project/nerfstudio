@@ -1,2 +1,2 @@
-dcargs>=0.2.6
+tyro>=0.3.22
 sshconf==0.2.5

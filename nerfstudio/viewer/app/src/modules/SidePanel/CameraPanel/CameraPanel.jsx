@@ -230,12 +230,13 @@ export default function CameraPanel(props) {
   const [ui_seconds, setUISeconds] = React.useState(seconds);
   const [ui_fps, setUIfps] = React.useState(fps);
 
-  const total_num_steps = seconds * fps;
-  const step_size = (cameras.length - 1) / total_num_steps;
-
   // nonlinear render option
   const slider_min = 0;
   const slider_max = Math.max(0, cameras.length - 1);
+
+  // animation constants
+  const total_num_steps = seconds * fps;
+  const step_size = slider_max / total_num_steps;
 
   const reset_slider_render_on_add = (new_camera_list) => {
     // set slider and render camera back to 0
@@ -468,7 +469,7 @@ export default function CameraPanel(props) {
     // Copy the text inside the text field
     const config_filename = `${config_base_dir}/config.yml`;
     const camera_path_filename = `${config_base_dir}/camera_path.json`;
-    const cmd = `python scripts/eval.py render-trajectory --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path output.mp4`;
+    const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/output.mp4`;
     navigator.clipboard.writeText(cmd);
 
     const camera_path_payload = {
@@ -496,8 +497,36 @@ export default function CameraPanel(props) {
     });
   };
 
+  const setUp = () => {
+    const rot = camera_main.rotation;
+    const unitY = new THREE.Vector3(0, 1, 0);
+    const upVec = unitY.applyEuler(rot);
+
+    const grid = sceneTree.find_object_no_create(['Grid']);
+    grid.setRotationFromEuler(rot);
+
+    const pos = new THREE.Vector3();
+    camera_main.getWorldPosition(pos);
+    camera_main.up.set(upVec.x, upVec.y, upVec.z);
+    sceneTree.metadata.camera_controls.updateCameraUp();
+    sceneTree.metadata.camera_controls.setLookAt(pos.x, pos.y, pos.z, 0, 0, 0);
+    const points = [new THREE.Vector3(0, 0, 0), upVec.multiplyScalar(2)];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color: 0xaa46fc,
+      linewidth: 1,
+    });
+    const line = new THREE.LineSegments(geometry, material);
+    sceneTree.set_object_from_path(['Viewer Up Vector'], line);
+  };
+
   return (
     <div className="CameraPanel">
+      <div className="CameraPanel-top-button">
+        <Button size="small" variant="outlined" onClick={setUp}>
+          Reset Up Direction
+        </Button>
+      </div>
       <div>
         <div className="CameraPanel-top-button">
           <Button size="small" variant="outlined" onClick={add_camera}>
@@ -623,7 +652,9 @@ export default function CameraPanel(props) {
         <Button
           size="small"
           variant="outlined"
-          onClick={() => set_slider_value(slider_value - step_size)}
+          onClick={() =>
+            set_slider_value(Math.max(0.0, slider_value - step_size))
+          }
         >
           <ArrowBackIosNewIcon />
         </Button>
@@ -664,7 +695,9 @@ export default function CameraPanel(props) {
         <Button
           size="small"
           variant="outlined"
-          onClick={() => set_slider_value(slider_value + step_size)}
+          onClick={() =>
+            set_slider_value(Math.min(slider_max, slider_value + step_size))
+          }
         >
           <ArrowForwardIosIcon />
         </Button>

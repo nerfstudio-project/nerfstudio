@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ NeRF implementation that combines many recent advancements.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Literal, Tuple, Type
 
 import numpy as np
 import torch
@@ -47,7 +47,7 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors
+from nerfstudio.utils import colormaps
 
 
 @dataclass
@@ -59,22 +59,27 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    randomize_background: bool = True
+    background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: Tuple[int] = (64,)
+    num_proposal_samples_per_ray: Tuple[int] = (200, 64)
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 64
     """Number of samples per ray for the nerf network."""
-    num_proposal_network_iterations: int = 1
+    num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
     """Use the same proposal network. Otherwise use different ones."""
+    proposal_net_args_list: List[Dict] = field(
+        default_factory=lambda: [
+            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 64},
+            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 256},
+        ]
+    )
+    """Arguments for the proposal density fields."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
-    distortion_loss_mult: float = 0.01
+    distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
-    use_appearance_conditioning: bool = True
-    """Whether to use appearance conditioning."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     use_average_appearance_embedding: bool = True
@@ -83,8 +88,8 @@ class NerfactoModelConfig(ModelConfig):
     """Slope of the annealing function for the proposal weights."""
     proposal_weights_anneal_max_num_iters: int = 1000
     """Max num iterations for the annealing function."""
-    use_single_jitter: bool = False
-    """Whether use single jitter or not for first proposal network."""
+    use_single_jitter: bool = True
+    """Whether use single jitter or not for the proposal networks."""
 
 
 class NerfactoModel(Model):
@@ -103,42 +108,45 @@ class NerfactoModel(Model):
         scene_contraction = SceneContraction(order=float("inf"))
 
         # Fields
-        if self.config.use_appearance_conditioning:
-            self.field = TCNNNerfactoField(
-                self.scene_box.aabb,
-                spatial_distortion=scene_contraction,
-                num_images=self.num_train_data,
-                use_average_appearance_embedding=self.config.use_average_appearance_embedding,
-            )
-        else:
-            raise NotImplementedError("Only appearance conditioning is supported.")
+        self.field = TCNNNerfactoField(
+            self.scene_box.aabb,
+            spatial_distortion=scene_contraction,
+            num_images=self.num_train_data,
+            use_average_appearance_embedding=self.config.use_average_appearance_embedding,
+        )
 
+        self.density_fns = []
+        num_prop_nets = self.config.num_proposal_iterations
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
+            assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
+            prop_net_args = self.config.proposal_net_args_list[0]
+            network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args)
             self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
+            self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])
         else:
-            for _ in range(self.config.num_proposal_network_iterations):
-                network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
+            for i in range(num_prop_nets):
+                prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
+                network = HashMLPDensityField(
+                    self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args
+                )
                 self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for network in self.proposal_networks]
-
-        # Collider
-        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+            self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
-            num_proposal_network_iterations=self.config.num_proposal_network_iterations,
+            num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
         )
 
+        # Collider
+        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+
         # renderers
-        background_color = None if self.config.randomize_background else colors.WHITE
-        self.renderer_rgb = RGBRenderer(background_color=background_color)
+        self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
 
@@ -195,7 +203,7 @@ class NerfactoModel(Model):
         outputs["weights_list"] = weights_list
         outputs["ray_samples_list"] = ray_samples_list
 
-        for i in range(self.config.num_proposal_network_iterations):
+        for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         return outputs
@@ -248,7 +256,7 @@ class NerfactoModel(Model):
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
-        for i in range(self.config.num_proposal_network_iterations):
+        for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
             prop_depth_i = colormaps.apply_depth_colormap(
                 outputs[key],

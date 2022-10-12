@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -82,14 +82,10 @@ class AABBBoxCollider(SceneBoxCollider):
         ).values
 
         # clamp to near plane
-        nears = torch.clamp(nears, min=self.near_plane)
+        near_plane = self.near_plane if self.training else 0
+        nears = torch.clamp(nears, min=near_plane)
 
-        # fars < 0: means the ray is behind the camera
-        # nears > fars: means no intersection
-        valid_mask = ((fars > nears).float() * (fars > 0).float()).bool()
-        nears[~valid_mask] = 0.0
-        fars[~valid_mask] = 0.0
-        return nears, fars, valid_mask
+        return nears, fars
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
         """Intersects the rays with the scene box and updates the near and far values.
@@ -99,10 +95,9 @@ class AABBBoxCollider(SceneBoxCollider):
             ray_bundle: specified ray bundle to operate on
         """
         aabb = self.scene_box.aabb
-        nears, fars, valid_mask = self._intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
+        nears, fars = self._intersect_with_aabb(ray_bundle.origins, ray_bundle.directions, aabb)
         ray_bundle.nears = nears[..., None]
         ray_bundle.fars = fars[..., None]
-        ray_bundle.valid_mask = valid_mask[..., None]
         return ray_bundle
 
 
@@ -121,7 +116,7 @@ class NearFarCollider(SceneBoxCollider):
 
     def forward(self, ray_bundle: RayBundle) -> RayBundle:
         ones = torch.ones_like(ray_bundle.origins[..., 0:1])
-        ray_bundle.nears = ones * self.near_plane
+        near_plane = self.near_plane if self.training else 0
+        ray_bundle.nears = ones * near_plane
         ray_bundle.fars = ones * self.far_plane
-        ray_bundle.valid_mask = ones.bool()
         return ray_bundle

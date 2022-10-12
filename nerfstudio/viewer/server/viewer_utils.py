@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -215,19 +215,13 @@ class ViewerState:
             zmq_port = run_viewer_bridge_server_as_subprocess(
                 websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
-            # TODO(ethan): move this into the writer such that it's at the bottom
-            # of the logging stack and easy to see and click
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             console.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
-            viewer_url_local = f"http://localhost:4000/?websocket_port={websocket_port}"
-            pub_open_viewer_instructions_string = f"[Public] Open the viewer at {self.viewer_url}"
-            dev_open_viewer_instructions_string = f"[Local] Open the viewer at {viewer_url_local}"
             console.rule(characters="=")
-            console.print(pub_open_viewer_instructions_string)
-            console.print(dev_open_viewer_instructions_string)
+            console.print(f"[Public] Open the viewer at {self.viewer_url}")
             console.rule(characters="=")
             console.line()
             self.vis = Viewer(zmq_port=zmq_port)
@@ -289,6 +283,19 @@ class ViewerState:
         # K = camera.get_intrinsics_matrix()
         # set_persp_intrinsics_matrix(self.vis, K.double().numpy())
 
+    def _check_camera_path_payload(self, trainer, step: int):
+        """Check to see if the camera path export button was pressed."""
+        # check if we should interrupt from a button press?
+        camera_path_payload = self.vis["camera_path_payload"].read()
+        if camera_path_payload:
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
+            # write to json file
+            camera_path_filename = camera_path_payload["camera_path_filename"]
+            camera_path = camera_path_payload["camera_path"]
+            write_to_json(Path(camera_path_filename), camera_path)
+            self.vis["camera_path_payload"].delete()
+
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
@@ -300,16 +307,7 @@ class ViewerState:
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
 
-        # check if we should interrupt from a button press?
-        camera_path_payload = self.vis["camera_path_payload"].read()
-        if camera_path_payload:
-            # save a model checkpoint
-            trainer.save_checkpoint(step)
-            # write to json file
-            camera_path_filename = camera_path_payload["camera_path_filename"]
-            camera_path = camera_path_payload["camera_path"]
-            write_to_json(Path(camera_path_filename), camera_path)
-            self.vis["camera_path_payload"].delete()
+        self._check_camera_path_payload(trainer, step)
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -353,6 +351,7 @@ class ViewerState:
                     self._render_image_in_viewer(camera_object, graph, is_training)
                     camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
+                self._check_camera_path_payload(trainer, step)
                 run_loop = not is_training
                 local_step += 1
 
@@ -486,7 +485,10 @@ class ViewerState:
             # process remaining training ETA
             self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
             # process ratio time spent on vis vs train
-            if EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]:
+            if (
+                EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
+                and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
+            ):
                 vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
                 train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
@@ -520,8 +522,12 @@ class ViewerState:
 
         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+        elif not is_training:
+            train_rays_per_sec = (
+                80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
+            )
         else:
-            return None
+            return None, None
         if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
         else:
@@ -537,8 +543,11 @@ class ViewerState:
         image_height = (num_vis_rays / aspect_ratio) ** 0.5
         image_height = int(round(image_height, -1))
         image_height = min(self.max_resolution, image_height)
-
-        return image_height, int(image_height * aspect_ratio)
+        image_width = int(image_height * aspect_ratio)
+        if image_width > self.max_resolution:
+            image_width = self.max_resolution
+            image_height = int(image_width / aspect_ratio)
+        return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
         """Check to see whether we are in the corner case of RGB; if still invalid, throw error

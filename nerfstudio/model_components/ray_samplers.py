@@ -1,4 +1,4 @@
-# Copyright 2022 The Plenoptix Team. All rights reserved.
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,6 +59,7 @@ class SpacedSampler(Sampler):
         spacing_fn: Function that dictates sample spacing (ie `lambda x : x` is uniform).
         spacing_fn_inv: The inverse of spacing_fn.
         train_stratified: Use stratified sampling during training. Defults to True
+        single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
     def __init__(
@@ -131,6 +132,7 @@ class UniformSampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
+        single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
     def __init__(
@@ -154,6 +156,7 @@ class LinearDisparitySampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
+        single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
     def __init__(
@@ -225,6 +228,7 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Use stratified sampling during training. Defults to True
+        single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
     def __init__(
@@ -248,6 +252,7 @@ class PDFSampler(Sampler):
     Args:
         num_samples: Number of samples per ray
         train_stratified: Randomize location within each bin during training.
+        single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
         include_original: Add original samples to ray.
         histogram_padding: Amount to weights prior to computing PDF.
     """
@@ -256,6 +261,7 @@ class PDFSampler(Sampler):
         self,
         num_samples: Optional[int] = None,
         train_stratified: bool = True,
+        single_jitter: bool = False,
         include_original: bool = True,
         histogram_padding: float = 0.01,
     ) -> None:
@@ -263,6 +269,7 @@ class PDFSampler(Sampler):
         self.train_stratified = train_stratified
         self.include_original = include_original
         self.histogram_padding = histogram_padding
+        self.single_jitter = single_jitter
 
     def generate_ray_samples(
         self,
@@ -308,7 +315,11 @@ class PDFSampler(Sampler):
             # Stratified samples between 0 and 1
             u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
             u = u.expand(size=(*cdf.shape[:-1], num_bins))
-            u = u + torch.rand(size=(*cdf.shape[:-1], num_bins), device=cdf.device) / num_bins
+            if self.single_jitter:
+                rand = torch.rand((*cdf.shape[:-1], 1), device=cdf.device) / num_bins
+            else:
+                rand = torch.rand((*cdf.shape[:-1], num_samples + 1), device=cdf.device) / num_bins
+            u = u + rand
         else:
             # Uniform samples between 0 and 1
             u = torch.linspace(0.0, 1.0 - (1.0 / num_bins), steps=num_bins, device=cdf.device)
@@ -455,8 +466,8 @@ class VolumetricSampler(Sampler):
             far_plane=far_plane,
             stratified=self.training,
             cone_angle=cone_angle,
+            alpha_thre=1e-2,
         )
-
         num_samples = starts.shape[0]
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
@@ -465,7 +476,7 @@ class VolumetricSampler(Sampler):
             starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
             ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
 
-        ray_indices = nerfacc.unpack_to_ray_indices(packed_info).long()
+        ray_indices = nerfacc.unpack_info(packed_info)
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]
         if camera_indices is not None:
@@ -493,7 +504,7 @@ class ProposalNetworkSampler(Sampler):
         num_proposal_samples_per_ray: Tuple[int] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
-        single_jitter: bool = True,
+        single_jitter: bool = False,
     ) -> None:
         super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
@@ -505,7 +516,7 @@ class ProposalNetworkSampler(Sampler):
 
         # samplers
         self.initial_sampler = UniformLinDispPiecewiseSampler(single_jitter=single_jitter)
-        self.pdf_sampler = PDFSampler(include_original=False)
+        self.pdf_sampler = PDFSampler(include_original=False, single_jitter=single_jitter)
 
         self._anneal = 1.0
 
