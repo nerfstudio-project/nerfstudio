@@ -38,7 +38,6 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.field_components.encodings import NeRFEncoding, TensorVMEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.fields.base_field import Field
 from nerfstudio.fields.tensorf_field import TensoRFField
 from nerfstudio.model_components.losses import L1Loss, MSELoss
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
@@ -179,20 +178,25 @@ class TensoRFModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        param_groups["fields"] = list(self.field.mlp_head.parameters())
-        param_groups["color_encoding"] = list(self.field.color_encoding.parameters())
-        param_groups["density_encoding"] = list(self.field.density_encoding.parameters())
-        param_groups["basis_matrix"] = list(self.field.B.parameters())
+
+        param_groups["fields"] = (
+            list(self.field.mlp_head.parameters())
+            + list(self.field.B.parameters())
+            + list(self.field.field_output_rgb.parameters())
+        )
+        param_groups["encodings"] = list(self.field.color_encoding.parameters()) + list(
+            self.field.density_encoding.parameters()
+        )
+
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
-        field_outputs_coarse = self.field.forward(ray_samples_uniform)
-        d = field_outputs_coarse[FieldHeadNames.DENSITY]
-        weights = ray_samples_uniform.get_weights(d)
+        field_outputs = self.field.forward(ray_samples_uniform)
+        weights = ray_samples_uniform.get_weights(field_outputs[FieldHeadNames.DENSITY])
         rgb = self.renderer_rgb(
-            rgb=field_outputs_coarse[FieldHeadNames.RGB],
+            rgb=field_outputs[FieldHeadNames.RGB],
             weights=weights,
         )
         accumulation = self.renderer_accumulation(weights)

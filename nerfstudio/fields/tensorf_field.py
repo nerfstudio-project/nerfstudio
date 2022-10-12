@@ -75,7 +75,6 @@ class TensoRFField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
-
         if self.spatial_distortion is not None:
             positions = self.spatial_distortion(positions)
         density = self.density_encoding(positions)
