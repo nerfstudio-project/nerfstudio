@@ -164,7 +164,7 @@ method_configs["vanilla-nerf"] = Config(
 
 method_configs["tensorf"] = Config(
     method_name="tensorf",
-    trainer=TrainerConfig(mixed_precision=True),
+    trainer=TrainerConfig(mixed_precision=False),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),

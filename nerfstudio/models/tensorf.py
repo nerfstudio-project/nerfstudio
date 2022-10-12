@@ -63,7 +63,7 @@ class TensoRFModelConfig(VanillaModelConfig):
     """final render resolution"""
     upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss_coarse": 1.0})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
     num_samples: int = 64
     """Number of samples in field evaluation"""
@@ -114,11 +114,23 @@ class TensoRFModel(Model):
             self.field.density_encoding.upsample_grid(resolution)
             self.field.color_encoding.upsample_grid(resolution)
 
-            # reinitialize the optimizer
+            # reinitialize the encodings optimizer
             optimizers_config = training_callback_attributes.optimizers.config
-            training_callback_attributes.optimizers = Optimizers(
-                optimizers_config, training_callback_attributes.pipeline.get_param_groups()
-            )
+            enc = training_callback_attributes.pipeline.get_param_groups()["encodings"]
+            lr_init = optimizers_config["encodings"]["optimizer"].lr
+
+            training_callback_attributes.optimizers.optimizers["encodings"] = optimizers_config["encodings"][
+                "optimizer"
+            ].setup(params=enc)
+            if optimizers_config["encodings"]["scheduler"]:
+                training_callback_attributes.optimizers.schedulers["encodings"] = optimizers_config["encodings"][
+                    "scheduler"
+                ].setup(optimizer=self.optimizers["encodings"], lr_init=lr_init)
+
+            # optimizers_config = training_callback_attributes.optimizers.config
+            # training_callback_attributes.optimizers = Optimizers(
+            #     optimizers_config, training_callback_attributes.pipeline.get_param_groups()
+            # )
 
         callbacks = [
             TrainingCallback(
@@ -166,7 +178,7 @@ class TensoRFModel(Model):
 
         # losses
         self.rgb_loss = MSELoss()
-        self.feature_loss = L1Loss()
+        # self.feature_loss = L1Loss()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -201,7 +213,7 @@ class TensoRFModel(Model):
             weights=weights,
         )
         accumulation = self.renderer_accumulation(weights)
-        # accumulation = torch.clamp(accumulation, min=0)
+        accumulation = torch.clamp(accumulation, min=0)
         depth = self.renderer_depth(weights, ray_samples_uniform)
 
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
@@ -217,8 +229,8 @@ class TensoRFModel(Model):
         plane_coef = self.field.color_encoding.plane_coef
         line_coef = self.field.color_encoding.line_coef
 
-        plane_feature_loss = self.feature_loss(plane_coef, torch.zeros_like(plane_coef))
-        line_feature_loss = self.feature_loss(line_coef, torch.zeros_like(line_coef))
+        # plane_feature_loss = self.feature_loss(plane_coef, torch.zeros_like(plane_coef))
+        # line_feature_loss = self.feature_loss(line_coef, torch.zeros_like(line_coef))
 
         # loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
         loss_dict = {"rgb_loss": rgb_loss}
