@@ -174,11 +174,11 @@ method_configs["tensorf"] = Config(
     optimizers={
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=0.001),
-            "scheduler": SchedulerConfig(lr_final=0.0000001),
+            "scheduler": SchedulerConfig(lr_final=0.0000001, max_steps=30000),
         },
         "encodings": {
             "optimizer": AdamOptimizerConfig(lr=0.02),
-            "scheduler": SchedulerConfig(lr_final=0.000002),
+            "scheduler": SchedulerConfig(lr_final=0.000002, max_steps=30000),
         },
     },
 )

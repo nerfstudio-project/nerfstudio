@@ -61,7 +61,7 @@ class TensoRFModelConfig(VanillaModelConfig):
     """initial render resolution"""
     final_resolution: int = 300
     """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = (200, 3000, 4000, 5500, 7000)
+    upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
