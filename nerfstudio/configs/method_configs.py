@@ -61,7 +61,7 @@ method_configs["nerfacto"] = Config(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-3)
             ),
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 14),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
         "proposal_networks": {
@@ -73,7 +73,7 @@ method_configs["nerfacto"] = Config(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 14),
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
     vis="viewer",
 )
 
