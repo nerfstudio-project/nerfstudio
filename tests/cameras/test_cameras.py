@@ -148,13 +148,21 @@ def test_camera_as_tensordataclass():
 
     c0.generate_rays(0)
     c1.generate_rays(0)
-    c1.generate_rays(torch.tensor([0, 1]))
+    c1.generate_rays(torch.tensor([0, 1]).unsqueeze(-1))
 
     # Make sure rays generated are same when distortion params are identity (all zeros) and None
     assert c2.shape == c2_dist.shape
+
     c2_rays = c2.generate_rays(torch.tensor([0, 0]))
     c_dist_rays = c2_dist.generate_rays(torch.tensor([0, 0]))
     assert _check_dataclass_allclose(c2_rays, c_dist_rays)
+    assert c2_rays.shape == (800, 800)
+    assert c_dist_rays.shape == (800, 800)
+
+    camera_indices = torch.tensor([[0, 0]])
+    print("test1")
+    print(c2.generate_rays(camera_indices).shape)
+    assert c2.generate_rays(camera_indices).shape == (800, 800, 1)
 
     # assert tensor_dataclass.size == 24
     # assert tensor_dataclass.ndim == 2
@@ -228,6 +236,9 @@ def test_camera_as_tensordataclass():
     ):
         c = Cameras(*args)
         assert len(c.shape) <= 2
+        camera_indices = torch.tensor([0 for _ in range(len(c.shape))])
+        print(camera_indices.shape, c.shape)
+        c.generate_rays(camera_indices=camera_indices)
 
 
 def _check_dataclass_allclose(input, other):
