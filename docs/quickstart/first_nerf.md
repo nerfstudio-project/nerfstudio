@@ -55,6 +55,12 @@ Run a nerfacto model with different data and port.
 ns-train nerfacto --vis viewer --data data/nerfstudio/poster --viewer.websocket-port 7007
 ```
 
+Run a nerfacto model and load the latest checkpoint to resume training.
+
+```
+ns-train nerfacto --vis viewer --data data/nerfstudio/poster --trainer.load_dir outputs/data-nerfstudio-poster/nerfacto/{timestamp}/nerfstudio_models
+```
+
 :::{admonition} Warning
 :class: warning
 
