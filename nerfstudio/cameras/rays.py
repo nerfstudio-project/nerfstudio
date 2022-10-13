@@ -135,7 +135,7 @@ class RayBundle(TensorDataclass):
     """Unit ray direction vector"""
     pixel_area: TensorType[..., 1]
     """Projected area of pixel a distance 1 away from origin"""
-    camera_indices: Optional[TensorType[..., 1]] = None
+    camera_indices: Optional[TensorType[..., "num_camera_batches"]] = None
     """Camera indices"""
     nears: Optional[TensorType[..., 1]] = None
     """Distance along ray to start sampling"""
