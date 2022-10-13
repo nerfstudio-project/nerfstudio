@@ -13,6 +13,7 @@ import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
+import { snap_to_camera } from '../SidePanel/SidePanel';
 
 const msgpack = require('msgpack-lite');
 
@@ -203,7 +204,7 @@ export function get_scene_tree() {
         if (!prev.has(key)) {
           // keys_valid.push(key);
           const json = current[key];
-          const camera = drawCamera(json);
+          const camera = drawCamera(json, key);
           sceneTree.set_object_from_path([CAMERAS_NAME, key], camera);
         }
       }
@@ -220,6 +221,65 @@ export function get_scene_tree() {
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
 
+  // Check for clicks on training cameras
+  const mouseVector = new THREE.Vector2();
+  const raycaster = new THREE.Raycaster();
+  const size = new THREE.Vector2();
+  let selectedCam = null;
+
+  let drag = false;
+  const onMouseDown = () => {
+    drag = false;
+  };
+
+  const onMouseMove = (e) => {
+    drag = true;
+
+    const cameras = Object.values(
+      sceneTree.find_no_create([CAMERAS_NAME]).children,
+    ).map((obj) => obj.object.children[0].children[1]);
+
+    sceneTree.metadata.renderer.getSize(size);
+    mouseVector.x = 2 * (e.clientX / size.x) - 1;
+    mouseVector.y = 1 - 2 * ((e.clientY - 50) / size.y);
+
+    // hacky out of bounds fix
+    if (mouseVector.x > 1 || mouseVector.x < -1) {
+      // some value that won't hit
+      mouseVector.x = -100;
+    }
+    if (mouseVector.y > 1 || mouseVector.y < -1) {
+      mouseVector.y = -100;
+    }
+
+    raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+    const intersections = raycaster.intersectObjects(cameras, true);
+
+    if (selectedCam !== null) {
+      selectedCam.material.color = new THREE.Color(1, 1, 1);
+      selectedCam = null;
+    }
+    if (intersections.length > 0) {
+      selectedCam = intersections[0].object;
+      selectedCam.material.color = new THREE.Color(0xfab300);
+    }
+  };
+
+  const onMouseUp = () => {
+    if (drag === true) {
+      return;
+    }
+    if (selectedCam !== null) {
+      const clickedCam = sceneTree.find_object_no_create([
+        CAMERAS_NAME,
+        selectedCam.name,
+      ]);
+      snap_to_camera(sceneTree, sceneTree.metadata.camera, clickedCam.matrix);
+    }
+  };
+  window.addEventListener('mousedown', onMouseDown, false);
+  window.addEventListener('mousemove', onMouseMove, false);
+  window.addEventListener('mouseup', onMouseUp, false);
   return sceneTree;
 }
 
