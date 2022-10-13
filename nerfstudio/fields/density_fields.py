@@ -108,8 +108,8 @@ class HashMLPDensityField(Field):
                 self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1).to(positions)
             )
         else:
-            x = self.encoding(positions_flat)
-            density_before_activation = self.linear(x).view(*ray_samples.frustums.shape, -1).to(positions)
+            x = self.encoding(positions_flat).to(positions)
+            density_before_activation = self.linear(x).view(*ray_samples.frustums.shape, -1)
 
         # Rectifying the density with an exponential is much more stable than a ReLU or
         # softplus, because it enables high post-activation (float32) density outputs
