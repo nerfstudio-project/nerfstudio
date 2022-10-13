@@ -105,10 +105,9 @@ class Trainer:
         logging.info("Saving checkpoints to: %s", self.checkpoint_dir)
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
-        ret = None
+        self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled():
-            ret = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
-        (self.viewer_state, banner_messages) = ret if ret else (None, None)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
@@ -145,7 +144,7 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self._init_viewer_scene()
+        self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self._start_step, self._start_step + num_iterations):
@@ -207,7 +206,7 @@ class Trainer:
             CONSOLE.print(f"[bold red]{string}")
 
     @check_viewer_enabled
-    def _init_viewer_scene(self) -> None:
+    def _init_viewer_state(self) -> None:
         """Initializes viewer scene with given train dataset"""
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(

@@ -255,6 +255,9 @@ class ViewerState:
         # webrtc
         self.pcs = set()
         self.video_tracks = set()
+        self.t = None
+        self.is_webrtc_ready = True
+        self.kill_webrtc_signal = False
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
@@ -310,8 +313,20 @@ class ViewerState:
         """Check if there is a webrtc offer to respond to."""
         data = self.vis["webrtc/offer"].read()
         if data:
-            # TODO(ethan): I think this is what breaks webrtc from working
-            asyncio.run(self.send_webrtc_answer(data))
+            if self.t and self.t.is_alive():
+                # kill the previous thread if the webpage refreshes
+                self.kill_webrtc_signal = True
+                return
+
+            def loop_in_thread(loop):
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.send_webrtc_answer(data))
+
+            loop = asyncio.get_event_loop()
+            self.t = threading.Thread(target=loop_in_thread, args=(loop,))
+            self.t.daemon = True
+            self.t.start()
+            # remove the offer from the state tree
             self.vis["webrtc/offer"].delete()
 
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
@@ -471,6 +486,13 @@ class ViewerState:
 
         self.vis["webrtc/answer"].write({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
         self.vis["webrtc/answer"].delete()
+
+        # continually exchange media
+        while True:
+            await asyncio.sleep(1)
+            if self.kill_webrtc_signal:
+                self.kill_webrtc_signal = False
+                return
 
     def set_image(self, image):
         """Write the image over webrtc."""
