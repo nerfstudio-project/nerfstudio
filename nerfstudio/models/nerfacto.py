@@ -61,14 +61,14 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: Tuple[int] = (200, 64)
+    num_proposal_samples_per_ray: Tuple[int] = (256, 96)
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 64
+    num_nerf_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""
-    proposal_sample_every: int = 10
+    proposal_update_every: int = 20
     """Sample every n steps after the warmup"""
-    proposal_warmup: int = 10000
-    """Scales n from 1 to proposal_sample_every over this many steps"""
+    proposal_warmup: int = 20000
+    """Scales n from 1 to proposal_update_every over this many steps"""
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
@@ -133,16 +133,18 @@ class NerfactoModel(Model):
             for i in range(num_prop_nets):
                 prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
                 network = HashMLPDensityField(
-                    self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args
+                    self.scene_box.aabb,
+                    spatial_distortion=scene_contraction,
+                    **prop_net_args,
                 )
                 self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
         update_schedule = lambda step: np.clip(
-            np.interp(step, [0, self.config.proposal_warmup], [1, self.config.proposal_sample_every]),
+            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
             1,
-            self.config.proposal_sample_every,
+            self.config.proposal_update_every,
         )
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,

@@ -545,6 +545,7 @@ class ProposalNetworkSampler(Sampler):
         n = self.num_proposal_network_iterations
         weights = None
         ray_samples = None
+        updated = self._steps_since_update > self.update_sched(self._step) or self._step < 10
         for i_level in range(n + 1):
             is_prop = i_level < n
             num_samples = self.num_proposal_samples_per_ray[i_level] if is_prop else self.num_nerf_samples_per_ray
@@ -558,16 +559,17 @@ class ProposalNetworkSampler(Sampler):
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
-                if self._steps_since_update > self.update_sched(self._step) or self._step < 10:
+                if updated:
                     # always update on the first step or the inf check in grad scaling crashes
                     density = density_fns[i_level](ray_samples.frustums.get_positions())
-                    self._steps_since_update = 0
                 else:
                     with torch.no_grad():
                         density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)
+        if updated:
+            self._steps_since_update = 0
 
         assert ray_samples is not None
         return ray_samples, weights_list, ray_samples_list
