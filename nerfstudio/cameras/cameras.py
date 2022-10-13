@@ -655,7 +655,7 @@ class Cameras(TensorDataclass):
             json_["image"] = str("data:image/jpeg;base64," + base64.b64encode(data).decode("ascii"))
         return json_
 
-    def get_intrinsics_matrices(self) -> TensorType["num_cameras", 3, 3]:
+    def get_intrinsics_matrices(self) -> TensorType["num_cameras":..., 3, 3]:
         """Returns the intrinsic matrices for each camera.
 
         Returns:
