@@ -6,6 +6,8 @@ on:
       - main
     types: [closed]
 
+permissions: write-all
+
 jobs:
   prettier:
     if: ${{ github.event.pull_request.merged }}
