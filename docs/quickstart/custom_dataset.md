@@ -127,8 +127,9 @@ At a high level, you can follow these 3 steps:
 2. Then, move the exported capture folder from your iPhone to your computer.
 
 3. Train with nerfstudio!
+
   ```
-  ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
+  ns-train nerfacto --data {RECORD3D_CAPTURE_DIR/EXR_RGBD} record3d-data
   ```
 
 
