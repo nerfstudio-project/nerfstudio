@@ -200,8 +200,11 @@ class NerfactoModel(Model):
         accumulation = self.renderer_accumulation(weights=weights)
 
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
-        outputs["weights_list"] = weights_list
-        outputs["ray_samples_list"] = ray_samples_list
+
+        # These use a lot of GPU memory, so we avoid storing them for eval.
+        if self.training:
+            outputs["weights_list"] = weights_list
+            outputs["ray_samples_list"] = ray_samples_list
 
         for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
@@ -212,16 +215,18 @@ class NerfactoModel(Model):
         metrics_dict = {}
         image = batch["image"].to(self.device)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
-        metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
+        if self.training:
+            metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
-        loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
-            outputs["weights_list"], outputs["ray_samples_list"]
-        )
+        if self.training:
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
         assert metrics_dict is not None and "distortion" in metrics_dict
         loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
         return loss_dict
