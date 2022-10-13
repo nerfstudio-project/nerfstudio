@@ -25,7 +25,7 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-ns-train nerfacto nerfstudio-data --data {PROCESSED_DATA_DIR}
+ns-train nerfacto --data {PROCESSED_DATA_DIR} nerfstudio-data
 ```
 
 ### Installing COLMAP
@@ -131,7 +131,6 @@ At a high level, you can follow these 3 steps:
   ```
   ns-train nerfacto --data {RECORD3D_CAPTURE_DIR/EXR_RGBD} record3d-data
   ```
-
 
 We provide some example recordings for you to try out and to see the correct formatting.
 
