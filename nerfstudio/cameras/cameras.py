@@ -639,9 +639,9 @@ class Cameras(TensorDataclass):
             "type": "PinholeCamera",
             "cx": flattened[camera_idx].cx.item(),
             "cy": flattened[camera_idx].cy.item(),
-            "fx": flattened[camera_idx].fx.tolist(),
-            "fy": flattened[camera_idx].fy.tolist(),
-            "camera_to_world": self.camera_to_worlds.ravel()[camera_idx].tolist(),
+            "fx": flattened[camera_idx].fx.item(),
+            "fy": flattened[camera_idx].fy.item(),
+            "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
             "camera_index": camera_idx,
         }
         if image is not None:
