@@ -62,11 +62,9 @@ class HashMLPDensityField(Field):
         features_per_level=2,
     ) -> None:
         super().__init__()
-
         self.aabb = Parameter(aabb, requires_grad=False)
         self.spatial_distortion = spatial_distortion
         self.use_linear = use_linear
-
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
         config = {
@@ -105,12 +103,6 @@ class HashMLPDensityField(Field):
         else:
             positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         positions_flat = positions.view(-1, 3)
-        # assert all positions are in the range [0, 1]
-        # otherwise print min and max values
-        # assert torch.all(positions >= 0.0) and torch.all(
-        #     positions <= 1.0
-        # ), f"positions: {positions.min()} {positions.max()}"
-
         if not self.use_linear:
             density_before_activation = (
                 self.mlp_base(positions_flat).view(*ray_samples.frustums.shape, -1).to(positions)

@@ -1,6 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 
 import * as React from 'react';
+import * as THREE from 'three';
 
 import { FaTractor } from 'react-icons/fa';
 
@@ -20,6 +21,7 @@ import {
   ExpandLess,
   ExpandMore,
   TuneRounded,
+  Videocam,
   Visibility,
   VisibilityOff,
   WidgetsRounded,
@@ -30,7 +32,22 @@ import LevaTheme from '../ConfigPanel/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
 import { LogPanel } from '../LogPanel/LogPanel';
-// import { object } from 'prop-types';
+
+export const snap_to_camera = (sceneTree, camera, matrix) => {
+  const mat = new THREE.Matrix4();
+  mat.fromArray(matrix.elements);
+  mat.decompose(camera.position, camera.quaternion, camera.scale);
+  const unit = new THREE.Vector3(0, 0, -1);
+  const viewDirection = unit.applyMatrix4(mat);
+  sceneTree.metadata.camera_controls.setLookAt(
+    camera.position.x,
+    camera.position.y,
+    camera.position.z,
+    viewDirection.x,
+    viewDirection.y,
+    viewDirection.z,
+  );
+};
 
 interface TabPanelProps {
   children: React.ReactNode;
@@ -66,19 +83,27 @@ function a11yProps(index: number) {
 
 interface ListItemProps {
   name: String;
+  sceneTree: SceneNode;
   scene_node: SceneNode;
   level: Number;
   groupVisible: Boolean;
+  canSnap: Boolean;
 }
 
 function MenuItems(props: ListItemProps) {
   const name = props.name;
+  const sceneTree = props.sceneTree;
   const scene_node = props.scene_node;
   const level = props.level;
   const groupVisible = props.groupVisible;
+  const canSnap = props.canSnap;
 
   // TODO: sort the keys by string
   const terminal = Object.keys(scene_node.children).includes('<object>');
+
+  const getCamera = (node) => {
+    return node.object.children[0];
+  };
 
   const num_children = Object.keys(scene_node.children).length;
   if (num_children === 0) {
@@ -138,6 +163,22 @@ function MenuItems(props: ListItemProps) {
         </ListItemIcon>
         <ListItemText primary={name} />
 
+        {canSnap && (
+          <IconButton
+            aria-label="visibility"
+            onClick={() =>
+              snap_to_camera(
+                sceneTree,
+                sceneTree.metadata.camera,
+                getCamera(scene_node).matrix,
+              )
+            }
+            sx={{ mr: 1 }}
+          >
+            <Videocam />
+          </IconButton>
+        )}
+
         <IconButton aria-label="visibility" onClick={toggleVisible}>
           {visible ? <Visibility /> : <VisibilityOff />}
         </IconButton>
@@ -165,9 +206,11 @@ function MenuItems(props: ListItemProps) {
               .map((key) => (
                 <MenuItems
                   name={key}
+                  sceneTree={sceneTree}
                   scene_node={scene_node.children[key]}
                   level={level + 1}
                   groupVisible={visible}
+                  canSnap={name === 'Training Cameras'}
                 />
               ))}
           </List>
@@ -186,7 +229,13 @@ function ClickableList(props: ClickableListProps) {
 
   return (
     <List sx={{ color: LevaTheme.colors.accent2 }}>
-      <MenuItems name="Scene" scene_node={sceneTree} level={0} groupVisible />
+      <MenuItems
+        name="Scene"
+        sceneTree={sceneTree}
+        scene_node={sceneTree}
+        level={0}
+        groupVisible
+      />
     </List>
   );
 }
