@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
-import { useSelector } from 'react-redux';
 import WebSocketUrlField from '../WebSocketUrlField';
 
 interface LandingModalProps {

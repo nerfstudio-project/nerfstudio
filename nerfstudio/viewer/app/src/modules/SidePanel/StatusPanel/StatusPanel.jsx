@@ -112,6 +112,7 @@ export default function StatusPanel(props: StatusPanelProps) {
         className="StatusPanel-hide-scene-button"
         variant="outlined"
         onClick={() => {
+          // eslint-disable-next-line no-restricted-globals
           location.reload();
         }}
         style={{ textTransform: 'none' }}
