@@ -22,12 +22,14 @@ import os
 import sys
 import threading
 import time
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
 from aiortc import RTCPeerConnection, RTCSessionDescription
+from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras
@@ -47,6 +49,8 @@ from nerfstudio.viewer.server.utils import (
 )
 from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
 from nerfstudio.viewer.server.visualizer import Viewer
+
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 CONSOLE = Console(width=120)
 

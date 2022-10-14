@@ -77,7 +77,7 @@ For more complex changes (e.g., running with your own data/setting up a new NeRF
 We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
-conda create --name nerfstudio -y python=3.8.12
+conda create --name nerfstudio -y python=3.8
 conda activate nerfstudio
 python -m pip install --upgrade pip
 ```
