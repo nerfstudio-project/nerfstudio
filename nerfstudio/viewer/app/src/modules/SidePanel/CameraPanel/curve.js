@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 
-function get_curve(list_of_3d_vectors, is_cycle, smoothness_value) {
+function get_catmull_rom_curve(list_of_3d_vectors, is_cycle, smoothness_value) {
   // TODO: add some hyperparameters to this function
   const curve = new THREE.CatmullRomCurve3(
     list_of_3d_vectors,
@@ -26,6 +26,7 @@ export function get_curve_object_from_cameras(
   const positions = [];
   const lookats = [];
   const ups = [];
+  const fovs = [];
 
   for (let i = 0; i < cameras.length; i += 1) {
     const camera = cameras[i];
@@ -39,20 +40,29 @@ export function get_curve_object_from_cameras(
     positions.push(camera.position);
     ups.push(up);
     lookats.push(lookat);
+    fovs.push(new THREE.Vector3(camera.fov, camera.fov, camera.fov));
+    console.log(camera.fov);
   }
 
   let curve_positions = null;
   let curve_lookats = null;
   let curve_ups = null;
+  let curve_fovs = null;
 
-  curve_positions = get_curve(positions, is_cycle, smoothness_value);
-  curve_lookats = get_curve(lookats, is_cycle, smoothness_value);
-  curve_ups = get_curve(ups, is_cycle, smoothness_value);
+  curve_positions = get_catmull_rom_curve(
+    positions,
+    is_cycle,
+    smoothness_value,
+  );
+  curve_lookats = get_catmull_rom_curve(lookats, is_cycle, smoothness_value);
+  curve_ups = get_catmull_rom_curve(ups, is_cycle, smoothness_value);
+  curve_fovs = get_catmull_rom_curve(fovs, is_cycle, smoothness_value);
 
   const curve_object = {
     curve_positions,
     curve_lookats,
     curve_ups,
+    curve_fovs,
   };
   return curve_object;
 }

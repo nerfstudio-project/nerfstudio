@@ -245,11 +245,18 @@ export function get_scene_tree() {
 
     // hacky out of bounds fix
     if (mouseVector.x > 1 || mouseVector.x < -1) {
-      // some value that won't hit
-      mouseVector.x = -100;
+      if (selectedCam !== null) {
+        selectedCam.material.color = new THREE.Color(1, 1, 1);
+        selectedCam = null;
+      }
+      return;
     }
     if (mouseVector.y > 1 || mouseVector.y < -1) {
-      mouseVector.y = -100;
+      if (selectedCam !== null) {
+        selectedCam.material.color = new THREE.Color(1, 1, 1);
+        selectedCam = null;
+      }
+      return;
     }
 
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);

@@ -10,7 +10,7 @@ import {
   Replay,
   Timeline,
 } from '@mui/icons-material';
-import { Button, Slider } from '@mui/material';
+import { Button, InputAdornment, Slider } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -229,6 +229,7 @@ export default function CameraPanel(props) {
   const [ui_field_of_view, setUIFieldOfView] = React.useState(field_of_view);
   const [ui_seconds, setUISeconds] = React.useState(seconds);
   const [ui_fps, setUIfps] = React.useState(fps);
+  const [fovLabel, setFovLabel] = React.useState('FOV');
 
   // nonlinear render option
   const slider_min = 0;
@@ -237,6 +238,24 @@ export default function CameraPanel(props) {
   // animation constants
   const total_num_steps = seconds * fps;
   const step_size = slider_max / total_num_steps;
+
+  const sensorSize = camera_main.getFilmWidth();
+  const fov_to_focal = (val) =>
+    Math.round(sensorSize / 2 / Math.tan((val * (Math.PI / 180)) / 2));
+  const focal_to_fov = (val) =>
+    Math.round((180 / Math.PI) * 2 * Math.atan(sensorSize / 2 / val));
+
+  const toggleFovLabel = () => {
+    if (fovLabel === 'FOV') {
+      const focalLength = fov_to_focal(ui_field_of_view);
+      setUIFieldOfView(focalLength);
+      setFovLabel('Focal Length');
+    } else {
+      const fov = focal_to_fov(ui_field_of_view);
+      setUIFieldOfView(fov);
+      setFovLabel('FOV');
+    }
+  };
 
   const reset_slider_render_on_add = (new_camera_list) => {
     // set slider and render camera back to 0
@@ -338,17 +357,21 @@ export default function CameraPanel(props) {
     let position = null;
     let lookat = null;
     let up = null;
+    let fov = null;
     if (!is_linear) {
       position = curve_object.curve_positions.getPoint(point);
       lookat = curve_object.curve_lookats.getPoint(point);
       up = curve_object.curve_ups.getPoint(point);
+      fov = curve_object.curve_fovs.getPoint(point).x;
     } else {
       position = curve_object.curve_positions.getPointAt(point);
       lookat = curve_object.curve_lookats.getPointAt(point);
       up = curve_object.curve_ups.getPointAt(point);
+      fov = curve_object.curve_fovs.getPointAt(point).x;
     }
     const mat = get_transform_matrix(position, lookat, up);
     set_camera_position(camera_render, mat);
+    camera_render.fov = fov;
   } else {
     sceneTree.delete(['Camera Path', 'Curve']);
   }
@@ -365,18 +388,23 @@ export default function CameraPanel(props) {
       let position = null;
       let lookat = null;
       let up = null;
+      let fov = null;
       if (!is_linear) {
         // interpolate to get the points
         position = curve_object.curve_positions.getPoint(point);
         lookat = curve_object.curve_lookats.getPoint(point);
         up = curve_object.curve_ups.getPoint(point);
+        fov = curve_object.curve_fovs.getPoint(point).x;
       } else {
         position = curve_object.curve_positions.getPointAt(point);
         lookat = curve_object.curve_lookats.getPointAt(point);
         up = curve_object.curve_ups.getPointAt(point);
+        fov = curve_object.curve_fovs.getPointAt(point).x;
       }
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
+      console.log(fov);
+      camera_render.fov = fov;
     }
   }, [slider_value, render_height, render_width]);
 
@@ -406,6 +434,7 @@ export default function CameraPanel(props) {
     const positions = curve_object.curve_positions.getPoints(num_points);
     const lookats = curve_object.curve_lookats.getPoints(num_points);
     const ups = curve_object.curve_ups.getPoints(num_points);
+    const fovs = curve_object.curve_fovs.getPoints(num_points);
 
     const camera_path = [];
 
@@ -413,12 +442,13 @@ export default function CameraPanel(props) {
       const position = positions[i];
       const lookat = lookats[i];
       const up = ups[i];
+      const fov = fovs[i].x;
 
       const mat = get_transform_matrix(position, lookat, up);
 
       camera_path.push({
         camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
-        fov: camera_render.fov,
+        fov,
         aspect: camera_render.aspect,
       });
     }
@@ -489,12 +519,20 @@ export default function CameraPanel(props) {
     }
   };
 
-  const setFOV = (fov) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/field_of_view',
-      data: fov,
-    });
+  const setFOV = (val) => {
+    if (fovLabel === 'FOV') {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/field_of_view',
+        data: val,
+      });
+    } else {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/field_of_view',
+        data: focal_to_fov(val),
+      });
+    }
   };
 
   const setUp = () => {
@@ -763,10 +801,22 @@ export default function CameraPanel(props) {
           variant="standard"
         />
         <TextField
-          label="FOV"
+          label={fovLabel}
           inputProps={{
             inputMode: 'numeric',
             pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          // eslint-disable-next-line
+          InputProps={{
+            endAdornment: (
+              <InputAdornment
+                sx={{ cursor: 'pointer' }}
+                onClick={toggleFovLabel}
+                position="end"
+              >
+                {fovLabel === 'FOV' ? '°' : 'mm'}
+              </InputAdornment>
+            ),
           }}
           onChange={(e) => {
             if (e.target.validity.valid) {
