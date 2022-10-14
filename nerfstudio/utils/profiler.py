@@ -17,7 +17,9 @@ Profiler base class and functionality
 """
 from __future__ import annotations
 
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 import time
 from typing import Callable
 
@@ -82,7 +84,7 @@ class Profiler:
 
     def print_profile(self):
         """helper to print out the profiler stats"""
-        logging.info("Printing profiling stats, from longest to shortest duration in seconds")
+        CONSOLE.print("Printing profiling stats, from longest to shortest duration in seconds")
         sorted_keys = sorted(
             self.profiler_dict.keys(),
             key=lambda k: self.profiler_dict[k]["val"],
@@ -90,4 +92,4 @@ class Profiler:
         )
         for k in sorted_keys:
             val = f"{self.profiler_dict[k]['val']:0.4f}"
-            print(f"{k:<20}: {val:<20}")
+            CONSOLE.print(f"{k:<20}: {val:<20}")

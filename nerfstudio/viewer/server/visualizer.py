@@ -15,7 +15,9 @@
 """Code to connect and send commands to the viewer.
 """
 
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 import sys
 from threading import Thread
 from typing import Dict, Optional, Union
@@ -82,7 +84,7 @@ class ViewerWindow:
             t.start()
             t.join(timeout_in_sec)
         except Exception as je:
-            logging.info("Error starting thread")
+            CONSOLE.log("Error starting thread")
             raise je
         ret = res[0]
         if isinstance(ret, BaseException):
@@ -96,12 +98,12 @@ class ViewerWindow:
             timeout_in_sec (int): The maximum time to wait for the connection to be established.
         """
         try:
-            logging.info("Sending ping to the viewer Bridge Server...")
+            CONSOLE.print("Sending ping to the viewer Bridge Server...")
             _ = self.timeout_ping(timeout_in_sec)
-            logging.info("Successfully connected.")
+            CONSOLE.print("Successfully connected.")
 
         except Exception as e:  # pylint: disable=broad-except
-            logging.info(e)
+            CONSOLE.log(e)
             sys.exit()
 
 

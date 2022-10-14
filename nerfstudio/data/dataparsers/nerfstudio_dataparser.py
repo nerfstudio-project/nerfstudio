@@ -15,7 +15,9 @@
 
 from __future__ import annotations
 
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
@@ -24,7 +26,6 @@ from typing import Literal, Optional, Type
 import numpy as np
 import torch
 from PIL import Image
-from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -36,7 +37,6 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
-console = Console()
 
 MAX_AUTO_RESOLUTION = 1600
 
@@ -88,7 +88,7 @@ class Nerfstudio(DataParser):
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
         if num_skipped_image_filenames >= 0:
-            logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+            CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
             len(image_filenames) != 0
         ), """
@@ -185,8 +185,8 @@ class Nerfstudio(DataParser):
                         break
                     df += 1
 
-                console.print(f"Auto image downscale factor of {2**df}")
                 self.downscale_factor = 2**df
+                CONSOLE.log(f"Auto image downscale factor of {self.downscale_factor}")
             else:
                 self.downscale_factor = self.config.downscale_factor
 

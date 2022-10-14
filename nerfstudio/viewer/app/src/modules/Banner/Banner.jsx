@@ -22,28 +22,16 @@ export default function Banner() {
 
   let open_modal = true;
 
-  // possibly set the websocket port
-  const websocket_port_from_argument = getParam('websocket_port');
-  if (websocket_port_from_argument !== undefined) {
+  // possibly set the websocket url
+  const websocket_url_from_argument = getParam('websocket_url');
+  if (websocket_url_from_argument !== undefined) {
     open_modal = false;
     dispatch({
       type: 'write',
-      path: 'websocketState/websocket_port',
-      data: websocket_port_from_argument,
+      path: 'websocketState/websocket_url',
+      data: websocket_url_from_argument,
     });
   }
-
-  // possibly set the bridge server ip address
-  const ip_address_from_argument = getParam('ip_address');
-  if (ip_address_from_argument !== undefined) {
-    open_modal = false;
-    dispatch({
-      type: 'write',
-      path: 'websocketState/ip_address',
-      data: ip_address_from_argument,
-    });
-  }
-
 
   return (
     <div className="banner">

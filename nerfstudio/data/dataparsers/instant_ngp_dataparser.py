@@ -16,7 +16,9 @@
 
 from __future__ import annotations
 
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
@@ -69,7 +71,7 @@ class InstantNGP(DataParser):
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
         if num_skipped_image_filenames >= 0:
-            logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+            CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
             len(image_filenames) != 0
         ), """

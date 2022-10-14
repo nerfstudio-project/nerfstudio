@@ -18,14 +18,15 @@
 
 from __future__ import annotations
 
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import yaml
-from rich.console import Console
 
 from nerfstudio.configs.config_utils import to_immutable_dict
 
@@ -251,10 +252,9 @@ class Config(PrintableConfig):
 
     def print_to_terminal(self) -> None:
         """Helper to pretty print config to terminal"""
-        console = Console(width=120)
-        console.rule("Config")
-        console.print(self)
-        console.rule("")
+        CONSOLE.rule("Config")
+        CONSOLE.print(self)
+        CONSOLE.rule("")
 
     def save_config(self) -> None:
         """Save config to base directory"""
@@ -262,5 +262,5 @@ class Config(PrintableConfig):
         assert base_dir is not None
         base_dir.mkdir(parents=True, exist_ok=True)
         config_yaml_path = base_dir / "config.yml"
-        logging.info(f"Saving config to: {config_yaml_path}")
+        CONSOLE.log(f"Saving config to: {config_yaml_path}")
         config_yaml_path.write_text(yaml.dump(self), "utf8")

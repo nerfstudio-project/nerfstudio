@@ -5,18 +5,15 @@ eval.py
 from __future__ import annotations
 
 import json
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 from dataclasses import dataclass
 from pathlib import Path
 
 import tyro
-from rich.console import Console
 
 from nerfstudio.utils.eval_utils import eval_setup
-
-console = Console(width=120)
-
-logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 
 @dataclass
@@ -43,7 +40,7 @@ class ComputePSNR:
             "results": metrics_dict,
         }
         self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
-        console.print(f"Saved results to: {self.output_path}")
+        CONSOLE.print(f"Saved results to: {self.output_path}")
 
 
 def entrypoint():

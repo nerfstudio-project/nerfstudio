@@ -47,8 +47,9 @@ from nerfstudio.viewer.server.utils import (
 )
 from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
 from nerfstudio.viewer.server.visualizer import Viewer
+from rich.console import Console
 
-console = Console(width=120)
+CONSOLE = Console(width=120)
 
 
 @check_main_thread
@@ -222,14 +223,14 @@ class ViewerState:
                 websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
-            console.line()
+            CONSOLE.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
-            console.rule(characters="=")
-            console.print(f"[Public] Open the viewer at {self.viewer_url}")
-            console.rule(characters="=")
-            console.line()
+            CONSOLE.rule(characters="=")
+            CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
+            CONSOLE.rule(characters="=")
+            CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port)
         else:
             assert self.config.zmq_port is not None
@@ -255,8 +256,7 @@ class ViewerState:
         # webrtc
         self.pcs = set()
         self.video_tracks = set()
-        self.t = None
-        self.is_webrtc_ready = True
+        self.webrtc_thread = None
         self.kill_webrtc_signal = False
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
@@ -313,7 +313,7 @@ class ViewerState:
         """Check if there is a webrtc offer to respond to."""
         data = self.vis["webrtc/offer"].read()
         if data:
-            if self.t and self.t.is_alive():
+            if self.webrtc_thread and self.webrtc_thread.is_alive():
                 # kill the previous thread if the webpage refreshes
                 self.kill_webrtc_signal = True
                 return
@@ -323,9 +323,9 @@ class ViewerState:
                 loop.run_until_complete(self.send_webrtc_answer(data))
 
             loop = asyncio.get_event_loop()
-            self.t = threading.Thread(target=loop_in_thread, args=(loop,))
-            self.t.daemon = True
-            self.t.start()
+            self.webrtc_thread = threading.Thread(target=loop_in_thread, args=(loop,))
+            self.webrtc_thread.daemon = True
+            self.webrtc_thread.start()
             # remove the offer from the state tree
             self.vis["webrtc/offer"].delete()
 
