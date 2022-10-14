@@ -296,6 +296,7 @@ class Cameras(TensorDataclass):
         Returns:
             Grid of image coordinates.
         """
+        assert not self.is_jagged, "meshgrid doesn't make sense for jagged cameras"
         image_height = self.image_height.ravel()[0]
         image_width = self.image_width.ravel()[0]
         image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
@@ -324,13 +325,9 @@ class Cameras(TensorDataclass):
         We are only concerned about different combinations of camera_indices and coords matrices, and the following
         are the 4 cases we have to deal with:
             1. isinstance(camera_indices, int) and coords == None
-                - In this case, we need to mandate that the camera batch is 1D or else this is likely a mistake. Later
-                    we can make this behavior such that you generate all the rays for every camera in the first
-                    batch dimension, but for now we will raise an error
+                - In this case we broadcast our camera_indices / coords shape (h, w, 1 / 2 respectively)
             2. isinstance(camera_indices, int) and coords != None
-                - In this case, we need to mandate that the camera batch is 1D or else this is likely a mistake. Later
-                    we can make this behavior such that you generate rays at coords for every camera in the first
-                    batch dimension, but for now we will raise an error
+                - In this case, we broadcast camera_indices to the same batch dim as coords
             3. not isinstance(camera_indices, int) and coords == None
                 - In this case, we will need to set coords so that it is of shape (h, w, num_rays, 2), and broadcast
                     all our other args to match the new definition of num_rays := (h, w) + num_rays
@@ -347,28 +344,37 @@ class Cameras(TensorDataclass):
         Returns:
             Rays for the given camera indices and coords.
         """
-        # Check the argument types to make sure they're valid
+        # Check the argument types to make sure they're valid and all shaped correctly
         assert isinstance(camera_indices, (torch.Tensor, int)), "camera_indices must be a tensor or int"
         assert coords is None or isinstance(coords, torch.Tensor), "coords must be a tensor or None"
         assert camera_opt_to_camera is None or isinstance(camera_opt_to_camera, torch.Tensor)
         assert distortion_params_delta is None or isinstance(distortion_params_delta, torch.Tensor)
+        if isinstance(camera_indices, torch.Tensor) and isinstance(coords, torch.Tensor):
+            num_rays_shape = camera_indices.shape[:-1]
+            errormsg = "Batch dims of inputs must match when inputs are all tensors"
+            assert coords.shape[:-1] == num_rays_shape, errormsg
+            assert camera_opt_to_camera is None or camera_opt_to_camera.shape[:-2] == num_rays_shape, errormsg
+            assert distortion_params_delta is None or distortion_params_delta.shape[:-1] == num_rays_shape, errormsg
 
         # If zero dimensional, we need to unsqueeze to get a batch dimension and then squeeze later
         if not self.shape:
             cameras = self.reshape((1,))
-            assert torch.all(
-                torch.tensor(camera_indices == 0)
-            ), "camera_indices must all be 0 if cameras is has no batch dimension"
+            errormsg = "Can only index into single camera with no batch dimensions if index is zero"
+            assert torch.all(torch.tensor(camera_indices == 0)), errormsg
         else:
             cameras = self
 
-        if cameras.is_jagged:
-            raise NotImplementedError("Jagged cameras are not tested yet.")
-            # Need to set the coords of each indexed camera and flatten all coordinate maps and concatenate them
-
+        # If the camera indices are an int, then we need to make sure that the camera batch is 1D
         if isinstance(camera_indices, int):
             assert len(cameras.shape) == 1, "camera_indices must be a tensor if cameras is batched"
             camera_indices = torch.tensor([camera_indices], device=cameras.device)
+
+        # If the cameras don't all have same height / width, if coords is not none, we will need to generate
+        # a flat list of coords for each camera and then concatenate otherwise our rays will be jagged.
+        # Camera indices, camera_opt, and distortion will also need to be broadcasted accordingly which is non-trivial
+        if cameras.is_jagged and coords is None:
+            raise NotImplementedError("Jagged cameras are not tested yet.")
+            # Need to get the coords of each indexed camera and flatten all coordinate maps and concatenate them
 
         # The case where we aren't jagged (since otherwise coords is already set) and coords is None
         # In this case we append (h, w) to the num_rays dimensions for all tensors
@@ -386,10 +392,9 @@ class Cameras(TensorDataclass):
                 if distortion_params_delta is not None
                 else None
             )
-        # Do this outside when coords is none since sometimes camera_indices
-        # is an int and needs to be broadcasted anyways\
 
-        camera_indices = camera_indices.broadcast_to(coords.shape[:-1] + (len(cameras.shape),))
+        # If camera indices was an int or coords was none, we need to broadcast our indices along batch dims
+        camera_indices = camera_indices.broadcast_to(coords.shape[:-1] + (len(cameras.shape),)).to(torch.long)
 
         # Checking our tensors have been standardized
         assert isinstance(coords, torch.Tensor) and isinstance(camera_indices, torch.Tensor)
@@ -398,18 +403,13 @@ class Cameras(TensorDataclass):
         assert distortion_params_delta is None or distortion_params_delta.shape[:-1] == coords.shape[:-1]
 
         # This will do the actual work of generating the rays now that we have standardized the inputs
+        # raybundle.shape == (num_rays) when done
         # pylint: disable=protected-access
         raybundle = cameras._generate_rays_from_coords(
             camera_indices, coords, camera_opt_to_camera, distortion_params_delta
         )
 
-        # If we started with no batch dimension, squeeze out the extra dimensions we added
-        if not self.shape:
-            idxs = []
-            for dim in raybundle.shape:
-                if dim != 1:
-                    idxs.append(dim)
-            return raybundle.reshape(tuple(idxs))
+        # If we started with no batch dimension, squeeze out the extra dimension we added
         return raybundle
 
     def _generate_rays_from_coords(
@@ -482,7 +482,7 @@ class Cameras(TensorDataclass):
                 the 1D tensor with the 6 distortion parameters for the camera optimization at RayBundle[i:...].
 
         Returns:
-            Rays for the given camera indices and coords.
+            Rays for the given camera indices and coords. RayBundle.shape == num_rays
         """
         # Make sure we're on the right devices
         camera_indices = camera_indices.to(self.device)
@@ -603,14 +603,9 @@ class Cameras(TensorDataclass):
         dy = torch.sqrt(torch.sum((directions - directions_stack[2]) ** 2, dim=-1))  # ("num_rays":...,)
         assert dx.shape == num_rays_shape and dy.shape == num_rays_shape
 
-        # print("stack, directions, dx, dy shapes ", directions_stack.shape, directions.shape, dx.shape, dy.shape)
-
         pixel_area = (dx * dy)[..., None]  # ("num_rays":..., 1)
         assert pixel_area.shape == num_rays_shape + (1,)
 
-        # print("pixel area shape", pixel_area.shape)
-
-        # print("End Generating Rays -------------------------------")
         return RayBundle(
             origins=origins,
             directions=directions,

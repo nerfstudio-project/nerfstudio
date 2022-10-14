@@ -2,12 +2,17 @@
 Test the camera classes.
 """
 import dataclasses
+from calendar import c
 from itertools import product
 
 import torch
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
+
+# # Required imports for the performance cameras debugging
+# from time import perf_counter
+# import numpy as np
 
 
 def test_pinhole_camera():
@@ -113,18 +118,6 @@ def test_camera_as_tensordataclass():
         camera_types[0],
     )
 
-    c1_dist = Cameras(
-        camera_to_worlds[1],
-        fx_ys[0],
-        fx_ys[0],
-        cx_ys[0],
-        cx_ys[0],
-        h_ws[0],
-        h_ws[0],
-        distortion_params[1],
-        camera_types[0],
-    )
-
     c2_dist = Cameras(
         camera_to_worlds[2],
         fx_ys[0],
@@ -146,7 +139,8 @@ def test_camera_as_tensordataclass():
     assert _check_cam_shapes(c1, (2,))
     assert _check_cam_shapes(c2_dist, (2, 2))
 
-    c0.generate_rays(0)
+    assert c0.generate_rays(0).shape == (800, 800)
+    assert c0.generate_rays(0, coords=torch.ones(10, 2)).shape == (10,)
     c1.generate_rays(0)
     c1.generate_rays(torch.tensor([0, 1]).unsqueeze(-1))
 
@@ -160,69 +154,8 @@ def test_camera_as_tensordataclass():
     assert c_dist_rays.shape == (800, 800)
 
     camera_indices = torch.tensor([[0, 0]])
-    print("test1")
-    print(c2.generate_rays(camera_indices).shape)
     assert c2.generate_rays(camera_indices).shape == (800, 800, 1)
 
-    # assert tensor_dataclass.size == 24
-    # assert tensor_dataclass.ndim == 2
-    # assert len(tensor_dataclass) == 4
-
-    # reshaped = tensor_dataclass.reshape((2, 12))
-    # assert reshaped.shape == (2, 12)
-    # assert reshaped.a.shape == (2, 12, 3)
-    # assert reshaped.b.shape == (2, 12, 2)
-    # assert reshaped.d["t1"].shape == (2, 12, 3)
-    # assert reshaped.d["t2"]["t3"].shape == (2, 12, 4)
-
-    # flattened = tensor_dataclass.flatten()
-    # assert flattened.shape == (24,)
-    # assert flattened.a.shape == (24, 3)
-    # assert flattened.b.shape == (24, 2)
-    # assert flattened.d["t1"].shape == (24, 3)
-    # assert flattened.d["t2"]["t3"].shape == (24, 4)
-    # assert flattened[0:4].shape == (4,)
-
-    # # Test indexing operations
-    # assert tensor_dataclass[:, 1].shape == (4,)
-    # assert tensor_dataclass[:, 1].a.shape == (4, 3)
-    # assert tensor_dataclass[:, 1].d["t1"].shape == (4, 3)
-    # assert tensor_dataclass[:, 1].d["t2"]["t3"].shape == (4, 4)
-    # assert tensor_dataclass[:, 0:2].shape == (4, 2)
-    # assert tensor_dataclass[:, 0:2].a.shape == (4, 2, 3)
-    # assert tensor_dataclass[:, 0:2].d["t1"].shape == (4, 2, 3)
-    # assert tensor_dataclass[:, 0:2].d["t2"]["t3"].shape == (4, 2, 4)
-    # assert tensor_dataclass[..., 1].shape == (4,)
-    # assert tensor_dataclass[..., 1].a.shape == (4, 3)
-    # assert tensor_dataclass[0].shape == (6,)
-    # assert tensor_dataclass[0].a.shape == (6, 3)
-    # assert tensor_dataclass[0].d["t1"].shape == (6, 3)
-    # assert tensor_dataclass[0].d["t2"]["t3"].shape == (6, 4)
-    # assert tensor_dataclass[0, ...].shape == (6,)
-    # assert tensor_dataclass[0, ...].a.shape == (6, 3)
-
-    # tensor_dataclass = DummyTensorDataclass(
-    #     a=torch.ones((2, 3, 4, 5)),
-    #     b=torch.ones((4, 5)),
-    #     d={"t1": torch.ones((2, 3, 4, 5)), "t2": {"t3": torch.ones((4, 5))}},
-    # )
-    # assert tensor_dataclass[0, ...].shape == (3, 4)
-    # assert tensor_dataclass[0, ...].a.shape == (3, 4, 5)
-    # assert tensor_dataclass[0, ...].d["t1"].shape == (3, 4, 5)
-    # assert tensor_dataclass[0, ...].d["t2"]["t3"].shape == (3, 4, 5)
-    # assert tensor_dataclass[0, ..., 0].shape == (3,)
-    # assert tensor_dataclass[0, ..., 0].a.shape == (3, 5)
-    # assert tensor_dataclass[0, ..., 0].d["t1"].shape == (3, 5)
-    # assert tensor_dataclass[0, ..., 0].d["t2"]["t3"].shape == (3, 5)
-    # assert tensor_dataclass[..., 0].shape == (2, 3)
-    # assert tensor_dataclass[..., 0].a.shape == (2, 3, 5)
-    # assert tensor_dataclass[..., 0].d["t1"].shape == (2, 3, 5)
-    # assert tensor_dataclass[..., 0].d["t2"]["t3"].shape == (2, 3, 5)
-
-    # mask = torch.rand(size=(2, 3)) > 0.5
-    # assert tensor_dataclass[mask].ndim == 2
-
-    # Making sure cameras don't error on every combination of inputs
     for args in product(
         camera_to_worlds,
         fx_ys,
@@ -236,15 +169,101 @@ def test_camera_as_tensordataclass():
     ):
         c = Cameras(*args)
         assert len(c.shape) <= 2
-        camera_indices = torch.tensor([0 for _ in range(len(c.shape))])
-        print(camera_indices.shape, c.shape)
-        c.generate_rays(camera_indices=camera_indices)
+        # camera_indices = torch.tensor([0 for _ in range(len(c.shape))]) if len(c.shape) else 0
+
+        # These are some profiling printouts for performance debugging on the stress test
+        # start = perf_counter()
+        # r = c.generate_rays(camera_indices=camera_indices)
+        # end = perf_counter()
+        # print("---------------------------------------------------------")
+        # print("c2w size", args[0].shape)
+        # print("fx size", args[1].shape if isinstance(args[1], torch.Tensor) else 0)
+        # print("fy size", args[2].shape if isinstance(args[2], torch.Tensor) else 0)
+        # print("cx size", args[3].shape if isinstance(args[3], torch.Tensor) else 0)
+        # print("cy size", args[4].shape if isinstance(args[4], torch.Tensor) else 0)
+        # print("h size", args[5].shape if isinstance(args[5], torch.Tensor) else 0)
+        # print("w size", args[6].shape if isinstance(args[6], torch.Tensor) else 0)
+        # print("distortion size", args[7].shape if args[7] is not None else 0)
+        # print("camera type size", args[8].shape if isinstance(args[8], torch.Tensor) else 0)
+        # print()
+        # print(f"Time taken: {end - start}")
+        # print("size: ", np.prod(r.shape))
+
+    c = c0
+    assert c.shape == ()
+    coord = torch.tensor([1, 1])
+    combos = [
+        (0, None),
+        (0, coord),
+        (torch.zeros(1, 1), coord.broadcast_to(1, 2)),
+        (0, coord.broadcast_to(1, 2)),
+        (torch.zeros(1), None),
+        (torch.zeros(5, 1), coord.broadcast_to(5, 2)),
+        (0, coord.broadcast_to(5, 2)),
+        (torch.zeros(5, 1), None),
+        (torch.zeros(11, 5, 1), coord.broadcast_to(11, 5, 2)),
+        (0, coord.broadcast_to(11, 5, 2)),
+        (torch.zeros(11, 5, 1), None),
+    ]
+    for camera_indices, coords in combos:
+        # These are some profiling printouts for performance debugging on the stress test
+        # start = perf_counter()
+        c.generate_rays(camera_indices=camera_indices, coords=coords)
+        # end = perf_counter()
+        # print("---------------------------------------------------------")
+        # print("c2w size", args[0].shape)
+        # print("fx size", args[1].shape if isinstance(args[1], torch.Tensor) else 0)
+        # print("fy size", args[2].shape if isinstance(args[2], torch.Tensor) else 0)
+        # print("cx size", args[3].shape if isinstance(args[3], torch.Tensor) else 0)
+        # print("cy size", args[4].shape if isinstance(args[4], torch.Tensor) else 0)
+        # print("h size", args[5].shape if isinstance(args[5], torch.Tensor) else 0)
+        # print("w size", args[6].shape if isinstance(args[6], torch.Tensor) else 0)
+        # print("distortion size", args[7].shape if args[7] is not None else 0)
+        # print("camera type size", args[8].shape if isinstance(args[8], torch.Tensor) else 0)
+        # print()
+        # print(f"Time taken: {end - start}")
+        # print("size: ", np.prod(r.shape))
+
+    c = c1
+    assert c.shape == (2,)
+    for camera_indices, coords in combos:
+        # These are some profiling printouts for performance debugging on the stress test
+        # start = perf_counter()
+        c.generate_rays(camera_indices=camera_indices, coords=coords)
+        # end = perf_counter()
+        # print("---------------------------------------------------------")
+        # print("c2w size", args[0].shape)
+        # print("fx size", args[1].shape if isinstance(args[1], torch.Tensor) else 0)
+        # print("fy size", args[2].shape if isinstance(args[2], torch.Tensor) else 0)
+        # print("cx size", args[3].shape if isinstance(args[3], torch.Tensor) else 0)
+        # print("cy size", args[4].shape if isinstance(args[4], torch.Tensor) else 0)
+        # print("h size", args[5].shape if isinstance(args[5], torch.Tensor) else 0)
+        # print("w size", args[6].shape if isinstance(args[6], torch.Tensor) else 0)
+        # print("distortion size", args[7].shape if args[7] is not None else 0)
+        # print("camera type size", args[8].shape if isinstance(args[8], torch.Tensor) else 0)
+        # print()
+        # print(f"Time taken: {end - start}")
+        # print("size: ", np.prod(r.shape))
+
+    c = c2
+    combos = [
+        (torch.zeros(1, 2), coord.broadcast_to(1, 2)),
+        (torch.zeros(2), None),
+        (torch.zeros(5, 2), coord.broadcast_to(5, 2)),
+        (torch.zeros(5, 2), None),
+        (torch.zeros(11, 5, 2), coord.broadcast_to(11, 5, 2)),
+        (torch.zeros(11, 5, 2), None),
+    ]
+    for camera_indices, coords in combos:
+        # These are some profiling printouts for performance debugging on the stress test
+        # start = perf_counter()
+        c.generate_rays(camera_indices=camera_indices, coords=coords)
 
 
-def _check_dataclass_allclose(input, other):
-    for field in dataclasses.fields(input):
-        if getattr(input, field.name) is not None:
-            assert torch.allclose(getattr(input, field.name), getattr(other, field.name))
+def _check_dataclass_allclose(ipt, other):
+    for field in dataclasses.fields(ipt):
+        if getattr(ipt, field.name) is not None:
+            assert torch.allclose(getattr(ipt, field.name), getattr(other, field.name))
     return True
 
 
