@@ -65,9 +65,9 @@ class NerfactoModelConfig(ModelConfig):
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""
-    proposal_update_every: int = 20
+    proposal_update_every: int = 5
     """Sample every n steps after the warmup"""
-    proposal_warmup: int = 20000
+    proposal_warmup: int = 5000
     """Scales n from 1 to proposal_update_every over this many steps"""
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
@@ -75,8 +75,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 64},
-            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 256},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 64},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
         ]
     )
     """Arguments for the proposal density fields."""
