@@ -16,16 +16,20 @@
 """
 from __future__ import annotations
 
+import asyncio
 import enum
 import os
 import sys
 import threading
 import time
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
+from aiortc import RTCPeerConnection, RTCSessionDescription
+from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras
@@ -39,10 +43,16 @@ from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
-from nerfstudio.viewer.server.utils import get_intrinsics_matrix_and_camera_to_world_h
+from nerfstudio.viewer.server.utils import (
+    force_codec,
+    get_intrinsics_matrix_and_camera_to_world_h,
+)
+from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
 from nerfstudio.viewer.server.visualizer import Viewer
 
-console = Console(width=120)
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+
+CONSOLE = Console(width=120)
 
 
 @check_main_thread
@@ -210,24 +220,25 @@ class ViewerState:
         self.log_filename = log_filename
         if self.config.launch_bridge_server:
             # start the viewer bridge server
-            websocket_port = self.config.websocket_port
+            assert self.config.websocket_port is not None
             self.log_filename.parent.mkdir(exist_ok=True)
             zmq_port = run_viewer_bridge_server_as_subprocess(
-                websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
+                self.config.websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
-            console.line()
+            CONSOLE.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
-            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
-            console.rule(characters="=")
-            console.print(f"[Public] Open the viewer at {self.viewer_url}")
-            console.rule(characters="=")
-            console.line()
+            websocket_url = f"ws://localhost:{self.config.websocket_port}"
+            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
+            CONSOLE.rule(characters="=")
+            CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
+            CONSOLE.rule(characters="=")
+            CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port)
         else:
             assert self.config.zmq_port is not None
-            self.vis = Viewer(zmq_port=self.config.zmq_port)
+            self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
         self.prev_camera_matrix = None
@@ -245,6 +256,12 @@ class ViewerState:
         self.prev_camera_timestamp = 0
 
         self.output_list = None
+
+        # webrtc
+        self.pcs = set()
+        self.video_tracks = set()
+        self.webrtc_thread = None
+        self.kill_webrtc_signal = False
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
@@ -296,6 +313,26 @@ class ViewerState:
             write_to_json(Path(camera_path_filename), camera_path)
             self.vis["camera_path_payload"].delete()
 
+    def _check_webrtc_offer(self):
+        """Check if there is a webrtc offer to respond to."""
+        data = self.vis["webrtc/offer"].read()
+        if data:
+            if self.webrtc_thread and self.webrtc_thread.is_alive():
+                # kill the previous thread if the webpage refreshes
+                self.kill_webrtc_signal = True
+                return
+
+            def loop_in_thread(loop):
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.send_webrtc_answer(data))
+
+            loop = asyncio.get_event_loop()
+            self.webrtc_thread = threading.Thread(target=loop_in_thread, args=(loop,))
+            self.webrtc_thread.daemon = True
+            self.webrtc_thread.start()
+            # remove the offer from the state tree
+            self.vis["webrtc/offer"].delete()
+
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
@@ -308,6 +345,7 @@ class ViewerState:
         self.step = step
 
         self._check_camera_path_payload(trainer, step)
+        self._check_webrtc_offer()
 
         camera_object = self._get_camera_object()
         if camera_object is None:
@@ -352,6 +390,7 @@ class ViewerState:
                     camera_object = self._get_camera_object()
                 is_training = self.vis["renderingState/isTraining"].read()
                 self._check_camera_path_payload(trainer, step)
+                self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
 
@@ -431,6 +470,39 @@ class ViewerState:
 
         raise NotImplementedError
 
+    async def send_webrtc_answer(self, data):
+        """Setup the webrtc connection."""
+
+        # returns the description to for WebRTC to the specific websocket connection
+        offer = RTCSessionDescription(data["sdp"], data["type"])
+
+        pc = RTCPeerConnection()
+        self.pcs.add(pc)
+
+        video = SingleFrameStreamTrack()
+        self.video_tracks.add(video)
+        video_sender = pc.addTrack(video)
+        force_codec(pc, video_sender, "video/VP8")
+
+        await pc.setRemoteDescription(offer)
+        answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+
+        self.vis["webrtc/answer"].write({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
+        self.vis["webrtc/answer"].delete()
+
+        # continually exchange media
+        while True:
+            await asyncio.sleep(1)
+            if self.kill_webrtc_signal:
+                self.kill_webrtc_signal = False
+                return
+
+    def set_image(self, image):
+        """Write the image over webrtc."""
+        for video_track in self.video_tracks:
+            video_track.put_frame(image)
+
     def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
         """Chooses the correct output and sends it to the viewer
 
@@ -465,7 +537,7 @@ class ViewerState:
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = (self._apply_colormap(outputs, stuff_colors) * 255).type(torch.uint8)
         image = selected_output.cpu().numpy()
-        self.vis.set_image(image)
+        self.set_image(image)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
         """Function that calculates and populates all the rendering statistics accordingly

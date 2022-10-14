@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +31,7 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 # model instances
 from nerfstudio.utils import writer
 
+CONSOLE = Console(width=120)
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -167,9 +167,11 @@ class ViewerConfig(PrintableConfig):
     zmq_port: Optional[int] = None
     """The zmq port to connect to for communication. If None, find an available port."""
     launch_bridge_server: bool = True
-    """whether or not to launch the zmq bridge server"""
-    websocket_port: int = 7007
+    """whether or not to launch the bridge server"""
+    websocket_port: Optional[int] = 7007
     """the default websocket port to connect to"""
+    ip_address: str = "0.0.0.0"
+    """the ip address where the bridge server is running"""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
 
@@ -249,10 +251,9 @@ class Config(PrintableConfig):
 
     def print_to_terminal(self) -> None:
         """Helper to pretty print config to terminal"""
-        console = Console(width=120)
-        console.rule("Config")
-        console.print(self)
-        console.rule("")
+        CONSOLE.rule("Config")
+        CONSOLE.print(self)
+        CONSOLE.rule("")
 
     def save_config(self) -> None:
         """Save config to base directory"""
@@ -260,5 +261,5 @@ class Config(PrintableConfig):
         assert base_dir is not None
         base_dir.mkdir(parents=True, exist_ok=True)
         config_yaml_path = base_dir / "config.yml"
-        logging.info(f"Saving config to: {config_yaml_path}")
+        CONSOLE.log(f"Saving config to: {config_yaml_path}")
         config_yaml_path.write_text(yaml.dump(self), "utf8")

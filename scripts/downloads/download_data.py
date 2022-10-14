@@ -10,7 +10,7 @@ import gdown
 import tyro
 from rich.console import Console
 
-console = Console(width=120)
+CONSOLE = Console(width=120)
 
 
 def download_blender(save_dir: Path):
@@ -131,19 +131,19 @@ def main(
 
     if dataset == "blender":
         if capture_name is not None:
-            console.print("Capture name is ignored when downloading from the blender dataset.")
+            CONSOLE.print("Capture name is ignored when downloading from the blender dataset.")
         download_blender(save_dir)
     if dataset == "friends":
         if capture_name is not None:
-            console.print("Capture name is ignored when downloading from the blender dataset.")
+            CONSOLE.print("Capture name is ignored when downloading from the blender dataset.")
         download_friends(save_dir)
     if dataset == "nerfstudio":
         if capture_name is None:
             capture_names = sorted(nerfstudio_file_ids.keys())
-            console.rule("[bold red]Error", style="bold red")
-            console.print("[bold yellow]You must pass in --capture-name when downloading from the nerfstudio dataset.")
-            console.print("Use one of the following:")
-            console.print(f"\t {capture_names}")
+            CONSOLE.rule("[bold red]Error", style="bold red")
+            CONSOLE.print("[bold yellow]You must pass in --capture-name when downloading from the nerfstudio dataset.")
+            CONSOLE.print("Use one of the following:")
+            CONSOLE.print(f"\t {capture_names}")
             sys.exit()
         download_nerfstudio(save_dir, capture_name)
     if dataset == "record3d":

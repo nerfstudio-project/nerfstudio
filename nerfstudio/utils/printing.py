@@ -18,19 +18,19 @@ from math import floor, log
 
 from rich.console import Console
 
-console = Console(width=120)
+CONSOLE = Console(width=120)
 
 
 def print_tcnn_speed_warning(method_name: str):
     """Prints a warning about the speed of the TCNN."""
-    console.line()
-    console.print(f"[bold yellow]WARNING: Using a slow implementation of {method_name}. ")
-    console.print(
+    CONSOLE.line()
+    CONSOLE.print(f"[bold yellow]WARNING: Using a slow implementation of {method_name}. ")
+    CONSOLE.print(
         "[bold yellow]:person_running: :person_running: "
         + "Install tcnn for speedups :person_running: :person_running:"
     )
-    console.print("[yellow]pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch")
-    console.line()
+    CONSOLE.print("[yellow]pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch")
+    CONSOLE.line()
 
 
 def human_format(num):

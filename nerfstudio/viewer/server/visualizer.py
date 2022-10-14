@@ -15,28 +15,33 @@
 """Code to connect and send commands to the viewer.
 """
 
-import logging
 import sys
 from threading import Thread
 from typing import Dict, Optional, Union
 
-import msgpack
-import msgpack_numpy
 import umsgpack
 import zmq
+from rich.console import Console
 
 from nerfstudio.viewer.server.path import Path
 
+CONSOLE = Console(width=120)
+
 
 class ViewerWindow:
-    """The viewer window has the ZMQ connection to the viewer bridge server."""
+    """The viewer window has the ZMQ connection to the viewer bridge server.
+
+    Args:
+        zmq_port: Where to connect with ZMQ.
+        ip_address: The ip address of the bridge server.
+    """
 
     context = zmq.Context()
 
-    def __init__(self, zmq_port):
+    def __init__(self, zmq_port, ip_address="0.0.0.0"):
         self.zmq_port = zmq_port
         self.client = self.context.socket(zmq.REQ)
-        zmq_url = f"tcp://127.0.0.1:{self.zmq_port}"
+        zmq_url = f"tcp://{ip_address}:{self.zmq_port}"
         self.client.connect(zmq_url)
         self.assert_connected()
 
@@ -79,7 +84,7 @@ class ViewerWindow:
             t.start()
             t.join(timeout_in_sec)
         except Exception as je:
-            logging.info("Error starting thread")
+            CONSOLE.log("Error starting thread")
             raise je
         ret = res[0]
         if isinstance(ret, BaseException):
@@ -93,12 +98,12 @@ class ViewerWindow:
             timeout_in_sec (int): The maximum time to wait for the connection to be established.
         """
         try:
-            logging.info("Sending ping to the viewer Bridge Server...")
+            CONSOLE.print("Sending ping to the viewer Bridge Server...")
             _ = self.timeout_ping(timeout_in_sec)
-            logging.info("Successfully connected.")
+            CONSOLE.print("Successfully connected.")
 
         except Exception as e:  # pylint: disable=broad-except
-            logging.info(e)
+            CONSOLE.log(e)
             sys.exit()
 
 
@@ -108,13 +113,16 @@ class Viewer:
     Args:
         zmq_port: Where to connect with ZMQ.
         window: An already existing ViewerWindow.
+        ip_address: The ip address of the bridge server.
     """
 
-    def __init__(self, zmq_port: Optional[int] = None, window: Optional[ViewerWindow] = None):
+    def __init__(
+        self, zmq_port: Optional[int] = None, window: Optional[ViewerWindow] = None, ip_address: str = "0.0.0.0"
+    ):
         if zmq_port is None and window is None:
             raise ValueError("Must specify either zmq_port or window.")
         if window is None:
-            self.window = ViewerWindow(zmq_port=zmq_port)
+            self.window = ViewerWindow(zmq_port=zmq_port, ip_address=ip_address)
         else:
             self.window = window
         self.path = Path(())
@@ -145,17 +153,3 @@ class Viewer:
     def delete(self):
         """Delete data."""
         return self.write(data=None)
-
-    def set_image(self, image):
-        """Sends an image to the viewer with WebRTC."""
-        type_ = "set_image"
-        path = self.path.lower()
-        data = msgpack.packb(image, default=msgpack_numpy.encode, use_bin_type=True)
-        self.window.client.send_multipart(
-            [
-                type_.encode("utf-8"),
-                path.encode("utf-8"),
-                data,
-            ]
-        )
-        return self.window.client.recv()

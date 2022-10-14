@@ -18,7 +18,6 @@ Generic Writer class
 from __future__ import annotations
 
 import enum
-import logging
 from abc import abstractmethod
 from pathlib import Path
 from time import time
@@ -26,7 +25,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import torch
 import wandb
-from rich import console
+from rich.console import Console
 from torch.utils.tensorboard import SummaryWriter
 from torchtyping import TensorType
 
@@ -34,8 +33,7 @@ from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.printing import human_format
 
-CONSOLE = console.Console()
-
+CONSOLE = Console(width=120)
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 EVENT_WRITERS = []
 EVENT_STORAGE = []
@@ -181,7 +179,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
         curr_writer = config.local_writer.setup(banner_messages=banner_messages)
         EVENT_WRITERS.append(curr_writer)
     else:
-        logging.info("disabled local writer")
+        CONSOLE.log("disabled local writer")
 
     ## configure all the global buffer basic information
     GLOBAL_BUFFER["max_iter"] = max_iter
@@ -388,10 +386,10 @@ class LocalWriter:
         valid_step = step > 0 and step % GLOBAL_BUFFER["steps_per_log"] == 0
         if valid_step:
             if not self.has_printed and self.config.max_log_size:
-                logging.info(
-                    "\x1b[33;20mPrinting max of %d lines. Set flag  `--logging.local-writer.max-log-size=0` "
-                    "to disable line wrapping.\x1b[0m",
-                    self.config.max_log_size,
+                CONSOLE.log(
+                    f"Printing max of {self.config.max_log_size} lines. "
+                    "Set flag  `--logging.local-writer.max-log-size=0` "
+                    "to disable line wrapping."
                 )
             latest_map, new_key = self._consolidate_events()
             self._update_header(latest_map, new_key)
@@ -433,6 +431,7 @@ class LocalWriter:
             self.past_mssgs[0] = mssg
             self.past_mssgs[1] = "-" * len(mssg)
             if full_log_cond or not self.has_printed:
+                print("testeing testing!")
                 print(mssg)
                 print("-" * len(mssg))
                 # self.has_printed = True

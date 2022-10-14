@@ -46,7 +46,6 @@
 
 <img src="https://user-images.githubusercontent.com/3310961/194017985-ade69503-9d68-46a2-b518-2db1a012f090.gif" width="52%"/> <img src="https://user-images.githubusercontent.com/3310961/194020648-7e5f380c-15ca-461d-8c1c-20beb586defe.gif" width="46%"/>
 
-
 - [Quickstart](#quickstart)
 - [Learn more](#learn-more)
 - [Supported Features](#supported-features)
@@ -190,7 +189,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | [Documentation](https://docs.nerf.studio/en/latest/)                                               | Full API documentation and tutorials                                                               |
 | [Viewer](https://viewer.nerf.studio/)                                                              | Home page for our web viewer                                                                       |
 | 🎒 **Educational**                                                                                 |
-| [Model Descriptions](https://docs.nerf.studio/en/latest/nerfology/methods/index.html)                         | Description of all the models supported by nerfstudio and explanations of component parts.         |
+| [Model Descriptions](https://docs.nerf.studio/en/latest/nerfology/methods/index.html)              | Description of all the models supported by nerfstudio and explanations of component parts.         |
 | [Component Descriptions](https://docs.nerf.studio/en/latest/nerfology/model_components/index.html) | Interactive notebooks that explain notable/commonly used modules in various models.                |
 | 🏃 **Tutorials**                                                                                   |
 | [Getting Started](https://docs.nerf.studio/en/latest/quickstart/installation.html)                 | A more in-depth guide on how to get started with nerfstudio from installation to contributing.     |
@@ -200,9 +199,9 @@ If you're interested in learning more on how to create your own pipelines, devel
 | [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |     |
 | [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
 | 💖 **Community**                                                                                   |
-| [Discord](https://discord.gg/uMbNqcraFc)                                                             | Join our community to discuss more. We would love to hear from you!                                |
-| [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                                         |
-| [TikTok](#)                                                                                        | Coming soon! Follow us on TikTok to see some of our fan favorite results                          |
+| [Discord](https://discord.gg/uMbNqcraFc)                                                           | Join our community to discuss more. We would love to hear from you!                                |
+| [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                         |
+| [TikTok](#)                                                                                        | Coming soon! Follow us on TikTok to see some of our fan favorite results                           |
 
 # Supported Features
 
@@ -238,8 +237,8 @@ If you use this library or find the documentation useful for your research, plea
 ```
 @misc{nerfstudio,
       title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi, 
-              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi, 
+      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi,
+              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi,
               Abhik Ahuja, David McAllister, Angjoo Kanazawa},
       year={2022},
       url={https://github.com/nerfstudio-project/nerfstudio},
