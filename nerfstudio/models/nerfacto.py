@@ -61,18 +61,22 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
-    num_proposal_samples_per_ray: Tuple[int] = (200, 64)
+    num_proposal_samples_per_ray: Tuple[int] = (256, 96)
     """Number of samples per ray for the proposal network."""
-    num_nerf_samples_per_ray: int = 64
+    num_nerf_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""
+    proposal_update_every: int = 5
+    """Sample every n steps after the warmup"""
+    proposal_warmup: int = 5000
+    """Scales n from 1 to proposal_update_every over this many steps"""
     num_proposal_iterations: int = 2
     """Number of proposal network iterations."""
     use_same_proposal_network: bool = False
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 64},
-            {"hidden_dim": 16, "log2_hashmap_size": 16, "num_levels": 5, "max_res": 256},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 64},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
         ]
     )
     """Arguments for the proposal density fields."""
@@ -129,17 +133,25 @@ class NerfactoModel(Model):
             for i in range(num_prop_nets):
                 prop_net_args = self.config.proposal_net_args_list[min(i, len(self.config.proposal_net_args_list) - 1)]
                 network = HashMLPDensityField(
-                    self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args
+                    self.scene_box.aabb,
+                    spatial_distortion=scene_contraction,
+                    **prop_net_args,
                 )
                 self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for network in self.proposal_networks])
 
         # Samplers
+        update_schedule = lambda step: np.clip(
+            np.interp(step, [0, self.config.proposal_warmup], [0, self.config.proposal_update_every]),
+            1,
+            self.config.proposal_update_every,
+        )
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
             num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
+            update_sched=update_schedule,
         )
 
         # Collider
@@ -184,6 +196,13 @@ class NerfactoModel(Model):
                     where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
                     update_every_num_iters=1,
                     func=set_anneal,
+                )
+            )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.proposal_sampler.step_cb,
                 )
             )
         return callbacks
