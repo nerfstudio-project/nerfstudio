@@ -17,11 +17,10 @@ Profiler base class and functionality
 """
 from __future__ import annotations
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 import time
 from typing import Callable
+
+from rich.console import Console
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils import comms
@@ -30,6 +29,8 @@ from nerfstudio.utils.decorators import (
     check_profiler_enabled,
     decorate_all,
 )
+
+CONSOLE = Console(width=120)
 
 PROFILER = []
 

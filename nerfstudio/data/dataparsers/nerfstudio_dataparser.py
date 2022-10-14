@@ -15,9 +15,6 @@
 
 from __future__ import annotations
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
@@ -26,6 +23,7 @@ from typing import Literal, Optional, Type
 import numpy as np
 import torch
 from PIL import Image
+from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -37,7 +35,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
-
+CONSOLE = Console(width=120)
 MAX_AUTO_RESOLUTION = 1600
 
 

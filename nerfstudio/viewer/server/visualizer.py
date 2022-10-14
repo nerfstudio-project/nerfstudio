@@ -15,17 +15,17 @@
 """Code to connect and send commands to the viewer.
 """
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 import sys
 from threading import Thread
 from typing import Dict, Optional, Union
 
 import umsgpack
 import zmq
+from rich.console import Console
 
 from nerfstudio.viewer.server.path import Path
+
+CONSOLE = Console(width=120)
 
 
 class ViewerWindow:

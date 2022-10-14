@@ -6,9 +6,6 @@ from __future__ import annotations
 
 import dataclasses
 import json
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 import sys
 from pathlib import Path
 from typing import Literal, Optional
@@ -16,6 +13,7 @@ from typing import Literal, Optional
 import mediapy as media
 import torch
 import tyro
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     Progress,
@@ -32,6 +30,8 @@ from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
+
+CONSOLE = Console(width=120)
 
 
 def _render_trajectory_video(

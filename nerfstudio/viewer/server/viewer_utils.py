@@ -47,7 +47,6 @@ from nerfstudio.viewer.server.utils import (
 )
 from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
 from nerfstudio.viewer.server.visualizer import Viewer
-from rich.console import Console
 
 CONSOLE = Console(width=120)
 
@@ -217,16 +216,17 @@ class ViewerState:
         self.log_filename = log_filename
         if self.config.launch_bridge_server:
             # start the viewer bridge server
-            websocket_port = self.config.websocket_port
+            assert self.config.websocket_port is not None
             self.log_filename.parent.mkdir(exist_ok=True)
             zmq_port = run_viewer_bridge_server_as_subprocess(
-                websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
+                self.config.websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
             )
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             CONSOLE.line()
             json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
             version = load_from_json(Path(json_filename))["version"]
-            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_port={websocket_port}"
+            websocket_url = f"ws://localhost:{self.config.websocket_port}"
+            self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
             CONSOLE.rule(characters="=")
             CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
             CONSOLE.rule(characters="=")

@@ -57,7 +57,7 @@ export default function LandingModel(props: LandingModalProps) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket Port below and click the link to connect to your training job.`;
+  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket URL below and click the link to connect to your training job.`;
 
   const command = `ssh -L <port>:localhost:<port> USER@REMOTE.SERVER.IP`;
 

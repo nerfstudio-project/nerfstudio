@@ -18,21 +18,20 @@
 
 from __future__ import annotations
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 import yaml
+from rich.console import Console
 
 from nerfstudio.configs.config_utils import to_immutable_dict
 
 # model instances
 from nerfstudio.utils import writer
 
+CONSOLE = Console(width=120)
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -169,7 +168,7 @@ class ViewerConfig(PrintableConfig):
     """The zmq port to connect to for communication. If None, find an available port."""
     launch_bridge_server: bool = True
     """whether or not to launch the bridge server"""
-    websocket_port: int = 7007
+    websocket_port: Optional[int] = 7007
     """the default websocket port to connect to"""
     ip_address: str = "0.0.0.0"
     """the ip address where the bridge server is running"""

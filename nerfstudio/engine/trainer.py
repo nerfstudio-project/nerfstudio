@@ -19,14 +19,12 @@ from __future__ import annotations
 
 import dataclasses
 import functools
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 import os
 import time
 from typing import Any, Dict, List, Tuple
 
 import torch
+from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
@@ -46,6 +44,8 @@ from nerfstudio.utils.decorators import (
 from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
+
+CONSOLE = Console(width=120)
 
 
 def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:

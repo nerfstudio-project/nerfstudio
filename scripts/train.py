@@ -31,9 +31,6 @@ subcommand:
 
 from __future__ import annotations
 
-from rich.console import Console
-
-CONSOLE = Console(width=120)
 import random
 import socket
 import traceback
@@ -46,6 +43,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import tyro
 import yaml
+from rich.console import Console
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
@@ -53,6 +51,7 @@ from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import train_loop
 from nerfstudio.utils import comms, profiler
 
+CONSOLE = Console(width=120)
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
 # speedup for when input size to model doesn't change (much)
