@@ -528,6 +528,7 @@ class ProposalNetworkSampler(Sampler):
         self._anneal = anneal
 
     def step_cb(self, step):
+        """Callback to register a training step has passed. This is used to keep track of the sampling schedule"""
         self._step = step
         self._steps_since_update += 1
 
