@@ -17,8 +17,12 @@ Profiler base class and functionality
 """
 from __future__ import annotations
 
+import cProfile
+import io
 import logging
+import pstats
 import time
+from pstats import SortKey
 from typing import Callable
 
 from nerfstudio.configs import base_config as cfg
@@ -46,6 +50,20 @@ def time_function(func: Callable) -> Callable:
     return wrapper
 
 
+def profile_function(func: Callable) -> Callable:
+    """Decorator: detailed profiling of a function"""
+
+    def wrapper(*args, **kwargs):
+        if PROFILER:
+            with PROFILER[0].pr:
+                ret = func(*args, **kwargs)
+            return ret
+        else:
+            return func(*args, **kwargs)
+
+    return wrapper
+
+
 def flush_profiler(config: cfg.LoggingConfig):
     """Method that checks if profiler is enabled before flushing"""
     if config.enable_profiler and PROFILER:
@@ -65,6 +83,7 @@ class Profiler:
     def __init__(self, config: cfg.LoggingConfig):
         self.config = config
         self.profiler_dict = {}
+        self.pr = cProfile.Profile()
 
     def update_time(self, func_name: str, start_time: float, end_time: float):
         """update the profiler dictionary with running averages of durations
@@ -91,3 +110,11 @@ class Profiler:
         for k in sorted_keys:
             val = f"{self.profiler_dict[k]['val']:0.4f}"
             print(f"{k:<20}: {val:<20}")
+        print("Detailed profiling:")
+        s = io.StringIO()
+        sortby = SortKey.CUMULATIVE
+        ps = pstats.Stats(self.pr, stream=s)
+        ps.strip_dirs()
+        ps.sort_stats(sortby)
+        ps.print_stats(100)
+        print(s.getvalue())
