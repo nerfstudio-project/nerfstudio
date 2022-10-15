@@ -10,7 +10,13 @@ import {
   Replay,
   Timeline,
 } from '@mui/icons-material';
-import { Button, InputAdornment, Slider } from '@mui/material';
+import {
+  Button,
+  InputAdornment,
+  MenuItem,
+  Select,
+  Slider,
+} from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -74,7 +80,7 @@ function CameraList(props) {
     }
   };
 
-  const reset_slider_render_on_delete = () => {
+  const reset_slider_render_on_change = () => {
     // set slider and render camera back to 0
     const slider_min = 0;
     const camera_render = sceneTree.find_object_no_create([
@@ -132,15 +138,37 @@ function CameraList(props) {
     if (cameras.length < 1) {
       camera_render_helper.set_visibility(false);
     }
-    reset_slider_render_on_delete();
+    reset_slider_render_on_change();
+  };
+
+  const reorder_camera = (camera, index, new_index) => {
+    const new_cameras = [
+      ...cameras.slice(0, index),
+      ...cameras.slice(index + 1),
+    ];
+    setCameras([
+      ...new_cameras.slice(0, new_index),
+      camera,
+      ...new_cameras.slice(new_index),
+    ]);
+    reset_slider_render_on_change();
   };
 
   const cameraList = cameras.map((camera, index) => {
     return (
       <div className="CameraList-row" key={camera.uuid}>
         <Button size="small" onClick={() => set_transform_controls(index)}>
-          Camera {index}
+          Camera
         </Button>
+        <Select
+          value={index}
+          onChange={(e) => reorder_camera(camera, index, e.target.value)}
+          variant="standard"
+        >
+          {[...cameras.keys()].map((i) => (
+            <MenuItem value={i}>{i}</MenuItem>
+          ))}
+        </Select>
         <div className="CameraList-row-buttons">
           <Button
             size="small"
