@@ -16,13 +16,13 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Tuple, Type
 
 import numpy as np
 import torch
+from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -33,6 +33,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
+
+CONSOLE = Console(width=120)
 
 
 @dataclass
@@ -69,7 +71,7 @@ class InstantNGP(DataParser):
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
         if num_skipped_image_filenames >= 0:
-            logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+            CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
             len(image_filenames) != 0
         ), """

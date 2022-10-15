@@ -137,6 +137,9 @@ def _update_rc(
         [
             "",
             "# Source nerfstudio autocompletions.",
+            "# From https://unix.stackexchange.com/questions/339954/zsh-command-not-found-compinstall-compinit-compdef",
+            "autoload -Uz compinit",
+            "compinit",
             f"source {completions_dir / 'setup'}.{shell}",
         ]
     )

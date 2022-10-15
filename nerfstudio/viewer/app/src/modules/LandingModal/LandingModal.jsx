@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
-import { useSelector } from 'react-redux';
 import WebSocketUrlField from '../WebSocketUrlField';
 
 interface LandingModalProps {
@@ -57,12 +56,9 @@ export default function LandingModel(props: LandingModalProps) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket Port below and click the link to connect to your training job.`;
+  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket URL below and click the link to connect to your training job.`;
 
-  const websocket_port = useSelector(
-    (state) => state.websocketState.websocket_port,
-  );
-  const command = `ssh -L ${websocket_port}:localhost:${websocket_port} USER@REMOTE.SERVER.IP`;
+  const command = `ssh -L <port>:localhost:<port> USER@REMOTE.SERVER.IP`;
 
   const platform = window.navigator.platform.toLowerCase();
   let initial_tab = 0;
@@ -180,9 +176,15 @@ export default function LandingModel(props: LandingModalProps) {
               </TabPanel>
               <h3>Camera Keyboard Controls</h3>
               <p>
-                <div>WASD - horizontal camera translation, QE - vertical camera translation</div> 
+                <div>
+                  WASD - horizontal camera translation, QE - vertical camera
+                  translation
+                </div>
                 <div>Arrow Keys - camera rotation</div>
-                <div>Spacebar - reset camera orbit point and view direction to origin</div>
+                <div>
+                  Spacebar - reset camera orbit point and view direction to
+                  origin
+                </div>
               </p>
             </div>
           </Typography>

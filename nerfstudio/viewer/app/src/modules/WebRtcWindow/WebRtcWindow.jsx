@@ -122,8 +122,8 @@ export default function WebRtcWindow() {
         // send the offer
         console.log('[webrtc] sending offer');
         const offer = pcRef.current.localDescription;
-        const cmd = 'offer';
-        const path = '';
+        const cmd = 'write';
+        const path = 'webrtc/offer';
         const data = {
           type: cmd,
           path,
@@ -141,11 +141,13 @@ export default function WebRtcWindow() {
     websocket.addEventListener('message', (originalCmd) => {
       // set the remote description when the offer is received
       const cmd = msgpack.decode(new Uint8Array(originalCmd.data));
-      if (cmd.type === 'answer') {
+      if (cmd.path === '/webrtc/answer') {
         console.log('[webrtc] received answer');
         const answer = cmd.data;
         console.log(answer);
-        pcRef.current.setRemoteDescription(answer);
+        if (answer !== null) {
+          pcRef.current.setRemoteDescription(answer);
+        }
       }
     });
 

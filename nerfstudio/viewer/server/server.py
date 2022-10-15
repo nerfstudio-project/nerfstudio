@@ -17,8 +17,6 @@
 import sys
 from typing import List, Optional, Tuple
 
-import msgpack
-import msgpack_numpy
 import tornado.gen
 import tornado.ioloop
 import tornado.web
@@ -27,27 +25,11 @@ import tyro
 import umsgpack
 import zmq
 import zmq.eventloop.ioloop
-from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.rtcrtpsender import RTCRtpSender
+from pyngrok import ngrok
 from zmq.eventloop.zmqstream import ZMQStream
 
 from nerfstudio.viewer.server.state.node import find_node, get_tree, walk
 from nerfstudio.viewer.server.state.state_node import StateNode
-from nerfstudio.viewer.server.video_stream import SingleFrameStreamTrack
-
-
-def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
-    """Sets the codec preferences on a connection between sender and reciever
-
-    Args:
-        pc: peer connection point
-        sender: sender that will send to connection point
-        forced_codec: codec to set
-    """
-    kind = forced_codec.split("/")[0]
-    codecs = RTCRtpSender.getCapabilities(kind).codecs
-    transceiver = next(t for t in pc.getTransceivers() if t.sender == sender)
-    transceiver.setCodecPreferences([codec for codec in codecs if codec.mimeType == forced_codec])
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=abstract-method
@@ -82,7 +64,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         if type_ == "write":
             # writes the data coming from the websocket
             find_node(self.bridge.state_tree, path).data = m["data"]
-            if m["path"] != "renderingState/camera":
+            if m["path"] != "renderingState/camera" and m["path"] != "webrtc/offer":
                 # dispatch to the websockets if not a camera update!
                 # TODO(ethan): handle the camera properly!
                 # TODO: but don't update the current websocket
@@ -93,29 +75,6 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):  # pylint: disable=a
         elif type_ == "read":
             # reads and returns the data
             data = find_node(self.bridge.state_tree, path).data
-            self.write_message(data, binary=True)
-        elif type_ == "offer":
-            # returns the description to for WebRTC to the specific websocket connection
-            offer = RTCSessionDescription(m["data"]["sdp"], m["data"]["type"])
-
-            pc = RTCPeerConnection()
-            self.bridge.pcs.add(pc)
-
-            video = SingleFrameStreamTrack()
-            self.bridge.video_tracks.add(video)
-            video_sender = pc.addTrack(video)
-            force_codec(pc, video_sender, "video/VP8")
-
-            await pc.setRemoteDescription(offer)
-            answer = await pc.createAnswer()
-            await pc.setLocalDescription(answer)
-
-            cmd_data = {
-                "type": "answer",
-                "path": "",
-                "data": {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type},
-            }
-            data = umsgpack.packb(cmd_data)
             self.write_message(data, binary=True)
         else:
             cmd_data = {
@@ -136,7 +95,6 @@ class ZMQWebSocketBridge:
 
     Args:
         zmq_port: zmq port to connect to. Defaults to None.
-        host: host of server. Defaults to "127.0.0.1".
         websocket_port: websocket port to connect to. Defaults to None.
     """
 
@@ -147,11 +105,9 @@ class ZMQWebSocketBridge:
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
-        self.pcs = set()
-        self.video_tracks = set()
 
         # zmq
-        zmq_url = f"tcp://127.0.0.1:{self.zmq_port:d}"
+        zmq_url = f"tcp://0.0.0.0:{self.zmq_port:d}"
         self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
         # websocket
@@ -195,13 +151,6 @@ class ZMQWebSocketBridge:
             # TODO(ethan): handle the "data" key...
             read_data = find_node(self.state_tree, path).data
             self.zmq_socket.send(umsgpack.packb(read_data))
-        elif type_ == "set_image":
-            image = msgpack.unpackb(
-                data, object_hook=msgpack_numpy.decode, use_list=False, max_bin_len=50000000, raw=False
-            )
-            for video_track in self.video_tracks:
-                video_track.put_frame(image)
-            self.zmq_socket.send(umsgpack.packb(b"ok"))
         else:
             self.zmq_socket.send(umsgpack.packb(b"error: unknown command"))
 
@@ -249,13 +198,22 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
+def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, use_ngrok: bool = False):
     """Run the viewer bridge server.
 
     Args:
         zmq_port: port to use for zmq
         websocket_port: port to use for websocket
+        host: host to connect to
     """
+
+    # whether to launch pyngrok or not
+    if use_ngrok:
+        # Open a HTTP tunnel on the default port 80
+        # <NgrokTunnel: "http://<public_sub>.ngrok.io" -> "http://localhost:80">
+        http_tunnel = ngrok.connect(addr=str(zmq_port), proto="tcp")
+        print(http_tunnel)
+
     bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port)
     print(bridge)
     try:
@@ -264,11 +222,11 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007):
         pass
 
 
-def main():
+def entrypoint():
     """The main entrypoint."""
     tyro.extras.set_accent_color("bright_yellow")
     tyro.cli(run_viewer_bridge_server)
 
 
 if __name__ == "__main__":
-    main()
+    entrypoint()

@@ -3,8 +3,8 @@ import { split_path } from './utils';
 const initialState = {
   // the websocket connection state
   websocketState: {
-    websocket_port: 7007,
     isConnected: false,
+    websocket_url: "ws://localhost:7007",
   },
   // the webrtc connection state
   webrtcState: {

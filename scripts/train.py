@@ -31,7 +31,6 @@ subcommand:
 
 from __future__ import annotations
 
-import logging
 import random
 import socket
 import traceback
@@ -44,6 +43,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import tyro
 import yaml
+from rich.console import Console
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
@@ -51,8 +51,7 @@ from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import train_loop
 from nerfstudio.utils import comms, profiler
 
-logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.DEBUG)
-
+CONSOLE = Console(width=120)
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
 # speedup for when input size to model doesn't change (much)
@@ -117,7 +116,7 @@ def _distributed_worker(
             timeout=timeout,
         )
     except Exception as e:
-        logging.error("Process group URL: %s", dist_url)
+        CONSOLE.log(f"Process group URL: {dist_url}")
         raise e
 
     assert comms._LOCAL_PROCESS_GROUP is None  # pylint: disable=protected-access
@@ -181,7 +180,7 @@ def launch(
             port = _find_free_port()
             dist_url = f"tcp://127.0.0.1:{port}"
         if num_machines > 1 and dist_url.startswith("file://"):
-            logging.warning("file:// is not a reliable init_method in multi-machine jobs. Prefer tcp://")
+            CONSOLE.log("file:// is not a reliable init_method in multi-machine jobs. Prefer tcp://")
 
         process_context = mp.spawn(
             _distributed_worker,
@@ -202,10 +201,10 @@ def launch(
         except KeyboardInterrupt:
             for i, process in enumerate(process_context.processes):
                 if process.is_alive():
-                    logging.info("Terminating process %s", str(i))
+                    CONSOLE.log("Terminating process %s", str(i))
                     process.terminate()
                 process.join()
-                logging.info("Process %s finished", str(i))
+                CONSOLE.log("Process %s finished", str(i))
         finally:
             profiler.flush_profiler(config.logging)
 
@@ -215,11 +214,11 @@ def main(config: cfg.Config) -> None:
 
     config.set_timestamp()
     if config.data:
-        logging.info("Using --data alias for --data.pipeline.datamanager.dataparser.data")
+        CONSOLE.log("Using --data alias for --data.pipeline.datamanager.dataparser.data")
         config.pipeline.datamanager.dataparser.data = config.data
 
     if config.trainer.load_config:
-        logging.info(f"Loading pre-set config from: {config.trainer.load_config}")
+        CONSOLE.log(f"Loading pre-set config from: {config.trainer.load_config}")
         config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
 
     # print and save config

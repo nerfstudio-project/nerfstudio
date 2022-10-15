@@ -34,6 +34,7 @@ dependencies = [
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
+    "pyngrok==5.1.0",
     "python-socketio==5.7.1",
     "requests",
     "rich==12.5.1",
@@ -83,6 +84,7 @@ ns-train = "scripts.train:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
 ns-render = "scripts.render:entrypoint"
 ns-dev-test = "scripts.github.run_actions:entrypoint"
+ns-bridge-server = "nerfstudio.viewer.server.server:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision

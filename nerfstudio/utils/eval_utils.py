@@ -29,7 +29,7 @@ from rich.console import Console
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
-console = Console(width=120)
+CONSOLE = Console(width=120)
 
 
 def eval_load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
@@ -42,12 +42,12 @@ def eval_load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     """
     assert config.load_dir is not None
     if config.load_step is None:
-        console.print("Loading latest checkpoint from load_dir")
+        CONSOLE.print("Loading latest checkpoint from load_dir")
         # NOTE: this is specific to the checkpoint name format
         if not os.path.exists(config.load_dir):
-            console.rule("Error", style="red")
-            console.print(f"No checkpoint directory found at {config.load_dir}, ", justify="center")
-            console.print(
+            CONSOLE.rule("Error", style="red")
+            CONSOLE.print(f"No checkpoint directory found at {config.load_dir}, ", justify="center")
+            CONSOLE.print(
                 "Please make sure the checkpoint exists, they should be generated periodically during training",
                 justify="center",
             )
@@ -59,7 +59,7 @@ def eval_load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     assert load_path.exists(), f"Checkpoint {load_path} does not exist"
     loaded_state = torch.load(load_path, map_location="cpu")
     pipeline.load_pipeline(loaded_state["pipeline"])
-    console.print(f":white_check_mark: Done loading checkpoint from {load_path}")
+    CONSOLE.print(f":white_check_mark: Done loading checkpoint from {load_path}")
     return load_path
 
 
