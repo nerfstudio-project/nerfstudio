@@ -2,7 +2,6 @@
 Test the camera classes.
 """
 import dataclasses
-from calendar import c
 from itertools import product
 
 import torch

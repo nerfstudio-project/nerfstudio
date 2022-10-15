@@ -412,6 +412,7 @@ class Cameras(TensorDataclass):
         # If we started with no batch dimension, squeeze out the extra dimension we added
         return raybundle
 
+    # pylint: disable=too-many-statements
     def _generate_rays_from_coords(
         self,
         camera_indices: TensorType["num_rays":..., "cameras_ndim"],
