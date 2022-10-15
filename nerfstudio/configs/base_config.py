@@ -231,7 +231,8 @@ class Config(PrintableConfig):
 
     def set_timestamp(self) -> None:
         """Dynamically set the experiment timestamp"""
-        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        if self.timestamp == "{timestamp}":
+            self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
