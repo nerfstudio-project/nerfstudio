@@ -245,7 +245,10 @@ export function get_scene_tree() {
     mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
 
     if (mouseVector.x > 1 || mouseVector.x < -1 || mouseVector.y > 1 || mouseVector.y < -1) {
-      selectedCam = null;
+      if (selectedCam !== null) {
+        selectedCam.material.color = new THREE.Color(1, 1, 1);
+        selectedCam = null;
+      }
       return;
     }
 
