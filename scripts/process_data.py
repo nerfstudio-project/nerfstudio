@@ -379,24 +379,33 @@ def run_colmap(
     # Bundle adjustment
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
-    bundle_adjuster_cmd = [
+    mapper_cmd = [
         "colmap mapper",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
     ]
     if colmap_version >= 3.7:
-        bundle_adjuster_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
+        mapper_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
 
-    bundle_adjuster_cmd = " ".join(bundle_adjuster_cmd)
+    mapper_cmd = " ".join(mapper_cmd)
 
     with status(
         msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
         spinner="circle",
         verbose=verbose,
     ):
-        run_command(bundle_adjuster_cmd, verbose=verbose)
+        run_command(mapper_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
+    with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
+        bundle_adjuster_cmd = [
+            "colmap bundle_adjuster",
+            f"--input_path {sparse_dir}/0",
+            f"--output_path {sparse_dir}/0",
+            "--BundleAdjustment.refine_principal_point 1",
+        ]
+        run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
 def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel) -> int:
