@@ -114,9 +114,9 @@ class TCNNNerfactoField(Field):
         self.use_semantics = use_semantics
 
         num_levels = 16
-        max_res = 1024
+        max_res = 4096
         base_res = 16
-        log2_hashmap_size = 19
+        log2_hashmap_size = 21
         features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
