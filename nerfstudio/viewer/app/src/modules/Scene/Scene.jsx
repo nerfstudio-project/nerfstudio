@@ -119,6 +119,14 @@ export function get_scene_tree() {
     keyMap[keyCode] = true;
   }
 
+  function checkVisibility(camera) {
+    while (camera !== null) {
+      if (!camera.visible) return false;
+      camera = camera.parent
+    }
+    return true;
+  }
+
   window.addEventListener('keydown', onKeyDown, true);
   window.addEventListener('keyup', onKeyUp, true);
 
@@ -259,8 +267,9 @@ export function get_scene_tree() {
       selectedCam.material.color = new THREE.Color(1, 1, 1);
       selectedCam = null;
     }
-    if (intersections.length > 0) {
-      selectedCam = intersections[0].object;
+    let filtered_intersections = intersections.filter(isect => checkVisibility(isect.object));
+    if (filtered_intersections.length > 0) {
+      selectedCam = filtered_intersections[0].object;
       selectedCam.material.color = new THREE.Color(0xfab300);
     }
   };
