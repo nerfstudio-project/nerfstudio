@@ -5,9 +5,11 @@ import json
 import shutil
 import subprocess
 import sys
+from contextlib import nullcontext
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import List, Literal, Optional, Tuple, Union
 
 import appdirs
 import numpy as np
@@ -15,6 +17,7 @@ import requests
 import tyro
 from rich.console import Console
 from rich.progress import track
+from typing_extensions import Annotated
 
 from nerfstudio.utils import colmap_utils, install_checks
 
@@ -32,6 +35,19 @@ CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
 }
+
+
+def status(msg: str, spinner: str = "bouncingBall", verbose: bool = False):
+    """A context manager that does nothing is verbose is True. Otherwise it hides logs under a message.
+
+    Args:
+        msg: The message to log.
+        spinner: The spinner to use.
+        verbose: If True, print all logs, else hide them.
+    """
+    if verbose:
+        return nullcontext()
+    return CONSOLE.status(msg, spinner=spinner)
 
 
 def get_colmap_version(default_version=3.8) -> float:
@@ -99,9 +115,26 @@ def run_command(cmd: str, verbose=False) -> Optional[str]:
     return out
 
 
+def get_num_frames_in_video(video: Path) -> int:
+    """Returns the number of frames in a video.
+
+    Args:
+        video: Path to a video.
+
+    Returns:
+        The number of frames in a video.
+    """
+    cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
+            -show_entries stream=nb_read_packets -of csv=p=0 {video}"
+    output = run_command(cmd)
+    assert output is not None
+    output = output.strip(" ,\t\n\r")
+    return int(output)
+
+
 def convert_video_to_images(
     video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False
-) -> Tuple[int, int]:
+) -> List[str]:
     """Converts a video into a sequence of images.
 
     Args:
@@ -110,40 +143,111 @@ def convert_video_to_images(
         num_frames_target: Number of frames to extract.
         verbose: If True, logs the output of the command.
     Returns:
-        A tuple containing the number of frames in the video and the number of frames extracted.
+        A summary of the conversion.
     """
 
-    # delete existing images in folder
-    for img in image_dir.glob("*.png"):
-        if verbose:
-            CONSOLE.log(f"Deleting {img}")
-        img.unlink()
+    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
+        # delete existing images in folder
+        for img in image_dir.glob("*.png"):
+            if verbose:
+                CONSOLE.log(f"Deleting {img}")
+            img.unlink()
 
-    cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
-        -show_entries stream=nb_read_packets -of csv=p=0 {video_path}"
-    output = run_command(cmd, verbose=False)
-    assert output is not None
-    output = output.strip(" ,\t\n\r")
+        num_frames = get_num_frames_in_video(video_path)
+        if num_frames == 0:
+            CONSOLE.print(f"[bold red]Error: Video has no frames: {video_path}")
+            sys.exit(1)
+        print("Number of frames in video:", num_frames)
 
-    num_frames = int(output)
-    print("Number of frames in video:", num_frames)
+        out_filename = image_dir / "frame_%05d.png"
+        ffmpeg_cmd = f"ffmpeg -i {video_path}"
+        spacing = num_frames // num_frames_target
 
-    out_filename = image_dir / "frame_%05d.png"
+        if spacing > 1:
+            ffmpeg_cmd += f" -vf 'thumbnail={spacing},setpts=N/TB' -r 1"
+        else:
+            CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
-    ffmpeg_cmd = f"ffmpeg -i {video_path}"
+        ffmpeg_cmd += f" {out_filename}"
 
-    spacing = num_frames // num_frames_target
+        run_command(ffmpeg_cmd, verbose=verbose)
 
-    if spacing > 1:
-        ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
-    else:
-        CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
+    summary_log = []
+    summary_log.append(f"Starting with {num_frames} video frames")
+    summary_log.append(f"We extracted {len(list(image_dir.glob('*.png')))} images")
+    CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
-    ffmpeg_cmd += f" {out_filename}"
+    return summary_log
 
-    run_command(ffmpeg_cmd, verbose=verbose)
 
-    return num_frames, len(list(image_dir.glob("*.png")))
+def convert_insta360_to_images(
+    video_front: Path,
+    video_back: Path,
+    image_dir: Path,
+    num_frames_target: int,
+    crop_percentage: float = 0.7,
+    verbose: bool = False,
+) -> List[str]:
+    """Converts a video into a sequence of images.
+
+    Args:
+        video_front: Path to the front video.
+        video_back: Path to the back video.
+        output_dir: Path to the output directory.
+        num_frames_target: Number of frames to extract.
+        verbose: If True, logs the output of the command.
+    Returns:
+        A summary of the conversion.
+    """
+
+    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
+        # delete existing images in folder
+        for img in image_dir.glob("*.png"):
+            if verbose:
+                CONSOLE.log(f"Deleting {img}")
+            img.unlink()
+
+        num_frames_front = get_num_frames_in_video(video_front)
+        num_frames_back = get_num_frames_in_video(video_back)
+        if num_frames_front == 0:
+            CONSOLE.print(f"[bold red]Error: Video has no frames: {video_front}")
+            sys.exit(1)
+        if num_frames_back == 0:
+            CONSOLE.print(f"[bold red]Error: Video has no frames: {video_front}")
+            sys.exit(1)
+
+        spacing = num_frames_front // (num_frames_target // 2)
+        vf_cmds = []
+        if spacing > 1:
+            vf_cmds = [f"thumbnail={spacing}", "setpts=N/TB"]
+        else:
+            CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
+
+        vf_cmds.append(f"crop=iw*({crop_percentage}):ih*({crop_percentage})")
+
+        front_vf_cmds = vf_cmds + ["transpose=2"]
+        back_vf_cmds = vf_cmds + ["transpose=1"]
+
+        front_ffmpeg_cmd = (
+            f"ffmpeg -i {video_front} -vf '{','.join(front_vf_cmds)}' -r 1 {image_dir / 'frame_%05d.png'}"
+        )
+        back_ffmpeg_cmd = (
+            f"ffmpeg -i {video_back} -vf '{','.join(back_vf_cmds)}' -r 1 {image_dir / 'back_frame_%05d.png'}"
+        )
+
+        run_command(front_ffmpeg_cmd, verbose=verbose)
+        run_command(back_ffmpeg_cmd, verbose=verbose)
+
+        num_extracted_front_frames = len(list(image_dir.glob("frame*.png")))
+        for i, img in enumerate(image_dir.glob("back_frame_*.png")):
+            img.rename(image_dir / f"frame_{i+1+num_extracted_front_frames:05d}.png")
+
+    summary_log = []
+    summary_log.append(f"Starting with {num_frames_front + num_frames_back} video frames")
+    summary_log.append(f"We extracted {len(list(image_dir.glob('*.png')))} images")
+    CONSOLE.log("[bold green]:tada: Done converting insta360 to images.")
+
+    return summary_log
 
 
 def copy_images(data: Path, image_dir: Path, verbose) -> int:
@@ -156,24 +260,32 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     Returns:
         The number of images copied.
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
+        allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+        image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
 
-    # Remove original directory only if we provide a proper image folder path
-    if image_dir.is_dir() and len(image_paths):
-        shutil.rmtree(image_dir, ignore_errors=True)
-        image_dir.mkdir(exist_ok=True, parents=True)
+        # Remove original directory only if we provide a proper image folder path
+        if image_dir.is_dir() and len(image_paths):
+            shutil.rmtree(image_dir, ignore_errors=True)
+            image_dir.mkdir(exist_ok=True, parents=True)
 
-    # Images should be 1-indexed for the rest of the pipeline.
-    for idx, image_path in enumerate(image_paths):
-        if verbose:
-            CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        shutil.copy(image_path, image_dir / f"frame_{idx + 1:05d}{image_path.suffix}")
+        # Images should be 1-indexed for the rest of the pipeline.
+        for idx, image_path in enumerate(image_paths):
+            if verbose:
+                CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
+            shutil.copy(image_path, image_dir / f"frame_{idx + 1:05d}{image_path.suffix}")
 
-    return len(image_paths)
+        num_frames = len(image_paths)
+
+    if num_frames == 0:
+        CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+    else:
+        CONSOLE.log("[bold green]:tada: Done copying images.")
+
+    return num_frames
 
 
-def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> None:
+def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
@@ -182,22 +294,35 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         image_dir: Path to the directory containing the images.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
         verbose: If True, logs the output of the command.
+
+    Returns:
+        Summary of downscaling.
     """
-    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
-    for downscale_factor in downscale_factors:
-        assert downscale_factor > 1
-        assert isinstance(downscale_factor, int)
-        downscale_dir = image_dir.parent / f"images_{downscale_factor}"
-        downscale_dir.mkdir(parents=True, exist_ok=True)
-        file_type = image_dir.glob("frame_*").__next__().suffix
-        filename = f"frame_%05d{file_type}"
-        ffmpeg_cmd = [
-            f"ffmpeg -i {image_dir / filename} ",
-            f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-            f"{downscale_dir / filename}",
-        ]
-        ffmpeg_cmd = " ".join(ffmpeg_cmd)
-        run_command(ffmpeg_cmd, verbose=verbose)
+
+    if num_downscales == 0:
+        return "No downscaling performed."
+
+    with status(msg="[bold yellow]Downscaling images...", spinner="growVertical", verbose=verbose):
+        downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
+        for downscale_factor in downscale_factors:
+            assert downscale_factor > 1
+            assert isinstance(downscale_factor, int)
+            downscale_dir = image_dir.parent / f"images_{downscale_factor}"
+            downscale_dir.mkdir(parents=True, exist_ok=True)
+            file_type = image_dir.glob("frame_*").__next__().suffix
+            filename = f"frame_%05d{file_type}"
+            ffmpeg_cmd = [
+                f"ffmpeg -i {image_dir / filename} ",
+                f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                f"{downscale_dir / filename}",
+            ]
+            ffmpeg_cmd = " ".join(ffmpeg_cmd)
+            run_command(ffmpeg_cmd, verbose=verbose)
+
+    CONSOLE.log("[bold green]:tada: Done downscaling images.")
+    downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
+    downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
+    return f"We downsampled the images by {downscale_text}"
 
 
 def run_colmap(
@@ -232,11 +357,9 @@ def run_colmap(
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
-    if not verbose:
-        with CONSOLE.status("[bold yellow]Running COLMAP feature extractor...", spinner="moon"):
-            run_command(feature_extractor_cmd, verbose=verbose)
-    else:
+    with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
         run_command(feature_extractor_cmd, verbose=verbose)
+
     CONSOLE.log("[bold green]:tada: Done extracting COLMAP features.")
 
     # Feature matching
@@ -249,10 +372,7 @@ def run_colmap(
         vocab_tree_filename = get_vocab_tree()
         feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
-    if not verbose:
-        with CONSOLE.status("[bold yellow]Running COLMAP feature matcher...", spinner="runner"):
-            run_command(feature_matcher_cmd, verbose=verbose)
-    else:
+    with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
         run_command(feature_matcher_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
 
@@ -269,13 +389,12 @@ def run_colmap(
         bundle_adjuster_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
 
     bundle_adjuster_cmd = " ".join(bundle_adjuster_cmd)
-    if not verbose:
-        with CONSOLE.status(
-            "[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
-            spinner="clock",
-        ):
-            run_command(bundle_adjuster_cmd, verbose=verbose)
-    else:
+
+    with status(
+        msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
+        spinner="circle",
+        verbose=verbose,
+    ):
         run_command(bundle_adjuster_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
 
@@ -356,113 +475,104 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
     return len(frames)
 
 
-# pylint: disable=too-many-statements
-def main(
-    data: Path,
-    output_dir: Path,
-    num_frames_target: int = 300,
-    camera_type: Literal["perspective", "fisheye"] = "perspective",
-    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree",
-    num_downscales: int = 3,
-    skip_colmap: bool = False,
-    gpu: bool = True,
-    verbose: bool = False,
-):
-    """Process images or videos into a nerfstudio dataset.
+def get_insta360_filenames(data: Path) -> Tuple[Path, Path]:
+    """Returns the filenames of the Insta360 videos from a single video file.
+
+    Example input name: VID_20220212_070353_00_003.insv
+
+    Args:
+        data: Path to a Insta360 file.
+
+    Returns:
+        The filenames of the Insta360 videios.
+    """
+    if data.suffix != ".insv":
+        raise ValueError("The input file must be an .insv file.")
+    file_parts = data.stem.split("_")
+
+    stem_back = f"VID_{file_parts[1]}_{file_parts[2]}_00_{file_parts[4]}.insv"
+    stem_front = f"VID_{file_parts[1]}_{file_parts[2]}_10_{file_parts[4]}.insv"
+
+    filename_back = data.parent / stem_back
+    filename_front = data.parent / stem_front
+
+    if not filename_back.exists():
+        raise FileNotFoundError(f"Could not find {filename_back}")
+    if not filename_front.exists():
+        raise FileNotFoundError(f"Could not find {filename_front}")
+
+    return filename_back, filename_front
+
+
+@dataclass
+class ProcessImages:
+    """Process images into a nerfstudio dataset.
 
     This script does the following:
 
-    1. Converts the video into images (if video is provided).
-    2. Scales images to a specified size.
-    3. Calculates and stores the sharpness of each image.
-    4. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
-
-
-    Args:
-        data: Path the data, either a video file or a directory of images.
-        output_dir: Path to the output directory.
-        num_frames: Target number of frames to use for the dataset, results may not be exact.
-        camera_type: Camera model to use.
-        matching_method: Feature matching method to use. Vocab tree is recommended for a balance of speed and
-            accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos.
-        num_downscales: Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
-            will downscale the images by 2x, 4x, and 8x.
-        skip_colmap: If True, skips COLMAP and generates transforms.json if possible.
-        gpu: If True, use GPU.
-        verbose: If True, print extra logging.
+    1. Scales images to a specified size.
+    2. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
     """
 
-    install_checks.check_ffmpeg_installed()
-    install_checks.check_colmap_installed()
+    data: Path
+    """Path the data, either a video file or a directory of images."""
+    output_dir: Path
+    """Path to the output directory."""
+    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    """Camera model to use."""
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
+    """Feature matching method to use. Vocab tree is recommended for a balance of speed and
+        accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    skip_colmap: bool = False
+    """If True, skips COLMAP and generates transforms.json if possible."""
+    gpu: bool = True
+    """If True, use GPU."""
+    verbose: bool = False
+    """If True, print extra logging."""
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    image_dir = output_dir / "images"
-    image_dir.mkdir(parents=True, exist_ok=True)
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+        install_checks.check_ffmpeg_installed()
+        install_checks.check_colmap_installed()
 
-    summary_log = []
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
 
-    if data.is_file():
+        summary_log = []
 
-        if not verbose:
-            with CONSOLE.status("[bold yellow]Converting video to images...", spinner="bouncingBall"):
-                num_vid_frames, num_frames = convert_video_to_images(
-                    data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose
-                )
-        else:
-            num_vid_frames, num_frames = convert_video_to_images(
-                data, image_dir=image_dir, num_frames_target=num_frames_target, verbose=verbose
-            )
-        summary_log.append(f"Starting with {num_vid_frames} video frames")
-        summary_log.append(f"We extracted {num_frames} images")
-        CONSOLE.log("[bold green]:tada: Done converting video to images.")
-    else:
-        if num_frames_target is not None:
-            CONSOLE.log("[bold yellow]Warning: num_frames_target is ignored when data is a directory of images.")
-        if not verbose:
-            with CONSOLE.status("[bold yellow]Copying images...", spinner="bouncingBall"):
-                num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
-        else:
-            num_frames = copy_images(data, image_dir=image_dir, verbose=verbose)
-
-        if num_frames == 0:
-            CONSOLE.log("[bold red]:tada: No usable images in the data folder.")
-        else:
-            CONSOLE.log("[bold green]:tada: Done copying images.")
+        # Copy images to output directory
+        num_frames = copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
         summary_log.append(f"Starting with {num_frames} images")
 
-    if num_frames > 0:
-        if num_downscales > 0:
-            if not verbose:
-                with CONSOLE.status("[bold yellow]Downscaling images...", spinner="growVertical"):
-                    downscale_images(image_dir, num_downscales, verbose=verbose)
-            else:
-                downscale_images(image_dir, num_downscales, verbose=verbose)
-            CONSOLE.log("[bold green]:tada: Done downscaling images.")
-            downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
-            downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
-            summary_log.append(f"We downsampled the images by {downscale_text}")
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
-        camera_model = CAMERA_MODELS[camera_type]
-        colmap_dir = output_dir / "colmap"
-        if not skip_colmap:
+        # Run COLMAP
+        colmap_dir = self.output_dir / "colmap"
+        if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
             run_colmap(
                 image_dir=image_dir,
                 colmap_dir=colmap_dir,
-                camera_model=camera_model,
-                gpu=gpu,
-                verbose=verbose,
-                matching_method=matching_method,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
             )
 
+        # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_to_json(
                     cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
                     images_path=colmap_dir / "sparse" / "0" / "images.bin",
-                    output_dir=output_dir,
-                    camera_model=camera_model,
+                    output_dir=self.output_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
         else:
@@ -475,14 +585,192 @@ def main(
         CONSOLE.rule()
 
 
+@dataclass
+class ProcessVideo:
+    """Process videos into a nerfstudio dataset.
+
+    This script does the following:
+
+    1. Converts the video into images.
+    2. Scales images to a specified size.
+    3. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
+    """
+
+    data: Path
+    """Path the data, either a video file or a directory of images."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_frames_target: int = 300
+    """Target number of frames to use for the dataset, results may not be exact."""
+    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    """Camera model to use."""
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
+    """Feature matching method to use. Vocab tree is recommended for a balance of speed and
+        accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    skip_colmap: bool = False
+    """If True, skips COLMAP and generates transforms.json if possible."""
+    gpu: bool = True
+    """If True, use GPU."""
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process video into a nerfstudio dataset."""
+        install_checks.check_ffmpeg_installed()
+        install_checks.check_colmap_installed()
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        # Convert video to images
+        summary_log = convert_video_to_images(
+            self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
+        )
+
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        # Run Colmap
+        colmap_dir = self.output_dir / "colmap"
+        if not self.skip_colmap:
+            colmap_dir.mkdir(parents=True, exist_ok=True)
+
+            run_colmap(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+            )
+
+        # Save transforms.json
+        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+                num_matched_frames = colmap_to_json(
+                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
+                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    output_dir=self.output_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                )
+                summary_log.append(f"Colmap matched {num_matched_frames} images")
+        else:
+            CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
+@dataclass
+class ProcessInsta360:
+    """Process Insta360 videos into a nerfstudio dataset. Currently this uses a center crop of the raw data
+    so data at the extreme edges of the video will be lost.
+
+    This script does the following:
+
+    1. Converts the videos into images.
+    2. Scales images to a specified size.
+    3. Calculates the camera poses for each image using `COLMAP <https://colmap.github.io/>`_.
+    """
+
+    data: Path
+    """Path the data, It should be one of the 3 .insv files saved with each capture (Any work)."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_frames_target: int = 400
+    """Target number of frames to use for the dataset, results may not be exact."""
+    matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
+    """Feature matching method to use. Vocab tree is recommended for a balance of speed and
+        accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    skip_colmap: bool = False
+    """If True, skips COLMAP and generates transforms.json if possible."""
+    gpu: bool = True
+    """If True, use GPU."""
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process video into a nerfstudio dataset."""
+        install_checks.check_ffmpeg_installed()
+        install_checks.check_colmap_installed()
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        filename_back, filename_front = get_insta360_filenames(self.data)
+
+        # Convert video to images
+        summary_log = convert_insta360_to_images(
+            video_front=filename_front,
+            video_back=filename_back,
+            image_dir=image_dir,
+            num_frames_target=self.num_frames_target,
+            verbose=self.verbose,
+        )
+
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        # Run Colmap
+        colmap_dir = self.output_dir / "colmap"
+        if not self.skip_colmap:
+            colmap_dir.mkdir(parents=True, exist_ok=True)
+
+            run_colmap(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS["fisheye"],
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+            )
+
+        # Save transforms.json
+        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+                num_matched_frames = colmap_to_json(
+                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
+                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    output_dir=self.output_dir,
+                    camera_model=CAMERA_MODELS["fisheye"],
+                )
+                summary_log.append(f"Colmap matched {num_matched_frames} images")
+        else:
+            CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
+Commands = Union[
+    Annotated[ProcessImages, tyro.conf.subcommand(name="images")],
+    Annotated[ProcessVideo, tyro.conf.subcommand(name="video")],
+    Annotated[ProcessInsta360, tyro.conf.subcommand(name="insta360")],
+]
+
+
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(main)
+    tyro.cli(Commands).main()
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # type: ignore

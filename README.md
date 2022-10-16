@@ -124,9 +124,9 @@ If you have custom data in the form of a video or folder of images, we've provid
 After installing both software, you can process your data via:
 
 ```bash
-ns-process-data --data FOLDER_OR_VIDEO --output-dir {PROCESSED_DATA_DIR}
+ns-process-data {video,images,insta360} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 # Or if you're on a system without an attached display (i.e. colab):
-ns-process-data --data FOLDER_OR_VIDEO --output-dir {PROCESSED_DATA_DIR} --no-gpu
+ns-process-data {video,images,insta360} --data {DATA_PATH}  --output-dir {PROCESSED_DATA_DIR} --no-gpu
 ```
 
 ## 3. Training a model
@@ -196,7 +196,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | [Using the Viewer](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html)           | A quick demo video on how to navigate the viewer.                                                  |
 | 💻 **For Developers**                                                                              |
 | [Creating pipelines](https://docs.nerf.studio/en/latest/developer_guides/pipelines/index.html)     | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
-| [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |     |
+| [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |
 | [Contributing](https://docs.nerf.studio/en/latest/reference/contributing.html)                     | Walk-through for how you can start contributing now.                                               |
 | 💖 **Community**                                                                                   |
 | [Discord](https://discord.gg/uMbNqcraFc)                                                           | Join our community to discuss more. We would love to hear from you!                                |
