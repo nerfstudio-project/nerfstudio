@@ -25,6 +25,7 @@ export function get_scene_tree() {
   const sceneTree = new SceneNode(scene);
 
   const dispatch = useDispatch();
+  const BANNER_HEIGHT = 50;
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
@@ -241,15 +242,11 @@ export function get_scene_tree() {
 
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
-    mouseVector.y = 1 - 2 * ((e.clientY - 50) / size.y);
+    mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
 
-    // hacky out of bounds fix
-    if (mouseVector.x > 1 || mouseVector.x < -1) {
-      // some value that won't hit
-      mouseVector.x = -100;
-    }
-    if (mouseVector.y > 1 || mouseVector.y < -1) {
-      mouseVector.y = -100;
+    if (mouseVector.x > 1 || mouseVector.x < -1 || mouseVector.y > 1 || mouseVector.y < -1) {
+      selectedCam = null;
+      return;
     }
 
     raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
