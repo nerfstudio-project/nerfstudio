@@ -124,9 +124,9 @@ If you have custom data in the form of a video or folder of images, we've provid
 After installing both software, you can process your data via:
 
 ```bash
-ns-process-data --data {IMAGE_FOLDER,VIDEO,INSTA360} --output-dir {PROCESSED_DATA_DIR}
+ns-process-data  {video,images,insta360} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 # Or if you're on a system without an attached display (i.e. colab):
-ns-process-data --data {IMAGE_FOLDER,VIDEO,INSTA360}  --output-dir {PROCESSED_DATA_DIR} --no-gpu
+ns-process-data  {video,images,insta360} --data {DATA_PATH}  --output-dir {PROCESSED_DATA_DIR} --no-gpu
 ```
 
 ## 3. Training a model
