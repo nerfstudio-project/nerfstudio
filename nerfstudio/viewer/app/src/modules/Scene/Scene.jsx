@@ -235,9 +235,13 @@ export function get_scene_tree() {
   const onMouseMove = (e) => {
     drag = true;
 
-    const cameras = Object.values(
-      sceneTree.find_no_create([CAMERAS_NAME]).children,
-    ).map((obj) => obj.object.children[0].children[1]);
+    const camerasParent = sceneTree.find_no_create([CAMERAS_NAME]);
+    if (camerasParent === null) {
+      return;
+    }
+    const cameras = Object.values(camerasParent.children).map(
+      (obj) => obj.object.children[0].children[1],
+    );
 
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;

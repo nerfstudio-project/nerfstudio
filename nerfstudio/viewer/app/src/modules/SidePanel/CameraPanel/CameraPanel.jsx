@@ -183,9 +183,9 @@ function CameraList(props) {
         path: 'renderingState/field_of_view',
         data: val,
       });
+      // eslint-disable-next-line
       camera.fov = val;
     } else {
-      // eslint-disable-next-line
       dispatch({
         type: 'write',
         path: 'renderingState/field_of_view',
@@ -223,7 +223,9 @@ function CameraList(props) {
               variant="standard"
             >
               {[...cameras.keys()].map((i) => (
-                <MenuItem value={i}>{i}</MenuItem>
+                <MenuItem value={i} key={i}>
+                  {i}
+                </MenuItem>
               ))}
             </Select>
           </Button>
