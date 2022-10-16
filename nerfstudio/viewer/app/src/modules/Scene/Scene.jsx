@@ -120,9 +120,10 @@ export function get_scene_tree() {
   }
 
   function checkVisibility(camera) {
-    while (camera !== null) {
-      if (!camera.visible) return false;
-      camera = camera.parent
+    let curr = camera
+    while (curr !== null) {
+      if (!curr.visible) return false;
+      curr = curr.parent
     }
     return true;
   }
@@ -267,7 +268,7 @@ export function get_scene_tree() {
       selectedCam.material.color = new THREE.Color(1, 1, 1);
       selectedCam = null;
     }
-    let filtered_intersections = intersections.filter(isect => checkVisibility(isect.object));
+    const filtered_intersections = intersections.filter(isect => checkVisibility(isect.object));
     if (filtered_intersections.length > 0) {
       selectedCam = filtered_intersections[0].object;
       selectedCam.material.color = new THREE.Color(0xfab300);
