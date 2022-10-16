@@ -10,6 +10,20 @@ export const appTheme = createTheme({
     },
   },
   components: {
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#222831',
+        },
+      },
+    },
+    MuiIcon: {
+      styleOverrides: {
+        root: {
+          color: '#eeeeee',
+        },
+      },
+    },
     MuiTextField: {
       styleOverrides: {
         root: {

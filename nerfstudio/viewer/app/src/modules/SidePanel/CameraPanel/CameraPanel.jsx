@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import {
   AllInclusiveOutlined,
   ChangeHistory,
+  ExpandMore,
   GestureOutlined,
   LinearScaleOutlined,
   RadioButtonUnchecked,
@@ -11,6 +12,9 @@ import {
   Timeline,
 } from '@mui/icons-material';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Button,
   InputAdornment,
   MenuItem,
@@ -38,6 +42,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
+import { focal_to_fov, fov_to_focal } from '../../../utils';
 
 const msgpack = require('msgpack-lite');
 
@@ -53,8 +58,14 @@ function CameraList(props) {
   const camera_main = props.camera_main;
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
+  const fovLabel = props.fovLabel;
+  const toggleFovLabel = props.toggleFovLabel;
   // eslint-disable-next-line no-unused-vars
   const [slider_value, set_slider_value] = React.useState(0);
+  const [expanded, setExpanded] = React.useState(null);
+  const [ui_field_of_view, setUIFieldOfView] = React.useState(0);
+
+  const dispatch = useDispatch();
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
@@ -154,35 +165,122 @@ function CameraList(props) {
     reset_slider_render_on_change();
   };
 
+  const getFovLabel = (camera, fov) => {
+    return fovLabel === 'FOV' ? fov : fov_to_focal(camera.getFilmWidth(), fov);
+  };
+
+  const handleChange =
+    (camera, cameraUUID: string) =>
+    (event: React.SyntheticEvent, isExpanded: boolean) => {
+      setUIFieldOfView(getFovLabel(camera, camera.fov));
+      setExpanded(isExpanded ? cameraUUID : false);
+    };
+
+  const setFOV = (camera, val) => {
+    if (fovLabel === 'FOV') {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/field_of_view',
+        data: val,
+      });
+      camera.fov = val;
+    } else {
+      // eslint-disable-next-line
+      dispatch({
+        type: 'write',
+        path: 'renderingState/field_of_view',
+        data: focal_to_fov(camera.getFilmWidth(), val),
+      });
+      // eslint-disable-next-line
+      camera.fov = focal_to_fov(camera.getFilmWidth(), val);
+    }
+  };
+
   const cameraList = cameras.map((camera, index) => {
     return (
-      <div className="CameraList-row" key={camera.uuid}>
-        <Button size="small" onClick={() => set_transform_controls(index)}>
-          Camera
-        </Button>
-        <Select
-          value={index}
-          onChange={(e) => reorder_camera(camera, index, e.target.value)}
-          variant="standard"
+      <Accordion
+        className="CameraList-row"
+        key={camera.uuid}
+        expanded={expanded === camera.uuid}
+        onChange={handleChange(camera, camera.uuid)}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMore sx={{ color: '#eeeeee' }} />}
+          aria-controls="panel1bh-content"
+          id="panel1bh-header"
         >
-          {[...cameras.keys()].map((i) => (
-            <MenuItem value={i}>{i}</MenuItem>
-          ))}
-        </Select>
-        <div className="CameraList-row-buttons">
-          <Button
-            size="small"
-            onClick={() => {
-              set_camera_position(camera_main, camera.matrix);
+          <Button size="small" onClick={() => set_transform_controls(index)}>
+            Camera
+            <Select
+              label="Index"
+              sx={{
+                '.MuiSvgIcon-root ': {
+                  fill: '#eeeeee !important',
+                },
+              }}
+              value={index}
+              onChange={(e) => reorder_camera(camera, index, e.target.value)}
+              variant="standard"
+            >
+              {[...cameras.keys()].map((i) => (
+                <MenuItem value={i}>{i}</MenuItem>
+              ))}
+            </Select>
+          </Button>
+          <div className="CameraList-row-buttons">
+            <Button
+              size="small"
+              onClick={() => {
+                set_camera_position(camera_main, camera.matrix);
+              }}
+            >
+              <VisibilityIcon />
+            </Button>
+            <Button size="small" onClick={() => delete_camera(index)}>
+              <DeleteIcon />
+            </Button>
+          </div>
+        </AccordionSummary>
+        <AccordionDetails>
+          <TextField
+            label={fovLabel}
+            inputProps={{
+              inputMode: 'numeric',
+              pattern: '[+-]?([0-9]*[.])?[0-9]+',
             }}
-          >
-            <VisibilityIcon />
-          </Button>
-          <Button size="small" onClick={() => delete_camera(index)}>
-            <DeleteIcon />
-          </Button>
-        </div>
-      </div>
+            // eslint-disable-next-line
+            InputProps={{
+              endAdornment: (
+                <InputAdornment
+                  sx={{ cursor: 'pointer' }}
+                  onClick={toggleFovLabel}
+                  position="end"
+                >
+                  {fovLabel === 'FOV' ? '°' : 'mm'}
+                </InputAdornment>
+              ),
+            }}
+            onChange={(e) => {
+              if (e.target.validity.valid) {
+                setUIFieldOfView(e.target.value);
+              }
+            }}
+            onBlur={(e) => {
+              if (e.target.validity.valid) {
+                if (e.target.value !== '') {
+                  setFOV();
+                } else {
+                  setUIFieldOfView(getFovLabel(camera, camera.fov));
+                }
+              }
+            }}
+            value={ui_field_of_view}
+            error={camera.fov <= 0}
+            helperText={camera.fov <= 0 ? 'Required' : ''}
+            variant="standard"
+          />
+        </AccordionDetails>
+      </Accordion>
     );
   });
   return <div>{cameraList}</div>;
@@ -268,18 +366,14 @@ export default function CameraPanel(props) {
   const step_size = slider_max / total_num_steps;
 
   const sensorSize = camera_main.getFilmWidth();
-  const fov_to_focal = (val) =>
-    Math.round(sensorSize / 2 / Math.tan((val * (Math.PI / 180)) / 2));
-  const focal_to_fov = (val) =>
-    Math.round((180 / Math.PI) * 2 * Math.atan(sensorSize / 2 / val));
 
   const toggleFovLabel = () => {
     if (fovLabel === 'FOV') {
-      const focalLength = fov_to_focal(ui_field_of_view);
+      const focalLength = fov_to_focal(sensorSize, ui_field_of_view);
       setUIFieldOfView(focalLength);
       setFovLabel('Focal Length');
     } else {
-      const fov = focal_to_fov(ui_field_of_view);
+      const fov = focal_to_fov(sensorSize, ui_field_of_view);
       setUIFieldOfView(fov);
       setFovLabel('FOV');
     }
@@ -390,12 +484,12 @@ export default function CameraPanel(props) {
       position = curve_object.curve_positions.getPoint(point);
       lookat = curve_object.curve_lookats.getPoint(point);
       up = curve_object.curve_ups.getPoint(point);
-      fov = curve_object.curve_fovs.getPoint(point).x;
+      fov = curve_object.curve_fovs.getPoint(point).z;
     } else {
       position = curve_object.curve_positions.getPointAt(point);
       lookat = curve_object.curve_lookats.getPointAt(point);
       up = curve_object.curve_ups.getPointAt(point);
-      fov = curve_object.curve_fovs.getPointAt(point).x;
+      fov = curve_object.curve_fovs.getPointAt(point).z;
     }
     const mat = get_transform_matrix(position, lookat, up);
     set_camera_position(camera_render, mat);
@@ -422,12 +516,12 @@ export default function CameraPanel(props) {
         position = curve_object.curve_positions.getPoint(point);
         lookat = curve_object.curve_lookats.getPoint(point);
         up = curve_object.curve_ups.getPoint(point);
-        fov = curve_object.curve_fovs.getPoint(point).x;
+        fov = curve_object.curve_fovs.getPoint(point).z;
       } else {
         position = curve_object.curve_positions.getPointAt(point);
         lookat = curve_object.curve_lookats.getPointAt(point);
         up = curve_object.curve_ups.getPointAt(point);
-        fov = curve_object.curve_fovs.getPointAt(point).x;
+        fov = curve_object.curve_fovs.getPointAt(point).z;
       }
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
@@ -470,7 +564,7 @@ export default function CameraPanel(props) {
       const position = positions[i];
       const lookat = lookats[i];
       const up = ups[i];
-      const fov = fovs[i].x;
+      const fov = fovs[i].z;
 
       const mat = get_transform_matrix(position, lookat, up);
 
@@ -558,7 +652,7 @@ export default function CameraPanel(props) {
       dispatch({
         type: 'write',
         path: 'renderingState/field_of_view',
-        data: focal_to_fov(val),
+        data: focal_to_fov(sensorSize, val),
       });
     }
   };
@@ -924,6 +1018,8 @@ export default function CameraPanel(props) {
           camera_main={camera_render}
           cameras={cameras}
           setCameras={setCameras}
+          fovLabel={fovLabel}
+          toggleFovLabel={toggleFovLabel}
         />
       </div>
     </div>

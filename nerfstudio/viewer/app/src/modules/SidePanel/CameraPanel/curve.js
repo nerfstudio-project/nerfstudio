@@ -40,8 +40,8 @@ export function get_curve_object_from_cameras(
     positions.push(camera.position);
     ups.push(up);
     lookats.push(lookat);
-    fovs.push(new THREE.Vector3(camera.fov, camera.fov, camera.fov));
-    console.log(camera.fov);
+    // Reuse catmullromcurve3 for 1d values. TODO fix this
+    fovs.push(new THREE.Vector3(0, 0, camera.fov));
   }
 
   let curve_positions = null;
