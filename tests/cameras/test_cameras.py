@@ -31,6 +31,9 @@ def test_pinhole_camera():
 def test_camera_as_tensordataclass():
     """Test that the camera class move to Tensordataclass works."""
     batch_size = 2
+    h_w = 800
+    fx_y = 10.0
+    cx_y = h_w / 2.0
     # pylint: disable=unnecessary-comprehension
     c2w_flat = torch.eye(4)[:3, :]
     camera_to_worlds = [
@@ -39,26 +42,26 @@ def test_camera_as_tensordataclass():
         torch.stack([torch.stack([c2w_flat] * batch_size)] * batch_size),
     ]
     fx_ys = [
-        10.0,
-        torch.tensor(1).float() * 10,
-        torch.ones(batch_size) * 10,
-        torch.ones(batch_size, 1) * 10,
-        torch.ones((batch_size, batch_size)) * 10,
+        fx_y,
+        torch.tensor(1).float() * fx_y,
+        torch.ones(batch_size) * fx_y,
+        torch.ones(batch_size, 1) * fx_y,
+        torch.ones((batch_size, batch_size)) * fx_y,
     ]
     h_ws = [
         None,
-        800,
-        torch.tensor(1) * 800,
-        torch.ones(batch_size).int() * 800,
-        torch.ones(batch_size, 1).int() * 800,
-        torch.ones((batch_size, batch_size)).int() * 800,
+        h_w,
+        torch.tensor(1) * h_w,
+        torch.ones(batch_size).int() * h_w,
+        torch.ones(batch_size, 1).int() * h_w,
+        torch.ones((batch_size, batch_size)).int() * h_w,
     ]
     cx_ys = [
-        400.0,
-        torch.tensor(1).float() * 400,
-        torch.ones(batch_size) * 400,
-        torch.ones(batch_size, 1) * 400,
-        torch.ones((batch_size, batch_size)) * 400,
+        cx_y,
+        torch.tensor(1).float() * cx_y,
+        torch.ones(batch_size) * cx_y,
+        torch.ones(batch_size, 1) * cx_y,
+        torch.ones((batch_size, batch_size)) * cx_y,
     ]
     distortion_params = [None, torch.zeros(6), torch.zeros((batch_size, 6)), torch.zeros((batch_size, batch_size, 6))]
     camera_types = [
@@ -138,7 +141,7 @@ def test_camera_as_tensordataclass():
     assert _check_cam_shapes(c1, (2,))
     assert _check_cam_shapes(c2_dist, (2, 2))
 
-    assert c0.generate_rays(0).shape == (800, 800)
+    assert c0.generate_rays(0).shape == (h_w, h_w)
     assert c0.generate_rays(0, coords=torch.ones(10, 2)).shape == (10,)
     c1.generate_rays(0)
     c1.generate_rays(torch.tensor([0, 1]).unsqueeze(-1))
@@ -146,14 +149,14 @@ def test_camera_as_tensordataclass():
     # Make sure rays generated are same when distortion params are identity (all zeros) and None
     assert c2.shape == c2_dist.shape
 
-    c2_rays = c2.generate_rays(torch.tensor([0, 0]))
+    c2_rays = c2.generate_rays(camera_indices=torch.tensor([0, 0]))
     c_dist_rays = c2_dist.generate_rays(torch.tensor([0, 0]))
     assert _check_dataclass_allclose(c2_rays, c_dist_rays)
-    assert c2_rays.shape == (800, 800)
-    assert c_dist_rays.shape == (800, 800)
+    assert c2_rays.shape == (h_w, h_w)
+    assert c_dist_rays.shape == (h_w, h_w)
 
     camera_indices = torch.tensor([[0, 0]])
-    assert c2.generate_rays(camera_indices).shape == (800, 800, 1)
+    assert c2.generate_rays(camera_indices).shape == (h_w, h_w, 1)
 
     for args in product(
         camera_to_worlds,

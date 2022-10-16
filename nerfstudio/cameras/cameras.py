@@ -77,8 +77,8 @@ class Cameras(TensorDataclass):
     fy: TensorType["num_cameras":..., 1]
     cx: TensorType["num_cameras":..., 1]
     cy: TensorType["num_cameras":..., 1]
-    width: TensorType["num_cameras":..., 1]
-    height: TensorType["num_cameras":..., 1]
+    width: Union[TensorType["num_cameras":..., 1], None]
+    height: Union[TensorType["num_cameras":..., 1], None]
     distortion_params: Union[TensorType["num_cameras":..., 6], None]
     camera_type: TensorType["num_cameras":..., 1]
 
@@ -188,8 +188,11 @@ class Cameras(TensorDataclass):
         self.__post_init__()
 
     def _init_get_camera_type(
-        self, camera_type: Union[TensorType["num_cameras":...], int, List[CameraType], CameraType]
-    ) -> TensorType["num_cameras":...]:
+        self,
+        camera_type: Union[
+            TensorType["batch_cam_types":..., 1], TensorType["batch_cam_types":...], int, List[CameraType], CameraType
+        ],
+    ) -> torch.Tensor:
         """
         Parses the __init__() argument camera_type
 
@@ -228,9 +231,9 @@ class Cameras(TensorDataclass):
 
     def _init_get_height_width(
         self,
-        h_w: Union[TensorType["batch_hs":..., 1], TensorType["batch_hs":...], int, None],
-        c_x_y: TensorType["num_cameras":...],
-    ) -> TensorType["num_cameras":...]:
+        h_w: Union[TensorType["batch_hws":..., 1], TensorType["batch_hws":...], int, None],
+        c_x_y: TensorType["batch_cxys":...],
+    ) -> torch.Tensor:
         """
         Parses the __init__() argument for height or width
 
@@ -253,7 +256,7 @@ class Cameras(TensorDataclass):
                 h_w = h_w.unsqueeze(-1)
             assert torch.all(h_w == h_w.ravel()[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
-            h_w = (c_x_y * 2).to(torch.int64).to(self.device)
+            h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2)
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
@@ -264,12 +267,12 @@ class Cameras(TensorDataclass):
         return self.camera_to_worlds.device
 
     @property
-    def image_height(self) -> TensorType["num_cameras"]:
+    def image_height(self) -> TensorType["num_cameras", 1]:
         """Returns the height of the images."""
         return self.height
 
     @property
-    def image_width(self) -> TensorType["num_cameras"]:
+    def image_width(self) -> TensorType["num_cameras", 1]:
         """Returns the height of the images."""
         return self.width
 
@@ -296,6 +299,8 @@ class Cameras(TensorDataclass):
         Returns:
             Grid of image coordinates.
         """
+        print(self.height)
+        print(self.width)
         assert not self.is_jagged, "meshgrid doesn't make sense for jagged cameras"
         image_height = self.image_height.ravel()[0]
         image_width = self.image_width.ravel()[0]
