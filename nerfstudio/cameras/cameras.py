@@ -267,12 +267,12 @@ class Cameras(TensorDataclass):
         return self.camera_to_worlds.device
 
     @property
-    def image_height(self) -> TensorType["num_cameras", 1]:
+    def image_height(self) -> TensorType["num_cameras":..., 1]:
         """Returns the height of the images."""
         return self.height
 
     @property
-    def image_width(self) -> TensorType["num_cameras", 1]:
+    def image_width(self) -> TensorType["num_cameras":..., 1]:
         """Returns the height of the images."""
         return self.width
 
