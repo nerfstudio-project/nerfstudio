@@ -182,7 +182,7 @@ def convert_video_to_images(
 
 def convert_insta360_to_images(
     video_front: Path,
-    video_back,
+    video_back: Path,
     image_dir: Path,
     num_frames_target: int,
     crop_percentage: float = 0.7,
@@ -681,7 +681,7 @@ class ProcessInsta360:
     """
 
     data: Path
-    """Path the data, either a video file or a directory of images."""
+    """Path the data, It should be one of the 3 .insv files saved with each capture (Any work)."""
     output_dir: Path
     """Path to the output directory."""
     num_frames_target: int = 400
