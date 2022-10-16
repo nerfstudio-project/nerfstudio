@@ -708,8 +708,11 @@ class ViewerState:
 
         graph.eval()
 
-        check_thread = CheckThread(state=self)
-        render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
+        check_thread = CheckThread(state=self, deamon=True)
+        render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle, deamon=True)
+
+        check_thread.daemon = True
+        render_thread.daemon = True
 
         with TimeWriter(None, None, write=False) as vis_t:
             check_thread.start()
