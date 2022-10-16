@@ -236,9 +236,11 @@ class ViewerState:
             CONSOLE.rule(characters="=")
             CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port)
+            self.vis_webrtc_thread = Viewer(zmq_port=zmq_port)
         else:
             assert self.config.zmq_port is not None
             self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
+            self.vis_webrtc_thread = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
 
         # viewer specific variables
         self.prev_camera_matrix = None
@@ -488,8 +490,10 @@ class ViewerState:
         answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
 
-        self.vis["webrtc/answer"].write({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
-        self.vis["webrtc/answer"].delete()
+        self.vis_webrtc_thread["webrtc/answer"].write(
+            {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
+        )
+        self.vis_webrtc_thread["webrtc/answer"].delete()
 
         # continually exchange media
         while True:
