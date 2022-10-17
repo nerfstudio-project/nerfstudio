@@ -170,7 +170,7 @@ class ViewerConfig(PrintableConfig):
     """whether or not to launch the bridge server"""
     websocket_port: Optional[int] = 7007
     """the default websocket port to connect to"""
-    ip_address: str = "0.0.0.0"
+    ip_address: str = "127.0.0.1"
     """the ip address where the bridge server is running"""
     num_rays_per_chunk: int = 32768
     """number of rays per chunk to render with viewer"""
