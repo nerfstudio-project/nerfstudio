@@ -120,6 +120,7 @@ function CameraList(props) {
       }
       set_camera_position(camera_render, first_camera.matrix);
       camera_render_helper.set_visibility(true);
+      camera_render.fov = first_camera.fov;
     }
     set_slider_value(slider_min);
   };
@@ -194,6 +195,7 @@ function CameraList(props) {
       // eslint-disable-next-line
       camera.fov = focal_to_fov(camera.getFilmWidth(), val);
     }
+    // setCameras(cameras);
   };
 
   const cameraList = cameras.map((camera, index) => {
@@ -232,8 +234,10 @@ function CameraList(props) {
           <div className="CameraList-row-buttons">
             <Button
               size="small"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 set_camera_position(camera_main, camera.matrix);
+                camera_main.fov = camera.fov;
               }}
             >
               <VisibilityIcon />
@@ -255,7 +259,18 @@ function CameraList(props) {
               endAdornment: (
                 <InputAdornment
                   sx={{ cursor: 'pointer' }}
-                  onClick={toggleFovLabel}
+                  onClick={() => {
+                    toggleFovLabel();
+                    if (fovLabel === 'FOV') {
+                      setUIFieldOfView(
+                        focal_to_fov(camera.getFilmWidth(), ui_field_of_view),
+                      );
+                    } else {
+                      setUIFieldOfView(
+                        fov_to_focal(camera.getFilmWidth(), ui_field_of_view),
+                      );
+                    }
+                  }}
                   position="end"
                 >
                   {fovLabel === 'FOV' ? '°' : 'mm'}
@@ -270,7 +285,7 @@ function CameraList(props) {
             onBlur={(e) => {
               if (e.target.validity.valid) {
                 if (e.target.value !== '') {
-                  setFOV();
+                  setFOV(camera, parseInt(e.target.value, 10));
                 } else {
                   setUIFieldOfView(getFovLabel(camera, camera.fov));
                 }
@@ -385,6 +400,7 @@ export default function CameraPanel(props) {
     // set slider and render camera back to 0
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
+      camera_render.fov = new_camera_list[0].fov;
       set_slider_value(slider_min);
     }
   };
@@ -527,7 +543,6 @@ export default function CameraPanel(props) {
       }
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
-      console.log(fov);
       camera_render.fov = fov;
     }
   }, [slider_value, render_height, render_width]);
