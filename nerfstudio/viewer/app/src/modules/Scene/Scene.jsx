@@ -120,10 +120,10 @@ export function get_scene_tree() {
   }
 
   function checkVisibility(camera) {
-    let curr = camera
+    let curr = camera;
     while (curr !== null) {
       if (!curr.visible) return false;
-      curr = curr.parent
+      curr = curr.parent;
     }
     return true;
   }
