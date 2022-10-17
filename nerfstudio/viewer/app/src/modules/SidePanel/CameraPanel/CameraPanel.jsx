@@ -223,7 +223,6 @@ function CameraList(props) {
         >
           <Stack spacing={0}>
             <Button size="small" onClick={(e) => {
-              console.log("UP")
               swap_cameras(index, index - 1);
               e.stopPropagation();
             }} 
@@ -231,7 +230,6 @@ function CameraList(props) {
                 <KeyboardArrowUpIcon />
             </Button>
             <Button size="small" onClick={(e) => {
-              console.log("DOWN")
               swap_cameras(index, index + 1);
               e.stopPropagation();
             }}
@@ -430,7 +428,6 @@ export default function CameraPanel(props) {
   const sensorSize = camera_main.getFilmWidth();
 
   const toggleFovLabel = () => {
-    console.log(cameraProperties)
     if (fovLabel === FOV_LABELS.FOV) {
       const focalLength = fov_to_focal(sensorSize, ui_field_of_view);
       setUIFieldOfView(focalLength);
