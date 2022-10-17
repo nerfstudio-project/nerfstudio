@@ -38,7 +38,7 @@ class ViewerWindow:
 
     context = zmq.Context()
 
-    def __init__(self, zmq_port, ip_address="0.0.0.0"):
+    def __init__(self, zmq_port, ip_address="127.0.0.1"):
         self.zmq_port = zmq_port
         self.client = self.context.socket(zmq.REQ)
         zmq_url = f"tcp://{ip_address}:{self.zmq_port}"
@@ -70,7 +70,7 @@ class ViewerWindow:
         )
         return umsgpack.unpackb(self.client.recv())
 
-    def timeout_ping(self, timeout_in_sec: int = 5):
+    def timeout_ping(self, timeout_in_sec: int = 15):
         """Timeout if ping fails to complete in timeout_in_secs seconds"""
 
         res = [Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")]
@@ -91,7 +91,7 @@ class ViewerWindow:
             raise ret
         return ret
 
-    def assert_connected(self, timeout_in_sec: int = 5):
+    def assert_connected(self, timeout_in_sec: int = 15):
         """Check if the connection was established properly within some time.
 
         Args:
@@ -117,7 +117,7 @@ class Viewer:
     """
 
     def __init__(
-        self, zmq_port: Optional[int] = None, window: Optional[ViewerWindow] = None, ip_address: str = "0.0.0.0"
+        self, zmq_port: Optional[int] = None, window: Optional[ViewerWindow] = None, ip_address: str = "127.0.0.1"
     ):
         if zmq_port is None and window is None:
             raise ValueError("Must specify either zmq_port or window.")

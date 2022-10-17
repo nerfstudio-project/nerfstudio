@@ -223,7 +223,10 @@ class ViewerState:
             assert self.config.websocket_port is not None
             self.log_filename.parent.mkdir(exist_ok=True)
             zmq_port = run_viewer_bridge_server_as_subprocess(
-                self.config.websocket_port, zmq_port=self.config.zmq_port, log_filename=str(self.log_filename)
+                self.config.websocket_port,
+                zmq_port=self.config.zmq_port,
+                ip_address=self.config.ip_address,
+                log_filename=str(self.log_filename),
             )
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             CONSOLE.line()
@@ -235,8 +238,8 @@ class ViewerState:
             CONSOLE.print(f"[Public] Open the viewer at {self.viewer_url}")
             CONSOLE.rule(characters="=")
             CONSOLE.line()
-            self.vis = Viewer(zmq_port=zmq_port)
-            self.vis_webrtc_thread = Viewer(zmq_port=zmq_port)
+            self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
+            self.vis_webrtc_thread = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
         else:
             assert self.config.zmq_port is not None
             self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
