@@ -682,6 +682,9 @@ class ProcessInsta360:
     """Process Insta360 videos into a nerfstudio dataset. Currently this uses a center crop of the raw data
     so data at the extreme edges of the video will be lost.
 
+    Expects data from a 2 camera Insta360, single or >2 camera models will not work.
+    (tested with Insta360 One X2)
+
     This script does the following:
 
     1. Converts the videos into images.
