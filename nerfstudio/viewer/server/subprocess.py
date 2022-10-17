@@ -34,13 +34,17 @@ CONSOLE = Console()
 
 
 def run_viewer_bridge_server_as_subprocess(
-    websocket_port: int, zmq_port: Optional[int] = None, log_filename: Union[str, None] = None
+    websocket_port: int,
+    zmq_port: Optional[int] = None,
+    ip_address: str = "127.0.0.1",
+    log_filename: Union[str, None] = None,
 ):
     """Runs the viewer bridge server as a subprocess.
 
     Args:
         zmq_port: Port to use for the ZMQ server.
         websocket_port: Port to use for the websocket server.
+        ip_address: host to connect to
         log_filename: Filename to use for the log file. If None, no log file is created.
 
     Returns:
@@ -60,6 +64,8 @@ def run_viewer_bridge_server_as_subprocess(
     args.append(str(zmq_port))
     args.append("--websocket-port")
     args.append(str(websocket_port))
+    args.append("--ip-address")
+    args.append(str(ip_address))
     # supress output if no log filename is specified
     logfile = open(  # pylint: disable=consider-using-with
         log_filename if log_filename else os.devnull, "w", encoding="utf8"

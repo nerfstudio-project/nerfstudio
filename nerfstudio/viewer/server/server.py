@@ -100,14 +100,14 @@ class ZMQWebSocketBridge:
 
     context = zmq.Context()
 
-    def __init__(self, zmq_port: int, websocket_port: int):
+    def __init__(self, zmq_port: int, websocket_port: int, ip_address: str):
         self.zmq_port = zmq_port
         self.websocket_pool = set()
         self.app = self.make_app()
         self.ioloop = tornado.ioloop.IOLoop.current()
 
         # zmq
-        zmq_url = f"tcp://0.0.0.0:{self.zmq_port:d}"
+        zmq_url = f"tcp://{ip_address}:{self.zmq_port:d}"
         self.zmq_socket, self.zmq_stream, self.zmq_url = self.setup_zmq(zmq_url)
 
         # websocket
@@ -198,13 +198,16 @@ class ZMQWebSocketBridge:
         self.ioloop.start()
 
 
-def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, use_ngrok: bool = False):
+def run_viewer_bridge_server(
+    zmq_port: int = 6000, websocket_port: int = 7007, ip_address: str = "127.0.0.1", use_ngrok: bool = False
+):
     """Run the viewer bridge server.
 
     Args:
         zmq_port: port to use for zmq
         websocket_port: port to use for websocket
-        host: host to connect to
+        ip_address: host to connect to
+        use_ngrok: whether to use ngrok to expose the zmq port
     """
 
     # whether to launch pyngrok or not
@@ -214,7 +217,7 @@ def run_viewer_bridge_server(zmq_port: int = 6000, websocket_port: int = 7007, u
         http_tunnel = ngrok.connect(addr=str(zmq_port), proto="tcp")
         print(http_tunnel)
 
-    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port)
+    bridge = ZMQWebSocketBridge(zmq_port=zmq_port, websocket_port=websocket_port, ip_address=ip_address)
     print(bridge)
     try:
         bridge.run()
