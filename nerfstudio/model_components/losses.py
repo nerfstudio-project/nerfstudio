@@ -35,13 +35,13 @@ def outer(
     t0_ends: TensorType[..., "num_samples_0"],
     t1_starts: TensorType[..., "num_samples_1"],
     t1_ends: TensorType[..., "num_samples_1"],
-    y1: TensorType[..., "num_samples_1"]
+    y1: TensorType[..., "num_samples_1"],
 ) -> TensorType[..., "num_samples_0"]:
     """Faster version of
 
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L117
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L64
-    
+
     Args:
         t0_starts: start of the interval edges
         t0_ends: end of the interval edges
@@ -52,7 +52,9 @@ def outer(
     cy1 = torch.cat([torch.zeros_like(y1[..., :1]), torch.cumsum(y1, dim=-1)], dim=-1)
 
     idx_lo = torch.searchsorted(t1_starts.contiguous(), t0_starts.contiguous(), side="right") - 1
+    idx_lo = torch.clamp(idx_lo, min=0, max=y1.shape[-1] - 1)
     idx_hi = torch.searchsorted(t1_ends.contiguous(), t0_ends.contiguous(), side="right")
+    idx_hi = torch.clamp(idx_hi, min=0, max=y1.shape[-1] - 1)
     cy1_lo = torch.take_along_dim(cy1[..., :-1], idx_lo, dim=-1)
     cy1_hi = torch.take_along_dim(cy1[..., 1:], idx_hi, dim=-1)
     y0_outer = cy1_hi - cy1_lo
