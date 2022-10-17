@@ -65,6 +65,11 @@ function CameraList(props) {
   const [expanded, setExpanded] = React.useState(null);
   const [ui_field_of_view, setUIFieldOfView] = React.useState(0);
 
+  const FOV_LABELS = {
+    FOV: 'FOV',
+    MM: 'MM',
+  }
+
   const dispatch = useDispatch();
 
   const set_transform_controls = (index) => {
@@ -167,7 +172,7 @@ function CameraList(props) {
   };
 
   const getFovLabel = (camera, fov) => {
-    return fovLabel === 'FOV' ? fov : fov_to_focal(camera.getFilmWidth(), fov);
+    return fovLabel === FOV_LABELS.FOV ? fov : fov_to_focal(camera.getFilmWidth(), fov);
   };
 
   const handleChange =
@@ -178,7 +183,7 @@ function CameraList(props) {
     };
 
   const setFOV = (camera, val) => {
-    if (fovLabel === 'FOV') {
+    if (fovLabel === FOV_LABELS.FOV) {
       dispatch({
         type: 'write',
         path: 'renderingState/field_of_view',
@@ -261,7 +266,7 @@ function CameraList(props) {
                   sx={{ cursor: 'pointer' }}
                   onClick={() => {
                     toggleFovLabel();
-                    if (fovLabel === 'FOV') {
+                    if (fovLabel === FOV_LABELS.FOV) {
                       setUIFieldOfView(
                         focal_to_fov(camera.getFilmWidth(), ui_field_of_view),
                       );
@@ -273,7 +278,7 @@ function CameraList(props) {
                   }}
                   position="end"
                 >
-                  {fovLabel === 'FOV' ? '°' : 'mm'}
+                  {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
                 </InputAdornment>
               ),
             }}
@@ -372,7 +377,7 @@ export default function CameraPanel(props) {
   const [ui_field_of_view, setUIFieldOfView] = React.useState(field_of_view);
   const [ui_seconds, setUISeconds] = React.useState(seconds);
   const [ui_fps, setUIfps] = React.useState(fps);
-  const [fovLabel, setFovLabel] = React.useState('FOV');
+  const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
   // nonlinear render option
   const slider_min = 0;
@@ -385,14 +390,14 @@ export default function CameraPanel(props) {
   const sensorSize = camera_main.getFilmWidth();
 
   const toggleFovLabel = () => {
-    if (fovLabel === 'FOV') {
+    if (fovLabel === FOV_LABELS.FOV) {
       const focalLength = fov_to_focal(sensorSize, ui_field_of_view);
       setUIFieldOfView(focalLength);
-      setFovLabel('Focal Length');
+      setFovLabel(FOV_LABELS.MM);
     } else {
       const fov = focal_to_fov(sensorSize, ui_field_of_view);
       setUIFieldOfView(fov);
-      setFovLabel('FOV');
+      setFovLabel(FOV_LABELS.FOV);
     }
   };
 
@@ -659,7 +664,7 @@ export default function CameraPanel(props) {
   };
 
   const setFOV = (val) => {
-    if (fovLabel === 'FOV') {
+    if (fovLabel === FOV_LABELS.FOV) {
       dispatch({
         type: 'write',
         path: 'renderingState/field_of_view',
@@ -953,7 +958,7 @@ export default function CameraPanel(props) {
                 onClick={toggleFovLabel}
                 position="end"
               >
-                {fovLabel === 'FOV' ? '°' : 'mm'}
+                {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
               </InputAdornment>
             ),
           }}
