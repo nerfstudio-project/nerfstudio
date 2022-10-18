@@ -9,7 +9,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import appdirs
 import numpy as np
@@ -17,7 +17,7 @@ import requests
 import tyro
 from rich.console import Console
 from rich.progress import track
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Literal
 
 from nerfstudio.utils import colmap_utils, install_checks
 
