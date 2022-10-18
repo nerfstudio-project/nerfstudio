@@ -51,7 +51,7 @@ const msgpack = require('msgpack-lite');
 const FOV_LABELS = {
   FOV: '°',
   MM: 'mm',
-}
+};
 
 function set_camera_position(camera, matrix) {
   const mat = new THREE.Matrix4();
@@ -163,7 +163,11 @@ function CameraList(props) {
   };
 
   const swap_cameras = (index, new_index) => {
-    if (Math.min(index, new_index) < 0 || Math.max(index, new_index) >= cameras.length) return;
+    if (
+      Math.min(index, new_index) < 0 ||
+      Math.max(index, new_index) >= cameras.length
+    )
+      return;
     const new_cameras = [
       ...cameras.slice(0, index),
       ...cameras.slice(index + 1),
@@ -177,7 +181,9 @@ function CameraList(props) {
   };
 
   const getFovLabel = (camera, fov) => {
-    return fovLabel === FOV_LABELS.FOV ? fov : fov_to_focal(camera.getFilmWidth(), fov);
+    return fovLabel === FOV_LABELS.FOV
+      ? fov
+      : fov_to_focal(camera.getFilmWidth(), fov);
   };
 
   const handleChange =
@@ -196,6 +202,7 @@ function CameraList(props) {
       });
       // eslint-disable-next-line
       camera.properties['FOV'] = val;
+      camera.fov = val;
     } else {
       dispatch({
         type: 'write',
@@ -204,8 +211,8 @@ function CameraList(props) {
       });
       // eslint-disable-next-line
       camera.properties['FOV'] = focal_to_fov(camera.getFilmWidth(), val);
+      camera.fov = focal_to_fov(camera.getFilmWidth(), val);
     }
-    // setCameras(cameras);
   };
 
   const cameraList = cameras.map((camera, index) => {
@@ -222,30 +229,51 @@ function CameraList(props) {
           id="panel1bh-header"
         >
           <Stack spacing={0}>
-            <Button size="small" onClick={(e) => {
-              swap_cameras(index, index - 1);
-              e.stopPropagation();
-            }} 
-              style={{maxWidth: '30px', maxHeight: '30px', minWidth: '30px', minHeight: '30px'}}>
-                <KeyboardArrowUpIcon />
+            <Button
+              size="small"
+              onClick={(e) => {
+                swap_cameras(index, index - 1);
+                e.stopPropagation();
+              }}
+              style={{
+                maxWidth: '30px',
+                maxHeight: '30px',
+                minWidth: '30px',
+                minHeight: '30px',
+              }}
+              disabled={index === 0}
+            >
+              <KeyboardArrowUpIcon />
             </Button>
-            <Button size="small" onClick={(e) => {
-              swap_cameras(index, index + 1);
-              e.stopPropagation();
-            }}
-            style={{maxWidth: '30px', maxHeight: '30px', minWidth: '30px', minHeight: '30px'}}>
-                <KeyboardArrowDownIcon />
+            <Button
+              size="small"
+              onClick={(e) => {
+                swap_cameras(index, index + 1);
+                e.stopPropagation();
+              }}
+              style={{
+                maxWidth: '30px',
+                maxHeight: '30px',
+                minWidth: '30px',
+                minHeight: '30px',
+              }}
+              disabled={index === cameras.length - 1}
+            >
+              <KeyboardArrowDownIcon />
             </Button>
           </Stack>
           <Button size="small" onClick={() => set_transform_controls(index)}>
-
-          <TextField id="standard-basic" value={camera.properties.get('NAME')} variant="standard" 
-          onChange={(e) => {
-            const cameraProps = new Map(cameraProperties);
-            cameraProps.get(camera.uuid).set('NAME', e.target.value);
-            setCameraProperties(cameraProps);
-          }}
-          />
+            <TextField
+              id="standard-basic"
+              value={camera.properties.get('NAME')}
+              variant="standard"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                const cameraProps = new Map(cameraProperties);
+                cameraProps.get(camera.uuid).set('NAME', e.target.value);
+                setCameraProperties(cameraProps);
+              }}
+            />
           </Button>
           <Stack spacing={0} direction="row" justifyContent="end">
             <Button
@@ -265,7 +293,7 @@ function CameraList(props) {
         </AccordionSummary>
         <AccordionDetails>
           <TextField
-            label='Field of View'
+            label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
             inputProps={{
               inputMode: 'numeric',
               pattern: '[+-]?([0-9]*[.])?[0-9]+',
@@ -320,7 +348,7 @@ function CameraList(props) {
             onChange={(e) => {
               if (e.target.validity.valid) {
                 setUIFieldOfView(e.target.value);
-                camera.properties.set('FOV', e.target.value)
+                camera.properties.set('FOV', e.target.value);
               }
             }}
             onBlur={(e) => {
@@ -332,7 +360,14 @@ function CameraList(props) {
                 }
               }
             }}
-            value={fovLabel === FOV_LABELS.FOV ? camera.properties.get('FOV') : fov_to_focal(camera.getFilmWidth(), camera.properties.get('FOV'))}
+            value={
+              fovLabel === FOV_LABELS.FOV
+                ? camera.properties.get('FOV')
+                : fov_to_focal(
+                    camera.getFilmWidth(),
+                    camera.properties.get('FOV'),
+                  )
+            }
             error={camera.fov <= 0}
             helperText={camera.fov <= 0 ? 'Required' : ''}
             variant="standard"
@@ -456,7 +491,9 @@ export default function CameraPanel(props) {
     new_camera_properties.set('FOV', camera_main.fov);
     new_camera_properties.set('NAME', `Camera ${cameras.length}`);
     setCameraProperties(
-      new Map(cameraProperties.set(camera_main_copy.uuid, new_camera_properties))
+      new Map(
+        cameraProperties.set(camera_main_copy.uuid, new_camera_properties),
+      ),
     );
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
@@ -990,7 +1027,7 @@ export default function CameraPanel(props) {
           variant="standard"
         />
         <TextField
-          label={fovLabel}
+          label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
           inputProps={{
             inputMode: 'numeric',
             pattern: '[+-]?([0-9]*[.])?[0-9]+',
