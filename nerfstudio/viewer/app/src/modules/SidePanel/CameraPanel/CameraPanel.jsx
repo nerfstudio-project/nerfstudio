@@ -2,14 +2,25 @@ import * as React from 'react';
 import * as THREE from 'three';
 
 import {
+  ArrowBackIosNew,
+  ArrowForwardIos,
   AllInclusiveOutlined,
   ChangeHistory,
+  ContentPasteGo,
+  Delete,
   ExpandMore,
+  FirstPage,
   GestureOutlined,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
   LinearScaleOutlined,
+  LastPage,
+  Pause,
+  PlayArrow,
   RadioButtonUnchecked,
   Replay,
   Timeline,
+  Visibility,
 } from '@mui/icons-material';
 import {
   Accordion,
@@ -17,30 +28,17 @@ import {
   AccordionSummary,
   Button,
   InputAdornment,
-  // MenuItem,
-  // Select,
   Slider,
 } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
-import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import DeleteIcon from '@mui/icons-material/Delete';
-import FirstPageIcon from '@mui/icons-material/FirstPage';
 import IconButton from '@mui/material/IconButton';
-import LastPageIcon from '@mui/icons-material/LastPage';
-import PauseIcon from '@mui/icons-material/Pause';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { Stack } from '@mui/system';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
@@ -59,6 +57,94 @@ function set_camera_position(camera, matrix) {
   mat.decompose(camera.position, camera.quaternion, camera.scale);
 }
 
+function FovSelector(props) {
+  const fovLabel = props.fovLabel;
+  const setFovLabel = props.setFovLabel;
+  const camera = props.camera;
+  const dispatch = props.dispatch;
+  const changeMain = props.changeMain;
+  const sensorSize = camera.getFilmWidth();
+
+  const getFovLabel = () => {
+    const label =
+      fovLabel === FOV_LABELS.FOV
+        ? Math.round(camera.fov)
+        : fov_to_focal(sensorSize, camera.fov);
+    console.log(label);
+    return label;
+  };
+
+  const [ui_field_of_view, setUIFieldOfView] = React.useState(
+    getFovLabel(camera.fov),
+  );
+
+  useEffect(() => setUIFieldOfView(getFovLabel()), [fovLabel]);
+
+  const setFOV = (val) => {
+    console.log(val);
+    const new_fov =
+      fovLabel === FOV_LABELS.FOV ? val : focal_to_fov(sensorSize, val);
+
+    camera.fov = new_fov;
+
+    if (changeMain) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/field_of_view',
+        data: new_fov,
+      });
+    }
+  };
+
+  const toggleFovLabel = () => {
+    if (fovLabel === FOV_LABELS.FOV) {
+      setFovLabel(FOV_LABELS.MM);
+    } else {
+      setFovLabel(FOV_LABELS.FOV);
+    }
+  };
+
+  return (
+    <TextField
+      label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
+      inputProps={{
+        inputMode: 'numeric',
+        pattern: '[+-]?([0-9]*[.])?[0-9]+',
+      }}
+      // eslint-disable-next-line
+      InputProps={{
+        endAdornment: (
+          <InputAdornment
+            sx={{ cursor: 'pointer' }}
+            onClick={toggleFovLabel}
+            position="end"
+          >
+            {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
+          </InputAdornment>
+        ),
+      }}
+      onChange={(e) => {
+        if (e.target.validity.valid) {
+          setUIFieldOfView(e.target.value);
+        }
+      }}
+      onBlur={(e) => {
+        if (e.target.validity.valid) {
+          if (e.target.value !== '') {
+            setFOV(parseInt(e.target.value, 10));
+          } else {
+            setUIFieldOfView(getFovLabel());
+          }
+        }
+      }}
+      value={ui_field_of_view}
+      error={camera.fov <= 0}
+      helperText={camera.fov <= 0 ? 'Required' : ''}
+      variant="standard"
+    />
+  );
+}
+
 function CameraList(props) {
   const sceneTree = props.sceneTree;
   const cameras = props.cameras;
@@ -66,15 +152,20 @@ function CameraList(props) {
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
   const fovLabel = props.fovLabel;
+  const setFovLabel = props.setFovLabel;
   const cameraProperties = props.cameraProperties;
   const setCameraProperties = props.setCameraProperties;
-  const toggleFovLabel = props.toggleFovLabel;
+  const dispatch = props.dispatch;
   // eslint-disable-next-line no-unused-vars
   const [slider_value, set_slider_value] = React.useState(0);
   const [expanded, setExpanded] = React.useState(null);
-  const [ui_field_of_view, setUIFieldOfView] = React.useState(0);
 
-  const dispatch = useDispatch();
+  const handleChange =
+    (cameraUUID: string) =>
+    (event: React.SyntheticEvent, isExpanded: boolean) => {
+      // setUIFieldOfView(getFovLabel(camera, camera.fov));
+      setExpanded(isExpanded ? cameraUUID : false);
+    };
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
@@ -180,50 +271,13 @@ function CameraList(props) {
     reset_slider_render_on_change();
   };
 
-  const getFovLabel = (camera, fov) => {
-    return fovLabel === FOV_LABELS.FOV
-      ? fov
-      : fov_to_focal(camera.getFilmWidth(), fov);
-  };
-
-  const handleChange =
-    (camera, cameraUUID: string) =>
-    (event: React.SyntheticEvent, isExpanded: boolean) => {
-      setUIFieldOfView(getFovLabel(camera, camera.fov));
-      setExpanded(isExpanded ? cameraUUID : false);
-    };
-
-  const setFOV = (camera, val) => {
-    if (fovLabel === FOV_LABELS.FOV) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/field_of_view',
-        data: val,
-      });
-      // eslint-disable-next-line
-      camera.properties.FOV = val;
-      // eslint-disable-next-line
-      camera.fov = val;
-    } else {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/field_of_view',
-        data: focal_to_fov(camera.getFilmWidth(), val),
-      });
-      // eslint-disable-next-line
-      camera.properties.FOV = focal_to_fov(camera.getFilmWidth(), val);
-      // eslint-disable-next-line
-      camera.fov = focal_to_fov(camera.getFilmWidth(), val);
-    }
-  };
-
   const cameraList = cameras.map((camera, index) => {
     return (
       <Accordion
         className="CameraList-row"
         key={camera.uuid}
         expanded={expanded === camera.uuid}
-        onChange={handleChange(camera, camera.uuid)}
+        onChange={handleChange(camera.uuid)}
       >
         <AccordionSummary
           expandIcon={<ExpandMore sx={{ color: '#eeeeee' }} />}
@@ -245,7 +299,7 @@ function CameraList(props) {
               }}
               disabled={index === 0}
             >
-              <KeyboardArrowUpIcon />
+              <KeyboardArrowUp />
             </Button>
             <Button
               size="small"
@@ -261,7 +315,7 @@ function CameraList(props) {
               }}
               disabled={index === cameras.length - 1}
             >
-              <KeyboardArrowDownIcon />
+              <KeyboardArrowDown />
             </Button>
           </Stack>
           <Button size="small" onClick={() => set_transform_controls(index)}>
@@ -286,93 +340,19 @@ function CameraList(props) {
                 camera_main.fov = camera.fov;
               }}
             >
-              <VisibilityIcon />
+              <Visibility />
             </Button>
             <Button size="small" onClick={() => delete_camera(index)}>
-              <DeleteIcon />
+              <Delete />
             </Button>
           </Stack>
         </AccordionSummary>
         <AccordionDetails>
-          <TextField
-            label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
-            inputProps={{
-              inputMode: 'numeric',
-              pattern: '[+-]?([0-9]*[.])?[0-9]+',
-            }}
-            // eslint-disable-next-line
-            InputProps={{
-              endAdornment: (
-                // <Select
-                //     label={'Focal length measurement'}
-                //     value={fovLabel}
-                //     onChange={(e) => {
-                //       // toggleFovLabel();
-                //       setFovLabel(e.target.value);
-                //       if (fovLabel === FOV_LABELS.FOV) {
-                //         setUIFieldOfView(
-                //           focal_to_fov(camera.getFilmWidth(), ui_field_of_view),
-                //         );
-                //       } else {
-                //         setUIFieldOfView(
-                //           fov_to_focal(camera.getFilmWidth(), ui_field_of_view),
-                //         );
-                //       }
-                //     }}
-                //   >
-                //     <MenuItem value={FOV_LABELS.FOV} key={FOV_LABELS.FOV}>
-                //       {FOV_LABELS.FOV}
-                //     </MenuItem>
-                //     <MenuItem value={FOV_LABELS.MM} key={FOV_LABELS.MM}>
-                //       {FOV_LABELS.MM}
-                //     </MenuItem>
-                //   </Select>
-                <InputAdornment
-                  sx={{ cursor: 'pointer' }}
-                  onClick={() => {
-                    toggleFovLabel();
-                    if (fovLabel === FOV_LABELS.FOV) {
-                      setUIFieldOfView(
-                        focal_to_fov(camera.getFilmWidth(), ui_field_of_view),
-                      );
-                    } else {
-                      setUIFieldOfView(
-                        fov_to_focal(camera.getFilmWidth(), ui_field_of_view),
-                      );
-                    }
-                  }}
-                  position="end"
-                >
-                  {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
-                </InputAdornment>
-              ),
-            }}
-            onChange={(e) => {
-              if (e.target.validity.valid) {
-                setUIFieldOfView(e.target.value);
-                camera.properties.set('FOV', e.target.value);
-              }
-            }}
-            onBlur={(e) => {
-              if (e.target.validity.valid) {
-                if (e.target.value !== '') {
-                  setFOV(camera, parseInt(e.target.value, 10));
-                } else {
-                  setUIFieldOfView(getFovLabel(camera, camera.fov));
-                }
-              }
-            }}
-            value={
-              fovLabel === FOV_LABELS.FOV
-                ? camera.properties.get('FOV')
-                : fov_to_focal(
-                    camera.getFilmWidth(),
-                    camera.properties.get('FOV'),
-                  )
-            }
-            error={camera.fov <= 0}
-            helperText={camera.fov <= 0 ? 'Required' : ''}
-            variant="standard"
+          <FovSelector
+            fovLabel={fovLabel}
+            setFovLabel={setFovLabel}
+            camera={camera}
+            dispatch={dispatch}
           />
         </AccordionDetails>
       </Accordion>
@@ -427,10 +407,6 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.render_width,
   );
 
-  const field_of_view = useSelector(
-    (state) => state.renderingState.field_of_view,
-  );
-
   const setRenderHeight = (value) => {
     dispatch({
       type: 'write',
@@ -449,7 +425,6 @@ export default function CameraPanel(props) {
   // ui state
   const [ui_render_height, setUIRenderHeight] = React.useState(render_height);
   const [ui_render_width, setUIRenderWidth] = React.useState(render_width);
-  const [ui_field_of_view, setUIFieldOfView] = React.useState(field_of_view);
   const [ui_seconds, setUISeconds] = React.useState(seconds);
   const [ui_fps, setUIfps] = React.useState(fps);
   const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
@@ -461,20 +436,6 @@ export default function CameraPanel(props) {
   // animation constants
   const total_num_steps = seconds * fps;
   const step_size = slider_max / total_num_steps;
-
-  const sensorSize = camera_main.getFilmWidth();
-
-  const toggleFovLabel = () => {
-    if (fovLabel === FOV_LABELS.FOV) {
-      const focalLength = fov_to_focal(sensorSize, ui_field_of_view);
-      setUIFieldOfView(focalLength);
-      setFovLabel(FOV_LABELS.MM);
-    } else {
-      const fov = focal_to_fov(sensorSize, ui_field_of_view);
-      setUIFieldOfView(fov);
-      setFovLabel(FOV_LABELS.FOV);
-    }
-  };
 
   const reset_slider_render_on_add = (new_camera_list) => {
     // set slider and render camera back to 0
@@ -747,22 +708,6 @@ export default function CameraPanel(props) {
     }
   };
 
-  const setFOV = (val) => {
-    if (fovLabel === FOV_LABELS.FOV) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/field_of_view',
-        data: val,
-      });
-    } else {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/field_of_view',
-        data: focal_to_fov(sensorSize, val),
-      });
-    }
-  };
-
   const setUp = () => {
     const rot = camera_main.rotation;
     const unitY = new THREE.Vector3(0, 1, 0);
@@ -812,7 +757,7 @@ export default function CameraPanel(props) {
         <div className="CameraPanel-top-button">
           <Tooltip title="Copy Cmd to Clipboard">
             <IconButton onClick={copy_cmd_to_clipboard}>
-              <ContentPasteGoIcon />
+              <ContentPasteGo />
             </IconButton>
           </Tooltip>
         </div>
@@ -913,7 +858,7 @@ export default function CameraPanel(props) {
             set_slider_value(slider_min);
           }}
         >
-          <FirstPageIcon />
+          <FirstPage />
         </Button>
         <Button
           size="small"
@@ -922,7 +867,7 @@ export default function CameraPanel(props) {
             set_slider_value(Math.max(0.0, slider_value - step_size))
           }
         >
-          <ArrowBackIosNewIcon />
+          <ArrowBackIosNew />
         </Button>
         {/* eslint-disable-next-line no-nested-ternary */}
         {!is_playing && slider_max === slider_value ? (
@@ -945,7 +890,7 @@ export default function CameraPanel(props) {
               }
             }}
           >
-            <PlayArrowIcon />
+            <PlayArrow />
           </Button>
         ) : (
           <Button
@@ -955,7 +900,7 @@ export default function CameraPanel(props) {
               setIsPlaying(false);
             }}
           >
-            <PauseIcon />
+            <Pause />
           </Button>
         )}
         <Button
@@ -965,14 +910,14 @@ export default function CameraPanel(props) {
             set_slider_value(Math.min(slider_max, slider_value + step_size))
           }
         >
-          <ArrowForwardIosIcon />
+          <ArrowForwardIos />
         </Button>
         <Button
           size="small"
           variant="outlined"
           onClick={() => set_slider_value(slider_max)}
         >
-          <LastPageIcon />
+          <LastPage />
         </Button>
       </div>
       <div className="CameraList-row-time-interval">
@@ -1028,42 +973,12 @@ export default function CameraPanel(props) {
           helperText={ui_render_width <= 0 ? 'Required' : ''}
           variant="standard"
         />
-        <TextField
-          label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          // eslint-disable-next-line
-          InputProps={{
-            endAdornment: (
-              <InputAdornment
-                sx={{ cursor: 'pointer' }}
-                onClick={toggleFovLabel}
-                position="end"
-              >
-                {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
-              </InputAdornment>
-            ),
-          }}
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIFieldOfView(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setFOV(parseInt(e.target.value, 10));
-              } else {
-                setUIFieldOfView(field_of_view);
-              }
-            }
-          }}
-          value={ui_field_of_view}
-          error={ui_field_of_view <= 0}
-          helperText={ui_field_of_view <= 0 ? 'Required' : ''}
-          variant="standard"
+        <FovSelector
+          fovLabel={fovLabel}
+          setFovLabel={setFovLabel}
+          camera={camera_main}
+          dispatch={dispatch}
+          changeMain
         />
       </div>
       <div className="CameraList-row-time-interval">
@@ -1127,7 +1042,8 @@ export default function CameraPanel(props) {
           cameraProperties={cameraProperties}
           setCameraProperties={setCameraProperties}
           fovLabel={fovLabel}
-          toggleFovLabel={toggleFovLabel}
+          setFovLabel={setFovLabel}
+          dispatch={dispatch}
         />
       </div>
     </div>
