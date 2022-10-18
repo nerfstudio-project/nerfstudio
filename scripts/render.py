@@ -8,7 +8,7 @@ import dataclasses
 import json
 import sys
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
 import mediapy as media
 import torch
@@ -21,7 +21,7 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from typing_extensions import assert_never
+from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras
