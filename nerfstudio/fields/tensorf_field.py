@@ -24,7 +24,6 @@ from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.encodings import Encoding, Identity
 from nerfstudio.field_components.field_heads import FieldHeadNames, RGBFieldHead
 from nerfstudio.field_components.mlp import MLP
@@ -80,8 +79,6 @@ class TensoRFField(Field):
         density = self.density_encoding(positions)
         density_enc = torch.sum(density, dim=-1)[:, :, None]
         relu = torch.nn.ReLU()
-        softplus = torch.nn.Softplus()
-        # density_enc = softplus(density_enc + 10)
         density_enc = relu(density_enc)
         return density_enc, None
 

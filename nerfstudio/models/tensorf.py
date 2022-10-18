@@ -46,7 +46,7 @@ from nerfstudio.model_components.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.model_components.scene_colliders import AABBBoxCollider
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider, NearFarCollider
 from nerfstudio.models.base_model import Model, VanillaModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
@@ -65,7 +65,7 @@ class TensoRFModelConfig(VanillaModelConfig):
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
-    num_samples: int = 64
+    num_samples: int = 128
     """Number of samples in field evaluation"""
 
 
@@ -127,11 +127,6 @@ class TensoRFModel(Model):
                     "scheduler"
                 ].setup(optimizer=training_callback_attributes.optimizers.optimizers["encodings"], lr_init=lr_init)
 
-            # optimizers_config = training_callback_attributes.optimizers.config
-            # training_callback_attributes.optimizers = Optimizers(
-            #     optimizers_config, training_callback_attributes.pipeline.get_param_groups()
-            # )
-
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
@@ -149,14 +144,14 @@ class TensoRFModel(Model):
         # setting up fields
         density_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=8,
+            num_components=16,
         )
         color_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=24,
+            num_components=48,
         )
-        feature_encoding = NeRFEncoding(in_dim=27, num_frequencies=6, min_freq_exp=0, max_freq_exp=6)
-        direction_encoding = NeRFEncoding(in_dim=3, num_frequencies=6, min_freq_exp=0, max_freq_exp=6)
+        feature_encoding = NeRFEncoding(in_dim=27, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
+        direction_encoding = NeRFEncoding(in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
 
         self.field = TensoRFField(
             self.scene_box.aabb,
@@ -169,7 +164,8 @@ class TensoRFModel(Model):
         )
 
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples)
+        self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples, single_jitter=True)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -206,15 +202,24 @@ class TensoRFModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
-        field_outputs = self.field.forward(ray_samples_uniform)
-        weights = ray_samples_uniform.get_weights(field_outputs[FieldHeadNames.DENSITY])
+        dens, _ = self.field.get_density(ray_samples_uniform)
+        weights = ray_samples_uniform.get_weights(dens)
+
+        # pdf sampling
+        ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights)
+
+        # fine field:
+        field_outputs_fine = self.field.forward(ray_samples_pdf)
+        weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
         rgb = self.renderer_rgb(
-            rgb=field_outputs[FieldHeadNames.RGB],
-            weights=weights,
+            rgb=field_outputs_fine[FieldHeadNames.RGB],
+            weights=weights_fine,
         )
-        accumulation = self.renderer_accumulation(weights)
+        accumulation = self.renderer_accumulation(weights_fine)
+        depth = self.renderer_depth(weights_fine, ray_samples_pdf)
+
+        rgb = torch.where(accumulation < 0, colors.WHITE.to(rgb.device), rgb)
         accumulation = torch.clamp(accumulation, min=0)
-        depth = self.renderer_depth(weights, ray_samples_uniform)
 
         outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
         return outputs
