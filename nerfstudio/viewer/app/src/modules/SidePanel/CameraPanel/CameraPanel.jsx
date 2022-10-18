@@ -201,7 +201,8 @@ function CameraList(props) {
         data: val,
       });
       // eslint-disable-next-line
-      camera.properties['FOV'] = val;
+      camera.properties.FOV = val;
+      // eslint-disable-next-line
       camera.fov = val;
     } else {
       dispatch({
@@ -210,7 +211,8 @@ function CameraList(props) {
         data: focal_to_fov(camera.getFilmWidth(), val),
       });
       // eslint-disable-next-line
-      camera.properties['FOV'] = focal_to_fov(camera.getFilmWidth(), val);
+      camera.properties.FOV = focal_to_fov(camera.getFilmWidth(), val);
+      // eslint-disable-next-line
       camera.fov = focal_to_fov(camera.getFilmWidth(), val);
     }
   };
