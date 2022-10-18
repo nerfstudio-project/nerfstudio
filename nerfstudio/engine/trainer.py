@@ -48,7 +48,7 @@ from nerfstudio.viewer.server import viewer_utils
 CONSOLE = Console(width=120)
 
 
-def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
+def train_loop(local_rank: int, world_size: int, config: cfg.Config):
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -59,7 +59,6 @@ def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
     trainer = Trainer(config, local_rank, world_size)
     trainer.setup()
     trainer.train()
-    return 0
 
 
 class Trainer:

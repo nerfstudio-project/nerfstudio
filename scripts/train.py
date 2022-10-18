@@ -130,10 +130,8 @@ def _distributed_worker(
     assert num_gpus_per_machine <= torch.cuda.device_count()
     torch.cuda.set_device(local_rank)
     _set_random_seed(config.machine.seed + global_rank)
-    comms.synchronize(world_size)
-
     output = main_func(local_rank, world_size, config)
-    comms.synchronize(world_size)
+    comms.synchronize()
     dist.destroy_process_group()
     return output
 
@@ -176,7 +174,7 @@ def launch(
     elif world_size > 1:
         # Using multiple gpus with multiple processes.
         if dist_url == "auto":
-            assert num_machines == 1, "dist_url=auto not supported in multi-machine jobs."
+            assert num_machines == 1, "dist_url=auto is not supported for multi-machine jobs."
             port = _find_free_port()
             dist_url = f"tcp://127.0.0.1:{port}"
         if num_machines > 1 and dist_url.startswith("file://"):
