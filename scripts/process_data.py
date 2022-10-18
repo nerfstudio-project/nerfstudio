@@ -16,6 +16,7 @@ import numpy as np
 import requests
 import tyro
 import yaml
+from PIL import Image
 from rich.console import Console
 from rich.progress import track
 from typing_extensions import Annotated
@@ -485,7 +486,10 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
     return len(frames)
 
 
-def run_opensfm(image_dir: Path, opensfm_dir: Path, camera_model: CameraModel, exe: Path, verbose=False) -> None:
+def run_opensfm(
+    image_dir: Path, opensfm_dir: Path, camera_model: CameraModel, opensfm_install: Path, verbose=False
+) -> None:
+    exe = opensfm_install / "bin" / "opensfm"
     # TODO cleanup config
     config = {
         "processes": 12,
@@ -499,9 +503,21 @@ def run_opensfm(image_dir: Path, opensfm_dir: Path, camera_model: CameraModel, e
     }
     with open(opensfm_dir / "config.yaml", "w") as config_file:
         yaml.dump(config, config_file)
-    # TODO change cam type based on camera_model
-    # TODO get the width and height from images
-    cam_overrides = {"all": {"projection_type": "brown", "width": 540, "height": 960, "focal_x": 0.85, "focal_y": 0.85}}
+    example_img = image_dir.glob("*").__next__()
+    pil_im = Image.open(example_img)
+    if camera_model == CameraModel.OPENCV:
+        proj_type = "brown"
+    elif camera_model == CameraModel.OPENCV_FISHEYE:
+        proj_type = "fisheye_opencv"
+    cam_overrides = {
+        "all": {
+            "projection_type": proj_type,
+            "width": pil_im.width,
+            "height": pil_im.height,
+            "focal_x": 0.85,
+            "focal_y": 0.85,
+        }
+    }
     with open(opensfm_dir / "camera_models_overrides.json", "w") as cam_file:
         json.dump(cam_overrides, cam_file)
 
@@ -550,13 +566,15 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
         # enumerates through images in the capture
         aa_vec = np.array(shot_info["rotation"])  # 3D axis angle repr
         angle = np.linalg.norm(aa_vec)
-        if angle > 1e-5:
+        if angle > 1e-8:
             # normalilze the axis-angle repr if angle is large enough
             aa_vec /= angle
-        qx = aa_vec[0] * np.sin(angle / 2)
-        qy = aa_vec[1] * np.sin(angle / 2)
-        qz = aa_vec[2] * np.sin(angle / 2)
-        qw = np.cos(angle / 2)
+            qx = aa_vec[0] * np.sin(angle / 2)
+            qy = aa_vec[1] * np.sin(angle / 2)
+            qz = aa_vec[2] * np.sin(angle / 2)
+            qw = np.cos(angle / 2)
+        else:
+            qx, qy, qz, qw = 0.0, 0.0, 0.0, 1.0
         rotation = colmap_utils.qvec2rotmat(np.array([qw, qx, qy, qz]))
         translation = np.array(shot_info["translation"]).reshape(3, 1)
         w2c = np.concatenate([rotation, translation], 1)
@@ -565,8 +583,8 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
         # Convert from COLMAP's camera coordinate system to ours
         # TODO determine if this is necessary for OpenSfM or not
         c2w[0:3, 1:3] *= -1
-        # c2w = c2w[np.array([1, 0, 2, 3]), :]
-        # c2w[2, :] *= -1
+        c2w = c2w[np.array([1, 0, 2, 3]), :]
+        c2w[2, :] *= -1
 
         name = Path(f"./images/{shot_name}")
 
@@ -578,8 +596,8 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
     # For now just assume it's all the same camera
     cam = cams[list(cams.keys())[0]]
     out = {
-        "fl_x": float(cam["focal_x"]) * cam["width"],
-        "fl_y": float(cam["focal_y"]) * cam["height"],
+        "fl_x": float(cam["focal_x"]) * max(cam["height"], cam["width"]),
+        "fl_y": float(cam["focal_y"]) * max(cam["height"], cam["width"]),
         "cx": cam["width"] / 2.0 + float(cam["c_x"]) * cam["width"],
         "cy": cam["height"] / 2.0 + float(cam["c_y"]) * cam["height"],
         "w": cam["width"],
@@ -738,13 +756,13 @@ class ProcessVideo:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    num_frames_target: int = 100
+    num_frames_target: int = 120
     """Target number of frames to use for the dataset, results may not be exact."""
     camera_type: Literal["perspective", "fisheye"] = "perspective"
     """Camera model to use."""
     sfm_method: Literal["colmap", "OpenSfM"] = "OpenSfM"
     """Which sfm solver to use"""
-    opensfm_exec: Optional[Path] = None
+    opensfm_dir: Optional[Path] = None
     """If sfm_method is OpenSfM, specify the executable to use here"""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
@@ -769,6 +787,7 @@ class ProcessVideo:
         image_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert video to images
+        summary_log = []
         summary_log = convert_video_to_images(
             self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
         )
@@ -806,11 +825,11 @@ class ProcessVideo:
                     "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
                 )
         elif self.sfm_method == "OpenSfM":
-            assert self.opensfm_exec is not None, "Please provide the path to the OpenSfM executable <...>/bin/opensfm"
+            assert self.opensfm_dir is not None, "Please provide the path to the OpenSfM executable <...>/bin/opensfm"
             # Run the OpenSfM solver
             opensfm_dir = self.output_dir / "opensfm"
             opensfm_dir.mkdir(parents=True, exist_ok=True)
-            run_opensfm(image_dir, opensfm_dir, CAMERA_MODELS[self.camera_type], self.opensfm_exec)
+            run_opensfm(image_dir, opensfm_dir, CAMERA_MODELS[self.camera_type], self.opensfm_dir)
             # Save transforms.json
             if (opensfm_dir / "reconstruction.json").exists():
                 with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
