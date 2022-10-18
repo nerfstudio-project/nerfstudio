@@ -59,7 +59,7 @@ torch.backends.cudnn.benchmark = True  # type: ignore
 
 
 def _find_free_port() -> str:
-    """Find free port on open socket"""
+    """Finds a free port."""
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("", 0))
     port = sock.getsockname()[1]
@@ -85,25 +85,25 @@ def _distributed_worker(
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
-       training process on multiple processes
+       training process on multiple processes.
 
     Args:
-        local_rank (int): current rank of process
-        main_func (Callable): function that will be called by the distributed workers
-        world_size (int): total number of gpus available
-        num_gpus_per_machine (int): number of GPUs per machine
-        machine_rank (int): rank of this machine
-        dist_url (str): url to connect to for distributed jobs, including protocol
-                        e.g. "tcp://127.0.0.1:8686".
-                        Can be set to "auto" to automatically select a free port on localhost
-        config (Config): config file specifying training regimen
-        timeout (timedelta, optional): timeout of the distributed workers Defaults to DEFAULT_TIMEOUT.
+        local_rank: Current rank of process.
+        main_func: Function that will be called by the distributed workers.
+        world_size: Total number of gpus available.
+        num_gpus_per_machine: Number of GPUs per machine.
+        machine_rank: Rank of this machine.
+        dist_url: URL to connect to for distributed jobs, including protocol
+            E.g., "tcp://127.0.0.1:8686".
+            It can be set to "auto" to automatically select a free port on localhost.
+        config: Config specifying training regimen.
+        timeout: Timeout of the distributed workers.
 
     Raises:
         e: Exception in initializing the process group
 
     Returns:
-        Any: TODO(): determine the return type
+        Any: TODO: determine the return type
     """
     assert torch.cuda.is_available(), "cuda is not available. Please check your installation."
     global_rank = machine_rank * num_gpus_per_machine + local_rank
@@ -185,6 +185,7 @@ def launch(
         process_context = mp.spawn(
             _distributed_worker,
             nprocs=num_gpus_per_machine,
+            join=False,
             args=(
                 main_func,
                 world_size,
@@ -195,16 +196,17 @@ def launch(
                 timeout,
             ),
         )
+        # process_context won't be None because join=False
         assert process_context is not None
         try:
             process_context.join()
         except KeyboardInterrupt:
             for i, process in enumerate(process_context.processes):
                 if process.is_alive():
-                    CONSOLE.log("Terminating process %s", str(i))
+                    CONSOLE.log(f"Terminating process {i}...")
                     process.terminate()
                 process.join()
-                CONSOLE.log("Process %s finished", str(i))
+                CONSOLE.log(f"Process {i} finished.")
         finally:
             profiler.flush_profiler(config.logging)
 
