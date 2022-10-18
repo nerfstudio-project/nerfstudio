@@ -298,6 +298,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             sampler = DistributedSampler(
                 self.train_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
             )
+            sampler.set_epoch(0)
         else:
             sampler = None
         self.train_image_dataloader = CacheDataloader(
