@@ -42,7 +42,6 @@ import Tooltip from '@mui/material/Tooltip';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
-import { focal_to_fov, fov_to_focal } from '../../../utils';
 
 const msgpack = require('msgpack-lite');
 
@@ -63,13 +62,13 @@ function FovSelector(props) {
   const camera = props.camera;
   const dispatch = props.dispatch;
   const changeMain = props.changeMain;
-  const sensorSize = camera.getFilmWidth();
 
   const getFovLabel = () => {
-    const label =
+    const label = Math.round(
       fovLabel === FOV_LABELS.FOV
-        ? Math.round(camera.fov)
-        : fov_to_focal(sensorSize, camera.fov);
+        ? camera.getEffectiveFOV()
+        : camera.getFocalLength(),
+    );
     console.log(label);
     return label;
   };
@@ -81,17 +80,17 @@ function FovSelector(props) {
   useEffect(() => setUIFieldOfView(getFovLabel()), [fovLabel]);
 
   const setFOV = (val) => {
-    console.log(val);
-    const new_fov =
-      fovLabel === FOV_LABELS.FOV ? val : focal_to_fov(sensorSize, val);
-
-    camera.fov = new_fov;
+    if (fovLabel === FOV_LABELS.FOV) {
+      camera.fov = val;
+    } else {
+      camera.setFocalLength(val);
+    }
 
     if (changeMain) {
       dispatch({
         type: 'write',
         path: 'renderingState/field_of_view',
-        data: new_fov,
+        data: camera.getEffectiveFOV(),
       });
     }
   };
