@@ -35,6 +35,15 @@ import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
+import DeleteIcon from '@mui/icons-material/Delete';
+import FirstPageIcon from '@mui/icons-material/FirstPage';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import IconButton from '@mui/material/IconButton';
 import { Stack } from '@mui/system';
 import TextField from '@mui/material/TextField';
@@ -641,14 +650,27 @@ export default function CameraPanel(props) {
       });
     }
 
+    const keyframes = [];
+    for (let i = 0; i < cameras.length; i += 1) {
+      const camera = cameras[i];
+      keyframes.push({
+        matrix: JSON.stringify(camera.matrix.toArray()),
+        fov: camera.fov,
+        aspect: camera_render.aspect,
+      });
+    }
+
     // const myData
     const camera_path_object = {
-      keyframes: [],
+      keyframes,
       render_height,
       render_width,
       camera_path,
       fps,
       seconds,
+      smoothness_value,
+      is_cycle,
+      is_linear,
     };
     return camera_path_object;
   };
@@ -677,6 +699,58 @@ export default function CameraPanel(props) {
     // clean up "a" element & remove ObjectURL
     document.body.removeChild(link);
     URL.revokeObjectURL(href);
+  };
+
+  const load_camera_path = (camera_path_object) => {
+    // TODO UI for getting json
+
+    const new_camera_list = [];
+
+    setRenderHeight(camera_path_object.render_height);
+    setUIRenderHeight(camera_path_object.render_height);
+    setRenderWidth(camera_path_object.render_width);
+    setUIRenderWidth(camera_path_object.render_width);
+
+    setFps(camera_path_object.fps);
+    setUIfps(camera_path_object.fps);
+
+    setSeconds(camera_path_object.seconds);
+    setUISeconds(camera_path_object.seconds);
+
+    set_smoothness_value(camera_path_object.smoothness_value);
+    setIsCycle(camera_path_object.is_cycle);
+    setIsLinear(camera_path_object.is_linear);
+
+    for (let i = 0; i < camera_path_object.keyframes.length; i += 1) {
+      const keyframe = camera_path_object.keyframes[i];
+      const camera = new THREE.PerspectiveCamera(
+        keyframe.fov,
+        keyframe.aspect,
+        0.1,
+        1000,
+      );
+
+      const mat = new THREE.Matrix4();
+      mat.fromArray(JSON.parse(keyframe.matrix));
+      // camera.matrix = mat;
+      set_camera_position(camera, mat);
+      new_camera_list.push(camera);
+    }
+
+    setCameras(new_camera_list);
+    reset_slider_render_on_add(new_camera_list);
+  };
+
+  const uploadCameraPath = (e) => {
+    const fileUpload = e.target.files[0];
+
+    const fr = new FileReader();
+    fr.onload = (res) => {
+      const camera_path_object = JSON.parse(res.target.result);
+      load_camera_path(camera_path_object);
+    };
+
+    fr.readAsText(fileUpload);
   };
 
   const copy_cmd_to_clipboard = () => {
@@ -732,15 +806,23 @@ export default function CameraPanel(props) {
 
   return (
     <div className="CameraPanel">
-      <div className="CameraPanel-top-button">
-        <Button size="small" variant="outlined" onClick={setUp}>
-          Reset Up Direction
-        </Button>
-      </div>
       <div>
         <div className="CameraPanel-top-button">
-          <Button size="small" variant="outlined" onClick={add_camera}>
-            Add Camera
+          <Button
+            size="small"
+            className="CameraPanel-top-button"
+            component="label"
+            variant="outlined"
+            startIcon={<FileUploadOutlinedIcon />}
+          >
+            Load Path
+            <input
+              type="file"
+              accept=".json"
+              name="Camera Path"
+              onChange={uploadCameraPath}
+              hidden
+            />
           </Button>
         </div>
         <div className="CameraPanel-top-button">
@@ -748,6 +830,7 @@ export default function CameraPanel(props) {
             size="small"
             className="CameraPanel-top-button"
             variant="outlined"
+            startIcon={<FileDownloadOutlinedIcon />}
             onClick={export_camera_path}
           >
             Export Path
@@ -761,7 +844,147 @@ export default function CameraPanel(props) {
           </Tooltip>
         </div>
       </div>
+      <div className="CameraList-row-time-interval">
+        <TextField
+          label="Height"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setUIRenderHeight(e.target.value);
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setRenderHeight(parseInt(e.target.value, 10));
+              } else {
+                setUIRenderHeight(render_height);
+              }
+            }
+          }}
+          value={ui_render_height}
+          error={ui_render_height <= 0}
+          helperText={ui_render_height <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+        <TextField
+          label="Width"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setUIRenderWidth(e.target.value);
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setRenderWidth(parseInt(e.target.value, 10));
+              } else {
+                setUIRenderWidth(render_width);
+              }
+            }
+          }}
+          value={ui_render_width}
+          error={ui_render_width <= 0}
+          helperText={ui_render_width <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+        <TextField
+          label="FOV"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setUIFieldOfView(e.target.value);
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setFOV(parseInt(e.target.value, 10));
+              } else {
+                setUIFieldOfView(field_of_view);
+              }
+            }
+          }}
+          value={ui_field_of_view}
+          error={ui_field_of_view <= 0}
+          helperText={ui_field_of_view <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+      </div>
+      <div className="CameraList-row-time-interval">
+        <TextField
+          label="Seconds"
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[+-]?([0-9]*[.])?[0-9]+',
+          }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setUISeconds(e.target.value);
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setSeconds(parseInt(e.target.value, 10));
+              } else {
+                setUISeconds(seconds);
+              }
+            }
+          }}
+          value={ui_seconds}
+          error={ui_seconds <= 0}
+          helperText={ui_seconds <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+        <TextField
+          label="FPS"
+          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
+          size="small"
+          onChange={(e) => {
+            if (e.target.validity.valid) {
+              setUIfps(e.target.value);
+            }
+          }}
+          onBlur={(e) => {
+            if (e.target.validity.valid) {
+              if (e.target.value !== '') {
+                setFps(parseInt(e.target.value, 10));
+              } else {
+                setUIfps(fps);
+              }
+            }
+          }}
+          value={ui_fps}
+          error={ui_fps <= 0}
+          helperText={ui_fps <= 0 ? 'Required' : ''}
+          variant="standard"
+        />
+      </div>
       <div>
+        <div className="CameraPanel-top-button">
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<AddAPhotoIcon />}
+            onClick={add_camera}
+          >
+            Add Camera
+          </Button>
+        </div>
         <div className="CameraPanel-top-button">
           <Tooltip className="curve-button" title="Close/Open camera spline">
             {!is_cycle ? (

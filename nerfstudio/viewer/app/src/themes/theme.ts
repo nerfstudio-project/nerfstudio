@@ -137,5 +137,13 @@ export const appTheme = createTheme({
         },
       },
     },
+    MuiList: {
+      styleOverrides: {
+        padding: {
+          paddingTop: 4,
+          paddingBottom: 4,
+        },
+      },
+    },
   },
 });

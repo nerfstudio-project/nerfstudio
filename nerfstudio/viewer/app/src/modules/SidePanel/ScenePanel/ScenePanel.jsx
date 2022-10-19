@@ -1,25 +1,23 @@
-/* eslint-disable react/jsx-props-no-spreading */
-
 import * as React from 'react';
 import * as THREE from 'three';
 
-import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import { Leva } from 'leva';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
-import Typography from '@mui/material/Typography';
+import { FaTractor } from 'react-icons/fa';
+
+import { Button, Collapse, IconButton } from '@mui/material';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ArrowCircleUpIcon from '@mui/icons-material/ArrowCircleUp';
 import {
-  CameraAltRounded,
-  TuneRounded,
-  WidgetsRounded,
+  ExpandLess,
+  ExpandMore,
+  Videocam,
+  Visibility,
+  VisibilityOff,
 } from '@mui/icons-material/';
-import StatusPanel from './StatusPanel';
-import LevaTheme from '../ConfigPanel/leva_theme.json';
-import CameraPanel from './CameraPanel';
-import ScenePanel from './ScenePanel';
-import { RenderControls } from '../ConfigPanel/ConfigPanel';
-import { LogPanel } from '../LogPanel/LogPanel';
+import SceneNode from '../../../SceneNode';
+import LevaTheme from '../../ConfigPanel/leva_theme.json';
 
 export const snap_to_camera = (sceneTree, camera, matrix) => {
   const mat = new THREE.Matrix4();
@@ -36,38 +34,6 @@ export const snap_to_camera = (sceneTree, camera, matrix) => {
     viewDirection.z,
   );
 };
-
-interface TabPanelProps {
-  children: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      // eslint-disable-next-line react/jsx-props-no-spreading
-      {...other}
-    >
-      <Box sx={{ p: 3, padding: 0 }}>
-        <Typography component="div">{children}</Typography>
-      </Box>
-    </div>
-  );
-}
-
-function a11yProps(index: number) {
-  return {
-    id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
-  };
-}
 
 interface ListItemProps {
   name: String;
@@ -121,6 +87,7 @@ function MenuItems(props: ListItemProps) {
     <>
       <ListItemButton
         onClick={terminal ? null : toggleOpen}
+        dense
         sx={
           terminal
             ? {
@@ -194,7 +161,6 @@ function MenuItems(props: ListItemProps) {
               .map((key) => (
                 <MenuItems
                   name={key}
-                  key={key}
                   sceneTree={sceneTree}
                   scene_node={scene_node.children[key]}
                   level={level + 1}
@@ -229,64 +195,47 @@ function ClickableList(props: ClickableListProps) {
   );
 }
 
-interface BasicTabsProps {
-  sceneTree: object;
-}
-
-export function BasicTabs(props: BasicTabsProps) {
+export default function ScenePanel(props) {
   const sceneTree = props.sceneTree;
+  const camera_main = sceneTree.find_object_no_create([
+    'Cameras',
+    'Main Camera',
+  ]);
+  const setUp = () => {
+    const rot = camera_main.rotation;
+    const unitY = new THREE.Vector3(0, 1, 0);
+    const upVec = unitY.applyEuler(rot);
 
-  const [value, setValue] = React.useState(0);
+    const grid = sceneTree.find_object_no_create(['Grid']);
+    grid.setRotationFromEuler(rot);
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
+    const pos = new THREE.Vector3();
+    camera_main.getWorldPosition(pos);
+    camera_main.up.set(upVec.x, upVec.y, upVec.z);
+    sceneTree.metadata.camera_controls.updateCameraUp();
+    sceneTree.metadata.camera_controls.setLookAt(pos.x, pos.y, pos.z, 0, 0, 0);
+    const points = [new THREE.Vector3(0, 0, 0), upVec.multiplyScalar(2)];
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({
+      color: 0xaa46fc,
+      linewidth: 1,
+    });
+    const line = new THREE.LineSegments(geometry, material);
+    sceneTree.set_object_from_path(['Viewer Up Vector'], line);
   };
-
   return (
-    <div>
-      <StatusPanel sceneTree={sceneTree} />
-      <Divider />
-      <Box sx={{ width: '100%' }}>
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs
-            value={value}
-            onChange={handleChange}
-            aria-label="panel tabs"
-            centered
-          >
-            <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
-            <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
-            <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(2)} />
-          </Tabs>
-        </Box>
-        <TabPanel value={value} index={0}>
-          <div className="Leva-container">
-            <RenderControls />
-            <Leva
-              className="Leva-panel"
-              theme={LevaTheme}
-              titleBar={false}
-              fill
-              flat
-            />
-          </div>
-        </TabPanel>
-        <TabPanel value={value} index={1}>
-          <CameraPanel
-            sceneTree={sceneTree}
-            // camera_controls={sceneTree.metadata.camera_controls}
-          />
-        </TabPanel>
-        <TabPanel value={value} index={2}>
-          <div className="Scene-container">
-            <ScenePanel sceneTree={sceneTree} />
-          </div>
-        </TabPanel>
-
-        <TabPanel value={value} index={3}>
-          <LogPanel>TODO: Something maybe?</LogPanel>
-        </TabPanel>
-      </Box>
+    <div className="ScenePanel">
+      <div className="CameraPanel-top-button">
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<ArrowCircleUpIcon />}
+          onClick={setUp}
+        >
+          Reset Up Direction
+        </Button>
+      </div>
+      <ClickableList sceneTree={sceneTree} />
     </div>
   );
 }

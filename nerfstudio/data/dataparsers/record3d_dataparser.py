@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Type
+from typing import Type
 
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
+from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
