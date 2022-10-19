@@ -10,7 +10,7 @@ import {
   Replay,
   Timeline,
 } from '@mui/icons-material';
-import { Button, Slider } from '@mui/material';
+import { Button, keyframes, Slider } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -459,6 +459,38 @@ export default function CameraPanel(props) {
     // clean up "a" element & remove ObjectURL
     document.body.removeChild(link);
     URL.revokeObjectURL(href);
+  };
+
+  const load_camera_path = (camera_path_object) => {
+    // TODO UI for getting json
+
+    const new_camera_list = [];
+
+    setRenderHeight(camera_path_object.render_height);
+    setUIRenderHeight(camera_path_object.render_height);
+    setRenderWidth(camera_path_object.render_width);
+    setUIRenderWidth(camera_path_object.render_width);
+
+    setFps(camera_path_object.render_width.fps);
+    setUIfps(camera_path_object.render_width.fps);
+
+    setSeconds(camera_path_object.render_width.fps);
+    setUISeconds(camera_path_object.render_width.fps);
+
+    for (let i = 0; i < camera_path_object.keyframes.length; i++) {
+      let keyframe = camera_path_object.keyframes[i];
+      let camera = new THREE.PerspectiveCamera(
+        keyframe.fov,
+        keyframe.aspect,
+        0.1,
+        1000,
+      );
+      set_camera_position(camera, keyframe.camera_to_world);
+      new_camera_list.push(camera);
+    }
+
+    setCameras(new_camera_list);
+    reset_slider_render_on_add(new_camera_list);
   };
 
   const copy_cmd_to_clipboard = () => {
