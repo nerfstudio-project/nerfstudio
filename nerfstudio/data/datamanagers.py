@@ -349,9 +349,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         image_batch = next(self.iter_train_image_dataloader)
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
-        # print local rank, step, and ray indices
-        # if step % 100 == 0:
-        #     print(f"local rank {self.local_rank} step {step} ray indices {ray_indices}")
         ray_bundle = self.train_ray_generator(ray_indices)
         return ray_bundle, batch
 
