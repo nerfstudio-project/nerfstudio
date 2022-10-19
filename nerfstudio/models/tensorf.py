@@ -35,7 +35,6 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.field_components.encodings import NeRFEncoding, TensorVMEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.tensorf_field import TensoRFField
@@ -46,7 +45,7 @@ from nerfstudio.model_components.renderers import (
     DepthRenderer,
     RGBRenderer,
 )
-from nerfstudio.model_components.scene_colliders import AABBBoxCollider, NearFarCollider
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 from nerfstudio.models.base_model import Model, VanillaModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
@@ -165,7 +164,7 @@ class TensoRFModel(Model):
 
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples, single_jitter=True)
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples, single_jitter=True)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples // 4, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -202,8 +201,10 @@ class TensoRFModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
-        dens, _ = self.field.get_density(ray_samples_uniform)
+        dens = self.field.get_density(ray_samples_uniform)
         weights = ray_samples_uniform.get_weights(dens)
+        coarse_accumulation = self.renderer_accumulation(weights)
+        acc_mask = torch.where(coarse_accumulation < 0.1, False, True)
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights)
@@ -211,12 +212,14 @@ class TensoRFModel(Model):
         # fine field:
         field_outputs_fine = self.field.forward(ray_samples_pdf)
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
+
+        accumulation = self.renderer_accumulation(weights_fine)
+        depth = self.renderer_depth(weights_fine, ray_samples_pdf)
+
         rgb = self.renderer_rgb(
             rgb=field_outputs_fine[FieldHeadNames.RGB],
             weights=weights_fine,
         )
-        accumulation = self.renderer_accumulation(weights_fine)
-        depth = self.renderer_depth(weights_fine, ray_samples_pdf)
 
         rgb = torch.where(accumulation < 0, colors.WHITE.to(rgb.device), rgb)
         accumulation = torch.clamp(accumulation, min=0)

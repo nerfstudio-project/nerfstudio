@@ -80,11 +80,9 @@ class TensoRFField(Field):
         density_enc = torch.sum(density, dim=-1)[:, :, None]
         relu = torch.nn.ReLU()
         density_enc = relu(density_enc)
-        return density_enc, None
+        return density_enc
 
-    def get_outputs(
-        self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
-    ) -> Dict[FieldHeadNames, TensorType]:
+    def get_outputs(self, ray_samples: RaySamples) -> Dict[FieldHeadNames, TensorType]:
         d = ray_samples.frustums.directions
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         rgb_features = self.color_encoding(positions)
@@ -96,3 +94,12 @@ class TensoRFField(Field):
         mlp_out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
         rgb = self.field_output_rgb(mlp_out)
         return {FieldHeadNames.RGB: rgb}
+
+    def forward(self, ray_samples: RaySamples, mask: Optional[TensorType] = None):
+        # or maybe filter here, and just reformat the rays at the end
+
+        density = self.get_density(ray_samples)
+        field_outputs = self.get_outputs(ray_samples)
+
+        field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
+        return field_outputs
