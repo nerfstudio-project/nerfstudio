@@ -253,7 +253,12 @@ export function get_scene_tree() {
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
 
-    if (mouseVector.x > 1 || mouseVector.x < -1 || mouseVector.y > 1 || mouseVector.y < -1) {
+    if (
+      mouseVector.x > 1 ||
+      mouseVector.x < -1 ||
+      mouseVector.y > 1 ||
+      mouseVector.y < -1
+    ) {
       if (selectedCam !== null) {
         selectedCam.material.color = new THREE.Color(1, 1, 1);
         selectedCam = null;
@@ -268,7 +273,9 @@ export function get_scene_tree() {
       selectedCam.material.color = new THREE.Color(1, 1, 1);
       selectedCam = null;
     }
-    const filtered_intersections = intersections.filter(isect => checkVisibility(isect.object));
+    const filtered_intersections = intersections.filter((isect) =>
+      checkVisibility(isect.object),
+    );
     if (filtered_intersections.length > 0) {
       selectedCam = filtered_intersections[0].object;
       selectedCam.material.color = new THREE.Color(0xfab300);
