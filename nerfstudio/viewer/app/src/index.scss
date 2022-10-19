@@ -177,8 +177,9 @@ $sidebar-width: 100% !default;
 
 .CameraPanel-slider-container {
   margin-top: 40px;
-  margin-left: 20px;
-  margin-right: 20px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 70%;
 }
 
 .CameraPanel-slider-button-container {
@@ -249,9 +250,8 @@ $sidebar-width: 100% !default;
 
 .ViewerWindow-render-crop {
   display: flex;
-  background-color: black;
+  box-shadow: rgb(0 0 0 / 70%) 0px 0px 0px 1600px;
   z-index: 1;
-  opacity: 0.2;
   vertical-align: middle;
 }
 

@@ -3,7 +3,9 @@
 view_dataset.py
 """
 
-import logging
+from rich.console import Console
+
+CONSOLE = Console(width=120)
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -11,12 +13,10 @@ from pathlib import Path
 import torch
 import tyro
 
-from nerfstudio.configs import model_configs as cfg
+from nerfstudio.configs import method_configs as cfg
 from nerfstudio.data.datamanagers import AnnotatedDataParserUnion
 from nerfstudio.data.utils.datasets import InputDataset
 from nerfstudio.viewer.server import viewer_utils
-
-logging.basicConfig(format="[%(filename)s:%(lineno)d] %(message)s", level=logging.INFO)
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)
 
@@ -36,7 +36,7 @@ def main(
     )
     dataset = InputDataset(dataparser.setup().get_dataset_inputs(split="train"))
     viewer_state.init_scene(dataset=dataset, start_train=False)
-    logging.info("Please refresh and load page at: %s", viewer_state.viewer_url)
+    CONSOLE.log("Please refresh and load page at: %s", viewer_state.viewer_url)
     time.sleep(30)  # allowing time to refresh page
 
 

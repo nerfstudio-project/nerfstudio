@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
-import { useSelector } from 'react-redux';
 import WebSocketUrlField from '../WebSocketUrlField';
 
 interface LandingModalProps {
@@ -57,12 +56,9 @@ export default function LandingModel(props: LandingModalProps) {
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket Port below and click the link to connect to your training job.`;
+  const text_intro = `To use our viewer, you need to connect to the WebSocket server where your training job is running. Enter your WebSocket URL below and click the link to connect to your training job.`;
 
-  const websocket_port = useSelector(
-    (state) => state.websocketState.websocket_port,
-  );
-  const command = `ssh -L ${websocket_port}:localhost:${websocket_port} USER@REMOTE.SERVER.IP`;
+  const command = `ssh -L <port>:localhost:<port> USER@REMOTE.SERVER.IP`;
 
   const platform = window.navigator.platform.toLowerCase();
   let initial_tab = 0;
@@ -188,8 +184,8 @@ export default function LandingModel(props: LandingModalProps) {
               </p>
               <p>
                 <b>First Person Controls</b> <br />
-                WASD - horizontal camera translation, QE - vertical camera translation <br />
-                Arrow Keys - camera rotation
+                WA - forward camera translation, SD - side to side camera translation <br />
+                QE - up and down camera translation, Arrow Keys - camera rotation
               </p>
             </div>
           </Typography>

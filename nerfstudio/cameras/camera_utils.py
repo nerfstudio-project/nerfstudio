@@ -17,11 +17,12 @@ Camera transformation helper code.
 """
 
 import math
-from typing import List, Literal, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 _EPS = np.finfo(float).eps * 4.0
 
@@ -271,60 +272,14 @@ def get_distortion_params(
     return torch.Tensor([k1, k2, k3, k4, p1, p2])
 
 
-def radial_and_tangential_undistort(
-    coords: TensorType["num_coords":..., 2],
-    distortion_params: TensorType["num_coords":..., 6],
-    eps: float = 1e-9,
-    max_iterations=10,
-) -> TensorType["num_coords":..., 2]:
-    """Computes undistorted coords given opencv distortion parameters.
-    Addapted from MultiNeRF
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
-
-    Args:
-        coords: The distorted coordinates.
-        distortion_params: The distortion parameters [k1, k2, k3, k4, p1, p2].
-        eps: The epsilon for the convergence.
-        max_iterations: The maximum number of iterations to perform.
-
-    Returns:
-        The undistorted coordinates.
-    """
-
-    # Initialize from the distorted point.
-    x = torch.clone(coords[..., 0])
-    y = torch.clone(coords[..., 1])
-
-    for _ in range(max_iterations):
-        fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
-            x=x, y=y, xd=coords[..., 0], yd=coords[..., 1], distortion_params=distortion_params
-        )
-        denominator = fy_x * fx_y - fx_x * fy_y
-        x_numerator = fx * fy_y - fy * fx_y
-        y_numerator = fy * fx_x - fx * fy_x
-        step_x = torch.where(torch.abs(denominator) > eps, x_numerator / denominator, torch.zeros_like(denominator))
-        step_y = torch.where(torch.abs(denominator) > eps, y_numerator / denominator, torch.zeros_like(denominator))
-
-        x = x + step_x
-        y = y + step_y
-
-    return torch.stack([x, y], dim=-1)
-
-
+@torch.jit.script
 def _compute_residual_and_jacobian(
-    x: TensorType["num_coords":...],
-    y: TensorType["num_coords":...],
-    xd: TensorType["num_coords":...],
-    yd: TensorType["num_coords":...],
-    distortion_params: TensorType["num_coords":..., 6],
-) -> Tuple[
-    TensorType["num_coords":...],
-    TensorType["num_coords":...],
-    TensorType["num_coords":...],
-    TensorType["num_coords":...],
-    TensorType["num_coords":...],
-    TensorType["num_coords":...],
-]:
+    x: torch.Tensor,
+    y: torch.Tensor,
+    xd: torch.Tensor,
+    yd: torch.Tensor,
+    distortion_params: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,]:
     """Auxiliary function of radial_and_tangential_undistort() that computes residuals and jacobians.
     Adapted from MultiNeRF:
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L427-L474
@@ -383,6 +338,47 @@ def _compute_residual_and_jacobian(
     return fx, fy, fx_x, fx_y, fy_x, fy_y
 
 
+@torch.jit.script
+def radial_and_tangential_undistort(
+    coords: torch.Tensor,
+    distortion_params: torch.Tensor,
+    eps: float = 1e-9,
+    max_iterations: int = 10,
+) -> torch.Tensor:
+    """Computes undistorted coords given opencv distortion parameters.
+    Addapted from MultiNeRF
+    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
+
+    Args:
+        coords: The distorted coordinates.
+        distortion_params: The distortion parameters [k1, k2, k3, k4, p1, p2].
+        eps: The epsilon for the convergence.
+        max_iterations: The maximum number of iterations to perform.
+
+    Returns:
+        The undistorted coordinates.
+    """
+
+    # Initialize from the distorted point.
+    x = coords[..., 0]
+    y = coords[..., 1]
+
+    for _ in range(max_iterations):
+        fx, fy, fx_x, fx_y, fy_x, fy_y = _compute_residual_and_jacobian(
+            x=x, y=y, xd=coords[..., 0], yd=coords[..., 1], distortion_params=distortion_params
+        )
+        denominator = fy_x * fx_y - fx_x * fy_y
+        x_numerator = fx * fy_y - fy * fx_y
+        y_numerator = fy * fx_x - fx * fy_x
+        step_x = torch.where(torch.abs(denominator) > eps, x_numerator / denominator, torch.zeros_like(denominator))
+        step_y = torch.where(torch.abs(denominator) > eps, y_numerator / denominator, torch.zeros_like(denominator))
+
+        x = x + step_x
+        y = y + step_y
+
+    return torch.stack([x, y], dim=-1)
+
+
 def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     """Compute the rotation matrix that rotates vector a to vector b.
 
@@ -411,20 +407,21 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
     return torch.eye(3) + skew_sym_mat + skew_sym_mat @ skew_sym_mat * ((1 - c) / (s**2 + 1e-8))
 
 
-def auto_orient_poses(
-    poses: TensorType["num_poses":..., 4, 4], method: Literal["pca", "up"] = "up"
+def auto_orient_and_center_poses(
+    poses: TensorType["num_poses":..., 4, 4], method: Literal["pca", "up", "none"] = "up", center_poses: bool = True
 ) -> TensorType["num_poses":..., 3, 4]:
     """Orients and centers the poses. We provide two methods for orientation: pca and up.
 
     pca: Orient the poses so that the principal component of the points is aligned with the axes.
         This method works well when all of the cameras are in the same plane.
-
     up: Orient the poses so that the average up vector is aligned with the z axis.
         This method works well when images are not at arbitrary angles.
 
+
     Args:
         poses: The poses to orient.
-        method: The method to use for orientation. Either "pca" or "up".
+        method: The method to use for orientation.
+        center_poses: If True, the poses are centered around the origin.
 
     Returns:
         The oriented poses.
@@ -433,16 +430,21 @@ def auto_orient_poses(
     translation = poses[..., :3, 3]
 
     mean_translation = torch.mean(translation, dim=0)
-    translation = translation - mean_translation
+    translation_diff = translation - mean_translation
+
+    if center_poses:
+        translation = mean_translation
+    else:
+        translation = torch.zeros_like(mean_translation)
 
     if method == "pca":
-        _, eigvec = torch.linalg.eigh(translation.T @ translation)
+        _, eigvec = torch.linalg.eigh(translation_diff.T @ translation_diff)
         eigvec = torch.flip(eigvec, dims=(-1,))
 
         if torch.linalg.det(eigvec) < 0:
             eigvec[:, 2] = -eigvec[:, 2]
 
-        transform = torch.cat([eigvec, eigvec @ -mean_translation[..., None]], dim=-1)
+        transform = torch.cat([eigvec, eigvec @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
 
         if oriented_poses.mean(axis=0)[2, 1] < 0:
@@ -452,7 +454,10 @@ def auto_orient_poses(
         up = up / torch.linalg.norm(up)
 
         rotation = rotation_matrix(up, torch.Tensor([0, 0, 1]))
-        transform = torch.cat([rotation, rotation @ -mean_translation[..., None]], dim=-1)
+        transform = torch.cat([rotation, rotation @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
+    elif method == "none":
+        oriented_poses = poses
+        poses[:, 3, :3] -= translation
 
     return oriented_poses

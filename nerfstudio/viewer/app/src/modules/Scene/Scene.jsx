@@ -13,6 +13,7 @@ import { CameraHelper } from '../SidePanel/CameraPanel/CameraHelper';
 import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
+import { snap_to_camera } from '../SidePanel/SidePanel';
 
 const msgpack = require('msgpack-lite');
 
@@ -24,6 +25,7 @@ export function get_scene_tree() {
   const sceneTree = new SceneNode(scene);
 
   const dispatch = useDispatch();
+  const BANNER_HEIGHT = 50;
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
@@ -72,7 +74,7 @@ export function get_scene_tree() {
 
   const keyMap = [];
   const moveSpeed = 0.035;
-  const EPS = 1e-5;
+  const EPS = 1;
 
   function firstPersonCamera() {
     if (keyMap.ArrowLeft === true) {
@@ -94,10 +96,10 @@ export function get_scene_tree() {
       camera_controls.truck(-moveSpeed, 0, true);
     }
     if (keyMap.KeyW === true) {
-      camera_controls.forward(moveSpeed, true);
+      camera_controls.dolly(0.05, true);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.forward(-moveSpeed, true);
+      camera_controls.dolly(-0.05, true);
     }
     if (keyMap.KeyQ === true) {
       camera_controls.truck(0, moveSpeed, true);
@@ -115,10 +117,10 @@ export function get_scene_tree() {
       camera_controls.rotate(0.02, 0, true);
     }
     if (keyMap.KeyW === true) {
-      camera_controls.rotate(0, -0.02, true);
+      camera_controls.rotate(0, -0.015, true);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.rotate(0, 0.02, true);
+      camera_controls.rotate(0, 0.015, true);
     }
     if (keyMap.KeyQ === true) {
       camera_controls.dolly(0.05, true);
@@ -148,6 +150,15 @@ export function get_scene_tree() {
   function onKeyDown(event) {
     const keyCode = event.code;
     keyMap[keyCode] = true;
+  }
+
+  function checkVisibility(camera) {
+    let curr = camera;
+    while (curr !== null) {
+      if (!curr.visible) return false;
+      curr = curr.parent;
+    }
+    return true;
   }
 
   window.addEventListener('keydown', onKeyDown, true);
@@ -236,7 +247,7 @@ export function get_scene_tree() {
         if (!prev.has(key)) {
           // keys_valid.push(key);
           const json = current[key];
-          const camera = drawCamera(json);
+          const camera = drawCamera(json, key);
           sceneTree.set_object_from_path([CAMERAS_NAME, key], camera);
         }
       }
@@ -253,6 +264,72 @@ export function get_scene_tree() {
   };
   subscribe_to_changes(selector_fn_cameras, fn_value_cameras);
 
+  // Check for clicks on training cameras
+  const mouseVector = new THREE.Vector2();
+  const raycaster = new THREE.Raycaster();
+  const size = new THREE.Vector2();
+  let selectedCam = null;
+
+  let drag = false;
+  const onMouseDown = () => {
+    drag = false;
+  };
+
+  const onMouseMove = (e) => {
+    drag = true;
+
+    const cameras = Object.values(
+      sceneTree.find_no_create([CAMERAS_NAME]).children,
+    ).map((obj) => obj.object.children[0].children[1]);
+
+    sceneTree.metadata.renderer.getSize(size);
+    mouseVector.x = 2 * (e.clientX / size.x) - 1;
+    mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+
+    if (
+      mouseVector.x > 1 ||
+      mouseVector.x < -1 ||
+      mouseVector.y > 1 ||
+      mouseVector.y < -1
+    ) {
+      if (selectedCam !== null) {
+        selectedCam.material.color = new THREE.Color(1, 1, 1);
+        selectedCam = null;
+      }
+      return;
+    }
+
+    raycaster.setFromCamera(mouseVector, sceneTree.metadata.camera);
+    const intersections = raycaster.intersectObjects(cameras, true);
+
+    if (selectedCam !== null) {
+      selectedCam.material.color = new THREE.Color(1, 1, 1);
+      selectedCam = null;
+    }
+    const filtered_intersections = intersections.filter((isect) =>
+      checkVisibility(isect.object),
+    );
+    if (filtered_intersections.length > 0) {
+      selectedCam = filtered_intersections[0].object;
+      selectedCam.material.color = new THREE.Color(0xfab300);
+    }
+  };
+
+  const onMouseUp = () => {
+    if (drag === true) {
+      return;
+    }
+    if (selectedCam !== null) {
+      const clickedCam = sceneTree.find_object_no_create([
+        CAMERAS_NAME,
+        selectedCam.name,
+      ]);
+      snap_to_camera(sceneTree, sceneTree.metadata.camera, clickedCam.matrix);
+    }
+  };
+  window.addEventListener('mousedown', onMouseDown, false);
+  window.addEventListener('mousemove', onMouseMove, false);
+  window.addEventListener('mouseup', onMouseUp, false);
   return sceneTree;
 }
 

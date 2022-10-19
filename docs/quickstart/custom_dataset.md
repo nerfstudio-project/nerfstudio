@@ -9,7 +9,7 @@ To assist running on custom data we have a script that will process a video or f
 To process your data run:
 
 ```bash
-ns-process-data --data {FOLDER_OR_VIDEO} --output-dir {PROCESSED_DATA_DIR}
+ns-process-data {video,images,insta360} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 ```
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
@@ -25,7 +25,7 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
 
 ```bash
-ns-train nerfacto nerfstudio-data --data {PROCESSED_DATA_DIR}
+ns-train nerfacto --data {PROCESSED_DATA_DIR} nerfstudio-data
 ```
 
 ### Installing COLMAP
@@ -114,8 +114,7 @@ Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [
 
 Click on the image down below 👇 for a 1-minute tutorial on how to run nerfstudio with Record3D from start to finish.
 
-
-[![How to easily use nerfstudio with Record3D](imgs/record3d_promo.png)](https://youtu.be/XwKq7qDQCQk "How to easily use nerfstudio with Record3D")
+[![How to easily use nerfstudio with Record3D](imgs/record3d_promo.png)](https://youtu.be/XwKq7qDQCQk 'How to easily use nerfstudio with Record3D')
 
 At a high level, you can follow these 3 steps:
 
@@ -127,10 +126,10 @@ At a high level, you can follow these 3 steps:
 2. Then, move the exported capture folder from your iPhone to your computer.
 
 3. Train with nerfstudio!
-  ```
-  ns-train nerfacto record3d-data --data {RECORD3D_CAPTURE_DIR/EXR_RGBD}
-  ```
 
+```
+ns-train nerfacto --data {RECORD3D_CAPTURE_DIR/EXR_RGBD} record3d-data
+```
 
 We provide some example recordings for you to try out and to see the correct formatting.
 

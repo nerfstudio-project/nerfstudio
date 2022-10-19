@@ -123,6 +123,17 @@ export default function StatusPanel(props: StatusPanelProps) {
         className="StatusPanel-hide-scene-button"
         variant="outlined"
         onClick={() => {
+          // eslint-disable-next-line no-restricted-globals
+          location.reload();
+        }}
+        style={{ textTransform: 'none' }}
+      >
+        Refresh Page
+      </Button>
+      <Button
+        className="StatusPanel-first-person-button"
+        variant="outlined"
+        onClick={() => {
           set_is_first_person(!is_first_person);
         }}
         style={{ textTransform: 'none' }}

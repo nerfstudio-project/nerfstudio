@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import dataclasses
 import functools
-import logging
 import os
 import time
 from typing import Any, Dict, List, Tuple
 
 import torch
-from rich import console
+from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 
 from nerfstudio.configs import base_config as cfg
@@ -46,8 +45,7 @@ from nerfstudio.utils.misc import step_check
 from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
-logging.getLogger("PIL").setLevel(logging.WARNING)
-CONSOLE = console.Console()
+CONSOLE = Console(width=120)
 
 
 def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
@@ -94,7 +92,7 @@ class Trainer:
         self.mixed_precision = self.config.trainer.mixed_precision
         if self.device == "cpu":
             self.mixed_precision = False
-            logging.warning("Mixed precision is disabled for CPU training.")
+            CONSOLE.print("Mixed precision is disabled for CPU training.")
         self._start_step = 0
         # optimizers
         self.grad_scaler = GradScaler(enabled=self.mixed_precision)
@@ -102,13 +100,12 @@ class Trainer:
         self.base_dir = config.get_base_dir()
         # directory to save checkpoints
         self.checkpoint_dir = config.get_checkpoint_dir()
-        logging.info("Saving checkpoints to: %s", self.checkpoint_dir)
+        CONSOLE.log(f"Saving checkpoints to: {self.checkpoint_dir}")
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
-        ret = None
+        self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled():
-            ret = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
-        (self.viewer_state, banner_messages) = ret if ret else (None, None)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
@@ -145,7 +142,7 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self._init_viewer_scene()
+        self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
             for step in range(self._start_step, self._start_step + num_iterations):
@@ -207,7 +204,7 @@ class Trainer:
             CONSOLE.print(f"[bold red]{string}")
 
     @check_viewer_enabled
-    def _init_viewer_scene(self) -> None:
+    def _init_viewer_state(self) -> None:
         """Initializes viewer scene with given train dataset"""
         assert self.viewer_state and self.pipeline.datamanager.train_dataset
         self.viewer_state.init_scene(
@@ -271,9 +268,9 @@ class Trainer:
             self.pipeline.load_pipeline(loaded_state["pipeline"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
-            logging.info("done loading checkpoint from %s", load_path)
+            CONSOLE.print(f"done loading checkpoint from {load_path}")
         else:
-            logging.info("No checkpoints to load, training from scratch")
+            CONSOLE.print("No checkpoints to load, training from scratch")
 
     @check_main_thread
     def save_checkpoint(self, step: int) -> None:
