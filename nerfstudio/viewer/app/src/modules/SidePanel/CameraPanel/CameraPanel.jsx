@@ -775,29 +775,6 @@ export default function CameraPanel(props) {
     }
   };
 
-  const setUp = () => {
-    const rot = camera_main.rotation;
-    const unitY = new THREE.Vector3(0, 1, 0);
-    const upVec = unitY.applyEuler(rot);
-
-    const grid = sceneTree.find_object_no_create(['Grid']);
-    grid.setRotationFromEuler(rot);
-
-    const pos = new THREE.Vector3();
-    camera_main.getWorldPosition(pos);
-    camera_main.up.set(upVec.x, upVec.y, upVec.z);
-    sceneTree.metadata.camera_controls.updateCameraUp();
-    sceneTree.metadata.camera_controls.setLookAt(pos.x, pos.y, pos.z, 0, 0, 0);
-    const points = [new THREE.Vector3(0, 0, 0), upVec.multiplyScalar(2)];
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({
-      color: 0xaa46fc,
-      linewidth: 1,
-    });
-    const line = new THREE.LineSegments(geometry, material);
-    sceneTree.set_object_from_path(['Viewer Up Vector'], line);
-  };
-
   return (
     <div className="CameraPanel">
       <div>
@@ -891,31 +868,13 @@ export default function CameraPanel(props) {
           helperText={ui_render_width <= 0 ? 'Required' : ''}
           variant="standard"
         />
-        {/* <TextField
-          label="FOV"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIFieldOfView(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setFOV(parseInt(e.target.value, 10));
-              } else {
-                setUIFieldOfView(field_of_view);
-              }
-            }
-          }}
-          value={ui_field_of_view}
-          error={ui_field_of_view <= 0}
-          helperText={ui_field_of_view <= 0 ? 'Required' : ''}
-          variant="standard"
-        /> */}
+        <FovSelector
+          fovLabel={fovLabel}
+          setFovLabel={setFovLabel}
+          camera={camera_main}
+          dispatch={dispatch}
+          changeMain
+        />
       </div>
       <div className="CameraList-row-time-interval">
         <TextField
@@ -1135,118 +1094,6 @@ export default function CameraPanel(props) {
         >
           <LastPage />
         </Button>
-      </div>
-      <div className="CameraList-row-time-interval">
-        <TextField
-          label="Height"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIRenderHeight(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setRenderHeight(parseInt(e.target.value, 10));
-              } else {
-                setUIRenderHeight(render_height);
-              }
-            }
-          }}
-          value={ui_render_height}
-          error={ui_render_height <= 0}
-          helperText={ui_render_height <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
-        <TextField
-          label="Width"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIRenderWidth(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setRenderWidth(parseInt(e.target.value, 10));
-              } else {
-                setUIRenderWidth(render_width);
-              }
-            }
-          }}
-          value={ui_render_width}
-          error={ui_render_width <= 0}
-          helperText={ui_render_width <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
-        <FovSelector
-          fovLabel={fovLabel}
-          setFovLabel={setFovLabel}
-          camera={camera_main}
-          dispatch={dispatch}
-          changeMain
-        />
-      </div>
-      <div className="CameraList-row-time-interval">
-        <TextField
-          label="Seconds"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUISeconds(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setSeconds(parseInt(e.target.value, 10));
-              } else {
-                setUISeconds(seconds);
-              }
-            }
-          }}
-          value={ui_seconds}
-          error={ui_seconds <= 0}
-          helperText={ui_seconds <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
-        <TextField
-          label="FPS"
-          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIfps(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setFps(parseInt(e.target.value, 10));
-              } else {
-                setUIfps(fps);
-              }
-            }
-          }}
-          value={ui_fps}
-          error={ui_fps <= 0}
-          helperText={ui_fps <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
       </div>
       <div className="CameraList-container">
         <CameraList
