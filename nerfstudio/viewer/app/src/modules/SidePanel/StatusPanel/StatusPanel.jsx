@@ -108,6 +108,17 @@ export default function StatusPanel(props: StatusPanelProps) {
       >
         {cameras_button}
       </Button>
+      <Button
+        className="StatusPanel-hide-scene-button"
+        variant="outlined"
+        onClick={() => {
+          // eslint-disable-next-line no-restricted-globals
+          location.reload();
+        }}
+        style={{ textTransform: 'none' }}
+      >
+        Refresh Page
+      </Button>
       <div className="StatusPanel-metrics">
         <div>
           <b>Resolution:</b> {eval_res}
