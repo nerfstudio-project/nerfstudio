@@ -58,8 +58,10 @@ class TensorDataclass:
 
     _shape: tuple
 
-    # Any field or key in a dictionary with this name and a corresponding torch.Tensor will be
-    # assumed to have n dimensions before the batch dims
+    # A mapping from field-name (str): n (int)
+    # Any field OR any key in a dictionary field with this name (field-name) and a corresponding
+    # torch.Tensor will be assumed to have n dimensions after the batch dims. These n final dimensions
+    # will remain the same shape when doing reshapes, broadcasting, etc on the tensordataclass
     _field_custom_dimensions: Optional[Dict[str, int]] = None
 
     def __post_init__(self) -> None:
@@ -68,7 +70,6 @@ class TensorDataclass:
         This will 1) find the broadcasted shape and 2) broadcast all fields to this shape 3)
         set _shape to be the broadcasted shape.
         """
-        # if "_field_custom_dimensions" in dataclasses.fields(self):
         if self._field_custom_dimensions is not None:
             for k, v in self._field_custom_dimensions.items():
                 assert (

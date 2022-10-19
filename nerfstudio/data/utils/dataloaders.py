@@ -42,6 +42,7 @@ class CacheDataloader(DataLoader):
         num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
         num_times_to_repeat_images: How often to collate new images. -1 to never pick new images.
         device: Device to perform computation.
+        collate_fn: The function we will use to collate our training data
     """
 
     def __init__(

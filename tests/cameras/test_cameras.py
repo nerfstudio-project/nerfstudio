@@ -9,10 +9,6 @@ import torch
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 
-# # Required imports for the performance cameras debugging
-# from time import perf_counter
-# import numpy as np
-
 
 def test_pinhole_camera():
     """Test that the pinhole camera model works."""
@@ -171,25 +167,6 @@ def test_camera_as_tensordataclass():
     ):
         c = Cameras(*args)
         assert len(c.shape) <= 2
-        # camera_indices = torch.tensor([0 for _ in range(len(c.shape))]) if len(c.shape) else 0
-
-        # These are some profiling printouts for performance debugging on the stress test
-        # start = perf_counter()
-        # r = c.generate_rays(camera_indices=camera_indices)
-        # end = perf_counter()
-        # print("---------------------------------------------------------")
-        # print("c2w size", args[0].shape)
-        # print("fx size", args[1].shape if isinstance(args[1], torch.Tensor) else 0)
-        # print("fy size", args[2].shape if isinstance(args[2], torch.Tensor) else 0)
-        # print("cx size", args[3].shape if isinstance(args[3], torch.Tensor) else 0)
-        # print("cy size", args[4].shape if isinstance(args[4], torch.Tensor) else 0)
-        # print("h size", args[5].shape if isinstance(args[5], torch.Tensor) else 0)
-        # print("w size", args[6].shape if isinstance(args[6], torch.Tensor) else 0)
-        # print("distortion size", args[7].shape if args[7] is not None else 0)
-        # print("camera type size", args[8].shape if isinstance(args[8], torch.Tensor) else 0)
-        # print()
-        # print(f"Time taken: {end - start}")
-        # print("size: ", np.prod(r.shape))
 
     c = c0
     assert c.shape == ()
@@ -208,44 +185,12 @@ def test_camera_as_tensordataclass():
         (torch.zeros(11, 5, 1), None),
     ]
     for camera_indices, coords in combos:
-        # These are some profiling printouts for performance debugging on the stress test
-        # start = perf_counter()
         c.generate_rays(camera_indices=camera_indices, coords=coords)
-        # end = perf_counter()
-        # print("---------------------------------------------------------")
-        # print("c2w size", args[0].shape)
-        # print("fx size", args[1].shape if isinstance(args[1], torch.Tensor) else 0)
-        # print("fy size", args[2].shape if isinstance(args[2], torch.Tensor) else 0)
-        # print("cx size", args[3].shape if isinstance(args[3], torch.Tensor) else 0)
-        # print("cy size", args[4].shape if isinstance(args[4], torch.Tensor) else 0)
-        # print("h size", args[5].shape if isinstance(args[5], torch.Tensor) else 0)
-        # print("w size", args[6].shape if isinstance(args[6], torch.Tensor) else 0)
-        # print("distortion size", args[7].shape if args[7] is not None else 0)
-        # print("camera type size", args[8].shape if isinstance(args[8], torch.Tensor) else 0)
-        # print()
-        # print(f"Time taken: {end - start}")
-        # print("size: ", np.prod(r.shape))
 
     c = c1
     assert c.shape == (2,)
     for camera_indices, coords in combos:
-        # These are some profiling printouts for performance debugging on the stress test
-        # start = perf_counter()
         c.generate_rays(camera_indices=camera_indices, coords=coords)
-        # end = perf_counter()
-        # print("---------------------------------------------------------")
-        # print("c2w size", args[0].shape)
-        # print("fx size", args[1].shape if isinstance(args[1], torch.Tensor) else 0)
-        # print("fy size", args[2].shape if isinstance(args[2], torch.Tensor) else 0)
-        # print("cx size", args[3].shape if isinstance(args[3], torch.Tensor) else 0)
-        # print("cy size", args[4].shape if isinstance(args[4], torch.Tensor) else 0)
-        # print("h size", args[5].shape if isinstance(args[5], torch.Tensor) else 0)
-        # print("w size", args[6].shape if isinstance(args[6], torch.Tensor) else 0)
-        # print("distortion size", args[7].shape if args[7] is not None else 0)
-        # print("camera type size", args[8].shape if isinstance(args[8], torch.Tensor) else 0)
-        # print()
-        # print(f"Time taken: {end - start}")
-        # print("size: ", np.prod(r.shape))
 
     c = c2
     combos = [
@@ -257,8 +202,6 @@ def test_camera_as_tensordataclass():
         (torch.zeros(11, 5, 2), None),
     ]
     for camera_indices, coords in combos:
-        # These are some profiling printouts for performance debugging on the stress test
-        # start = perf_counter()
         c.generate_rays(camera_indices=camera_indices, coords=coords)
 
 
