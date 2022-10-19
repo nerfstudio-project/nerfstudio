@@ -48,7 +48,7 @@ from rich.console import Console
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
-from nerfstudio.engine.trainer import train_loop
+from nerfstudio.engine.trainer import Trainer
 from nerfstudio.utils import comms, profiler
 
 CONSOLE = Console(width=120)
@@ -72,6 +72,20 @@ def _set_random_seed(seed) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+
+def train_loop(local_rank: int, world_size: int, config: cfg.Config, global_rank: int = 0):
+    """Main training function that sets up and runs the trainer per process
+
+    Args:
+        local_rank: current rank of process
+        world_size: total number of gpus available
+        config: config file specifying training regimen
+    """
+    _set_random_seed(config.machine.seed + global_rank)
+    trainer = Trainer(config, local_rank, world_size)
+    trainer.setup()
+    trainer.train()
 
 
 def _distributed_worker(
@@ -107,30 +121,24 @@ def _distributed_worker(
     """
     assert torch.cuda.is_available(), "cuda is not available. Please check your installation."
     global_rank = machine_rank * num_gpus_per_machine + local_rank
-    try:
-        dist.init_process_group(
-            backend="NCCL",
-            init_method=dist_url,
-            world_size=world_size,
-            rank=global_rank,
-            timeout=timeout,
-        )
-    except Exception as e:
-        CONSOLE.log(f"Process group URL: {dist_url}")
-        raise e
 
-    assert comms._LOCAL_PROCESS_GROUP is None  # pylint: disable=protected-access
+    dist.init_process_group(
+        backend="nccl",
+        init_method=dist_url,
+        world_size=world_size,
+        rank=global_rank,
+        timeout=timeout,
+    )
+    assert comms.LOCAL_PROCESS_GROUP is None
     num_machines = world_size // num_gpus_per_machine
     for i in range(num_machines):
         ranks_on_i = list(range(i * num_gpus_per_machine, (i + 1) * num_gpus_per_machine))
         pg = dist.new_group(ranks_on_i)
         if i == machine_rank:
-            comms._LOCAL_PROCESS_GROUP = pg  # pylint: disable=protected-access
+            comms.LOCAL_PROCESS_GROUP = pg
 
     assert num_gpus_per_machine <= torch.cuda.device_count()
-    torch.cuda.set_device(local_rank)
-    _set_random_seed(config.machine.seed + global_rank)
-    output = main_func(local_rank, world_size, config)
+    output = main_func(local_rank, world_size, config, global_rank)
     comms.synchronize()
     dist.destroy_process_group()
     return output
@@ -158,17 +166,14 @@ def launch(
     """
     assert config is not None
     world_size = num_machines * num_gpus_per_machine
-    if world_size == 0:
-        # Using only CPU and one process.
-        _set_random_seed(config.machine.seed)
-        main_func(local_rank=0, world_size=0, config=config)
-    elif world_size == 1:
-        # Using one gpu and one process.
-        _set_random_seed(config.machine.seed)
+    if world_size <= 1:
+        # world_size=0 uses one CPU in one process.
+        # world_size=1 uses one GPU in one process.
         try:
-            main_func(local_rank=0, world_size=1, config=config)
+            main_func(local_rank=0, world_size=world_size, config=config)
         except KeyboardInterrupt:
-            print(traceback.format_exc())
+            # print the stack trace
+            CONSOLE.print(traceback.format_exc())
         finally:
             profiler.flush_profiler(config.logging)
     elif world_size > 1:
@@ -194,7 +199,8 @@ def launch(
                 timeout,
             ),
         )
-        # process_context won't be None because join=False
+        # process_context won't be None because join=False, so it's okay to assert this
+        # for Pylance reasons
         assert process_context is not None
         try:
             process_context.join()
@@ -226,8 +232,8 @@ def main(config: cfg.Config) -> None:
     config.save_config()
 
     launch(
-        train_loop,
-        config.machine.num_gpus,
+        main_func=train_loop,
+        num_gpus_per_machine=config.machine.num_gpus,
         num_machines=config.machine.num_machines,
         machine_rank=config.machine.machine_rank,
         dist_url=config.machine.dist_url,

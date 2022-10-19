@@ -13,10 +13,9 @@
 # limitations under the License.
 
 """functionality to handle multiprocessing syncing and communicating"""
-import torch
 import torch.distributed as dist
 
-_LOCAL_PROCESS_GROUP = None
+LOCAL_PROCESS_GROUP = None
 
 
 def is_dist_avail_and_initialized() -> bool:
@@ -43,9 +42,9 @@ def get_local_rank() -> int:
     if not is_dist_avail_and_initialized():
         return 0
     assert (
-        _LOCAL_PROCESS_GROUP is not None
+        LOCAL_PROCESS_GROUP is not None
     ), "Local process group is not created! Please use launch() to spawn processes!"
-    return dist.get_rank(group=_LOCAL_PROCESS_GROUP)
+    return dist.get_rank(group=LOCAL_PROCESS_GROUP)
 
 
 def get_local_size() -> int:
@@ -55,7 +54,7 @@ def get_local_size() -> int:
     """
     if not is_dist_avail_and_initialized():
         return 1
-    return dist.get_world_size(group=_LOCAL_PROCESS_GROUP)
+    return dist.get_world_size(group=LOCAL_PROCESS_GROUP)
 
 
 def is_main_process() -> bool:
