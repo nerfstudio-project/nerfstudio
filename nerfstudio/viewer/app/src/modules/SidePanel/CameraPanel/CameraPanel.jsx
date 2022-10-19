@@ -117,13 +117,15 @@ function FovSelector(props) {
       // eslint-disable-next-line
       InputProps={{
         endAdornment: (
-          <InputAdornment
-            sx={{ cursor: 'pointer' }}
-            onClick={toggleFovLabel}
-            position="end"
-          >
-            {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
-          </InputAdornment>
+          <Tooltip title="Switch between FOV and Focal Length">
+            <InputAdornment
+              sx={{ cursor: 'pointer' }}
+              onClick={toggleFovLabel}
+              position="end"
+            >
+              {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
+            </InputAdornment>
+          </Tooltip>
         ),
       }}
       onChange={(e) => {
@@ -340,7 +342,8 @@ function CameraList(props) {
           </Button>
           <Button
             size="small"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               set_transform_controls(index);
             }}
           >
@@ -368,6 +371,7 @@ function CameraList(props) {
             setFovLabel={setFovLabel}
             camera={camera}
             dispatch={dispatch}
+            changeMain
           />
         </AccordionDetails>
       </Accordion>
