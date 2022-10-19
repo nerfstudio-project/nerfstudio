@@ -10,12 +10,12 @@ import shutil
 import stat
 import subprocess
 import sys
-from typing import List, Literal, Union
+from typing import List, Union
 
 import tyro
 from rich.console import Console
 from rich.prompt import Confirm
-from typing_extensions import assert_never
+from typing_extensions import Literal, assert_never
 
 ConfigureMode = Literal["install", "uninstall"]
 ShellType = Literal["zsh", "bash"]
@@ -175,10 +175,7 @@ def _update_rc(
         assert_never(mode)
 
 
-def main(
-    mode: ConfigureMode = "install",
-    /,
-) -> None:
+def main(mode: ConfigureMode = "install") -> None:
     """Main script.
 
     Args:

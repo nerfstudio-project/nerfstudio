@@ -423,14 +423,27 @@ export default function CameraPanel(props) {
       });
     }
 
+    const keyframes = [];
+    for (let i = 0; i < cameras.length; i += 1) {
+      const camera = cameras[i];
+      keyframes.push({
+        matrix: JSON.stringify(camera.matrix.toArray()),
+        fov: camera.fov,
+        aspect: camera_render.aspect,
+      });
+    }
+
     // const myData
     const camera_path_object = {
-      keyframes: [],
+      keyframes,
       render_height,
       render_width,
       camera_path,
       fps,
       seconds,
+      smoothness_value,
+      is_cycle,
+      is_linear,
     };
     return camera_path_object;
   };
@@ -459,6 +472,58 @@ export default function CameraPanel(props) {
     // clean up "a" element & remove ObjectURL
     document.body.removeChild(link);
     URL.revokeObjectURL(href);
+  };
+
+  const load_camera_path = (camera_path_object) => {
+    // TODO UI for getting json
+
+    const new_camera_list = [];
+
+    setRenderHeight(camera_path_object.render_height);
+    setUIRenderHeight(camera_path_object.render_height);
+    setRenderWidth(camera_path_object.render_width);
+    setUIRenderWidth(camera_path_object.render_width);
+
+    setFps(camera_path_object.fps);
+    setUIfps(camera_path_object.fps);
+
+    setSeconds(camera_path_object.seconds);
+    setUISeconds(camera_path_object.seconds);
+
+    set_smoothness_value(camera_path_object.smoothness_value);
+    setIsCycle(camera_path_object.is_cycle);
+    setIsLinear(camera_path_object.is_linear);
+
+    for (let i = 0; i < camera_path_object.keyframes.length; i += 1) {
+      const keyframe = camera_path_object.keyframes[i];
+      const camera = new THREE.PerspectiveCamera(
+        keyframe.fov,
+        keyframe.aspect,
+        0.1,
+        1000,
+      );
+
+      const mat = new THREE.Matrix4();
+      mat.fromArray(JSON.parse(keyframe.matrix));
+      // camera.matrix = mat;
+      set_camera_position(camera, mat);
+      new_camera_list.push(camera);
+    }
+
+    setCameras(new_camera_list);
+    reset_slider_render_on_add(new_camera_list);
+  };
+
+  const uploadCameraPath = (e) => {
+    const fileUpload = e.target.files[0];
+
+    const fr = new FileReader();
+    fr.onload = (res) => {
+      const camera_path_object = JSON.parse(res.target.result);
+      load_camera_path(camera_path_object);
+    };
+
+    fr.readAsText(fileUpload);
   };
 
   const copy_cmd_to_clipboard = () => {
@@ -541,6 +606,23 @@ export default function CameraPanel(props) {
             onClick={export_camera_path}
           >
             Export Path
+          </Button>
+        </div>
+        <div className="CameraPanel-top-button">
+          <Button
+            size="small"
+            className="CameraPanel-top-button"
+            component="label"
+            variant="outlined"
+          >
+            Load Path
+            <input
+              type="file"
+              accept=".json"
+              name="Camera Path"
+              onChange={uploadCameraPath}
+              hidden
+            />
           </Button>
         </div>
         <div className="CameraPanel-top-button">
