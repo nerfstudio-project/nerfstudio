@@ -38,7 +38,6 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
@@ -897,7 +896,7 @@ export default function CameraPanel(props) {
           helperText={ui_render_width <= 0 ? 'Required' : ''}
           variant="standard"
         />
-        <TextField
+        {/* <TextField
           label="FOV"
           inputProps={{
             inputMode: 'numeric',
@@ -921,7 +920,7 @@ export default function CameraPanel(props) {
           error={ui_field_of_view <= 0}
           helperText={ui_field_of_view <= 0 ? 'Required' : ''}
           variant="standard"
-        />
+        /> */}
       </div>
       <div className="CameraList-row-time-interval">
         <TextField
