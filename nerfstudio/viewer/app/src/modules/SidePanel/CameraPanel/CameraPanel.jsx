@@ -441,6 +441,9 @@ export default function CameraPanel(props) {
       camera_path,
       fps,
       seconds,
+      smoothness_value,
+      is_cycle,
+      is_linear,
     };
     return camera_path_object;
   };
@@ -486,6 +489,10 @@ export default function CameraPanel(props) {
 
     setSeconds(camera_path_object.seconds);
     setUISeconds(camera_path_object.seconds);
+
+    set_smoothness_value(camera_path_object.smoothness_value);
+    setIsCycle(camera_path_object.is_cycle);
+    setIsLinear(camera_path_object.is_linear);
 
     for (let i = 0; i < camera_path_object.keyframes.length; i += 1) {
       const keyframe = camera_path_object.keyframes[i];
@@ -608,7 +615,7 @@ export default function CameraPanel(props) {
             component="label"
             variant="outlined"
           >
-            Upload Camera Path
+            Upload Path
             <input
               type="file"
               accept=".json"
