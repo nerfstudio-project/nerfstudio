@@ -21,6 +21,7 @@ import {
   Replay,
   Timeline,
   Visibility,
+  Edit,
 } from '@mui/icons-material';
 import {
   Accordion,
@@ -165,7 +166,6 @@ function CameraList(props) {
   const handleChange =
     (cameraUUID: string) =>
     (event: React.SyntheticEvent, isExpanded: boolean) => {
-      // setUIFieldOfView(getFovLabel(camera, camera.fov));
       setExpanded(isExpanded ? cameraUUID : false);
     };
 
@@ -273,6 +273,7 @@ function CameraList(props) {
     reset_slider_render_on_change();
   };
 
+  // TODO: Add pencil for editing?
   const cameraList = cameras.map((camera, index) => {
     return (
       <Accordion
@@ -320,7 +321,7 @@ function CameraList(props) {
               <KeyboardArrowDown />
             </Button>
           </Stack>
-          <Button size="small" onClick={() => set_transform_controls(index)}>
+          <Button size="small">
             <TextField
               id="standard-basic"
               value={camera.properties.get('NAME')}
@@ -331,7 +332,19 @@ function CameraList(props) {
                 cameraProps.get(camera.uuid).set('NAME', e.target.value);
                 setCameraProperties(cameraProps);
               }}
+              sx={{
+                alignItems: 'center',
+                alignContent: 'center',
+              }}
             />
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              set_transform_controls(index);
+            }}
+          >
+            <Edit />
           </Button>
           <Stack spacing={0} direction="row" justifyContent="end">
             <Button
