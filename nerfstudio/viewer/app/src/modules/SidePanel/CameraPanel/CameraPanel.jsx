@@ -615,7 +615,7 @@ export default function CameraPanel(props) {
             component="label"
             variant="outlined"
           >
-            Upload Path
+            Load Path
             <input
               type="file"
               accept=".json"
