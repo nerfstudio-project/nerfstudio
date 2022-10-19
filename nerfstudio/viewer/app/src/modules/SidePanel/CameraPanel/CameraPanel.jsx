@@ -73,7 +73,6 @@ function FovSelector(props) {
         ? camera.getEffectiveFOV()
         : camera.getFocalLength(),
     );
-    console.log(label);
     return label;
   };
 
