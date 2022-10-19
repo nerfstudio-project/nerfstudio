@@ -36,11 +36,6 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
-import DeleteIcon from '@mui/icons-material/Delete';
-import FirstPageIcon from '@mui/icons-material/FirstPage';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import IconButton from '@mui/material/IconButton';
