@@ -30,7 +30,6 @@ import {
   Button,
   InputAdornment,
   Slider,
-  Typography
 } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
@@ -148,26 +147,6 @@ function FovSelector(props) {
       variant="standard"
     />
   );
-}
-
-function CameraKeyframeSlider(props) {
-  const cameras = props.cameras;
-  const cameraProperties = props.cameraProperties;
-  const setCameraProperties = props.setCameraProperties;
-  // onChange={handleChange}
-
-  return (
-    <Slider
-      getAriaLabel={() => 'Temperature range'}
-      value={
-        cameras.map((camera, index) => {
-          camera.properties.time
-        })
-      }
-      getAriaValueText={'DOG'}
-      track={false}
-    />
-  )
 }
 
 function CameraList(props) {
@@ -430,6 +409,20 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.render_width,
   );
 
+  const setCameraProperty = (
+    property,
+    value,
+    index
+  )  => {
+    const activeCamera = cameras[index];
+    const activeProperties = new Map(activeCamera.properties);
+    activeProperties.set(property, value);
+    const newProperties = new Map(cameraProperties);
+    newProperties.set(activeCamera.uuid, activeProperties);
+    activeCamera.properties = activeProperties;
+    setCameraProperties(newProperties);
+  };
+
   const swapCameras = (index, new_index) => {
     if (
       Math.min(index, new_index) < 0 ||
@@ -511,11 +504,11 @@ export default function CameraPanel(props) {
     const ratio = (cameras.length - 1) / (cameras.length);
 
     const new_properties = new Map(cameraProperties);
-    new_properties.forEach((properties, id) => {
+    new_properties.forEach((properties) => {
       properties.set('TIME', properties.get('TIME') * ratio);
     });
 
-    new_properties.set(camera_main_copy.uuid, new_camera_properties),
+    new_properties.set(camera_main_copy.uuid, new_camera_properties);
 
     setCameraProperties(
       new_properties,
@@ -597,7 +590,7 @@ export default function CameraPanel(props) {
 
   const getKeyframePoint = (progress: Number) => {
     const times = [];
-    cameras.forEach((camera, index) => {
+    cameras.forEach((camera) => {
       times.push((camera.properties.get('TIME')));
     });
 
@@ -609,7 +602,7 @@ export default function CameraPanel(props) {
     } else {
       let i = 0;
       while (i < times.length - 1 && !(progress >= times[i] && progress < times[i + 1])) {
-        i++;
+        i += 1;
       }
       const percentage = (progress - times[i]) / (times[i + 1] - times[i]);
       new_point = (i + percentage) / (times.length - 1);
@@ -660,23 +653,11 @@ export default function CameraPanel(props) {
   }
 
   const values = [];
-  cameras.forEach((camera, index) => {
+  cameras.forEach((camera) => {
     values.push((camera.properties.get('TIME')));
   });
 
-  const setCameraProperty = (
-    property,
-    value,
-    index
-  )  => {
-    const activeCamera = cameras[index];
-    const activeProperties = new Map(activeCamera.properties);
-    activeProperties.set(property, value);
-    const newProperties = new Map(cameraProperties);
-    newProperties.set(activeCamera.uuid, activeProperties);
-    activeCamera.properties = activeProperties;
-    setCameraProperties(newProperties);
-  }
+  
 
   const handleKeyframeSlider = (
     event: Event,
