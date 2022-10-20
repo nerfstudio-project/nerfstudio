@@ -30,6 +30,7 @@ import {
   Button,
   InputAdornment,
   Slider,
+  Typography
 } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
@@ -149,17 +150,39 @@ function FovSelector(props) {
   );
 }
 
+function CameraKeyframeSlider(props) {
+  const cameras = props.cameras;
+  const cameraProperties = props.cameraProperties;
+  const setCameraProperties = props.setCameraProperties;
+  // onChange={handleChange}
+
+  return (
+    <Slider
+      getAriaLabel={() => 'Temperature range'}
+      value={
+        cameras.map((camera, index) => {
+          camera.properties.time
+        })
+      }
+      getAriaValueText={'DOG'}
+      track={false}
+    />
+  )
+}
+
 function CameraList(props) {
   const sceneTree = props.sceneTree;
   const cameras = props.cameras;
   const camera_main = props.camera_main;
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
+  const swapCameras = props.swapCameras;
   const fovLabel = props.fovLabel;
   const setFovLabel = props.setFovLabel;
   const cameraProperties = props.cameraProperties;
   const setCameraProperties = props.setCameraProperties;
   const dispatch = props.dispatch;
+  
   // eslint-disable-next-line no-unused-vars
   const [slider_value, set_slider_value] = React.useState(0);
   const [expanded, setExpanded] = React.useState(null);
@@ -256,24 +279,6 @@ function CameraList(props) {
     reset_slider_render_on_change();
   };
 
-  const swap_cameras = (index, new_index) => {
-    if (
-      Math.min(index, new_index) < 0 ||
-      Math.max(index, new_index) >= cameras.length
-    )
-      return;
-    const new_cameras = [
-      ...cameras.slice(0, index),
-      ...cameras.slice(index + 1),
-    ];
-    setCameras([
-      ...new_cameras.slice(0, new_index),
-      cameras[index],
-      ...new_cameras.slice(new_index),
-    ]);
-    reset_slider_render_on_change();
-  };
-
   // TODO: Add pencil for editing?
   const cameraList = cameras.map((camera, index) => {
     return (
@@ -292,7 +297,7 @@ function CameraList(props) {
             <Button
               size="small"
               onClick={(e) => {
-                swap_cameras(index, index - 1);
+                swapCameras(index, index - 1);
                 e.stopPropagation();
               }}
               style={{
@@ -308,7 +313,7 @@ function CameraList(props) {
             <Button
               size="small"
               onClick={(e) => {
-                swap_cameras(index, index + 1);
+                swapCameras(index, index + 1);
                 e.stopPropagation();
               }}
               style={{
@@ -425,6 +430,30 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.render_width,
   );
 
+  const swapCameras = (index, new_index) => {
+    if (
+      Math.min(index, new_index) < 0 ||
+      Math.max(index, new_index) >= cameras.length
+    )
+      return;
+      
+      const swapCameraTime = cameras[index].properties.get('TIME');
+      setCameraProperty('TIME', cameras[new_index].properties.get('TIME'), index);
+      setCameraProperty('TIME', swapCameraTime, new_index);
+    
+    const new_cameras = [
+      ...cameras.slice(0, index),
+      ...cameras.slice(index + 1),
+    ];
+    setCameras([
+      ...new_cameras.slice(0, new_index),
+      cameras[index],
+      ...new_cameras.slice(new_index),
+    ]);
+
+    // reset_slider_render_on_change();
+  };
+
   const setRenderHeight = (value) => {
     dispatch({
       type: 'write',
@@ -449,7 +478,7 @@ export default function CameraPanel(props) {
 
   // nonlinear render option
   const slider_min = 0;
-  const slider_max = Math.max(0, cameras.length - 1);
+  const slider_max = 1;
 
   // animation constants
   const total_num_steps = seconds * fps;
@@ -471,11 +500,27 @@ export default function CameraPanel(props) {
     camera_main_copy.properties = new_camera_properties;
     new_camera_properties.set('FOV', camera_main.fov);
     new_camera_properties.set('NAME', `Camera ${cameras.length}`);
+    // TIME VALUES ARE 0-1
+    new_camera_properties.set('TIME', 1.0);
+
+    const ratio = cameras.length / (cameras.length + 1);
+
+    const new_properties = new Map(cameraProperties);
+    new_properties.forEach((properties, id) => {
+      properties.set('TIME', properties.get('TIME') * ratio);
+    });
+
+    new_properties.set(camera_main_copy.uuid, new_camera_properties),
+
     setCameraProperties(
-      new Map(
-        cameraProperties.set(camera_main_copy.uuid, new_camera_properties),
-      ),
+      new_properties,
     );
+
+    console.log("CAMERA TIMES:");
+    cameraProperties.forEach((properties, id) => {
+      console.log(`Camera \"${properties.get('NAME')}\"; TIME: ${properties.get('TIME')}`);
+    });
+
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
@@ -585,9 +630,36 @@ export default function CameraPanel(props) {
   }
 
   const marks = [];
-  for (let i = 0; i < cameras.length; i += 1) {
-    marks.push({ value: i, label: i.toString() });
+  for (let i = 0; i <= 1; i += 0.25) {
+    marks.push({ value: i, label: `${(seconds * i).toFixed(1).toString()}s` });
   }
+
+  const values = [];
+  cameras.forEach((camera, index) => {
+    values.push((camera.properties.get('TIME')));
+  });
+
+  const setCameraProperty = (
+    property,
+    value,
+    index
+  )  => {
+    const activeCamera = cameras[index];
+    const activeProperties = new Map(activeCamera.properties);
+    activeProperties.set(property, value);
+    const newProperties = new Map(cameraProperties);
+    newProperties.set(activeCamera.uuid, activeProperties);
+    activeCamera.properties = activeProperties;
+    setCameraProperties(newProperties);
+  }
+
+  const handleKeyframeSlider = (
+    event: Event,
+    newValue: number | number[],
+    activeThumb: number,
+  ) => {
+    setCameraProperty('TIME', newValue[activeThumb], activeThumb);
+  };
 
   // when the slider changes, update the main camera position
   useEffect(() => {
@@ -1026,6 +1098,21 @@ export default function CameraPanel(props) {
         </Stack>
       </div>
       <div className="CameraPanel-slider-container">
+        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left', }}>Camera Keyframes</b>
+        <Slider
+          value={values}
+          step={step_size}
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value, i) => {return `${cameras[i].properties.get('NAME')} @ ${value.toFixed(2) * seconds}s`}}
+          marks={marks}
+          min={slider_min}
+          max={slider_max}
+          disabled={cameras.length < 2}
+          track={false}
+          onChange={handleKeyframeSlider}
+          disableSwap
+        />
+        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left', }}>Playback</b>
         <Slider
           value={slider_value}
           step={step_size}
@@ -1118,6 +1205,7 @@ export default function CameraPanel(props) {
           camera_main={camera_render}
           cameras={cameras}
           setCameras={setCameras}
+          swapCameras={swapCameras}
           cameraProperties={cameraProperties}
           setCameraProperties={setCameraProperties}
           fovLabel={fovLabel}
