@@ -18,12 +18,13 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path, PureWindowsPath
-from typing import Literal, Optional, Type
+from typing import Optional, Type
 
 import numpy as np
 import torch
 from PIL import Image
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import CAMERA_MODEL_TO_TYPE, Cameras, CameraType
@@ -53,8 +54,12 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up"] = "up"
+    orientation_method: Literal["pca", "up", "none"] = "up"
     """The method to use for orientation."""
+    center_poses: bool = True
+    """Whether to center the poses."""
+    auto_scale_poses: bool = True
+    """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
 
@@ -112,10 +117,15 @@ class Nerfstudio(DataParser):
             raise ValueError(f"Unknown dataparser split {split}")
 
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
-        poses = camera_utils.auto_orient_poses(poses, method=self.config.orientation_method)
+        poses = camera_utils.auto_orient_and_center_poses(
+            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+        )
 
         # Scale poses
-        scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
+        scale_factor = 1.0
+        if self.config.auto_scale_poses:
+            scale_factor /= torch.max(torch.abs(poses[:, :3, 3]))
+
         poses[:, :3, 3] *= scale_factor * self.config.scale_factor
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.

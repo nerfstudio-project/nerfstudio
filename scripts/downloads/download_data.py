@@ -4,11 +4,12 @@ import shutil
 import sys
 import zipfile
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Optional
 
 import gdown
 import tyro
 from rich.console import Console
+from typing_extensions import Literal
 
 CONSOLE = Console(width=120)
 

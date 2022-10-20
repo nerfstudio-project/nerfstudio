@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Type
+from typing import Type
 
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
+from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -105,9 +106,9 @@ class Record3D(DataParser):
         # convert to Tensors
         poses = torch.from_numpy(poses[:, :3, :4])
 
-        poses = camera_utils.auto_orient_poses(pose_utils.to4x4(poses), method=self.config.orientation_method)[
-            :, :3, :4
-        ]
+        poses = camera_utils.auto_orient_and_center_poses(
+            pose_utils.to4x4(poses), method=self.config.orientation_method
+        )[:, :3, :4]
 
         # Centering poses
         poses[:, :3, 3] = poses[:, :3, 3] - torch.mean(poses[:, :3, 3], dim=0)
