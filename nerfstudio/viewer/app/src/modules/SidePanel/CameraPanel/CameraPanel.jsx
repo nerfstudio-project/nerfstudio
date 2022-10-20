@@ -516,11 +516,6 @@ export default function CameraPanel(props) {
       new_properties,
     );
 
-    console.log("CAMERA TIMES:");
-    cameraProperties.forEach((properties, id) => {
-      console.log(`Camera \"${properties.get('NAME')}\"; TIME: ${properties.get('TIME')}`);
-    });
-
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
@@ -595,6 +590,28 @@ export default function CameraPanel(props) {
     smoothness_value,
   );
 
+  const getKeyframePoint = (progress: Number) => {
+    const times = [];
+    cameras.forEach((camera, index) => {
+      times.push((camera.properties.get('TIME')));
+    });
+
+    let new_point = 0.0;
+    if (progress <= times[0]) {
+      new_point = 0.0;
+    } else if (progress >= times[times.length - 1]) {
+      new_point = 1.0;
+    } else {
+      let i = 0;
+      while (i < times.length - 1 && !(progress >= times[i] && progress < times[i + 1])) {
+        i++;
+      }
+      const percentage = (progress - times[i]) / (times[i + 1] - times[i]);
+      new_point = (i + percentage) / (times.length - 1);
+    }
+    return new_point;
+  }
+
   if (cameras.length > 1) {
     const num_points = fps * seconds;
     const points = curve_object.curve_positions.getPoints(num_points);
@@ -605,8 +622,11 @@ export default function CameraPanel(props) {
     const spline_mesh = new THREE.Mesh(spline.geometry, material);
     sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
 
+    
+
     // set the camera
-    const point = Math.min(slider_value / (cameras.length - 1.0), 1);
+    
+    const point = getKeyframePoint(slider_value);
     let position = null;
     let lookat = null;
     let up = null;
@@ -664,7 +684,7 @@ export default function CameraPanel(props) {
   // when the slider changes, update the main camera position
   useEffect(() => {
     if (cameras.length > 1) {
-      const point = Math.min(slider_value / (cameras.length - 1.0), 1);
+      const point = getKeyframePoint(slider_value);
       let position = null;
       let lookat = null;
       let up = null;
