@@ -715,19 +715,15 @@ export default function CameraPanel(props) {
   const get_camera_path = () => {
     // NOTE: currently assuming these are ints
     const num_points = fps * seconds;
-
-    const positions = curve_object.curve_positions.getPoints(num_points);
-    const lookats = curve_object.curve_lookats.getPoints(num_points);
-    const ups = curve_object.curve_ups.getPoints(num_points);
-    const fovs = curve_object.curve_fovs.getPoints(num_points);
-
     const camera_path = [];
 
     for (let i = 0; i < num_points; i += 1) {
-      const position = positions[i];
-      const lookat = lookats[i];
-      const up = ups[i];
-      const fov = fovs[i].z;
+      const pt = getKeyframePoint(i / num_points);
+
+      const position = curve_object.curve_positions.getPoint(pt);
+      const lookat = curve_object.curve_lookats.getPoint(pt);
+      const up = curve_object.curve_ups.getPoint(pt);
+      const fov = curve_object.curve_fovs.getPoint(pt).z;
 
       const mat = get_transform_matrix(position, lookat, up);
 
