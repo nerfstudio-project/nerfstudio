@@ -8,7 +8,7 @@ import yaml
 from rich.console import Console
 from rich.style import Style
 
-console = Console(width=120)
+CONSOLE = Console(width=120)
 
 LOCAL_TESTS = ["Run license checks", "Run isort", "Run Black", "Python Pylint", "Test with pytest"]
 
@@ -22,7 +22,7 @@ def run_command(command: str, continue_on_fail: bool = False) -> bool:
     """
     ret_code = subprocess.call(command, shell=True)
     if ret_code != 0:
-        console.print(f"[bold red]Error: `{command}` failed.")
+        CONSOLE.print(f"[bold red]Error: `{command}` failed.")
         if not continue_on_fail:
             sys.exit(1)
     return ret_code == 0
@@ -47,31 +47,31 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
             compressed = compressed.replace("--check", "")
             curr_command = f"{compressed}"
 
-            console.line()
-            console.rule(f"[bold green]Running: {curr_command}")
+            CONSOLE.line()
+            CONSOLE.rule(f"[bold green]Running: {curr_command}")
             success = success and run_command(curr_command, continue_on_fail=continue_on_fail)
         else:
             skip_name = step["name"] if "name" in step else step["uses"]
-            console.print(f"Skipping {skip_name}")
+            CONSOLE.print(f"Skipping {skip_name}")
 
     # Add checks for building documentation
-    console.line()
-    console.rule("[bold green]Adding notebook documentation metadata")
+    CONSOLE.line()
+    CONSOLE.rule("[bold green]Adding notebook documentation metadata")
     success = success and run_command("python scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail)
-    console.line()
-    console.rule("[bold green]Building Documentation")
+    CONSOLE.line()
+    CONSOLE.rule("[bold green]Building Documentation")
     success = success and run_command("cd docs/; make html SPHINXOPTS='-W;'", continue_on_fail=continue_on_fail)
 
     if success:
-        console.line()
-        console.rule(characters="=")
-        console.print("[bold green]:TADA: :TADA: :TADA: ALL CHECKS PASSED :TADA: :TADA: :TADA:", justify="center")
-        console.rule(characters="=")
+        CONSOLE.line()
+        CONSOLE.rule(characters="=")
+        CONSOLE.print("[bold green]:TADA: :TADA: :TADA: ALL CHECKS PASSED :TADA: :TADA: :TADA:", justify="center")
+        CONSOLE.rule(characters="=")
     else:
-        console.line()
-        console.rule(characters="=", style=Style(color="red"))
-        console.print("[bold red]:skull: :skull: :skull: ERRORS FOUND :skull: :skull: :skull:", justify="center")
-        console.rule(characters="=", style=Style(color="red"))
+        CONSOLE.line()
+        CONSOLE.rule(characters="=", style=Style(color="red"))
+        CONSOLE.print("[bold red]:skull: :skull: :skull: ERRORS FOUND :skull: :skull: :skull:", justify="center")
+        CONSOLE.rule(characters="=", style=Style(color="red"))
 
 
 def run_code_checks(continue_on_fail: bool = False):

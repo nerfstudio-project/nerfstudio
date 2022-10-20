@@ -199,11 +199,7 @@ class RayBundle(TensorDataclass):
         Returns:
             Samples projected along ray.
         """
-        device = self.origins.device
-
-        dists = bin_ends - bin_starts  # [..., num_samples, 1]
-        deltas = dists * torch.norm(self.directions[:, :], dim=-1)[..., None, None]
-
+        deltas = bin_ends - bin_starts
         if self.camera_indices is not None:
             camera_indices = self.camera_indices[..., None]
         else:
@@ -217,7 +213,7 @@ class RayBundle(TensorDataclass):
             starts=bin_starts,  # [..., num_samples, 1]
             ends=bin_ends,  # [..., num_samples, 1]
             pixel_area=shaped_raybundle_fields.pixel_area,  # [..., 1, 1]
-        ).to(device)
+        )
 
         ray_samples = RaySamples(
             frustums=frustums,
