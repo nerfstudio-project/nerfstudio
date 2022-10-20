@@ -15,6 +15,7 @@
 """TensoRF Field"""
 
 
+from ctypes.wintypes import RGB
 from typing import Dict, Optional
 
 import torch
@@ -82,7 +83,7 @@ class TensoRFField(Field):
         density_enc = relu(density_enc)
         return density_enc
 
-    def get_outputs(self, ray_samples: RaySamples) -> Dict[FieldHeadNames, TensorType]:
+    def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> TensorType:
         d = ray_samples.frustums.directions
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         rgb_features = self.color_encoding(positions)
@@ -93,13 +94,29 @@ class TensoRFField(Field):
 
         mlp_out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
         rgb = self.field_output_rgb(mlp_out)
-        return {FieldHeadNames.RGB: rgb}
+        return rgb
 
-    def forward(self, ray_samples: RaySamples, mask: Optional[TensorType] = None):
-        # or maybe filter here, and just reformat the rays at the end
+    def forward(
+        self, ray_samples: RaySamples, mask: Optional[TensorType] = None, bg_color: Optional[TensorType] = None
+    ):
+        if mask is not None and bg_color is not None:
+            base_density = torch.zeros(ray_samples.shape)[:, :, None].to(mask.device)
+            base_rgb = bg_color.repeat(ray_samples[:, :, None].shape)
+            if mask.any():
+                input_rays = ray_samples[mask, :]
+                density = self.get_density(input_rays)
+                rgb = self.get_outputs(input_rays, None)
 
-        density = self.get_density(ray_samples)
-        field_outputs = self.get_outputs(ray_samples)
+                base_density[mask] = density
+                base_rgb[mask] = rgb
 
-        field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
-        return field_outputs
+                base_density.requires_grad_()
+                base_rgb.requires_grad_()
+
+            density = base_density
+            rgb = base_rgb
+        else:
+            density = self.get_density(ray_samples)
+            rgb = self.get_outputs(ray_samples, None)
+
+        return {FieldHeadNames.DENSITY: density, FieldHeadNames.RGB: rgb}

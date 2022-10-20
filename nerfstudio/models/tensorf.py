@@ -64,7 +64,7 @@ class TensoRFModelConfig(VanillaModelConfig):
     """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
-    num_samples: int = 128
+    num_samples: int = 256
     """Number of samples in field evaluation"""
 
 
@@ -164,7 +164,7 @@ class TensoRFModel(Model):
 
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples, single_jitter=True)
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples // 4, single_jitter=True)
+        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples // 2, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -204,13 +204,14 @@ class TensoRFModel(Model):
         dens = self.field.get_density(ray_samples_uniform)
         weights = ray_samples_uniform.get_weights(dens)
         coarse_accumulation = self.renderer_accumulation(weights)
-        acc_mask = torch.where(coarse_accumulation < 0.1, False, True)
+        acc_mask = torch.where(coarse_accumulation < 0.0001, False, True).reshape(-1)
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights)
 
         # fine field:
-        field_outputs_fine = self.field.forward(ray_samples_pdf)
+        field_outputs_fine = self.field.forward(ray_samples_pdf, acc_mask, colors.WHITE.to(weights.device))
+
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
 
         accumulation = self.renderer_accumulation(weights_fine)
