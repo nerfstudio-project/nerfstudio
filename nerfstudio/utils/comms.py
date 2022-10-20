@@ -13,40 +13,38 @@
 # limitations under the License.
 
 """functionality to handle multiprocessing syncing and communicating"""
-import torch
 import torch.distributed as dist
 
-_LOCAL_PROCESS_GROUP = None
+LOCAL_PROCESS_GROUP = None
+
+
+def is_dist_avail_and_initialized() -> bool:
+    """Returns True if distributed is available and initialized."""
+    return dist.is_available() and dist.is_initialized()
 
 
 def get_world_size() -> int:
     """Get total number of available gpus"""
-    if not dist.is_available():
-        return 1
-    if not dist.is_initialized():
+    if not is_dist_avail_and_initialized():
         return 1
     return dist.get_world_size()
 
 
 def get_rank() -> int:
     """Get global rank of current thread"""
-    if not dist.is_available():
-        return 0
-    if not dist.is_initialized():
+    if not is_dist_avail_and_initialized():
         return 0
     return dist.get_rank()
 
 
 def get_local_rank() -> int:
     """The rank of the current process within the local (per-machine) process group."""
-    if not dist.is_available():
-        return 0
-    if not dist.is_initialized():
+    if not is_dist_avail_and_initialized():
         return 0
     assert (
-        _LOCAL_PROCESS_GROUP is not None
+        LOCAL_PROCESS_GROUP is not None
     ), "Local process group is not created! Please use launch() to spawn processes!"
-    return dist.get_rank(group=_LOCAL_PROCESS_GROUP)
+    return dist.get_rank(group=LOCAL_PROCESS_GROUP)
 
 
 def get_local_size() -> int:
@@ -54,11 +52,9 @@ def get_local_size() -> int:
     The size of the per-machine process group,
     i.e. the number of processes per machine.
     """
-    if not dist.is_available():
+    if not is_dist_avail_and_initialized():
         return 1
-    if not dist.is_initialized():
-        return 1
-    return dist.get_world_size(group=_LOCAL_PROCESS_GROUP)
+    return dist.get_world_size(group=LOCAL_PROCESS_GROUP)
 
 
 def is_main_process() -> bool:
@@ -66,21 +62,16 @@ def is_main_process() -> bool:
     return get_rank() == 0
 
 
-def synchronize(world_size):
+def synchronize():
     """
     Helper function to synchronize (barrier) among all processes when
     using distributed training
     """
-    if not dist.is_available():
-        return
-    if not dist.is_initialized():
-        return
-    world_size = dist.get_world_size()
-    if world_size == 1:
+    if dist.get_world_size() == 1:
         return
     if dist.get_backend() == dist.Backend.NCCL:
         # This argument is needed to avoid warnings.
         # It's valid only for NCCL backend.
-        dist.barrier(device_ids=[torch.cuda.current_device()])
+        dist.barrier(device_ids=[get_local_rank()])
     else:
         dist.barrier()

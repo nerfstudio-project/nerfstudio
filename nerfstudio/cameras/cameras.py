@@ -179,7 +179,7 @@ class Cameras:
             h_w = h_w.to(torch.int64).to(self.device).broadcast_to((self._num_cameras))
             assert torch.all(h_w == h_w[0]), "Batched cameras of different types will be allowed in the future."
         elif h_w is None:
-            h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2).broadcast_to((self._num_cameras))
+            h_w = torch.Tensor((c_x_y * 2).to(torch.int64).to(self.device)).broadcast_to((self._num_cameras))
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
