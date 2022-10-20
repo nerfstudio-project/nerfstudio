@@ -501,9 +501,14 @@ export default function CameraPanel(props) {
     new_camera_properties.set('FOV', camera_main.fov);
     new_camera_properties.set('NAME', `Camera ${cameras.length}`);
     // TIME VALUES ARE 0-1
-    new_camera_properties.set('TIME', 1.0);
+    if (cameras.length === 0) {
+      new_camera_properties.set('TIME', 0.0);
+    } else {
+      new_camera_properties.set('TIME', 1.0);
+    }
+    
 
-    const ratio = cameras.length / (cameras.length + 1);
+    const ratio = (cameras.length - 1) / (cameras.length);
 
     const new_properties = new Map(cameraProperties);
     new_properties.forEach((properties, id) => {
