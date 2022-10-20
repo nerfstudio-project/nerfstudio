@@ -16,13 +16,13 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Dict, Tuple, Type
 
 import numpy as np
 import torch
+from rich.console import Console
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -33,6 +33,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
+
+CONSOLE = Console(width=120)
 
 
 @dataclass
@@ -69,7 +71,7 @@ class InstantNGP(DataParser):
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
         if num_skipped_image_filenames >= 0:
-            logging.info("Skipping %s files in dataset split %s.", num_skipped_image_filenames, split)
+            CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
             len(image_filenames) != 0
         ), """
@@ -77,7 +79,7 @@ class InstantNGP(DataParser):
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
         poses = np.array(poses).astype(np.float32)
-        poses[:3, 3] *= self.config.scene_scale
+        poses[:, :3, 3] *= self.config.scene_scale
 
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 
@@ -94,9 +96,11 @@ class InstantNGP(DataParser):
             )
         )
 
+        fl_x, fl_y = InstantNGP.get_focal_lengths(meta)
+
         cameras = Cameras(
-            fx=float(meta["fl_x"]),
-            fy=float(meta["fl_y"]),
+            fx=float(fl_x),
+            fy=float(fl_y),
             cx=float(meta["cx"]),
             cy=float(meta["cy"]),
             distortion_params=distortion_params,
@@ -114,3 +118,35 @@ class InstantNGP(DataParser):
         )
 
         return dataparser_outputs
+
+    @classmethod
+    def get_focal_lengths(cls, meta: Dict) -> Tuple[float, float]:
+        """Reads or computes the focal length from transforms dict.
+        Args:
+            meta: metadata from transforms.json file.
+        Returns:
+            Focal lengths in the x and y directions. Error is raised if these cannot be calculated.
+        """
+        fl_x, fl_y = 0, 0
+
+        def fov_to_focal_length(rad, res):
+            return 0.5 * res / np.tanh(0.5 * rad)
+
+        if "fl_x" in meta:
+            fl_x = meta["fl_x"]
+        elif "x_fov" in meta:
+            fl_x = fov_to_focal_length(np.deg2rad(meta["x_fov"]), meta["w"])
+        elif "camera_angle_x" in meta:
+            fl_x = fov_to_focal_length(meta["camera_angle_x"], meta["w"])
+
+        if "fl_y" in meta:
+            fl_y = meta["fl_y"]
+        elif "y_fov" in meta:
+            fl_y = fov_to_focal_length(np.deg2rad(meta["y_fov"]), meta["h"])
+        elif "camera_angle_y" in meta:
+            fl_y = fov_to_focal_length(meta["camera_angle_y"], meta["h"])
+
+        if fl_x == 0 or fl_y == 0:
+            raise AttributeError("Focal length cannot be calculated from transforms.json (missing fields).")
+
+        return (fl_x, fl_y)

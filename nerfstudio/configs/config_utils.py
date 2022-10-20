@@ -23,6 +23,7 @@ from typing import Any, Dict
 
 from rich.console import Console
 
+CONSOLE = Console()
 # pylint: disable=import-outside-toplevel
 
 # cannot use mutable types directly within dataclass; abstracting default factory calls
@@ -44,7 +45,6 @@ def convert_markup_to_ansi(markup_string: str) -> str:
     Returns:
         Text formatted via ANSI sequences.
     """
-    console = Console()
-    with console.capture() as out:
-        console.print(markup_string, soft_wrap=True)
+    with CONSOLE.capture() as out:
+        CONSOLE.print(markup_string, soft_wrap=True)
     return out.get()

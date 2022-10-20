@@ -505,12 +505,13 @@ class ProposalNetworkSampler(Sampler):
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
         single_jitter: bool = False,
+        update_sched: Callable = lambda x: 1,
     ) -> None:
         super().__init__()
         self.num_proposal_samples_per_ray = num_proposal_samples_per_ray
         self.num_nerf_samples_per_ray = num_nerf_samples_per_ray
         self.num_proposal_network_iterations = num_proposal_network_iterations
-
+        self.update_sched = update_sched
         if self.num_proposal_network_iterations < 1:
             raise ValueError("num_proposal_network_iterations must be >= 1")
 
@@ -519,10 +520,17 @@ class ProposalNetworkSampler(Sampler):
         self.pdf_sampler = PDFSampler(include_original=False, single_jitter=single_jitter)
 
         self._anneal = 1.0
+        self._steps_since_update = 0
+        self._step = 0
 
     def set_anneal(self, anneal: float) -> None:
         """Set the anneal value for the proposal network."""
         self._anneal = anneal
+
+    def step_cb(self, step):
+        """Callback to register a training step has passed. This is used to keep track of the sampling schedule"""
+        self._step = step
+        self._steps_since_update += 1
 
     def generate_ray_samples(
         self,
@@ -538,6 +546,7 @@ class ProposalNetworkSampler(Sampler):
         n = self.num_proposal_network_iterations
         weights = None
         ray_samples = None
+        updated = self._steps_since_update > self.update_sched(self._step) or self._step < 10
         for i_level in range(n + 1):
             is_prop = i_level < n
             num_samples = self.num_proposal_samples_per_ray[i_level] if is_prop else self.num_nerf_samples_per_ray
@@ -551,10 +560,17 @@ class ProposalNetworkSampler(Sampler):
                 annealed_weights = torch.pow(weights, self._anneal)
                 ray_samples = self.pdf_sampler(ray_bundle, ray_samples, annealed_weights, num_samples=num_samples)
             if is_prop:
-                density = density_fns[i_level](ray_samples.frustums.get_positions())
+                if updated:
+                    # always update on the first step or the inf check in grad scaling crashes
+                    density = density_fns[i_level](ray_samples.frustums.get_positions())
+                else:
+                    with torch.no_grad():
+                        density = density_fns[i_level](ray_samples.frustums.get_positions())
                 weights = ray_samples.get_weights(density)
                 weights_list.append(weights)  # (num_rays, num_samples)
                 ray_samples_list.append(ray_samples)
+        if updated:
+            self._steps_since_update = 0
 
         assert ray_samples is not None
         return ray_samples, weights_list, ray_samples_list
