@@ -157,16 +157,15 @@ def test_camera_as_tensordataclass():
     for args in product(
         camera_to_worlds,
         fx_ys,
-        fx_ys[:-2],
+        fx_ys[:1],
         cx_ys,
-        cx_ys[:-2],
+        cx_ys[:1],
         h_ws,
-        h_ws[:-2],
+        h_ws[:1],
         distortion_params[:-1],
         camera_types[:-1],
     ):
         c = Cameras(*args)
-        assert len(c.shape) <= 2
 
     c = c0
     assert c.shape == ()
