@@ -409,44 +409,6 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.render_width,
   );
 
-  const setCameraProperty = (
-    property,
-    value,
-    index
-  )  => {
-    const activeCamera = cameras[index];
-    const activeProperties = new Map(activeCamera.properties);
-    activeProperties.set(property, value);
-    const newProperties = new Map(cameraProperties);
-    newProperties.set(activeCamera.uuid, activeProperties);
-    activeCamera.properties = activeProperties;
-    setCameraProperties(newProperties);
-  };
-
-  const swapCameras = (index, new_index) => {
-    if (
-      Math.min(index, new_index) < 0 ||
-      Math.max(index, new_index) >= cameras.length
-    )
-      return;
-      
-      const swapCameraTime = cameras[index].properties.get('TIME');
-      setCameraProperty('TIME', cameras[new_index].properties.get('TIME'), index);
-      setCameraProperty('TIME', swapCameraTime, new_index);
-    
-    const new_cameras = [
-      ...cameras.slice(0, index),
-      ...cameras.slice(index + 1),
-    ];
-    setCameras([
-      ...new_cameras.slice(0, new_index),
-      cameras[index],
-      ...new_cameras.slice(new_index),
-    ]);
-
-    // reset_slider_render_on_change();
-  };
-
   const setRenderHeight = (value) => {
     dispatch({
       type: 'write',
@@ -517,6 +479,44 @@ export default function CameraPanel(props) {
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
+  };
+
+  const setCameraProperty = (
+    property,
+    value,
+    index
+  )  => {
+    const activeCamera = cameras[index];
+    const activeProperties = new Map(activeCamera.properties);
+    activeProperties.set(property, value);
+    const newProperties = new Map(cameraProperties);
+    newProperties.set(activeCamera.uuid, activeProperties);
+    activeCamera.properties = activeProperties;
+    setCameraProperties(newProperties);
+  };
+
+  const swapCameras = (index, new_index) => {
+    if (
+      Math.min(index, new_index) < 0 ||
+      Math.max(index, new_index) >= cameras.length
+    )
+      return;
+      
+      const swapCameraTime = cameras[index].properties.get('TIME');
+      setCameraProperty('TIME', cameras[new_index].properties.get('TIME'), index);
+      setCameraProperty('TIME', swapCameraTime, new_index);
+    
+    const new_cameras = [
+      ...cameras.slice(0, index),
+      ...cameras.slice(index + 1),
+    ];
+    setCameras([
+      ...new_cameras.slice(0, new_index),
+      cameras[index],
+      ...new_cameras.slice(new_index),
+    ]);
+
+    // reset_slider_render_on_change();
   };
 
   // force a rerender if the cameras are dragged around
