@@ -160,7 +160,7 @@ class Cameras(TensorDataclass):
         elif isinstance(cx, torch.Tensor):
             if cx.ndim == 0 or cx.shape[-1] != 1:
                 cx = cx.unsqueeze(-1)
-            assert torch.all(cx == cx.ravel()[0]), "Batched cameras of different cx will be allowed in the future."
+            assert torch.all(cx == cx.view(-1)[0]), "Batched cameras of different cx will be allowed in the future."
             cx = cx.to(self.device)
         else:
             raise ValueError(f"cx must be a float or tensor, got {type(cx)}")
@@ -171,7 +171,7 @@ class Cameras(TensorDataclass):
         elif isinstance(cy, torch.Tensor):
             if cy.ndim == 0 or cy.shape[-1] != 1:
                 cy = cy.unsqueeze(-1)
-            assert torch.all(cy == cy.ravel()[0]), "Batched cameras of different cy will be allowed in the future."
+            assert torch.all(cy == cy.view(-1)[0]), "Batched cameras of different cy will be allowed in the future."
             cy = cy.to(self.device)
         else:
             raise ValueError(f"cy must be a float or tensor, got {type(cy)}")
@@ -219,7 +219,7 @@ class Cameras(TensorDataclass):
             if camera_type.ndim == 0 or camera_type.shape[-1] != 1:
                 camera_type = camera_type.unsqueeze(-1)
             assert torch.all(
-                camera_type.ravel()[0] == camera_type
+                camera_type.view(-1)[0] == camera_type
             ), "Batched cameras of different camera_types will be allowed in the future."
         else:
             raise ValueError(
@@ -254,7 +254,7 @@ class Cameras(TensorDataclass):
             h_w = h_w.to(torch.int64).to(self.device)
             if h_w.ndim == 0 or h_w.shape[-1] != 1:
                 h_w = h_w.unsqueeze(-1)
-            assert torch.all(h_w == h_w.ravel()[0]), "Batched cameras of different h, w will be allowed in the future."
+            assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
             h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2)
         else:
@@ -282,8 +282,8 @@ class Cameras(TensorDataclass):
         Returns whether or not the cameras are "jagged" (i.e. the height and widths are different, meaning that
         you cannot concatenate the image coordinate maps together)
         """
-        h_jagged = not torch.all(self.height == self.height.ravel()[0])
-        w_jagged = not torch.all(self.width == self.width.ravel()[0])
+        h_jagged = not torch.all(self.height == self.height.view(-1)[0])
+        w_jagged = not torch.all(self.width == self.width.view(-1)[0])
         return h_jagged or w_jagged
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
@@ -302,8 +302,8 @@ class Cameras(TensorDataclass):
         print(self.height)
         print(self.width)
         assert not self.is_jagged, "meshgrid doesn't make sense for jagged cameras"
-        image_height = self.image_height.ravel()[0]
-        image_width = self.image_width.ravel()[0]
+        image_height = self.image_height.view(-1)[0]
+        image_width = self.image_width.view(-1)[0]
         image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
         image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
@@ -563,11 +563,11 @@ class Cameras(TensorDataclass):
         # directions_stack[0] is the direction for ray in camera coordinates
         # directions_stack[1] is the direction for ray in camera coordinates offset by 1 in x
         # directions_stack[2] is the direction for ray in camera coordinates offset by 1 in y
-        if self.camera_type.ravel()[0] == CameraType.PERSPECTIVE.value:
+        if self.camera_type.view(-1)[0] == CameraType.PERSPECTIVE.value:
             directions_stack = torch.stack(
                 [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
             )
-        elif self.camera_type.ravel()[0] == CameraType.FISHEYE.value:
+        elif self.camera_type.view(-1)[0] == CameraType.FISHEYE.value:
             theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
 
@@ -581,7 +581,7 @@ class Cameras(TensorDataclass):
                 dim=-1,
             )
         else:
-            raise ValueError(f"Camera type {CameraType(self.camera_type.ravel()[0])} not supported.")
+            raise ValueError(f"Camera type {CameraType(self.camera_type.view(-1)[0])} not supported.")
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
         c2w = self.camera_to_worlds[true_indices]
