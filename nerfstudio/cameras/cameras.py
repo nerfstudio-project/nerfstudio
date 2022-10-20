@@ -77,8 +77,8 @@ class Cameras(TensorDataclass):
     fy: TensorType["num_cameras":..., 1]
     cx: TensorType["num_cameras":..., 1]
     cy: TensorType["num_cameras":..., 1]
-    width: Union[TensorType["num_cameras":..., 1], None]
-    height: Union[TensorType["num_cameras":..., 1], None]
+    width: TensorType["num_cameras":..., 1]
+    height: TensorType["num_cameras":..., 1]
     distortion_params: Union[TensorType["num_cameras":..., 6], None]
     camera_type: TensorType["num_cameras":..., 1]
 
@@ -192,7 +192,7 @@ class Cameras(TensorDataclass):
         camera_type: Union[
             TensorType["batch_cam_types":..., 1], TensorType["batch_cam_types":...], int, List[CameraType], CameraType
         ],
-    ) -> torch.Tensor:
+    ) -> TensorType["num_cameras":..., 1]:
         """
         Parses the __init__() argument camera_type
 
@@ -233,7 +233,7 @@ class Cameras(TensorDataclass):
         self,
         h_w: Union[TensorType["batch_hws":..., 1], TensorType["batch_hws":...], int, None],
         c_x_y: TensorType["batch_cxys":...],
-    ) -> torch.Tensor:
+    ) -> TensorType["num_cameras":..., 1]:
         """
         Parses the __init__() argument for height or width
 
@@ -299,8 +299,6 @@ class Cameras(TensorDataclass):
         Returns:
             Grid of image coordinates.
         """
-        print(self.height)
-        print(self.width)
         assert not self.is_jagged, "meshgrid doesn't make sense for jagged cameras"
         image_height = self.image_height.view(-1)[0]
         image_width = self.image_width.view(-1)[0]
@@ -364,14 +362,17 @@ class Cameras(TensorDataclass):
         # If zero dimensional, we need to unsqueeze to get a batch dimension and then squeeze later
         if not self.shape:
             cameras = self.reshape((1,))
-            errormsg = "Can only index into single camera with no batch dimensions if index is zero"
-            assert torch.all(torch.tensor(camera_indices == 0)), errormsg
+            assert torch.all(
+                torch.tensor(camera_indices == 0) if isinstance(camera_indices, int) else camera_indices == 0
+            ), "Can only index into single camera with no batch dimensions if index is zero"
         else:
             cameras = self
 
         # If the camera indices are an int, then we need to make sure that the camera batch is 1D
         if isinstance(camera_indices, int):
-            assert len(cameras.shape) == 1, "camera_indices must be a tensor if cameras is batched"
+            assert (
+                len(cameras.shape) == 1
+            ), "camera_indices must be a tensor if cameras are batched with more than 1 batch dimension"
             camera_indices = torch.tensor([camera_indices], device=cameras.device)
 
         # If the cameras don't all have same height / width, if coords is not none, we will need to generate
@@ -468,6 +469,8 @@ class Cameras(TensorDataclass):
                         # since we added an extra dimension in front of camera_indices
                     >>> out_rays.shape
                         (1,)
+
+                If you want more examples, check tests/cameras/test_cameras and the function check_generate_rays_shape
 
                 The bottom line is that for camera_indices: (num_rays:..., cameras_ndim), num_rays is the output
                 shape and if you index into the output RayBundle with some indices [i:...], if you index into
