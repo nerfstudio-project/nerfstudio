@@ -227,9 +227,7 @@ class VanillaPipeline(Pipeline):
 
         self.world_size = world_size
         if world_size > 1:
-            self._model = typing.cast(
-                Model, typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
-            )
+            self._model = typing.cast(Model, DDP(self._model, device_ids=[local_rank], find_unused_parameters=True))
             dist.barrier(device_ids=[local_rank])
 
     @property
