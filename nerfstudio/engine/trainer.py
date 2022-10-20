@@ -21,7 +21,7 @@ import dataclasses
 import functools
 import os
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 from rich.console import Console
@@ -46,20 +46,6 @@ from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
 CONSOLE = Console(width=120)
-
-
-def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
-    """Main training function that sets up and runs the trainer per process
-
-    Args:
-        local_rank: current rank of process
-        world_size: total number of gpus available
-        config: config file specifying training regimen
-    """
-    trainer = Trainer(config, local_rank, world_size)
-    trainer.setup()
-    trainer.train()
-    return 0
 
 
 class Trainer:
@@ -122,7 +108,7 @@ class Trainer:
         Args:
             test_mode: Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: VanillaPipeline = self.config.pipeline.setup(
+        self.pipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
         self.optimizers = setup_optimizers(self.config, self.pipeline.get_param_groups())

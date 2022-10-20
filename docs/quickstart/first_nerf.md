@@ -152,3 +152,23 @@ ns-eval --load-config={PATH_TO_CONFIG} --output-path=output.json
 ```
 
 We also provide a train and evaluation script that allows you to do benchmarking on the classical Blender dataset (see our [benchmarking workflow](../developer_guides/debugging_tools/benchmarking.md)).
+
+## Multi-GPU Training
+
+Here we explain how to use multi-GPU training. This is the command to train the nerfacto model with 4 GPUs. We are using [PyTorch Distributed Data Parallel (DDP)](https://pytorch.org/tutorials/beginner/dist_overview.html), so we scale the learning rate with the number of GPUs used. Plotting will only be done for the first process. Note that you may want to play around with both learning rate and `<X>_num_rays_per_batch` when using DDP. Below is a simple example for how you'd run the vanilla-nerf method with either 1 or 4 GPUs. We don't see much value at the moment for running the fast methods like nerfacto with more than one GPU.
+
+```python
+# 1 GPU (1x LR)
+export CUDA_VISIBLE_DEVICES=0
+ns-train vanilla-nerf \
+  --machine.num-gpus 1 \
+  --vis wandb \
+  --optimizers.fields.optimizer.lr 5e-4
+
+# 4 GPUs (4x LR)
+export CUDA_VISIBLE_DEVICES=0,1,2,3
+ns-train vanilla-nerf \
+  --machine.num-gpus 4 \
+  --vis wandb \
+  --optimizers.fields.optimizer.lr 20e-4
+```
