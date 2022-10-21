@@ -254,7 +254,7 @@ class Cameras(TensorDataclass):
             h_w = h_w.to(torch.int64).to(self.device)
             if h_w.ndim == 0 or h_w.shape[-1] != 1:
                 h_w = h_w.unsqueeze(-1)
-            # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
+        # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
             h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2)
         else:
