@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.1.4"
+version = "0.1.5.1"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
-requires-python = ">=3.8"
+requires-python = ">=3.7.3"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python",
@@ -30,10 +30,11 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.2.0",
+    "nerfacc==0.2.1",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
+    "pyngrok==5.1.0",
     "python-socketio==5.7.1",
     "requests",
     "rich==12.5.1",
@@ -83,6 +84,7 @@ ns-train = "scripts.train:entrypoint"
 ns-eval = "scripts.eval:entrypoint"
 ns-render = "scripts.render:entrypoint"
 ns-dev-test = "scripts.github.run_actions:entrypoint"
+ns-bridge-server = "nerfstudio.viewer.server.server:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision
@@ -94,7 +96,7 @@ dependency_links = [
 include = ["nerfstudio*","scripts*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json"]
+"*" = ["*.json", "py.typed", "setup.bash", "setup.zsh"]
 
 # black
 [tool.black]

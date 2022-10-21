@@ -7,7 +7,7 @@ import nbformat as nbf
 import tyro
 from rich.console import Console
 
-console = Console(width=120)
+CONSOLE = Console(width=120)
 
 
 def main(check: bool = False):
@@ -47,7 +47,7 @@ def main(check: bool = False):
                     found_tags.append(val)
 
             if len(found_keys) > 1:
-                console.print(f"[bold yellow]Found multiple tags {found_keys} for {ipath}")
+                CONSOLE.print(f"[bold yellow]Found multiple tags {found_keys} for {ipath}")
                 sys.exit(1)
 
             if len(cell_tags) != len(found_tags):
@@ -59,7 +59,7 @@ def main(check: bool = False):
             cell["metadata"]["tags"] = found_tags
         if incorrect_metadata:
             if check:
-                console.print(
+                CONSOLE.print(
                     f"[bold yellow]{ipath} has incorrect metadata. Call `python scripts.docs.add_nb_tags.py` to add it."
                 )
                 any_missing = True
@@ -68,7 +68,7 @@ def main(check: bool = False):
                 nbf.write(ntbk, ipath)
 
     if not any_missing:
-        console.print("[green]All notebooks have correct metadata.")
+        CONSOLE.print("[green]All notebooks have correct metadata.")
 
     if check and any_missing:
         sys.exit(1)
