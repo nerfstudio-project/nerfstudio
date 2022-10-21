@@ -493,13 +493,13 @@ def run_opensfm(
     # TODO cleanup config
     config = {
         "processes": 12,
-        "matching_bow_neighbors": 6,
-        "feature_process_size": 1280,
-        "triangulation_threshold": 0.004,
+        "matching_order_neighbors": 20,
+        "feature_process_size": 1024,
+        "triangulation_threshold": 0.006,
         "triangulation_type": "ROBUST",
-        "min_track_length": 3,
-        "retriangulation_ratio": 2,
-        "bundle_new_points_ratio": 2,
+        "min_track_length": 2,
+        "retriangulation_ratio": 1.5,
+        "bundle_new_points_ratio": 1.5,
     }
     with open(opensfm_dir / "config.yaml", "w") as config_file:
         yaml.dump(config, config_file)
@@ -756,7 +756,7 @@ class ProcessVideo:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    num_frames_target: int = 120
+    num_frames_target: int = 150
     """Target number of frames to use for the dataset, results may not be exact."""
     camera_type: Literal["perspective", "fisheye"] = "perspective"
     """Camera model to use."""
