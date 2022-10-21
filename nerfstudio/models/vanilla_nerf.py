@@ -73,8 +73,15 @@ class NeRFModel(Model):
             in_dim=3, num_frequencies=4, min_freq_exp=0.0, max_freq_exp=4.0, include_input=True
         )
 
-        self.field_coarse = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
-        self.field_fine = NeRFField(position_encoding=position_encoding, direction_encoding=direction_encoding)
+        self.field_coarse = NeRFField(
+            position_encoding=position_encoding,
+            direction_encoding=direction_encoding,
+        )
+
+        self.field_fine = NeRFField(
+            position_encoding=position_encoding,
+            direction_encoding=direction_encoding,
+        )
 
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.config.num_coarse_samples)
@@ -94,7 +101,7 @@ class NeRFModel(Model):
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        param_groups = {}
+        param_groups = super().get_param_groups()
         if self.field_coarse is None or self.field_fine is None:
             raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
@@ -107,6 +114,9 @@ class NeRFModel(Model):
 
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
+        if self.temporal_distortion is not None:
+            offsets = self.temporal_distortion(ray_samples_uniform.frustums.get_positions(), ray_samples_uniform.times)
+            ray_samples_uniform.frustums.set_offsets(offsets)
 
         # coarse field:
         field_outputs_coarse = self.field_coarse.forward(ray_samples_uniform)
@@ -120,6 +130,9 @@ class NeRFModel(Model):
 
         # pdf sampling
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights_coarse)
+        if self.temporal_distortion is not None:
+            offsets = self.temporal_distortion(ray_samples_pdf.frustums.get_positions(), ray_samples_pdf.times)
+            ray_samples_pdf.frustums.set_offsets(offsets)
 
         # fine field:
         field_outputs_fine = self.field_fine.forward(ray_samples_pdf)

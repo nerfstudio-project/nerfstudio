@@ -32,6 +32,7 @@ from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 
 
@@ -77,6 +78,8 @@ class Model(nn.Module):
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
+        self.temporal_distortion = None
+
         self.populate_modules()  # populate the modules
         self.callbacks = None
         # to keep track of which device the nn.Module is on
@@ -103,13 +106,22 @@ class Model(nn.Module):
                 near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
             )
 
-    @abstractmethod
+        self.temporal_distortion = None
+        if getattr(self.config, "enable_temporal_distortion", False):
+            params = self.config.temporal_distortion_params
+            kind = params.pop("kind")
+            self.temporal_distortion = kind.to_temporal_distortion(params)
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Obtain the parameter groups for the optimizers
 
         Returns:
             Mapping of different parameter groups
         """
+        param_groups = {}
+        if self.temporal_distortion is not None:
+            param_groups["temporal_distortion"] = list(self.temporal_distortion.parameters())
+        return param_groups
 
     @abstractmethod
     def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
@@ -218,3 +230,8 @@ class VanillaModelConfig(ModelConfig):
     """Number of samples in coarse field evaluation"""
     num_importance_samples: int = 128
     """Number of samples in fine field evaluation"""
+
+    enable_temporal_distortion: bool = False
+    """Specifies whether or not to include ray warping based on time."""
+    temporal_distortion_params: Dict[str, Any] = to_immutable_dict({"kind": TemporalDistortionKind.DNERF})
+    """Parameters to instantiate temporal distortion with"""

@@ -194,7 +194,7 @@ class TensoRFModel(Model):
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        param_groups = {}
+        param_groups = super().get_param_groups()
 
         param_groups["fields"] = (
             list(self.field.mlp_head.parameters())
