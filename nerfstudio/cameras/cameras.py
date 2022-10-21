@@ -19,7 +19,7 @@ import base64
 import math
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
 import torch
@@ -160,7 +160,7 @@ class Cameras(TensorDataclass):
         elif isinstance(cx, torch.Tensor):
             if cx.ndim == 0 or cx.shape[-1] != 1:
                 cx = cx.unsqueeze(-1)
-            assert torch.all(cx == cx.view(-1)[0]), "Batched cameras of different cx will be allowed in the future."
+            # assert torch.all(cx == cx.view(-1)[0]), "Batched cameras of different cx will be allowed in the future."
             cx = cx.to(self.device)
         else:
             raise ValueError(f"cx must be a float or tensor, got {type(cx)}")
@@ -171,7 +171,7 @@ class Cameras(TensorDataclass):
         elif isinstance(cy, torch.Tensor):
             if cy.ndim == 0 or cy.shape[-1] != 1:
                 cy = cy.unsqueeze(-1)
-            assert torch.all(cy == cy.view(-1)[0]), "Batched cameras of different cy will be allowed in the future."
+            # assert torch.all(cy == cy.view(-1)[0]), "Batched cameras of different cy will be allowed in the future."
             cy = cy.to(self.device)
         else:
             raise ValueError(f"cy must be a float or tensor, got {type(cy)}")
@@ -218,9 +218,9 @@ class Cameras(TensorDataclass):
             camera_type = camera_type.to(self.device)
             if camera_type.ndim == 0 or camera_type.shape[-1] != 1:
                 camera_type = camera_type.unsqueeze(-1)
-            assert torch.all(
-                camera_type.view(-1)[0] == camera_type
-            ), "Batched cameras of different camera_types will be allowed in the future."
+            # assert torch.all(
+            #     camera_type.view(-1)[0] == camera_type
+            # ), "Batched cameras of different camera_types will be allowed in the future."
         else:
             raise ValueError(
                 'Invalid camera_type. Must be CameraType, List[CameraType], int, or torch.Tensor["num_cameras"]. \
@@ -254,7 +254,7 @@ class Cameras(TensorDataclass):
             h_w = h_w.to(torch.int64).to(self.device)
             if h_w.ndim == 0 or h_w.shape[-1] != 1:
                 h_w = h_w.unsqueeze(-1)
-            assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
+            # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
             h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2)
         else:
@@ -286,7 +286,9 @@ class Cameras(TensorDataclass):
         w_jagged = not torch.all(self.width == self.width.view(-1)[0])
         return h_jagged or w_jagged
 
-    def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
+    def get_image_coords(
+        self, pixel_offset: float = 0.5, index: Optional[Tuple] = None
+    ) -> TensorType["height", "width", 2]:
         """This gets the image coordinates of one of the cameras in this object
 
         Down the line we may support jagged images, allowing this to return multiple image coordinates of
@@ -295,15 +297,22 @@ class Cameras(TensorDataclass):
 
         Args:
             pixel_offset: Offset for each pixel. Defaults to center of pixel (0.5)
+            index: Tuple of indices into the batch dimensions of the camera. Defaults to None, which returns the 0th
+                flattened camera
 
         Returns:
             Grid of image coordinates.
         """
-        assert not self.is_jagged, "meshgrid doesn't make sense for jagged cameras"
-        image_height = self.image_height.view(-1)[0]
-        image_width = self.image_width.view(-1)[0]
-        image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
-        image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
+        if index is None:
+            image_height = self.image_height.view(-1)[0]
+            image_width = self.image_width.view(-1)[0]
+            image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
+            image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
+        else:
+            image_height = self.image_height[index]
+            image_width = self.image_width[index]
+            image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
+            image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
     def generate_rays(
@@ -386,7 +395,14 @@ class Cameras(TensorDataclass):
         # a flat list of coords for each camera and then concatenate otherwise our rays will be jagged.
         # Camera indices, camera_opt, and distortion will also need to be broadcasted accordingly which is non-trivial
         if cameras.is_jagged and coords is None:
-            raise NotImplementedError("Jagged cameras are not tested yet.")
+            index_dim = camera_indices.shape[-1]
+            camera_indices = camera_indices.reshape(-1, index_dim)
+            _coords = [cameras.get_image_coords(index=tuple(index)).reshpe(-1, 2) for index in camera_indices]
+            camera_indices = torch.cat(
+                [index.unsqueeze(0).repeat(coords.shape[0], 1) for index, coords in zip(camera_indices, _coords)],
+            )
+            coords = torch.cat(_coords, dim=0)
+            assert coords.shape[0] == camera_indices.shape[0]
             # Need to get the coords of each indexed camera and flatten all coordinate maps and concatenate them
 
         # The case where we aren't jagged (since otherwise coords is already set) and coords is None
