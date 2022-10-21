@@ -38,7 +38,7 @@ from nerfstudio.engine.callbacks import (
 from nerfstudio.field_components.encodings import NeRFEncoding, TensorVMEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.tensorf_field import TensoRFField
-from nerfstudio.model_components.losses import L1Loss, MSELoss
+from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
@@ -173,7 +173,6 @@ class TensoRFModel(Model):
 
         # losses
         self.rgb_loss = MSELoss()
-        # self.feature_loss = L1Loss()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -232,16 +231,9 @@ class TensoRFModel(Model):
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
         image = batch["image"].to(device)
-        assert isinstance(self.field.color_encoding, TensorVMEncoding)
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
-        plane_coef = self.field.color_encoding.plane_coef
-        line_coef = self.field.color_encoding.line_coef
 
-        # plane_feature_loss = self.feature_loss(plane_coef, torch.zeros_like(plane_coef))
-        # line_feature_loss = self.feature_loss(line_coef, torch.zeros_like(line_coef))
-
-        # loss_dict = {"rgb_loss": rgb_loss, "feature_loss": plane_feature_loss + line_feature_loss}
         loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict

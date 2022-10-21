@@ -15,8 +15,7 @@
 """TensoRF Field"""
 
 
-from ctypes.wintypes import RGB
-from typing import Dict, Optional
+from typing import Optional
 
 import torch
 from torch import nn
