@@ -337,6 +337,13 @@ class Cameras(TensorDataclass):
             4. not isinstance(camera_indices, int) and coords != None
                 - In this case, we have nothing to do, only check that the arguments are of the correct shape
 
+        There is one more edge case we need to be careful with: when we have "jagged cameras" (ie: different heights
+        and widths for each camera). This isn't problematic when we specify coords, since coords is already a tensor.
+        When coords == None (ie: when we render out the whole image associated with this camera), we run into problems
+        since there's no way to stack each coordinate map as all coordinate maps are all different shapes. In this case,
+        we will need to flatten each individual coordinate map and concatenate them, giving us only one batch dimension,
+        regaurdless of the number of prepended extra batch dimensions in the camera_indices tensor.
+
 
         Args:
             camera_indices: Camera indices of the flattened cameras object to generate rays for.
