@@ -22,12 +22,13 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 from rich.progress import track
-from torch.utils.data import Dataset, default_collate
+from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
 
 
@@ -49,7 +50,7 @@ class CacheDataloader(DataLoader):
         num_images_to_sample_from: int = -1,
         num_times_to_repeat_images: int = 0,
         device: Union[torch.device, str] = "cpu",
-        collate_fn=default_collate,
+        collate_fn=nerfstudio_collate,
         **kwargs,
     ):
         self.dataset = dataset
