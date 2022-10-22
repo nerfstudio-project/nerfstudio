@@ -98,14 +98,11 @@ class DNeRF(DataParser):
             cx=cx,
             cy=cy,
             camera_type=CameraType.PERSPECTIVE,
+            times=times,
         )
 
         dataparser_outputs = DataparserOutputs(
-            image_filenames=image_filenames,
-            cameras=cameras,
-            alpha_color=alpha_color_tensor,
-            scene_box=scene_box,
-            times=times,
+            image_filenames=image_filenames, cameras=cameras, alpha_color=alpha_color_tensor, scene_box=scene_box
         )
 
         return dataparser_outputs
