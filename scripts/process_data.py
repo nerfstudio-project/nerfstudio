@@ -825,7 +825,7 @@ class ProcessVideo:
                     "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
                 )
         elif self.sfm_method == "OpenSfM":
-            assert self.opensfm_dir is not None, "Please provide the path to the OpenSfM executable <...>/bin/opensfm"
+            assert self.opensfm_dir is not None, "Please provide the path to the OpenSfM directory <...>/bin/opensfm"
             # Run the OpenSfM solver
             opensfm_dir = self.output_dir / "opensfm"
             opensfm_dir.mkdir(parents=True, exist_ok=True)
