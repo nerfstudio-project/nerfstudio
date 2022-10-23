@@ -9,7 +9,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import appdirs
 import numpy as np
@@ -19,7 +19,7 @@ import yaml
 from PIL import Image
 from rich.console import Console
 from rich.progress import track
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Literal
 
 from nerfstudio.utils import colmap_utils, install_checks
 
@@ -166,7 +166,7 @@ def convert_video_to_images(
         spacing = num_frames // num_frames_target
 
         if spacing > 1:
-            ffmpeg_cmd += f" -vf 'thumbnail={spacing},setpts=N/TB' -r 1"
+            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
         else:
             CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 

@@ -55,6 +55,13 @@ warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 CONSOLE = Console(width=120)
 
 
+def get_viewer_version() -> str:
+    """Get the version of the viewer."""
+    json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
+    version = load_from_json(Path(json_filename))["version"]
+    return version
+
+
 @check_main_thread
 def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
     """Sets up the viewer if enabled
@@ -230,8 +237,7 @@ class ViewerState:
             )
             # TODO(ethan): log the output of the viewer bridge server in a file where the training logs go
             CONSOLE.line()
-            json_filename = os.path.join(os.path.dirname(__file__), "../app/package.json")
-            version = load_from_json(Path(json_filename))["version"]
+            version = get_viewer_version()
             websocket_url = f"ws://localhost:{self.config.websocket_port}"
             self.viewer_url = f"https://viewer.nerf.studio/versions/{version}/?websocket_url={websocket_url}"
             CONSOLE.rule(characters="=")

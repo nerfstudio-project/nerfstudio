@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import functools
 from dataclasses import dataclass, field
-from typing import Literal, Type, Union
+from typing import Type, Union
 
 import torch
 import tyro
 from torch import nn
 from torchtyping import TensorType
-from typing_extensions import assert_never
+from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
 from nerfstudio.configs import base_config as cfg

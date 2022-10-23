@@ -30,47 +30,36 @@ LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 EPS = 1.0e-7
 
 
-def searchsorted(a: TensorType[..., "N"], v: TensorType[..., "M"]) -> TensorType[..., "M"]:
-    """
-    https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L109
-    https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L30
+def outer(
+    t0_starts: TensorType[..., "num_samples_0"],
+    t0_ends: TensorType[..., "num_samples_0"],
+    t1_starts: TensorType[..., "num_samples_1"],
+    t1_ends: TensorType[..., "num_samples_1"],
+    y1: TensorType[..., "num_samples_1"],
+) -> TensorType[..., "num_samples_0"]:
+    """Faster version of
 
-
-    """
-    i = torch.arange(a.shape[-1], device=a.device)
-    v_ge_a = v[..., None, :] >= a[..., :, None]
-    idx_lo = torch.where(v_ge_a, i[..., :, None], i[..., :1, None]).max(dim=-2).values
-    idx_hi = torch.where(~v_ge_a, i[..., :, None], i[..., -1:, None]).min(dim=-2).values
-    return idx_lo, idx_hi
-
-
-def inner_outer(
-    t0: TensorType[..., "num_samples+1"], t1: TensorType[..., "num_samples+1"], y1: TensorType[..., "num_samples"]
-):
-    """
     https://github.com/kakaobrain/NeRF-Factory/blob/f61bb8744a5cb4820a4d968fb3bfbed777550f4a/src/model/mipnerf360/helper.py#L117
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/stepfun.py#L64
 
     Args:
-        t0: interval edges
-        t1: interval edges
+        t0_starts: start of the interval edges
+        t0_ends: end of the interval edges
+        t1_starts: start of the interval edges
+        t1_ends: end of the interval edges
         y1: weights
     """
-
     cy1 = torch.cat([torch.zeros_like(y1[..., :1]), torch.cumsum(y1, dim=-1)], dim=-1)
-    idx_lo, idx_hi = searchsorted(t1, t0)
 
-    cy1_lo = torch.take_along_dim(cy1, idx_lo, dim=-1)
-    cy1_hi = torch.take_along_dim(cy1, idx_hi, dim=-1)
+    idx_lo = torch.searchsorted(t1_starts.contiguous(), t0_starts.contiguous(), side="right") - 1
+    idx_lo = torch.clamp(idx_lo, min=0, max=y1.shape[-1] - 1)
+    idx_hi = torch.searchsorted(t1_ends.contiguous(), t0_ends.contiguous(), side="right")
+    idx_hi = torch.clamp(idx_hi, min=0, max=y1.shape[-1] - 1)
+    cy1_lo = torch.take_along_dim(cy1[..., :-1], idx_lo, dim=-1)
+    cy1_hi = torch.take_along_dim(cy1[..., 1:], idx_hi, dim=-1)
+    y0_outer = cy1_hi - cy1_lo
 
-    y0_outer = cy1_hi[..., 1:] - cy1_lo[..., :-1]
-    y0_inner = torch.where(
-        idx_hi[..., :-1] <= idx_lo[..., 1:],
-        cy1_lo[..., 1:] - cy1_hi[..., :-1],
-        torch.zeros_like(cy1_lo[..., 1:]),
-    )
-
-    return y0_inner, y0_outer
+    return y0_outer
 
 
 def lossfun_outer(
@@ -89,7 +78,7 @@ def lossfun_outer(
         t_env: interval edges of the upper bound enveloping historgram
         w_env: weights that should upper bound the inner (t,w) histogram
     """
-    _, w_outer = inner_outer(t, t_env, w_env)
+    w_outer = outer(t[..., :-1], t[..., 1:], t_env[..., :-1], t_env[..., 1:], w_env)
     return torch.clip(w - w_outer, min=0) ** 2 / (w + EPS)
 
 

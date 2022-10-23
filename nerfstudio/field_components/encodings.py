@@ -17,13 +17,14 @@ Encoding functions
 """
 
 from abc import abstractmethod
-from typing import Literal, Optional
+from typing import Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.field_components.base_field_component import FieldComponent
 from nerfstudio.utils.math import components_from_spherical_harmonics, expected_sin

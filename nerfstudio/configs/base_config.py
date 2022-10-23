@@ -21,10 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import yaml
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.configs.config_utils import to_immutable_dict
 
