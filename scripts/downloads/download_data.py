@@ -100,7 +100,7 @@ def download_nerfstudio(save_dir: Path, capture_name: str):
 
 
 record3d_file_ids = {
-    "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing"),
+    "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing")
 }
 
 
@@ -109,8 +109,25 @@ def download_record3d(save_dir: Path, capture_name: str):
     download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=record3d_file_ids)
 
 
+def download_dnerf(save_dir: Path):
+    """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
+    # TODO: give this code the same structure as download_nerfstudio
+
+    final_path = save_dir / Path("dnerf")
+    if os.path.exists(final_path):
+        shutil.rmtree(str(final_path))
+    download_path = save_dir / "dnerf_data.zip"
+    os.system(f"curl -L https://www.dropbox.com/s/raw/0bf6fl0ye2vz3vr/data.zip > {download_path}")
+    with zipfile.ZipFile(download_path, "r") as zip_ref:
+        zip_ref.extractall(str(save_dir))
+    unzip_path = save_dir / Path("data")
+    final_path = save_dir / Path("dnerf")
+    unzip_path.rename(final_path)
+    download_path.unlink(missing_ok=True)
+
+
 def main(
-    dataset: Literal["blender", "friends", "nerfstudio", "record3d"],
+    dataset: Literal["blender", "friends", "nerfstudio", "record3d", "dnerf"],
     capture_name: Optional[DatasetName] = None,  # type: ignore
     save_dir: Path = Path("data/"),
 ):
@@ -149,6 +166,10 @@ def main(
         download_nerfstudio(save_dir, capture_name)
     if dataset == "record3d":
         download_record3d(save_dir, "bear")
+    if dataset == "dnerf":
+        if capture_name is not None:
+            CONSOLE.print("Capture name is ignored when downloading from the dnerf dataset.")
+        download_dnerf(save_dir)
 
 
 def entrypoint():

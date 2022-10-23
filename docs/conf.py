@@ -24,10 +24,6 @@ project = "nerfstudio"
 copyright = "2022, nerfstudio Team"
 author = "nerfstudio Team"
 
-# The full version, including alpha/beta/rc tags
-release = "0.1.5.1"
-
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
