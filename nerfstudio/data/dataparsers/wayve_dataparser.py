@@ -58,6 +58,8 @@ class WayveDataParserConfig(DataParserConfig):
     """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation."""
+    center_poses: bool = True
+    """Whether to center the poses."""
     train_split_percentage: float = 0.2
     """The percent of images to use for training. The remaining images are for eval."""
 
@@ -108,7 +110,7 @@ class WayveData(DataParser):
         poses[:, 2, :] *= -1
 
 
-        poses = camera_utils.auto_orient_poses(poses, method=self.config.orientation_method)
+        poses = camera_utils.auto_orient_and_center_poses(poses, method=self.config.orientation_method, center_poses=self.config.center_poses)
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
         poses[:, :3, 3] *= scale_factor
 
