@@ -108,9 +108,7 @@ class WayveData(DataParser):
         poses[:, 0:3, 1:3] *= -1
         poses = poses[:, np.array([1, 0, 2, 3]), :]
         poses[:, 2, :] *= -1
-
-
-        poses = camera_utils.auto_orient_and_center_poses(poses, method=self.config.orientation_method, center_poses=self.config.center_poses)
+        # poses = camera_utils.auto_orient_and_center_poses(poses, method=self.config.orientation_method, center_poses=self.config.center_poses)
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
         poses[:, :3, 3] *= scale_factor
 
@@ -165,5 +163,5 @@ class WayveData(DataParser):
         return dataparser_outputs
 
 if __name__ == "__main__":
-    data = WayveData()
+    data = WayveData(config=WayveDataParserConfig())
     data._generate_dataparser_outputs()
