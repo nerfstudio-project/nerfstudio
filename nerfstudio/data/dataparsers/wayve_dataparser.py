@@ -98,7 +98,7 @@ class WayveData(DataParser):
             image_ts_column = f'key__cameras__{camera_str}__image_timestamp_unixus'
             image_filenames += [f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]
             camera_pose = np.array(camera_calibration['pose']).reshape(1, 4, 4)
-            image_pose = camera_pose @ egopose
+            image_pose = egopose @ camera_pose
             poses.append(image_pose)
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
