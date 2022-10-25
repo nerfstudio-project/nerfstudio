@@ -143,7 +143,7 @@ def _update_rc(
                 "    autoload -Uz compinit",
                 "    compinit",
                 "fi",
-                f"source {completions_dir / 'setup'}.zsh",
+                f"source {completions_dir / 'setup.zsh'}",
             ]
         )
     elif shell == "bash":
@@ -151,7 +151,7 @@ def _update_rc(
             [
                 "",
                 header_line,
-                f"source {completions_dir / 'setup'}.bash",
+                f"source {completions_dir / 'setup.bash'}",
             ]
         )
     else:
