@@ -40,6 +40,10 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
 )
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
+from nerfstudio.data.dataparsers.wayve_dataparser import (
+    WayveData,
+    WayveDataParserConfig,
+)
 from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -56,6 +60,7 @@ CONSOLE = Console(width=120)
 AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
     tyro.extras.subcommand_type_from_defaults(
         {
+            "wayve-data": WayveDataParserConfig(),
             "nerfstudio-data": NerfstudioDataParserConfig(),
             "blender-data": BlenderDataParserConfig(),
             "friends-data": FriendsDataParserConfig(),
@@ -304,7 +309,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
-        CONSOLE.print("Setting up training dataset...")
+        if self.world_size > 1:
+            sampler = DistributedSampler(
+                self.train_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+        else:
+            sampler = None
         self.train_image_dataloader = CacheDataloader(
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
@@ -312,6 +322,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
+            sampler=sampler,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
@@ -326,7 +337,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         assert self.eval_dataset is not None
-        CONSOLE.print("Setting up evaluation dataset...")
+        if self.world_size > 1:
+            sampler = DistributedSampler(
+                self.eval_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+        else:
+            sampler = None
         self.eval_image_dataloader = CacheDataloader(
             self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
@@ -334,6 +350,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
+            sampler=sampler,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
