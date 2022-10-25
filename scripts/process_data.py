@@ -164,7 +164,7 @@ def convert_video_to_images(
         spacing = num_frames // num_frames_target
 
         if spacing > 1:
-            ffmpeg_cmd += f" -vf 'thumbnail={spacing},setpts=N/TB' -r 1"
+            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
         else:
             CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
@@ -345,7 +345,10 @@ def run_colmap(
 
     colmap_version = get_colmap_version()
 
-    (colmap_dir / "database.db").unlink(missing_ok=True)
+    colmap_database_path = colmap_dir / "database.db"
+    if colmap_database_path.exists():
+        # Can't use missing_ok argument because of Python 3.7 compatibility.
+        colmap_database_path.unlink()
 
     # Feature extraction
     feature_extractor_cmd = [
