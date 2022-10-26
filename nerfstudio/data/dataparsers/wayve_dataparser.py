@@ -57,7 +57,7 @@ class WayveDataParserConfig(DataParserConfig):
     """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    downscale_factor: Optional[int] = None
+    downscale_factor: Optional[int] = 2
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
@@ -65,7 +65,7 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 0.2
+    train_split_percentage: float = 0.02
     """The percent of images to use for training. The remaining images are for eval."""
 
 
@@ -88,7 +88,12 @@ class WayveData(DataParser):
         df = pd.read_parquet(data/"data.parquet")
         image_masks = {}
         for camera_position in calibration.keys():
-            image_masks[camera_position] = Image.open(data / f"masks/{camera_position}.png")
+            mask = Image.open(data / f"masks/{camera_position}.png")
+            if self.config.downscale_factor is not None:
+                width, height = mask.size
+                newsize = (int(width/self.config.downscale_factor), int(height/self.config.downscale_factor))
+                mask = mask.resize(newsize)
+            image_masks[camera_position] = mask
         egopose = vehicle_poses["egopose"].reshape(-1, 4, 4)
         mask = np.sum(np.isnan(egopose), axis=(-1, -2)) == 0
         split ="train"
@@ -181,6 +186,8 @@ class WayveData(DataParser):
             camera_to_worlds=poses[:, :3, :4],
             camera_type=camera_type,
         )
+        if self.config.downscale_factor is not None:
+            cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor) 
         aabb_scale = 1.0
         scene_box = SceneBox(
             aabb=torch.tensor(
@@ -191,6 +198,7 @@ class WayveData(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            image_scale_factor=1/self.config.downscale_factor if self.config.downscale_factor is not None else None,
             additional_inputs={"masks": {"func": get_image_mask, "kwargs": {"index_to_camera_position": image_index_to_mask, "image_masks": image_masks}}},
         )
         return dataparser_outputs
