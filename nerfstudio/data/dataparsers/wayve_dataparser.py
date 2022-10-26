@@ -65,7 +65,7 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 0.02
+    train_split_percentage: float = 0.2
     """The percent of images to use for training. The remaining images are for eval."""
 
 
