@@ -41,6 +41,11 @@ console = Console()
 
 MAX_AUTO_RESOLUTION = 1600
 
+def get_image_mask(image_idx: int, index_to_camera_position, image_masks):
+    camera_position = index_to_camera_position[image_idx]
+    pil_mask = image_masks[camera_position]
+    mask_tensor = torch.from_numpy(np.array(pil_mask, dtype="float32")).unsqueeze(-1)
+    return {"mask": mask_tensor}
 
 @dataclass
 class WayveDataParserConfig(DataParserConfig):
@@ -60,7 +65,7 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 0.2
+    train_split_percentage: float = 0.02
     """The percent of images to use for training. The remaining images are for eval."""
 
 
@@ -81,6 +86,9 @@ class WayveData(DataParser):
         calibration = load_from_json(data/"calibration.json")
         vehicle_poses = np.load(data/"egopose.npz")
         df = pd.read_parquet(data/"data.parquet")
+        image_masks = {}
+        for camera_position in calibration.keys():
+            image_masks[camera_position] = Image.open(data / f"masks/{camera_position}.png")
         egopose = vehicle_poses["egopose"].reshape(-1, 4, 4)
         mask = np.sum(np.isnan(egopose), axis=(-1, -2)) == 0
         split ="train"
@@ -93,8 +101,11 @@ class WayveData(DataParser):
         distortion = []
         num_rows = len(df)
         calibration = {'front-forward': calibration['front-forward']}
+        image_index_to_mask = {}
         for camera_position, camera_calibration in calibration.items():
             camera_str = camera_position.replace('-', '_')
+            for index in range(len(image_filenames), len(image_filenames) + num_rows):
+                image_index_to_mask[index] = camera_position
             image_ts_column = f'key__cameras__{camera_str}__image_timestamp_unixus'
             image_filenames += [f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]
             camera_pose = np.array(camera_calibration['pose']).reshape(1, 4, 4)
@@ -102,6 +113,7 @@ class WayveData(DataParser):
             poses.append(image_pose)
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
+            
         poses = torch.from_numpy(np.concatenate(poses).astype(np.float32))
 
         # Convert from Wayves's camera coordinate system to ours
@@ -179,6 +191,7 @@ class WayveData(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            additional_inputs={"masks": {"func": get_image_mask, "kwargs": {"index_to_camera_position": image_index_to_mask, "image_masks": image_masks}}},
         )
         return dataparser_outputs
 
