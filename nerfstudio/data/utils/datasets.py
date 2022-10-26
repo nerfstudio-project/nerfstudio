@@ -69,6 +69,10 @@ class InputDataset(Dataset):
             image = image[:, :, :3] * image[:, :, -1:] + self.dataparser_outputs.alpha_color * (1.0 - image[:, :, -1:])
         else:
             image = image[:, :, :3]
+        if  self.dataparser_outputs.image_scale_factor is not None:
+            image = image.unsqueeze(0).permute(0, 3, 1, 2)
+            image = torch.nn.functional.interpolate(image, scale_factor=self.dataparser_outputs.image_scale_factor, mode='bilinear', antialias=True)
+            image = image.squeeze(0).permute(1, 2, 0)
         return image
 
     def get_data(self, image_idx) -> Dict:
