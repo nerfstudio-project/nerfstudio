@@ -62,6 +62,9 @@ class DataparserOutputs:
     scene_box: SceneBox = SceneBox()
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     semantics: Optional[Semantics] = None
+
+    image_scale_factor: Optional[float] = None
+    
     """Semantics information."""
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
