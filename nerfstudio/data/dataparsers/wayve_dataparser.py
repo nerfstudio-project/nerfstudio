@@ -62,11 +62,11 @@ class WayveDataParserConfig(DataParserConfig):
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     scene_scale: float = 1.0
     """How much to scale the region of interest by."""
-    orientation_method: Literal["pca", "up"] = "up"
+    orientation_method: Literal["pca", "up", "none"] = "none"
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 0.2
+    train_split_percentage: float = 0.02
     """The percent of images to use for training. The remaining images are for eval."""
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
@@ -142,9 +142,6 @@ class WayveData(DataParser):
         poses[:, 0:3, 1:3] *= -1
         poses = poses[:, np.array([1, 0, 2, 3]), :]
         poses[:, 2, :] *= -1
-        poses = to4x4(camera_utils.auto_orient_and_center_poses(
-            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
-        ))
         # rotate so z-up in nerfstudio viewer
         transform2 = torch.tensor([
             [0, 0, 1, 0],
@@ -153,7 +150,9 @@ class WayveData(DataParser):
             [0, 0, 0, 1],
         ], dtype=torch.float)
         poses = transform2 @ poses
-
+        poses = camera_utils.auto_orient_and_center_poses(
+            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+        )
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
         poses[:, :3, 3] *= scale_factor
 
