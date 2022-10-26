@@ -91,6 +91,11 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
+<<<<<<< HEAD
+=======
+    train_split_percentage: float = 0.02
+    """The percent of images to use for training. The remaining images are for eval."""
+>>>>>>> 71ccc7e (add centering)
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
     distance_threshold_between_frames_m: float = 10.0
@@ -165,6 +170,7 @@ class WayveDataParser(DataParser):
         # Move first frame to be at the origin
         self.G_nerf_run = to4x4(inverse(wayve_poses['front-forward'][:1])).squeeze(0)
 
+<<<<<<< HEAD
         concat_wayve_poses =torch.stack([wayve_poses[pos] for pos in camera_positions], dim=1)
         segment_poses = self.G_nerf_run @ concat_wayve_poses
         translation = segment_poses[:, :, :3, 3]
@@ -182,6 +188,28 @@ class WayveDataParser(DataParser):
         image_filenames = np.stack(image_filenames, axis=1)
         image_filenames = image_filenames[indices].reshape(-1).tolist()
         
+=======
+        # convert from opencv camera to nerfstudio camera
+        poses[:, 0:3, 1:3] *= -1
+        poses = poses[:, np.array([1, 0, 2, 3]), :]
+        poses[:, 2, :] *= -1
+        # rotate so z-up in nerfstudio viewer
+        transform2 = torch.tensor([
+            [0, 0, 1, 0],
+            [0, 1, 0, 0],
+            [-1, 0, 0, 0],
+            [0, 0, 0, 1],
+        ], dtype=torch.float)
+        poses = transform2 @ poses
+        poses = camera_utils.auto_orient_and_center_poses(
+            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+        )
+        scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
+        poses[:, :3, 3] *= scale_factor
+
+        intrinsics = torch.from_numpy(np.concatenate(intrinsics))
+        distortion = torch.from_numpy(np.concatenate(distortion))
+>>>>>>> 71ccc7e (add centering)
         camera_type = CameraType.FISHEYE
 
         cameras = Cameras(
