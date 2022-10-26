@@ -45,7 +45,7 @@ MAX_AUTO_RESOLUTION = 1600
 @dataclass
 class WayveDataParserConfig(DataParserConfig):
     """Nerfstudio dataset config"""
-    
+
     _target: Type = field(default_factory=lambda: WayveData)
     """target class to instantiate"""
     data: Path = Path("/mnt/remote/data/users/nikhil/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4")
@@ -73,7 +73,7 @@ class WayveData(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
-        
+
         root_dir = Path('/mnt/remote/image_storage/image-cache/jpeg-full_resolution/')
         run_id = Path('sedna/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4')
         images_path = str(root_dir / run_id / "cameras")
@@ -102,13 +102,33 @@ class WayveData(DataParser):
             poses.append(image_pose)
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
+        poses = torch.from_numpy(np.concatenate(poses).astype(np.float32))
 
         # Convert from Wayves's camera coordinate system to ours
-        poses = torch.from_numpy(np.concatenate(poses).astype(np.float32))
+
+        # undo z-up
+        transform1 = torch.tensor([
+            [0, 0, 1, 0],
+            [-1, 0, 0, 0],
+            [0, -1, 0, 0],
+            [0, 0, 0, 1],
+        ], dtype=torch.float).T
+        poses = transform1 @ poses
+
+        # convert from opencv camera to nerfstudio camera
         poses[:, 0:3, 1:3] *= -1
         poses = poses[:, np.array([1, 0, 2, 3]), :]
         poses[:, 2, :] *= -1
-        # poses = camera_utils.auto_orient_and_center_poses(poses, method=self.config.orientation_method, center_poses=self.config.center_poses)
+
+        # rotate so z-up in nerfstudio viewer
+        transform2 = torch.tensor([
+            [0, 0, 1, 0],
+            [0, 1, 0, 0],
+            [-1, 0, 0, 0],
+            [0, 0, 0, 1],
+        ], dtype=torch.float)
+        poses = transform2 @ poses
+
         scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
         poses[:, :3, 3] *= scale_factor
 
