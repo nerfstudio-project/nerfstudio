@@ -108,11 +108,11 @@ class WayveData(DataParser):
 
         # undo z-up
         transform1 = torch.tensor([
-            [0, 0, 1, 0],
-            [-1, 0, 0, 0],
             [0, -1, 0, 0],
+            [0, 0, -1, 0],
+            [1, 0, 0, 0],
             [0, 0, 0, 1],
-        ], dtype=torch.float).T
+        ], dtype=torch.float)
         poses = transform1 @ poses
 
         # convert from opencv camera to nerfstudio camera
