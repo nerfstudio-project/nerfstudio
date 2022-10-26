@@ -36,6 +36,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
+from nerfstudio.utils.poses import inverse, to4x4
 
 console = Console()
 
@@ -67,6 +68,8 @@ class WayveDataParserConfig(DataParserConfig):
     """Whether to center the poses."""
     train_split_percentage: float = 0.02
     """The percent of images to use for training. The remaining images are for eval."""
+    start_timestamp_us: int = 1656318618168677
+    end_timestamp_us: int  = 1656318649646730
 
 
 @dataclass
@@ -95,7 +98,10 @@ class WayveData(DataParser):
                 mask = mask.resize(newsize)
             image_masks[camera_position] = mask
         egopose = vehicle_poses["egopose"].reshape(-1, 4, 4)
-        mask = np.sum(np.isnan(egopose), axis=(-1, -2)) == 0
+        nan_mask = np.sum(np.isnan(egopose), axis=(-1, -2)) == 0
+        ff_timestamp = df['key__cameras__front_forward__image_timestamp_unixus'].to_numpy()
+        timestamp_mask = (ff_timestamp > self.config.start_timestamp_us) & (ff_timestamp < self.config.end_timestamp_us)
+        mask = nan_mask & timestamp_mask
         split ="train"
         egopose = egopose[mask]
         df = df[mask]
@@ -120,9 +126,9 @@ class WayveData(DataParser):
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
             
         poses = torch.from_numpy(np.concatenate(poses).astype(np.float32))
-
+        # Move first frame to be at the origin
+        poses = to4x4(inverse(poses[:1])) @ poses
         # Convert from Wayves's camera coordinate system to ours
-
         # undo z-up
         transform1 = torch.tensor([
             [0, -1, 0, 0],
