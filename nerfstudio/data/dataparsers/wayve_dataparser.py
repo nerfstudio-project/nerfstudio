@@ -66,7 +66,7 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 0.02
+    train_split_percentage: float = 0.2
     """The percent of images to use for training. The remaining images are for eval."""
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
@@ -142,7 +142,9 @@ class WayveData(DataParser):
         poses[:, 0:3, 1:3] *= -1
         poses = poses[:, np.array([1, 0, 2, 3]), :]
         poses[:, 2, :] *= -1
-
+        poses = to4x4(camera_utils.auto_orient_and_center_poses(
+            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+        ))
         # rotate so z-up in nerfstudio viewer
         transform2 = torch.tensor([
             [0, 0, 1, 0],
