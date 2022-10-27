@@ -345,7 +345,10 @@ def run_colmap(
 
     colmap_version = get_colmap_version()
 
-    (colmap_dir / "database.db").unlink(missing_ok=True)
+    colmap_database_path = colmap_dir / "database.db"
+    if colmap_database_path.exists():
+        # Can't use missing_ok argument because of Python 3.7 compatibility.
+        colmap_database_path.unlink()
 
     # Feature extraction
     feature_extractor_cmd = [
