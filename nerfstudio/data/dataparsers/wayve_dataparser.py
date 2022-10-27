@@ -70,7 +70,7 @@ class WayveDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
-    distance_threshold_between_frames_m: float = 0.5
+    distance_threshold_between_frames_m: float = 0.75
     frame_rate: float = 25
 
 
