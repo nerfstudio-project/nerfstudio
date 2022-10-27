@@ -45,7 +45,7 @@ MAX_AUTO_RESOLUTION = 1600
 def get_image_mask(image_idx: int, index_to_camera_position, image_masks):
     camera_position = index_to_camera_position[image_idx]
     pil_mask = image_masks[camera_position]
-    mask_tensor = torch.from_numpy(np.array(pil_mask, dtype="float32")).unsqueeze(-1)
+    mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
     return {"mask": mask_tensor}
 
 @dataclass
@@ -66,10 +66,12 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 0.02
+    train_split_percentage: float = 1.0
     """The percent of images to use for training. The remaining images are for eval."""
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
+    distance_threshold_between_frames_m: float = 0.5
+    frame_rate: float = 25
 
 
 @dataclass
@@ -105,6 +107,12 @@ class WayveData(DataParser):
         split ="train"
         egopose = egopose[mask]
         df = df[mask]
+        speed = df['inferred__state__odometry__speed_kmh'].to_numpy(dtype=np.float32) / 3.6
+        distance = np.cumsum(speed) / self.config.frame_rate
+        indices = np.searchsorted(distance, np.arange(0, distance[-1], self.config.distance_threshold_between_frames_m))
+
+        df = df.iloc[indices]
+        egopose = egopose[indices]
 
         image_filenames = []
         poses = []
