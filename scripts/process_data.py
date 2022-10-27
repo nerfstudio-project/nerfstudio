@@ -228,11 +228,9 @@ def convert_insta360_to_images(
         front_vf_cmds = vf_cmds + ["transpose=2"]
         back_vf_cmds = vf_cmds + ["transpose=1"]
 
-        front_ffmpeg_cmd = (
-            f"ffmpeg -i {video_front} -vf '{','.join(front_vf_cmds)}' -r 1 {image_dir / 'frame_%05d.png'}"
-        )
+        front_ffmpeg_cmd = f"ffmpeg -i {video_front} -vf {','.join(front_vf_cmds)} -r 1 {image_dir / 'frame_%05d.png'}"
         back_ffmpeg_cmd = (
-            f"ffmpeg -i {video_back} -vf '{','.join(back_vf_cmds)}' -r 1 {image_dir / 'back_frame_%05d.png'}"
+            f"ffmpeg -i {video_back} -vf {','.join(back_vf_cmds)} -r 1 {image_dir / 'back_frame_%05d.png'}"
         )
 
         run_command(front_ffmpeg_cmd, verbose=verbose)
