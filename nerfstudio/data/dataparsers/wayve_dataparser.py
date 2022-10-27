@@ -81,23 +81,16 @@ class WayveDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("/mnt/remote/data/users/nikhil/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4")
     """Directory specifying location of data."""
-    scale_factor: float = 1.0
-    """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = 2
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
-    scene_scale: float = 1.0
-    """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "none"] = "none"
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-<<<<<<< HEAD
-=======
-    train_split_percentage: float = 0.02
-    """The percent of images to use for training. The remaining images are for eval."""
->>>>>>> 71ccc7e (add centering)
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
+    # end_timestamp_us: int  = 1656318648146730
+
     distance_threshold_between_frames_m: float = 10.0
     frame_rate: float = 25
 
@@ -119,8 +112,8 @@ class WayveDataParser(DataParser):
         data = Path("/mnt/remote/data/users/nikhil/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4")
         calibration = load_from_json(data/"calibration.json")
         # Uncomment when multicam support is ready
-        # camera_positions = list(calibration.keys())
-        camera_positions = ['front-forward']
+        camera_positions = list(calibration.keys())
+        # camera_positions = ['front-forward']
         vehicle_poses = np.load(data/"egopose.npz")
         df = pd.read_parquet(data/"data.parquet")
         image_masks = {}
@@ -151,13 +144,14 @@ class WayveDataParser(DataParser):
         intrinsics = []
         distortion = []
         num_rows = len(df)
+        num_valid_indices = len(indices)
         # calibration = {'front-forward': calibration['front-forward']}
         image_index_to_mask = {}
-        
+        total_valid_indices = 0
         for camera_position in camera_positions:
             camera_calibration = calibration[camera_position]
             camera_str = camera_position.replace('-', '_')
-            for index in range(len(image_filenames), len(image_filenames) + num_rows):
+            for index in range(total_valid_indices, total_valid_indices + num_valid_indices):
                 image_index_to_mask[index] = camera_position
             image_ts_column = f'key__cameras__{camera_str}__image_timestamp_unixus'
             image_filenames.append(np.array([f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]))
@@ -166,11 +160,11 @@ class WayveDataParser(DataParser):
             wayve_poses[camera_position] = torch.from_numpy(image_global_pose).float()
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
-            
+            total_valid_indices += num_valid_indices
+        self.wayve_poses = wayve_poses
         # Move first frame to be at the origin
         self.G_nerf_run = to4x4(inverse(wayve_poses['front-forward'][:1])).squeeze(0)
 
-<<<<<<< HEAD
         concat_wayve_poses =torch.stack([wayve_poses[pos] for pos in camera_positions], dim=1)
         segment_poses = self.G_nerf_run @ concat_wayve_poses
         translation = segment_poses[:, :, :3, 3]
@@ -179,37 +173,13 @@ class WayveDataParser(DataParser):
         
         intrinsics = torch.from_numpy(np.stack(intrinsics, axis=1))
         distortion = torch.from_numpy(np.stack(distortion, axis=1))
-        
-        poses = concat_wayve_poses[indices].reshape(-1, 4, 4)
-        intrinsics = intrinsics[indices].reshape(-1, 3, 3)
-        distortion = distortion[indices].reshape(-1, 6)
-        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
-        
+        poses = concat_wayve_poses[indices].permute(1, 0, 2, 3).reshape(-1, 4, 4)
+        intrinsics = intrinsics[indices].permute(1, 0, 2, 3).reshape(-1, 3, 3)
+        distortion = distortion[indices].permute(1, 0, 2).reshape(-1, 6)
         image_filenames = np.stack(image_filenames, axis=1)
-        image_filenames = image_filenames[indices].reshape(-1).tolist()
-        
-=======
-        # convert from opencv camera to nerfstudio camera
-        poses[:, 0:3, 1:3] *= -1
-        poses = poses[:, np.array([1, 0, 2, 3]), :]
-        poses[:, 2, :] *= -1
-        # rotate so z-up in nerfstudio viewer
-        transform2 = torch.tensor([
-            [0, 0, 1, 0],
-            [0, 1, 0, 0],
-            [-1, 0, 0, 0],
-            [0, 0, 0, 1],
-        ], dtype=torch.float)
-        poses = transform2 @ poses
-        poses = camera_utils.auto_orient_and_center_poses(
-            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
-        )
-        scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
-        poses[:, :3, 3] *= scale_factor
+        image_filenames = image_filenames[indices].transpose((1, 0)).reshape(-1).tolist()
 
-        intrinsics = torch.from_numpy(np.concatenate(intrinsics))
-        distortion = torch.from_numpy(np.concatenate(distortion))
->>>>>>> 71ccc7e (add centering)
+        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
         camera_type = CameraType.FISHEYE
 
         cameras = Cameras(
