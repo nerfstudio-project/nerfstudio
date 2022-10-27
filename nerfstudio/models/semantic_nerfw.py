@@ -102,9 +102,9 @@ class SemanticNerfWModel(Model):
         if self.config.use_same_proposal_network:
             network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
             self.proposal_networks.append(network)
-            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_network_iterations)]
+            self.density_fns = [network.density_fn for _ in range(self.config.num_proposal_iterations)]
         else:
-            for _ in range(self.config.num_proposal_network_iterations):
+            for _ in range(self.config.num_proposal_iterations):
                 network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction)
                 self.proposal_networks.append(network)
             self.density_fns = [network.density_fn for network in self.proposal_networks]
@@ -116,7 +116,7 @@ class SemanticNerfWModel(Model):
         self.proposal_sampler = ProposalNetworkSampler(
             num_nerf_samples_per_ray=self.config.num_nerf_samples_per_ray,
             num_proposal_samples_per_ray=self.config.num_proposal_samples_per_ray,
-            num_proposal_network_iterations=self.config.num_proposal_network_iterations,
+            num_proposal_network_iterations=self.config.num_proposal_iterations,
             single_jitter=self.config.use_single_jitter,
         )
 
@@ -193,7 +193,7 @@ class SemanticNerfWModel(Model):
         outputs["weights_list"] = weights_list
         outputs["ray_samples_list"] = ray_samples_list
 
-        for i in range(self.config.num_proposal_network_iterations):
+        for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         # transients
@@ -286,7 +286,7 @@ class SemanticNerfWModel(Model):
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
-        for i in range(self.config.num_proposal_network_iterations):
+        for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
             prop_depth_i = colormaps.apply_depth_colormap(
                 outputs[key],
