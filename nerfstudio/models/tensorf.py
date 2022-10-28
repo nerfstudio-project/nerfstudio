@@ -66,6 +66,12 @@ class TensoRFModelConfig(VanillaModelConfig):
     """Loss specific weights."""
     num_samples: int = 256
     """Number of samples in field evaluation"""
+    num_den_components: int = 16
+    """Number of components in density encoding"""
+    num_color_components: int = 48
+    """Number of components in color encoding"""
+    appearance_dim: int = 27
+    """Number of channels for color encoding"""
 
 
 class TensoRFModel(Model):
@@ -82,6 +88,9 @@ class TensoRFModel(Model):
     ) -> None:
         self.init_resolution = config.init_resolution
         self.upsampling_iters = config.upsampling_iters
+        self.num_den_components = config.num_den_components
+        self.num_color_components = config.num_color_components
+        self.appearance_dim = config.appearance_dim
         self.upsampling_steps = (
             np.round(
                 np.exp(
@@ -143,13 +152,14 @@ class TensoRFModel(Model):
         # setting up fields
         density_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=16,
+            num_components=self.num_den_components,
         )
         color_encoding = TensorVMEncoding(
             resolution=self.init_resolution,
-            num_components=48,
+            num_components=self.num_color_components,
         )
-        feature_encoding = NeRFEncoding(in_dim=27, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
+
+        feature_encoding = NeRFEncoding(in_dim=self.appearance_dim, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
         direction_encoding = NeRFEncoding(in_dim=3, num_frequencies=2, min_freq_exp=0, max_freq_exp=2)
 
         self.field = TensoRFField(
@@ -158,8 +168,10 @@ class TensoRFModel(Model):
             direction_encoding=direction_encoding,
             density_encoding=density_encoding,
             color_encoding=color_encoding,
+            appearance_dim=self.appearance_dim,
             head_mlp_num_layers=2,
             head_mlp_layer_width=128,
+            use_sh=False,
         )
 
         # samplers

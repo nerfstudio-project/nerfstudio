@@ -24,7 +24,7 @@ from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.field_components.encodings import Encoding, Identity
+from nerfstudio.field_components.encodings import Encoding, Identity, SHEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames, RGBFieldHead
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
@@ -49,9 +49,12 @@ class TensoRFField(Field):
         direction_encoding: Encoding = Identity(in_dim=3),
         density_encoding: Encoding = Identity(in_dim=3),
         color_encoding: Encoding = Identity(in_dim=3),
+        appearance_dim: int = 27,
         head_mlp_num_layers: int = 2,
         head_mlp_layer_width: int = 128,
         spatial_distortion: Optional[SpatialDistortion] = None,
+        use_sh: bool = False,
+        sh_levels: int = 2,
     ) -> None:
         super().__init__()
         self.aabb = Parameter(aabb, requires_grad=False)
@@ -62,13 +65,21 @@ class TensoRFField(Field):
         self.color_encoding = color_encoding
 
         self.mlp_head = MLP(
-            in_dim=27 + 3 + self.direction_encoding.get_out_dim() + self.feature_encoding.get_out_dim(),
+            in_dim=appearance_dim + 3 + self.direction_encoding.get_out_dim() + self.feature_encoding.get_out_dim(),
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
             activation=nn.ReLU(),
         )
 
-        self.B = nn.Linear(in_features=self.color_encoding.get_out_dim(), out_features=27, bias=False)
+        self.use_sh = use_sh
+
+        if self.use_sh:
+            self.sh = SHEncoding(sh_levels)
+            self.B = nn.Linear(
+                in_features=self.color_encoding.get_out_dim(), out_features=3 * self.sh.get_out_dim(), bias=False
+            )
+        else:
+            self.B = nn.Linear(in_features=self.color_encoding.get_out_dim(), out_features=appearance_dim, bias=False)
 
         self.field_output_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim(), activation=nn.Sigmoid())
 
@@ -91,8 +102,14 @@ class TensoRFField(Field):
         d_encoded = self.direction_encoding(d)
         rgb_features_encoded = self.feature_encoding(rgb_features)
 
-        mlp_out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
-        rgb = self.field_output_rgb(mlp_out)
+        if self.use_sh:
+            sh_mult = self.sh(d)[:, :, None]
+            rgb_sh = rgb_features.view(sh_mult.shape[0], sh_mult.shape[1], 3, sh_mult.shape[-1])
+            rgb = torch.relu(torch.sum(sh_mult * rgb_sh, dim=-1) + 0.5)
+        else:
+            out = self.mlp_head(torch.cat([rgb_features, d, rgb_features_encoded, d_encoded], dim=-1))  # type: ignore
+            rgb = self.field_output_rgb(out)
+
         return rgb
 
     def forward(
