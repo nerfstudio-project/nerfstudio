@@ -21,11 +21,15 @@
 </p>
 
 <p align="center">
+    <!-- pypi-strip -->
     <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://docs.nerf.studio/en/latest/_images/logo-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="https://docs.nerf.studio/en/latest/_images/logo.png">
+    <!-- /pypi-strip -->
     <img alt="nerfstudio" src="https://docs.nerf.studio/en/latest/_images/logo.png" width="400">
+    <!-- pypi-strip -->
     </picture>
+    <!-- /pypi-strip -->
 </p>
 
 <!-- Use this for pypi package (and disable above). Hacky workaround -->
