@@ -676,6 +676,10 @@ class ProcessImages:
     """Path to the output directory."""
     camera_type: Literal["perspective", "fisheye"] = "perspective"
     """Camera model to use."""
+    sfm_method: Literal["colmap", "OpenSfM"] = "OpenSfM"
+    """Which sfm solver to use"""
+    opensfm_dir: Optional[Path] = None
+    """If sfm_method is OpenSfM, specify the executable to use here"""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
@@ -707,32 +711,51 @@ class ProcessImages:
         # Downscale images
         summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
-        # Run COLMAP
-        colmap_dir = self.output_dir / "colmap"
-        if not self.skip_colmap:
-            colmap_dir.mkdir(parents=True, exist_ok=True)
+        if self.sfm_method == "colmap":
+            # Run COLMAP
+            colmap_dir = self.output_dir / "colmap"
+            if not self.skip_colmap:
+                colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-            )
-
-        # Save transforms.json
-        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
-            with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
-                num_matched_frames = colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
-                    output_dir=self.output_dir,
+                run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
                 )
-                summary_log.append(f"Colmap matched {num_matched_frames} images")
-        else:
-            CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
+
+            # Save transforms.json
+            if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+                with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+                    num_matched_frames = colmap_to_json(
+                        cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
+                        images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                        output_dir=self.output_dir,
+                        camera_model=CAMERA_MODELS[self.camera_type],
+                    )
+                    summary_log.append(f"Colmap matched {num_matched_frames} images")
+            else:
+                CONSOLE.log(
+                    "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
+                )
+        elif self.sfm_method == "OpenSfM":
+            assert self.opensfm_dir is not None, "Please provide the path to the OpenSfM directory <...>/bin/opensfm"
+            # Run the OpenSfM solver
+            opensfm_dir = self.output_dir / "opensfm"
+            opensfm_dir.mkdir(parents=True, exist_ok=True)
+            run_opensfm(image_dir, opensfm_dir, CAMERA_MODELS[self.camera_type], self.opensfm_dir)
+            # Save transforms.json
+            if (opensfm_dir / "reconstruction.json").exists():
+                with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
+                    opensfm_to_json(
+                        opensfm_dir / "reconstruction.json", self.output_dir, CAMERA_MODELS[self.camera_type]
+                    )
+            else:
+                CONSOLE.log(
+                    "[bold yellow]Warning: could not find existing OpenSfM results. Not generating transforms.json"
+                )
 
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
