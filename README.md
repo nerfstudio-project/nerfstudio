@@ -1,6 +1,10 @@
 <p align="center">
     <!-- community badges -->
     <a href="https://discord.gg/uMbNqcraFc"><img src="https://img.shields.io/badge/Join-Discord-blue.svg"/></a>
+    <!-- Colab Badges -->
+    <a href='https://colab.research.google.com/drive/13ZUOVo9N4fjZcoS_R9N0BsYa2kV6ywuq?usp=sharing'>
+        <img src='https://colab.research.google.com/assets/colab-badge.svg'
+        alt='Nerfstudio Colab' />
     <!-- doc badges -->
     <a href='https://plenoptix-nerfstudio.readthedocs-hosted.com/en/latest/?badge=latest'>
         <img src='https://readthedocs.com/projects/plenoptix-nerfstudio/badge/?version=latest' alt='Documentation Status' />
