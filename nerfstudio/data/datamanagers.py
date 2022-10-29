@@ -15,6 +15,7 @@
 """
 Data loader.
 """
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -23,6 +24,7 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
 import tyro
+from rich.progress import Console
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
@@ -48,6 +50,8 @@ from nerfstudio.data.utils.datasets import InputDataset
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
+
+CONSOLE = Console(width=120)
 
 AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
     tyro.extras.subcommand_type_from_defaults(
@@ -300,6 +304,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
+        CONSOLE.log("Setting up training dataset...")
         self.train_image_dataloader = CacheDataloader(
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
@@ -321,6 +326,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         assert self.eval_dataset is not None
+        CONSOLE.log("Setting up evaluation dataset...")
         self.eval_image_dataloader = CacheDataloader(
             self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,

@@ -21,7 +21,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from rich.progress import track
+from rich.progress import Console, track
 from torch.utils.data import Dataset, default_collate
 from torch.utils.data.dataloader import DataLoader
 
@@ -29,6 +29,8 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.utils.datasets import InputDataset
 from nerfstudio.utils.misc import get_dict_to_torch
+
+CONSOLE = Console(width=120)
 
 
 class CacheDataloader(DataLoader):
@@ -61,7 +63,15 @@ class CacheDataloader(DataLoader):
 
         self.cached_collated_batch = None
         if self.cache_all_images:
+            CONSOLE.log("Caching all images")
             self.cached_collated_batch = self._get_collated_batch()
+        elif self.num_times_to_repeat_images == -1:
+            CONSOLE.log(
+                f"Only using {self.num_images_to_sample_from} out of {len(self.dataset)} images from the dataset."
+            )
+            CONSOLE.log("To modify this behavior, see the following configurations:")
+            CONSOLE.log("    --pipeline.datamanager.*-num-images-to-sample-from")
+            CONSOLE.log("    --pipeline.datamanager.*-num-times-to-repeat-images")
         super().__init__(dataset=dataset, **kwargs)
 
     def __getitem__(self, idx):
