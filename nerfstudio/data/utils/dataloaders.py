@@ -38,7 +38,7 @@ class CacheDataloader(DataLoader):
     Args:
         dataset: Dataset to sample from.
         num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
-        num_times_to_repeat_images: How often to collate new images.
+        num_times_to_repeat_images: How often to collate new images. -1 to never pick new images.
         device: Device to perform computation.
     """
 
@@ -46,13 +46,13 @@ class CacheDataloader(DataLoader):
         self,
         dataset: Dataset,
         num_images_to_sample_from: int = -1,
-        num_times_to_repeat_images: int = 0,
+        num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
         self.dataset = dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
-        self.cache_all_images = num_images_to_sample_from == -1
+        self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.device = device
 

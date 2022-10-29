@@ -240,12 +240,18 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1
+    train_num_images_to_sample_from: int = 300
     """Number of images to sample during training iteration."""
+    train_num_times_to_repeat_images: int = -1
+    """When not training on all images, number of iterations to make before
+    picking new images. If negative, never pick new images."""
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
-    eval_num_images_to_sample_from: int = -1
+    eval_num_images_to_sample_from: int = 300
     """Number of images to sample during eval iteration."""
+    eval_num_times_to_repeat_images: int = -1
+    """When not evaluating on all images, number of iterations to make before
+    picking new images. If negative, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
@@ -297,6 +303,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_image_dataloader = CacheDataloader(
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
@@ -317,6 +324,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_image_dataloader = CacheDataloader(
             self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
