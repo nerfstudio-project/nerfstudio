@@ -274,6 +274,15 @@ class ViewerState:
         self.webrtc_thread = None
         self.kill_webrtc_signal = False
 
+    def _pick_drawn_image_idxs(self, total_num: int) -> list[int]:
+        """Determine indicies of images to display in viewer."""
+        if self.config.max_num_display_images < 0:
+            num_display_images = total_num
+        else:
+            num_display_images = min(self.config.max_num_display_images, total_num)
+        # draw indices, roughly evenly spaced
+        return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
+
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
 
@@ -290,7 +299,7 @@ class ViewerState:
         self.vis["sceneState/cameras"].delete()
 
         # draw the training cameras and images
-        image_indices = range(len(dataset))
+        image_indices = self._pick_drawn_image_idxs(len(dataset))
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
