@@ -234,6 +234,8 @@ class DepthRenderer(nn.Module):
             if ray_indices is not None and num_rays is not None:
                 # Necessary for packed samples from volumetric ray sampler
                 depth = nerfacc.accumulate_along_rays(weights, ray_indices, steps, num_rays)
+                accumulation = nerfacc.accumulate_along_rays(weights, ray_indices, None, num_rays)
+                depth = depth / (accumulation + eps)
             else:
                 depth = torch.sum(weights * steps, dim=-2) / (torch.sum(weights, -2) + eps)
 
