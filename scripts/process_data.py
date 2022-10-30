@@ -223,7 +223,7 @@ def convert_insta360_to_images(
         else:
             CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
-        vf_cmds.append(f"crop=iw*({crop_percentage}):ih*({crop_percentage})")
+        vf_cmds.append(f"crop=iw*{crop_percentage}:ih*{crop_percentage}")
 
         front_vf_cmds = vf_cmds + ["transpose=2"]
         back_vf_cmds = vf_cmds + ["transpose=1"]
