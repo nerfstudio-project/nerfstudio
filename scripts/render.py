@@ -132,6 +132,8 @@ class RenderTrajectory:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
             camera_path = get_path_from_json(camera_path)
+        elif self.traj == "snake-driving":
+            camera_positions = pipeline.datamanager
         else:
             assert_never(self.traj)
 

@@ -48,11 +48,36 @@ def get_image_mask(image_idx: int, index_to_camera_position, image_masks):
     mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
     return {"mask": mask_tensor}
 
+def wayve_run_pose_to_nerfstudio_pose(P_run, mean_translation, scale_factor, G_nerf_run):
+    P_nerf = G_nerf_run.to(P_run.device) @ P_run
+    P_nerf[:, :3, 3] = (P_nerf[:, :3, 3] - mean_translation.to(P_nerf.device)) * scale_factor.to(P_nerf.device)
+    transform1 = torch.tensor([
+        [0, -1, 0, 0],
+        [0, 0, -1, 0],
+        [1, 0, 0, 0],
+        [0, 0, 0, 1],
+    ], dtype=torch.float, device=P_run.device)
+    P_nerf = transform1 @ P_nerf
+
+    # convert from opencv camera to nerfstudio camera
+    P_nerf[:, 0:3, 1:3] *= -1
+    P_nerf = P_nerf[:, np.array([1, 0, 2, 3]), :]
+    P_nerf[:, 2, :] *= -1
+    # rotate so z-up in nerfstudio viewer
+    transform2 = torch.tensor([
+        [0, 0, 1, 0],
+        [0, 1, 0, 0],
+        [-1, 0, 0, 0],
+        [0, 0, 0, 1],
+    ], dtype=torch.float, device=P_run.device)
+    P_nerf = transform2 @ P_nerf
+    
+    return P_nerf
 @dataclass
 class WayveDataParserConfig(DataParserConfig):
     """Nerfstudio dataset config"""
 
-    _target: Type = field(default_factory=lambda: WayveData)
+    _target: Type = field(default_factory=lambda: WayveDataParser)
     """target class to instantiate"""
     data: Path = Path("/mnt/remote/data/users/nikhil/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4")
     """Directory specifying location of data."""
@@ -66,8 +91,6 @@ class WayveDataParserConfig(DataParserConfig):
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
-    train_split_percentage: float = 1.0
-    """The percent of images to use for training. The remaining images are for eval."""
     start_timestamp_us: int = 1656318618168677
     end_timestamp_us: int  = 1656318649646730
     distance_threshold_between_frames_m: float = 0.75
@@ -75,11 +98,12 @@ class WayveDataParserConfig(DataParserConfig):
 
 
 @dataclass
-class WayveData(DataParser):
+class WayveDataParser(DataParser):
     """WayveData DatasetParser"""
 
     config: WayveDataParserConfig
     downscale_factor: Optional[int] = None
+
 
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
@@ -99,20 +123,20 @@ class WayveData(DataParser):
                 newsize = (int(width/self.config.downscale_factor), int(height/self.config.downscale_factor))
                 mask = mask.resize(newsize)
             image_masks[camera_position] = mask
-        egopose = vehicle_poses["egopose"].reshape(-1, 4, 4)
-        nan_mask = np.sum(np.isnan(egopose), axis=(-1, -2)) == 0
+        run_global_egopose = vehicle_poses["egopose"].reshape(-1, 4, 4)
+        nan_mask = np.sum(np.isnan(run_global_egopose), axis=(-1, -2)) == 0
         ff_timestamp = df['key__cameras__front_forward__image_timestamp_unixus'].to_numpy()
         timestamp_mask = (ff_timestamp > self.config.start_timestamp_us) & (ff_timestamp < self.config.end_timestamp_us)
         mask = nan_mask & timestamp_mask
         split ="train"
-        egopose = egopose[mask]
+        segment_global_egopose = run_global_egopose[mask]
         df = df[mask]
         speed = df['inferred__state__odometry__speed_kmh'].to_numpy(dtype=np.float32) / 3.6
         distance = np.cumsum(speed) / self.config.frame_rate
-        indices = np.searchsorted(distance, np.arange(0, distance[-1], self.config.distance_threshold_between_frames_m))
-
-        df = df.iloc[indices]
-        egopose = egopose[indices]
+        ticks = np.arange(0, distance[-1], self.config.distance_threshold_between_frames_m)
+        if split in ["test", "val"]:
+            ticks = ticks[:-1] + self.config.distance_threshold_between_frames_m / 2
+        indices = np.searchsorted(distance, ticks)
 
         image_filenames = []
         poses = []
@@ -128,67 +152,31 @@ class WayveData(DataParser):
             image_ts_column = f'key__cameras__{camera_str}__image_timestamp_unixus'
             image_filenames += [f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]
             camera_pose = np.array(camera_calibration['pose']).reshape(1, 4, 4)
-            image_pose = egopose @ camera_pose
-            poses.append(image_pose)
+            image_global_pose = segment_global_egopose @ camera_pose
+            poses.append(image_global_pose)
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
             
         poses = torch.from_numpy(np.concatenate(poses).astype(np.float32))
         # Move first frame to be at the origin
-        poses = to4x4(inverse(poses[:1])) @ poses
-        # Convert from Wayves's camera coordinate system to ours
-        # undo z-up
-        transform1 = torch.tensor([
-            [0, -1, 0, 0],
-            [0, 0, -1, 0],
-            [1, 0, 0, 0],
-            [0, 0, 0, 1],
-        ], dtype=torch.float)
-        poses = transform1 @ poses
+        self.G_nerf_run = to4x4(inverse(poses[:1]))
 
-        # convert from opencv camera to nerfstudio camera
-        poses[:, 0:3, 1:3] *= -1
-        poses = poses[:, np.array([1, 0, 2, 3]), :]
-        poses[:, 2, :] *= -1
-        # rotate so z-up in nerfstudio viewer
-        transform2 = torch.tensor([
-            [0, 0, 1, 0],
-            [0, 1, 0, 0],
-            [-1, 0, 0, 0],
-            [0, 0, 0, 1],
-        ], dtype=torch.float)
-        poses = transform2 @ poses
-        poses = camera_utils.auto_orient_and_center_poses(
-            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
-        )
-        scale_factor = 1.0 / torch.max(torch.abs(poses[:, :3, 3]))
-        poses[:, :3, 3] *= scale_factor
+        segment_poses = self.G_nerf_run @ poses
+        translation = segment_poses[:, :3, 3]
+        self.mean_translation = torch.mean(translation, dim=0)
+        self.scale_factor = 1.0 / torch.max(torch.abs(translation - self.mean_translation))
 
+        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
+        
         intrinsics = torch.from_numpy(np.concatenate(intrinsics))
         distortion = torch.from_numpy(np.concatenate(distortion))
-        camera_type = CameraType.FISHEYE
-
-        num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
-        num_eval_images = num_images - num_train_images
-        i_all = np.arange(num_images)
-        i_train = np.linspace(
-            0, num_images - 1, num_train_images, dtype=int
-        )  # equally spaced training images starting and ending at 0 and num_images-1
-        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-        assert len(i_eval) == num_eval_images
-        if split == "train":
-            indices = i_train
-        elif split in ["val", "test"]:
-            indices = i_eval
-        else:
-            raise ValueError(f"Unknown dataparser split {split}")
-
-        image_filenames = [image_filenames[i] for i in indices]
+        
         poses = poses[indices]
-
         intrinsics = intrinsics[indices]
         distortion = distortion[indices]
+        image_filenames = [image_filenames[index] for index in indices]
+
+        camera_type = CameraType.FISHEYE
 
         cameras = Cameras(
             fx=intrinsics[:, 0, 0],
@@ -219,5 +207,5 @@ class WayveData(DataParser):
         return dataparser_outputs
 
 if __name__ == "__main__":
-    data = WayveData(config=WayveDataParserConfig())
+    data = WayveDataParser(config=WayveDataParserConfig())
     data._generate_dataparser_outputs()
