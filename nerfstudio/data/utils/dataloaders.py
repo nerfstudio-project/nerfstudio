@@ -63,15 +63,21 @@ class CacheDataloader(DataLoader):
 
         self.cached_collated_batch = None
         if self.cache_all_images:
-            CONSOLE.print(f"Caching all {len(self.dataset)} images from the dataset.")
+            CONSOLE.print(f"Caching all {len(self.dataset)} images.")
             if len(self.dataset) > 500:
-                CONSOLE.print("Warning: If you run out of memory, try reducing the number of images to sample from.")
+                CONSOLE.print(
+                    "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
+                )
             self.cached_collated_batch = self._get_collated_batch()
         elif self.num_times_to_repeat_images == -1:
-            CONSOLE.print(f"Using {self.num_images_to_sample_from} out of {len(self.dataset)} images from the dataset.")
-            CONSOLE.print("To modify this behavior, see the following configurations:")
-            CONSOLE.print("    --pipeline.datamanager.train-num-images-to-sample-from")
-            CONSOLE.print("    --pipeline.datamanager.train-num-times-to-repeat-images")
+            CONSOLE.print(
+                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
+            )
+        else:
+            CONSOLE.print(
+                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
+                f"resampling every {self.num_times_to_repeat_images} iters."
+            )
         super().__init__(dataset=dataset, **kwargs)
 
     def __getitem__(self, idx):
