@@ -161,7 +161,8 @@ class WayveDataParser(DataParser):
             wayve_poses[camera_position] = torch.from_numpy(image_global_pose).float()
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
-            
+        
+        self.wayve_poses = wayve_poses
         # Move first frame to be at the origin
         self.G_nerf_run = to4x4(inverse(wayve_poses['front-forward'][:1])).squeeze(0)
 
