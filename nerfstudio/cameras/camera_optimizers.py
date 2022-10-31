@@ -41,7 +41,7 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: CameraOptimizer)
 
-    mode: Literal["off", "SO3xR3", "SE3"] = "SO3xR3"
+    mode: Literal["off", "SO3xR3", "SE3"] = "off"
     """Pose optimization strategy to use. If enabled, we recommend SO3xR3."""
 
     position_noise_std: float = 0.0

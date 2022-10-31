@@ -51,6 +51,8 @@ from nerfstudio.data.utils.dataloaders import (
     RandIndicesEvalDataloader,
 )
 from nerfstudio.data.utils.datasets import InputDataset
+
+# from nerfstudio.data.utils.wayve_datasets import WayveDataset
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -145,7 +147,11 @@ class DataManager(nn.Module):
         if hasattr(self.dataparser, "G_nerf_run"):
             G_nerf_run = self.dataparser.G_nerf_run
         else:
+<<<<<<< HEAD
             G_nerf_run = torch.eye(4)
+=======
+            G_nerf_run = torch.eye(4).unsqueeze(0)
+>>>>>>> 4bbd915 (add pose transforms to checkpoint)
         if hasattr(self.dataparser, "mean_translation"):
             mean_translation = self.dataparser.mean_translation
         else:
@@ -361,7 +367,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return CacheDataloader(
             self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+<<<<<<< HEAD
             num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
+=======
+>>>>>>> 4bbd915 (add pose transforms to checkpoint)
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,

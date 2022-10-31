@@ -160,11 +160,16 @@ class RenderTrajectory:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
             camera_path = get_path_from_json(camera_path)
+<<<<<<< HEAD
             fps = int(len(camera_path.camera_to_worlds) / seconds)
         elif self.traj == "original-driving-segment":
             camera_path = pipeline.datamanager.dataparser.get_dataparser_outputs(split="render").cameras
         elif self.traj == "snake-driving":
             camera_path, fps = _generate_new_snake_trajectory_and_fps(pipeline.datamanager)
+=======
+        elif self.traj == "snake-driving":
+            camera_positions = pipeline.datamanager
+>>>>>>> 4bbd915 (add pose transforms to checkpoint)
         else:
             assert_never(self.traj)
         
