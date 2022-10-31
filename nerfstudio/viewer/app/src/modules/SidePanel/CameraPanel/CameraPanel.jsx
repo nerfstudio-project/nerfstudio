@@ -71,14 +71,12 @@ function FovSelector(props) {
     const label = Math.round(
       fovLabel === FOV_LABELS.FOV
         ? camera.getEffectiveFOV()
-        : camera.getFocalLength(),
+        : camera.getFocalLength() * camera.aspect,
     );
     return label;
   };
 
-  const [ui_field_of_view, setUIFieldOfView] = React.useState(
-    getFovLabel(camera.fov),
-  );
+  const [ui_field_of_view, setUIFieldOfView] = React.useState(getFovLabel());
 
   useEffect(() => setUIFieldOfView(getFovLabel()), [fovLabel]);
 
@@ -161,7 +159,7 @@ function CameraList(props) {
   const cameraProperties = props.cameraProperties;
   const setCameraProperties = props.setCameraProperties;
   const dispatch = props.dispatch;
-  
+
   // eslint-disable-next-line no-unused-vars
   const [slider_value, set_slider_value] = React.useState(0);
   const [expanded, setExpanded] = React.useState(null);
@@ -306,7 +304,7 @@ function CameraList(props) {
               <KeyboardArrowDown />
             </Button>
           </Stack>
-          <Button size="small">
+          <Button size="small" sx={{ ml: '3px' }}>
             <TextField
               id="standard-basic"
               value={camera.properties.get('NAME')}
@@ -461,9 +459,8 @@ export default function CameraPanel(props) {
     } else {
       new_camera_properties.set('TIME', 1.0);
     }
-    
 
-    const ratio = (cameras.length - 1) / (cameras.length);
+    const ratio = (cameras.length - 1) / cameras.length;
 
     const new_properties = new Map(cameraProperties);
     new_properties.forEach((properties) => {
@@ -472,20 +469,14 @@ export default function CameraPanel(props) {
 
     new_properties.set(camera_main_copy.uuid, new_camera_properties);
 
-    setCameraProperties(
-      new_properties,
-    );
+    setCameraProperties(new_properties);
 
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
   };
 
-  const setCameraProperty = (
-    property,
-    value,
-    index
-  )  => {
+  const setCameraProperty = (property, value, index) => {
     const activeCamera = cameras[index];
     const activeProperties = new Map(activeCamera.properties);
     activeProperties.set(property, value);
@@ -501,11 +492,11 @@ export default function CameraPanel(props) {
       Math.max(index, new_index) >= cameras.length
     )
       return;
-      
-      const swapCameraTime = cameras[index].properties.get('TIME');
-      setCameraProperty('TIME', cameras[new_index].properties.get('TIME'), index);
-      setCameraProperty('TIME', swapCameraTime, new_index);
-    
+
+    const swapCameraTime = cameras[index].properties.get('TIME');
+    setCameraProperty('TIME', cameras[new_index].properties.get('TIME'), index);
+    setCameraProperty('TIME', swapCameraTime, new_index);
+
     const new_cameras = [
       ...cameras.slice(0, index),
       ...cameras.slice(index + 1),
@@ -591,7 +582,7 @@ export default function CameraPanel(props) {
   const getKeyframePoint = (progress: Number) => {
     const times = [];
     cameras.forEach((camera) => {
-      times.push((camera.properties.get('TIME')));
+      times.push(camera.properties.get('TIME'));
     });
 
     let new_point = 0.0;
@@ -601,14 +592,17 @@ export default function CameraPanel(props) {
       new_point = 1.0;
     } else {
       let i = 0;
-      while (i < times.length - 1 && !(progress >= times[i] && progress < times[i + 1])) {
+      while (
+        i < times.length - 1 &&
+        !(progress >= times[i] && progress < times[i + 1])
+      ) {
         i += 1;
       }
       const percentage = (progress - times[i]) / (times[i + 1] - times[i]);
       new_point = (i + percentage) / (times.length - 1);
     }
     return new_point;
-  }
+  };
 
   if (cameras.length > 1) {
     const num_points = fps * seconds;
@@ -620,10 +614,8 @@ export default function CameraPanel(props) {
     const spline_mesh = new THREE.Mesh(spline.geometry, material);
     sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
 
-    
-
     // set the camera
-    
+
     const point = getKeyframePoint(slider_value);
     let position = null;
     let lookat = null;
@@ -654,10 +646,8 @@ export default function CameraPanel(props) {
 
   const values = [];
   cameras.forEach((camera) => {
-    values.push((camera.properties.get('TIME')));
+    values.push(camera.properties.get('TIME'));
   });
-
-  
 
   const handleKeyframeSlider = (
     event: Event,
@@ -1100,12 +1090,18 @@ export default function CameraPanel(props) {
         </Stack>
       </div>
       <div className="CameraPanel-slider-container">
-        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left', }}>Camera Keyframes</b>
+        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left' }}>
+          Camera Keyframes
+        </b>
         <Slider
           value={values}
           step={step_size}
           valueLabelDisplay="auto"
-          valueLabelFormat={(value, i) => {return `${cameras[i].properties.get('NAME')} @ ${value.toFixed(2) * seconds}s`}}
+          valueLabelFormat={(value, i) => {
+            return `${cameras[i].properties.get('NAME')} @ ${
+              value.toFixed(2) * seconds
+            }s`;
+          }}
           marks={marks}
           min={slider_min}
           max={slider_max}
@@ -1114,7 +1110,9 @@ export default function CameraPanel(props) {
           onChange={handleKeyframeSlider}
           disableSwap
         />
-        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left', }}>Playback</b>
+        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left' }}>
+          Playback
+        </b>
         <Slider
           value={slider_value}
           step={step_size}
