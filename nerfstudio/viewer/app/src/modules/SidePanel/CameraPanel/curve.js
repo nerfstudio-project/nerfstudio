@@ -60,6 +60,9 @@ export function get_curve_object_from_cameras(
 export function get_transform_matrix(position, lookat, up) {
   // normalize the vectors
   lookat.normalize();
+  // make up orthogonal to lookat
+  const up_proj = lookat.clone().multiplyScalar(up.dot(lookat));
+  up.sub(up_proj);
   up.normalize();
 
   // create a copy of the vector up
