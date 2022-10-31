@@ -81,21 +81,17 @@ class WayveDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("/mnt/remote/data/users/nikhil/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4")
     """Directory specifying location of data."""
-    scale_factor: float = 1.0
-    """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = 2
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
-    scene_scale: float = 1.0
-    """How much to scale the region of interest by."""
     orientation_method: Literal["pca", "up", "none"] = "none"
     """The method to use for orientation."""
     center_poses: bool = True
     """Whether to center the poses."""
     start_timestamp_us: int = 1656318618168677
-    # end_timestamp_us: int  = 1656318649646730
-    end_timestamp_us: int  = 1656318648146730
+    end_timestamp_us: int  = 1656318649646730
+    # end_timestamp_us: int  = 1656318648146730
 
-    distance_threshold_between_frames_m: float = 2.0
+    distance_threshold_between_frames_m: float = 10.0
     frame_rate: float = 25
 
 
@@ -185,9 +181,6 @@ class WayveDataParser(DataParser):
         image_filenames = image_filenames[indices].reshape(-1).tolist()
 
         poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
-        
-        
-        
         camera_type = CameraType.FISHEYE
 
         cameras = Cameras(
