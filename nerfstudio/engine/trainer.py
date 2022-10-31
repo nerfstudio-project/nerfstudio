@@ -174,12 +174,14 @@ class Trainer:
             self.save_checkpoint(step)
             self._always_render(step)
 
+    @check_main_thread
     def _always_render(self, step):
         if self.config.is_viewer_enabled():
             while True:
                 self.viewer_state.vis["renderingState/isTraining"].write(False)
                 self._update_viewer_state(step)
 
+    @check_main_thread
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.is_viewer_enabled():
