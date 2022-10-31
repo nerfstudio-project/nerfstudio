@@ -107,14 +107,45 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 | [Discord](https://discord.com/invite/NHGtYRAW)             | Join Discord Community |
 | [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
 
+### How-to Videos
+
+|                                                                 |                                                           |
+| --------------------------------------------------------------- | --------------------------------------------------------- |
+| [Using the Viewer](https://www.youtube.com/watch?v=nSFsugarWzk) | Demo video on how to run nerfstudio and use the viewer.   |
+| [Using Record3D](https://www.youtube.com/watch?v=XwKq7qDQCQk)   | Demo video on how to run nerfstudio without using COLMAP. |
+
 ## Built On
 
-[**tyro**](https://github.com/brentyi/tyro)
+```{image} https://brentyi.github.io/tyro/_static/logo-light.svg
+:width: 150
+:alt: tyro
+:class: only-light
+:target: https://github.com/brentyi/tyro
+```
+
+```{image} https://brentyi.github.io/tyro/_static/logo-dark.svg
+:width: 150
+:alt: tyro
+:class: only-dark
+:target: https://github.com/brentyi/tyro
+```
 
 - Easy to use config system
 - Developed by [Brent Yi](https://brentyi.com/)
 
-[**nerfacc**](https://www.nerfacc.com/en/latest/)
+```{image} https://user-images.githubusercontent.com/3310961/199084143-0d63eb40-3f35-48d2-a9d5-78d1d60b7d66.png
+:width: 250
+:alt: tyro
+:class: only-light
+:target: https://github.com/KAIR-BAIR/nerfacc
+```
+
+```{image} https://user-images.githubusercontent.com/3310961/199083722-881a2372-62c1-4255-8521-31a95a721851.png
+:width: 250
+:alt: tyro
+:class: only-dark
+:target: https://github.com/KAIR-BAIR/nerfacc
+```
 
 - Library for accelerating NeRF renders
 - Developed by [Ruilong Li](https://www.liruilong.cn/)
