@@ -173,12 +173,11 @@ class WayveDataParser(DataParser):
         
         intrinsics = torch.from_numpy(np.stack(intrinsics, axis=1))
         distortion = torch.from_numpy(np.stack(distortion, axis=1))
-        
-        poses = concat_wayve_poses[indices].reshape(-1, 4, 4)
-        intrinsics = intrinsics[indices].reshape(-1, 3, 3)
-        distortion = distortion[indices].reshape(-1, 6)
+        poses = concat_wayve_poses[indices].permute(1, 0, 2, 3).reshape(-1, 4, 4)
+        intrinsics = intrinsics[indices].permute(1, 0, 2, 3).reshape(-1, 3, 3)
+        distortion = distortion[indices].permute(1, 0, 2).reshape(-1, 6)
         image_filenames = np.stack(image_filenames, axis=1)
-        image_filenames = image_filenames[indices].reshape(-1).tolist()
+        image_filenames = image_filenames[indices].transpose((1, 0)).reshape(-1).tolist()
 
         poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
         camera_type = CameraType.FISHEYE
