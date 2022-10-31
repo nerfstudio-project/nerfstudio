@@ -21,11 +21,15 @@
 </p>
 
 <p align="center">
+    <!-- pypi-strip -->
     <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://docs.nerf.studio/en/latest/_images/logo-dark.png">
     <source media="(prefers-color-scheme: light)" srcset="https://docs.nerf.studio/en/latest/_images/logo.png">
+    <!-- /pypi-strip -->
     <img alt="nerfstudio" src="https://docs.nerf.studio/en/latest/_images/logo.png" width="400">
+    <!-- pypi-strip -->
     </picture>
+    <!-- /pypi-strip -->
 </p>
 
 <!-- Use this for pypi package (and disable above). Hacky workaround -->
@@ -41,6 +45,9 @@
     </a>
     <a href="https://viewer.nerf.studio/">
         <img alt="viewer" src="https://user-images.githubusercontent.com/3310961/194022636-a9efb85a-14fd-4002-8ed4-4ca434898b5a.png" width="150">
+    </a>
+    <a href="https://colab.research.google.com/drive/13ZUOVo9N4fjZcoS_R9N0BsYa2kV6ywuq?usp=sharing">
+        <img alt="colab" src="https://raw.githubusercontent.com/nerfstudio-project/nerfstudio/main/docs/_static/imgs/readme_colab.png" width="150">
     </a>
 </p>
 
