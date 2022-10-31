@@ -114,8 +114,8 @@ class WayveDataParser(DataParser):
         data = Path("/mnt/remote/data/users/nikhil/2022-06-27--08-27-58--session_2022_06_25_03_10_41_host_zak_wayve_start-stop_pre-int_img-aug_4")
         calibration = load_from_json(data/"calibration.json")
         # Uncomment when multicam support is ready
-        # camera_positions = list(calibration.keys())
-        camera_positions = ['front-forward']
+        camera_positions = list(calibration.keys())
+        # camera_positions = ['front-forward']
         vehicle_poses = np.load(data/"egopose.npz")
         df = pd.read_parquet(data/"data.parquet")
         image_masks = {}
@@ -148,11 +148,11 @@ class WayveDataParser(DataParser):
         num_rows = len(df)
         # calibration = {'front-forward': calibration['front-forward']}
         image_index_to_mask = {}
-        
+        total_rows = 0
         for camera_position in camera_positions:
             camera_calibration = calibration[camera_position]
             camera_str = camera_position.replace('-', '_')
-            for index in range(len(image_filenames), len(image_filenames) + num_rows):
+            for index in range(total_rows, total_rows + num_rows):
                 image_index_to_mask[index] = camera_position
             image_ts_column = f'key__cameras__{camera_str}__image_timestamp_unixus'
             image_filenames.append(np.array([f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]))
@@ -161,7 +161,7 @@ class WayveDataParser(DataParser):
             wayve_poses[camera_position] = torch.from_numpy(image_global_pose).float()
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
-        
+            total_rows += num_rows
         self.wayve_poses = wayve_poses
         # Move first frame to be at the origin
         self.G_nerf_run = to4x4(inverse(wayve_poses['front-forward'][:1])).squeeze(0)
@@ -178,10 +178,12 @@ class WayveDataParser(DataParser):
         poses = concat_wayve_poses[indices].reshape(-1, 4, 4)
         intrinsics = intrinsics[indices].reshape(-1, 3, 3)
         distortion = distortion[indices].reshape(-1, 6)
-        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
-        
         image_filenames = np.stack(image_filenames, axis=1)
         image_filenames = image_filenames[indices].reshape(-1).tolist()
+
+        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
+        
+        
         
         camera_type = CameraType.FISHEYE
 
