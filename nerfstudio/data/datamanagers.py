@@ -354,9 +354,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
         )
 
-        # TODO: eval dataloader should be separate from train
-        self.iter_eval_dataloader = iter(self.eval_image_dataloader)
-
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
