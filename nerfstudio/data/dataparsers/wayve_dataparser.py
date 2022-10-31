@@ -92,8 +92,10 @@ class WayveDataParserConfig(DataParserConfig):
     center_poses: bool = True
     """Whether to center the poses."""
     start_timestamp_us: int = 1656318618168677
-    end_timestamp_us: int  = 1656318649646730
-    distance_threshold_between_frames_m: float = 1.0
+    # end_timestamp_us: int  = 1656318649646730
+    end_timestamp_us: int  = 1656318648146730
+
+    distance_threshold_between_frames_m: float = 2.0
     frame_rate: float = 25
 
 
@@ -146,13 +148,14 @@ class WayveDataParser(DataParser):
         intrinsics = []
         distortion = []
         num_rows = len(df)
+        num_valid_indices = len(indices)
         # calibration = {'front-forward': calibration['front-forward']}
         image_index_to_mask = {}
-        total_rows = 0
+        total_valid_indices = 0
         for camera_position in camera_positions:
             camera_calibration = calibration[camera_position]
             camera_str = camera_position.replace('-', '_')
-            for index in range(total_rows, total_rows + num_rows):
+            for index in range(total_valid_indices, total_valid_indices + num_valid_indices):
                 image_index_to_mask[index] = camera_position
             image_ts_column = f'key__cameras__{camera_str}__image_timestamp_unixus'
             image_filenames.append(np.array([f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]))
@@ -161,7 +164,7 @@ class WayveDataParser(DataParser):
             wayve_poses[camera_position] = torch.from_numpy(image_global_pose).float()
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
-            total_rows += num_rows
+            total_valid_indices += num_valid_indices
         self.wayve_poses = wayve_poses
         # Move first frame to be at the origin
         self.G_nerf_run = to4x4(inverse(wayve_poses['front-forward'][:1])).squeeze(0)
