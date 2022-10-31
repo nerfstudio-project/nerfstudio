@@ -445,7 +445,7 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
         name = Path(f"./images/{im_data.name}")
 
         frame = {
-            "file_path": str(name),
+            "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
         }
         frames.append(frame)
