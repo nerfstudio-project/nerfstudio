@@ -145,7 +145,7 @@ class DataManager(nn.Module):
         if hasattr(self.dataparser, "G_nerf_run"):
             G_nerf_run = self.dataparser.G_nerf_run
         else:
-            G_nerf_run = torch.eye(4).unsqueeze(0)
+            G_nerf_run = torch.eye(4)
         if hasattr(self.dataparser, "mean_translation"):
             mean_translation = self.dataparser.mean_translation
         else:

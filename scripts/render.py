@@ -37,7 +37,7 @@ from nerfstudio.utils.rich_utils import ItersPerSecColumn
 CONSOLE = Console(width=120)
 
 def _generate_new_snake_trajectory_and_fps(datamanager, snake_period_sec=5.0, snake_amplitude_m=1.0, frame_stride: int =2):
-    original_path = datamanager.dataparser.wayve_poses
+    original_path = datamanager.dataparser.wayve_poses['front-forward']
     camera_indices = torch.arange(0, len(original_path), frame_stride)
     original_path = original_path[camera_indices]
     camera_path = datamanager.dataparser.get_dataparser_outputs(split="render").cameras[camera_indices]
