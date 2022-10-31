@@ -76,6 +76,8 @@ def get_spiral_path(
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
 
+    camera = camera.flatten()
+
     up = camera.camera_to_worlds[0, :3, 2]  # scene is z up
     focal = torch.min(camera.fx[0], camera.fy[0])
     target = torch.tensor([0, 0, -focal], device=camera.device)  # camera looking in -z direction
@@ -99,7 +101,13 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
-    return Cameras(fx=camera.fx[0], fy=camera.fy[0], cx=camera.cx[0], cy=camera.cy[0], camera_to_worlds=new_c2ws)
+    return Cameras(
+        fx=camera.fx[0],
+        fy=camera.fy[0],
+        cx=camera.cx[0],
+        cy=camera.cy[0],
+        camera_to_worlds=new_c2ws,
+    )
 
 
 def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:

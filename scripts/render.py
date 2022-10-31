@@ -49,7 +49,7 @@ def _generate_new_snake_trajectory_and_fps(datamanager, snake_period_sec=5.0, sn
     dsec = torch.linspace(0, trajectory_sec, len(original_path))
     dy = snake_amplitude_m*torch.sin(2*torch.pi*dsec/snake_period_sec)
     original_path[:, 1, 3] += dy
-    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor, G_nerf_run)
+    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor, G_nerf_run)[:, :3, :]
     return camera_path, fps
 
 def _render_trajectory_video(
