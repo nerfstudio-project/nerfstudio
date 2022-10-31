@@ -205,6 +205,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 | 🏃 **Tutorials**                                                                                   |
 | [Getting Started](https://docs.nerf.studio/en/latest/quickstart/installation.html)                 | A more in-depth guide on how to get started with nerfstudio from installation to contributing.     |
 | [Using the Viewer](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html)           | A quick demo video on how to navigate the viewer.                                                  |
+| [Using Record3D](https://www.youtube.com/watch?v=XwKq7qDQCQk)                                      | Demo video on how to run nerfstudio without using COLMAP.                                          |
 | 💻 **For Developers**                                                                              |
 | [Creating pipelines](https://docs.nerf.studio/en/latest/developer_guides/pipelines/index.html)     | Learn how to easily build new neural rendering pipelines by using and/or implementing new modules. |
 | [Creating datasets](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html)             | Have a new dataset? Learn how to run it with nerfstudio.                                           |
@@ -231,12 +232,30 @@ We provide the following support structures to make life easier for getting star
 
 # Built On
 
-#### [tyro](https://github.com/brentyi/tyro)
+<a href="https://github.com/brentyi/tyro">
+<!-- pypi-strip -->
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://brentyi.github.io/tyro/_static/logo-dark.svg" />
+<!-- /pypi-strip -->
+    <img alt="tyro logo" src="https://brentyi.github.io/tyro/_static/logo-light.svg" width="150px" />
+<!-- pypi-strip -->
+</picture>
+<!-- /pypi-strip -->
+</a>
 
 - Easy-to-use config system
 - Developed by [Brent Yi](https://brentyi.com/)
 
-#### [nerfacc](https://www.nerfacc.com/en/latest/)
+<a href="https://github.com/KAIR-BAIR/nerfacc">
+<!-- pypi-strip -->
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/3310961/199083722-881a2372-62c1-4255-8521-31a95a721851.png" />
+<!-- /pypi-strip -->
+    <img alt="tyro logo" src="https://user-images.githubusercontent.com/3310961/199084143-0d63eb40-3f35-48d2-a9d5-78d1d60b7d66.png" width="250px" />
+<!-- pypi-strip -->
+</picture>
+<!-- /pypi-strip -->
+</a>
 
 - Library for accelerating NeRF renders
 - Developed by [Ruilong Li](https://www.liruilong.cn/)
