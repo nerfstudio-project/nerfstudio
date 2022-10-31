@@ -244,14 +244,14 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = 300
+    train_num_images_to_sample_from: int = -1
     """Number of images to sample during training iteration."""
     train_num_times_to_repeat_images: int = -1
     """When not training on all images, number of iterations before picking new
     images. If -1, never pick new images."""
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
-    eval_num_images_to_sample_from: int = 300
+    eval_num_images_to_sample_from: int = -1
     """Number of images to sample during eval iteration."""
     eval_num_times_to_repeat_images: int = -1
     """When not evaluating on all images, number of iterations before picking
@@ -304,7 +304,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
-        CONSOLE.log("Setting up training dataset...")
+        CONSOLE.print("Setting up training dataset...")
         self.train_image_dataloader = CacheDataloader(
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
@@ -326,7 +326,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         assert self.eval_dataset is not None
-        CONSOLE.log("Setting up evaluation dataset...")
+        CONSOLE.print("Setting up evaluation dataset...")
         self.eval_image_dataloader = CacheDataloader(
             self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,

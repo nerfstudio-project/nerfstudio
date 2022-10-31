@@ -50,8 +50,9 @@ class Record3DDataParserConfig(DataParserConfig):
     """Scene scale."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation"""
-    max_dataset_size: int = -1
-    """This option has been deprecated. Use --pipeline.datamanager.train-num-images-to-sample-from instead."""
+    max_dataset_size: int = 300
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
 
 
 @dataclass
