@@ -26,6 +26,9 @@ from typing_extensions import Literal, assert_never
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.base_config import Config  # pylint: disable=unused-import
+from nerfstudio.data.dataparsers.wayve_dataparser import (
+    wayve_run_pose_to_nerfstudio_pose,
+)
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
@@ -33,6 +36,21 @@ from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
 CONSOLE = Console(width=120)
 
+def _generate_new_snake_trajectory_and_fps(datamanager, snake_period_sec=5.0, snake_amplitude_m=1.0, frame_stride: int =2):
+    original_path = datamanager.dataparser.wayve_poses
+    camera_indices = torch.arange(0, len(original_path), frame_stride)
+    original_path = original_path[camera_indices]
+    camera_path = datamanager.dataparser.get_dataparser_outputs(split="render").cameras[camera_indices]
+    mean_translation = datamanager.mean_translation
+    scale_factor = datamanager.scale_factor
+    G_nerf_run = datamanager.G_nerf_run
+    fps = int((25.0 / frame_stride))
+    trajectory_sec = len(original_path) / float(fps)
+    dsec = torch.linspace(0, trajectory_sec, len(original_path))
+    dy = snake_amplitude_m*torch.sin(2*torch.pi*dsec/snake_period_sec)
+    original_path[:, 1, 3] += dy
+    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor, G_nerf_run)
+    return camera_path, fps
 
 def _render_trajectory_video(
     pipeline: Pipeline,
@@ -40,7 +58,7 @@ def _render_trajectory_video(
     output_filename: Path,
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
-    seconds: float = 5.0,
+    fps: int = 25,
     output_format: Literal["images", "video"] = "video",
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
@@ -85,7 +103,6 @@ def _render_trajectory_video(
                 images.append(image)
 
     if output_format == "video":
-        fps = len(images) / seconds
         # make the folder if it doesn't exist
         output_filename.parent.mkdir(parents=True, exist_ok=True)
         with CONSOLE.status("[yellow]Saving video", spinner="bouncingBall"):
@@ -103,15 +120,15 @@ class RenderTrajectory:
     # Name of the renderer output to use. rgb, depth, etc.
     rendered_output_name: str = "rgb"
     #  Trajectory to render.
-    traj: Literal["spiral", "interp", "filename"] = "spiral"
+    traj: Literal["spiral", "interp", "filename", "snake-driving", "original-driving-segment"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
     downscale_factor: int = 1
     # Filename of the camera path to render.
     camera_path_filename: Path = Path("camera_path.json")
     # Name of the output file.
     output_path: Path = Path("renders/output.mp4")
-    # How long the video should be.
-    seconds: float = 5.0
+    # FPS of video
+    fps: int = 25
     # How to save output data.
     output_format: Literal["images", "video"] = "video"
     # Specifies number of rays per chunk during eval.
@@ -126,7 +143,7 @@ class RenderTrajectory:
 
         install_checks.check_ffmpeg_installed()
 
-        seconds = self.seconds
+        fps = self.fps
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
@@ -143,10 +160,14 @@ class RenderTrajectory:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
             camera_path = get_path_from_json(camera_path)
+            fps = int(len(camera_path.camera_to_worlds) / seconds)
+        elif self.traj == "original-driving-segment":
+            camera_path = pipeline.datamanager.dataparser.get_dataparser_outputs(split="render").cameras
         elif self.traj == "snake-driving":
-            camera_positions = pipeline.datamanager
+            camera_path, fps = _generate_new_snake_trajectory_and_fps(pipeline.datamanager)
         else:
             assert_never(self.traj)
+        
 
         _render_trajectory_video(
             pipeline,
@@ -154,7 +175,7 @@ class RenderTrajectory:
             output_filename=self.output_path,
             rendered_output_name=self.rendered_output_name,
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
-            seconds=seconds,
+            fps=fps,
             output_format=self.output_format,
         )
 
