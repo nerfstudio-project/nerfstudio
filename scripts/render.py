@@ -49,7 +49,7 @@ def _generate_new_snake_trajectory_and_fps(datamanager, snake_period_sec=5.0, sn
     dsec = torch.linspace(0, trajectory_sec, len(original_path))
     dy = snake_amplitude_m*torch.sin(2*torch.pi*dsec/snake_period_sec)
     original_path[:, 1, 3] += dy
-    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor, G_nerf_run)
+    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor, G_nerf_run)[:, :3, :]
     return camera_path, fps
 
 def _render_trajectory_video(
@@ -160,16 +160,11 @@ class RenderTrajectory:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
             camera_path = get_path_from_json(camera_path)
-<<<<<<< HEAD
             fps = int(len(camera_path.camera_to_worlds) / seconds)
         elif self.traj == "original-driving-segment":
             camera_path = pipeline.datamanager.dataparser.get_dataparser_outputs(split="render").cameras
         elif self.traj == "snake-driving":
             camera_path, fps = _generate_new_snake_trajectory_and_fps(pipeline.datamanager)
-=======
-        elif self.traj == "snake-driving":
-            camera_positions = pipeline.datamanager
->>>>>>> 4bbd915 (add pose transforms to checkpoint)
         else:
             assert_never(self.traj)
         

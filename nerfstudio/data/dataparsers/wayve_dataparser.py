@@ -140,7 +140,11 @@ class WayveDataParser(DataParser):
         if split == "render":
             indices = np.arange(len(distance))
         image_filenames = []
+<<<<<<< HEAD
         wayve_poses = {}
+=======
+        wayve_poses = []
+>>>>>>> 0cc1d3b (add new render modes)
         intrinsics = []
         distortion = []
         num_rows = len(df)
@@ -157,6 +161,7 @@ class WayveDataParser(DataParser):
             image_filenames.append(np.array([f'{images_path}/{camera_position}/{ts}unixus.jpeg' for ts in df[image_ts_column].to_list()]))
             camera_pose = np.array(camera_calibration['pose']).reshape(1, 4, 4)
             image_global_pose = segment_global_egopose @ camera_pose
+<<<<<<< HEAD
             wayve_poses[camera_position] = torch.from_numpy(image_global_pose).float()
             intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
@@ -180,6 +185,31 @@ class WayveDataParser(DataParser):
         image_filenames = image_filenames[indices].transpose((1, 0)).reshape(-1).tolist()
 
         poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
+=======
+            wayve_poses.append(image_global_pose)
+            intrinsics.append(torch.tensor(camera_calibration['intrinsics']).view(1, 3, 3).expand(num_rows, -1, -1))
+            distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
+            
+        wayve_poses = torch.from_numpy(np.concatenate(wayve_poses).astype(np.float32))
+        # Move first frame to be at the origin
+        self.G_nerf_run = to4x4(inverse(wayve_poses[:1]))
+
+        segment_poses = self.G_nerf_run @ wayve_poses
+        translation = segment_poses[:, :3, 3]
+        self.mean_translation = torch.mean(translation, dim=0)
+        self.scale_factor = 1.0 / torch.max(torch.abs(translation - self.mean_translation))
+        self.wayve_poses = wayve_poses.clone()
+
+        poses = wayve_run_pose_to_nerfstudio_pose(wayve_poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
+        
+        intrinsics = torch.from_numpy(np.concatenate(intrinsics))
+        distortion = torch.from_numpy(np.concatenate(distortion))
+        
+        poses = poses[indices]
+        intrinsics = intrinsics[indices]
+        distortion = distortion[indices]
+        image_filenames = [image_filenames[index] for index in indices]
+>>>>>>> 0cc1d3b (add new render modes)
         camera_type = CameraType.FISHEYE
 
         cameras = Cameras(
