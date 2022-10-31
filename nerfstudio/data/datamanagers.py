@@ -247,15 +247,15 @@ class VanillaDataManagerConfig(InstantiateConfig):
     train_num_images_to_sample_from: int = 300
     """Number of images to sample during training iteration."""
     train_num_times_to_repeat_images: int = -1
-    """When not training on all images, number of iterations to make before
-    picking new images. If negative, never pick new images."""
+    """When not training on all images, number of iterations before picking new
+    images. If -1, never pick new images."""
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
     eval_num_images_to_sample_from: int = 300
     """Number of images to sample during eval iteration."""
     eval_num_times_to_repeat_images: int = -1
-    """When not evaluating on all images, number of iterations to make before
-    picking new images. If negative, never pick new images."""
+    """When not evaluating on all images, number of iterations before picking
+    new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()

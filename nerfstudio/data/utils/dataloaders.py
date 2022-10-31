@@ -63,15 +63,13 @@ class CacheDataloader(DataLoader):
 
         self.cached_collated_batch = None
         if self.cache_all_images:
-            CONSOLE.log("Caching all images")
+            CONSOLE.log(f"Caching all {len(self.dataset)} images from the dataset")
             self.cached_collated_batch = self._get_collated_batch()
         elif self.num_times_to_repeat_images == -1:
-            CONSOLE.log(
-                f"Only using {self.num_images_to_sample_from} out of {len(self.dataset)} images from the dataset."
-            )
+            CONSOLE.log(f"Using {self.num_images_to_sample_from} out of {len(self.dataset)} images from the dataset.")
             CONSOLE.log("To modify this behavior, see the following configurations:")
-            CONSOLE.log("    --pipeline.datamanager.*-num-images-to-sample-from")
-            CONSOLE.log("    --pipeline.datamanager.*-num-times-to-repeat-images")
+            CONSOLE.log("    --pipeline.datamanager.train-num-images-to-sample-from")
+            CONSOLE.log("    --pipeline.datamanager.train-num-times-to-repeat-images")
         super().__init__(dataset=dataset, **kwargs)
 
     def __getitem__(self, idx):
