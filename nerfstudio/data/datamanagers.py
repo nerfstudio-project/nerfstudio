@@ -15,6 +15,7 @@
 """
 Data loader.
 """
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -23,6 +24,7 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 
 import torch
 import tyro
+from rich.progress import Console
 from torch import nn
 from torch.nn import Parameter
 from torch.utils.data import Dataset
@@ -48,6 +50,8 @@ from nerfstudio.data.utils.datasets import InputDataset
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
+
+CONSOLE = Console(width=120)
 
 AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
     tyro.extras.subcommand_type_from_defaults(
@@ -242,10 +246,16 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Number of rays per batch to use per training iteration."""
     train_num_images_to_sample_from: int = -1
     """Number of images to sample during training iteration."""
+    train_num_times_to_repeat_images: int = -1
+    """When not training on all images, number of iterations before picking new
+    images. If -1, never pick new images."""
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
     eval_num_images_to_sample_from: int = -1
     """Number of images to sample during eval iteration."""
+    eval_num_times_to_repeat_images: int = -1
+    """When not evaluating on all images, number of iterations before picking
+    new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)
     """Specifies the image indices to use during eval; if None, uses all."""
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
@@ -294,9 +304,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
+        CONSOLE.print("Setting up training dataset...")
         self.train_image_dataloader = CacheDataloader(
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
@@ -314,9 +326,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         assert self.eval_dataset is not None
+        CONSOLE.print("Setting up evaluation dataset...")
         self.eval_image_dataloader = CacheDataloader(
             self.eval_dataset,
             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
@@ -339,9 +353,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             device=self.device,
             num_workers=self.world_size * 4,
         )
-
-        # TODO: eval dataloader should be separate from train
-        self.iter_eval_dataloader = iter(self.eval_image_dataloader)
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
