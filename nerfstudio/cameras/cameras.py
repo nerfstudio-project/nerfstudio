@@ -420,7 +420,7 @@ class Cameras:
                 self.cy[indices],
                 height=self._image_heights[indices],
                 width=self._image_widths[indices],
-                distortion_params=self.distortion_params[indices] if self.distortion_params else None,
+                distortion_params=self.distortion_params[indices] if self.distortion_params is not None else None,
                 camera_type=self.camera_type[indices],
             )
         if isinstance(indices, (int, slice)):
