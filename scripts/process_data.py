@@ -17,9 +17,10 @@ import requests
 import tyro
 from rich.console import Console
 from rich.progress import track
+from scipy.spatial.transform import Rotation
 from typing_extensions import Annotated, Literal
 
-from nerfstudio.utils import colmap_utils, install_checks
+from nerfstudio.utils import colmap_utils, install_checks, io
 
 CONSOLE = Console(width=120)
 
@@ -250,6 +251,41 @@ def convert_insta360_to_images(
     return summary_log, num_final_frames
 
 
+def copy_images_list(image_paths: List[Path], image_dir: Path, verbose) -> List[Path]:
+    """Copy all images in a list of Paths. Useful for filtering from a directory.
+    Args:
+        image_paths: List of Paths of images to copy to a new directory.
+        image_dir: Path to the output directory.
+        verbose: If True, print extra logging.
+    Returns:
+        A list of the copied image Paths.
+    """
+
+    # Remove original directory only if we provide a proper image folder path
+    if image_dir.is_dir() and len(image_paths):
+        shutil.rmtree(image_dir, ignore_errors=True)
+        image_dir.mkdir(exist_ok=True, parents=True)
+
+    copied_image_paths = []
+
+    # Images should be 1-indexed for the rest of the pipeline.
+    for idx, image_path in enumerate(image_paths):
+        if verbose:
+            CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
+        copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        shutil.copy(image_path, copied_image_path)
+        copied_image_paths.append(copied_image_path)
+
+    num_frames = len(image_paths)
+
+    if num_frames == 0:
+        CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+    else:
+        CONSOLE.log("[bold green]:tada: Done copying images.")
+
+    return copied_image_paths
+
+
 def copy_images(data: Path, image_dir: Path, verbose) -> int:
     """Copy images from a directory to a new directory.
 
@@ -264,23 +300,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
         allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
         image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
 
-        # Remove original directory only if we provide a proper image folder path
-        if image_dir.is_dir() and len(image_paths):
-            shutil.rmtree(image_dir, ignore_errors=True)
-            image_dir.mkdir(exist_ok=True, parents=True)
-
-        # Images should be 1-indexed for the rest of the pipeline.
-        for idx, image_path in enumerate(image_paths):
-            if verbose:
-                CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-            shutil.copy(image_path, image_dir / f"frame_{idx + 1:05d}{image_path.suffix}")
-
-        num_frames = len(image_paths)
-
-    if num_frames == 0:
-        CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
-    else:
-        CONSOLE.log("[bold green]:tada: Done copying images.")
+        num_frames = len(copy_images_list(image_paths, image_dir, verbose))
 
     return num_frames
 
@@ -478,6 +498,55 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
                 "k4": float(camera_params[7]),
             }
         )
+
+    out["frames"] = frames
+
+    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=4)
+
+    return len(frames)
+
+
+def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path):
+
+    metadata_dict = io.load_from_json(metadata_path)
+    poses_data = np.array(metadata_dict["poses"])
+    # (N, 3, 4)
+    camera_to_worlds = np.concatenate(
+        [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
+        axis=-1,
+    ).astype(np.float32)
+    camera_to_worlds = np.concatenate([camera_to_worlds, np.array([[0, 0, 0, 1]])], 0)
+
+    frames = []
+    for i, im_path in enumerate(images_paths):
+        c2w = camera_to_worlds[i]
+        frame = {
+            "file_path": im_path.as_posix(),
+            "transform_matrix": c2w.tolist(),
+        }
+        frames.append(frame)
+
+    # Camera intrinsics
+    K = np.array(metadata_dict["K"]).reshape((3, 3)).T
+    focal_length = K[0, 0]
+
+    H = metadata_dict["h"]
+    W = metadata_dict["w"]
+
+    # TODO(akristoffersen): The metadata dict comes with principle points,
+    # but caused errors in image coord indexing. Should update once that is fixed.
+    cx, cy = W / 2, H / 2
+
+    out = {
+        "fl_x": focal_length,
+        "fl_y": focal_length,
+        "cx": cx,
+        "cy": cy,
+        "w": W,
+        "h": H,
+        "camera_model": CAMERA_MODELS["perspective"],
+    }
 
     out["frames"] = frames
 
@@ -794,6 +863,64 @@ class ProcessInsta360:
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
+@dataclass
+class ProcessRecord3D:
+    """Process Record3D data into a nerfstudio dataset.
+
+    This script does the following:
+
+    1. Scales images to a specified size.
+    2. Converts Record3D poses into the nerfacto format.
+    """
+
+    data: Path
+    """Path the data, either a video file or a directory of images."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+
+        record3d_image_dir = self.data / "rgb"
+
+        if not record3d_image_dir.exists():
+            raise ValueError(f"Image directory {image_dir} doesn't exist")
+
+        record3d_image_filenames = []
+        for f in image_dir.iterdir():
+            if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
+                record3d_image_filenames.append(f)
+
+        record3d_image_filenames = sorted(record3d_image_filenames, key=lambda fn: int(fn.stem))
+
+        # Copy images to output directory
+        copied_image_paths = copy_images_list(record3d_image_filenames, image_dir=image_dir, verbose=self.verbose)
+        num_frames = len(copied_image_paths)
+        summary_log.append(f"Starting with {num_frames} images")
+
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        metadata_path = self.data / "metadata.json"
+        record3d_to_json(copied_image_paths, metadata_path, self.output_dir)
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
         for summary in summary_log:
