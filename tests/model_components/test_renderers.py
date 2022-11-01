@@ -60,7 +60,7 @@ def test_depth_renderer():
     """Test depth rendering"""
 
     num_samples = 10
-    weights = torch.ones((3, num_samples, 1))
+    weights = torch.ones((num_samples, 1))
     weights /= torch.sum(weights, dim=-2, keepdim=True)
 
     frustums = Frustums.get_mock_frustum()
@@ -73,8 +73,11 @@ def test_depth_renderer():
         deltas=torch.ones((num_samples, 1)),
     )
 
-    depth_renderer = renderers.DepthRenderer()
+    depth_renderer = renderers.DepthRenderer(method="median")
+    depth = depth_renderer(weights=weights, ray_samples=ray_samples)
+    assert torch.min(depth) > 0
 
+    depth_renderer = renderers.DepthRenderer(method="expected")
     depth = depth_renderer(weights=weights, ray_samples=ray_samples)
     assert torch.min(depth) > 0
 
