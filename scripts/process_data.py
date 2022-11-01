@@ -507,7 +507,17 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
     return len(frames)
 
 
-def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path):
+def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path) -> int:
+    """Converts Record3D's metadata and image paths to a JSON file.
+
+    Args:
+        images_paths: list if image paths.
+        metadata_path: Path to the Record3D metadata JSON file.
+        output_dir: Path to the output directory.
+
+    Returns:
+        The number of registered images.
+    """
 
     metadata_dict = io.load_from_json(metadata_path)
     poses_data = np.array(metadata_dict["poses"])
