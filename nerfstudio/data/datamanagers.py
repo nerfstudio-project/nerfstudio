@@ -265,16 +265,16 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Specifies the dataparser used to unpack the data."""
     train_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per training iteration."""
-    train_num_images_to_sample_from: int = -1
+    train_num_images_to_sample_from: int = 300
     """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = -1
+    train_num_times_to_repeat_images: int = 1000
     """When not training on all images, number of iterations before picking new
     images. If -1, never pick new images."""
     eval_num_rays_per_batch: int = 1024
     """Number of rays per batch to use per eval iteration."""
-    eval_num_images_to_sample_from: int = -1
+    eval_num_images_to_sample_from: int = 300
     """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = -1
+    eval_num_times_to_repeat_images: int = 500
     """When not evaluating on all images, number of iterations before picking
     new images. If -1, never pick new images."""
     eval_image_indices: Optional[Tuple[int, ...]] = (0,)

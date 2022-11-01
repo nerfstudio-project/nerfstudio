@@ -744,6 +744,6 @@ class Cameras(TensorDataclass):
             self.cy[indices + (slice(None),)],
             height=self.height[indices + (slice(None),)],
             width=self.width[indices + (slice(None),)],
-            distortion_params=self.distortion_params[indices + (slice(None),)] if self.distortion_params else None,
+            distortion_params=self.distortion_params[indices + (slice(None),)] if self.distortion_params is not None else None,
             camera_type=self.camera_type[indices + (slice(None),)],
         )
