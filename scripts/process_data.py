@@ -942,6 +942,7 @@ Commands = Union[
     Annotated[ProcessImages, tyro.conf.subcommand(name="images")],
     Annotated[ProcessVideo, tyro.conf.subcommand(name="video")],
     Annotated[ProcessInsta360, tyro.conf.subcommand(name="insta360")],
+    Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
 ]
 
 
