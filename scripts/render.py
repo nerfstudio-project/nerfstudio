@@ -41,6 +41,7 @@ def _render_trajectory_video(
     rendered_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
+    output_format: Literal["images", "video"] = "video",
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -50,7 +51,8 @@ def _render_trajectory_video(
         output_filename: Name of the output file.
         rendered_output_name: Name of the renderer output to use.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
-        seconds: Number for the output video.
+        seconds: Length of output video.
+        output_format: How to save output data.
     """
     CONSOLE.print("[bold green]Creating trajectory video")
     images = []
@@ -63,6 +65,9 @@ def _render_trajectory_video(
         ItersPerSecColumn(suffix="fps"),
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
+    output_image_dir = output_filename.parent / output_filename.stem
+    if output_format == "images":
+        output_image_dir.mkdir(parents=True, exist_ok=True)
     with progress:
         for camera_idx in progress.track(range(cameras.size), description=""):
             camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
@@ -74,13 +79,17 @@ def _render_trajectory_video(
                 CONSOLE.print(f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center")
                 sys.exit(1)
             image = outputs[rendered_output_name].cpu().numpy()
-            images.append(image)
+            if output_format == "images":
+                media.write_image(output_image_dir / f"{camera_idx:05d}.png", image)
+            else:
+                images.append(image)
 
-    fps = len(images) / seconds
-    # make the folder if it doesn't exist
-    output_filename.parent.mkdir(parents=True, exist_ok=True)
-    with CONSOLE.status("[yellow]Saving video", spinner="bouncingBall"):
-        media.write_video(output_filename, images, fps=fps)
+    if output_format == "video":
+        fps = len(images) / seconds
+        # make the folder if it doesn't exist
+        output_filename.parent.mkdir(parents=True, exist_ok=True)
+        with CONSOLE.status("[yellow]Saving video", spinner="bouncingBall"):
+            media.write_video(output_filename, images, fps=fps)
     CONSOLE.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
     CONSOLE.print(f"[green]Saved video to {output_filename}", justify="center")
 
@@ -103,6 +112,8 @@ class RenderTrajectory:
     output_path: Path = Path("renders/output.mp4")
     # How long the video should be.
     seconds: float = 5.0
+    # How to save output data.
+    output_format: Literal["images", "video"] = "video"
     # Specifies number of rays per chunk during eval.
     eval_num_rays_per_chunk: Optional[int] = None
 
@@ -142,6 +153,7 @@ class RenderTrajectory:
             rendered_output_name=self.rendered_output_name,
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
             seconds=seconds,
+            output_format=self.output_format,
         )
 
 
