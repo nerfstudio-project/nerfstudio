@@ -236,13 +236,12 @@ class DepthRenderer(nn.Module):
 
             if ray_indices is not None and num_rays is not None:
                 raise NotImplementedError("Median depth calculation is not implemented for packed samples.")
-            else:
-                cumulative_weights = torch.cumsum(weights[..., 0], dim=-1)  # [..., num_samples]
-                split = torch.ones((*weights.shape[:-2], 1), device=weights.device) * 0.5  # [..., 1]
-                median_index = torch.searchsorted(cumulative_weights, split, side="left")  # [..., 1]
-                median_index = torch.clamp(median_index, 0, steps.shape[-2] - 1)  # [..., 1]
-                median_depth = torch.gather(steps[..., 0], dim=-1, index=median_index)  # [..., 1]
-                return median_depth
+            cumulative_weights = torch.cumsum(weights[..., 0], dim=-1)  # [..., num_samples]
+            split = torch.ones((*weights.shape[:-2], 1), device=weights.device) * 0.5  # [..., 1]
+            median_index = torch.searchsorted(cumulative_weights, split, side="left")  # [..., 1]
+            median_index = torch.clamp(median_index, 0, steps.shape[-2] - 1)  # [..., 1]
+            median_depth = torch.gather(steps[..., 0], dim=-1, index=median_index)  # [..., 1]
+            return median_depth
         if self.method == "expected":
             eps = 1e-10
             steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
