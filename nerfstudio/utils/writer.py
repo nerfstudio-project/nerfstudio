@@ -166,7 +166,6 @@ def write_out_storage():
     EVENT_STORAGE.clear()
 
 
-@check_main_thread
 def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
     """Initialization of all event writers specified in config
 

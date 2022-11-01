@@ -18,7 +18,7 @@ CONSOLE = Console(width=120)
 
 @dataclass
 class ComputePSNR:
-    """Load a checkpoint, compute some PSNR metrics, and save to a JSON."""
+    """Load a checkpoint, compute some PSNR metrics, and save it to a JSON file."""
 
     # Path to config YAML file.
     load_config: Path
@@ -28,17 +28,17 @@ class ComputePSNR:
     def main(self) -> None:
         """Main function."""
         config, pipeline, checkpoint_path = eval_setup(self.load_config)
-
         assert self.output_path.suffix == ".json"
         metrics_dict = pipeline.get_average_eval_image_metrics()
-        # save output to some file
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
+        # Get the output and define the names to save to
         benchmark_info = {
             "experiment_name": config.experiment_name,
             "method_name": config.method_name,
             "checkpoint": str(checkpoint_path),
             "results": metrics_dict,
         }
+        # Save output to output file
         self.output_path.write_text(json.dumps(benchmark_info, indent=2), "utf8")
         CONSOLE.print(f"Saved results to: {self.output_path}")
 

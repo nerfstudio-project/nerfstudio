@@ -134,7 +134,7 @@ def get_num_frames_in_video(video: Path) -> int:
 
 def convert_video_to_images(
     video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False
-) -> List[str]:
+) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
     Args:
@@ -143,7 +143,7 @@ def convert_video_to_images(
         num_frames_target: Number of frames to extract.
         verbose: If True, logs the output of the command.
     Returns:
-        A summary of the conversion.
+        A tuple containing summary of the conversion and the number of extracted frames.
     """
 
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
@@ -164,7 +164,7 @@ def convert_video_to_images(
         spacing = num_frames // num_frames_target
 
         if spacing > 1:
-            ffmpeg_cmd += f" -vf 'thumbnail={spacing},setpts=N/TB' -r 1"
+            ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
         else:
             CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
@@ -172,12 +172,13 @@ def convert_video_to_images(
 
         run_command(ffmpeg_cmd, verbose=verbose)
 
+    num_final_frames = len(list(image_dir.glob("*.png")))
     summary_log = []
     summary_log.append(f"Starting with {num_frames} video frames")
-    summary_log.append(f"We extracted {len(list(image_dir.glob('*.png')))} images")
+    summary_log.append(f"We extracted {num_final_frames} images")
     CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
-    return summary_log
+    return summary_log, num_final_frames
 
 
 def convert_insta360_to_images(
@@ -187,7 +188,7 @@ def convert_insta360_to_images(
     num_frames_target: int,
     crop_percentage: float = 0.7,
     verbose: bool = False,
-) -> List[str]:
+) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
     Args:
@@ -197,7 +198,7 @@ def convert_insta360_to_images(
         num_frames_target: Number of frames to extract.
         verbose: If True, logs the output of the command.
     Returns:
-        A summary of the conversion.
+        A tuple containing summary of the conversion and the number of extracted frames.
     """
 
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
@@ -223,16 +224,14 @@ def convert_insta360_to_images(
         else:
             CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
-        vf_cmds.append(f"crop=iw*({crop_percentage}):ih*({crop_percentage})")
+        vf_cmds.append(f"crop=iw*{crop_percentage}:ih*{crop_percentage}")
 
         front_vf_cmds = vf_cmds + ["transpose=2"]
         back_vf_cmds = vf_cmds + ["transpose=1"]
 
-        front_ffmpeg_cmd = (
-            f"ffmpeg -i {video_front} -vf '{','.join(front_vf_cmds)}' -r 1 {image_dir / 'frame_%05d.png'}"
-        )
+        front_ffmpeg_cmd = f"ffmpeg -i {video_front} -vf {','.join(front_vf_cmds)} -r 1 {image_dir / 'frame_%05d.png'}"
         back_ffmpeg_cmd = (
-            f"ffmpeg -i {video_back} -vf '{','.join(back_vf_cmds)}' -r 1 {image_dir / 'back_frame_%05d.png'}"
+            f"ffmpeg -i {video_back} -vf {','.join(back_vf_cmds)} -r 1 {image_dir / 'back_frame_%05d.png'}"
         )
 
         run_command(front_ffmpeg_cmd, verbose=verbose)
@@ -242,12 +241,13 @@ def convert_insta360_to_images(
         for i, img in enumerate(image_dir.glob("back_frame_*.png")):
             img.rename(image_dir / f"frame_{i+1+num_extracted_front_frames:05d}.png")
 
+    num_final_frames = len(list(image_dir.glob("*.png")))
     summary_log = []
     summary_log.append(f"Starting with {num_frames_front + num_frames_back} video frames")
-    summary_log.append(f"We extracted {len(list(image_dir.glob('*.png')))} images")
+    summary_log.append(f"We extracted {num_final_frames} images")
     CONSOLE.log("[bold green]:tada: Done converting insta360 to images.")
 
-    return summary_log
+    return summary_log, num_final_frames
 
 
 def copy_images(data: Path, image_dir: Path, verbose) -> int:
@@ -345,7 +345,10 @@ def run_colmap(
 
     colmap_version = get_colmap_version()
 
-    (colmap_dir / "database.db").unlink(missing_ok=True)
+    colmap_database_path = colmap_dir / "database.db"
+    if colmap_database_path.exists():
+        # Can't use missing_ok argument because of Python 3.7 compatibility.
+        colmap_database_path.unlink()
 
     # Feature extraction
     feature_extractor_cmd = [
@@ -442,7 +445,7 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
         name = Path(f"./images/{im_data.name}")
 
         frame = {
-            "file_path": str(name),
+            "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
         }
         frames.append(frame)
@@ -511,6 +514,33 @@ def get_insta360_filenames(data: Path) -> Tuple[Path, Path]:
         raise FileNotFoundError(f"Could not find {filename_front}")
 
     return filename_back, filename_front
+
+
+def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str:
+    """Returns a summary of the matching results.
+
+    Args:
+        num_intial_frames: The number of initial frames.
+        num_matched_frames: The number of matched frames.
+
+    Returns:
+        A summary of the matching results.
+    """
+    match_ratio = num_matched_frames / num_intial_frames
+    if match_ratio == 1:
+        return "[bold green]COLAMP found poses for all images, CONGRATS!"
+    if match_ratio < 0.4:
+        result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result += " of the images. This is low.\nThis can be caused by a variety of reasons,"
+        result += " such poor scene coverage, blurry images, or large exposure changes."
+        return result
+    if match_ratio < 0.8:
+        result = f"[bold yellow]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result += " of the images.\nThis isn't great, but may be ok."
+        result += "\nMissing poses can be caused by a variety of reasons, such poor scene coverage, blurry images,"
+        result += " or large exposure changes."
+        return result
+    return f"[bold green]COLMAP found poses for {num_matched_frames / num_intial_frames * 100:.2f}% of the images."
 
 
 @dataclass
@@ -584,6 +614,7 @@ class ProcessImages:
                     camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
+            summary_log.append(get_matching_summary(num_frames, num_matched_frames))
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
@@ -636,7 +667,7 @@ class ProcessVideo:
         image_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert video to images
-        summary_log = convert_video_to_images(
+        summary_log, num_extracted_frames = convert_video_to_images(
             self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
         )
 
@@ -667,6 +698,7 @@ class ProcessVideo:
                     camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
+            summary_log.append(get_matching_summary(num_extracted_frames, num_matched_frames))
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
@@ -723,7 +755,7 @@ class ProcessInsta360:
         filename_back, filename_front = get_insta360_filenames(self.data)
 
         # Convert video to images
-        summary_log = convert_insta360_to_images(
+        summary_log, num_extracted_frames = convert_insta360_to_images(
             video_front=filename_front,
             video_back=filename_back,
             image_dir=image_dir,
@@ -758,6 +790,7 @@ class ProcessInsta360:
                     camera_model=CAMERA_MODELS["fisheye"],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
+            summary_log.append(get_matching_summary(num_extracted_frames, num_matched_frames))
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
