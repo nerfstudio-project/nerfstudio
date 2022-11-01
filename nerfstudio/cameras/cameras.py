@@ -718,8 +718,8 @@ class Cameras(TensorDataclass):
         self.fy = self.fy * scaling_factor
         self.cx = self.cx * scaling_factor
         self.cy = self.cy * scaling_factor
-        self._image_heights = (self._image_heights * scaling_factor).to(torch.int64)
-        self._image_widths = (self._image_widths * scaling_factor).to(torch.int64)
+        self.height = (self.height * scaling_factor).to(torch.int64)
+        self.width = (self.width * scaling_factor).to(torch.int64)
 
     def __getitem__(self, indices):
         if isinstance(indices, torch.Tensor):
@@ -729,8 +729,8 @@ class Cameras(TensorDataclass):
                 self.fy[indices],
                 self.cx[indices],
                 self.cy[indices],
-                height=self._image_heights[indices],
-                width=self._image_widths[indices],
+                height=self.height[indices],
+                width=self.width[indices],
                 distortion_params=self.distortion_params[indices] if self.distortion_params is not None else None,
                 camera_type=self.camera_type[indices],
             )
@@ -742,8 +742,8 @@ class Cameras(TensorDataclass):
             self.fy[indices + (slice(None),)],
             self.cx[indices + (slice(None),)],
             self.cy[indices + (slice(None),)],
-            height=self._image_heights[indices + (slice(None),)],
-            width=self._image_widths[indices + (slice(None),)],
+            height=self.height[indices + (slice(None),)],
+            width=self.width[indices + (slice(None),)],
             distortion_params=self.distortion_params[indices + (slice(None),)] if self.distortion_params else None,
             camera_type=self.camera_type[indices + (slice(None),)],
         )

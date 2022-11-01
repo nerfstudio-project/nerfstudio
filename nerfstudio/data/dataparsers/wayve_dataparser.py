@@ -91,7 +91,7 @@ class WayveDataParserConfig(DataParserConfig):
     end_timestamp_us: int  = 1656318649646730
     # end_timestamp_us: int  = 1656318648146730
 
-    distance_threshold_between_frames_m: float = 10.0
+    distance_threshold_between_frames_m: float = 0.5
     frame_rate: float = 25
 
 
