@@ -256,7 +256,7 @@ class Cameras(TensorDataclass):
                 h_w = h_w.unsqueeze(-1)
         # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
-            h_w = torch.Tensor((c_x_y * 2).to(torch.int64).to(self.device)).broadcast_to((self._num_cameras))
+            h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2)
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
@@ -609,7 +609,6 @@ class Cameras(TensorDataclass):
         else:
             raise ValueError(f"Camera type {CameraType(self.camera_type.view(-1)[0])} not supported.")
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
-
         c2w = self.camera_to_worlds[true_indices]
         assert c2w.shape == num_rays_shape + (3, 4)
 
