@@ -41,7 +41,7 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
 from nerfstudio.data.dataparsers.wayve_dataparser import (
-    WayveData,
+    WayveDataParser,
     WayveDataParserConfig,
 )
 from nerfstudio.data.pixel_samplers import PixelSampler
@@ -51,6 +51,8 @@ from nerfstudio.data.utils.dataloaders import (
     RandIndicesEvalDataloader,
 )
 from nerfstudio.data.utils.datasets import InputDataset
+
+# from nerfstudio.data.utils.wayve_datasets import WayveDataset
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -141,6 +143,22 @@ class DataManager(nn.Module):
             self.setup_train()
         if self.eval_dataset:
             self.setup_eval()
+        ## Used to convert wayve poses to nerfstudio poses during eval
+        if hasattr(self.dataparser, "G_nerf_run"):
+            G_nerf_run = self.dataparser.G_nerf_run
+        else:
+            G_nerf_run = torch.eye(4).unsqueeze(0)
+        if hasattr(self.dataparser, "mean_translation"):
+            mean_translation = self.dataparser.mean_translation
+        else:
+            mean_translation = torch.zeros(3)
+        if hasattr(self.dataparser, "scale_factor"):
+            scale_factor = self.dataparser.scale_factor
+        else:
+            scale_factor = torch.tensor(1)
+        self.register_buffer("mean_translation",mean_translation)
+        self.register_buffer("scale_factor", scale_factor)
+        self.register_buffer("G_nerf_run", G_nerf_run)
 
     def forward(self):
         """Blank forward method
@@ -299,15 +317,19 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.world_size = world_size
         self.local_rank = local_rank
         self.sampler = None
+        self.test_mode = test_mode
+        self.dataparser = self.config.dataparser.setup()
 
-        self.train_dataset = InputDataset(config.dataparser.setup().get_dataparser_outputs(split="train"))
-        self.eval_dataset = InputDataset(
-            config.dataparser.setup().get_dataparser_outputs(split="val" if not test_mode else "test")
-        )
+        self.train_dataset = self.load_train_dataset()
+        self.eval_dataset = self.load_eval_dataset()
+
         super().__init__()
 
-    def setup_train(self):
-        """Sets up the data loaders for training"""
+    def load_train_dataset(self):
+        return InputDataset(self.dataparser.get_dataparser_outputs(split="train"))
+        
+    
+    def load_train_image_dataloader(self):
         assert self.train_dataset is not None
         if self.world_size > 1:
             sampler = DistributedSampler(
@@ -315,7 +337,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             )
         else:
             sampler = None
-        self.train_image_dataloader = CacheDataloader(
+        return CacheDataloader(
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
             num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
@@ -324,6 +346,34 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             pin_memory=True,
             sampler=sampler,
         )
+
+    def load_eval_dataset(self):
+        return InputDataset(
+            self.dataparser.get_dataparser_outputs(split="val" if not self.test_mode else "test")
+        )
+    
+    def load_eval_image_dataloader(self):
+        assert self.eval_dataset is not None
+        if self.world_size > 1:
+            sampler = DistributedSampler(
+                self.eval_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+            )
+        else:
+            sampler = None
+        return CacheDataloader(
+            self.eval_dataset,
+            num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
+            device=self.device,
+            num_workers=self.world_size * 4,
+            pin_memory=True,
+            sampler=sampler,
+        )
+
+    def setup_train(self):
+        """Sets up the data loaders for training"""
+        assert self.train_dataset is not None
+        self.train_image_dataloader = self.load_train_image_dataloader()
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
@@ -336,22 +386,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
-        assert self.eval_dataset is not None
-        if self.world_size > 1:
-            sampler = DistributedSampler(
-                self.eval_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
-            )
-        else:
-            sampler = None
-        self.eval_image_dataloader = CacheDataloader(
-            self.eval_dataset,
-            num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.eval_num_times_to_repeat_images,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            pin_memory=True,
-            sampler=sampler,
-        )
+        self.eval_image_dataloader = self.load_eval_image_dataloader()
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
@@ -409,5 +444,78 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
         else:
             assert len(camera_opt_params) == 0
-
         return param_groups
+
+
+# @dataclass
+# class WayveDataManagerConfig(VanillaDataManagerConfig):
+#     """Configuration for data manager instantiation; DataManager is in charge of keeping the train/eval dataparsers;
+#     After instantiation, data manager holds both train/eval datasets and is in charge of returning unpacked
+#     train/eval data at each iteration
+#     """
+
+#     _target: Type = field(default_factory=lambda: WayveDataManager)
+
+# class WayveDataManager(VanillaDataManager):  # pylint: disable=abstract-method
+#     """Basic stored data manager implementation.
+
+#     This is pretty much a port over from our old dataloading utilities, and is a little jank
+#     under the hood. We may clean this up a little bit under the hood with more standard dataloading
+#     components that can be strung together, but it can be just used as a black box for now since
+#     only the constructor is likely to change in the future, or maybe passing in step number to the
+#     next_train and next_eval functions.
+
+#     Args:
+#         config: the DataManagerConfig used to instantiate class
+#     """
+
+#     config: WayveDataManagerConfig
+#     train_dataset: WayveDataset
+#     eval_dataset: WayveDataset
+
+#     def load_train_dataset(self):
+#         print(f"----------------------------- using wayve datamanager -----------------------------")
+#         return WayveDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+
+    
+#     def load_train_image_dataloader(self):
+#         assert self.train_dataset is not None
+#         sampler = self.load_sampler
+#         if self.world_size > 1:
+#             sampler = DistributedSampler(
+#                 self.train_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+#             )
+#         else:
+#             sampler = None
+#         return CacheDataloader(
+#             self.train_dataset,
+#             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+#             device=self.device,
+#             num_workers=self.world_size * 4,
+#             pin_memory=True,
+#             sampler=sampler,
+#         )
+
+#     def load_eval_dataset(self):
+#         return WayveDataset(
+#             self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
+#         )
+    
+#     def load_eval_image_dataloader(self):
+#         assert self.eval_dataset is not None
+#         if self.world_size > 1:
+#             sampler = DistributedSampler(
+#                 self.eval_dataset, num_replicas=self.world_size, rank=self.local_rank, shuffle=True, seed=42
+#             )
+#         else:
+#             sampler = None
+#         return CacheDataloader(
+#             self.eval_dataset,
+#             num_images_to_sample_from=self.config.eval_num_images_to_sample_from,
+#             device=self.device,
+#             num_workers=self.world_size * 4,
+#             pin_memory=True,
+#             sampler=sampler,
+#         )
+
+
