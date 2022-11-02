@@ -22,13 +22,12 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
-import pandas as pd
+import open3d as o3d
 import torch
 import tyro
-from pyntcloud import PyntCloud
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -50,26 +49,28 @@ CONSOLE = Console(width=120)
 def _render_trajectory(
     pipeline: Pipeline,
     cameras: Cameras,
-    rendered_output_name: str,
+    rgb_output_name: str,
+    depth_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
-) -> List[np.ndarray]:
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Helper function to create a video of a trajectory.
 
     Args:
         pipeline: Pipeline to evaluate with.
         cameras: Cameras to render.
+        rgb_output_name: Name of the RGB output.
+        depth_output_name: Name of the depth output.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
-        seconds: Number for the output video.
 
     Returns:
-        List of images
+        List of rgb images, list of depth images.
     """
-    CONSOLE.print("[bold green]Creating trajectory video")
     images = []
+    depths = []
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
 
     progress = Progress(
-        TextColumn(":movie_camera: Rendering :movie_camera:"),
+        TextColumn(":cloud: Computing Point Cloud :cloud:"),
         BarColumn(),
         TaskProgressColumn(show_speed=True),
         ItersPerSecColumn(suffix="fps"),
@@ -80,36 +81,51 @@ def _render_trajectory(
             camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
             with torch.no_grad():
                 outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            if rendered_output_name not in outputs:
+            if rgb_output_name not in outputs:
                 CONSOLE.rule("Error", style="red")
-                CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
-                CONSOLE.print(f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center")
+                CONSOLE.print(f"Could not find {rgb_output_name} in the model outputs", justify="center")
+                CONSOLE.print(f"Please set --rgb_output_name to one of: {outputs.keys()}", justify="center")
                 sys.exit(1)
-            image = outputs[rendered_output_name].cpu().numpy()
-            images.append(image)
-    return images
+            if depth_output_name not in outputs:
+                CONSOLE.rule("Error", style="red")
+                CONSOLE.print(f"Could not find {depth_output_name} in the model outputs", justify="center")
+                CONSOLE.print(f"Please set --depth_output_name to one of: {outputs.keys()}", justify="center")
+                sys.exit(1)
+            images.append(outputs[rgb_output_name].cpu().numpy())
+            depths.append(outputs[depth_output_name].cpu().numpy())
+    return images, depths
 
 
-def main(load_config: Path, downscale_factor: int = 4):
+def main(
+    load_config: Path,
+    output_dir: Path,
+    downscale_factor: int = 4,
+    depth_output_name: str = "depth",
+    rgb_output_name: str = "rgb",
+):
     """Main function.
 
     Args:
         load_config: Path to config YAML file.
+        output_dir: Path to output directory.
         downscale_factor: Downscale factor for the images.
+        depth_output_name: Name of the depth output.
+        rgb_output_name: Name of the RGB output.
     """
+
+    if not output_dir.exists():
+        output_dir.mkdir(parents=True)
+
     _, pipeline, _ = eval_setup(load_config)
     dataparser_outputs = pipeline.datamanager.train_dataset.dataparser_outputs
     cameras = dataparser_outputs.cameras
 
-    # TODO: combine depth and color together
-    depth_images = _render_trajectory(
-        pipeline, cameras, rendered_output_name="depth", rendered_resolution_scaling_factor=1.0 / downscale_factor
-    )
-    color_images = _render_trajectory(
+    color_images, depth_images = _render_trajectory(
         pipeline,
         cameras,
-        rendered_output_name="rgb",
-        rendered_resolution_scaling_factor=1.0,  # NOTE: another downscale factor causes a bug
+        rgb_output_name=rgb_output_name,
+        depth_output_name=depth_output_name,
+        rendered_resolution_scaling_factor=1.0 / downscale_factor,
     )
     # create the point cloud
     point_cloud = []
@@ -132,15 +148,45 @@ def main(load_config: Path, downscale_factor: int = 4):
         & (point_cloud[:, 2] < 1.0)
     )
     point_cloud = point_cloud[valid]
-    print(point_cloud.shape)
 
-    pc = point_cloud.float().numpy()  # float
-    cc = (color_cloud[valid] * 255.0).int().numpy().astype("uint8")  # uint8
-    d = {"x": pc[:, 0], "y": pc[:, 1], "z": pc[:, 2], "red": cc[:, 0], "green": cc[:, 1], "blue": cc[:, 2]}
-    cloud = PyntCloud(pd.DataFrame(data=d))
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(point_cloud.float().numpy())
+    pcd.colors = o3d.utility.Vector3dVector(color_cloud[valid].float().numpy())
 
-    cloud.to_file("point_cloud_chair_01.ply")
-    print("here")
+    # with CONSOLE.status("Cleaning Point Cloud", spinner="circleHalves") as status:
+    CONSOLE.print("Cleaning Point Cloud")
+    pcd, _ = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=1.0)
+    print("\033[A\033[A")
+    CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
+
+    # with CONSOLE.status("Estimating Normals", spinner="arrow") as status:
+    CONSOLE.print("Estimating Normals")
+    pcd.estimate_normals()
+    print("\033[A\033[A")
+    CONSOLE.print("[bold green]:white_check_mark: Estimating Normals")
+
+    # with CONSOLE.status("Cleaning Normals", spinner="arrow"):
+    #     pcd.orient_normals_consistent_tangent_plane(100)
+
+    # with CONSOLE.status("Saving Point Cloud", spinner="pipe") as status:
+    CONSOLE.print("Saving Point Cloud")
+    o3d.io.write_point_cloud(str(output_dir / "point_cloud.ply"), pcd)
+    print("\033[A\033[A")
+    CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
+
+    # with CONSOLE.status("Computing Mesh", spinner="aesthetic") as status:
+    CONSOLE.print("Computing Mesh")
+    mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+    vertices_to_remove = densities < np.quantile(densities, 0.1)
+    mesh.remove_vertices_by_mask(vertices_to_remove)
+    print("\033[A\033[A")
+    CONSOLE.print("[bold green]:white_check_mark: Computing Mesh")
+
+    # with CONSOLE.status("Saving Mesh", spinner="pipe") as status:
+    CONSOLE.print("Saving Mesh")
+    o3d.io.write_triangle_mesh(str(output_dir / "mesh.ply"), mesh)
+    print("\033[A\033[A")
+    CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
 
 
 def entrypoint():
