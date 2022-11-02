@@ -84,6 +84,7 @@ class AABBBoxCollider(SceneBoxCollider):
         # clamp to near plane
         near_plane = self.near_plane if self.training else 0
         nears = torch.clamp(nears, min=near_plane)
+        fars = torch.maximum(fars, nears + 1e-6)
 
         return nears, fars
 
