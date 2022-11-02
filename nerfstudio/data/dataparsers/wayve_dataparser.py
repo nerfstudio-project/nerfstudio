@@ -88,9 +88,10 @@ class WayveDataParserConfig(DataParserConfig):
     center_poses: bool = True
     """Whether to center the poses."""
     start_timestamp_us: int = 1656318618168677
+    # start_timestamp_us: int = 1656318628168677
+    # end_timestamp_us: int  = 1656318638146730
     end_timestamp_us: int  = 1656318649646730
-    # end_timestamp_us: int  = 1656318648146730
-
+    
     distance_threshold_between_frames_m: float = 0.5
     frame_rate: float = 25
 
