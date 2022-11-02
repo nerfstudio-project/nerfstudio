@@ -26,7 +26,6 @@ import torch.utils.data
 from torch._six import string_classes
 
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.data.utils.images import BasicImages
 
 nerfstudio_collate_err_msg_format = (
     "default_collate: batch must contain tensors, numpy arrays, numbers, " "dicts, lists or anything in {}; found {}"
@@ -159,6 +158,22 @@ def nerfstudio_collate(
         ), "All cameras must have distortion parameters or none of them should have distortion parameters.\
             Generalized batching will be supported in the future."
 
+        # If no batch dimension exists, then we need to stack everything and create a batch dimension
+        if elem.shape == ():
+            return Cameras(
+                torch.stack([cameras.camera_to_worlds for cameras in batch], dim=0),
+                torch.stack([cameras.fx for cameras in batch], dim=0),
+                torch.stack([cameras.fy for cameras in batch], dim=0),
+                torch.stack([cameras.cx for cameras in batch], dim=0),
+                torch.stack([cameras.cy for cameras in batch], dim=0),
+                height=torch.stack([cameras.height for cameras in batch], dim=0),
+                width=torch.stack([cameras.width for cameras in batch], dim=0),
+                distortion_params=torch.stack([cameras.distortion_params for cameras in batch], dim=0)
+                if batch[0].distortion_params
+                else None,
+                camera_type=torch.stack([cameras.camera_type for cameras in batch], dim=0),
+            )
+
         return Cameras(
             torch.cat([cameras.camera_to_worlds for cameras in batch], dim=0),
             torch.cat([cameras.fx for cameras in batch], dim=0),
@@ -172,13 +187,6 @@ def nerfstudio_collate(
             else None,
             camera_type=torch.cat([cameras.camera_type for cameras in batch], dim=0),
         )
-
-    elif isinstance(elem, BasicImages):
-        assert all((isinstance(elem, BasicImages) for elem in batch))
-        all_images = []
-        for images in batch:
-            all_images.append(images.images)
-        return BasicImages(all_images)
 
     for type_key in extra_mappings:
         if isinstance(elem, type_key):
