@@ -88,11 +88,12 @@ class WayveDataParserConfig(DataParserConfig):
     center_poses: bool = True
     """Whether to center the poses."""
     start_timestamp_us: int = 1656318618168677
-    # start_timestamp_us: int = 1656318628168677
-    # end_timestamp_us: int  = 1656318638146730
-    end_timestamp_us: int  = 1656318649646730
+    start_time_offset_sec: float = 8.0
     
-    distance_threshold_between_frames_m: float = 0.5
+    end_timestamp_us: int  = 1656318649646730
+    end_time_offset_sec: float = 8.0
+    
+    distance_threshold_between_frames_m: float = 1.0
     frame_rate: float = 25
 
 
@@ -128,7 +129,9 @@ class WayveDataParser(DataParser):
         run_global_egopose = vehicle_poses["egopose"].reshape(-1, 4, 4)
         nan_mask = np.sum(np.isnan(run_global_egopose), axis=(-1, -2)) == 0
         ff_timestamp = df['key__cameras__front_forward__image_timestamp_unixus'].to_numpy()
-        timestamp_mask = (ff_timestamp > self.config.start_timestamp_us) & (ff_timestamp < self.config.end_timestamp_us)
+        start_timestamp_us = self.config.start_timestamp_us + int(self.config.start_time_offset_sec * 10**6)
+        end_timestamp_us = self.config.end_timestamp_us - int(self.config.end_time_offset_sec * 10**6)
+        timestamp_mask = (ff_timestamp > start_timestamp_us) & (ff_timestamp < end_timestamp_us)
         mask = nan_mask & timestamp_mask
         segment_global_egopose = run_global_egopose[mask]
         df = df[mask]
