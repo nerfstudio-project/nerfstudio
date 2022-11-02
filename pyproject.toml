@@ -36,6 +36,7 @@ dependencies = [
     "plotly==5.7.0",
     "protobuf==3.20.0",
     "pyngrok==5.1.0",
+    "pyntcloud>=0.3.1",
     "python-socketio==5.7.1",
     "requests",
     "rich==12.5.1",
