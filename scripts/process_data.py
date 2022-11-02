@@ -507,25 +507,30 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
     return len(frames)
 
 
-def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path) -> int:
+def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path, indices: np.ndarray) -> int:
     """Converts Record3D's metadata and image paths to a JSON file.
 
     Args:
         images_paths: list if image paths.
         metadata_path: Path to the Record3D metadata JSON file.
         output_dir: Path to the output directory.
+        indices: Indices to sample the metadata_path. Should be the same length as images_paths.
 
     Returns:
         The number of registered images.
     """
 
+    assert len(images_paths) == len(indices)
+
     metadata_dict = io.load_from_json(metadata_path)
-    poses_data = np.array(metadata_dict["poses"])
-    # (N, 3, 4)
+
+    poses_data = np.array(metadata_dict["poses"])  # (N, 3, 4)
     camera_to_worlds = np.concatenate(
         [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
         axis=-1,
     ).astype(np.float32)
+    camera_to_worlds = camera_to_worlds[indices]
+
     homogeneous_coord = np.zeros_like(camera_to_worlds[..., :1, :])
     homogeneous_coord[..., :, 3] = 1
     camera_to_worlds = np.concatenate([camera_to_worlds, homogeneous_coord], -2)
@@ -899,6 +904,10 @@ class ProcessRecord3D:
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
+    max_dataset_size: int = 300
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
+
     verbose: bool = False
     """If True, print extra logging."""
 
@@ -922,18 +931,28 @@ class ProcessRecord3D:
                 record3d_image_filenames.append(f)
 
         record3d_image_filenames = sorted(record3d_image_filenames, key=lambda fn: int(fn.stem))
+        num_images = len(record3d_image_filenames)
+        idx = np.arange(num_images)
+        if self.max_dataset_size != -1 and num_images > self.max_dataset_size:
+            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
 
+        record3d_image_filenames = list(np.array(record3d_image_filenames)[idx])
         # Copy images to output directory
         copied_image_paths = copy_images_list(record3d_image_filenames, image_dir=image_dir, verbose=self.verbose)
         num_frames = len(copied_image_paths)
+
         copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
-        summary_log.append(f"Starting with {num_frames} images")
+        summary_log.append(f"Used {num_frames} images out of {num_images} total")
+        if self.max_dataset_size > 0:
+            summary_log.append(
+                f"To change the size of the dataset add the argument --max_dataset_size to larger than the current value ({self.max_dataset_size}), or -1 to use all images."
+            )
 
         # Downscale images
         summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         metadata_path = self.data / "metadata.json"
-        record3d_to_json(copied_image_paths, metadata_path, self.output_dir)
+        record3d_to_json(copied_image_paths, metadata_path, self.output_dir, indices=idx)
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
         for summary in summary_log:
