@@ -27,7 +27,6 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.encodings import Encoding, Identity, SHEncoding
 from nerfstudio.field_components.field_heads import FieldHeadNames, RGBFieldHead
 from nerfstudio.field_components.mlp import MLP
-from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
 
 
@@ -36,7 +35,7 @@ class TensoRFField(Field):
 
     def __init__(
         self,
-        aabb, 
+        aabb,
         # the aabb bounding box of the dataset
         feature_encoding: Encoding = Identity(in_dim=3),
         # the encoding method used for appearance encoding outputs
@@ -47,7 +46,7 @@ class TensoRFField(Field):
         color_encoding: Encoding = Identity(in_dim=3),
         # the tensor encoding method used for scene color
         appearance_dim: int = 27,
-        # the number of dimensions for the appearance embedding 
+        # the number of dimensions for the appearance embedding
         head_mlp_num_layers: int = 2,
         # number of layers for the MLP
         head_mlp_layer_width: int = 128,
