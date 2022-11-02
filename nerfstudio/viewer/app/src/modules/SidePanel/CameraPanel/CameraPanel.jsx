@@ -581,9 +581,17 @@ export default function CameraPanel(props) {
 
   const getKeyframePoint = (progress: Number) => {
     const times = [];
+    const ratio = (cameras.length - 1) / cameras.length;
     cameras.forEach((camera) => {
-      times.push(camera.properties.get('TIME'));
+      const time = camera.properties.get('TIME');
+      times.push(
+        is_cycle ? time * ratio : time
+      );
     });
+
+    if (is_cycle) {
+      times.push(1.0);
+    }
 
     let new_point = 0.0;
     if (progress <= times[0]) {
@@ -646,15 +654,30 @@ export default function CameraPanel(props) {
 
   const values = [];
   cameras.forEach((camera) => {
-    values.push(camera.properties.get('TIME'));
+    const time = camera.properties.get('TIME');
+    const ratio = (cameras.length - 1) / cameras.length;
+    values.push(
+      is_cycle ? time * ratio : time
+    );
   });
+
+  if (is_cycle) {
+    values.push(1.0);
+  }
 
   const handleKeyframeSlider = (
     event: Event,
     newValue: number | number[],
     activeThumb: number,
   ) => {
-    setCameraProperty('TIME', newValue[activeThumb], activeThumb);
+    if (activeThumb === cameras.length) return;
+    const ratio = (cameras.length - 1) / cameras.length;
+    const val = newValue[activeThumb];
+    setCameraProperty(
+      'TIME',
+      is_cycle ? val / ratio : val,
+      activeThumb
+    );
   };
 
   // when the slider changes, update the main camera position
@@ -1019,7 +1042,7 @@ export default function CameraPanel(props) {
           </Button>
         </div>
         <div className="CameraPanel-top-button">
-          <Tooltip className="curve-button" title="Close/Open camera spline">
+          <Tooltip className="curve-button" title="Toggle looping camera spline">
             {!is_cycle ? (
               <Button
                 size="small"
@@ -1098,6 +1121,11 @@ export default function CameraPanel(props) {
           step={step_size}
           valueLabelDisplay="auto"
           valueLabelFormat={(value, i) => {
+            if (i === cameras.length && is_cycle) {
+              return `${cameras[0].properties.get('NAME')} @ ${
+                value.toFixed(2) * seconds
+              }s`;
+            }
             return `${cameras[i].properties.get('NAME')} @ ${
               value.toFixed(2) * seconds
             }s`;
