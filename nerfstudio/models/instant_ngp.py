@@ -125,7 +125,7 @@ class NGPModel(Model):
         background_color = "random" if self.config.randomize_background else colors.WHITE
         self.renderer_rgb = RGBRenderer(background_color=background_color)
         self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer()
+        self.renderer_depth = DepthRenderer(method="expected")
 
         # losses
         self.rgb_loss = MSELoss()
