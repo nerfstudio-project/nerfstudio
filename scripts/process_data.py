@@ -526,7 +526,9 @@ def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: 
         [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
         axis=-1,
     ).astype(np.float32)
-    camera_to_worlds = np.concatenate([camera_to_worlds, np.array([[0, 0, 0, 1]])], 0)
+    homogeneous_coord = np.zeros_like(camera_to_worlds[..., :1, :])
+    homogeneous_coord[..., :, 3] = 1
+    camera_to_worlds = np.concatenate([camera_to_worlds, homogeneous_coord], -2)
 
     frames = []
     for i, im_path in enumerate(images_paths):
@@ -555,7 +557,7 @@ def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: 
         "cy": cy,
         "w": W,
         "h": H,
-        "camera_model": CAMERA_MODELS["perspective"],
+        "camera_model": CAMERA_MODELS["perspective"].name,
     }
 
     out["frames"] = frames
@@ -915,7 +917,7 @@ class ProcessRecord3D:
             raise ValueError(f"Image directory {image_dir} doesn't exist")
 
         record3d_image_filenames = []
-        for f in image_dir.iterdir():
+        for f in record3d_image_dir.iterdir():
             if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
                 record3d_image_filenames.append(f)
 
@@ -924,6 +926,7 @@ class ProcessRecord3D:
         # Copy images to output directory
         copied_image_paths = copy_images_list(record3d_image_filenames, image_dir=image_dir, verbose=self.verbose)
         num_frames = len(copied_image_paths)
+        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
         summary_log.append(f"Starting with {num_frames} images")
 
         # Downscale images
