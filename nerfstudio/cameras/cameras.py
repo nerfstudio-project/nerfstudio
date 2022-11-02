@@ -589,25 +589,30 @@ class Cameras(TensorDataclass):
         # directions_stack[0] is the direction for ray in camera coordinates
         # directions_stack[1] is the direction for ray in camera coordinates offset by 1 in x
         # directions_stack[2] is the direction for ray in camera coordinates offset by 1 in y
-        if self.camera_type.view(-1)[0] == CameraType.PERSPECTIVE.value:
-            directions_stack = torch.stack(
-                [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
-            )
-        elif self.camera_type.view(-1)[0] == CameraType.FISHEYE.value:
+        cam_types = torch.unique(self.camera_type, sorted=False)
+        directions_stack = torch.empty((3,) + num_rays_shape + (3,), device=self.device)
+        if CameraType.PERSPECTIVE.value in cam_types:
+            mask = self.camera_type[true_indices] == CameraType.PERSPECTIVE.value  # (num_rays)
+
+            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask)
+            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask)
+            directions_stack[..., 2][mask] = -1.0
+
+        elif CameraType.FISHEYE.value in cam_types:
+            mask = self.camera_type[true_indices] == CameraType.FISHEYE.value  # (num_rays)
+
             theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
 
             sin_theta = torch.sin(theta)
-            directions_stack = torch.stack(
-                [
-                    coord_stack[..., 0] * sin_theta / theta,
-                    coord_stack[..., 1] * sin_theta / theta,
-                    -torch.cos(theta),
-                ],
-                dim=-1,
-            )
+
+            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask)
+            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask)
+            directions_stack[..., 2][mask] = torch.masked_select(torch.cos(theta), mask)
+
         else:
             raise ValueError(f"Camera type {CameraType(self.camera_type.view(-1)[0])} not supported.")
+
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
         c2w = self.camera_to_worlds[true_indices]
