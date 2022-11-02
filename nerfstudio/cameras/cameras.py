@@ -433,6 +433,8 @@ class Cameras:
             self.cy[indices + (slice(None),)],
             height=self._image_heights[indices + (slice(None),)],
             width=self._image_widths[indices + (slice(None),)],
-            distortion_params=self.distortion_params[indices + (slice(None),)] if self.distortion_params is not None else None,
+            distortion_params=self.distortion_params[indices + (slice(None),)]
+            if self.distortion_params is not None
+            else None,
             camera_type=self.camera_type[indices + (slice(None),)],
         )
