@@ -241,7 +241,7 @@ class Config(PrintableConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
