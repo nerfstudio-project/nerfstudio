@@ -592,14 +592,15 @@ class Cameras(TensorDataclass):
         cam_types = torch.unique(self.camera_type, sorted=False)
         directions_stack = torch.empty((3,) + num_rays_shape + (3,), device=self.device)
         if CameraType.PERSPECTIVE.value in cam_types:
-            mask = self.camera_type[true_indices] == CameraType.PERSPECTIVE.value  # (num_rays)
-
+            mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
+            mask = torch.stack([mask, mask, mask], dim=0)
             directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask)
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask)
             directions_stack[..., 2][mask] = -1.0
 
         elif CameraType.FISHEYE.value in cam_types:
-            mask = self.camera_type[true_indices] == CameraType.FISHEYE.value  # (num_rays)
+            mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
+            mask = torch.stack([mask, mask, mask], dim=0)
 
             theta = torch.sqrt(torch.sum(coord_stack**2, dim=-1))
             theta = torch.clip(theta, 0.0, math.pi)
