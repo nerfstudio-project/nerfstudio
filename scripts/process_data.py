@@ -945,7 +945,8 @@ class ProcessRecord3D:
         summary_log.append(f"Used {num_frames} images out of {num_images} total")
         if self.max_dataset_size > 0:
             summary_log.append(
-                f"To change the size of the dataset add the argument --max_dataset_size to larger than the current value ({self.max_dataset_size}), or -1 to use all images."
+                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
+                f"current value ({self.max_dataset_size}), or -1 to use all images."
             )
 
         # Downscale images
