@@ -32,7 +32,8 @@ def download_blender(save_dir: Path):
     unzip_path = save_dir / Path("nerf_synthetic")
     final_path = save_dir / Path("blender")
     unzip_path.rename(final_path)
-    download_path.unlink(missing_ok=True)
+    if download_path.exists():
+        download_path.unlink()
 
 
 def download_friends(save_dir: Path):
@@ -64,7 +65,6 @@ nerfstudio_file_ids = {
     "library": grab_file_id("https://drive.google.com/file/d/1Hjbh_-BuaWETQExn2x2qGD74UwrFugHx/view?usp=sharing"),
     "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
-    "sf_street": grab_file_id("https://drive.google.com/file/d/1DbLyptL6my2QprEVtYuW2uzgp9JAK5Wz/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
 }
@@ -100,7 +100,7 @@ def download_nerfstudio(save_dir: Path, capture_name: str):
 
 
 record3d_file_ids = {
-    "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing"),
+    "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing")
 }
 
 
@@ -109,8 +109,26 @@ def download_record3d(save_dir: Path, capture_name: str):
     download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=record3d_file_ids)
 
 
+def download_dnerf(save_dir: Path):
+    """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
+    # TODO: give this code the same structure as download_nerfstudio
+
+    final_path = save_dir / Path("dnerf")
+    if os.path.exists(final_path):
+        shutil.rmtree(str(final_path))
+    download_path = save_dir / "dnerf_data.zip"
+    os.system(f"curl -L https://www.dropbox.com/s/raw/0bf6fl0ye2vz3vr/data.zip > {download_path}")
+    with zipfile.ZipFile(download_path, "r") as zip_ref:
+        zip_ref.extractall(str(save_dir))
+    unzip_path = save_dir / Path("data")
+    final_path = save_dir / Path("dnerf")
+    unzip_path.rename(final_path)
+    if download_path.exists():
+        download_path.unlink()
+
+
 def main(
-    dataset: Literal["blender", "friends", "nerfstudio", "record3d"],
+    dataset: Literal["blender", "friends", "nerfstudio", "record3d", "dnerf"],
     capture_name: Optional[DatasetName] = None,  # type: ignore
     save_dir: Path = Path("data/"),
 ):
@@ -149,6 +167,10 @@ def main(
         download_nerfstudio(save_dir, capture_name)
     if dataset == "record3d":
         download_record3d(save_dir, "bear")
+    if dataset == "dnerf":
+        if capture_name is not None:
+            CONSOLE.print("Capture name is ignored when downloading from the dnerf dataset.")
+        download_dnerf(save_dir)
 
 
 def entrypoint():
