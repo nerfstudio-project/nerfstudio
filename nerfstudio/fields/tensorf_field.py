@@ -32,33 +32,33 @@ from nerfstudio.fields.base_field import Field
 
 
 class TensoRFField(Field):
-    """TensoRF Field
-
-    Args:
-        density_encoding:
-        color_encoding:
-
-        head_mlp_num_layers: Number of layer for ourput head MLP.
-        head_mlp_layer_width: Width of output head MLP layers.
-    """
+    """TensoRF Field"""
 
     def __init__(
         self,
-        aabb,
+        aabb, 
+        # the aabb bounding box of the dataset
         feature_encoding: Encoding = Identity(in_dim=3),
+        # the encoding method used for appearance encoding outputs
         direction_encoding: Encoding = Identity(in_dim=3),
+        # the encoding method used for ray direction
         density_encoding: Encoding = Identity(in_dim=3),
+        # the tensor encoding method used for scene density
         color_encoding: Encoding = Identity(in_dim=3),
+        # the tensor encoding method used for scene color
         appearance_dim: int = 27,
+        # the number of dimensions for the appearance embedding 
         head_mlp_num_layers: int = 2,
+        # number of layers for the MLP
         head_mlp_layer_width: int = 128,
-        spatial_distortion: Optional[SpatialDistortion] = None,
+        # layer width for the MLP
         use_sh: bool = False,
+        # whether to use spherical harmonics as the feature decoding function
         sh_levels: int = 2,
+        # number of levels to use for spherical harmonics
     ) -> None:
         super().__init__()
         self.aabb = Parameter(aabb, requires_grad=False)
-        self.spatial_distortion = spatial_distortion
         self.feature_encoding = feature_encoding
         self.direction_encoding = direction_encoding
         self.density_encoding = density_encoding

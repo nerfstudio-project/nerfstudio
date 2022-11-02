@@ -117,8 +117,6 @@ class TensoRFModel(Model):
             resolution = self.upsampling_steps.pop(0)
 
             # upsample the position and direction grids
-            # TODO(ethan): ask Brent how to get typing to work on this... the Encoding base class type
-            # in NeRFField is causing the issue
             self.field.density_encoding.upsample_grid(resolution)
             self.field.color_encoding.upsample_grid(resolution)
 
