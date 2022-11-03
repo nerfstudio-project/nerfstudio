@@ -67,8 +67,8 @@ class Record3D(DataParser):
     def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
 
         CONSOLE.print(
-            "[bold red]DEPRECATION WARNING: the Record3D dataparser will be deprecated in future versions. "
-            "Use `ns-data-process record3d` instead."
+            "[bold red]DEPRECATION WARNING: The Record3D dataparser will be deprecated in future versions. "
+            "Use `ns-data-process record3d` to convert the data into the nerfacto format instead."
         )
 
         image_dir = self.config.data / "rgb"
