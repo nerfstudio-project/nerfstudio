@@ -56,8 +56,6 @@ class DataparserOutputs:
     scene_box: SceneBox = SceneBox()
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     semantics: Optional[Semantics] = None
-
-    image_scale_factor: Optional[float] = None
     
     """Semantics information."""
     times: Optional[TensorType[1]] = None
