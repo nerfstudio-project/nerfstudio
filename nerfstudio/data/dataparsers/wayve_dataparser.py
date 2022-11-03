@@ -92,11 +92,9 @@ class WayveDataParserConfig(DataParserConfig):
 
     end_timestamp_us: int  = 1656318649646730
     end_time_offset_sec: float = 8.0
-    
-    distance_threshold_between_frames_m: float = 0.75
-    frame_rate: float = 25
 
-    eval_subsample_factor: int = 50
+    distance_threshold_between_frames_m: float = 1.0
+    frame_rate: float = 25
 
 
 @dataclass
@@ -142,7 +140,6 @@ class WayveDataParser(DataParser):
         ticks = np.arange(0, distance[-1], self.config.distance_threshold_between_frames_m)
         if split in ["test", "val"]:
             ticks = ticks[:-1] + self.config.distance_threshold_between_frames_m / 2
-            ticks = ticks[::self.config.eval_subsample_factor]
         indices = np.searchsorted(distance, ticks)
         if split == "render":
             indices = np.arange(len(distance))

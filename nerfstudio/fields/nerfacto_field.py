@@ -95,7 +95,8 @@ class TCNNNerfactoField(Field):
         transient_embedding_dim: int = 16,
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
-        num_semantics_classes: int = 100,
+        num_semantics_thing_classes: int = 100,
+        num_semantics_stuff_classes: int = 100,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
@@ -179,8 +180,11 @@ class TCNNNerfactoField(Field):
                     "n_hidden_layers": 1,
                 },
             )
-            self.field_head_semantics = SemanticThingFieldHead(
-                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantics_classes
+            self.field_head_semantics_stuff = SemanticStuffFieldHead(
+                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantics_stuff_classes
+            )
+            self.field_head_semantics_thing = SemanticThingFieldHead(
+                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantics_thing_classes
             )
 
         self.mlp_head = tcnn.Network(
@@ -262,7 +266,8 @@ class TCNNNerfactoField(Field):
             )
             # print(semantics_input)
             x = self.mlp_semantics(semantics_input).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
-            outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
+            outputs[FieldHeadNames.SEMANTICS_STUFF] = self.field_head_semantics_stuff(x)
+            outputs[FieldHeadNames.SEMANTICS_THING] = self.field_head_semantics_thing(x)
 
         h = torch.cat(
             [
