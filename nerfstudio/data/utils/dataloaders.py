@@ -52,6 +52,7 @@ class CacheDataloader(DataLoader):
         num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
         collate_fn=default_collate,
+        patch_size: int = 1,
         **kwargs,
     ):
         self.dataset = dataset
@@ -60,6 +61,7 @@ class CacheDataloader(DataLoader):
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.device = device
         self.collate_fn = collate_fn
+        self.patch_size = patch_size
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.first_time = True
@@ -90,7 +92,7 @@ class CacheDataloader(DataLoader):
         """Returns a list of batches from the dataset attribute."""
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
         batch_list = []
-        for idx in track(indices, description="Loading data batch"):
+        for idx in indices:
             batch_list.append(self.dataset.__getitem__(idx))
         return batch_list
 
@@ -98,6 +100,10 @@ class CacheDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
+        b, h, w, c = collated_batch["image"].shape
+        effective_height = h + 1 - self.patch_size
+        effective_width = w + 1 - self.patch_size
+        collated_batch["col_image"] = torch.nn.functional.unfold(collated_batch["image"].permute(0, 3, 1, 2), kernel_size=self.patch_size, padding=0).permute(0, 2, 1).reshape(b, effective_height , effective_width, c, self.patch_size**2).permute(0, 1, 2, 4, 3)
         collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
         return collated_batch
 

@@ -277,6 +277,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
+    patch_size: int = 3
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -338,6 +339,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
             pin_memory=True,
             sampler=sampler,
+            patch_size=self.config.patch_size
         )
 
     def load_eval_dataset(self):
@@ -361,6 +363,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
             pin_memory=True,
             sampler=sampler,
+            patch_size=self.config.patch_size
         )
 
     def setup_train(self):
@@ -368,23 +371,25 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         assert self.train_dataset is not None
         self.train_image_dataloader = self.load_train_image_dataloader()
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
+        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch, self.config.patch_size)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
         self.train_ray_generator = RayGenerator(
             self.train_dataset.dataparser_outputs.cameras.to(self.device),
             self.train_camera_optimizer,
+            self.config.patch_size
         )
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
         self.eval_image_dataloader = self.load_eval_image_dataloader()
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
+        self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch, patch_size=1)
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.dataparser_outputs.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
+            patch_size=1
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(

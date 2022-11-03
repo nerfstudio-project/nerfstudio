@@ -32,11 +32,17 @@ class RayGenerator(nn.Module):
         pose_optimizer: pose optimization module, for optimizing noisy camera intrisics/extrinsics.
     """
 
-    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
+    def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer, patch_size: int) -> None:
         super().__init__()
         self.cameras = cameras
         self.pose_optimizer = pose_optimizer
-        self.image_coords = nn.Parameter(cameras.get_image_coords(), requires_grad=False)
+        image_coords = cameras.get_image_coords().unsqueeze(0).permute(0, 3, 1, 2)
+        self.patch_size=  patch_size
+        h, w = image_coords.shape[2:]
+        effective_height = h + 1 - patch_size
+        effective_width = w + 1 - patch_size
+        im2col_values = nn.functional.unfold(image_coords, kernel_size=patch_size, padding=0).permute(0, 2, 1).reshape(effective_height, effective_width, 2, patch_size**2).permute(0, 1, 3, 2)
+        self.image_coords = nn.Parameter(im2col_values, requires_grad=False)
 
     def forward(self, ray_indices: TensorType["num_rays", 3]) -> RayBundle:
         """Index into the cameras to generate the rays.
@@ -44,15 +50,14 @@ class RayGenerator(nn.Module):
         Args:
             ray_indices: Contains camera, row, and col indicies for target rays.
         """
-        c = ray_indices[:, 0]  # camera indices
         y = ray_indices[:, 1]  # row indices
         x = ray_indices[:, 2]  # col indices
-        coords = self.image_coords[y, x]
-
-        camera_opt_to_camera = self.pose_optimizer(c)
+        coords = self.image_coords[y, x].reshape(-1, 2)
+        camera_indices = ray_indices[:, :1].expand(-1, self.patch_size**2).flatten()
+        camera_opt_to_camera = self.pose_optimizer(camera_indices)
 
         ray_bundle = self.cameras.generate_rays(
-            camera_indices=c.unsqueeze(-1),
+            camera_indices=camera_indices.unsqueeze(-1),
             coords=coords,
             camera_opt_to_camera=camera_opt_to_camera,
         )

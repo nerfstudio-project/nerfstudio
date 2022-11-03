@@ -22,7 +22,7 @@ from typing import Dict
 import torch
 
 
-def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
+def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, patch_size: int, keep_full_image: bool = False):
     """
     Operates on a batch of images and samples pixels to use for generating rays.
     Returns a collated batch which is input to the Graph.
@@ -37,18 +37,23 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_
     num_images, image_height, image_width, _ = batch["image"].shape
 
     # only sample within the mask, if the mask is in the batch
+    mask = torch.ones_like(batch["image"][..., 0]).bool()
     if "mask" in batch:
         nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
         chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
         indices = nonzero_indices[chosen_indices]
     else:
+        effective_height = image_height + 1 - patch_size
+        effective_width = image_width + 1 - patch_size
         indices = torch.floor(
             torch.rand((num_rays_per_batch, 3), device=device)
-            * torch.tensor([num_images, image_height, image_width], device=device)
+            * torch.tensor([num_images, effective_height, effective_width], device=device)
         ).long()
 
+
     c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-    image = batch["image"][c, y, x]
+    image = batch["col_image"][c, y, x].reshape(-1, 3)
+    # image = batch["image"][c, y, x]
     mask, semantics_stuff, semantics_thing = None, None, None
     if "mask" in batch:
         mask = batch["mask"][c, y, x]
@@ -56,7 +61,7 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_
         semantics_stuff = batch["semantics_stuff"][c, y, x]
     if "semantics_thing" in batch:
         semantics_thing = batch["semantics_thing"][c, y, x]
-    assert image.shape == (num_rays_per_batch, 3), image.shape
+    assert image.shape == (num_rays_per_batch * patch_size * patch_size, 3), image.shape
 
     # Needed to correct the random indices to their actual camera idx locations.
     local_indices = indices.clone()
@@ -87,9 +92,10 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         keep_full_image: whether or not to include a reference to the full image in returned batch
     """
 
-    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False) -> None:
+    def __init__(self, num_rays_per_batch: int, patch_size: int, keep_full_image: bool = False) -> None:
         self.num_rays_per_batch = num_rays_per_batch
         self.keep_full_image = keep_full_image
+        self.patch_size = patch_size
 
     def set_num_rays_per_batch(self, num_rays_per_batch: int):
         """Set the number of rays to sample per batch.
@@ -106,6 +112,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             image_batch: batch of images to sample from
         """
         pixel_batch = collate_image_dataset_batch(
-            image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
+            image_batch, self.num_rays_per_batch, self.patch_size, keep_full_image=self.keep_full_image
         )
         return pixel_batch
