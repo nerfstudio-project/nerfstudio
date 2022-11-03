@@ -363,7 +363,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_workers=self.world_size * 4,
             pin_memory=True,
             sampler=sampler,
-            patch_size=self.config.patch_size
+            patch_size=1
         )
 
     def setup_train(self):
