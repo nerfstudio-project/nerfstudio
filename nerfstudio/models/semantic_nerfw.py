@@ -239,9 +239,7 @@ class SemanticNerfWModel(Model):
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
 
         # semantic loss
-        loss_dict["semantics_loss"] = self.cross_entropy_loss(
-            outputs["semantics"], batch["semantics"][..., 0].long()
-        )
+        loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
         return loss_dict
 
     def get_image_metrics_and_images(

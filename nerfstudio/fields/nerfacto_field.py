@@ -35,8 +35,7 @@ from nerfstudio.field_components.field_heads import (
     FieldHead,
     FieldHeadNames,
     RGBFieldHead,
-    SemanticStuffFieldHead,
-    SemanticThingFieldHead,
+    SemanticFieldHead,
     TransientDensityFieldHead,
     TransientRGBFieldHead,
     UncertaintyFieldHead,
@@ -179,7 +178,7 @@ class TCNNNerfactoField(Field):
                     "n_hidden_layers": 1,
                 },
             )
-            self.field_head_semantics = SemanticThingFieldHead(
+            self.field_head_semantics = SemanticFieldHead(
                 in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantic_classes
             )
 
