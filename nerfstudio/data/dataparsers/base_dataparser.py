@@ -63,6 +63,8 @@ class DataparserOutputs:
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     semantics: Optional[Semantics] = None
     """Semantics information."""
+    times: Optional[TensorType[1]] = None
+    """Time in range [0,1] for when each image was taken."""
     additional_inputs: Dict[str, Any] = to_immutable_dict({})
     """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
     {input_name:
