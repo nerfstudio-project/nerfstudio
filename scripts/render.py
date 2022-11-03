@@ -43,13 +43,12 @@ def _generate_new_snake_trajectory_and_fps(datamanager, snake_period_sec=5.0, sn
     camera_path = datamanager.dataparser.get_dataparser_outputs(split="render").cameras[camera_indices]
     mean_translation = datamanager.mean_translation
     scale_factor = datamanager.scale_factor
-    G_nerf_run = datamanager.G_nerf_run
     fps = int((25.0 / frame_stride))
     trajectory_sec = len(original_path) / float(fps)
     dsec = torch.linspace(0, trajectory_sec, len(original_path))
     dy = snake_amplitude_m*torch.sin(2*torch.pi*dsec/snake_period_sec)
     original_path[:, 1, 3] += dy
-    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor, G_nerf_run)[:, :3, :]
+    camera_path.camera_to_worlds = wayve_run_pose_to_nerfstudio_pose(original_path, mean_translation, scale_factor)[:, :3, :]
     return camera_path, fps
 
 def _render_trajectory_video(
@@ -167,7 +166,7 @@ class RenderTrajectory:
             camera_path, fps = _generate_new_snake_trajectory_and_fps(pipeline.datamanager)
         else:
             assert_never(self.traj)
-        
+
 
         _render_trajectory_video(
             pipeline,
