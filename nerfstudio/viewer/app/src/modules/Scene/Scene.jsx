@@ -14,7 +14,6 @@ import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
 import { snap_to_camera } from '../SidePanel/SidePanel';
-import { Vector3 } from 'three';
 
 const msgpack = require('msgpack-lite');
 
@@ -68,9 +67,7 @@ export function get_scene_tree() {
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
   camera_controls.azimuthRotateSpeed = 0.3;
   camera_controls.polarRotateSpeed = 0.3;
-  // camera_controls.minDistance = 0.3;
-  // camera_controls.maxDistance = 1000;
-  // camera_controls.dollySpeed = 0.1;
+  camera_controls.dollySpeed = 0.1;
   camera_controls.saveState();
 
   const keyMap = [];
