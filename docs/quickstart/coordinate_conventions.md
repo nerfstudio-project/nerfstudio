@@ -8,4 +8,4 @@ We use the OpenGL/Blender (and original NeRF) coordinate convention for cameras.
 
 ## World space
 
-Our world space is oriented such that the up vector is +Z. The XY plane is parallel to the ground plane.
+Our world space is oriented such that the up vector is +Z. The XY plane is parallel to the ground plane. In the viewer, you'll notice that red, green, and blue vectors correspond to X, Y, and Z respectively.
