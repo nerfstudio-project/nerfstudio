@@ -51,11 +51,12 @@ export default function RenderModal(props: RenderModalProps) {
           >
             <div className="RenderModel-content">
               <h2>Rendering</h2>
-              <p>{text_intro}</p>
               <p>
+                {text_intro}
+                <br />
                 The video will be saved to{' '}
                 <code className="RenderModal-inline-code">
-                  ./renders/${filename}.mp4
+                  ./renders/{filename}.mp4
                 </code>
                 .
               </p>
