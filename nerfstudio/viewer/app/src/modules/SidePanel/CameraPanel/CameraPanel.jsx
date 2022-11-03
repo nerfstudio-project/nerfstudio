@@ -6,6 +6,7 @@ import {
   ArrowForwardIos,
   AllInclusiveOutlined,
   ChangeHistory,
+  ClearAll,
   ContentPasteGo,
   Delete,
   ExpandMore,
@@ -13,13 +14,11 @@ import {
   GestureOutlined,
   KeyboardArrowUp,
   KeyboardArrowDown,
-  LinearScaleOutlined,
   LastPage,
   Pause,
   PlayArrow,
   RadioButtonUnchecked,
   Replay,
-  Timeline,
   Visibility,
   Edit,
 } from '@mui/icons-material';
@@ -395,7 +394,6 @@ export default function CameraPanel(props) {
   const [smoothness_value, set_smoothness_value] = React.useState(0.5);
   const [is_playing, setIsPlaying] = React.useState(false);
   const [is_cycle, setIsCycle] = React.useState(false);
-  const [is_linear, setIsLinear] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
 
@@ -629,17 +627,11 @@ export default function CameraPanel(props) {
     let lookat = null;
     let up = null;
     let fov = null;
-    if (!is_linear) {
-      position = curve_object.curve_positions.getPoint(point);
-      lookat = curve_object.curve_lookats.getPoint(point);
-      up = curve_object.curve_ups.getPoint(point);
-      fov = curve_object.curve_fovs.getPoint(point).z;
-    } else {
-      position = curve_object.curve_positions.getPointAt(point);
-      lookat = curve_object.curve_lookats.getPointAt(point);
-      up = curve_object.curve_ups.getPointAt(point);
-      fov = curve_object.curve_fovs.getPointAt(point).z;
-    }
+    position = curve_object.curve_positions.getPoint(point);
+    lookat = curve_object.curve_lookats.getPoint(point);
+    up = curve_object.curve_ups.getPoint(point);
+    fov = curve_object.curve_fovs.getPoint(point).z;
+    
     const mat = get_transform_matrix(position, lookat, up);
     set_camera_position(camera_render, mat);
     camera_render.fov = fov;
@@ -675,7 +667,7 @@ export default function CameraPanel(props) {
     const val = newValue[activeThumb];
     setCameraProperty(
       'TIME',
-      is_cycle ? val / ratio : val,
+      is_cycle ? Math.min(val / ratio, 1.0) : val,
       activeThumb
     );
   };
@@ -688,18 +680,10 @@ export default function CameraPanel(props) {
       let lookat = null;
       let up = null;
       let fov = null;
-      if (!is_linear) {
-        // interpolate to get the points
-        position = curve_object.curve_positions.getPoint(point);
-        lookat = curve_object.curve_lookats.getPoint(point);
-        up = curve_object.curve_ups.getPoint(point);
-        fov = curve_object.curve_fovs.getPoint(point).z;
-      } else {
-        position = curve_object.curve_positions.getPointAt(point);
-        lookat = curve_object.curve_lookats.getPointAt(point);
-        up = curve_object.curve_ups.getPointAt(point);
-        fov = curve_object.curve_fovs.getPointAt(point).z;
-      }
+      position = curve_object.curve_positions.getPoint(point);
+      lookat = curve_object.curve_lookats.getPoint(point);
+      up = curve_object.curve_ups.getPoint(point);
+      fov = curve_object.curve_fovs.getPoint(point).z;
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
       camera_render.fov = fov;
@@ -767,7 +751,6 @@ export default function CameraPanel(props) {
       seconds,
       smoothness_value,
       is_cycle,
-      is_linear,
     };
     return camera_path_object;
   };
@@ -816,7 +799,6 @@ export default function CameraPanel(props) {
 
     set_smoothness_value(camera_path_object.smoothness_value);
     setIsCycle(camera_path_object.is_cycle);
-    setIsLinear(camera_path_object.is_linear);
 
     for (let i = 0; i < camera_path_object.keyframes.length; i += 1) {
       const keyframe = camera_path_object.keyframes[i];
@@ -1067,28 +1049,23 @@ export default function CameraPanel(props) {
           </Tooltip>
         </div>
         <div className="CameraPanel-top-button">
-          <Tooltip title="Non-linear/Linear camera speed">
-            {!is_linear ? (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setIsLinear(true);
-                }}
-              >
-                <LinearScaleOutlined />
-              </Button>
-            ) : (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setIsLinear(false);
-                }}
-              >
-                <Timeline />
-              </Button>
-            )}
+          <Tooltip title="Reset Keyframe Timing">
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                const new_properties = new Map(cameraProperties);
+                cameras.forEach((camera, i) => {
+                  const uuid = camera.uuid;
+                  const new_time = i / (cameras.length - 1);
+                  const current_cam_properties = new_properties.get(uuid);
+                  current_cam_properties.set('TIME', new_time);
+                });
+                setCameraProperties(new_properties);
+              }}
+            >
+              <ClearAll />
+            </Button>
           </Tooltip>
         </div>
       </div>
@@ -1123,11 +1100,11 @@ export default function CameraPanel(props) {
           valueLabelFormat={(value, i) => {
             if (i === cameras.length && is_cycle) {
               return `${cameras[0].properties.get('NAME')} @ ${
-                value.toFixed(2) * seconds
+                parseFloat((value * seconds).toFixed(2))
               }s`;
             }
             return `${cameras[i].properties.get('NAME')} @ ${
-              value.toFixed(2) * seconds
+              parseFloat((value * seconds).toFixed(2))
             }s`;
           }}
           marks={marks}
@@ -1136,6 +1113,14 @@ export default function CameraPanel(props) {
           disabled={cameras.length < 2}
           track={false}
           onChange={handleKeyframeSlider}
+          sx={{
+            '& .MuiSlider-thumb': {
+              borderRadius: '6px',
+              width: `${
+                24.0 / Math.max(Math.sqrt(cameras.length), 2)
+              }px`
+            },
+          }}
           disableSwap
         />
         <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left' }}>
@@ -1144,8 +1129,8 @@ export default function CameraPanel(props) {
         <Slider
           value={slider_value}
           step={step_size}
-          valueLabelDisplay="on"
-          valueLabelFormat={slider_value.toFixed(2)}
+          valueLabelDisplay={is_playing ? "on" : "off"}
+          valueLabelFormat={`${(Math.min(slider_value, 1.0) * seconds).toFixed(2)}s`}
           marks={marks}
           min={slider_min}
           max={slider_max}
