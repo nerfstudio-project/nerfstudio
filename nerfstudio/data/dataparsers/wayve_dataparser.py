@@ -48,8 +48,8 @@ def get_image_mask(image_idx: int, index_to_camera_position, image_masks):
     mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
     return {"mask": mask_tensor}
 
-def wayve_run_pose_to_nerfstudio_pose(P_run, mean_translation, scale_factor, G_nerf_run):
-    P_nerf = G_nerf_run.to(P_run.device) @ P_run
+def wayve_run_pose_to_nerfstudio_pose(P_run, mean_translation, scale_factor):
+    P_nerf = P_run
     P_nerf[:, :3, 3] = (P_nerf[:, :3, 3] - mean_translation.to(P_nerf.device)) * scale_factor.to(P_nerf.device)
     transform1 = torch.tensor([
         [0, -1, 0, 0],
@@ -71,7 +71,7 @@ def wayve_run_pose_to_nerfstudio_pose(P_run, mean_translation, scale_factor, G_n
         [0, 0, 0, 1],
     ], dtype=torch.float, device=P_run.device)
     P_nerf = transform2 @ P_nerf
-    
+
     return P_nerf
 @dataclass
 class WayveDataParserConfig(DataParserConfig):
@@ -89,10 +89,10 @@ class WayveDataParserConfig(DataParserConfig):
     """Whether to center the poses."""
     start_timestamp_us: int = 1656318618168677
     start_time_offset_sec: float = 8.0
-    
+
     end_timestamp_us: int  = 1656318649646730
     end_time_offset_sec: float = 8.0
-    
+
     distance_threshold_between_frames_m: float = 1.0
     frame_rate: float = 25
 
@@ -166,15 +166,12 @@ class WayveDataParser(DataParser):
             distortion.append(torch.tensor(camera_calibration['distortion'][:6]).view(1, 6).expand(num_rows, -1))
             total_valid_indices += num_valid_indices
         self.wayve_poses = wayve_poses
-        # Move first frame to be at the origin
-        self.G_nerf_run = to4x4(inverse(wayve_poses['front-forward'][:1])).squeeze(0)
 
         concat_wayve_poses =torch.stack([wayve_poses[pos] for pos in camera_positions], dim=1)
-        segment_poses = self.G_nerf_run @ concat_wayve_poses
-        translation = segment_poses[:, :, :3, 3]
+        translation = concat_wayve_poses[:, :, :3, 3]
         self.mean_translation = torch.mean(translation, dim=(0, 1))
         self.scale_factor = 1.0 / torch.max(torch.abs(translation - self.mean_translation))
-        
+
         intrinsics = torch.from_numpy(np.stack(intrinsics, axis=1))
         distortion = torch.from_numpy(np.stack(distortion, axis=1))
         poses = concat_wayve_poses[indices].permute(1, 0, 2, 3).reshape(-1, 4, 4)
@@ -183,7 +180,7 @@ class WayveDataParser(DataParser):
         image_filenames = np.stack(image_filenames, axis=1)
         image_filenames = image_filenames[indices].transpose((1, 0)).reshape(-1).tolist()
 
-        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor, self.G_nerf_run)
+        poses = wayve_run_pose_to_nerfstudio_pose(poses, self.mean_translation, self.scale_factor)
         camera_type = CameraType.FISHEYE
 
         cameras = Cameras(
@@ -198,7 +195,7 @@ class WayveDataParser(DataParser):
             camera_type=camera_type,
         )
         if self.config.downscale_factor is not None:
-            cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor) 
+            cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
         aabb_scale = 1.0
         scene_box = SceneBox(
             aabb=torch.tensor(

@@ -142,10 +142,6 @@ class DataManager(nn.Module):
         if self.eval_dataset:
             self.setup_eval()
         ## Used to convert wayve poses to nerfstudio poses during eval
-        if hasattr(self.dataparser, "G_nerf_run"):
-            G_nerf_run = self.dataparser.G_nerf_run
-        else:
-            G_nerf_run = torch.eye(4)
         if hasattr(self.dataparser, "mean_translation"):
             mean_translation = self.dataparser.mean_translation
         else:
@@ -156,7 +152,6 @@ class DataManager(nn.Module):
             scale_factor = torch.tensor(1)
         self.register_buffer("mean_translation",mean_translation)
         self.register_buffer("scale_factor", scale_factor)
-        self.register_buffer("G_nerf_run", G_nerf_run)
 
     def forward(self):
         """Blank forward method
@@ -325,8 +320,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def load_train_dataset(self):
         return InputDataset(self.dataparser.get_dataparser_outputs(split="train"))
-        
-    
+
+
     def load_train_image_dataloader(self):
         assert self.train_dataset is not None
         if self.world_size > 1:
@@ -349,7 +344,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return InputDataset(
             self.dataparser.get_dataparser_outputs(split="val" if not self.test_mode else "test")
         )
-    
+
     def load_eval_image_dataloader(self):
         assert self.eval_dataset is not None
         if self.world_size > 1:
@@ -475,7 +470,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 #         print(f"----------------------------- using wayve datamanager -----------------------------")
 #         return WayveDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
 
-    
+
 #     def load_train_image_dataloader(self):
 #         assert self.train_dataset is not None
 #         sampler = self.load_sampler
@@ -498,7 +493,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 #         return WayveDataset(
 #             self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
 #         )
-    
+
 #     def load_eval_image_dataloader(self):
 #         assert self.eval_dataset is not None
 #         if self.world_size > 1:
