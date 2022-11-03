@@ -50,7 +50,7 @@ quickstart/installation
 quickstart/first_nerf
 quickstart/custom_dataset
 quickstart/viewer_quickstart
-quickstart/coordinate_conventions
+quickstart/data_conventions
 Contributing<reference/contributing>
 ```
 
