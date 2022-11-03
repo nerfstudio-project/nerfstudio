@@ -23,7 +23,12 @@ from typing import Dict
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import Config, TrainerConfig, ViewerConfig
+from nerfstudio.configs.base_config import (
+    Config,
+    SchedulerConfig,
+    TrainerConfig,
+    ViewerConfig,
+)
 from nerfstudio.data.datamanagers import VanillaDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
@@ -34,6 +39,7 @@ from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
+from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
@@ -45,6 +51,7 @@ descriptions = {
     "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. (slow)",
+    "tensorf": "tensorf",
 }
 
 method_configs["nerfacto"] = Config(
@@ -155,6 +162,26 @@ method_configs["vanilla-nerf"] = Config(
     },
 )
 
+method_configs["tensorf"] = Config(
+    method_name="tensorf",
+    trainer=TrainerConfig(mixed_precision=False),
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=BlenderDataParserConfig(),
+        ),
+        model=TensoRFModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.0001, max_steps=30000),
+        },
+        "encodings": {
+            "optimizer": AdamOptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
+        },
+    },
+)
 
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
     tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)

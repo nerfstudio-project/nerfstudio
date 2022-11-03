@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePath
 from typing import Optional, Type
 
 import numpy as np
@@ -80,12 +80,9 @@ class Nerfstudio(DataParser):
         num_skipped_image_filenames = 0
 
         for frame in meta["frames"]:
-            if "\\" in frame["file_path"]:
-                filepath = PureWindowsPath(frame["file_path"])
-            else:
-                filepath = Path(frame["file_path"])
+            filepath = PurePath(frame["file_path"])
             fname = self._get_fname(filepath)
-            if not fname:
+            if not fname.exists():
                 num_skipped_image_filenames += 1
             else:
                 image_filenames.append(fname)
@@ -177,7 +174,7 @@ class Nerfstudio(DataParser):
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath):
+    def _get_fname(self, filepath: PurePath) -> Path:
         """Get the filename of the image file."""
 
         if self.downscale_factor is None:

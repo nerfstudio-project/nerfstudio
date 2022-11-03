@@ -21,7 +21,7 @@ from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
 
 import torch
-from rich.progress import track
+from rich.progress import Console, track
 from torch.utils.data import Dataset, default_collate
 from torch.utils.data.dataloader import DataLoader
 
@@ -29,6 +29,8 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.utils.datasets import InputDataset
 from nerfstudio.utils.misc import get_dict_to_torch
+
+CONSOLE = Console(width=120)
 
 
 class CacheDataloader(DataLoader):
@@ -38,7 +40,7 @@ class CacheDataloader(DataLoader):
     Args:
         dataset: Dataset to sample from.
         num_samples_to_collate: How many images to sample rays for each batch. -1 for all images.
-        num_times_to_repeat_images: How often to collate new images.
+        num_times_to_repeat_images: How often to collate new images. -1 to never pick new images.
         device: Device to perform computation.
     """
 
@@ -46,13 +48,13 @@ class CacheDataloader(DataLoader):
         self,
         dataset: Dataset,
         num_images_to_sample_from: int = -1,
-        num_times_to_repeat_images: int = 0,
+        num_times_to_repeat_images: int = -1,
         device: Union[torch.device, str] = "cpu",
         **kwargs,
     ):
         self.dataset = dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
-        self.cache_all_images = num_images_to_sample_from == -1
+        self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.device = device
 
@@ -61,7 +63,21 @@ class CacheDataloader(DataLoader):
 
         self.cached_collated_batch = None
         if self.cache_all_images:
+            CONSOLE.print(f"Caching all {len(self.dataset)} images.")
+            if len(self.dataset) > 500:
+                CONSOLE.print(
+                    "[bold yellow]Warning: If you run out of memory, try reducing the number of images to sample from."
+                )
             self.cached_collated_batch = self._get_collated_batch()
+        elif self.num_times_to_repeat_images == -1:
+            CONSOLE.print(
+                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, without resampling."
+            )
+        else:
+            CONSOLE.print(
+                f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
+                f"resampling every {self.num_times_to_repeat_images} iters."
+            )
         super().__init__(dataset=dataset, **kwargs)
 
     def __getitem__(self, idx):

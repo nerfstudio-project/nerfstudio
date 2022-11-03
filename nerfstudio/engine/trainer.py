@@ -21,7 +21,7 @@ import dataclasses
 import functools
 import os
 import time
-from typing import Any, Dict, List, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 from rich.console import Console
@@ -46,20 +46,6 @@ from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
 CONSOLE = Console(width=120)
-
-
-def train_loop(local_rank: int, world_size: int, config: cfg.Config) -> Any:
-    """Main training function that sets up and runs the trainer per process
-
-    Args:
-        local_rank: current rank of process
-        world_size: total number of gpus available
-        config: config file specifying training regimen
-    """
-    trainer = Trainer(config, local_rank, world_size)
-    trainer.setup()
-    trainer.train()
-    return 0
 
 
 class Trainer:
@@ -104,7 +90,7 @@ class Trainer:
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
-        if self.config.is_viewer_enabled():
+        if self.config.is_viewer_enabled() and local_rank == 0:
             self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
@@ -122,7 +108,7 @@ class Trainer:
         Args:
             test_mode: Whether to setup for testing. Defaults to False.
         """
-        self.pipeline: VanillaPipeline = self.config.pipeline.setup(
+        self.pipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
         self.optimizers = setup_optimizers(self.config, self.pipeline.get_param_groups())
@@ -188,12 +174,14 @@ class Trainer:
             self.save_checkpoint(step)
             self._always_render(step)
 
+    @check_main_thread
     def _always_render(self, step):
         if self.config.is_viewer_enabled():
             while True:
                 self.viewer_state.vis["renderingState/isTraining"].write(False)
                 self._update_viewer_state(step)
 
+    @check_main_thread
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.is_viewer_enabled():
