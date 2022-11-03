@@ -96,6 +96,29 @@ $sidebar-color: $accent-color3 !default;
 $sidebar-width: 100% !default;
 @import '~react-pro-sidebar/dist/scss/styles.scss';
 
+// Scrollbar
+
+/* width */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 6px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: #454651;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+  background: $accent-color3;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+  background: $highlight-color2;
+}
+
 // ------------------------------------
 // Status Panel styling
 .StatusPanel {
@@ -162,6 +185,41 @@ $sidebar-width: 100% !default;
 }
 
 // ------------------------------------
+// Render Modal styling
+
+.RenderModal-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px; // 400
+  background-color: $base-color2;
+  border: 2px solid #000;
+  //   box-shadow: 24px 24px;
+  padding: 32px;
+}
+
+.RenderModal-code {
+  padding: 10px;
+  background-color: $base-color3;
+  overflow-x: scroll;
+  font-family: monospace;
+  white-space: pre;
+  margin-top: 16px;
+}
+
+.RenderModal-inline-code {
+  font-size: 0.9rem;
+  color: $accent-color3;
+}
+
+.RenderModal-box .RenderModal-button {
+  width: 50%;
+  padding: 5px;
+  margin-top: 20px;
+}
+
+// ------------------------------------
 // Camera Pane
 
 .CameraPanel {
@@ -169,6 +227,13 @@ $sidebar-width: 100% !default;
 
 .CameraPanel-top-button {
   display: inline-block;
+  margin: 4px;
+  margin-top: 8px;
+}
+
+.CameraPanel-render-button {
+  display: inline-block;
+  width: 70%;
   margin: 4px;
   margin-top: 8px;
 }
