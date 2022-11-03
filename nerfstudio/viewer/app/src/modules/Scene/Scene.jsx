@@ -14,6 +14,7 @@ import SceneNode from '../../SceneNode';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 import { subscribe_to_changes } from '../../subscriber';
 import { snap_to_camera } from '../SidePanel/SidePanel';
+import { Vector3 } from 'three';
 
 const msgpack = require('msgpack-lite');
 
@@ -67,27 +68,33 @@ export function get_scene_tree() {
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
   camera_controls.azimuthRotateSpeed = 0.3;
   camera_controls.polarRotateSpeed = 0.3;
-  camera_controls.minDistance = 0.3;
-  camera_controls.maxDistance = 20;
-  camera_controls.dollySpeed = 0.1;
+  // camera_controls.minDistance = 0.3;
+  // camera_controls.maxDistance = 1000;
+  // camera_controls.dollySpeed = 0.1;
   camera_controls.saveState();
 
   const keyMap = [];
-  const moveSpeed = 0.035;
-  const EPS = 1;
+  const moveSpeed = 0.02;
+  const EPS = .05;
 
-  function firstPersonCamera() {
+  function moveCamera() {
+    const curTar = camera_controls.getTarget();
+    console.log(typeof curTar)
+    const curPos = camera_controls.getPosition();
+    const diff = curTar.sub(curPos).normalize().multiplyScalar(EPS);
+    camera_controls.setTarget(curPos.x + diff.x, curPos.y + diff.y, curPos.z + diff.z);
+
     if (keyMap.ArrowLeft === true) {
-      camera_controls.rotate(0.02, 0, true);
+      camera_controls.rotate(0.015, 0, true);
     }
     if (keyMap.ArrowRight === true) {
-      camera_controls.rotate(-0.02, 0, true);
+      camera_controls.rotate(-0.015, 0, true);
     }
     if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, 0.02, true);
+      camera_controls.rotate(0, 0.015, true);
     }
     if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, -0.02, true);
+      camera_controls.rotate(0, -0.015, true);
     }
     if (keyMap.KeyD === true) {
       camera_controls.truck(moveSpeed, 0, true);
@@ -96,50 +103,16 @@ export function get_scene_tree() {
       camera_controls.truck(-moveSpeed, 0, true);
     }
     if (keyMap.KeyW === true) {
-      camera_controls.dolly(0.05, true);
+      camera_controls.dolly(moveSpeed, true);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.dolly(-0.05, true);
+      camera_controls.dolly(-moveSpeed, true);
     }
     if (keyMap.KeyQ === true) {
       camera_controls.truck(0, moveSpeed, true);
     }
     if (keyMap.KeyE === true) {
       camera_controls.truck(0, -moveSpeed, true);
-    }
-  }
-
-  function orbitCamera() {
-    if (keyMap.KeyA === true) {
-      camera_controls.rotate(-0.02, 0, true);
-    }
-    if (keyMap.KeyD === true) {
-      camera_controls.rotate(0.02, 0, true);
-    }
-    if (keyMap.KeyW === true) {
-      camera_controls.rotate(0, -0.015, true);
-    }
-    if (keyMap.KeyS === true) {
-      camera_controls.rotate(0, 0.015, true);
-    }
-    if (keyMap.KeyQ === true) {
-      camera_controls.dolly(0.05, true);
-    } 
-    if (keyMap.KeyE === true) {
-      camera_controls.dolly(-0.05, true);
-    }
-  }
-
-  function moveCamera() {
-    if (sceneTree.metadata.first_person === true) {
-      const curTar = camera_controls.getTarget();
-      const curPos = camera_controls.getPosition();
-      const diff = curTar.sub(curPos).normalize().multiplyScalar(EPS);
-      camera_controls.setTarget(curPos.x +  diff.x, curPos.y + diff.y, curPos.z + diff.z);
-      firstPersonCamera();
-    } else {
-      camera_controls.setTarget(0, 0, 0);
-      orbitCamera();
     }
   }
 

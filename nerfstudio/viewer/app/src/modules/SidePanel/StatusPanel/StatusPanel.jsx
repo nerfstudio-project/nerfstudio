@@ -6,8 +6,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
-import Boy from '@mui/icons-material/Boy';
-import Sync from '@mui/icons-material/Sync';
 
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 
@@ -37,22 +35,13 @@ export default function StatusPanel(props: StatusPanelProps) {
   // logic for toggling visibility of the entire scene and just the training images
   const [is_scene_visible, set_is_scene_visible] = React.useState(1);
   const [is_images_visible, set_is_images_visible] = React.useState(1);
-  const [is_first_person, set_is_first_person] = React.useState(0);
   const scene_button = is_scene_visible ? 'Hide Scene' : 'Show Scene';
   const cameras_button = is_images_visible ? 'Hide Images' : 'Show Images';
-  const first_person_button = is_first_person ? 'First Person Controls' : 'Orbit Controls';
   sceneTree.object.visible = is_scene_visible;
-  sceneTree.metadata.first_person = is_first_person;
   if (sceneTree.find_no_create(['Training Cameras']) !== null) {
     sceneTree.find_no_create(['Training Cameras']).object.visible =
       is_images_visible;
   }
-
-  window.addEventListener('keydown', (event) => {
-    if (event.code === 'KeyR') {
-      set_is_first_person(!is_first_person);
-    }
-  });
 
   const handlePlayChange = () => {
     dispatch({
@@ -129,17 +118,6 @@ export default function StatusPanel(props: StatusPanelProps) {
         style={{ textTransform: 'none' }}
       >
         Refresh Page
-      </Button>
-      <Button
-        className="StatusPanel-first-person-button"
-        variant="outlined"
-        onClick={() => {
-          set_is_first_person(!is_first_person);
-        }}
-        style={{ textTransform: 'none' }}
-        startIcon={is_first_person ? <Boy /> : <Sync/>}
-      >
-        {first_person_button}
       </Button>
       <div className="StatusPanel-metrics">
         <div>
