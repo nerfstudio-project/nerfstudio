@@ -145,5 +145,25 @@ export const appTheme = createTheme({
         },
       },
     },
+    MuiAccordionSummary: {
+      styleOverrides: {
+        root: {
+          '& .MuiAccordionSummary-content': {
+            margin: '0px',
+          },
+          '& .MuiAccordionSummary-content.Mui-expanded': {
+            margin: '0px',
+          },
+        },
+      },
+    },
+    MuiAccordionDetails: {
+      styleOverrides: {
+        root: {
+          paddingTop: '4px',
+          paddingBottom: '8px',
+        },
+      },
+    },
   },
 });

@@ -277,10 +277,10 @@ function CameraList(props) {
                 e.stopPropagation();
               }}
               style={{
-                maxWidth: '30px',
-                maxHeight: '30px',
-                minWidth: '30px',
-                minHeight: '30px',
+                maxWidth: '20px',
+                maxHeight: '20px',
+                minWidth: '20px',
+                minHeight: '20px',
               }}
               disabled={index === 0}
             >
@@ -293,10 +293,10 @@ function CameraList(props) {
                 e.stopPropagation();
               }}
               style={{
-                maxWidth: '30px',
-                maxHeight: '30px',
-                minWidth: '30px',
-                minHeight: '30px',
+                maxWidth: '20px',
+                maxHeight: '20px',
+                minWidth: '20px',
+                minHeight: '20px',
               }}
               disabled={index === cameras.length - 1}
             >
@@ -582,9 +582,7 @@ export default function CameraPanel(props) {
     const ratio = (cameras.length - 1) / cameras.length;
     cameras.forEach((camera) => {
       const time = camera.properties.get('TIME');
-      times.push(
-        is_cycle ? time * ratio : time
-      );
+      times.push(is_cycle ? time * ratio : time);
     });
 
     if (is_cycle) {
@@ -631,7 +629,7 @@ export default function CameraPanel(props) {
     lookat = curve_object.curve_lookats.getPoint(point);
     up = curve_object.curve_ups.getPoint(point);
     fov = curve_object.curve_fovs.getPoint(point).z;
-    
+
     const mat = get_transform_matrix(position, lookat, up);
     set_camera_position(camera_render, mat);
     camera_render.fov = fov;
@@ -648,9 +646,7 @@ export default function CameraPanel(props) {
   cameras.forEach((camera) => {
     const time = camera.properties.get('TIME');
     const ratio = (cameras.length - 1) / cameras.length;
-    values.push(
-      is_cycle ? time * ratio : time
-    );
+    values.push(is_cycle ? time * ratio : time);
   });
 
   if (is_cycle) {
@@ -668,7 +664,7 @@ export default function CameraPanel(props) {
     setCameraProperty(
       'TIME',
       is_cycle ? Math.min(val / ratio, 1.0) : val,
-      activeThumb
+      activeThumb,
     );
   };
 
@@ -1024,7 +1020,10 @@ export default function CameraPanel(props) {
           </Button>
         </div>
         <div className="CameraPanel-top-button">
-          <Tooltip className="curve-button" title="Toggle looping camera spline">
+          <Tooltip
+            className="curve-button"
+            title="Toggle looping camera spline"
+          >
             {!is_cycle ? (
               <Button
                 size="small"
@@ -1099,13 +1098,13 @@ export default function CameraPanel(props) {
           valueLabelDisplay="auto"
           valueLabelFormat={(value, i) => {
             if (i === cameras.length && is_cycle) {
-              return `${cameras[0].properties.get('NAME')} @ ${
-                parseFloat((value * seconds).toFixed(2))
-              }s`;
+              return `${cameras[0].properties.get('NAME')} @ ${parseFloat(
+                (value * seconds).toFixed(2),
+              )}s`;
             }
-            return `${cameras[i].properties.get('NAME')} @ ${
-              parseFloat((value * seconds).toFixed(2))
-            }s`;
+            return `${cameras[i].properties.get('NAME')} @ ${parseFloat(
+              (value * seconds).toFixed(2),
+            )}s`;
           }}
           marks={marks}
           min={slider_min}
@@ -1116,9 +1115,7 @@ export default function CameraPanel(props) {
           sx={{
             '& .MuiSlider-thumb': {
               borderRadius: '6px',
-              width: `${
-                24.0 / Math.max(Math.sqrt(cameras.length), 2)
-              }px`
+              width: `${24.0 / Math.max(Math.sqrt(cameras.length), 2)}px`,
             },
           }}
           disableSwap
@@ -1129,8 +1126,10 @@ export default function CameraPanel(props) {
         <Slider
           value={slider_value}
           step={step_size}
-          valueLabelDisplay={is_playing ? "on" : "off"}
-          valueLabelFormat={`${(Math.min(slider_value, 1.0) * seconds).toFixed(2)}s`}
+          valueLabelDisplay={is_playing ? 'on' : 'off'}
+          valueLabelFormat={`${(Math.min(slider_value, 1.0) * seconds).toFixed(
+            2,
+          )}s`}
           marks={marks}
           min={slider_min}
           max={slider_max}
