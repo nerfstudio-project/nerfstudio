@@ -34,18 +34,12 @@ from nerfstudio.data.scene_box import SceneBox
 class Semantics:
     """Dataclass for semantic labels."""
 
-    stuff_filenames: List[Path]
-    """filenames to load "stuff"/background data"""
-    stuff_classes: List[str]
-    """class labels for "stuff" data"""
-    stuff_colors: torch.Tensor
-    """color mapping for "stuff" classes"""
-    thing_filenames: List[Path]
-    """filenames to load "thing"/foreground data"""
-    thing_classes: List[str]
-    """class labels for "thing" data"""
-    thing_colors: torch.Tensor
-    """color mapping for "thing" classes"""
+    filenames: List[Path]
+    """filenames to load semantic data"""
+    classes: List[str]
+    """class labels for data"""
+    colors: torch.Tensor
+    """color mapping for classes"""
 
 
 @dataclass
@@ -62,6 +56,9 @@ class DataparserOutputs:
     scene_box: SceneBox = SceneBox()
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
     semantics: Optional[Semantics] = None
+
+    image_scale_factor: Optional[float] = None
+    
     """Semantics information."""
     times: Optional[TensorType[1]] = None
     """Time in range [0,1] for when each image was taken."""
