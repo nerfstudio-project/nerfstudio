@@ -39,7 +39,8 @@ class Semantics:
     """class labels for data"""
     colors: torch.Tensor
     """color mapping for classes"""
-
+    mask_classes: List[str]
+    """classes to mask out from training for all modalities"""
 
 @dataclass
 class DataparserOutputs:
@@ -54,14 +55,11 @@ class DataparserOutputs:
     """Color of dataset background."""
     scene_box: SceneBox = SceneBox()
     """Scene box of dataset. Used to bound the scene or provide the scene scale depending on model."""
-    times: Optional[TensorType[1]] = None
-    """Time in range [0,1] for when each image was taken."""
+    mask_filenames: Optional[List[Path]] = None
+    """Filenames for any masks that are required"""
     metadata: Dict[str, Any] = to_immutable_dict({})
-    """Dictionary of additional dataset information (e.g. semantics/point clouds/masks).
-    {input_name:
-    ... {"func": function to process additional dataparser outputs,
-    ... "kwargs": dictionary of data to pass into "func"}
-    }
+    """Dictionary of any metadata that be required for the given experiment.
+    Will be processed by the InputDataset to create any additional tensors that may be required.
     """
 
     def as_dict(self) -> dict:

@@ -72,8 +72,9 @@ class SemanticNerfWModel(Model):
 
     config: SemanticNerfWModelConfig
 
-    def __init__(self, config: SemanticNerfWModelConfig, semantics: Semantics, **kwargs) -> None:
-        self.semantics = semantics
+    def __init__(self, config: SemanticNerfWModelConfig, metadata: Dict, **kwargs) -> None:
+        assert "semantics" in metadata.keys()
+        self.semantics = metadata["semantics"]
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):

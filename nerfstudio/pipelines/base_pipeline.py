@@ -220,8 +220,7 @@ class VanillaPipeline(Pipeline):
         self._model = config.model.setup(
             scene_box=self.datamanager.train_dataset.dataparser_outputs.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
-            semantics=self.datamanager.train_dataset.dataparser_outputs.semantics,
-            device=device,
+            metadata=self.datamanager.train_dataset.dataparser_outputs.metadata,
         )
         self.model.to(device)
 

@@ -37,23 +37,6 @@ from nerfstudio.utils.io import load_from_json
 CONSOLE = Console()
 
 
-def get_semantics_and_masks(image_idx: int, semantics: Semantics):
-    """function to process additional semantics and mask information
-
-    Args:
-        image_idx: specific image index to work with
-        semantics: semantics data
-    """
-    # handle mask
-    person_index = semantics.classes.index("person")
-    image_filename = semantics.filenames[image_idx]
-    pil_image = Image.open(image_filename)
-    semantic_label = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-    mask = (semantic_label != person_index).to(torch.float32)  # 1 where valid
-
-    return {"mask": mask, "semantics": semantic_label}
-
-
 @dataclass
 class FriendsDataParserConfig(DataParserConfig):
     """Friends dataset parser config"""
@@ -134,7 +117,6 @@ class Friends(DataParser):
         camera_to_worlds[..., 3] *= scale  # cameras
 
         # --- semantics ---
-        semantics = None
         if self.config.include_semantics:
             filenames = [
                 Path(
@@ -170,6 +152,6 @@ class Friends(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
-            metadata={"semantics": semantics}
+            metadata={"semantics": semantics} if self.config.include_semantics else {}
         )
         return dataparser_outputs

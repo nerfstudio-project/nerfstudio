@@ -403,3 +403,19 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             assert len(camera_opt_params) == 0
 
         return param_groups
+
+
+class SemanticDataManager(VanillaDataManager):  # pylint: disable=abstract-method
+    """Data manager implementation for data that also requires processing semantic data.
+
+    Args:
+        config: the DataManagerConfig used to instantiate class
+    """
+
+    def create_train_dataset(self):
+        return SemanticDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+
+    def create_eval_dataset(self):
+        return SemanticDataset(
+            self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
+        )
