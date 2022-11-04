@@ -28,7 +28,15 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 
 
 class Field(nn.Module):
-    """Base class for fields."""
+    """Base class for fields.
+
+    Args:
+        compute_normals: Whether to compute normals or not.
+    """
+
+    def __init__(self, compute_normals=False) -> None:
+        super().__init__()
+        self.compute_normals = compute_normals
 
     def density_fn(self, positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
         """Returns only the density. Used primarily with the density grid.
@@ -78,4 +86,7 @@ class Field(nn.Module):
         field_outputs = self.get_outputs(ray_samples, density_embedding=density_embedding)
 
         field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
+        if self.compute_normals:
+            if FieldHeadNames.NORMAL not in field_outputs:
+                raise ValueError("Normal field head must be defined if compute_normals is True.")
         return field_outputs

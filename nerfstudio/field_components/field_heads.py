@@ -30,6 +30,7 @@ class FieldHeadNames(Enum):
     RGB = "rgb"
     SH = "sh"
     DENSITY = "density"
+    NORMAL = "normal"
     UNCERTAINTY = "uncertainty"
     TRANSIENT_RGB = "transient_rgb"
     TRANSIENT_DENSITY = "transient_density"
