@@ -37,7 +37,7 @@ At the top of the file, we specify the camera intrinsics. We assume that all the
   "k4": 0.00010067035656515042, // fourth radial distorial parameter
   "p1": -6.472477652140879e-5, // first tangential distortion parameter
   "p2": -1.374647851912992e-7, // second tangential distortion parameter
-  "frames": ... // extrinsics parameters explained below
+  "frames": // ... extrinsics parameters explained below
 }
 ```
 
@@ -49,7 +49,7 @@ For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the 
 
 ```json
 {
-  ..., // intrinsics parameters
+  // ... intrinsics parameters
   "frames": [
     {
       "file_path": "images/frame_00001.jpeg",
