@@ -315,9 +315,15 @@ class Cameras:
                 dim=-1,
             )
         elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
-            phi = y / self.image_height * torch.pi
-            theta = -x / self.image_width * 2 * torch.pi
-            directions = torch.stack(
+            coord = torch.stack([x,y ], -1)
+            coord_x_offset = torch.stack([x+1, y], -1)
+            coord_y_offset = torch.stack([x, y+1], -1)
+
+            coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
+
+            phi = coord_stack[..., 1] / self.image_height[camera_indices] * torch.pi
+            theta = coord_stack[..., 0] / self.image_width[camera_indices] * 2 * torch.pi
+            directions_stack = torch.stack(
                 [
                     torch.cos(theta) * torch.sin(phi), 
                     torch.sin(theta) * torch.sin(phi), 
@@ -348,7 +354,7 @@ class Cameras:
         if not isinstance(camera_indices, torch.Tensor):
             ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to(pixel_area.shape).to(self.device)
         else:
-            ray_bundle_camera_indices = camera_indices.view(pixel_area.shape)
+            ray_bundle_camera_indices =  camera_indices.view(pixel_area.shape)
 
         return RayBundle(
             origins=origins,

@@ -602,10 +602,10 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
     # For now just assume it's all the same camera
     cam = cams[list(cams.keys())[0]]
     out = {
-        "fl_x": float(cam["focal_x"]) * max(cam["height"], cam["width"]),
-        "fl_y": float(cam["focal_y"]) * max(cam["height"], cam["width"]),
-        "cx": cam["width"] / 2.0 + float(cam["c_x"]) * cam["width"],
-        "cy": cam["height"] / 2.0 + float(cam["c_y"]) * cam["height"],
+        "fl_x": float(cam["focal_x"]) * max(cam["height"], cam["width"]) if "focal_x" in cam else 1.,
+        "fl_y": float(cam["focal_y"]) * max(cam["height"], cam["width"]) if "focal_y" in cam else 1.,
+        "cx": cam["width"] / 2.0 + float(cam["c_x"]) * cam["width"] if "c_x" in cam else 1. ,
+        "cy": cam["height"] / 2.0 + float(cam["c_y"]) * cam["height"] if "c_y" in cam else 1. ,
         "w": cam["width"],
         "h": cam["height"],
         "camera_model": camera_model.value,
@@ -946,7 +946,7 @@ class ProcessInsta360:
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
-                opensfm_install=
+                opensfm_install=Path("/scratch2/ksalahi/OpenSfM")
             )
 
         # Save transforms.json

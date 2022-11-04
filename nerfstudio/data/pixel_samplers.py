@@ -136,9 +136,8 @@ def collate_image_dataset_batch_equirectangular(batch: Dict, num_rays_per_batch:
     #     ).long()
 
     number_of_images = torch.rand(num_rays_per_batch, device=device)
-    phi = torch.acos(1 - 2 * torch.rand(num_rays_per_batch, device=device)) / 2 * torch.pi
+    phi = torch.acos(1 - 2 * torch.rand(num_rays_per_batch, device=device)) / torch.pi
     theta = torch.rand(num_rays_per_batch, device=device)
-
     indices = torch.floor(
             torch.stack((number_of_images, phi, theta), dim=-1)
             * torch.tensor([num_images, image_height, image_width], device=device)
