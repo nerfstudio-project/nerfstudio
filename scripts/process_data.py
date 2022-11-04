@@ -31,11 +31,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
+    "equirectangular": CameraModel.EQUIRECTANGULAR,
 }
 
 
@@ -225,7 +227,8 @@ def convert_insta360_to_images(
         else:
             CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
 
-        vf_cmds.append(f"crop=iw*({crop_percentage}):ih*({crop_percentage})")
+        # vf_cmds.append(f"crop=iw*({crop_percentage}):ih*({crop_percentage})")
+        vf_cmds.append("v360=dfisheye:equirect:ih_fov=190:iv_fov=190:yaw=-90")
 
         front_vf_cmds = vf_cmds + ["transpose=2"]
         back_vf_cmds = vf_cmds + ["transpose=1"]
@@ -510,6 +513,8 @@ def run_opensfm(
         proj_type = "brown"
     elif camera_model == CameraModel.OPENCV_FISHEYE:
         proj_type = "fisheye_opencv"
+    elif camera_model == CameraModel.EQUIRECTANGULAR:
+        proj_type = "equirectangular"
     cam_overrides = {
         "all": {
             "projection_type": proj_type,
@@ -675,7 +680,7 @@ class ProcessImages:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     sfm_method: Literal["colmap", "OpenSfM"] = "OpenSfM"
     """Which sfm solver to use"""
@@ -782,7 +787,7 @@ class ProcessVideo:
     """Path to the output directory."""
     num_frames_target: int = 150
     """Target number of frames to use for the dataset, results may not be exact."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     sfm_method: Literal["colmap", "OpenSfM"] = "OpenSfM"
     """Which sfm solver to use"""
@@ -930,27 +935,28 @@ class ProcessInsta360:
         summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         # Run Colmap
-        colmap_dir = self.output_dir / "colmap"
+        opensfm_dir = self.output_dir / "opensfm"
         if not self.skip_colmap:
-            colmap_dir.mkdir(parents=True, exist_ok=True)
+            opensfm_dir.mkdir(parents=True, exist_ok=True)
 
-            run_colmap(
+            run_opensfm(
                 image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS["fisheye"],
+                opensfm_dir=opensfm_dir,
+                camera_model=CAMERA_MODELS["equirectangular"],
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
+                opensfm_install=
             )
 
         # Save transforms.json
-        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+        if (opensfm_dir / "sparse" / "0" / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
-                num_matched_frames = colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                num_matched_frames = opensfm_to_json(
+                    cameras_path=opensfm_dir / "sparse" / "0" / "cameras.bin",
+                    images_path=opensfm_dir / "sparse" / "0" / "images.bin",
                     output_dir=self.output_dir,
-                    camera_model=CAMERA_MODELS["fisheye"],
+                    camera_model=CAMERA_MODELS["equirectangular"],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
         else:

@@ -36,6 +36,7 @@ class CameraType(Enum):
 
     PERSPECTIVE = auto()
     FISHEYE = auto()
+    EQUIRECTANGULAR = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -45,6 +46,7 @@ CAMERA_MODEL_TO_TYPE = {
     "RADIAL": CameraType.PERSPECTIVE,
     "OPENCV": CameraType.PERSPECTIVE,
     "OPENCV_FISHEYE": CameraType.FISHEYE,
+    "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR
 }
 
 
@@ -309,6 +311,17 @@ class Cameras:
                     coord_stack[..., 0] * sin_theta / theta,
                     coord_stack[..., 1] * sin_theta / theta,
                     -torch.cos(theta),
+                ],
+                dim=-1,
+            )
+        elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
+            phi = y / self.image_height * torch.pi
+            theta = -x / self.image_width * 2 * torch.pi
+            directions = torch.stack(
+                [
+                    torch.cos(theta) * torch.sin(phi), 
+                    torch.sin(theta) * torch.sin(phi), 
+                    torch.cos(phi)
                 ],
                 dim=-1,
             )
