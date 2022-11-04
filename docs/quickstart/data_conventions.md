@@ -34,22 +34,14 @@ At the top of the file, we specify the camera intrinsics. We assume that all the
   "k1": 0.03126218448029553, // first radial distorial parameter
   "k2": 0.005177020067511987, // second radial distorial parameter
   "k3": 0.0006640977794272005, // third radial distorial parameter
-  "k4": 0.00010067035656515042 // fourth radial distorial parameter
+  "k4": 0.00010067035656515042, // fourth radial distorial parameter
+  "p1": -6.472477652140879e-5, // first tangential distortion parameter
+  "p2": -1.374647851912992e-7, // second tangential distortion parameter
+  "frames": ... // extrinsics parameters explained below
 }
 ```
 
-The valid `camera_model` strings are the following
-
-```python
-CAMERA_MODEL_TO_TYPE = {
-    "SIMPLE_PINHOLE": CameraType.PERSPECTIVE,
-    "PINHOLE": CameraType.PERSPECTIVE,
-    "SIMPLE_RADIAL": CameraType.PERSPECTIVE,
-    "RADIAL": CameraType.PERSPECTIVE,
-    "OPENCV": CameraType.PERSPECTIVE,
-    "OPENCV_FISHEYE": CameraType.FISHEYE,
-}
-```
+The valid `camera_model` strings are currently "OPENCV" and "OPENCV_FISHEYE". "OPENCV" (i.e., perspective) uses k1-2 and p1-2. "OPENCV_FISHEYE" uses k1-4.
 
 **Camera extrinsics**
 
@@ -57,6 +49,7 @@ For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the 
 
 ```json
 {
+  ..., // intrinsics parameters
   "frames": [
     {
       "file_path": "images/frame_00001.jpeg",
