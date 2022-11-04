@@ -35,7 +35,7 @@ from rich.console import Console
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all

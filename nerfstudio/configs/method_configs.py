@@ -29,7 +29,8 @@ from nerfstudio.configs.base_config import (
     TrainerConfig,
     ViewerConfig,
 )
-from nerfstudio.data.datamanagers import VanillaDataManagerConfig, SemanticDataManagerConfig
+from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
+from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig

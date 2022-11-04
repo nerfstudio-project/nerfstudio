@@ -15,7 +15,7 @@ import tyro
 
 from nerfstudio.configs import method_configs as cfg
 from nerfstudio.data.datamanagers import AnnotatedDataParserUnion
-from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.viewer.server import viewer_utils
 
 DEFAULT_TIMEOUT = timedelta(minutes=30)

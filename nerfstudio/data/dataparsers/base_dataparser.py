@@ -33,6 +33,7 @@ from nerfstudio.data.scene_box import SceneBox
 @dataclass
 class Semantics:
     """Dataclass for semantic labels."""
+
     filenames: List[Path]
     """filenames to load semantic data"""
     classes: List[str]
@@ -41,6 +42,7 @@ class Semantics:
     """color mapping for classes"""
     mask_classes: List[str] = field(default_factory=lambda: [])
     """classes to mask out from training for all modalities"""
+
 
 @dataclass
 class DataparserOutputs:

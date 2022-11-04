@@ -41,13 +41,13 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
 )
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
-from nerfstudio.data.utils.datasets import InputDataset, SemanticDataset
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -303,9 +303,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         super().__init__()
 
     def create_train_dataset(self):
+        """Sets up the data loaders for training"""
         return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
 
     def create_eval_dataset(self):
+        """Sets up the data loaders for training"""
         return InputDataset(
             self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
         )
@@ -403,27 +405,3 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             assert len(camera_opt_params) == 0
 
         return param_groups
-
-
-
-@dataclass
-class SemanticDataManagerConfig(VanillaDataManagerConfig):
-    """A semantic datamanager - required to use with .setup()
-    """
-
-    _target: Type = field(default_factory=lambda: SemanticDataManager)
-    
-class SemanticDataManager(VanillaDataManager):  # pylint: disable=abstract-method
-    """Data manager implementation for data that also requires processing semantic data.
-
-    Args:
-        config: the DataManagerConfig used to instantiate class
-    """
-
-    def create_train_dataset(self):
-        return SemanticDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
-
-    def create_eval_dataset(self):
-        return SemanticDataset(
-            self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
-        )

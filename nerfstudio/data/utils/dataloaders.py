@@ -27,7 +27,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_dict_to_torch
 
 CONSOLE = Console(width=120)
@@ -87,7 +87,7 @@ class CacheDataloader(DataLoader):
         """Returns a list of batches from the dataset attribute."""
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
         batch_list = []
-        for idx in indices:
+        for idx in track(indices, description="Loading data batch"):
             batch_list.append(self.dataset.__getitem__(idx))
         return batch_list
 
