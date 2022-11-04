@@ -26,8 +26,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchtyping import TensorType
 
-from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-
+from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs, Semantics
 
 class InputDataset(Dataset):
     """Dataset that returns images.
@@ -114,8 +113,8 @@ class SemanticDataset(InputDataset):
     """
     
     def __init__(self, dataparser_outputs: DataparserOutputs):
-        super().__init__()
-        assert "semantics" in dataparser_outputs.metadata.keys()
+        super().__init__(dataparser_outputs)
+        assert "semantics" in dataparser_outputs.metadata.keys() and type(dataparser_outputs.metadata["semantics"]) == Semantics
         self.semantics = dataparser_outputs.metadata["semantics"]
         self.mask_indices = torch.tensor([self.semantics.classes.index(mask_class) for mask_class in self.semantics.mask_classes]).view(1, 1, -1)
 
@@ -124,7 +123,7 @@ class SemanticDataset(InputDataset):
         image_filename = self.semantics.filenames[data["image_idx"]]
         pil_image = Image.open(image_filename)
         semantic_label = torch.from_numpy(np.array(pil_image, dtype="int64"))[..., None]
-        mask = torch.sum(self.mask_indices != semantic_label, dim=-1, keepdim=True).bool()
+        mask = torch.sum(semantic_label == self.mask_indices, dim=-1, keepdim=True) == 0
         if "mask" in data.keys():
             mask = mask & data["mask"]
         return {"mask": mask, "semantics": semantic_label}

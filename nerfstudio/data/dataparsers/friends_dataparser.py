@@ -133,6 +133,7 @@ class Friends(DataParser):
                 filenames=filenames,
                 classes=classes,
                 colors=colors,
+                mask_classes=["person"]
             )
 
         assert torch.all(cx[0] == cx), "Not all cameras have the same cx. Our Cameras class does not support this."

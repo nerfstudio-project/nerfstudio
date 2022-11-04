@@ -73,7 +73,7 @@ class SemanticNerfWModel(Model):
     config: SemanticNerfWModelConfig
 
     def __init__(self, config: SemanticNerfWModelConfig, metadata: Dict, **kwargs) -> None:
-        assert "semantics" in metadata.keys()
+        assert "semantics" in metadata.keys() and type(metadata["semantics"]) == Semantics
         self.semantics = metadata["semantics"]
         super().__init__(config=config, **kwargs)
 

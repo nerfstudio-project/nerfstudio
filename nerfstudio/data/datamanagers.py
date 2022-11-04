@@ -47,7 +47,7 @@ from nerfstudio.data.utils.dataloaders import (
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
-from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.utils.datasets import InputDataset, SemanticDataset
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -405,6 +405,14 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return param_groups
 
 
+
+@dataclass
+class SemanticDataManagerConfig(VanillaDataManagerConfig):
+    """A semantic datamanager - required to use with .setup()
+    """
+
+    _target: Type = field(default_factory=lambda: SemanticDataManager)
+    
 class SemanticDataManager(VanillaDataManager):  # pylint: disable=abstract-method
     """Data manager implementation for data that also requires processing semantic data.
 
