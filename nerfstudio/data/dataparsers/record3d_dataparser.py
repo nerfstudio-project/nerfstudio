@@ -21,6 +21,7 @@ from typing import Type
 
 import numpy as np
 import torch
+from rich.console import Console
 from scipy.spatial.transform import Rotation
 from typing_extensions import Literal
 
@@ -34,6 +35,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils import poses as pose_utils
 from nerfstudio.utils.io import load_from_json
+
+CONSOLE = Console(width=120)
 
 
 @dataclass
@@ -62,6 +65,12 @@ class Record3D(DataParser):
     config: Record3DDataParserConfig
 
     def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
+
+        CONSOLE.print(
+            "[bold red]DEPRECATION WARNING: The Record3D dataparser will be deprecated in future versions. "
+            "Use `ns-data-process record3d` to convert the data into the nerfstudio format instead."
+        )
+
         image_dir = self.config.data / "rgb"
 
         if not image_dir.exists():
