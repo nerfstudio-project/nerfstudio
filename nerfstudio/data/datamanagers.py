@@ -296,12 +296,19 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.world_size = world_size
         self.local_rank = local_rank
         self.sampler = None
+        self.test_mode = test_mode
 
-        self.train_dataset = InputDataset(config.dataparser.setup().get_dataparser_outputs(split="train"))
-        self.eval_dataset = InputDataset(
-            config.dataparser.setup().get_dataparser_outputs(split="val" if not test_mode else "test")
-        )
+        self.train_dataset = self.create_train_dataset()
+        self.eval_dataset = self.create_eval_dataset()
         super().__init__()
+
+    def create_train_dataset(self):
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+
+    def create_eval_dataset(self):
+        return InputDataset(
+            self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
+        )
 
     def setup_train(self):
         """Sets up the data loaders for training"""

@@ -170,7 +170,6 @@ class Friends(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
-            additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
-            semantics=semantics,
+            metadata={"semantics": semantics}
         )
         return dataparser_outputs
