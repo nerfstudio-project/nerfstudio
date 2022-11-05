@@ -733,6 +733,7 @@ export default function CameraPanel(props) {
         matrix: JSON.stringify(camera.matrix.toArray()),
         fov: camera.fov,
         aspect: camera_render.aspect,
+        properties: JSON.stringify(Array.from(camera.properties.entries())),
       });
     }
 
@@ -777,8 +778,6 @@ export default function CameraPanel(props) {
   };
 
   const load_camera_path = (camera_path_object) => {
-    // TODO UI for getting json
-
     const new_camera_list = [];
     const new_properties = new Map(cameraProperties);
 
@@ -806,16 +805,8 @@ export default function CameraPanel(props) {
       );
 
       // properties
-      const camera_properties = new Map();
-      camera.properties = camera_properties;
-      camera_properties.set('FOV', camera.fov);
-      camera_properties.set('NAME', `Camera ${i}`);
-      // TIME VALUES ARE 0-1
-      camera_properties.set(
-        'TIME',
-        i / (camera_path_object.keyframes.length - 1.0),
-      );
-      new_properties.set(camera.uuid, camera_properties);
+      camera.properties = new Map(JSON.parse(keyframe.properties));
+      new_properties.set(camera.uuid, camera.properties);
 
       const mat = new THREE.Matrix4();
       mat.fromArray(JSON.parse(keyframe.matrix));
