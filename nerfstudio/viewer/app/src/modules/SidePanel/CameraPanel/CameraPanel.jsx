@@ -811,12 +811,14 @@ export default function CameraPanel(props) {
       camera_properties.set('FOV', camera.fov);
       camera_properties.set('NAME', `Camera ${i}`);
       // TIME VALUES ARE 0-1
-      camera_properties.set('TIME', i / (camera_path_object.keyframes.length - 1.0));
+      camera_properties.set(
+        'TIME',
+        i / (camera_path_object.keyframes.length - 1.0),
+      );
       new_properties.set(camera.uuid, camera_properties);
 
       const mat = new THREE.Matrix4();
       mat.fromArray(JSON.parse(keyframe.matrix));
-      // camera.matrix = mat;
       set_camera_position(camera, mat);
       new_camera_list.push(camera);
     }
