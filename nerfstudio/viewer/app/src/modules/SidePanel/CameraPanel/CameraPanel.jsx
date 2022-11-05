@@ -398,6 +398,14 @@ export default function CameraPanel(props) {
   const [fps, setFps] = React.useState(24);
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
 
+  const scene_state = sceneTree.get_scene_state();
+
+  // Template for sharing state between Vanilla JS Three.js and React components
+  const [mouseInScene, setMouseInScene] = React.useState(false);
+  React.useEffect(() => {
+    scene_state.addCallback((value) => setMouseInScene(value), 'mouse_in_scene');
+  }, []);
+
   const dispatch = useDispatch();
   const render_height = useSelector(
     (state) => state.renderingState.render_height,
