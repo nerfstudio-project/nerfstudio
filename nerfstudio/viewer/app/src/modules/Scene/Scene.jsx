@@ -26,8 +26,8 @@ export function get_scene_tree() {
   const scene_state = {
     value: new Map(),
     callbacks: [],
-    addCallback: function (callback, key) { this.callbacks.push([callback, key]); },
-    setValue: function (key, value) {
+    addCallback (callback, key) { this.callbacks.push([callback, key]); },
+    setValue (key, value) {
       this.value.set(key, value);
       this.callbacks.forEach(
           (cbk) => {
@@ -313,7 +313,7 @@ export function get_scene_tree() {
   };
 
   const onMouseUp = () => {
-    if (drag === true) {
+    if (drag === true || !scene_state.value.get('mouse_in_scene')) {
       return;
     }
     if (selectedCam !== null) {

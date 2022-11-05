@@ -401,6 +401,7 @@ export default function CameraPanel(props) {
   const scene_state = sceneTree.get_scene_state();
 
   // Template for sharing state between Vanilla JS Three.js and React components
+  // eslint-disable-line no-unused-vars
   const [mouseInScene, setMouseInScene] = React.useState(false);
   React.useEffect(() => {
     scene_state.addCallback((value) => setMouseInScene(value), 'mouse_in_scene');
