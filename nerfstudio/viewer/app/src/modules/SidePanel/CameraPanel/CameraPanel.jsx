@@ -7,7 +7,6 @@ import {
   AllInclusiveOutlined,
   ChangeHistory,
   ClearAll,
-  ContentPasteGo,
   Delete,
   ExpandMore,
   FirstPage,
@@ -38,13 +37,14 @@ import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
-import IconButton from '@mui/material/IconButton';
 import { Stack } from '@mui/system';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
+import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
+import RenderModal from '../../RenderModal';
 
 const msgpack = require('msgpack-lite');
 
@@ -396,6 +396,7 @@ export default function CameraPanel(props) {
   const [is_cycle, setIsCycle] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
+  const [render_modal_open, setRenderModalOpen] = React.useState(false);
 
   const dispatch = useDispatch();
   const render_height = useSelector(
@@ -449,7 +450,7 @@ export default function CameraPanel(props) {
     camera_main_copy.aspect = 1.0;
     const new_camera_properties = new Map();
     camera_main_copy.properties = new_camera_properties;
-    new_camera_properties.set('FOV', camera_main.fov);
+    new_camera_properties.set('FOV', camera_main_copy.fov);
     new_camera_properties.set('NAME', `Camera ${cameras.length}`);
     // TIME VALUES ARE 0-1
     if (cameras.length === 0) {
@@ -464,9 +465,7 @@ export default function CameraPanel(props) {
     new_properties.forEach((properties) => {
       properties.set('TIME', properties.get('TIME') * ratio);
     });
-
     new_properties.set(camera_main_copy.uuid, new_camera_properties);
-
     setCameraProperties(new_properties);
 
     const new_camera_list = cameras.concat(camera_main_copy);
@@ -781,6 +780,7 @@ export default function CameraPanel(props) {
     // TODO UI for getting json
 
     const new_camera_list = [];
+    const new_properties = new Map(cameraProperties);
 
     setRenderHeight(camera_path_object.render_height);
     setUIRenderHeight(camera_path_object.render_height);
@@ -805,6 +805,15 @@ export default function CameraPanel(props) {
         1000,
       );
 
+      // properties
+      const camera_properties = new Map();
+      camera.properties = camera_properties;
+      camera_properties.set('FOV', camera.fov);
+      camera_properties.set('NAME', `Camera ${i}`);
+      // TIME VALUES ARE 0-1
+      camera_properties.set('TIME', i / (camera_path_object.keyframes.length - 1.0));
+      new_properties.set(camera.uuid, camera_properties);
+
       const mat = new THREE.Matrix4();
       mat.fromArray(JSON.parse(keyframe.matrix));
       // camera.matrix = mat;
@@ -812,6 +821,7 @@ export default function CameraPanel(props) {
       new_camera_list.push(camera);
     }
 
+    setCameraProperties(new_properties);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
   };
@@ -828,16 +838,11 @@ export default function CameraPanel(props) {
     fr.readAsText(fileUpload);
   };
 
-  const copy_cmd_to_clipboard = () => {
-    console.log('copy_cmd_to_clipboard');
+  const open_render_modal = () => {
+    setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-
-    // Copy the text inside the text field
-    const config_filename = `${config_base_dir}/config.yml`;
     const camera_path_filename = `${config_base_dir}/camera_path.json`;
-    const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/output.mp4`;
-    navigator.clipboard.writeText(cmd);
 
     const camera_path_payload = {
       camera_path_filename,
@@ -888,13 +893,17 @@ export default function CameraPanel(props) {
             Export Path
           </Button>
         </div>
-        <div className="CameraPanel-top-button">
-          <Tooltip title="Copy Cmd to Clipboard">
-            <IconButton onClick={copy_cmd_to_clipboard}>
-              <ContentPasteGo />
-            </IconButton>
-          </Tooltip>
-        </div>
+        <br />
+        <RenderModal open={render_modal_open} setOpen={setRenderModalOpen} />
+        <Button
+          className="CameraPanel-render-button"
+          variant="outlined"
+          size="small"
+          startIcon={<VideoCameraBackIcon />}
+          onClick={open_render_modal}
+        >
+          Render
+        </Button>
       </div>
       <div className="CameraList-row-time-interval">
         <TextField
