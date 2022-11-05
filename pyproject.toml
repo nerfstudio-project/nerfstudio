@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.1.8"
+version = "0.1.9"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -33,12 +33,11 @@ dependencies = [
     "nerfacc==0.2.1",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
-    "protobuf==3.20.0",
+    "protobuf==3.19.6",
     "pyngrok==5.1.0",
     "python-socketio==5.7.1",
     "requests",
     "rich==12.5.1",
-    "tensorboard==2.9.0",
     "torch==1.12.1",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
