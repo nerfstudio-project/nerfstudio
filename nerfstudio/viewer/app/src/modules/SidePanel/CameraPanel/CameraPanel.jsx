@@ -20,7 +20,7 @@ import {
   Replay,
   Visibility,
   Edit,
-  Timer,
+  Animation,
 } from '@mui/icons-material';
 import {
   Accordion,
@@ -368,6 +368,11 @@ function CameraList(props) {
             disabled={!isAnimated('FOV')}
             changeMain
           />}
+          {!isAnimated('FOV') &&
+           <p style={{ fontSize: 'smaller', color: '#999999' }}>
+              Animated camera properties will show up here!
+            </p>
+          }
         </AccordionDetails>
       </Accordion>
     );
@@ -1018,7 +1023,7 @@ export default function CameraPanel(props) {
             }}
             sx={{ mt: 1 }}
           >
-            <Timer color={isAnimated('FOV') ? "secondary" : "primary"}/>
+            <Animation color={isAnimated('FOV') ? "secondary" : "primary"}/>
           </Button>
         </Tooltip>
         <FovSelector
