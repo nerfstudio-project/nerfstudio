@@ -27,7 +27,7 @@ from torch.utils.data.dataloader import DataLoader
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.utils.misc import get_dict_to_torch
 
 CONSOLE = Console(width=120)
