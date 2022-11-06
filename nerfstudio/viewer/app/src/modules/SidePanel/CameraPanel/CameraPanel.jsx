@@ -29,7 +29,6 @@ import {
   Button,
   InputAdornment,
   Slider,
-  ToggleButton,
 } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
@@ -115,6 +114,9 @@ function FovSelector(props) {
   return (
     <TextField
       label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
+      InputLabelProps={{
+        style: { color: '#8E8E8E' },
+      }}
       inputProps={{
         inputMode: 'numeric',
         pattern: '[+-]?([0-9]*[.])?[0-9]+',
@@ -357,6 +359,7 @@ function CameraList(props) {
           </Stack>
         </AccordionSummary>
         <AccordionDetails>
+          {isAnimated('FOV') &&
           <FovSelector
             fovLabel={fovLabel}
             setFovLabel={setFovLabel}
@@ -364,7 +367,7 @@ function CameraList(props) {
             dispatch={dispatch}
             disabled={!isAnimated('FOV')}
             changeMain
-          />
+          />}
         </AccordionDetails>
       </Accordion>
     );
@@ -1003,16 +1006,21 @@ export default function CameraPanel(props) {
         />
       </div>
       <div className="CameraList-row-time-interval">
-        <ToggleButton
-          value="animatefov"
-          selected={isAnimated('FOV')}
-          onChange={() => {
-            toggleAnimate('FOV');
-          }}
-          sx={{ mt: 1 }}
-        >
-          <Timer />
-        </ToggleButton>
+        <Tooltip title="Animate FOV for Each Camera">
+          <Button
+            value="animatefov"
+            inputProps={{
+              style: { color: 'green' },
+            }}
+            selected={isAnimated('FOV')}
+            onClick={() => {
+              toggleAnimate('FOV');
+            }}
+            sx={{ mt: 1 }}
+          >
+            <Timer color={isAnimated('FOV') ? "secondary" : "primary"}/>
+          </Button>
+        </Tooltip>
         <FovSelector
           fovLabel={fovLabel}
           setFovLabel={setFovLabel}
