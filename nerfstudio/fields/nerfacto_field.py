@@ -84,6 +84,7 @@ class TCNNNerfactoField(Field):
         self,
         aabb,
         num_images: int,
+        compute_normals: bool = False,
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
@@ -100,7 +101,7 @@ class TCNNNerfactoField(Field):
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
-        super().__init__()
+        super().__init__(compute_normals=compute_normals)
 
         self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
@@ -218,6 +219,13 @@ class TCNNNerfactoField(Field):
         # softplus, because it enables high post-activation (float32) density outputs
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
+
+        # print(positions.shape)
+        # print(density.shape)
+        density.backward(gradient=torch.ones_like(density), inputs=positions, retain_graph=True)
+        normals = positions.grad
+        print(normals.shape)
+
         return density, base_mlp_out
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
