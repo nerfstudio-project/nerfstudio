@@ -73,7 +73,7 @@ export function get_scene_tree() {
 
   const keyMap = [];
   const moveSpeed = 0.02;
-  const rotSpeed = .02;
+  const rotSpeed = .015;
   const EPS = .01;
 
   function rotate() {
