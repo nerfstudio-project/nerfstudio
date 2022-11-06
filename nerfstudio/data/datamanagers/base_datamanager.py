@@ -34,6 +34,7 @@ from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.dataparsers.equirectangular_dataparser import EquirectangularDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
@@ -63,6 +64,7 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "instant-ngp-data": InstantNGPDataParserConfig(),
             "record3d-data": Record3DDataParserConfig(),
             "dnerf-data": DNeRFDataParserConfig(),
+            "equirectangular-data": EquirectangularDataParserConfig(),
         },
         prefix_names=False,  # Omit prefixes in subcommands themselves.
     )
