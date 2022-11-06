@@ -210,7 +210,7 @@ class NerfactoModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
-        field_outputs = self.field(ray_samples)
+        field_outputs = self.field(ray_samples, compute_normals=True)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
@@ -218,8 +218,10 @@ class NerfactoModel(Model):
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
+        # TODO: add a simple renderer for normals
+        normals = torch.sum(weights * field_outputs[FieldHeadNames.NORMALS], dim=-2)
 
-        outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
+        outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth, "normals": normals}
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:

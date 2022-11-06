@@ -110,7 +110,11 @@ class TensoRFField(Field):
         return rgb
 
     def forward(
-        self, ray_samples: RaySamples, mask: Optional[TensorType] = None, bg_color: Optional[TensorType] = None
+        self,
+        ray_samples: RaySamples,
+        compute_normals=False,
+        mask: Optional[TensorType] = None,
+        bg_color: Optional[TensorType] = None,
     ):
         if mask is not None and bg_color is not None:
             base_density = torch.zeros(ray_samples.shape)[:, :, None].to(mask.device)
