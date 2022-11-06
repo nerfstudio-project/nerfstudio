@@ -9,7 +9,7 @@ To assist running on custom data we have a script that will process a video or f
 To process your data run:
 
 ```bash
-ns-process-data {video,images,insta360} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
+ns-process-data {video,images,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 ```
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.

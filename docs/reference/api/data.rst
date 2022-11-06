@@ -13,7 +13,7 @@ Data Parsers
 Datasets
 ----------------
 
-.. automodule:: nerfstudio.data.utils.datasets
+.. automodule:: nerfstudio.data.datasets
    :members:
    :show-inheritance:
 
