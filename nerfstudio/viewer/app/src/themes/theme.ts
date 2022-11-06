@@ -7,6 +7,7 @@ export const appTheme = createTheme({
     text: {
       primary: '#EEEEEE',
       secondary: '#FFD369',
+      disabled: '#555555',
     },
   },
   components: {
