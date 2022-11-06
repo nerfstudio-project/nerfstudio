@@ -1011,34 +1011,6 @@ export default function CameraPanel(props) {
         />
       </div>
       <div className="CameraList-row-time-interval">
-        <Tooltip title="Animate FOV for Each Camera">
-          <Button
-            value="animatefov"
-            inputProps={{
-              style: { color: 'green' },
-            }}
-            selected={isAnimated('FOV')}
-            onClick={() => {
-              toggleAnimate('FOV');
-            }}
-            sx={{ mt: 1 }}
-          >
-            <Animation color={isAnimated('FOV') ? "secondary" : "primary"}/>
-          </Button>
-        </Tooltip>
-        <FovSelector
-          fovLabel={fovLabel}
-          setFovLabel={setFovLabel}
-          camera={camera_main}
-          cameras={cameras}
-          dispatch={dispatch}
-          disabled={isAnimated('FOV')}
-          applyAll={!isAnimated('FOV')}
-          setAllCameraFOV={setAllCameraFOV}
-          changeMain
-        />
-      </div>
-      <div className="CameraList-row-time-interval">
         <TextField
           label="Seconds"
           inputProps={{
@@ -1087,6 +1059,37 @@ export default function CameraPanel(props) {
           error={ui_fps <= 0}
           helperText={ui_fps <= 0 ? 'Required' : ''}
           variant="standard"
+        />
+      </div>
+      <div className="CameraList-row-animation-properties">
+        <Tooltip title="Animate FOV for Each Camera">
+          <Button
+            value="animatefov"
+            inputProps={{
+              style: { color: 'green' },
+            }}
+            selected={isAnimated('FOV')}
+            onClick={() => {
+              toggleAnimate('FOV');
+            }}
+            style={{maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px', position: 'relative', top: '22px'}}
+            sx={{
+              mt: 1,
+            }}
+          >
+            <Animation color={isAnimated('FOV') ? "secondary" : "primary"} style={{maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px'}}/>
+          </Button>
+        </Tooltip>
+        <FovSelector
+          fovLabel={fovLabel}
+          setFovLabel={setFovLabel}
+          camera={camera_main}
+          cameras={cameras}
+          dispatch={dispatch}
+          disabled={isAnimated('FOV')}
+          applyAll={!isAnimated('FOV')}
+          setAllCameraFOV={setAllCameraFOV}
+          changeMain
         />
       </div>
       <div>
