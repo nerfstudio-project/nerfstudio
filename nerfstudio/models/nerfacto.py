@@ -283,7 +283,7 @@ class NerfactoModel(Model):
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
-        # normals to RGB for visualization
+        # normals to RGB for visualization. TODO: use a colormap
         images_dict["normals"] = (outputs["normals"] + 1.0) / 2.0
 
         for i in range(self.config.num_proposal_iterations):
