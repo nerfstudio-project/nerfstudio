@@ -28,15 +28,11 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 
 
 class Field(nn.Module):
-    """Base class for fields.
+    """Base class for fields."""
 
-    Args:
-        compute_normals: Whether to compute normals or not.
-    """
-
-    def __init__(self, compute_normals=False) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.compute_normals = compute_normals
+        self._sample_locations = None
 
     def __init__(self) -> None:
         super().__init__()
