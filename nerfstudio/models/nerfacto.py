@@ -283,6 +283,9 @@ class NerfactoModel(Model):
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
 
+        # normals to RGB for visualization
+        images_dict["normals"] = (outputs["normals"] + 1.0) / 2.0
+
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
             prop_depth_i = colormaps.apply_depth_colormap(

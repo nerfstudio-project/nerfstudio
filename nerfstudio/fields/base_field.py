@@ -33,6 +33,7 @@ class Field(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self._sample_locations = None
+        self._density_before_activation = None
 
     def __init__(self) -> None:
         super().__init__()
@@ -65,20 +66,20 @@ class Field(nn.Module):
             ray_samples: Samples locations to compute density.
         """
 
-    def get_normals(self, density: TensorType[..., 1]) -> TensorType[..., 3]:
+    def get_normals(self) -> TensorType[..., 3]:
         """Computes and returns a tensor of normals.
 
         Args:
             density: Tensor of densities.
         """
         assert self._sample_locations is not None, "Sample locations must be set before calling get_normals."
+        assert self._density_before_activation is not None, "Density must be set before calling get_normals."
         assert (
-            self._sample_locations.shape[:-1] == density.shape[:-1]
-        ), "Sample locations and density must have the same shape until the last dimension."
+            self._sample_locations.shape[:-1] == self._density_before_activation.shape[:-1]
+        ), "Sample locations and density must have the same shape besides the last dimension."
 
-        density.backward(gradient=torch.ones_like(density), inputs=self._sample_locations, retain_graph=True)
-        normals = self._sample_locations.grad
-        normals = torch.nn.functional.normalize(normals, dim=-1)
+        self._density_before_activation.backward(gradient=torch.ones_like(self._density_before_activation), inputs=self._sample_locations, retain_graph=True)
+        normals = -torch.nn.functional.normalize(self._sample_locations.grad, dim=-1)
         return normals
 
     @abstractmethod
@@ -109,7 +110,7 @@ class Field(nn.Module):
         field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
         if compute_normals:
             with torch.enable_grad():
-                normals = self.get_normals(density)
+                normals = self.get_normals()
             field_outputs[FieldHeadNames.NORMALS] = normals  # type: ignore
             if FieldHeadNames.NORMALS not in field_outputs:
                 raise ValueError("Normal field head must be defined if compute_normals is True.")
