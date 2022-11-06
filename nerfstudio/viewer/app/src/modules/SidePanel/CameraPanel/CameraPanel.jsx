@@ -20,6 +20,7 @@ import {
   Replay,
   Visibility,
   Edit,
+  Timer,
 } from '@mui/icons-material';
 import {
   Accordion,
@@ -28,6 +29,7 @@ import {
   Button,
   InputAdornment,
   Slider,
+  ToggleButton,
 } from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
@@ -65,6 +67,9 @@ function FovSelector(props) {
   const camera = props.camera;
   const dispatch = props.dispatch;
   const changeMain = props.changeMain;
+  const disabled = props.disabled;
+  const applyAll = props.applyAll;
+  const setAllCameraFOV = props.setAllCameraFOV;
 
   const getFovLabel = () => {
     const label = Math.round(
@@ -77,13 +82,17 @@ function FovSelector(props) {
 
   const [ui_field_of_view, setUIFieldOfView] = React.useState(getFovLabel());
 
-  useEffect(() => setUIFieldOfView(getFovLabel()), [fovLabel]);
+  useEffect(() => setUIFieldOfView(getFovLabel()), [camera, fovLabel]);
 
   const setFOV = (val) => {
     if (fovLabel === FOV_LABELS.FOV) {
       camera.fov = val;
     } else {
-      camera.setFocalLength(val);
+      camera.setFocalLength(val / camera.aspect);
+    }
+
+    if (applyAll) {
+      setAllCameraFOV(val);
     }
 
     if (changeMain) {
@@ -110,6 +119,7 @@ function FovSelector(props) {
         inputMode: 'numeric',
         pattern: '[+-]?([0-9]*[.])?[0-9]+',
       }}
+      disabled={disabled}
       // eslint-disable-next-line
       InputProps={{
         endAdornment: (
@@ -157,6 +167,7 @@ function CameraList(props) {
   const setFovLabel = props.setFovLabel;
   const cameraProperties = props.cameraProperties;
   const setCameraProperties = props.setCameraProperties;
+  const isAnimated = props.isAnimated;
   const dispatch = props.dispatch;
 
   // eslint-disable-next-line no-unused-vars
@@ -351,6 +362,7 @@ function CameraList(props) {
             setFovLabel={setFovLabel}
             camera={camera}
             dispatch={dispatch}
+            disabled={!isAnimated('FOV')}
             changeMain
           />
         </AccordionDetails>
@@ -397,6 +409,7 @@ export default function CameraPanel(props) {
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
+  const [animate, setAnimate] = React.useState(new Set());
 
   const scene_state = sceneTree.get_scene_state();
 
@@ -404,7 +417,10 @@ export default function CameraPanel(props) {
   // eslint-disable-next-line no-unused-vars
   const [mouseInScene, setMouseInScene] = React.useState(false);
   React.useEffect(() => {
-    scene_state.addCallback((value) => setMouseInScene(value), 'mouse_in_scene');
+    scene_state.addCallback(
+      (value) => setMouseInScene(value),
+      'mouse_in_scene',
+    );
   }, []);
 
   const dispatch = useDispatch();
@@ -863,6 +879,31 @@ export default function CameraPanel(props) {
     }
   };
 
+  const isAnimated = (property) => animate.has(property);
+
+  const toggleAnimate = (property) => {
+    const new_animate = new Set(animate);
+    if (animate.has(property)) {
+      new_animate.delete(property);
+      setAnimate(new_animate);
+    } else {
+      new_animate.add(property);
+      setAnimate(new_animate);
+    }
+  };
+
+  const setAllCameraFOV = (val) => {
+    if (fovLabel === FOV_LABELS.FOV) {
+      for (let i = 0; i < cameras.length; i += 1) {
+        cameras[i].fov = val;
+      }
+    } else {
+      for (let i = 0; i < cameras.length; i += 1) {
+        cameras[i].setFocalLength(val / cameras[i].aspect);
+      }
+    }
+  };
+
   return (
     <div className="CameraPanel">
       <div>
@@ -960,11 +1001,27 @@ export default function CameraPanel(props) {
           helperText={ui_render_width <= 0 ? 'Required' : ''}
           variant="standard"
         />
+      </div>
+      <div className="CameraList-row-time-interval">
+        <ToggleButton
+          value="animatefov"
+          selected={isAnimated('FOV')}
+          onChange={() => {
+            toggleAnimate('FOV');
+          }}
+          sx={{ mt: 1 }}
+        >
+          <Timer />
+        </ToggleButton>
         <FovSelector
           fovLabel={fovLabel}
           setFovLabel={setFovLabel}
           camera={camera_main}
+          cameras={cameras}
           dispatch={dispatch}
+          disabled={isAnimated('FOV')}
+          applyAll={!isAnimated('FOV')}
+          setAllCameraFOV={setAllCameraFOV}
           changeMain
         />
       </div>
@@ -1233,6 +1290,7 @@ export default function CameraPanel(props) {
           setCameraProperties={setCameraProperties}
           fovLabel={fovLabel}
           setFovLabel={setFovLabel}
+          isAnimated={isAnimated}
           dispatch={dispatch}
         />
       </div>
