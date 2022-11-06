@@ -302,12 +302,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.eval_dataset = self.create_eval_dataset()
         super().__init__()
 
-    def create_train_dataset(self):
+    def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
         return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
 
-    def create_eval_dataset(self):
-        """Sets up the data loaders for training"""
+    def create_eval_dataset(self) -> InputDataset:
+        """Sets up the data loaders for evaluation"""
         return InputDataset(
             self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
         )

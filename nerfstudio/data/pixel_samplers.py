@@ -53,15 +53,9 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_
     assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
 
     # Needed to correct the random indices to their actual camera idx locations.
-    local_indices = indices.clone()
     indices[:, 0] = batch["image_idx"][c]
-    collated_batch.update(
-        {
-            "local_indices": local_indices,  # local to the batch returned
-            "indices": indices,  # with the abs camera indices
-        }
-    )
-
+    collated_batch.["indices"] = indices,  # with the abs camera indices
+    
     if keep_full_image:
         collated_batch["full_image"] = batch["image"]
 
