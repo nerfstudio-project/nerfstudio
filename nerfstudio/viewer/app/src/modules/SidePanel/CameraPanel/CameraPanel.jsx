@@ -1065,9 +1065,6 @@ export default function CameraPanel(props) {
         <Tooltip title="Animate FOV for Each Camera">
           <Button
             value="animatefov"
-            inputProps={{
-              style: { color: 'green' },
-            }}
             selected={isAnimated('FOV')}
             onClick={() => {
               toggleAnimate('FOV');
@@ -1077,7 +1074,7 @@ export default function CameraPanel(props) {
               mt: 1,
             }}
           >
-            <Animation color={isAnimated('FOV') ? "secondary" : "primary"} style={{maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px'}}/>
+            <Animation style={{color: isAnimated('FOV') ? "#24B6FF" : "#EBEBEB", maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px'}}/>
           </Button>
         </Tooltip>
         <FovSelector
