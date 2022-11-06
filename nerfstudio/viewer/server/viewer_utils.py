@@ -35,7 +35,7 @@ from rich.console import Console
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
-from nerfstudio.data.utils.datasets import InputDataset
+from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
@@ -446,12 +446,12 @@ class ViewerState:
             self.camera_moving = True
         return camera_object
 
-    def _apply_colormap(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
+    def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
 
         Args:
             outputs: the output tensors for which to apply colormaps on
-            stuff_colors: is only set if colormap is for semantics. Defaults to None.
+            colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
         if self.output_list:
@@ -486,8 +486,8 @@ class ViewerState:
         ):
             logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
-            assert stuff_colors is not None
-            return stuff_colors[labels]
+            assert colors is not None
+            return colors[labels]
 
         # rendering boolean outputs
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
@@ -532,12 +532,12 @@ class ViewerState:
         for video_track in self.video_tracks:
             video_track.put_frame(image)
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], stuff_colors: torch.Tensor = None, eps=1e-6):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
-            stuff_colors: is only set if colormap is for semantics. Defaults to None.
+            colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
         if self.output_list is None:
@@ -564,7 +564,7 @@ class ViewerState:
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
-        selected_output = (self._apply_colormap(outputs, stuff_colors) * 255).type(torch.uint8)
+        selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
         image = selected_output.cpu().numpy()
         self.set_image(image)
 
@@ -764,8 +764,8 @@ class ViewerState:
         graph.train()
         outputs = render_thread.vis_outputs
         if outputs is not None:
-            stuff_colors = graph.stuff_colors if hasattr(graph, "stuff_colors") else None
-            self._send_output_to_viewer(outputs, stuff_colors=stuff_colors)
+            colors = graph.colors if hasattr(graph, "colors") else None
+            self._send_output_to_viewer(outputs, colors=colors)
             self._update_viewer_stats(
                 vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
             )

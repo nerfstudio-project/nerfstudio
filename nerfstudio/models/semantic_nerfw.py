@@ -72,8 +72,9 @@ class SemanticNerfWModel(Model):
 
     config: SemanticNerfWModelConfig
 
-    def __init__(self, config: SemanticNerfWModelConfig, semantics: Semantics, **kwargs) -> None:
-        self.semantics = semantics
+    def __init__(self, config: SemanticNerfWModelConfig, metadata: Dict, **kwargs) -> None:
+        assert "semantics" in metadata.keys() and isinstance(metadata["semantics"], Semantics)
+        self.semantics = metadata["semantics"]
         super().__init__(config=config, **kwargs)
 
     def populate_modules(self):
@@ -93,8 +94,7 @@ class SemanticNerfWModel(Model):
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
             use_transient_embedding=self.config.use_transient_embedding,
             use_semantics=True,
-            num_semantics_stuff_classes=len(self.semantics.stuff_classes),
-            num_semantics_thing_classes=len(self.semantics.thing_classes),
+            num_semantic_classes=len(self.semantics.classes),
         )
 
         # Build the proposal network(s)
@@ -204,20 +204,13 @@ class SemanticNerfWModel(Model):
             outputs["density_transient"] = field_outputs[FieldHeadNames.TRANSIENT_DENSITY]
 
         # semantics
-        outputs["semantics_thing"] = self.renderer_semantics(
-            field_outputs[FieldHeadNames.SEMANTICS_THING], weights=weights_static.detach()
-        )
-        outputs["semantics_stuff"] = self.renderer_semantics(
-            field_outputs[FieldHeadNames.SEMANTICS_STUFF], weights=weights_static.detach()
+        outputs["semantics"] = self.renderer_semantics(
+            field_outputs[FieldHeadNames.SEMANTICS], weights=weights_static.detach()
         )
 
         # semantics colormaps
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_stuff"], dim=-1), dim=-1)
-        outputs["semantics_colormap_stuff"] = self.semantics.stuff_colors[semantic_labels]
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_thing"], dim=-1), dim=-1)
-        outputs["semantics_colormap_thing"] = self.semantics.thing_colors[semantic_labels]
-        # TODO: adding these together is incorrect and produces weird results
-        outputs["semantics_colormap"] = outputs["semantics_colormap_stuff"] + outputs["semantics_colormap_thing"]
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
+        outputs["semantics_colormap"] = self.semantics.colors[semantic_labels]
 
         return outputs
 
@@ -247,12 +240,7 @@ class SemanticNerfWModel(Model):
             loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
 
         # semantic loss
-        loss_dict["semantics_stuff_loss"] = self.cross_entropy_loss(
-            outputs["semantics_stuff"], batch["semantics_stuff"][..., 0].long()
-        )
-        loss_dict["semantics_thing_loss"] = self.cross_entropy_loss(
-            outputs["semantics_thing"], batch["semantics_thing"][..., 0].long()
-        )
+        loss_dict["semantics_loss"] = self.cross_entropy_loss(outputs["semantics"], batch["semantics"][..., 0].long())
         return loss_dict
 
     def get_image_metrics_and_images(
@@ -295,14 +283,8 @@ class SemanticNerfWModel(Model):
             images_dict[key] = prop_depth_i
 
         # semantics
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_stuff"], dim=-1), dim=-1)
-        images_dict["semantics_colormap_stuff"] = self.semantics.stuff_colors[semantic_labels]
-        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics_thing"], dim=-1), dim=-1)
-        images_dict["semantics_colormap_thing"] = self.semantics.thing_colors[semantic_labels]
-        # TODO: adding these together is incorrect and produces weird results
-        images_dict["semantics_colormap"] = (
-            images_dict["semantics_colormap_stuff"] + images_dict["semantics_colormap_thing"]
-        )
+        semantic_labels = torch.argmax(torch.nn.functional.softmax(outputs["semantics"], dim=-1), dim=-1)
+        images_dict["semantics_colormap"] = self.semantics.colors[semantic_labels]
 
         # valid mask
         images_dict["mask"] = batch["mask"].repeat(1, 1, 3)
