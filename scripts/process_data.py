@@ -253,13 +253,14 @@ def convert_insta360_to_images(
     return summary_log
 
 
-def copy_images(data: Path, image_dir: Path, verbose) -> int:
+def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool = True) -> int:
     """Copy images from a directory to a new directory.
 
     Args:
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
+        rename: If True, rename the images to be sequential.
     Returns:
         The number of images copied.
     """
@@ -276,7 +277,11 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
         for idx, image_path in enumerate(image_paths):
             if verbose:
                 CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-            shutil.copy(image_path, image_dir / f"frame_{idx + 1:05d}{image_path.suffix}")
+            if rename:
+                fname = f"frame_{idx + 1:05d}{image_path.suffix}"
+            else:
+                fname = image_path.name
+            shutil.copy(image_path, image_dir / fname)
 
         num_frames = len(image_paths)
 
@@ -586,11 +591,9 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
         w2c = np.concatenate([rotation, translation], 1)
         w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
         c2w = np.linalg.inv(w2c)
-        # Convert from COLMAP's camera coordinate system to ours
-        # TODO determine if this is necessary for OpenSfM or not
+        # Convert camera +z forwards (OpenSfM) convention to -z forwards (NeRF) convention
+        # Equivalent to right-multiplication by diag([1, -1, -1, 1])
         c2w[0:3, 1:3] *= -1
-        c2w = c2w[np.array([1, 0, 2, 3]), :]
-        c2w[2, :] *= -1
 
         name = Path(f"./images/{shot_name}")
 
@@ -602,10 +605,10 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
     # For now just assume it's all the same camera
     cam = cams[list(cams.keys())[0]]
     out = {
-        "fl_x": float(cam["focal_x"]) * max(cam["height"], cam["width"]) if "focal_x" in cam else 1.,
-        "fl_y": float(cam["focal_y"]) * max(cam["height"], cam["width"]) if "focal_y" in cam else 1.,
-        "cx": cam["width"] / 2.0 + float(cam["c_x"]) * cam["width"] if "c_x" in cam else 1. ,
-        "cy": cam["height"] / 2.0 + float(cam["c_y"]) * cam["height"] if "c_y" in cam else 1. ,
+        "fl_x": float(cam["focal_x"]) * max(cam["height"], cam["width"]) if "focal_x" in cam else 1.0,
+        "fl_y": float(cam["focal_y"]) * max(cam["height"], cam["width"]) if "focal_y" in cam else 1.0,
+        "cx": cam["width"] / 2.0 + float(cam["c_x"]) * cam["width"] if "c_x" in cam else 1.0,
+        "cy": cam["height"] / 2.0 + float(cam["c_y"]) * cam["height"] if "c_y" in cam else 1.0,
         "w": cam["width"],
         "h": cam["height"],
         "camera_model": camera_model.value,
@@ -711,7 +714,8 @@ class ProcessImages:
         summary_log = []
 
         # Copy images to output directory
-        num_frames = copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
+        # NOTE(kchen): is this OK with COLMAP?
+        num_frames = copy_images(self.data, image_dir=image_dir, verbose=self.verbose, rename=False)
         summary_log.append(f"Starting with {num_frames} images")
 
         # Downscale images
@@ -946,7 +950,7 @@ class ProcessInsta360:
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
-                opensfm_install=Path("/scratch2/ksalahi/OpenSfM")
+                opensfm_install=Path("/scratch2/ksalahi/OpenSfM"),
             )
 
         # Save transforms.json
