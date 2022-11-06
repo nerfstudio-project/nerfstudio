@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Data parser for record3d dataset"""
+"""Data parser for equirectangular dataset"""
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
@@ -22,7 +23,6 @@ from typing import Type
 import numpy as np
 import torch
 from rich.console import Console
-from scipy.spatial.transform import Rotation
 from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
@@ -34,10 +34,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils import poses as pose_utils
-from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console(width=120)
-
 
 @dataclass
 class EquirectangularDataParserConfig(DataParserConfig):
@@ -45,14 +43,14 @@ class EquirectangularDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Equirectangular)
     """target class to instantiate"""
-    data: Path = Path("data/record3d/bear")
+    data: Path = Path("/data/akristoffersen/360_stereo/360/nm_living_room")
     """Location of data"""
-    val_skip: int = 8
-    """1/val_skip images to use for validation."""
     aabb_scale: float = 4.0
     """Scene scale."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation"""
+    train_split_percentage: float = 0.9
+    """The percent of images to use for training. The remaining images are for eval."""
 
 
 @dataclass
@@ -86,6 +84,7 @@ class Equirectangular(DataParser):
 
         # convert to Tensors
         poses = torch.from_numpy(poses[:, :3, :4])
+        print(poses, poses.shape)
 
         poses = camera_utils.auto_orient_and_center_poses(
             pose_utils.to4x4(poses), method=self.config.orientation_method
@@ -94,6 +93,27 @@ class Equirectangular(DataParser):
         # Centering poses
         poses[:, :3, 3] = poses[:, :3, 3] - torch.mean(poses[:, :3, 3], dim=0)
         poses = pose_utils.normalize(poses)
+
+        num_images = len(image_filenames)
+        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+        num_eval_images = num_images - num_train_images
+        i_all = np.arange(num_images)
+        i_train = np.linspace(
+            0, num_images - 1, num_train_images, dtype=int
+        )  # equally spaced training images starting and ending at 0 and num_images-1
+        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+        assert len(i_eval) == num_eval_images
+        if split == "train":
+            indices = i_train
+        elif split in ["val", "test"]:
+            indices = i_eval
+        else:
+            raise ValueError(f"Unknown dataparser split {split}")
+        
+        # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
+        image_filenames = [image_filenames[i] for i in indices]
+        poses = poses[indices]
+
 
         aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.config.aabb_scale
         scene_box = SceneBox(aabb=aabb)
