@@ -27,6 +27,7 @@ from torch.utils.data import Dataset
 from torchtyping import TensorType
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
 
 
 class InputDataset(Dataset):
@@ -39,6 +40,7 @@ class InputDataset(Dataset):
     def __init__(self, dataparser_outputs: DataparserOutputs):
         super().__init__()
         self.dataparser_outputs = dataparser_outputs
+        self.has_masks = self.dataparser_outputs.mask_filenames is not None
 
     def __len__(self):
         return len(self.dataparser_outputs.image_filenames)
@@ -71,7 +73,7 @@ class InputDataset(Dataset):
             image = image[:, :, :3]
         return image
 
-    def get_data(self, image_idx) -> Dict:
+    def get_data(self, image_idx: int) -> Dict:
         """Returns the ImageDataset data as a dictionary.
 
         Args:
@@ -80,13 +82,23 @@ class InputDataset(Dataset):
         image = self.get_image(image_idx)
         data = {"image_idx": image_idx}
         data["image"] = image
-        for _, data_func_dict in self.dataparser_outputs.additional_inputs.items():
-            assert "func" in data_func_dict, "Missing function to process data: specify `func` in `additional_inputs`"
-            func = data_func_dict["func"]
-            assert "kwargs" in data_func_dict, "No data to process: specify `kwargs` in `additional_inputs`"
-            data.update(func(image_idx, **data_func_dict["kwargs"]))
+        if self.has_masks:
+            mask_filepath = self.dataparser_outputs.mask_filenames[image_idx]
+            data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath)
+        metadata = self.get_metadata(data)
+        data.update(metadata)
         return data
 
-    def __getitem__(self, image_idx):
+    # pylint: disable=no-self-use
+    def get_metadata(self, data: Dict) -> Dict:
+        """Method that can be used to process any additional metadata that may be part of the model inputs.
+
+        Args:
+            image_idx: The image index in the dataset.
+        """
+        del data
+        return {}
+
+    def __getitem__(self, image_idx: int) -> Dict:
         data = self.get_data(image_idx)
         return data
