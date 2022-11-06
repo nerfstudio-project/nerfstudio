@@ -298,9 +298,6 @@ class Cameras:
 
         if distortion_params is not None:
             coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
-            if torch.isnan(coord_stack).sum():
-                nan_indices = torch.nonzero(torch.isnan(coord_stack), as_tuple=False)
-                import ipdb; ipdb.set_trace()
         if self.camera_type[0] == CameraType.PERSPECTIVE.value:
             directions_stack = torch.stack(
                 [coord_stack[..., 0], coord_stack[..., 1], -torch.ones_like(coord_stack[..., 1])], dim=-1
