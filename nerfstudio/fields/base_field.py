@@ -35,10 +35,6 @@ class Field(nn.Module):
         self._sample_locations = None
         self._density_before_activation = None
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._sample_locations = None
-
     def density_fn(self, positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
         """Returns only the density. Used primarily with the density grid.
 
