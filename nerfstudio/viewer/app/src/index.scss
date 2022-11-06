@@ -174,6 +174,8 @@ $sidebar-width: 100% !default;
   border: 2px solid #000;
   //   box-shadow: 24px 24px;
   padding: 32px;
+  overflow-y: scroll;
+  height: 90%;
 }
 
 .LandingModal-box .WebSocketUrlField {
