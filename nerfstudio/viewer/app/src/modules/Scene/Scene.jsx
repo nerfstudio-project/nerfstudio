@@ -67,32 +67,38 @@ export function get_scene_tree() {
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
   camera_controls.azimuthRotateSpeed = 0.3;
   camera_controls.polarRotateSpeed = 0.3;
-  camera_controls.dollySpeed = 0.1;
+  camera_controls.dollySpeed = 1.8;
+  camera_controls.infinityDolly = true;
   camera_controls.saveState();
 
   const keyMap = [];
   const moveSpeed = 0.02;
-  const EPS = .05;
+  const rotSpeed = .02;
+  const EPS = .01;
 
-  function moveCamera() {
-    const curTar = camera_controls.getTarget();
-    console.log(typeof curTar)
-    const curPos = camera_controls.getPosition();
-    const diff = curTar.sub(curPos).normalize().multiplyScalar(EPS);
-    camera_controls.setTarget(curPos.x + diff.x, curPos.y + diff.y, curPos.z + diff.z);
+  function rotate() {
+    if (keyMap.ArrowLeft || keyMap.ArrowRight || keyMap.ArrowUp || keyMap.ArrowDown){ 
+      const curTar = camera_controls.getTarget();
+      const curPos = camera_controls.getPosition();
+      const diff = curTar.sub(curPos).clampLength(0, EPS);
+      camera_controls.setTarget(curPos.x + diff.x, curPos.y + diff.y, curPos.z + diff.z);
+  
+      if (keyMap.ArrowLeft === true) {
+        camera_controls.rotate(rotSpeed, 0, true);
+      }
+      if (keyMap.ArrowRight === true) {
+        camera_controls.rotate(-rotSpeed, 0, true);
+      }
+      if (keyMap.ArrowUp === true) {
+        camera_controls.rotate(0, rotSpeed / 1.5, true);
+      }
+      if (keyMap.ArrowDown === true) {
+        camera_controls.rotate(0, -rotSpeed / 1.5, true);
+      }
+    }
+  }
 
-    if (keyMap.ArrowLeft === true) {
-      camera_controls.rotate(0.015, 0, true);
-    }
-    if (keyMap.ArrowRight === true) {
-      camera_controls.rotate(-0.015, 0, true);
-    }
-    if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, 0.015, true);
-    }
-    if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, -0.015, true);
-    }
+  function translate() {
     if (keyMap.KeyD === true) {
       camera_controls.truck(moveSpeed, 0, true);
     }
@@ -100,6 +106,10 @@ export function get_scene_tree() {
       camera_controls.truck(-moveSpeed, 0, true);
     }
     if (keyMap.KeyW === true) {
+      const curPos = camera_controls.getPosition();
+      const newTar = camera_controls.getTarget();
+      const newDiff = newTar.sub(curPos).normalize().multiplyScalar(curPos.length());
+      camera_controls.setTarget(curPos.x + newDiff.x, curPos.y + newDiff.y, curPos.z + newDiff.z);
       camera_controls.dolly(moveSpeed, true);
     }
     if (keyMap.KeyS === true) {
@@ -111,6 +121,11 @@ export function get_scene_tree() {
     if (keyMap.KeyE === true) {
       camera_controls.truck(0, -moveSpeed, true);
     }
+  }
+
+  function moveCamera() {
+    translate()
+    rotate()
   }
 
   function onKeyUp(event) {
@@ -243,6 +258,10 @@ export function get_scene_tree() {
   let drag = false;
   const onMouseDown = () => {
     drag = false;
+    const curPos = camera_controls.getPosition();
+    const newTar = camera_controls.getTarget();
+    const newDiff = newTar.sub(curPos).normalize().multiplyScalar(curPos.length());
+    camera_controls.setTarget(curPos.x + newDiff.x, curPos.y + newDiff.y, curPos.z + newDiff.z);
   };
 
   const onMouseMove = (e) => {
