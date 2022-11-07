@@ -1,6 +1,6 @@
 import './index.scss';
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
 import App from './App';
 import WebSocketProvider from './modules/WebSocket/WebSocket';

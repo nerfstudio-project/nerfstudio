@@ -161,6 +161,7 @@ function MenuItems(props: ListItemProps) {
               .map((key) => (
                 <MenuItems
                   name={key}
+                  key={key}
                   sceneTree={sceneTree}
                   scene_node={scene_node.children[key]}
                   level={level + 1}

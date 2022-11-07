@@ -22,7 +22,24 @@ const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
   const scene = new THREE.Scene();
-  const sceneTree = new SceneNode(scene);
+
+  const scene_state = {
+    value: new Map(),
+    callbacks: [],
+    addCallback (callback, key) { this.callbacks.push([callback, key]); },
+    setValue (key, value) {
+      this.value.set(key, value);
+      this.callbacks.forEach(
+          (cbk) => {
+            const i = cbk[1];
+            const callback = cbk[0];
+            return callback(this.value.get(i))
+          }
+      );
+    }
+  };
+
+  const sceneTree = new SceneNode(scene, scene_state);
 
   const dispatch = useDispatch();
   const BANNER_HEIGHT = 50;
@@ -124,6 +141,9 @@ export function get_scene_tree() {
   }
 
   function moveCamera() {
+    if (!scene_state.value.get('mouse_in_scene')) {
+      return;
+    }
     translate()
     rotate()
   }
@@ -267,13 +287,23 @@ export function get_scene_tree() {
   const onMouseMove = (e) => {
     drag = true;
 
-    const cameras = Object.values(
-      sceneTree.find_no_create([CAMERAS_NAME]).children,
-    ).map((obj) => obj.object.children[0].children[1]);
-
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+
+    const mouse_in_scene = !(mouseVector.x > 1 || mouseVector.x < -1 || mouseVector.y > 1 || mouseVector.y < -1)
+
+    scene_state.setValue('mouse_x', mouseVector.x);
+    scene_state.setValue('mouse_y', mouseVector.y);
+    scene_state.setValue('mouse_in_scene', mouse_in_scene);
+
+    const camerasParent = sceneTree.find_no_create([CAMERAS_NAME]);
+    if (camerasParent === null) {
+      return;
+    }
+    const cameras = Object.values(camerasParent.children).map(
+      (obj) => obj.object.children[0].children[1],
+    );
 
     if (
       mouseVector.x > 1 ||
@@ -305,7 +335,7 @@ export function get_scene_tree() {
   };
 
   const onMouseUp = () => {
-    if (drag === true) {
+    if (drag === true || !scene_state.value.get('mouse_in_scene')) {
       return;
     }
     if (selectedCam !== null) {

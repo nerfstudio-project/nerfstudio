@@ -241,7 +241,6 @@ $sidebar-width: 100% !default;
 }
 
 .CameraPanel-slider-container {
-  margin-top: 40px;
   margin-left: auto;
   margin-right: auto;
   width: 70%;
@@ -261,6 +260,7 @@ $sidebar-width: 100% !default;
 }
 
 .CameraList-row {
+  background: $base-color1;
   padding: 4px;
   border: solid 1px $highlight-color1;
   text-align: left;
@@ -272,6 +272,13 @@ $sidebar-width: 100% !default;
 }
 
 .CameraList-row-time-interval > div {
+  display: inline-block;
+  text-align: center;
+  margin: 10px;
+  width: 100px;
+}
+
+.CameraList-row-animation-properties > div {
   display: inline-block;
   text-align: center;
   margin: 10px;

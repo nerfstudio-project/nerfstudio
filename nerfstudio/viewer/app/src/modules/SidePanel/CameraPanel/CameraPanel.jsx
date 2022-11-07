@@ -2,34 +2,45 @@ import * as React from 'react';
 import * as THREE from 'three';
 
 import {
+  ArrowBackIosNew,
+  ArrowForwardIos,
   AllInclusiveOutlined,
   ChangeHistory,
+  ClearAll,
+  Delete,
+  ExpandMore,
+  FirstPage,
   GestureOutlined,
-  LinearScaleOutlined,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
+  LastPage,
+  Pause,
+  PlayArrow,
   RadioButtonUnchecked,
   Replay,
-  Timeline,
+  Visibility,
+  Edit,
+  Animation,
 } from '@mui/icons-material';
-import { Button, Slider } from '@mui/material';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Button,
+  InputAdornment,
+  Slider,
+} from '@mui/material';
 import { MeshLine, MeshLineMaterial } from 'meshline';
 import { useContext, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
-import DeleteIcon from '@mui/icons-material/Delete';
-import FirstPageIcon from '@mui/icons-material/FirstPage';
+import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
-import LastPageIcon from '@mui/icons-material/LastPage';
-import PauseIcon from '@mui/icons-material/Pause';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { Stack } from '@mui/system';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
@@ -38,10 +49,145 @@ import RenderModal from '../../RenderModal';
 
 const msgpack = require('msgpack-lite');
 
+const FOV_LABELS = {
+  FOV: '°',
+  MM: 'mm',
+};
+
 function set_camera_position(camera, matrix) {
   const mat = new THREE.Matrix4();
   mat.fromArray(matrix.elements);
   mat.decompose(camera.position, camera.quaternion, camera.scale);
+}
+
+function FovSelector(props) {
+  const fovLabel = props.fovLabel;
+  const setFovLabel = props.setFovLabel;
+  const camera = props.camera;
+  const dispatch = props.dispatch;
+  const changeMain = props.changeMain;
+  const disabled = props.disabled;
+  const applyAll = props.applyAll;
+  const setAllCameraFOV = props.setAllCameraFOV;
+  const isGlobal = props.isGlobal;
+  const globalFov = props.globalFov;
+  const setGlobalFov = props.setGlobalFov;
+
+  const getFovLabel = () => {
+    if (!isGlobal) {
+      const label = Math.round(
+        fovLabel === FOV_LABELS.FOV
+          ? camera.getEffectiveFOV()
+          : camera.getFocalLength() * camera.aspect,
+      );
+      return label;
+    }
+    const old_fov = camera.fov;
+    camera.fov = globalFov;
+    const new_focal_len = camera.getFocalLength();
+    camera.fov = old_fov;
+    const label = Math.round(
+      fovLabel === FOV_LABELS.FOV
+        ? globalFov
+        : new_focal_len * camera.aspect,
+    );
+    return label;
+  };
+
+  const [UIFieldOfView, setUIFieldOfView] = React.useState(isGlobal ? globalFov : getFovLabel());
+
+  useEffect(() => setUIFieldOfView(getFovLabel()), [camera, fovLabel, globalFov]);
+
+  const setFOV = (val) => {
+    if (!isGlobal) {
+      if (fovLabel === FOV_LABELS.FOV) {
+        camera.fov = val;
+      } else {
+        camera.setFocalLength(val / camera.aspect);
+      }
+    } else if (fovLabel === FOV_LABELS.FOV) {
+      setGlobalFov(val);
+    } else {
+      const old_fov = camera.fov;
+        camera.setFocalLength(val / camera.aspect);
+        const new_fov = camera.getEffectiveFOV();
+        camera.fov = old_fov;
+        setGlobalFov(new_fov);
+    }
+
+    if (applyAll) {
+      setAllCameraFOV(val);
+    }
+
+    if (changeMain) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/field_of_view',
+        data: camera.getEffectiveFOV(),
+      });
+    }
+  };
+
+  const toggleFovLabel = () => {
+    if (fovLabel === FOV_LABELS.FOV) {
+      setFovLabel(FOV_LABELS.MM);
+    } else {
+      setFovLabel(FOV_LABELS.FOV);
+    }
+  };
+
+  return (
+    <TextField
+      label={fovLabel === FOV_LABELS.FOV ? 'FOV' : 'Focal Length'}
+      InputLabelProps={{
+        style: { color: '#8E8E8E' },
+      }}
+      inputProps={{
+        inputMode: 'numeric',
+        pattern: '[+-]?([0-9]*[.])?[0-9]+',
+        // style: { color: 'rgb(50, 50, 50)' }
+      }}
+      disabled={disabled}
+      // eslint-disable-next-line
+      InputProps={{
+        endAdornment: (
+          <Tooltip title="Switch between FOV and Focal Length">
+            <InputAdornment
+              sx={{ cursor: 'pointer' }}
+              onClick={toggleFovLabel}
+              position="end"
+            >
+              {fovLabel === FOV_LABELS.FOV ? '°' : 'mm'}
+            </InputAdornment>
+          </Tooltip>
+        ),
+      }}
+      onChange={(e) => {
+        if (e.target.validity.valid) {
+          setUIFieldOfView(e.target.value);
+        }
+      }}
+      onBlur={(e) => {
+        if (e.target.validity.valid) {
+          if (e.target.value !== '') {
+            setFOV(parseInt(e.target.value, 10));
+          } else {
+            setUIFieldOfView(getFovLabel());
+          }
+        }
+      }}
+      sx={{
+        input: {
+          "-webkit-text-fill-color": `${disabled ? "#24B6FF" : "#EBEBEB"} !important`,
+          color: `${disabled ? "#24B6FF" : "#EBEBEB"} !important`,
+        },
+      }}
+      value={UIFieldOfView}
+      error={camera.fov <= 0}
+      helperText={camera.fov <= 0 ? 'Required' : ''}
+      variant="standard"
+    />
+  );
 }
 
 function CameraList(props) {
@@ -50,8 +196,23 @@ function CameraList(props) {
   const camera_main = props.camera_main;
   const transform_controls = props.transform_controls;
   const setCameras = props.setCameras;
+  const swapCameras = props.swapCameras;
+  const fovLabel = props.fovLabel;
+  const setFovLabel = props.setFovLabel;
+  const cameraProperties = props.cameraProperties;
+  const setCameraProperties = props.setCameraProperties;
+  const isAnimated = props.isAnimated;
+  const dispatch = props.dispatch;
+
   // eslint-disable-next-line no-unused-vars
   const [slider_value, set_slider_value] = React.useState(0);
+  const [expanded, setExpanded] = React.useState(null);
+
+  const handleChange =
+    (cameraUUID: string) =>
+    (event: React.SyntheticEvent, isExpanded: boolean) => {
+      setExpanded(isExpanded ? cameraUUID : false);
+    };
 
   const set_transform_controls = (index) => {
     // camera helper object so grab the camera inside
@@ -77,7 +238,7 @@ function CameraList(props) {
     }
   };
 
-  const reset_slider_render_on_delete = () => {
+  const reset_slider_render_on_change = () => {
     // set slider and render camera back to 0
     const slider_min = 0;
     const camera_render = sceneTree.find_object_no_create([
@@ -106,6 +267,7 @@ function CameraList(props) {
       }
       set_camera_position(camera_render, first_camera.matrix);
       camera_render_helper.set_visibility(true);
+      camera_render.fov = first_camera.fov;
     }
     set_slider_value(slider_min);
   };
@@ -135,29 +297,117 @@ function CameraList(props) {
     if (cameras.length < 1) {
       camera_render_helper.set_visibility(false);
     }
-    reset_slider_render_on_delete();
+    reset_slider_render_on_change();
   };
 
+  // TODO: Add pencil for editing?
   const cameraList = cameras.map((camera, index) => {
     return (
-      <div className="CameraList-row" key={camera.uuid}>
-        <Button size="small" onClick={() => set_transform_controls(index)}>
-          Camera {index}
-        </Button>
-        <div className="CameraList-row-buttons">
+      <Accordion
+        className="CameraList-row"
+        key={camera.uuid}
+        expanded={expanded === camera.uuid}
+        onChange={handleChange(camera.uuid)}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMore sx={{ color: '#eeeeee' }} />}
+          aria-controls="panel1bh-content"
+          id="panel1bh-header"
+        >
+          <Stack spacing={0}>
+            <Button
+              size="small"
+              onClick={(e) => {
+                swapCameras(index, index - 1);
+                e.stopPropagation();
+              }}
+              style={{
+                maxWidth: '20px',
+                maxHeight: '20px',
+                minWidth: '20px',
+                minHeight: '20px',
+              }}
+              disabled={index === 0}
+            >
+              <KeyboardArrowUp />
+            </Button>
+            <Button
+              size="small"
+              onClick={(e) => {
+                swapCameras(index, index + 1);
+                e.stopPropagation();
+              }}
+              style={{
+                maxWidth: '20px',
+                maxHeight: '20px',
+                minWidth: '20px',
+                minHeight: '20px',
+              }}
+              disabled={index === cameras.length - 1}
+            >
+              <KeyboardArrowDown />
+            </Button>
+          </Stack>
+          <Button size="small" sx={{ ml: '3px' }}>
+            <TextField
+              id="standard-basic"
+              value={camera.properties.get('NAME')}
+              variant="standard"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                const cameraProps = new Map(cameraProperties);
+                cameraProps.get(camera.uuid).set('NAME', e.target.value);
+                setCameraProperties(cameraProps);
+              }}
+              sx={{
+                alignItems: 'center',
+                alignContent: 'center',
+              }}
+            />
+          </Button>
           <Button
             size="small"
-            onClick={() => {
-              set_camera_position(camera_main, camera.matrix);
+            onClick={(e) => {
+              e.stopPropagation();
+              set_transform_controls(index);
             }}
           >
-            <VisibilityIcon />
+            <Edit />
           </Button>
-          <Button size="small" onClick={() => delete_camera(index)}>
-            <DeleteIcon />
-          </Button>
-        </div>
-      </div>
+          <Stack spacing={0} direction="row" justifyContent="end">
+            <Button
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                set_camera_position(camera_main, camera.matrix);
+                camera_main.fov = camera.fov;
+              }}
+            >
+              <Visibility />
+            </Button>
+            <Button size="small" onClick={() => delete_camera(index)}>
+              <Delete />
+            </Button>
+          </Stack>
+        </AccordionSummary>
+        <AccordionDetails>
+          {isAnimated('FOV') &&
+          <FovSelector
+            fovLabel={fovLabel}
+            setFovLabel={setFovLabel}
+            camera={camera}
+            dispatch={dispatch}
+            disabled={!isAnimated('FOV')}
+            isGlobal={false}
+            changeMain={false}
+          />}
+          {!isAnimated('FOV') &&
+           <p style={{ fontSize: 'smaller', color: '#999999' }}>
+              Animated camera properties will show up here!
+            </p>
+          }
+        </AccordionDetails>
+      </Accordion>
     );
   });
   return <div>{cameraList}</div>;
@@ -188,17 +438,33 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.config_base_dir,
   );
   const websocket = useContext(WebSocketContext).socket;
+  const DEFAULT_FOV = 50;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
+  // Mapping of camera id to each camera's properties
+  const [cameraProperties, setCameraProperties] = React.useState(new Map());
   const [slider_value, set_slider_value] = React.useState(0);
   const [smoothness_value, set_smoothness_value] = React.useState(0.5);
   const [is_playing, setIsPlaying] = React.useState(false);
   const [is_cycle, setIsCycle] = React.useState(false);
-  const [is_linear, setIsLinear] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
+  const [animate, setAnimate] = React.useState(new Set());
+  const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
+
+  const scene_state = sceneTree.get_scene_state();
+
+  // Template for sharing state between Vanilla JS Three.js and React components
+  // eslint-disable-next-line no-unused-vars
+  const [mouseInScene, setMouseInScene] = React.useState(false);
+  React.useEffect(() => {
+    scene_state.addCallback(
+      (value) => setMouseInScene(value),
+      'mouse_in_scene',
+    );
+  }, []);
 
   const dispatch = useDispatch();
   const render_height = useSelector(
@@ -206,10 +472,6 @@ export default function CameraPanel(props) {
   );
   const render_width = useSelector(
     (state) => state.renderingState.render_width,
-  );
-
-  const field_of_view = useSelector(
-    (state) => state.renderingState.field_of_view,
   );
 
   const setRenderHeight = (value) => {
@@ -230,13 +492,13 @@ export default function CameraPanel(props) {
   // ui state
   const [ui_render_height, setUIRenderHeight] = React.useState(render_height);
   const [ui_render_width, setUIRenderWidth] = React.useState(render_width);
-  const [ui_field_of_view, setUIFieldOfView] = React.useState(field_of_view);
   const [ui_seconds, setUISeconds] = React.useState(seconds);
   const [ui_fps, setUIfps] = React.useState(fps);
+  const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
   // nonlinear render option
   const slider_min = 0;
-  const slider_max = Math.max(0, cameras.length - 1);
+  const slider_max = 1;
 
   // animation constants
   const total_num_steps = seconds * fps;
@@ -246,6 +508,7 @@ export default function CameraPanel(props) {
     // set slider and render camera back to 0
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
+      camera_render.fov = new_camera_list[0].fov;
       set_slider_value(slider_min);
     }
   };
@@ -253,9 +516,64 @@ export default function CameraPanel(props) {
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
     camera_main_copy.aspect = 1.0;
+    camera_main_copy.fov = globalFov;
+    const new_camera_properties = new Map();
+    camera_main_copy.properties = new_camera_properties;
+    new_camera_properties.set('FOV', globalFov);
+    new_camera_properties.set('NAME', `Camera ${cameras.length}`);
+    // TIME VALUES ARE 0-1
+    if (cameras.length === 0) {
+      new_camera_properties.set('TIME', 0.0);
+    } else {
+      new_camera_properties.set('TIME', 1.0);
+    }
+
+    const ratio = (cameras.length - 1) / cameras.length;
+
+    const new_properties = new Map(cameraProperties);
+    new_properties.forEach((properties) => {
+      properties.set('TIME', properties.get('TIME') * ratio);
+    });
+    new_properties.set(camera_main_copy.uuid, new_camera_properties);
+    setCameraProperties(new_properties);
+
     const new_camera_list = cameras.concat(camera_main_copy);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
+  };
+
+  const setCameraProperty = (property, value, index) => {
+    const activeCamera = cameras[index];
+    const activeProperties = new Map(activeCamera.properties);
+    activeProperties.set(property, value);
+    const newProperties = new Map(cameraProperties);
+    newProperties.set(activeCamera.uuid, activeProperties);
+    activeCamera.properties = activeProperties;
+    setCameraProperties(newProperties);
+  };
+
+  const swapCameras = (index, new_index) => {
+    if (
+      Math.min(index, new_index) < 0 ||
+      Math.max(index, new_index) >= cameras.length
+    )
+      return;
+
+    const swapCameraTime = cameras[index].properties.get('TIME');
+    setCameraProperty('TIME', cameras[new_index].properties.get('TIME'), index);
+    setCameraProperty('TIME', swapCameraTime, new_index);
+
+    const new_cameras = [
+      ...cameras.slice(0, index),
+      ...cameras.slice(index + 1),
+    ];
+    setCameras([
+      ...new_cameras.slice(0, new_index),
+      cameras[index],
+      ...new_cameras.slice(new_index),
+    ]);
+
+    // reset_slider_render_on_change();
   };
 
   // force a rerender if the cameras are dragged around
@@ -327,6 +645,37 @@ export default function CameraPanel(props) {
     smoothness_value,
   );
 
+  const getKeyframePoint = (progress: Number) => {
+    const times = [];
+    const ratio = (cameras.length - 1) / cameras.length;
+    cameras.forEach((camera) => {
+      const time = camera.properties.get('TIME');
+      times.push(is_cycle ? time * ratio : time);
+    });
+
+    if (is_cycle) {
+      times.push(1.0);
+    }
+
+    let new_point = 0.0;
+    if (progress <= times[0]) {
+      new_point = 0.0;
+    } else if (progress >= times[times.length - 1]) {
+      new_point = 1.0;
+    } else {
+      let i = 0;
+      while (
+        i < times.length - 1 &&
+        !(progress >= times[i] && progress < times[i + 1])
+      ) {
+        i += 1;
+      }
+      const percentage = (progress - times[i]) / (times[i + 1] - times[i]);
+      new_point = (i + percentage) / (times.length - 1);
+    }
+    return new_point;
+  };
+
   if (cameras.length > 1) {
     const num_points = fps * seconds;
     const points = curve_object.curve_positions.getPoints(num_points);
@@ -338,49 +687,71 @@ export default function CameraPanel(props) {
     sceneTree.set_object_from_path(['Camera Path', 'Curve'], spline_mesh);
 
     // set the camera
-    const point = Math.min(slider_value / (cameras.length - 1.0), 1);
+
+    const point = getKeyframePoint(slider_value);
     let position = null;
     let lookat = null;
     let up = null;
-    if (!is_linear) {
-      position = curve_object.curve_positions.getPoint(point);
-      lookat = curve_object.curve_lookats.getPoint(point);
-      up = curve_object.curve_ups.getPoint(point);
-    } else {
-      position = curve_object.curve_positions.getPointAt(point);
-      lookat = curve_object.curve_lookats.getPointAt(point);
-      up = curve_object.curve_ups.getPointAt(point);
-    }
+    let fov = null;
+    position = curve_object.curve_positions.getPoint(point);
+    lookat = curve_object.curve_lookats.getPoint(point);
+    up = curve_object.curve_ups.getPoint(point);
+    fov = curve_object.curve_fovs.getPoint(point).z;
+
     const mat = get_transform_matrix(position, lookat, up);
     set_camera_position(camera_render, mat);
+    camera_render.fov = fov;
   } else {
     sceneTree.delete(['Camera Path', 'Curve']);
   }
 
   const marks = [];
-  for (let i = 0; i < cameras.length; i += 1) {
-    marks.push({ value: i, label: i.toString() });
+  for (let i = 0; i <= 1; i += 0.25) {
+    marks.push({ value: i, label: `${(seconds * i).toFixed(1).toString()}s` });
   }
+
+  const values = [];
+  cameras.forEach((camera) => {
+    const time = camera.properties.get('TIME');
+    const ratio = (cameras.length - 1) / cameras.length;
+    values.push(is_cycle ? time * ratio : time);
+  });
+
+  if (is_cycle) {
+    values.push(1.0);
+  }
+
+  const handleKeyframeSlider = (
+    event: Event,
+    newValue: number | number[],
+    activeThumb: number,
+  ) => {
+    if (activeThumb === cameras.length) return;
+    const ratio = (cameras.length - 1) / cameras.length;
+    const val = newValue[activeThumb];
+    setCameraProperty(
+      'TIME',
+      is_cycle ? Math.min(val / ratio, 1.0) : val,
+      activeThumb,
+    );
+  };
 
   // when the slider changes, update the main camera position
   useEffect(() => {
     if (cameras.length > 1) {
-      const point = Math.min(slider_value / (cameras.length - 1.0), 1);
+      const point = getKeyframePoint(slider_value);
       let position = null;
       let lookat = null;
       let up = null;
-      if (!is_linear) {
-        // interpolate to get the points
-        position = curve_object.curve_positions.getPoint(point);
-        lookat = curve_object.curve_lookats.getPoint(point);
-        up = curve_object.curve_ups.getPoint(point);
-      } else {
-        position = curve_object.curve_positions.getPointAt(point);
-        lookat = curve_object.curve_lookats.getPointAt(point);
-        up = curve_object.curve_ups.getPointAt(point);
-      }
+      let fov = null;
+      position = curve_object.curve_positions.getPoint(point);
+      lookat = curve_object.curve_lookats.getPoint(point);
+      up = curve_object.curve_ups.getPoint(point);
+      fov = curve_object.curve_fovs.getPoint(point).z;
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
+      camera_render.fov = fov;
+      setGlobalFov(fov);
     }
   }, [slider_value, render_height, render_width]);
 
@@ -406,23 +777,21 @@ export default function CameraPanel(props) {
   const get_camera_path = () => {
     // NOTE: currently assuming these are ints
     const num_points = fps * seconds;
-
-    const positions = curve_object.curve_positions.getPoints(num_points);
-    const lookats = curve_object.curve_lookats.getPoints(num_points);
-    const ups = curve_object.curve_ups.getPoints(num_points);
-
     const camera_path = [];
 
     for (let i = 0; i < num_points; i += 1) {
-      const position = positions[i];
-      const lookat = lookats[i];
-      const up = ups[i];
+      const pt = getKeyframePoint(i / num_points);
+
+      const position = curve_object.curve_positions.getPoint(pt);
+      const lookat = curve_object.curve_lookats.getPoint(pt);
+      const up = curve_object.curve_ups.getPoint(pt);
+      const fov = curve_object.curve_fovs.getPoint(pt).z;
 
       const mat = get_transform_matrix(position, lookat, up);
 
       camera_path.push({
         camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
-        fov: camera_render.fov,
+        fov,
         aspect: camera_render.aspect,
       });
     }
@@ -434,6 +803,7 @@ export default function CameraPanel(props) {
         matrix: JSON.stringify(camera.matrix.toArray()),
         fov: camera.fov,
         aspect: camera_render.aspect,
+        properties: JSON.stringify(Array.from(camera.properties.entries())),
       });
     }
 
@@ -447,7 +817,6 @@ export default function CameraPanel(props) {
       seconds,
       smoothness_value,
       is_cycle,
-      is_linear,
     };
     return camera_path_object;
   };
@@ -479,9 +848,8 @@ export default function CameraPanel(props) {
   };
 
   const load_camera_path = (camera_path_object) => {
-    // TODO UI for getting json
-
     const new_camera_list = [];
+    const new_properties = new Map(cameraProperties);
 
     setRenderHeight(camera_path_object.render_height);
     setUIRenderHeight(camera_path_object.render_height);
@@ -496,7 +864,6 @@ export default function CameraPanel(props) {
 
     set_smoothness_value(camera_path_object.smoothness_value);
     setIsCycle(camera_path_object.is_cycle);
-    setIsLinear(camera_path_object.is_linear);
 
     for (let i = 0; i < camera_path_object.keyframes.length; i += 1) {
       const keyframe = camera_path_object.keyframes[i];
@@ -507,13 +874,17 @@ export default function CameraPanel(props) {
         1000,
       );
 
+      // properties
+      camera.properties = new Map(JSON.parse(keyframe.properties));
+      new_properties.set(camera.uuid, camera.properties);
+
       const mat = new THREE.Matrix4();
       mat.fromArray(JSON.parse(keyframe.matrix));
-      // camera.matrix = mat;
       set_camera_position(camera, mat);
       new_camera_list.push(camera);
     }
 
+    setCameraProperties(new_properties);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
   };
@@ -553,12 +924,29 @@ export default function CameraPanel(props) {
     }
   };
 
-  const setFOV = (fov) => {
-    dispatch({
-      type: 'write',
-      path: 'renderingState/field_of_view',
-      data: fov,
-    });
+  const isAnimated = (property) => animate.has(property);
+
+  const toggleAnimate = (property) => {
+    const new_animate = new Set(animate);
+    if (animate.has(property)) {
+      new_animate.delete(property);
+      setAnimate(new_animate);
+    } else {
+      new_animate.add(property);
+      setAnimate(new_animate);
+    }
+  };
+
+  const setAllCameraFOV = (val) => {
+    if (fovLabel === FOV_LABELS.FOV) {
+      for (let i = 0; i < cameras.length; i += 1) {
+        cameras[i].fov = val;
+      }
+    } else {
+      for (let i = 0; i < cameras.length; i += 1) {
+        cameras[i].setFocalLength(val / cameras[i].aspect);
+      }
+    }
   };
 
   return (
@@ -658,31 +1046,6 @@ export default function CameraPanel(props) {
           helperText={ui_render_width <= 0 ? 'Required' : ''}
           variant="standard"
         />
-        <TextField
-          label="FOV"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIFieldOfView(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setFOV(parseInt(e.target.value, 10));
-              } else {
-                setUIFieldOfView(field_of_view);
-              }
-            }
-          }}
-          value={ui_field_of_view}
-          error={ui_field_of_view <= 0}
-          helperText={ui_field_of_view <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
       </div>
       <div className="CameraList-row-time-interval">
         <TextField
@@ -735,6 +1098,37 @@ export default function CameraPanel(props) {
           variant="standard"
         />
       </div>
+      <div className="CameraList-row-animation-properties">
+        <Tooltip title="Animate FOV for Each Camera">
+          <Button
+            value="animatefov"
+            selected={isAnimated('FOV')}
+            onClick={() => {
+              toggleAnimate('FOV');
+            }}
+            style={{maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px', position: 'relative', top: '22px'}}
+            sx={{
+              mt: 1,
+            }}
+          >
+            <Animation style={{color: isAnimated('FOV') ? "#24B6FF" : "#EBEBEB", maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px'}}/>
+          </Button>
+        </Tooltip>
+        <FovSelector
+          fovLabel={fovLabel}
+          setFovLabel={setFovLabel}
+          camera={camera_main}
+          cameras={cameras}
+          dispatch={dispatch}
+          disabled={isAnimated('FOV')}
+          applyAll={!isAnimated('FOV')}
+          isGlobal
+          globalFov={globalFov}
+          setGlobalFov={setGlobalFov}
+          setAllCameraFOV={setAllCameraFOV}
+          changeMain
+        />
+      </div>
       <div>
         <div className="CameraPanel-top-button">
           <Button
@@ -747,7 +1141,10 @@ export default function CameraPanel(props) {
           </Button>
         </div>
         <div className="CameraPanel-top-button">
-          <Tooltip className="curve-button" title="Close/Open camera spline">
+          <Tooltip
+            className="curve-button"
+            title="Toggle looping camera spline"
+          >
             {!is_cycle ? (
               <Button
                 size="small"
@@ -772,28 +1169,23 @@ export default function CameraPanel(props) {
           </Tooltip>
         </div>
         <div className="CameraPanel-top-button">
-          <Tooltip title="Non-linear/Linear camera speed">
-            {!is_linear ? (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setIsLinear(true);
-                }}
-              >
-                <LinearScaleOutlined />
-              </Button>
-            ) : (
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setIsLinear(false);
-                }}
-              >
-                <Timeline />
-              </Button>
-            )}
+          <Tooltip title="Reset Keyframe Timing">
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                const new_properties = new Map(cameraProperties);
+                cameras.forEach((camera, i) => {
+                  const uuid = camera.uuid;
+                  const new_time = i / (cameras.length - 1);
+                  const current_cam_properties = new_properties.get(uuid);
+                  current_cam_properties.set('TIME', new_time);
+                });
+                setCameraProperties(new_properties);
+              }}
+            >
+              <ClearAll />
+            </Button>
           </Tooltip>
         </div>
       </div>
@@ -818,11 +1210,47 @@ export default function CameraPanel(props) {
         </Stack>
       </div>
       <div className="CameraPanel-slider-container">
+        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left' }}>
+          Camera Keyframes
+        </b>
+        <Slider
+          value={values}
+          step={step_size}
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value, i) => {
+            if (i === cameras.length && is_cycle) {
+              return `${cameras[0].properties.get('NAME')} @ ${parseFloat(
+                (value * seconds).toFixed(2),
+              )}s`;
+            }
+            return `${cameras[i].properties.get('NAME')} @ ${parseFloat(
+              (value * seconds).toFixed(2),
+            )}s`;
+          }}
+          marks={marks}
+          min={slider_min}
+          max={slider_max}
+          disabled={cameras.length < 2}
+          track={false}
+          onChange={handleKeyframeSlider}
+          sx={{
+            '& .MuiSlider-thumb': {
+              borderRadius: '6px',
+              width: `${24.0 / Math.max(Math.sqrt(cameras.length), 2)}px`,
+            },
+          }}
+          disableSwap
+        />
+        <b style={{ fontSize: 'smaller', color: '#999999', textAlign: 'left' }}>
+          Playback
+        </b>
         <Slider
           value={slider_value}
           step={step_size}
-          valueLabelDisplay="on"
-          valueLabelFormat={slider_value.toFixed(2)}
+          valueLabelDisplay={is_playing ? 'on' : 'off'}
+          valueLabelFormat={`${(Math.min(slider_value, 1.0) * seconds).toFixed(
+            2,
+          )}s`}
           marks={marks}
           min={slider_min}
           max={slider_max}
@@ -841,7 +1269,7 @@ export default function CameraPanel(props) {
             set_slider_value(slider_min);
           }}
         >
-          <FirstPageIcon />
+          <FirstPage />
         </Button>
         <Button
           size="small"
@@ -850,7 +1278,7 @@ export default function CameraPanel(props) {
             set_slider_value(Math.max(0.0, slider_value - step_size))
           }
         >
-          <ArrowBackIosNewIcon />
+          <ArrowBackIosNew />
         </Button>
         {/* eslint-disable-next-line no-nested-ternary */}
         {!is_playing && slider_max === slider_value ? (
@@ -873,7 +1301,7 @@ export default function CameraPanel(props) {
               }
             }}
           >
-            <PlayArrowIcon />
+            <PlayArrow />
           </Button>
         ) : (
           <Button
@@ -883,7 +1311,7 @@ export default function CameraPanel(props) {
               setIsPlaying(false);
             }}
           >
-            <PauseIcon />
+            <Pause />
           </Button>
         )}
         <Button
@@ -893,14 +1321,14 @@ export default function CameraPanel(props) {
             set_slider_value(Math.min(slider_max, slider_value + step_size))
           }
         >
-          <ArrowForwardIosIcon />
+          <ArrowForwardIos />
         </Button>
         <Button
           size="small"
           variant="outlined"
           onClick={() => set_slider_value(slider_max)}
         >
-          <LastPageIcon />
+          <LastPage />
         </Button>
       </div>
       <div className="CameraList-container">
@@ -910,6 +1338,13 @@ export default function CameraPanel(props) {
           camera_main={camera_render}
           cameras={cameras}
           setCameras={setCameras}
+          swapCameras={swapCameras}
+          cameraProperties={cameraProperties}
+          setCameraProperties={setCameraProperties}
+          fovLabel={fovLabel}
+          setFovLabel={setFovLabel}
+          isAnimated={isAnimated}
+          dispatch={dispatch}
         />
       </div>
     </div>
