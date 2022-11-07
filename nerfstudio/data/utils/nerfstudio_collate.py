@@ -27,7 +27,8 @@ from torch._six import string_classes
 
 from nerfstudio.cameras.cameras import Cameras
 
-nerfstudio_collate_err_msg_format = (
+# pylint: disable=implicit-str-concat
+NERFSTUDIO_COLLATE_ERR_MSG_FORMAT = (
     "default_collate: batch must contain tensors, numpy arrays, numbers, " "dicts, lists or anything in {}; found {}"
 )
 np_str_obj_array_pattern = re.compile(r"[SaUO]")
@@ -105,10 +106,11 @@ def nerfstudio_collate(
             out = elem.new(storage).resize_(len(batch), *list(elem.size()))
         return torch.stack(batch, 0, out=out)
     elif elem_type.__module__ == "numpy" and elem_type.__name__ != "str_" and elem_type.__name__ != "string_":
+        # pylint: disable=no-else-return, consider-using-in
         if elem_type.__name__ == "ndarray" or elem_type.__name__ == "memmap":
             # array of string classes and object
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
-                raise TypeError(nerfstudio_collate_err_msg_format.format(elem.dtype))
+                raise TypeError(NERFSTUDIO_COLLATE_ERR_MSG_FORMAT.format(elem.dtype))
 
             return nerfstudio_collate([torch.as_tensor(b) for b in batch], extra_mappings=extra_mappings)
         elif elem.shape == ():  # scalars
@@ -192,4 +194,4 @@ def nerfstudio_collate(
         if isinstance(elem, type_key):
             return extra_mappings[type_key](batch)
 
-    raise TypeError(nerfstudio_collate_err_msg_format.format(elem_type))
+    raise TypeError(NERFSTUDIO_COLLATE_ERR_MSG_FORMAT.format(elem_type))
