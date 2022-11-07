@@ -265,7 +265,9 @@ class VanillaDataManagerConfig(InstantiateConfig):
     Record3D."""
 
 import torch.multiprocessing as mp
-MP_CON = mp.get_context('spawn')
+import queue
+import time
+MP_CON = mp.get_context('forkserver')
 class Runner(MP_CON.Process):
     def __init__(self, bundle_queue, train_dataset, device, config):
         super().__init__()
@@ -294,8 +296,14 @@ class Runner(MP_CON.Process):
             image_batch = next(self.iter_train_image_dataloader)
             batch = self.train_pixel_sampler.sample(image_batch)
             ray_indices = batch["indices"]
-            ray_bundle = self.train_ray_generator(ray_indices)
-            self.bundle_queue.put((ray_bundle,batch),block=True)
+            ray_bundle = self.train_ray_generator(ray_indices).to(self.device)
+            while True:
+                try:
+                    self.bundle_queue.put((ray_bundle,batch),block=False)
+                    break
+                except queue.Full:
+                    time.sleep(.02)
+                
         
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
@@ -332,7 +340,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        self.bundle_queue = MP_CON.Queue(5)
+        self.bundle_queue = MP_CON.Queue(4)#including Manager() is important for speed
         runners = [Runner(self.bundle_queue, self.train_dataset, self.device,self.config) for i in range(3)]
         DataManager.__init__(self)
 
@@ -387,12 +395,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
-        # image_batch = next(self.iter_train_image_dataloader)
-        # batch = self.train_pixel_sampler.sample(image_batch)
-        # ray_indices = batch["indices"]
-        # ray_bundle = self.train_ray_generator(ray_indices)
         ray_bundle,batch = self.bundle_queue.get(block=True)
-        ray_bundle = ray_bundle.to(self.device)
         ray_indices = ray_bundle.camera_indices
         
         # Multiply in the camera optimization deltas to the rays
