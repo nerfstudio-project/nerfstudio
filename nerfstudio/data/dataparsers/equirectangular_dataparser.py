@@ -43,7 +43,7 @@ class EquirectangularDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Equirectangular)
     """target class to instantiate"""
-    data: Path = Path("/data/akristoffersen/360_stereo/360/nm_living_room") # /data/akristoffersen/360_stereo/360/nm_living_room
+    data: Path = Path("/data/akristoffersen/360_stereo/360/bww_vision_bay") # /data/akristoffersen/360_stereo/360/nm_living_room
     """Location of data"""
     aabb_scale: float = 4.0
     """Scene scale."""
@@ -53,6 +53,9 @@ class EquirectangularDataParserConfig(DataParserConfig):
     """The method to use for orientation"""
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
+    max_dataset_size: int = 100
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
 
 
 @dataclass
@@ -100,6 +103,17 @@ class Equirectangular(DataParser):
         poses = pose_utils.normalize(poses)
 
         num_images = len(image_filenames)
+        image_filenames = np.array(image_filenames)
+
+        if self.config.max_dataset_size != -1 and num_images > self.config.max_dataset_size:
+            # Evenly select max_dataset_size images from dataset, including first
+            # and last indices.
+            idx = np.round(np.linspace(0, num_images - 1, self.config.max_dataset_size)).astype(int)
+            poses = poses[idx]
+            image_filenames = image_filenames[idx]
+            num_images = len(image_filenames)
+
+        num_images = len(image_filenames)
         num_train_images = math.ceil(num_images * self.config.train_split_percentage)
         num_eval_images = num_images - num_train_images
         i_all = np.arange(num_images)
@@ -133,8 +147,8 @@ class Equirectangular(DataParser):
             camera_type=CameraType.EQUIRECTANGULAR,
         )
 
-        # if self.config.downscale_factor is not None:
-        #     cameras.rescale_output_resolution(scaling_factor=self.config.downscale_factor)
+        if self.config.downscale_factor is not None:
+            cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
         
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,

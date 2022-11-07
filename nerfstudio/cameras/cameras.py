@@ -325,7 +325,7 @@ class Cameras:
             directions_stack = torch.stack([
                 radius * torch.cos(lat) * torch.sin(lon),
                 radius * torch.sin(lat),
-                radius * torch.cos(lat) * torch.cos(lon),
+                -radius * torch.cos(lat) * torch.cos(lon),
             ], dim=-1)
         else:
             raise ValueError(f"Camera type {CameraType(self.camera_type[0])} not supported.")
