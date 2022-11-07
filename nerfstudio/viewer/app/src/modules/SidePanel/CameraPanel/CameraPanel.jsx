@@ -69,25 +69,50 @@ function FovSelector(props) {
   const disabled = props.disabled;
   const applyAll = props.applyAll;
   const setAllCameraFOV = props.setAllCameraFOV;
+  const isGlobal = props.isGlobal;
+  const globalFov = props.globalFov;
+  const setGlobalFov = props.setGlobalFov;
 
   const getFovLabel = () => {
+    if (!isGlobal) {
+      const label = Math.round(
+        fovLabel === FOV_LABELS.FOV
+          ? camera.getEffectiveFOV()
+          : camera.getFocalLength() * camera.aspect,
+      );
+      return label;
+    }
+    const old_fov = camera.fov;
+    camera.fov = globalFov;
+    const new_focal_len = camera.getFocalLength();
+    camera.fov = old_fov;
     const label = Math.round(
       fovLabel === FOV_LABELS.FOV
-        ? camera.getEffectiveFOV()
-        : camera.getFocalLength() * camera.aspect,
+        ? globalFov
+        : new_focal_len * camera.aspect,
     );
     return label;
   };
 
-  const [ui_field_of_view, setUIFieldOfView] = React.useState(getFovLabel());
+  const [ui_field_of_view, setUIFieldOfView] = React.useState(isGlobal ? globalFov : getFovLabel());
 
   useEffect(() => setUIFieldOfView(getFovLabel()), [camera, fovLabel]);
 
   const setFOV = (val) => {
-    if (fovLabel === FOV_LABELS.FOV) {
-      camera.fov = val;
+    if (!isGlobal) {
+      if (fovLabel === FOV_LABELS.FOV) {
+        camera.fov = val;
+      } else {
+        camera.setFocalLength(val / camera.aspect);
+      }
+    } else if (fovLabel === FOV_LABELS.FOV) {
+      setGlobalFov(val);
     } else {
-      camera.setFocalLength(val / camera.aspect);
+      const old_fov = camera.fov;
+        camera.setFocalLength(val / camera.aspect);
+        const new_fov = camera.getEffectiveFOV();
+        camera.fov = old_fov;
+        setGlobalFov(new_fov);
     }
 
     if (applyAll) {
@@ -366,7 +391,8 @@ function CameraList(props) {
             camera={camera}
             dispatch={dispatch}
             disabled={!isAnimated('FOV')}
-            changeMain
+            isGlobal={false}
+            changeMain={false}
           />}
           {!isAnimated('FOV') &&
            <p style={{ fontSize: 'smaller', color: '#999999' }}>
@@ -405,6 +431,7 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.config_base_dir,
   );
   const websocket = useContext(WebSocketContext).socket;
+  const DEFAULT_FOV = 50;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
@@ -418,6 +445,7 @@ export default function CameraPanel(props) {
   const [fps, setFps] = React.useState(24);
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
   const [animate, setAnimate] = React.useState(new Set());
+  const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
 
   const scene_state = sceneTree.get_scene_state();
 
@@ -481,9 +509,10 @@ export default function CameraPanel(props) {
   const add_camera = () => {
     const camera_main_copy = camera_main.clone();
     camera_main_copy.aspect = 1.0;
+    camera_main_copy.fov = globalFov;
     const new_camera_properties = new Map();
     camera_main_copy.properties = new_camera_properties;
-    new_camera_properties.set('FOV', camera_main_copy.fov);
+    new_camera_properties.set('FOV', globalFov);
     new_camera_properties.set('NAME', `Camera ${cameras.length}`);
     // TIME VALUES ARE 0-1
     if (cameras.length === 0) {
@@ -1085,6 +1114,9 @@ export default function CameraPanel(props) {
           dispatch={dispatch}
           disabled={isAnimated('FOV')}
           applyAll={!isAnimated('FOV')}
+          isGlobal
+          globalFov={globalFov}
+          setGlobalFov={setGlobalFov}
           setAllCameraFOV={setAllCameraFOV}
           changeMain
         />
