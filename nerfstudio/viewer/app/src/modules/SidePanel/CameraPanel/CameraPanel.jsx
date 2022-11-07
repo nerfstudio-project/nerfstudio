@@ -94,9 +94,9 @@ function FovSelector(props) {
     return label;
   };
 
-  const [ui_field_of_view, setUIFieldOfView] = React.useState(isGlobal ? globalFov : getFovLabel());
+  const [UIFieldOfView, setUIFieldOfView] = React.useState(isGlobal ? globalFov : getFovLabel());
 
-  useEffect(() => setUIFieldOfView(getFovLabel()), [camera, fovLabel]);
+  useEffect(() => setUIFieldOfView(getFovLabel()), [camera, fovLabel, globalFov]);
 
   const setFOV = (val) => {
     if (!isGlobal) {
@@ -145,6 +145,7 @@ function FovSelector(props) {
       inputProps={{
         inputMode: 'numeric',
         pattern: '[+-]?([0-9]*[.])?[0-9]+',
+        // style: { color: 'rgb(50, 50, 50)' }
       }}
       disabled={disabled}
       // eslint-disable-next-line
@@ -175,7 +176,13 @@ function FovSelector(props) {
           }
         }
       }}
-      value={ui_field_of_view}
+      sx={{
+        input: {
+          "-webkit-text-fill-color": `${disabled ? "#24B6FF" : "#EBEBEB"} !important`,
+          color: `${disabled ? "#24B6FF" : "#EBEBEB"} !important`,
+        },
+      }}
+      value={UIFieldOfView}
       error={camera.fov <= 0}
       helperText={camera.fov <= 0 ? 'Required' : ''}
       variant="standard"
@@ -744,6 +751,7 @@ export default function CameraPanel(props) {
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
       camera_render.fov = fov;
+      setGlobalFov(fov);
     }
   }, [slider_value, render_height, render_width]);
 
