@@ -170,3 +170,20 @@ def nerfstudio_distortion_loss(
     loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ends - starts), dim=-2)
 
     return loss
+
+
+def orientation_loss(weights, normals, viewdirs):
+    """Orientation loss from refnerf method in multinerf and nerf factory."""
+    w = weights
+    n = normals
+    v = viewdirs
+    n_dot_v = (n * v[..., None, :]).sum(axis=-1)
+    return (w[..., 0] * torch.fmin(torch.zeros_like(n_dot_v), n_dot_v) ** 2).sum(dim=-1)
+
+
+def predicted_normal_loss(weights, normals, predicted_normals):
+    """Predicted normal loss."""
+    w = weights
+    n = normals
+    n_pred = predicted_normals
+    return (w[..., 0] * (1.0 - torch.sum(n * n_pred, dim=-1))).sum(dim=-1)

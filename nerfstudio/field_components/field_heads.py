@@ -31,6 +31,7 @@ class FieldHeadNames(Enum):
     SH = "sh"
     DENSITY = "density"
     NORMALS = "normals"
+    PREDICTED_NORMALS = "predicted_normals"
     UNCERTAINTY = "uncertainty"
     TRANSIENT_RGB = "transient_rgb"
     TRANSIENT_DENSITY = "transient_density"

@@ -182,6 +182,19 @@ class TCNNNerfactoField(Field):
                 in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantic_classes
             )
 
+        # predicted normals
+        self.mlp_normals = tcnn.Network(
+            n_input_dims=self.geo_feat_dim,
+            n_output_dims=3,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": 64,
+                "n_hidden_layers": 1,
+            },
+        )
+
         self.mlp_head = tcnn.Network(
             n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
             n_output_dims=3,
@@ -266,6 +279,14 @@ class TCNNNerfactoField(Field):
             # print(semantics_input)
             x = self.mlp_semantics(semantics_input).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
             outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
+
+        # predicted normals
+        predicted_normals = (
+            self.mlp_normals(density_embedding.view(-1, self.geo_feat_dim))
+            .view(*ray_samples.frustums.directions.shape[:-1], -1)
+            .to(directions)
+        )
+        outputs[FieldHeadNames.PREDICTED_NORMALS] = predicted_normals
 
         h = torch.cat(
             [
