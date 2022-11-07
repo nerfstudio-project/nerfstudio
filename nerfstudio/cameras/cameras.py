@@ -252,7 +252,6 @@ class Cameras:
         self,
         camera_indices: Union[TensorType["num_rays":...], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
-        camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
@@ -316,8 +315,6 @@ class Cameras:
             raise ValueError(f"Camera type {CameraType(self.camera_type[0])} not supported.")
 
         c2w = self.camera_to_worlds[camera_indices]
-        if camera_opt_to_camera is not None:
-            c2w = pose_utils.multiply(c2w, camera_opt_to_camera)
         rotation = c2w[..., :3, :3]  # (..., 3, 3)
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
@@ -328,8 +325,8 @@ class Cameras:
         origins = c2w[..., :3, 3]  # (..., 3)
         directions = directions_stack[0]
 
-        dx = torch.sqrt(torch.sum((directions - directions_stack[1]) ** 2, dim=-1))
-        dy = torch.sqrt(torch.sum((directions - directions_stack[2]) ** 2, dim=-1))
+        dx = torch.norm((directions - directions_stack[1]), dim=-1)
+        dy = torch.norm((directions - directions_stack[2]), dim=-1)
         pixel_area = (dx * dy)[..., None]
 
         if not isinstance(camera_indices, torch.Tensor):

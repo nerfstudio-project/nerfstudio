@@ -264,7 +264,39 @@ class VanillaDataManagerConfig(InstantiateConfig):
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
 
-
+import torch.multiprocessing as mp
+MP_CON = mp.get_context('spawn')
+class Runner(MP_CON.Process):
+    def __init__(self, bundle_queue, train_dataset, device, config):
+        super().__init__()
+        self.train_dataset = train_dataset
+        self.device = device
+        self.bundle_queue = bundle_queue
+        self.config = config
+        self.daemon=True
+        self.start()
+        
+    def run(self):
+        self.train_image_dataloader = CacheDataloader(
+            self.train_dataset,
+            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
+            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
+            device='cpu',
+            num_workers=1,
+            pin_memory=True,
+        )
+        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
+        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
+        self.train_ray_generator = RayGenerator(
+            self.train_dataset.dataparser_outputs.cameras.to('cpu')
+        )
+        while True:
+            image_batch = next(self.iter_train_image_dataloader)
+            batch = self.train_pixel_sampler.sample(image_batch)
+            ray_indices = batch["indices"]
+            ray_bundle = self.train_ray_generator(ray_indices)
+            self.bundle_queue.put((ray_bundle,batch),block=True)
+        
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     """Basic stored data manager implementation.
 
@@ -300,7 +332,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        super().__init__()
+        self.bundle_queue = MP_CON.Queue(5)
+        runners = [Runner(self.bundle_queue, self.train_dataset, self.device,self.config) for i in range(3)]
+        DataManager.__init__(self)
 
     def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
@@ -311,27 +345,13 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return InputDataset(
             self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
         )
-
+        
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
         CONSOLE.print("Setting up training dataset...")
-        self.train_image_dataloader = CacheDataloader(
-            self.train_dataset,
-            num_images_to_sample_from=self.config.train_num_images_to_sample_from,
-            num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
-            device=self.device,
-            num_workers=self.world_size * 4,
-            pin_memory=True,
-        )
-        self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
-        )
-        self.train_ray_generator = RayGenerator(
-            self.train_dataset.dataparser_outputs.cameras.to(self.device),
-            self.train_camera_optimizer,
         )
 
     def setup_eval(self):
@@ -349,8 +369,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.dataparser_outputs.cameras.to(self.device),
-            self.train_camera_optimizer,  # should be shared between train and eval.
+            self.eval_dataset.dataparser_outputs.cameras.to(self.device)
         )
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
@@ -368,10 +387,21 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
-        image_batch = next(self.iter_train_image_dataloader)
-        batch = self.train_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator(ray_indices)
+        # image_batch = next(self.iter_train_image_dataloader)
+        # batch = self.train_pixel_sampler.sample(image_batch)
+        # ray_indices = batch["indices"]
+        # ray_bundle = self.train_ray_generator(ray_indices)
+        ray_bundle,batch = self.bundle_queue.get(block=True)
+        ray_bundle = ray_bundle.to(self.device)
+        ray_indices = ray_bundle.camera_indices
+        
+        # Multiply in the camera optimization deltas to the rays
+        cam_deltas = self.train_camera_optimizer(ray_indices[:,0])# B x 3 x 4
+        origins_homogeneous = torch.cat([ray_bundle.origins,torch.ones((*ray_bundle.shape,1),
+                                        dtype=ray_bundle.origins.dtype,device=ray_bundle.origins.device)],dim=-1)
+        origins_homogeneous = origins_homogeneous.view(*origins_homogeneous.shape,1)
+        ray_bundle.origins = torch.bmm(cam_deltas,origins_homogeneous)[...,:3,0]
+        ray_bundle.directions = torch.bmm(cam_deltas[:,:,:3],ray_bundle.directions.view(*ray_bundle.directions.shape,1))[...,0]
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -381,6 +411,14 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.eval_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.eval_ray_generator(ray_indices)
+        
+        # Multiply in the camera optimization deltas to the rays
+        cam_deltas = self.train_camera_optimizer(ray_indices[:,0])# B x 3 x 4
+        origins_homogeneous = torch.cat([ray_bundle.origins,torch.ones((*ray_bundle.shape,1),
+                                        dtype=ray_bundle.origins.dtype,device=ray_bundle.origins.device)],dim=-1)
+        origins_homogeneous = origins_homogeneous.view(*origins_homogeneous.shape,1)
+        ray_bundle.origins = torch.bmm(cam_deltas,origins_homogeneous)[...,:3,0]
+        ray_bundle.directions = torch.bmm(cam_deltas[:,:,:3],ray_bundle.directions.view(*ray_bundle.directions.shape,1))[...,0]
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
