@@ -342,7 +342,7 @@ def _compute_residual_and_jacobian(
 def radial_and_tangential_undistort(
     coords: torch.Tensor,
     distortion_params: torch.Tensor,
-    eps: float = 1e-9,
+    eps: float = 1e-3,
     max_iterations: int = 10,
 ) -> torch.Tensor:
     """Computes undistorted coords given opencv distortion parameters.
