@@ -71,7 +71,7 @@ export function get_curve_object_from_cameras(
   );
   curve_lookats = get_catmull_rom_curve(lookats, false, smoothness_value);
   curve_ups = get_catmull_rom_curve(ups, false, smoothness_value);
-  curve_fovs = get_catmull_rom_curve(fovs, false, smoothness_value);
+  curve_fovs = get_catmull_rom_curve(fovs, false, 0.05);
 
   const curve_object = {
     curve_positions,
