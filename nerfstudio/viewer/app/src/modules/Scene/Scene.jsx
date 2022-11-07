@@ -94,9 +94,6 @@ export function get_scene_tree() {
   const EPS = .01;
 
   function rotate() {
-    if (!scene_state.value.get('mouse_in_scene')) {
-      return;
-    }
     if (keyMap.ArrowLeft || keyMap.ArrowRight || keyMap.ArrowUp || keyMap.ArrowDown){ 
       const curTar = camera_controls.getTarget();
       const curPos = camera_controls.getPosition();
@@ -144,6 +141,9 @@ export function get_scene_tree() {
   }
 
   function moveCamera() {
+    if (!scene_state.value.get('mouse_in_scene')) {
+      return;
+    }
     translate()
     rotate()
   }
