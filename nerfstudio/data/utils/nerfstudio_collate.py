@@ -160,36 +160,35 @@ def nerfstudio_collate(
         ), "All cameras must have distortion parameters or none of them should have distortion parameters.\
             Generalized batching will be supported in the future."
 
-        # If no batch dimension exists, then we need to stack everything and create a batch dimension
+        # If no batch dimension exists, then we need to stack everything and create a batch dimension on 0th dim
         if elem.shape == ():
-            return Cameras(
-                torch.stack([cameras.camera_to_worlds for cameras in batch], dim=0),
-                torch.stack([cameras.fx for cameras in batch], dim=0),
-                torch.stack([cameras.fy for cameras in batch], dim=0),
-                torch.stack([cameras.cx for cameras in batch], dim=0),
-                torch.stack([cameras.cy for cameras in batch], dim=0),
-                height=torch.stack([cameras.height for cameras in batch], dim=0),
-                width=torch.stack([cameras.width for cameras in batch], dim=0),
-                distortion_params=torch.stack([cameras.distortion_params for cameras in batch], dim=0)
-                if batch[0].distortion_params
-                else None,
-                camera_type=torch.stack([cameras.camera_type for cameras in batch], dim=0),
-                times=torch.stack([cameras.times for cameras in batch], dim=0),
-            )
+            op = torch.stack
+        # If batch dimension exists, then we need to concatenate along the 0th dimension
+        else:
+            op = torch.cat
 
         return Cameras(
-            torch.cat([cameras.camera_to_worlds for cameras in batch], dim=0),
-            torch.cat([cameras.fx for cameras in batch], dim=0),
-            torch.cat([cameras.fy for cameras in batch], dim=0),
-            torch.cat([cameras.cx for cameras in batch], dim=0),
-            torch.cat([cameras.cy for cameras in batch], dim=0),
-            height=torch.cat([cameras.height for cameras in batch], dim=0),
-            width=torch.cat([cameras.width for cameras in batch], dim=0),
-            distortion_params=torch.cat([cameras.distortion_params for cameras in batch], dim=0)
-            if batch[0].distortion_params
-            else None,
-            camera_type=torch.cat([cameras.camera_type for cameras in batch], dim=0),
-            times=torch.cat([cameras.times for cameras in batch], dim=0),
+            op([cameras.camera_to_worlds for cameras in batch], dim=0),
+            op([cameras.fx for cameras in batch], dim=0),
+            op([cameras.fy for cameras in batch], dim=0),
+            op([cameras.cx for cameras in batch], dim=0),
+            op([cameras.cy for cameras in batch], dim=0),
+            height=op([cameras.height for cameras in batch], dim=0),
+            width=op([cameras.width for cameras in batch], dim=0),
+            distortion_params=op(
+                [
+                    cameras.distortion_params
+                    if cameras.distortion_params is not None
+                    else torch.zeros_like(cameras.distortion_params)
+                    for cameras in batch
+                ],
+                dim=0,
+            ),
+            camera_type=op([cameras.camera_type for cameras in batch], dim=0),
+            times=torch.stack(
+                [cameras.times if cameras.times is not None else -torch.ones_like(cameras.times) for cameras in batch],
+                dim=0,
+            ),
         )
 
     for type_key in extra_mappings:

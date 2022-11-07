@@ -327,7 +327,7 @@ class Cameras(TensorDataclass):
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
         to generate the rays. Our goal is to parse the arguments and then get them into the right shape:
-            - camera_indices: (num_rays, cameras_ndim)
+            - camera_indices: (num_rays:..., cameras_ndim)
             - coords: (num_rays, 2)
             - camera_opt_to_camera: (num_rays, 3, 4) or None
             - distortion_params_delta: (num_rays, 6) or None
@@ -392,6 +392,10 @@ class Cameras(TensorDataclass):
             ), "camera_indices must be a tensor if cameras are batched with more than 1 batch dimension"
             camera_indices = torch.tensor([camera_indices], device=cameras.device)
 
+        assert camera_indices.shape[-1] == len(
+            cameras.shape
+        ), "camera_indices must have shape (num_rays:..., cameras_ndim)"
+
         # If the cameras don't all have same height / width, if coords is not none, we will need to generate
         # a flat list of coords for each camera and then concatenate otherwise our rays will be jagged.
         # Camera indices, camera_opt, and distortion will also need to be broadcasted accordingly which is non-trivial
@@ -439,7 +443,9 @@ class Cameras(TensorDataclass):
             camera_indices, coords, camera_opt_to_camera, distortion_params_delta
         )
 
-        # If we started with no batch dimension, squeeze out the extra dimension we added
+        # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
+        # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
+        # that we haven't caught yet with tests
         return raybundle
 
     # pylint: disable=too-many-statements
