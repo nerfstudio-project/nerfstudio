@@ -174,6 +174,7 @@ def nerfstudio_collate(
                 if batch[0].distortion_params
                 else None,
                 camera_type=torch.stack([cameras.camera_type for cameras in batch], dim=0),
+                times=torch.stack([cameras.times for cameras in batch], dim=0),
             )
 
         return Cameras(
@@ -188,6 +189,7 @@ def nerfstudio_collate(
             if batch[0].distortion_params
             else None,
             camera_type=torch.cat([cameras.camera_type for cameras in batch], dim=0),
+            times=torch.cat([cameras.times for cameras in batch], dim=0),
         )
 
     for type_key in extra_mappings:
