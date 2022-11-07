@@ -248,7 +248,7 @@ class NerfactoModel(Model):
                 weights, field_outputs[FieldHeadNames.PREDICTED_NORMALS], ray_bundle.directions
             )
             outputs["rendered_predicted_normal_loss"] = predicted_normal_loss(
-                weights, field_outputs[FieldHeadNames.NORMALS], field_outputs[FieldHeadNames.PREDICTED_NORMALS]
+                weights, field_outputs[FieldHeadNames.NORMALS].detach(), field_outputs[FieldHeadNames.PREDICTED_NORMALS]
             )
 
         for i in range(self.config.num_proposal_iterations):
