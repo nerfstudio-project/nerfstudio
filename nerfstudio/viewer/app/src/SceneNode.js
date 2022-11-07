@@ -27,13 +27,18 @@ function dispose(object) {
 }
 
 export default class SceneNode {
-  constructor(object) {
+  constructor(object, scene_state) {
     this.metadata = {}; // relevant metadata for the object
     this.object = object; // three.js objects
     this.children = {};
+    this.scene_state = scene_state;
     for (const c of this.object.children) {
       this.add_child(c);
     }
+  }
+
+  get_scene_state() {
+    return this.scene_state;
   }
 
   add_child(object) {
