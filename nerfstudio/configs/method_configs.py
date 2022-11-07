@@ -58,7 +58,6 @@ descriptions = {
     "tensorf": "tensorf",
 }
 
-from pathlib import Path
 
 method_configs["nerfacto_msi"] = Config(
     method_name="nerfacto",

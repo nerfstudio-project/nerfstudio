@@ -43,7 +43,7 @@ class EquirectangularDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Equirectangular)
     """target class to instantiate"""
-    data: Path = Path("/data/akristoffersen/360_stereo/360/nm_living_room")
+    data: Path = Path("/data/akristoffersen/360_stereo/360/nm_living_room") # /data/akristoffersen/360_stereo/360/nm_living_room
     """Location of data"""
     aabb_scale: float = 4.0
     """Scene scale."""
@@ -62,7 +62,7 @@ class Equirectangular(DataParser):
     config: EquirectangularDataParserConfig
 
     def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
-        
+       
         if self.config.downscale_factor is None:
             frames_root = self.config.data / "frames"
         else:
@@ -70,7 +70,7 @@ class Equirectangular(DataParser):
         image_filenames = []
         for f in frames_root.iterdir():
             image_filenames.append(f)
-        
+
         poses_arr = np.load(self.config.data / 'poses_bounds.npy')
         intrinsic_arr = np.load(self.config.data / 'hwf_cxcy.npy')
 
@@ -80,13 +80,14 @@ class Equirectangular(DataParser):
 
         if len(intrinsic_arr) == 3:
             H, W, f = intrinsic_arr
-            cx = W / 2.0
-            cy =  H / 2.0
+            cx = W // 2
+            cy =  H // 2
             fx = f
             fy = f
         else:
             H, W, fx, fy, cx, cy = intrinsic_arr
-
+        
+        print(H, W)
         # convert to Tensors
         poses = torch.from_numpy(poses[:, :3, :4])
 
@@ -117,8 +118,7 @@ class Equirectangular(DataParser):
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
         poses = poses[indices]
-        print(poses[:, :3, :3])
-
+        print(image_filenames)
         aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.config.aabb_scale
         scene_box = SceneBox(aabb=aabb)
 
@@ -133,9 +133,9 @@ class Equirectangular(DataParser):
             camera_type=CameraType.EQUIRECTANGULAR,
         )
 
-        if self.config.downscale_factor is not None:
-            cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
-
+        # if self.config.downscale_factor is not None:
+        #     cameras.rescale_output_resolution(scaling_factor=self.config.downscale_factor)
+        
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,

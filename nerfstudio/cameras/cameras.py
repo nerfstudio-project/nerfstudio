@@ -315,22 +315,18 @@ class Cameras:
                 dim=-1,
             )
         elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
-            coord = torch.stack([x,y ], -1)
-            coord_x_offset = torch.stack([x+1, y], -1)
-            coord_y_offset = torch.stack([x, y+1], -1)
-
-            coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
-
-            phi = coord_stack[..., 1] / self.image_height[camera_indices] * torch.pi
-            theta = coord_stack[..., 0] / self.image_width[camera_indices] * 2 * torch.pi
-            directions_stack = torch.stack(
-                [
-                    torch.cos(theta) * torch.sin(phi),
-                    torch.sin(theta) * torch.sin(phi),
-                    torch.cos(phi)
-                ],
-                dim=-1,
+            uvr = torch.stack(
+                [coord_stack[..., 0], coord_stack[..., 1], torch.ones_like(coord_stack[..., 1])], dim=-1
             )
+
+            lon = uvr[..., 0] * math.pi
+            lat = uvr[..., 1] * (math.pi * 0.5)
+            radius = uvr[..., 2]
+            directions_stack = torch.stack([
+                radius * torch.cos(lat) * torch.sin(lon),
+                radius * torch.sin(lat),
+                radius * torch.cos(lat) * torch.cos(lon),
+            ], dim=-1)
         else:
             raise ValueError(f"Camera type {CameraType(self.camera_type[0])} not supported.")
 
