@@ -19,9 +19,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
 
-import numpy as np
 import torch
-from PIL import Image
 from rich.console import Console
 
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -35,31 +33,6 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console()
-
-
-def get_semantics_and_masks(image_idx: int, semantics: Semantics):
-    """function to process additional semantics and mask information
-
-    Args:
-        image_idx: specific image index to work with
-        semantics: semantics data
-    """
-    # handle mask
-    person_index = semantics.thing_classes.index("person")
-    thing_image_filename = semantics.thing_filenames[image_idx]
-    pil_image = Image.open(thing_image_filename)
-    thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-    mask = (thing_semantics != person_index).to(torch.float32)  # 1 where valid
-    # handle semantics
-    # stuff
-    stuff_image_filename = semantics.stuff_filenames[image_idx]
-    pil_image = Image.open(stuff_image_filename)
-    stuff_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-    # thing
-    thing_image_filename = semantics.thing_filenames[image_idx]
-    pil_image = Image.open(thing_image_filename)
-    thing_semantics = torch.from_numpy(np.array(pil_image, dtype="int32"))[..., None]
-    return {"mask": mask, "semantics_stuff": stuff_semantics, "semantics_thing": thing_semantics}
 
 
 @dataclass
@@ -142,9 +115,8 @@ class Friends(DataParser):
         camera_to_worlds[..., 3] *= scale  # cameras
 
         # --- semantics ---
-        semantics = None
         if self.config.include_semantics:
-            thing_filenames = [
+            filenames = [
                 Path(
                     str(image_filename)
                     .replace(f"/{images_folder}/", f"/{segmentations_folder}/thing/")
@@ -152,27 +124,10 @@ class Friends(DataParser):
                 )
                 for image_filename in image_filenames
             ]
-            stuff_filenames = [
-                Path(
-                    str(image_filename)
-                    .replace(f"/{images_folder}/", f"/{segmentations_folder}/stuff/")
-                    .replace(".jpg", ".png")
-                )
-                for image_filename in image_filenames
-            ]
             panoptic_classes = load_from_json(self.config.data / "panoptic_classes.json")
-            stuff_classes = panoptic_classes["stuff"]
-            stuff_colors = torch.tensor(panoptic_classes["stuff_colors"], dtype=torch.float32) / 255.0
-            thing_classes = panoptic_classes["thing"]
-            thing_colors = torch.tensor(panoptic_classes["thing_colors"], dtype=torch.float32) / 255.0
-            semantics = Semantics(
-                stuff_classes=stuff_classes,
-                stuff_colors=stuff_colors,
-                stuff_filenames=stuff_filenames,
-                thing_classes=thing_classes,
-                thing_colors=thing_colors,
-                thing_filenames=thing_filenames,
-            )
+            classes = panoptic_classes["thing"]
+            colors = torch.tensor(panoptic_classes["thing_colors"], dtype=torch.float32) / 255.0
+            semantics = Semantics(filenames=filenames, classes=classes, colors=colors, mask_classes=["person"])
 
         assert torch.all(cx[0] == cx), "Not all cameras have the same cx. Our Cameras class does not support this."
         assert torch.all(cy[0] == cy), "Not all cameras have the same cy. Our Cameras class does not support this."
@@ -191,7 +146,6 @@ class Friends(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
-            additional_inputs={"semantics": {"func": get_semantics_and_masks, "kwargs": {"semantics": semantics}}},
-            semantics=semantics,
+            metadata={"semantics": semantics} if self.config.include_semantics else {},
         )
         return dataparser_outputs

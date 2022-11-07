@@ -70,6 +70,7 @@ class Cameras(TensorDataclass):
         distortion_params: OpenCV 6 radial distortion coefficients.
         camera_type: Type of camera model. If a single value is provided, it is broadcasted to
             all cameras. This will be an int corresponding to the CameraType enum.
+        times: Timestamps for each camera
     """
 
     camera_to_worlds: TensorType["num_cameras":..., 3, 4]
@@ -81,6 +82,7 @@ class Cameras(TensorDataclass):
     height: TensorType["num_cameras":..., 1]
     distortion_params: Union[TensorType["num_cameras":..., 6], None]
     camera_type: TensorType["num_cameras":..., 1]
+    times: Optional[TensorType["num_cameras", 1]]
 
     def __init__(
         self,
@@ -101,6 +103,7 @@ class Cameras(TensorDataclass):
                 CameraType,
             ]
         ] = CameraType.PERSPECTIVE,
+        times: Optional[TensorType["num_cameras"]] = None,
     ):
         """Initializes the Cameras object.
 
@@ -126,6 +129,7 @@ class Cameras(TensorDataclass):
             distortion_params: OpenCV 6 radial distortion coefficients.
             camera_type: Type of camera model. If a single value is provided, it is broadcasted to
                 all cameras. This will be an int corresponding to the CameraType enum.
+            times: Timestamps for each camera
         """
 
         # This will notify the tensordataclass that we have a field with more than 1 dimension
@@ -134,58 +138,44 @@ class Cameras(TensorDataclass):
         self.camera_to_worlds = camera_to_worlds
 
         # fx fy calculation
-        if isinstance(fx, float):
-            fx = torch.Tensor([fx], device=self.device)
-        elif isinstance(fx, torch.Tensor):
-            if fx.ndim == 0 or fx.shape[-1] != 1:
-                fx = fx.unsqueeze(-1)
-            fx = fx.to(self.device)
-        else:
-            raise ValueError(f"fx must be a float or tensor, got {type(fx)}")
-        self.fx = fx  # @dataclass's post_init will take care of broadcasting
-
-        if isinstance(fy, float):
-            fy = torch.Tensor([fy], device=self.device)
-        elif isinstance(fy, torch.Tensor):
-            if fy.ndim == 0 or fy.shape[-1] != 1:
-                fy = fy.unsqueeze(-1)
-            fy = fy.to(self.device)
-        else:
-            raise ValueError(f"fy must be a float or tensor, got {type(fy)}")
-        self.fy = fy  # @dataclass's post_init will take care of broadcasting
+        self.fx = self._init_get_fc_xy(fx, "fx")  # @dataclass's post_init will take care of broadcasting
+        self.fy = self._init_get_fc_xy(fy, "fy")  # @dataclass's post_init will take care of broadcasting
 
         # cx cy calculation
-        if isinstance(cx, float):
-            cx = torch.Tensor([cx], device=self.device)
-        elif isinstance(cx, torch.Tensor):
-            if cx.ndim == 0 or cx.shape[-1] != 1:
-                cx = cx.unsqueeze(-1)
-            # assert torch.all(cx == cx.view(-1)[0]), "Batched cameras of different cx will be allowed in the future."
-            cx = cx.to(self.device)
-        else:
-            raise ValueError(f"cx must be a float or tensor, got {type(cx)}")
-        self.cx = cx  # @dataclass's post_init will take care of broadcasting
-
-        if isinstance(cy, float):
-            cy = torch.Tensor([cy], device=self.device)
-        elif isinstance(cy, torch.Tensor):
-            if cy.ndim == 0 or cy.shape[-1] != 1:
-                cy = cy.unsqueeze(-1)
-            # assert torch.all(cy == cy.view(-1)[0]), "Batched cameras of different cy will be allowed in the future."
-            cy = cy.to(self.device)
-        else:
-            raise ValueError(f"cy must be a float or tensor, got {type(cy)}")
-        self.cy = cy  # @dataclass's post_init will take care of broadcasting
+        self.cx = self._init_get_fc_xy(cx, "cx")  # @dataclass's post_init will take care of broadcasting
+        self.cy = self._init_get_fc_xy(cy, "cy")  # @dataclass's post_init will take care of broadcasting
 
         # Distortion Params Calculation:
         self.distortion_params = distortion_params  # @dataclass's post_init will take care of broadcasting
 
         # @dataclass's post_init will take care of broadcasting
-        self.height = self._init_get_height_width(height, cy)
-        self.width = self._init_get_height_width(width, cx)
+        self.height = self._init_get_height_width(height, self.cy)
+        self.width = self._init_get_height_width(width, self.cx)
         self.camera_type = self._init_get_camera_type(camera_type)
+        self.times = self._init_get_times(times)
 
-        self.__post_init__()
+        self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
+
+    def _init_get_fc_xy(self, fc_xy, name):
+        """
+        Parses the input focal length / principle point x or y and returns a tensor of the correct shape
+
+        Only needs to make sure that we a 1 in the last dimension if it is a tensor. If it is a float, we
+        just need to make it into a tensor and it will be broadcasted later in the __post_init__ function.
+
+        Args:
+            fc_xy: The focal length / principle point x or y
+            name: The name of the variable. Used for error messages
+        """
+        if isinstance(fc_xy, float):
+            fc_xy = torch.Tensor([fc_xy], device=self.device)
+        elif isinstance(fc_xy, torch.Tensor):
+            if fc_xy.ndim == 0 or fc_xy.shape[-1] != 1:
+                fc_xy = fc_xy.unsqueeze(-1)
+            fc_xy = fc_xy.to(self.device)
+        else:
+            raise ValueError(f"{name} must be a float or tensor, got {type(fc_xy)}")
+        return fc_xy
 
     def _init_get_camera_type(
         self,
@@ -260,6 +250,17 @@ class Cameras(TensorDataclass):
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
+
+    def _init_get_times(self, times):
+        if times is None:
+            times = None
+        elif isinstance(times, torch.Tensor):
+            if times.ndim == 0 or times.shape[-1] != 1:
+                times = times.unsqueeze(-1).to(self.device)
+        else:
+            raise ValueError(f"times must be a tensor, got {type(times)}")
+
+        return times
 
     @property
     def device(self):
@@ -652,10 +653,7 @@ class Cameras(TensorDataclass):
         )
 
     def to_json(
-        self,
-        camera_idx: int,
-        image: Optional[TensorType["height", "width", 2]] = None,
-        max_size: Optional[int] = None,
+        self, camera_idx: int, image: Optional[TensorType["height", "width", 2]] = None, max_size: Optional[int] = None
     ) -> Dict:
         """Convert a camera to a json dictionary.
 
@@ -676,6 +674,7 @@ class Cameras(TensorDataclass):
             "fy": flattened[camera_idx].fy.item(),
             "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
             "camera_index": camera_idx,
+            "times": flattened[camera_idx].times.item() if self.times is not None else None,
         }
         if image is not None:
             image_uint8 = (image * 255).detach().type(torch.uint8)

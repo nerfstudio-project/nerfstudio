@@ -19,12 +19,10 @@ import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
-import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FirstPageIcon from '@mui/icons-material/FirstPage';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
-import IconButton from '@mui/material/IconButton';
 import LastPageIcon from '@mui/icons-material/LastPage';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -32,9 +30,11 @@ import { Stack } from '@mui/system';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBack';
 import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
+import RenderModal from '../../RenderModal';
 
 const msgpack = require('msgpack-lite');
 
@@ -198,6 +198,7 @@ export default function CameraPanel(props) {
   const [is_linear, setIsLinear] = React.useState(false);
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
+  const [render_modal_open, setRenderModalOpen] = React.useState(false);
 
   const dispatch = useDispatch();
   const render_height = useSelector(
@@ -529,16 +530,11 @@ export default function CameraPanel(props) {
     fr.readAsText(fileUpload);
   };
 
-  const copy_cmd_to_clipboard = () => {
-    console.log('copy_cmd_to_clipboard');
+  const open_render_modal = () => {
+    setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-
-    // Copy the text inside the text field
-    const config_filename = `${config_base_dir}/config.yml`;
     const camera_path_filename = `${config_base_dir}/camera_path.json`;
-    const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/output.mp4`;
-    navigator.clipboard.writeText(cmd);
 
     const camera_path_payload = {
       camera_path_filename,
@@ -597,13 +593,17 @@ export default function CameraPanel(props) {
             Export Path
           </Button>
         </div>
-        <div className="CameraPanel-top-button">
-          <Tooltip title="Copy Cmd to Clipboard">
-            <IconButton onClick={copy_cmd_to_clipboard}>
-              <ContentPasteGoIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
+        <br />
+        <RenderModal open={render_modal_open} setOpen={setRenderModalOpen} />
+        <Button
+          className="CameraPanel-render-button"
+          variant="outlined"
+          size="small"
+          startIcon={<VideoCameraBackIcon />}
+          onClick={open_render_modal}
+        >
+          Render
+        </Button>
       </div>
       <div className="CameraList-row-time-interval">
         <TextField

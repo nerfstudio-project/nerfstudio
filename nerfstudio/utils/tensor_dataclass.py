@@ -138,6 +138,12 @@ class TensorDataclass:
                             *v.shape[-self._field_custom_dimensions[k] :],
                         )
                     )
+                # elif not v.shape:
+                #     # If we are a scalar tensor, we will need to do slightly different behaviour, since the shape
+                #     # doesn't have a last dimension
+                #     # We will assume that if we are a scalar tensor, we want to broadcast to the batch shape
+                #     # with a last dimension of 1
+                #     new_dict[k] = v.broadcast_to(batch_shape + (1,))
                 else:
                     new_dict[k] = v.broadcast_to((*batch_shape, v.shape[-1]))
             elif isinstance(v, TensorDataclass):
