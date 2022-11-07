@@ -283,26 +283,21 @@ class Runner(MP_CON.Process):
             self.train_dataset,
             num_images_to_sample_from=self.config.train_num_images_to_sample_from,
             num_times_to_repeat_images=self.config.train_num_times_to_repeat_images,
-            device='cpu',
-            num_workers=1,
-            pin_memory=True,
+            device=self.device,
+            num_workers=2,
+            pin_memory=False,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_ray_generator = RayGenerator(
-            self.train_dataset.dataparser_outputs.cameras.to('cpu')
-        )
+            self.train_dataset.dataparser_outputs.cameras.to(self.device)
+        ).to(self.device)
         while True:
             image_batch = next(self.iter_train_image_dataloader)
             batch = self.train_pixel_sampler.sample(image_batch)
             ray_indices = batch["indices"]
-            ray_bundle = self.train_ray_generator(ray_indices).to(self.device)
-            while True:
-                try:
-                    self.bundle_queue.put((ray_bundle,batch),block=False)
-                    break
-                except queue.Full:
-                    time.sleep(.02)
+            ray_bundle = self.train_ray_generator(ray_indices)
+            self.bundle_queue.put((ray_bundle.origins,ray_bundle.directions,ray_bundle.pixel_area,ray_bundle.camera_indices,batch))
                 
         
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -340,8 +335,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
-        self.bundle_queue = MP_CON.Queue(4)#including Manager() is important for speed
-        runners = [Runner(self.bundle_queue, self.train_dataset, self.device,self.config) for i in range(3)]
+        self.bundle_queue = MP_CON.SimpleQueue()
+        runners = [Runner(self.bundle_queue, self.train_dataset, self.device,self.config) for i in range(2)]
         DataManager.__init__(self)
 
     def create_train_dataset(self) -> InputDataset:
@@ -395,7 +390,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
         self.train_count += 1
-        ray_bundle,batch = self.bundle_queue.get(block=True)
+        os,ds,ps,cs,batch = self.bundle_queue.get()
+        ray_bundle = RayBundle(
+            origins=os, directions=ds, pixel_area=ps, camera_indices=cs
+        )
+        # ray_bundle=ray_bundle.to(self.device)
         ray_indices = ray_bundle.camera_indices
         
         # Multiply in the camera optimization deltas to the rays
