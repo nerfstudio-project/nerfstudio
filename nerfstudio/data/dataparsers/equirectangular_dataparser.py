@@ -18,7 +18,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Type
+from typing import Optional, Type
 
 import numpy as np
 import torch
@@ -47,6 +47,8 @@ class EquirectangularDataParserConfig(DataParserConfig):
     """Location of data"""
     aabb_scale: float = 4.0
     """Scene scale."""
+    downscale_factor: Optional[int] = None
+    """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation"""
     train_split_percentage: float = 0.9
@@ -60,8 +62,11 @@ class Equirectangular(DataParser):
     config: EquirectangularDataParserConfig
 
     def _generate_dataparser_outputs(self, split: str = "train") -> DataparserOutputs:
-
-        frames_root = self.config.data / "frames"
+        
+        if self.config.downscale_factor is None:
+            frames_root = self.config.data / "frames"
+        else:
+            frames_root = self.config.data / f"frames_{self.config.downscale_factor}"
         image_filenames = []
         for f in frames_root.iterdir():
             image_filenames.append(f)
@@ -84,7 +89,6 @@ class Equirectangular(DataParser):
 
         # convert to Tensors
         poses = torch.from_numpy(poses[:, :3, :4])
-        print(poses, poses.shape)
 
         poses = camera_utils.auto_orient_and_center_poses(
             pose_utils.to4x4(poses), method=self.config.orientation_method
@@ -114,7 +118,6 @@ class Equirectangular(DataParser):
         image_filenames = [image_filenames[i] for i in indices]
         poses = poses[indices]
 
-
         aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.config.aabb_scale
         scene_box = SceneBox(aabb=aabb)
 
@@ -126,6 +129,9 @@ class Equirectangular(DataParser):
             camera_to_worlds=poses,
             camera_type=CameraType.PERSPECTIVE,
         )
+
+        if self.config.downscale_factor is not None:
+            cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
