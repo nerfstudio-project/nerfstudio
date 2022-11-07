@@ -36,6 +36,7 @@ class CameraType(Enum):
 
     PERSPECTIVE = auto()
     FISHEYE = auto()
+    EQUIRECTANGULAR = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -45,6 +46,7 @@ CAMERA_MODEL_TO_TYPE = {
     "RADIAL": CameraType.PERSPECTIVE,
     "OPENCV": CameraType.PERSPECTIVE,
     "OPENCV_FISHEYE": CameraType.FISHEYE,
+    "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
 }
 
 
@@ -310,6 +312,23 @@ class Cameras:
             sin_theta = torch.sin(theta)
             directions_stack = torch.stack(
                 [coord_stack[..., 0] * sin_theta / theta, coord_stack[..., 1] * sin_theta / theta, -torch.cos(theta)],
+                dim=-1,
+            )
+        elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
+            coord = torch.stack([x,y ], -1)
+            coord_x_offset = torch.stack([x+1, y], -1)
+            coord_y_offset = torch.stack([x, y+1], -1)
+
+            coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
+
+            phi = coord_stack[..., 1] / self.image_height[camera_indices] * torch.pi
+            theta = coord_stack[..., 0] / self.image_width[camera_indices] * 2 * torch.pi
+            directions_stack = torch.stack(
+                [
+                    torch.cos(theta) * torch.sin(phi),
+                    torch.sin(theta) * torch.sin(phi),
+                    torch.cos(phi)
+                ],
                 dim=-1,
             )
         else:

@@ -47,7 +47,7 @@ class EquirectangularDataParserConfig(DataParserConfig):
     """Location of data"""
     aabb_scale: float = 4.0
     """Scene scale."""
-    downscale_factor: Optional[int] = None
+    downscale_factor: Optional[int] = 4
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
     orientation_method: Literal["pca", "up"] = "up"
     """The method to use for orientation"""
@@ -117,6 +117,7 @@ class Equirectangular(DataParser):
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
         poses = poses[indices]
+        print(poses[:, :3, :3])
 
         aabb = torch.tensor([[-1, -1, -1], [1, 1, 1]], dtype=torch.float32) * self.config.aabb_scale
         scene_box = SceneBox(aabb=aabb)
@@ -127,7 +128,9 @@ class Equirectangular(DataParser):
             cx=cx,
             cy=cy,
             camera_to_worlds=poses,
-            camera_type=CameraType.PERSPECTIVE,
+            height=int(H),
+            width=int(W),
+            camera_type=CameraType.EQUIRECTANGULAR,
         )
 
         if self.config.downscale_factor is not None:
