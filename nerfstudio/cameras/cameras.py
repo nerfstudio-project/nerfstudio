@@ -609,7 +609,7 @@ class Cameras(TensorDataclass):
 
             directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask)
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask)
-            directions_stack[..., 2][mask] = torch.masked_select(torch.cos(theta), mask)
+            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
 
         else:
             raise ValueError(f"Camera type {CameraType(self.camera_type.view(-1)[0])} not supported.")
