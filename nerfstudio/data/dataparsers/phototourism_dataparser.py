@@ -73,9 +73,8 @@ class Phototourism(DataParser):
         cys = []
         image_filenames = []
 
-        for _id in cams:
+        for _id, cam in cams.items():
             img = imgs[_id]
-            cam = cams[_id]
 
             assert cam.model == "PINHOLE", "Only pinhole (perspective) camera model is supported at the moment"
 
