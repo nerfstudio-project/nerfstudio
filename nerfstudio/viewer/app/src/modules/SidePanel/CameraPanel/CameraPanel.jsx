@@ -87,16 +87,19 @@ function FovSelector(props) {
     const new_focal_len = camera.getFocalLength();
     camera.fov = old_fov;
     const label = Math.round(
-      fovLabel === FOV_LABELS.FOV
-        ? globalFov
-        : new_focal_len * camera.aspect,
+      fovLabel === FOV_LABELS.FOV ? globalFov : new_focal_len * camera.aspect,
     );
     return label;
   };
 
-  const [UIFieldOfView, setUIFieldOfView] = React.useState(isGlobal ? globalFov : getFovLabel());
+  const [UIFieldOfView, setUIFieldOfView] = React.useState(
+    isGlobal ? globalFov : getFovLabel(),
+  );
 
-  useEffect(() => setUIFieldOfView(getFovLabel()), [camera, fovLabel, globalFov]);
+  useEffect(
+    () => setUIFieldOfView(getFovLabel()),
+    [camera, fovLabel, globalFov],
+  );
 
   const setFOV = (val) => {
     if (!isGlobal) {
@@ -109,10 +112,10 @@ function FovSelector(props) {
       setGlobalFov(val);
     } else {
       const old_fov = camera.fov;
-        camera.setFocalLength(val / camera.aspect);
-        const new_fov = camera.getEffectiveFOV();
-        camera.fov = old_fov;
-        setGlobalFov(new_fov);
+      camera.setFocalLength(val / camera.aspect);
+      const new_fov = camera.getEffectiveFOV();
+      camera.fov = old_fov;
+      setGlobalFov(new_fov);
     }
 
     if (applyAll) {
@@ -178,8 +181,10 @@ function FovSelector(props) {
       }}
       sx={{
         input: {
-          "-webkit-text-fill-color": `${disabled ? "#24B6FF" : "#EBEBEB"} !important`,
-          color: `${disabled ? "#24B6FF" : "#EBEBEB"} !important`,
+          '-webkit-text-fill-color': `${
+            disabled ? '#24B6FF' : '#EBEBEB'
+          } !important`,
+          color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
         },
       }}
       value={UIFieldOfView}
@@ -391,21 +396,22 @@ function CameraList(props) {
           </Stack>
         </AccordionSummary>
         <AccordionDetails>
-          {isAnimated('FOV') &&
-          <FovSelector
-            fovLabel={fovLabel}
-            setFovLabel={setFovLabel}
-            camera={camera}
-            dispatch={dispatch}
-            disabled={!isAnimated('FOV')}
-            isGlobal={false}
-            changeMain={false}
-          />}
-          {!isAnimated('FOV') &&
-           <p style={{ fontSize: 'smaller', color: '#999999' }}>
+          {isAnimated('FOV') && (
+            <FovSelector
+              fovLabel={fovLabel}
+              setFovLabel={setFovLabel}
+              camera={camera}
+              dispatch={dispatch}
+              disabled={!isAnimated('FOV')}
+              isGlobal={false}
+              changeMain={false}
+            />
+          )}
+          {!isAnimated('FOV') && (
+            <p style={{ fontSize: 'smaller', color: '#999999' }}>
               Animated camera properties will show up here!
             </p>
-          }
+          )}
         </AccordionDetails>
       </Accordion>
     );
@@ -721,7 +727,7 @@ export default function CameraPanel(props) {
     values.push(is_cycle ? time * ratio : time);
   });
 
-  if (is_cycle) {
+  if (is_cycle && cameras.length !== 0) {
     values.push(1.0);
   }
 
@@ -1110,12 +1116,27 @@ export default function CameraPanel(props) {
             onClick={() => {
               toggleAnimate('FOV');
             }}
-            style={{maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px', position: 'relative', top: '22px'}}
+            style={{
+              maxWidth: '20px',
+              maxHeight: '20px',
+              minWidth: '20px',
+              minHeight: '20px',
+              position: 'relative',
+              top: '22px',
+            }}
             sx={{
               mt: 1,
             }}
           >
-            <Animation style={{color: isAnimated('FOV') ? "#24B6FF" : "#EBEBEB", maxWidth: '20px', maxHeight: '20px', minWidth: '20px', minHeight: '20px'}}/>
+            <Animation
+              style={{
+                color: isAnimated('FOV') ? '#24B6FF' : '#EBEBEB',
+                maxWidth: '20px',
+                maxHeight: '20px',
+                minWidth: '20px',
+                minHeight: '20px',
+              }}
+            />
           </Button>
         </Tooltip>
         <FovSelector
@@ -1222,6 +1243,9 @@ export default function CameraPanel(props) {
           step={step_size}
           valueLabelDisplay="auto"
           valueLabelFormat={(value, i) => {
+            if (cameras.length === 0) {
+              return '';
+            }
             if (i === cameras.length && is_cycle) {
               return `${cameras[0].properties.get('NAME')} @ ${parseFloat(
                 (value * seconds).toFixed(2),
