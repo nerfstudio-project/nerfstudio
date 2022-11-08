@@ -197,7 +197,7 @@ class TensorDataclass:
         """
         return self._apply_fn_to_fields(lambda x: x.broadcast_to((*shape, x.shape[-1])))
 
-    def to(self: TensorDataclassT, device) -> TensorDataclassT:
+    def to(self: TensorDataclassT, device, *args, **kwargs) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but on the specified device.
 
         Args:
@@ -206,7 +206,14 @@ class TensorDataclass:
         Returns:
             A new TensorDataclass with the same data but on the specified device.
         """
-        return self._apply_fn_to_fields(lambda x: x.to(device))
+        return self._apply_fn_to_fields(lambda x: x.to(device, *args, **kwargs))
+
+    def detach(self: TensorDataclassT) -> TensorDataclassT:
+
+        return self._apply_fn_to_fields(lambda x: x.detach())
+
+    def pin_memory(self: TensorDataclassT) -> TensorDataclassT:
+        return self._apply_fn_to_fields(lambda x: x.pin_memory())
 
     def _apply_fn_to_fields(
         self: TensorDataclassT, fn: Callable, dataclass_fn: Optional[Callable] = None

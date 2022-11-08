@@ -17,20 +17,23 @@ Some dataset code.
 """
 from __future__ import annotations
 
+import random
 from typing import Dict
 
 import numpy as np
 import numpy.typing as npt
 import torch
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import IterableDataset, default_collate
 from torchtyping import TensorType
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
+from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
+from nerfstudio.model_components.ray_generators import RayGenerator
 
 
-class InputDataset(Dataset):
+class InputDataset(IterableDataset):
     """Dataset that returns images.
 
     Args:
@@ -41,6 +44,15 @@ class InputDataset(Dataset):
         super().__init__()
         self.dataparser_outputs = dataparser_outputs
         self.has_masks = self.dataparser_outputs.mask_filenames is not None
+        self.cache = []
+        self.train_pixel_sampler = PixelSampler(4096)
+        self.train_ray_generator = RayGenerator(self.dataparser_outputs.cameras.to("cpu"))
+        print("Caching images...")
+        for i in range(len(self)):
+            data = self.get_data(i)
+            self.cache.append(data)
+        self.cache = default_collate(self.cache)
+        print("...done")
 
     def __len__(self):
         return len(self.dataparser_outputs.image_filenames)
@@ -99,6 +111,11 @@ class InputDataset(Dataset):
         del data
         return {}
 
-    def __getitem__(self, image_idx: int) -> Dict:
-        data = self.get_data(image_idx)
-        return data
+    def __getitem__(self, index):
+        return self.get_data(index)
+
+    def __iter__(self):
+        batch = self.train_pixel_sampler.sample(self.cache)
+        ray_indices = batch["indices"]
+        ray_bundle = self.train_ray_generator(ray_indices)
+        yield ray_bundle, batch
