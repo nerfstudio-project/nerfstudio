@@ -617,8 +617,12 @@ export default function CameraPanel(props) {
 
       const labelDiv = document.createElement('div');
       labelDiv.className = 'label';
-      labelDiv.textContent = i;
+      labelDiv.textContent = camera.properties.get('NAME');
       labelDiv.style.color = 'black';
+      labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.61)";
+      labelDiv.style.backdropFilter = 'blur(5px)';
+      labelDiv.style.padding = '6px';
+      labelDiv.style.borderRadius = '6px';
       labelDiv.style.visibility = 'visible';
       const camera_label = new CSS2DObject(labelDiv);
       camera_label.position.set(0, -0.1, -0.1);
@@ -636,7 +640,7 @@ export default function CameraPanel(props) {
         camera_helper,
       );
     }
-  }, [cameras, render_width, render_height]);
+  }, [cameras, cameraProperties, render_width, render_height]);
 
   // update the camera curve
   const curve_object = get_curve_object_from_cameras(
