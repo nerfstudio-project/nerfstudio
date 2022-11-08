@@ -21,7 +21,7 @@ import sys
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple, Type
+from typing import List, Tuple, Type, Union
 
 import numpy as np
 import open3d as o3d
@@ -34,11 +34,13 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
+from torchtyping import TensorType
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
+from nerfstudio.utils.tsdf import TSDF
 
 CONSOLE = Console(width=120)
 
@@ -67,7 +69,7 @@ def _render_trajectory(
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
 
     progress = Progress(
-        TextColumn(":cloud: Computing Point Cloud :cloud:"),
+        TextColumn(":cloud: Computing rgb and depth images :cloud:"),
         BarColumn(),
         TaskProgressColumn(show_speed=True),
         ItersPerSecColumn(suffix="fps"),
@@ -207,14 +209,18 @@ class TSDFMesherConfig(InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: TSDFMesher)
     """Target class to instantiate."""
-    downscale_factor: int = 4
+    downscale_factor: int = 8
     """Downscale factor for the images."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
     """Name of the RGB output."""
-    resolution: int = 512
-    """Resolution of the TSDF volume."""
+    resolution: Union[int, List[int]] = field(default_factory=lambda: [256, 256, 256])
+    """Resolution of the TSDF volume or [x, y, z] resolutions individually."""
+    device: str = "cuda"
+    """Device to use for the TSDF operations."""
+    batch_size: int = 10
+    """How many depth images to integrate per batch."""
 
 
 @dataclass
@@ -227,6 +233,53 @@ class TSDFMesher(Mesher):
 
         if not output_dir.exists():
             output_dir.mkdir(parents=True)
+
+        dataparser_outputs = pipeline.datamanager.train_dataset.dataparser_outputs
+
+        # initialize the TSDF volume
+        aabb = dataparser_outputs.scene_box.aabb
+        if isinstance(self.config.resolution, int):
+            volume_dims = torch.tensor([self.config.resolution] * 3)
+        elif isinstance(self.config.resolution, List):
+            volume_dims = torch.tensor(self.config.resolution)
+        else:
+            raise ValueError("Resolution must be an int or a list.")
+        tsdf = TSDF.from_aabb(aabb, volume_dims=volume_dims)
+        # move TSDF to device
+        tsdf.to(self.config.device)
+
+        cameras = dataparser_outputs.cameras
+        color_images, depth_images = _render_trajectory(
+            pipeline,
+            cameras,
+            rgb_output_name=self.config.rgb_output_name,
+            depth_output_name=self.config.depth_output_name,
+            rendered_resolution_scaling_factor=1.0 / self.config.downscale_factor,
+        )
+
+        # camera extrinsics and intrinsics
+        c2w: TensorType["N", 3, 4] = cameras.camera_to_worlds.to(self.config.device)
+        # make c2w homogeneous
+        c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=self.config.device)], dim=1)
+        c2w[:, 3, 3] = 1
+        K: TensorType["N", 3, 3] = cameras.get_intrinsics_matrices().to(self.config.device)
+        color_images = torch.tensor(color_images, device=self.config.device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
+        depth_images = torch.tensor(depth_images, device=self.config.device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
+
+        CONSOLE.print("Integrating the TSDF")
+        for i in range(0, len(c2w), self.config.batch_size):
+            tsdf.integrate_tsdf(
+                c2w[i : i + self.config.batch_size],
+                K[i : i + self.config.batch_size],
+                depth_images[i : i + self.config.batch_size],
+                color_images=color_images[i : i + self.config.batch_size],
+            )
+
+        CONSOLE.print("Computing Mesh")
+        mesh = tsdf.get_mesh()
+        CONSOLE.print("Saving Mesh")
+        tsdf.export_mesh(mesh, filename=str(output_dir / "mesh.ply"))
+        print(mesh)
 
 
 @dataclass

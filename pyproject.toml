@@ -40,11 +40,13 @@ dependencies = [
     "python-socketio==5.7.1",
     "requests",
     "rich==12.5.1",
+    "scikit-image==0.19.3",
     "tensorboard==2.9.0",
     "torch==1.12.1",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
+    "trimesh==3.16.0",
     "u-msgpack-python>=2.4.1",
     "wandb>=0.13.3"
 ]

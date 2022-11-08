@@ -30,7 +30,7 @@ import tyro
 from rich.console import Console
 from typing_extensions import Annotated
 
-from nerfstudio.model_components.meshers import (  # MesherConfig,
+from nerfstudio.model_components.meshers import (
     MarchingCubesMesherConfig,
     PoissonMesherConfig,
     TSDFMesherConfig,
