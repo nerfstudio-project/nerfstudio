@@ -605,12 +605,12 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
     # For now just assume it's all the same camera
     cam = cams[list(cams.keys())[0]]
     out = {
-        "fl_x": float(cam["focal_x"]) * max(cam["height"], cam["width"]) if "focal_x" in cam else 1.0,
-        "fl_y": float(cam["focal_y"]) * max(cam["height"], cam["width"]) if "focal_y" in cam else 1.0,
-        "cx": cam["width"] / 2.0 + float(cam["c_x"]) * cam["width"] if "c_x" in cam else 1.0,
-        "cy": cam["height"] / 2.0 + float(cam["c_y"]) * cam["height"] if "c_y" in cam else 1.0,
-        "w": cam["width"],
-        "h": cam["height"],
+        "fl_x": float(cam["focal_x"]) if "focal_x" in cam else 1.0,
+        "fl_y": float(cam["focal_y"]) if "focal_y" in cam else 1.0,
+        "cx": float(cam["c_x"]) if "c_x" in cam else 0.5 * cam["width"],
+        "cy": float(cam["c_y"]) if "c_y" in cam else 0.5 * cam["height"],
+        "w": int(cam["width"]),
+        "h": int(cam["height"]),
         "camera_model": camera_model.value,
     }
     if camera_model == CameraModel.OPENCV:

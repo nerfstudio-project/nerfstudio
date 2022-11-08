@@ -46,7 +46,7 @@ CAMERA_MODEL_TO_TYPE = {
     "RADIAL": CameraType.PERSPECTIVE,
     "OPENCV": CameraType.PERSPECTIVE,
     "OPENCV_FISHEYE": CameraType.FISHEYE,
-    "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR
+    "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
 }
 
 
@@ -315,20 +315,13 @@ class Cameras:
                 dim=-1,
             )
         elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
-            coord = torch.stack([x,y ], -1)
-            coord_x_offset = torch.stack([x+1, y], -1)
-            coord_y_offset = torch.stack([x, y+1], -1)
-
-            coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
-
-            phi = coord_stack[..., 1] / self.image_height[camera_indices] * torch.pi
-            theta = coord_stack[..., 0] / self.image_width[camera_indices] * 2 * torch.pi
+            # u goes from -w/2 to w/2
+            # v goes from -h/2 to h/2
+            phi = torch.pi * (0.5 - coord_stack[..., 1] / self.image_height[camera_indices])
+            theta = -2 * torch.pi * coord_stack[..., 0] / self.image_width[camera_indices]
+            # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
             directions_stack = torch.stack(
-                [
-                    torch.cos(theta) * torch.sin(phi), 
-                    torch.sin(theta) * torch.sin(phi), 
-                    torch.cos(phi)
-                ],
+                [-torch.sin(theta) * torch.sin(phi), torch.cos(phi), -torch.cos(theta) * torch.sin(phi)],
                 dim=-1,
             )
         else:
@@ -354,7 +347,7 @@ class Cameras:
         if not isinstance(camera_indices, torch.Tensor):
             ray_bundle_camera_indices = torch.Tensor([camera_indices]).broadcast_to(pixel_area.shape).to(self.device)
         else:
-            ray_bundle_camera_indices =  camera_indices.view(pixel_area.shape)
+            ray_bundle_camera_indices = camera_indices.view(pixel_area.shape)
 
         return RayBundle(
             origins=origins,
