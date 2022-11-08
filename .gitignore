@@ -164,6 +164,7 @@ cython_debug/
 # Experiments and outputs
 runs/
 outputs/
+mesh_outputs/
 # tensorboard log files
 events.out.*
 
@@ -184,3 +185,4 @@ cache/
 renders/
 package-lock.json
 camera_paths/
+*.ply
