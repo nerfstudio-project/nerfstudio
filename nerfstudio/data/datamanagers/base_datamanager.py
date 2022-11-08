@@ -40,6 +40,9 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
+from nerfstudio.data.dataparsers.phototourism_dataparser import (
+    PhototourismDataParserConfig,
+)
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import PixelSampler
@@ -63,6 +66,7 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "instant-ngp-data": InstantNGPDataParserConfig(),
             "record3d-data": Record3DDataParserConfig(),
             "dnerf-data": DNeRFDataParserConfig(),
+            "phototourism-data": PhototourismDataParserConfig(),
         },
         prefix_names=False,  # Omit prefixes in subcommands themselves.
     )

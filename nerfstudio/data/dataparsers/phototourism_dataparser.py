@@ -79,10 +79,10 @@ class Phototourism(DataParser):
             assert cam.model == "PINHOLE", "Only pinhole (perspective) camera model is supported at the moment"
 
             cs.append(torch.cat([torch.tensor(img.qvec2rotmat()), torch.tensor(img.tvec.reshape(3, 1))], dim=1))
-            fxs.append(cam.params[0])
-            fys.append(cam.params[1])
-            cxs.append(cam.params[2])
-            cys.append(cam.params[3])
+            fxs.append(torch.tensor(cam.params[0]))
+            fys.append(torch.tensor(cam.params[1]))
+            cxs.append(torch.tensor(cam.params[2]))
+            cys.append(torch.tensor(cam.params[3]))
 
             image_filenames.append(self.data / "dense/images" / img.name)
 
