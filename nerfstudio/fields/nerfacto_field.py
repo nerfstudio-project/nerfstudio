@@ -34,6 +34,7 @@ from nerfstudio.field_components.field_heads import (
     DensityFieldHead,
     FieldHead,
     FieldHeadNames,
+    PredNormalsFieldHead,
     RGBFieldHead,
     SemanticFieldHead,
     TransientDensityFieldHead,
@@ -95,6 +96,7 @@ class TCNNNerfactoField(Field):
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
         num_semantic_classes: int = 100,
+        use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
@@ -110,6 +112,7 @@ class TCNNNerfactoField(Field):
         self.use_average_appearance_embedding = use_average_appearance_embedding
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
+        self.use_pred_normals = use_pred_normals
 
         num_levels = 16
         max_res = 1024
@@ -183,17 +186,19 @@ class TCNNNerfactoField(Field):
             )
 
         # predicted normals
-        self.mlp_normals = tcnn.Network(
-            n_input_dims=self.geo_feat_dim,
-            n_output_dims=3,
-            network_config={
-                "otype": "FullyFusedMLP",
-                "activation": "ReLU",
-                "output_activation": "None",
-                "n_neurons": 64,
-                "n_hidden_layers": 1,
-            },
-        )
+        if self.use_pred_normals:
+            self.mlp_pred_normals = tcnn.Network(
+                n_input_dims=self.geo_feat_dim,
+                n_output_dims=hidden_dim_transient,
+                network_config={
+                    "otype": "FullyFusedMLP",
+                    "activation": "ReLU",
+                    "output_activation": "None",
+                    "n_neurons": 64,
+                    "n_hidden_layers": 2,
+                },
+            )
+            self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
         self.mlp_head = tcnn.Network(
             n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim + self.appearance_embedding_dim,
@@ -239,6 +244,8 @@ class TCNNNerfactoField(Field):
         directions_flat = directions.view(-1, 3)
         d = self.direction_encoding(directions_flat)
 
+        outputs_shape = ray_samples.frustums.directions.shape[:-1]
+
         # appearance
         if self.training:
             embedded_appearance = self.embedding_appearance(camera_indices)
@@ -262,7 +269,7 @@ class TCNNNerfactoField(Field):
                 ],
                 dim=-1,
             )
-            x = self.mlp_transient(transient_input).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
+            x = self.mlp_transient(transient_input).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.UNCERTAINTY] = self.field_head_transient_uncertainty(x)
             outputs[FieldHeadNames.TRANSIENT_RGB] = self.field_head_transient_rgb(x)
             outputs[FieldHeadNames.TRANSIENT_DENSITY] = self.field_head_transient_density(x)
@@ -277,16 +284,17 @@ class TCNNNerfactoField(Field):
                 dim=-1,
             )
             # print(semantics_input)
-            x = self.mlp_semantics(semantics_input).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
+            x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
 
         # predicted normals
-        predicted_normals = (
-            self.mlp_normals(density_embedding.view(-1, self.geo_feat_dim))
-            .view(*ray_samples.frustums.directions.shape[:-1], -1)
-            .to(directions)
-        )
-        outputs[FieldHeadNames.PREDICTED_NORMALS] = predicted_normals
+        if self.use_pred_normals:
+            x = (
+                self.mlp_pred_normals(density_embedding.view(-1, self.geo_feat_dim).detach())
+                .view(*outputs_shape, -1)
+                .to(directions)
+            )
+            outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
         h = torch.cat(
             [
@@ -296,7 +304,7 @@ class TCNNNerfactoField(Field):
             ],
             dim=-1,
         )
-        rgb = self.mlp_head(h).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
+        rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
 
         return outputs
@@ -365,6 +373,8 @@ class TorchNerfactoField(Field):
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
     ) -> Dict[FieldHeadNames, TensorType]:
 
+        outputs_shape = ray_samples.frustums.directions.shape[:-1]
+
         if ray_samples.camera_indices is None:
             raise AttributeError("Camera indices are not provided.")
         camera_indices = ray_samples.camera_indices.squeeze()
@@ -372,7 +382,7 @@ class TorchNerfactoField(Field):
             embedded_appearance = self.embedding_appearance(camera_indices)
         else:
             embedded_appearance = torch.zeros(
-                (*ray_samples.frustums.directions.shape[:-1], self.appearance_embedding_dim),
+                (*outputs_shape, self.appearance_embedding_dim),
                 device=ray_samples.frustums.directions.device,
             )
 

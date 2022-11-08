@@ -181,9 +181,6 @@ def orientation_loss(weights, normals, viewdirs):
     return (w[..., 0] * torch.fmin(torch.zeros_like(n_dot_v), n_dot_v) ** 2).sum(dim=-1)
 
 
-def predicted_normal_loss(weights, normals, predicted_normals):
+def pred_normal_loss(weights, normals, pred_normals):
     """Predicted normal loss."""
-    w = weights
-    n = normals
-    n_pred = predicted_normals
-    return (w[..., 0] * (1.0 - torch.sum(n * n_pred, dim=-1))).sum(dim=-1)
+    return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
