@@ -18,15 +18,19 @@ http://www.open3d.org/docs/latest/tutorial/Advanced/surface_reconstruction.html
 python scripts/mesh.py --load-config outputs/data-nerfstudio-poster/nerfacto/2022-10-20_085111/config.yml
 """
 
+# pylint: disable=too-few-public-methods
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Union
 
 import tyro
 from rich.console import Console
+from typing_extensions import Annotated
 
-from nerfstudio.model_components.meshers import (
+from nerfstudio.model_components.meshers import (  # MesherConfig,
     MarchingCubesMesherConfig,
     PoissonMesherConfig,
     TSDFMesherConfig,
@@ -34,20 +38,6 @@ from nerfstudio.model_components.meshers import (
 from nerfstudio.utils.eval_utils import eval_setup
 
 CONSOLE = Console(width=120)
-
-
-AnnotatedMesherUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
-    tyro.extras.subcommand_type_from_defaults(
-        {
-            "tsdf": TSDFMesherConfig(),
-            "poisson": PoissonMesherConfig(),
-            "marching-cubes": MarchingCubesMesherConfig(),
-        },
-        prefix_names=False,  # Omit prefixes in subcommands themselves.
-    )
-]
-"""Union over possible mesher types, annotated with metadata for tyro. This is the
-same as the vanilla union, but results in shorter subcommand names."""
 
 
 @dataclass
@@ -59,7 +49,7 @@ class ExportMesh:
     # Name of the output directory.
     output_dir: Path
     # Mesher config to use.
-    mesher_config: AnnotatedMesherUnion = TSDFMesherConfig()
+    mesher_config: Any = TSDFMesherConfig()
 
     def main(self) -> None:
         """Main function."""
@@ -68,10 +58,35 @@ class ExportMesh:
         mesher.export_mesh(pipeline, output_dir=self.output_dir)
 
 
+class ExportTSDFMesh(ExportMesh):
+    """Export TSDF mesh config."""
+
+    mesher_config = TSDFMesherConfig()
+
+
+class ExportPoissonMesh(ExportMesh):
+    """Export Poisson mesh config."""
+
+    mesher_config = PoissonMesherConfig()
+
+
+class ExportMarchingCubesMesh(ExportMesh):
+    """Export Marching Cubes mesh config."""
+
+    mesher_config = MarchingCubesMesherConfig()
+
+
+Commands = Union[
+    Annotated[ExportTSDFMesh, tyro.conf.subcommand(name="tsdf")],
+    Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
+    Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
+]
+
+
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(ExportMesh).main()
+    tyro.cli(Commands).main()
 
 
 if __name__ == "__main__":
