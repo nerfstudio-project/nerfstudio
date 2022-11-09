@@ -26,6 +26,8 @@ import trimesh
 from skimage import measure
 from torchtyping import TensorType
 
+from nerfstudio.cameras import camera_utils
+
 
 @dataclass
 class Mesh:
@@ -146,6 +148,7 @@ class TSDF:
         self,
         c2w: TensorType["batch", 4, 4],
         K: TensorType["batch", 3, 3],
+        distortion_params: TensorType["batch", 6],
         depth_images: TensorType["batch", 1, "height", "width"],
         color_images: Optional[TensorType["batch", 3, "height", "width"]] = None,
         mask_images: Optional[TensorType["batch", 1, "height", "width"]] = None,
@@ -184,9 +187,50 @@ class TSDF:
         # flip the y axis
         voxel_cam_coords[:, 1, :] = -voxel_cam_coords[:, 1, :]
 
-        voxel_cam_points = torch.bmm(K, voxel_cam_coords[:, :3, :])  # [batch, 3, N]
-        voxel_depth = voxel_cam_points[:, 2:3, :]  # [batch, 1, N]
-        voxel_pixel_coords = voxel_cam_points[:, :2, :] / voxel_depth  # [batch, 2, N]
+        voxel_depth = voxel_cam_coords[:, 2:3, :]
+
+        # now in camera space
+        # divide by z to get pixel coordinates
+        # xy = voxel_cam_coords[:, :2, :] / voxel_depth  # [batch, 2, N]
+        # x = xy[:, 0:1, :]
+        # y = xy[:, 1:2, :]
+        # r2 = x * x + y * y
+        # r4 = r2 * r2
+        # r6 = r4 * r2
+        # r8 = r4 * r4
+
+        # k1 = distortion_params[..., 0:1, None]
+        # k2 = distortion_params[..., 1:2, None]
+        # k3 = distortion_params[..., 2:3, None]
+        # k4 = distortion_params[..., 3:4, None]
+        # p1 = distortion_params[..., 4:5, None]
+        # p2 = distortion_params[..., 5:6, None]
+
+        # icdist = 1 + k1 * r2 + k2 * r4 + k3 * r6 + k4 * r8
+        # delta_x = 2 * p1 * x * y + p2 * (r2 + 2 * x * x)
+        # delta_y = p1 * (r2 + 2 * y * y) + 2 * p2 * x * y
+        # xprime = x * icdist + delta_x
+        # yprime = y * icdist + delta_y
+        # xy1prime = torch.cat([xprime, yprime, torch.ones_like(xprime)], dim=1)
+
+        # voxel_cam_points = torch.bmm(K, xy1prime)  # [batch, 3, N]
+        # voxel_pixel_coords = voxel_cam_points[:, :2, :]
+
+        voxel_cam_points = torch.bmm(K, voxel_cam_coords[:, 0:3, :] / voxel_depth)  # [batch, 3, N]
+        voxel_pixel_coords = voxel_cam_points[:, :2, :]  # [batch, 2, N]
+
+        # apply undistortion
+        # coords = voxel_pixel_coords.permute(0, 2, 1).reshape(-1, 2)
+        # dist_params = distortion_params.view(-1, 1, 6).repeat(1, voxel_pixel_coords.shape[-1], 1).reshape(-1, 6)
+        # print(coords.shape)
+        # print(dist_params.shape)
+        # coords_list = []
+        # chunk_size = 100000
+        # for i in range(0, len(coords), chunk_size):
+        #     c = camera_utils.radial_and_tangential_undistort(coords[i : i + chunk_size], dist_params[i : i + chunk_size])
+        #     coords_list.append(c)
+        # coords = torch.cat(coords_list, dim=0)
+        # voxel_pixel_coords = coords.reshape(batch_size, -1, 2).permute(0, 2, 1) # [batch, 2, N]
 
         # Sample the depth images with grid sample...
 
