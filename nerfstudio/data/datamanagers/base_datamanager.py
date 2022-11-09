@@ -370,6 +370,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         ray_indices = ray_bundle.camera_indices
 
         # Multiply in the camera optimization deltas to the rays
+        cam_deltas = self.train_camera_optimizer(ray_indices[:, 0])  # B x 3 x 4
         cam_deltas = to4x4(self.train_camera_optimizer(ray_indices[:, 0]))  # B x 3 x 4
         blur_deltas = self.train_camera_optimizer.sample_blur_correction(ray_indices[:, 0])
         # TODO(Justin) is this allowed mathematically
