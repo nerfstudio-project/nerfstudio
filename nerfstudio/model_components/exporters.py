@@ -48,7 +48,7 @@ def generate_point_cloud(
     use_bounding_box: bool = True,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-) -> np.ndarray:
+) -> o3d.geometry.PointCloud:
     """Generate a point cloud from a nerf.
 
     Args:
@@ -61,6 +61,9 @@ def generate_point_cloud(
         use_bounding_box: Whether to use a bounding box to sample points.
         bounding_box_min: Minimum of the bounding box.
         bounding_box_max: Maximum of the bounding box.
+
+    Returns:
+        Point cloud.
     """
 
     progress = Progress(
