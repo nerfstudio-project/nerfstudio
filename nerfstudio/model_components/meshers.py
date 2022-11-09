@@ -215,7 +215,7 @@ class TSDFMesherConfig(InstantiateConfig):
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
     """Name of the RGB output."""
-    resolution: Union[int, List[int]] = field(default_factory=lambda: [256, 256, 256])
+    resolution: Union[int, List[int]] = field(default_factory=lambda: [128, 128, 128])
     """Resolution of the TSDF volume or [x, y, z] resolutions individually."""
     device: str = "cuda"
     """Device to use for the TSDF operations."""

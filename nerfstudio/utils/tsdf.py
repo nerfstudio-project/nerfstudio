@@ -17,6 +17,10 @@
 from dataclasses import dataclass
 from typing import Optional
 
+
+import numpy as np
+import open3d as o3d
+
 import torch
 import trimesh
 from skimage import measure
@@ -155,6 +159,7 @@ class TSDF:
         """
 
         batch_size = c2w.shape[0]
+        shape = self.voxel_coords.shape[1:]
 
         # Project voxel_coords into image space...
 
@@ -168,12 +173,21 @@ class TSDF:
         voxel_world_coords = voxel_world_coords.unsqueeze(0)  # [1, 4, N]
         voxel_world_coords = voxel_world_coords.expand(batch_size, *voxel_world_coords.shape[1:])  # [batch, 4, N]
 
-        voxel_cam_coords = torch.matmul(torch.inverse(c2w), voxel_world_coords)  # [batch, 4, N]
-        voxel_cam_points = torch.matmul(K, voxel_cam_coords[:, :3, :])  # [batch, 3, N]
+        voxel_cam_coords = torch.bmm(torch.inverse(c2w), voxel_world_coords)  # [batch, 4, N]
+
+        # # write out a point cloud
+        # point_cloud = voxel_world_coords[:, :3, :].permute(0, 2, 1).reshape(-1, 3).cpu().numpy()
+        # print("point_cloud.shape", point_cloud.shape)
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(point_cloud)
+        # o3d.io.write_point_cloud("point_cloud.ply", pcd)
+
+        voxel_cam_points = torch.bmm(K, voxel_cam_coords[:, :3, :])  # [batch, 3, N]
         voxel_depth = voxel_cam_points[:, 2:3, :]  # [batch, 1, N]
         voxel_pixel_coords = voxel_cam_points[:, :2, :] / voxel_depth  # [batch, 2, N]
 
         # Sample the depth images with grid sample...
+
         grid = voxel_pixel_coords.permute(0, 2, 1)  # [batch, N, 2]
         # normalize grid to [-1, 1]
         grid = 2.0 * grid / image_size.view(1, 1, 2) - 1.0  # [batch, N, 2]
@@ -187,11 +201,41 @@ class TSDF:
         # TODO: clean this up
         truncation = self.voxel_size[0] * 5.0
 
+        # check the depth ranges
+        print("sampled_depth min", torch.min(sampled_depth))
+        print("sampled_depth max", torch.max(sampled_depth))
+        print("voxel_depth min", torch.min(voxel_depth))
+        print("voxel_depth max", torch.max(voxel_depth))
+
+        max_sampled_depth = 10.0
+
         dist = sampled_depth - voxel_depth  # [batch, 1, N]
         tsdf_values = torch.clamp(dist / truncation, min=-1.0, max=1.0)  # [batch, 1, N]
-        valid_points = (voxel_depth > 0) & (sampled_depth > 0) & (dist > truncation)  # [batch, 1, N]
+        # valid_points = (
+        #     (-voxel_depth > 0) & (sampled_depth > 0) & (sampled_depth < max_sampled_depth)
+        # )  # & (dist > truncation)  # [batch, 1, N]
+        valid_points = (voxel_depth > 0) | (voxel_depth <= 0)  # [batch, 1, N]
 
         # Sequentially update the TSDF...
+
         for i in range(batch_size):
-            # TODO: finish this
-            print(i)
+
+            valid_points_i = valid_points[i]
+            valid_points_i_shape = valid_points_i.view(*shape)  # [xdim, ydim, zdim]
+
+            # the old values
+            old_tsdf_values_i = self.values[valid_points_i_shape]
+            old_weights_i = self.weights[valid_points_i_shape]
+            # TODO: deal with colors
+
+            # the new values
+            # TODO: deal with weights in a better way
+            new_tsdf_values_i = tsdf_values[i][valid_points_i]
+            new_weights_i = 1.0
+
+            total_weights = old_weights_i + new_weights_i
+
+            self.values[valid_points_i_shape] = (
+                old_tsdf_values_i * old_weights_i + new_tsdf_values_i * new_weights_i
+            ) / total_weights
+            self.weights[valid_points_i_shape] = torch.clamp(total_weights, max=1.0)
