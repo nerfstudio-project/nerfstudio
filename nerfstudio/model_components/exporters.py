@@ -20,7 +20,6 @@ from __future__ import annotations
 import sys
 from typing import Tuple
 
-import numpy as np
 import open3d as o3d
 import torch
 from rich.console import Console
