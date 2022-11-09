@@ -83,6 +83,7 @@ class CameraOptimizer(nn.Module):
             pass
         elif self.config.mode in ("SO3xR3", "SE3"):
             self.pose_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
+            self.blur_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
         else:
             assert_never(self.config.mode)
 
@@ -95,6 +96,22 @@ class CameraOptimizer(nn.Module):
             self.pose_noise = exp_map_SE3(torch.normal(torch.zeros((num_cameras, 6), device=device), std_vector))
         else:
             self.pose_noise = None
+
+    def sample_blur_correction(self, indices: TensorType["num_cameras"]):
+        """
+        Samples the blur parameters and returns transformation matrices for the origins and directions
+        """
+        blur_adjs = self.blur_adjustment[indices, :] * torch.rand((indices.shape[0], 1), device=self.device)
+        # print(
+        #     "trans,rot norm",
+        #     torch.mean(torch.linalg.norm(blur_adjs[:, :3], dim=0)),
+        #     torch.mean(torch.linalg.norm(blur_adjs[:, 3:], dim=0)),
+        # )
+        return exp_map_SO3xR3(blur_adjs)
+        # origin_deltas = blur_adjs[:, :3] * torch.rand((blur_adjs.shape[0], 1), device=self.device)
+        # direction_amnts = torch.linalg.norm(blur_adjs[:, 3:])
+
+        return origin_deltas, None
 
     def forward(
         self,
