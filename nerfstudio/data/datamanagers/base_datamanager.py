@@ -51,6 +51,7 @@ from nerfstudio.data.utils.dataloaders import (
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.poses import to4x4
 
 CONSOLE = Console(width=120)
 
@@ -329,10 +330,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
-        self.train_ray_generator = RayGenerator(
-            self.train_dataset.dataparser_outputs.cameras.to(self.device),
-            self.train_camera_optimizer,
-        )
+        self.train_ray_generator = RayGenerator(self.train_dataset.dataparser_outputs.cameras.to(self.device))
 
     def setup_eval(self):
         """Sets up the data loader for evaluation"""
@@ -348,10 +346,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
-        self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.dataparser_outputs.cameras.to(self.device),
-            self.train_camera_optimizer,  # should be shared between train and eval.
-        )
+        self.eval_ray_generator = RayGenerator(self.eval_dataset.dataparser_outputs.cameras.to(self.device))
         # for loading full images
         self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
             input_dataset=self.eval_dataset,
@@ -372,6 +367,25 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.train_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.train_ray_generator(ray_indices)
+
+        # Multiply in the camera optimization deltas to the rays
+        cam_deltas = to4x4(self.train_camera_optimizer(ray_indices[:, 0]))  # B x 3 x 4
+        blur_deltas = self.train_camera_optimizer.sample_blur_correction(ray_indices[:, 0])
+        # TODO(Justin) is this allowed mathematically
+        cam_deltas = torch.bmm(blur_deltas, cam_deltas)
+        origins_homogeneous = torch.cat(
+            [
+                ray_bundle.origins,
+                torch.ones((*ray_bundle.shape, 1), dtype=ray_bundle.origins.dtype, device=ray_bundle.origins.device),
+            ],
+            dim=-1,
+        )
+        origins_homogeneous = origins_homogeneous.view(*origins_homogeneous.shape, 1)
+        ray_bundle.origins = torch.bmm(cam_deltas, origins_homogeneous)[..., :3, 0]
+        ray_bundle.directions = torch.bmm(
+            cam_deltas[:, :, :3], ray_bundle.directions.view(*ray_bundle.directions.shape, 1)
+        )[..., 0]
+
         return ray_bundle, batch
 
     def next_eval(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -381,6 +395,20 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         batch = self.eval_pixel_sampler.sample(image_batch)
         ray_indices = batch["indices"]
         ray_bundle = self.eval_ray_generator(ray_indices)
+        # Multiply in the camera optimization deltas to the rays
+        cam_deltas = self.train_camera_optimizer(ray_indices[:, 0])  # B x 3 x 4
+        origins_homogeneous = torch.cat(
+            [
+                ray_bundle.origins,
+                torch.ones((*ray_bundle.shape, 1), dtype=ray_bundle.origins.dtype, device=ray_bundle.origins.device),
+            ],
+            dim=-1,
+        )
+        origins_homogeneous = origins_homogeneous.view(*origins_homogeneous.shape, 1)
+        ray_bundle.origins = torch.bmm(cam_deltas, origins_homogeneous)[..., :3, 0]
+        ray_bundle.directions = torch.bmm(
+            cam_deltas[:, :, :3], ray_bundle.directions.view(*ray_bundle.directions.shape, 1)
+        )[..., 0]
         return ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:

@@ -83,6 +83,7 @@ class CameraOptimizer(nn.Module):
             pass
         elif self.config.mode in ("SO3xR3", "SE3"):
             self.pose_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
+            self.blur_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
         else:
             assert_never(self.config.mode)
 
@@ -128,3 +129,18 @@ class CameraOptimizer(nn.Module):
             # Note that using repeat() instead of tile() here would result in unnecessary copies.
             return torch.eye(4, device=self.device)[None, :3, :4].tile(indices.shape[0], 1, 1)
         return functools.reduce(pose_utils.multiply, outputs)
+
+    def sample_blur_correction(self, indices: TensorType["num_cameras"]):
+        """
+        Samples the blur parameters and returns transformation matrices for the origins and directions
+        """
+        blur_adjs = self.blur_adjustment[indices, :] * torch.normal(
+            torch.zeros((indices.shape[0], 1), device=self.device),  # mean
+            torch.ones((indices.shape[0], 1), device=self.device),  # std
+        )
+        # print(
+        #     "trans,rot norm",
+        #     torch.mean(torch.linalg.norm(blur_adjs[:, :3], dim=0)),
+        #     torch.mean(torch.linalg.norm(blur_adjs[:, 3:], dim=0)),
+        # )
+        return exp_map_SO3xR3(blur_adjs)
