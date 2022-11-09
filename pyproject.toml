@@ -67,7 +67,7 @@ docs = [
     "furo==2022.4.7",
     "readthedocs-sphinx-search==0.1.2",
     "myst-nb==0.16.0",
-    "nbformat==5.4.0",
+    "nbformat==5.5.0",
     "sphinx==4.5.0",
     "sphinxemoji==0.2.0",
     "sphinx-argparse==0.3.1",
