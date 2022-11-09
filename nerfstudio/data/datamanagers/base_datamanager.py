@@ -384,7 +384,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         origins_homogeneous = origins_homogeneous.view(*origins_homogeneous.shape, 1)
         ray_bundle.origins = torch.bmm(cam_deltas, origins_homogeneous)[..., :3, 0]
-        # add in the blur factor
         ray_bundle.directions = torch.bmm(
             cam_deltas[:, :, :3], ray_bundle.directions.view(*ray_bundle.directions.shape, 1)
         )[..., 0]
