@@ -14,19 +14,17 @@
 
 """Some utilities for creating TSDFs."""
 
+import math
 from dataclasses import dataclass
 from typing import Optional
 
-
 import numpy as np
 import open3d as o3d
-
 import torch
+import torch.nn.functional as F
 import trimesh
 from skimage import measure
 from torchtyping import TensorType
-
-import torch.nn.functional as F
 
 
 @dataclass
@@ -37,6 +35,8 @@ class Mesh:
     """Faces of the mesh."""
     normals: TensorType["n", 3]
     """Normals of the mesh."""
+    colors: TensorType["n", 3]
+    """Colors of the mesh."""
 
 
 @dataclass
@@ -112,6 +112,9 @@ class TSDF:
         tsdf_values_np = self.values.clamp(-1, 1).cpu().numpy()
         vertices, faces, normals, _ = measure.marching_cubes(tsdf_values_np, level=0, allow_degenerate=False)
 
+        vertices_indices = np.round(vertices).astype(int)
+        colors = self.colors[vertices_indices[:, 0], vertices_indices[:, 1], vertices_indices[:, 2]]
+
         # move back to original device
         vertices = torch.from_numpy(vertices.copy()).to(device)
         faces = torch.from_numpy(faces.copy()).to(device)
@@ -120,11 +123,7 @@ class TSDF:
         # move vertices back to world space
         vertices = self.origin.view(1, 3) + vertices * self.voxel_size.view(1, 3)
 
-        return Mesh(
-            vertices=vertices,
-            faces=faces,
-            normals=normals,
-        )
+        return Mesh(vertices=vertices, faces=faces, normals=normals, colors=colors)
 
     def export_mesh(self, mesh: Mesh, filename: str):
         """Exports the mesh to a file.
@@ -136,7 +135,10 @@ class TSDF:
         """
         assert filename.endswith(".ply"), "Only .ply files are supported."
         mesh_trimesh = trimesh.Trimesh(
-            vertices=mesh.vertices.cpu().numpy(), faces=mesh.faces.cpu().numpy(), normals=mesh.normals.cpu().numpy()
+            vertices=mesh.vertices.cpu().numpy(),
+            faces=mesh.faces.cpu().numpy(),
+            normals=mesh.normals.cpu().numpy(),
+            vertex_colors=mesh.colors.cpu().numpy(),
         )
         mesh_trimesh.export(filename)
 
@@ -163,7 +165,9 @@ class TSDF:
 
         # Project voxel_coords into image space...
 
-        image_size = torch.tensor([depth_images.shape[2], depth_images.shape[1]], device=self.device)  # [width, height]
+        image_size = torch.tensor(
+            [depth_images.shape[-1], depth_images.shape[-2]], device=self.device
+        )  # [width, height]
 
         # make voxel_coords homogeneous
         voxel_world_coords = self.voxel_coords.view(3, -1)
@@ -175,12 +179,10 @@ class TSDF:
 
         voxel_cam_coords = torch.bmm(torch.inverse(c2w), voxel_world_coords)  # [batch, 4, N]
 
-        # # write out a point cloud
-        # point_cloud = voxel_world_coords[:, :3, :].permute(0, 2, 1).reshape(-1, 3).cpu().numpy()
-        # print("point_cloud.shape", point_cloud.shape)
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(point_cloud)
-        # o3d.io.write_point_cloud("point_cloud.ply", pcd)
+        # flip the z axis
+        voxel_cam_coords[:, 2, :] = -voxel_cam_coords[:, 2, :]
+        # flip the y axis
+        voxel_cam_coords[:, 1, :] = -voxel_cam_coords[:, 1, :]
 
         voxel_cam_points = torch.bmm(K, voxel_cam_coords[:, :3, :])  # [batch, 3, N]
         voxel_depth = voxel_cam_points[:, 2:3, :]  # [batch, 1, N]
@@ -189,32 +191,30 @@ class TSDF:
         # Sample the depth images with grid sample...
 
         grid = voxel_pixel_coords.permute(0, 2, 1)  # [batch, N, 2]
+
         # normalize grid to [-1, 1]
         grid = 2.0 * grid / image_size.view(1, 1, 2) - 1.0  # [batch, N, 2]
         grid = grid[:, None]  # [batch, 1, N, 2]
+        # depth
         sampled_depth = F.grid_sample(
             input=depth_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
         )  # [batch, N, 1]
-        sampled_depth = sampled_depth.squeeze(1)  # [batch, 1, N]
+        sampled_depth = sampled_depth.squeeze(2)  # [batch, 1, N]
+        # colors
+        if color_images is not None:
+            sampled_colors = F.grid_sample(
+                input=color_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
+            )  # [batch, N, 3]
+            sampled_colors = sampled_colors.squeeze(2)  # [batch, 3, N]
 
         # calculate the truncation
         # TODO: clean this up
-        truncation = self.voxel_size[0] * 5.0
-
-        # check the depth ranges
-        print("sampled_depth min", torch.min(sampled_depth))
-        print("sampled_depth max", torch.max(sampled_depth))
-        print("voxel_depth min", torch.min(voxel_depth))
-        print("voxel_depth max", torch.max(voxel_depth))
-
-        max_sampled_depth = 10.0
+        truncation_margin = 5.0
+        truncation = self.voxel_size[0] * truncation_margin
 
         dist = sampled_depth - voxel_depth  # [batch, 1, N]
         tsdf_values = torch.clamp(dist / truncation, min=-1.0, max=1.0)  # [batch, 1, N]
-        # valid_points = (
-        #     (-voxel_depth > 0) & (sampled_depth > 0) & (sampled_depth < max_sampled_depth)
-        # )  # & (dist > truncation)  # [batch, 1, N]
-        valid_points = (voxel_depth > 0) | (voxel_depth <= 0)  # [batch, 1, N]
+        valid_points = (voxel_depth > 0) & (sampled_depth > 0) & (dist > -truncation)  # [batch, 1, N]
 
         # Sequentially update the TSDF...
 
@@ -226,10 +226,9 @@ class TSDF:
             # the old values
             old_tsdf_values_i = self.values[valid_points_i_shape]
             old_weights_i = self.weights[valid_points_i_shape]
-            # TODO: deal with colors
 
             # the new values
-            # TODO: deal with weights in a better way
+            # TODO: let the new weight be configurable
             new_tsdf_values_i = tsdf_values[i][valid_points_i]
             new_weights_i = 1.0
 
@@ -239,3 +238,10 @@ class TSDF:
                 old_tsdf_values_i * old_weights_i + new_tsdf_values_i * new_weights_i
             ) / total_weights
             self.weights[valid_points_i_shape] = torch.clamp(total_weights, max=1.0)
+
+            if color_images is not None:
+                old_colors_i = self.colors[valid_points_i_shape]  # [M, 3]
+                new_colors_i = sampled_colors[i][:, valid_points_i.squeeze(0)].permute(1, 0)  # [M, 3]
+                self.colors[valid_points_i_shape] = (
+                    old_colors_i * old_weights_i[:, None] + new_colors_i * new_weights_i
+                ) / total_weights[:, None]

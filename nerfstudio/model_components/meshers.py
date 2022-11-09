@@ -209,13 +209,13 @@ class TSDFMesherConfig(InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: TSDFMesher)
     """Target class to instantiate."""
-    downscale_factor: int = 8
+    downscale_factor: int = 2
     """Downscale factor for the images."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
     """Name of the RGB output."""
-    resolution: Union[int, List[int]] = field(default_factory=lambda: [128, 128, 128])
+    resolution: Union[int, List[int]] = field(default_factory=lambda: [256, 256, 256])
     """Resolution of the TSDF volume or [x, y, z] resolutions individually."""
     device: str = "cuda"
     """Device to use for the TSDF operations."""
@@ -263,6 +263,7 @@ class TSDFMesher(Mesher):
         c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=self.config.device)], dim=1)
         c2w[:, 3, 3] = 1
         K: TensorType["N", 3, 3] = cameras.get_intrinsics_matrices().to(self.config.device)
+        print(K)
         color_images = torch.tensor(color_images, device=self.config.device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
         depth_images = torch.tensor(depth_images, device=self.config.device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
 
