@@ -309,8 +309,8 @@ class Cameras(TensorDataclass):
             image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         else:
-            image_height = self.image_height[index]
-            image_width = self.image_width[index]
+            image_height = self.image_height[index].item()
+            image_width = self.image_width[index].item()
             image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
