@@ -120,7 +120,7 @@ Commands = Union[
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(Commands).main()
+    tyro.cli(tyro.conf.FlagConversionOff[Commands]).main()
 
 
 if __name__ == "__main__":
