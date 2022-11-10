@@ -402,7 +402,7 @@ class Cameras(TensorDataclass):
         if cameras.is_jagged and coords is None:
             index_dim = camera_indices.shape[-1]
             camera_indices = camera_indices.reshape(-1, index_dim)
-            _coords = [cameras.get_image_coords(index=tuple(index)).reshpe(-1, 2) for index in camera_indices]
+            _coords = [cameras.get_image_coords(index=tuple(index)).reshape(-1, 2) for index in camera_indices]
             camera_indices = torch.cat(
                 [index.unsqueeze(0).repeat(coords.shape[0], 1) for index, coords in zip(camera_indices, _coords)],
             )
