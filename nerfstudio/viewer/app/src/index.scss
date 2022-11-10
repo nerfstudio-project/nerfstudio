@@ -174,8 +174,9 @@ $sidebar-width: 100% !default;
   border: 2px solid #000;
   //   box-shadow: 24px 24px;
   padding: 32px;
-  overflow-y: scroll;
-  height: 90%;
+  overflow-y: auto;
+  height: auto;
+  max-height: 90%;
 }
 
 .LandingModal-box .WebSocketUrlField {
@@ -184,6 +185,23 @@ $sidebar-width: 100% !default;
 
 .LandingModal-box .LandingModal-button {
   margin: 3px;
+}
+
+// ------------------------------------
+// Viewport Controls Modal styling
+
+.ViewportConstrolsModal-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 800px; // 400
+  background-color: $base-color2;
+  border: 2px solid #000;
+  //   box-shadow: 24px 24px;
+  padding: 32px;
+  overflow-y: auto;
+  height: auto;
 }
 
 // ------------------------------------
