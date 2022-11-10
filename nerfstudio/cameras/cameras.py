@@ -290,11 +290,10 @@ class Cameras(TensorDataclass):
     def get_image_coords(
         self, pixel_offset: float = 0.5, index: Optional[Tuple] = None
     ) -> TensorType["height", "width", 2]:
-        """This gets the image coordinates of one of the cameras in this object
+        """This gets the image coordinates of one of the cameras in this object.
 
-        Down the line we may support jagged images, allowing this to return multiple image coordinates of
-        different sizes, but for the time being since all cameras are constrained to be the same height and
-        width, this will return the same image coordinates for all cameras.
+        If no index is specified, it will return the maximum possible sized height / width image coordinate map,
+        by looking at the maximum height and width of all the cameras in this object.
 
         Args:
             pixel_offset: Offset for each pixel. Defaults to center of pixel (0.5)
@@ -305,13 +304,13 @@ class Cameras(TensorDataclass):
             Grid of image coordinates.
         """
         if index is None:
-            image_height = self.image_height.view(-1)[0]
-            image_width = self.image_width.view(-1)[0]
+            image_height = torch.max(self.image_height.view(-1)) + 1
+            image_width = torch.max(self.image_width.view(-1)) + 1
             image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         else:
-            image_height = self.image_height[index]
-            image_width = self.image_width[index]
+            image_height = self.image_height[index].item()
+            image_width = self.image_width[index].item()
             image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
