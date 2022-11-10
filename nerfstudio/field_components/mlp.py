@@ -93,4 +93,6 @@ class MLP(FieldComponent):
             x = layer(x)
             if self.activation:
                 x = self.activation(x)
+        if self.out_activation is not None:
+            x = self.out_activation(x)
         return x
