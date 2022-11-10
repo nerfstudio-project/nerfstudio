@@ -15,7 +15,7 @@
 """
 Multi Layer Perceptron
 """
-from typing import Optional, Tuple
+from typing import Optional, Set, Tuple
 
 import torch
 from torch import nn
@@ -54,6 +54,7 @@ class MLP(FieldComponent):
         self.num_layers = num_layers
         self.layer_width = layer_width
         self.skip_connections = skip_connections
+        self._skip_connections: Set[int] = set(skip_connections) if skip_connections else set()
         self.activation = activation
         self.out_activation = out_activation
         self.net = None
@@ -67,10 +68,9 @@ class MLP(FieldComponent):
         else:
             for i in range(self.num_layers - 1):
                 if i == 0:
-                    if self.skip_connections is not None:
-                        assert i not in list(self.skip_connections), "Skip connection at layer 0 doesn't make sense."
+                    assert i not in self._skip_connections, "Skip connection at layer 0 doesn't make sense."
                     layers.append(nn.Linear(self.in_dim, self.layer_width))
-                elif self.skip_connections is not None and i in self.skip_connections:
+                elif i in self._skip_connections:
                     layers.append(nn.Linear(self.layer_width + self.in_dim, self.layer_width))
                 else:
                     layers.append(nn.Linear(self.layer_width, self.layer_width))
@@ -88,10 +88,11 @@ class MLP(FieldComponent):
         """
         x = in_tensor
         for i, layer in enumerate(self.layers):
-            if self.skip_connections is not None and i in self.skip_connections:
+            # as checked in `build_nn_modules`, 0 should not be in `_skip_connections`
+            if i in self._skip_connections:
                 x = torch.cat([in_tensor, x], -1)
             x = layer(x)
-            if self.activation:
+            if self.activation is not None and i < len(self.layers) - 1:
                 x = self.activation(x)
         if self.out_activation is not None:
             x = self.out_activation(x)
