@@ -250,6 +250,7 @@ class Cameras:
         coords: Optional[TensorType["num_rays":..., 2]] = None,
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        disable_distortion: bool = False,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -261,6 +262,7 @@ class Cameras:
             coords: Coordinates of the pixels to generate rays for. If None, the full image will be rendered.
             camera_opt_to_camera: Optional transform for the camera to world matrices.
             distortion_params_delta: Optional delta for the distortion parameters.
+            disable_distortion: If True, disables distortion.
 
         Returns:
             Rays for the given camera indices and coords.
@@ -284,16 +286,18 @@ class Cameras:
 
         coord_stack = torch.stack([coord, coord_x_offset, coord_y_offset], dim=0)
 
-        distortion_params = None
-        if self.distortion_params is not None:
-            distortion_params = self.distortion_params[camera_indices]
-            if distortion_params_delta is not None:
-                distortion_params = distortion_params + distortion_params_delta
-        elif distortion_params_delta is not None:
-            distortion_params = distortion_params_delta
+        if not disable_distortion:
 
-        if distortion_params is not None:
-            coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
+            distortion_params = None
+            if self.distortion_params is not None:
+                distortion_params = self.distortion_params[camera_indices]
+                if distortion_params_delta is not None:
+                    distortion_params = distortion_params + distortion_params_delta
+            elif distortion_params_delta is not None:
+                distortion_params = distortion_params_delta
+
+            if distortion_params is not None:
+                coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
 
         if self.camera_type[0] == CameraType.PERSPECTIVE.value:
             directions_stack = torch.stack(

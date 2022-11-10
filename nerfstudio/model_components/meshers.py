@@ -51,6 +51,7 @@ def _render_trajectory(
     rgb_output_name: str,
     depth_output_name: str,
     rendered_resolution_scaling_factor: float = 1.0,
+    disable_distortion: bool = False,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """Helper function to create a video of a trajectory.
 
@@ -60,6 +61,7 @@ def _render_trajectory(
         rgb_output_name: Name of the RGB output.
         depth_output_name: Name of the depth output.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
+        disable_distortion: Whether to disable distortion.
 
     Returns:
         List of rgb images, list of depth images.
@@ -77,7 +79,9 @@ def _render_trajectory(
     )
     with progress:
         for camera_idx in progress.track(range(cameras.size), description=""):
-            camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
+            camera_ray_bundle = cameras.generate_rays(
+                camera_indices=camera_idx, disable_distortion=disable_distortion
+            ).to(pipeline.device)
             with torch.no_grad():
                 outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             if rgb_output_name not in outputs:
@@ -209,7 +213,7 @@ class TSDFMesherConfig(InstantiateConfig):
 
     _target: Type = field(default_factory=lambda: TSDFMesher)
     """Target class to instantiate."""
-    downscale_factor: int = 8
+    downscale_factor: int = 2
     """Downscale factor for the images."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
@@ -249,12 +253,14 @@ class TSDFMesher(Mesher):
         tsdf.to(self.config.device)
 
         cameras = dataparser_outputs.cameras
+        # we turn off distortion when populating the TSDF
         color_images, depth_images = _render_trajectory(
             pipeline,
             cameras,
             rgb_output_name=self.config.rgb_output_name,
             depth_output_name=self.config.depth_output_name,
             rendered_resolution_scaling_factor=1.0 / self.config.downscale_factor,
+            disable_distortion=True,
         )
 
         # camera extrinsics and intrinsics
@@ -263,16 +269,18 @@ class TSDFMesher(Mesher):
         c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=self.config.device)], dim=1)
         c2w[:, 3, 3] = 1
         K: TensorType["N", 3, 3] = cameras.get_intrinsics_matrices().to(self.config.device)
-        distortion_params = cameras.distortion_params.to(self.config.device)
-        color_images = torch.tensor(color_images, device=self.config.device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
-        depth_images = torch.tensor(depth_images, device=self.config.device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
+        color_images = torch.tensor(np.array(color_images), device=self.config.device).permute(
+            0, 3, 1, 2
+        )  # shape (N, 3, H, W)
+        depth_images = torch.tensor(np.array(depth_images), device=self.config.device).permute(
+            0, 3, 1, 2
+        )  # shape (N, 1, H, W)
 
         CONSOLE.print("Integrating the TSDF")
         for i in range(0, len(c2w), self.config.batch_size):
             tsdf.integrate_tsdf(
                 c2w[i : i + self.config.batch_size],
                 K[i : i + self.config.batch_size],
-                distortion_params[i : i + self.config.batch_size],
                 depth_images[i : i + self.config.batch_size],
                 color_images=color_images[i : i + self.config.batch_size],
             )
@@ -281,7 +289,6 @@ class TSDFMesher(Mesher):
         mesh = tsdf.get_mesh()
         CONSOLE.print("Saving Mesh")
         tsdf.export_mesh(mesh, filename=str(output_dir / "mesh.ply"))
-        print(mesh)
 
 
 @dataclass
