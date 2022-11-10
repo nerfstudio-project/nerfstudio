@@ -246,7 +246,7 @@ class Cameras(TensorDataclass):
                 h_w = h_w.unsqueeze(-1)
         # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
-            h_w = torch.Tensor(c_x_y.to(torch.int64).to(self.device) * 2)
+            h_w = torch.Tensor((c_x_y * 2).to(torch.int64).to(self.device))
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
@@ -304,8 +304,8 @@ class Cameras(TensorDataclass):
             Grid of image coordinates.
         """
         if index is None:
-            image_height = torch.max(self.image_height.view(-1)) + 1
-            image_width = torch.max(self.image_width.view(-1)) + 1
+            image_height = torch.max(self.image_height.view(-1))
+            image_width = torch.max(self.image_width.view(-1))
             image_coords = torch.meshgrid(torch.arange(image_height), torch.arange(image_width), indexing="ij")
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         else:
@@ -600,8 +600,8 @@ class Cameras(TensorDataclass):
         if CameraType.PERSPECTIVE.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.PERSPECTIVE.value).squeeze(-1)  # (num_rays)
             mask = torch.stack([mask, mask, mask], dim=0)
-            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask)
-            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask)
+            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0], mask).float()
+            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
             directions_stack[..., 2][mask] = -1.0
 
         elif CameraType.FISHEYE.value in cam_types:
@@ -613,8 +613,8 @@ class Cameras(TensorDataclass):
 
             sin_theta = torch.sin(theta)
 
-            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask)
-            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask)
+            directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask).float()
+            directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
             directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
 
         else:
