@@ -15,18 +15,23 @@
 """Phototourism dataset parser."""
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
 
+import numpy as np
 import torch
+from typing_extensions import Literal
 
+from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
     DataparserOutputs,
 )
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.colmap_utils import read_cameras_binary, read_images_binary
 
 
@@ -38,12 +43,20 @@ class PhototourismDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("data/trevi_fountain")
     """Directory specifying location of data."""
-    scale_factor: float = 1.0
+    scale_factor: float = 3.0
     """How much to scale the camera origins by."""
     alpha_color: str = "white"
     """alpha color of background"""
-    split_frac: float = 0.8
-    """fraction of data to use for training"""
+    train_split_percentage: float = 0.9
+    """The percent of images to use for training. The remaining images are for eval."""
+    scene_scale: float = 1.0
+    """How much to scale the region of interest by."""
+    orientation_method: Literal["pca", "up", "none"] = "up"
+    """The method to use for orientation."""
+    auto_scale_poses: bool = True
+    """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
+    center_poses: bool = True
+    """Whether to center the poses."""
 
 
 @dataclass
@@ -59,26 +72,35 @@ class Phototourism(DataParser):
         self.data: Path = config.data
         self.scale_factor: float = config.scale_factor
         self.alpha_color = config.alpha_color
-        self.split_frac = config.split_frac
+        self.train_split_percentage = config.train_split_percentage
 
     def _generate_dataparser_outputs(self, split="train"):
+
+        image_filenames = []
+        poses = []
 
         cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
         imgs = read_images_binary(self.data / "dense/sparse/images.bin")
 
-        cs = []
+        poses = []
         fxs = []
         fys = []
         cxs = []
         cys = []
         image_filenames = []
 
+        flip = torch.eye(3)
+        flip[0, 0] = -1.0
+        flip = flip.double()
+
         for _id, cam in cams.items():
             img = imgs[_id]
 
             assert cam.model == "PINHOLE", "Only pinhole (perspective) camera model is supported at the moment"
 
-            cs.append(torch.cat([torch.tensor(img.qvec2rotmat()), torch.tensor(img.tvec.reshape(3, 1))], dim=1))
+            pose = torch.cat([torch.tensor(img.qvec2rotmat()), torch.tensor(img.tvec.reshape(3, 1))], dim=1)
+            pose = torch.cat([pose, torch.tensor([[0.0, 0.0, 0.0, 1.0]])], dim=0)
+            poses.append(torch.linalg.inv(pose))
             fxs.append(torch.tensor(cam.params[0]))
             fys.append(torch.tensor(cam.params[1]))
             cxs.append(torch.tensor(cam.params[2]))
@@ -86,14 +108,52 @@ class Phototourism(DataParser):
 
             image_filenames.append(self.data / "dense/images" / img.name)
 
-        cs = torch.stack(cs)
-        fxs = torch.stack(fxs)
-        fys = torch.stack(fys)
-        cxs = torch.stack(cxs)
-        cys = torch.stack(cys)
+        poses = torch.stack(poses).float()
+        poses[..., 1:3] *= -1
+        fxs = torch.stack(fxs).float()
+        fys = torch.stack(fys).float()
+        cxs = torch.stack(cxs).float()
+        cys = torch.stack(cys).float()
+
+        # filter image_filenames and poses based on train/eval split percentage
+        num_images = len(image_filenames)
+        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+        num_eval_images = num_images - num_train_images
+        i_all = np.arange(num_images)
+        i_train = np.linspace(
+            0, num_images - 1, num_train_images, dtype=int
+        )  # equally spaced training images starting and ending at 0 and num_images-1
+        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+        assert len(i_eval) == num_eval_images
+        if split == "train":
+            indices = i_train
+        elif split in ["val", "test"]:
+            indices = i_eval
+        else:
+            raise ValueError(f"Unknown dataparser split {split}")
+
+        poses = camera_utils.auto_orient_and_center_poses(
+            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+        )
+
+        # Scale poses
+        scale_factor = 1.0
+        if self.config.auto_scale_poses:
+            scale_factor /= torch.max(torch.abs(poses[:, :3, 3]))
+
+        poses[:, :3, 3] *= scale_factor * self.config.scale_factor
+
+        # in x,y,z order
+        # assumes that the scene is centered at the origin
+        aabb_scale = self.config.scene_scale
+        scene_box = SceneBox(
+            aabb=torch.tensor(
+                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+            )
+        )
 
         cameras = Cameras(
-            camera_to_worlds=cs,
+            camera_to_worlds=poses[:, :3, :4],
             fx=fxs,
             fy=fys,
             cx=cxs,
@@ -101,18 +161,15 @@ class Phototourism(DataParser):
             camera_type=CameraType.PERSPECTIVE,
         )
 
-        train_idx = int(len(image_filenames) * self.split_frac)
+        cameras = cameras[indices]
+        image_filenames = [image_filenames[i] for i in indices]
 
-        if split == "train":
-            cameras = cameras[:train_idx]
-            image_filenames = image_filenames[:train_idx]
-        else:
-            cameras = cameras[train_idx:]
-            image_filenames = image_filenames[train_idx:]
+        assert len(cameras) == len(image_filenames)
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
+            scene_box=scene_box,
         )
 
         return dataparser_outputs

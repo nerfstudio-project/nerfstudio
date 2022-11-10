@@ -44,7 +44,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
-from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.datasets.base_dataset import GeneralizedDataset, InputDataset
 from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
@@ -308,11 +308,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+        return GeneralizedDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(
+        return GeneralizedDataset(
             self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
         )
 

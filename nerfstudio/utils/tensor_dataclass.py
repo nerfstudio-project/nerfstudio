@@ -147,7 +147,7 @@ class TensorDataclass:
         return new_dict
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
-        if isinstance(indices, torch.Tensor):
+        if isinstance(indices, (torch.Tensor, np.ndarray)):
             return self._apply_fn_to_fields(lambda x: x[indices])
         if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)

@@ -26,6 +26,7 @@ import torch.utils.data
 from torch._six import string_classes
 
 from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.utils.images import BasicImages
 
 # pylint: disable=implicit-str-concat
 NERFSTUDIO_COLLATE_ERR_MSG_FORMAT = (
@@ -190,6 +191,13 @@ def nerfstudio_collate(
                 dim=0,
             ),
         )
+
+    elif isinstance(elem, BasicImages):
+        assert all((isinstance(elem, BasicImages) for elem in batch))
+        all_images = []
+        for images in batch:
+            all_images.extend(images.images)
+        return BasicImages(all_images)
 
     for type_key in extra_mappings:
         if isinstance(elem, type_key):

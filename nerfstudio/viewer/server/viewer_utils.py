@@ -39,6 +39,7 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
+from nerfstudio.utils.images import BasicImages
 from nerfstudio.utils.io import load_from_json, write_to_json
 from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
@@ -309,7 +310,10 @@ class ViewerState:
         image_indices = self._pick_drawn_image_idxs(len(dataset))
         for idx in image_indices:
             image = dataset[idx]["image"]
-            bgr = image[..., [2, 1, 0]]
+            if isinstance(image, BasicImages):
+                bgr = image.images[0][..., [2, 1, 0]]
+            else:
+                bgr = image[..., [2, 1, 0]]
             camera_json = dataset.dataparser_outputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 

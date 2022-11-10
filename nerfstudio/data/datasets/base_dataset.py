@@ -28,6 +28,7 @@ from torchtyping import TensorType
 
 from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
 from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
+from nerfstudio.utils.images import BasicImages
 
 
 class InputDataset(Dataset):
@@ -101,4 +102,33 @@ class InputDataset(Dataset):
 
     def __getitem__(self, image_idx: int) -> Dict:
         data = self.get_data(image_idx)
+        return data
+
+
+class GeneralizedDataset(InputDataset):
+    """Dataset that returns images, possibly of different sizes.
+
+    The only thing that separates this from the inputdataset is that this will return
+    image / mask tensors inside a list, meaning when collate receives the images, it will
+    simply concatenate the lists together. The concatenation of images of different sizes would
+    fail otherwise.
+
+    Args:
+        dataparser_outputs: description of where and how to read input images.
+    """
+
+    def get_data(self, image_idx: int) -> Dict:
+        """Returns the ImageDataset data as a dictionary.
+
+        Args:
+            image_idx: The image index in the dataset.
+        """
+        image = self.get_image(image_idx)
+        data = {"image_idx": image_idx}
+        data["image"] = BasicImages([image])
+        if self.has_masks:
+            mask_filepath = self.dataparser_outputs.mask_filenames[image_idx]
+            data["mask"] = BasicImages([get_image_mask_tensor_from_path(filepath=mask_filepath)])
+        metadata = self.get_metadata(data)
+        data.update(metadata)
         return data
