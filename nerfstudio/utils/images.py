@@ -44,5 +44,6 @@ class BasicImages:
         self.images = images
 
     def to(self, device):
+        """Move the images to the given device."""
         assert isinstance(device, torch.device)
         return BasicImages([image.to(device) for image in self.images])

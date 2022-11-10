@@ -56,6 +56,7 @@ class CacheDataloader(DataLoader):
         **kwargs,
     ):
         self.dataset = dataset
+        super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
@@ -82,7 +83,6 @@ class CacheDataloader(DataLoader):
                 f"Caching {self.num_images_to_sample_from} out of {len(self.dataset)} images, "
                 f"resampling every {self.num_times_to_repeat_images} iters."
             )
-        super().__init__(dataset=dataset, **kwargs)
 
     def __getitem__(self, idx):
         return self.dataset.__getitem__(idx)
@@ -91,7 +91,7 @@ class CacheDataloader(DataLoader):
         """Returns a list of batches from the dataset attribute."""
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
         batch_list = []
-        for idx in track(indices, description="Loading data batch"):
+        for idx in track(indices, description="Loading data batch", transient=True):
             batch_list.append(self.dataset.__getitem__(idx))
         return batch_list
 

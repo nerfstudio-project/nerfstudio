@@ -22,6 +22,7 @@ from typing import Type
 
 import numpy as np
 import torch
+from rich.progress import Console
 from typing_extensions import Literal
 
 from nerfstudio.cameras import camera_utils
@@ -33,6 +34,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 )
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.colmap_utils import read_cameras_binary, read_images_binary
+
+CONSOLE = Console(width=120)
 
 
 @dataclass
@@ -74,19 +77,22 @@ class Phototourism(DataParser):
         self.alpha_color = config.alpha_color
         self.train_split_percentage = config.train_split_percentage
 
+    # pylint: disable=too-many-statements
     def _generate_dataparser_outputs(self, split="train"):
 
         image_filenames = []
         poses = []
 
-        cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
-        imgs = read_images_binary(self.data / "dense/sparse/images.bin")
+        with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
+            cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
+            imgs = read_images_binary(self.data / "dense/sparse/images.bin")
 
         poses = []
         fxs = []
         fys = []
         cxs = []
         cys = []
+        heights = []
         image_filenames = []
 
         flip = torch.eye(3)
@@ -105,6 +111,10 @@ class Phototourism(DataParser):
             fys.append(torch.tensor(cam.params[1]))
             cxs.append(torch.tensor(cam.params[2]))
             cys.append(torch.tensor(cam.params[3]))
+
+            # assert (cam.width, cam.height) == Image.open(
+            #     "data/phototourism/trevi_fountain/dense/images/" + imgs[k].name
+            # ).size
 
             image_filenames.append(self.data / "dense/images" / img.name)
 

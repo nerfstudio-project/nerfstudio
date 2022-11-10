@@ -53,6 +53,7 @@ from nerfstudio.data.utils.dataloaders import (
 )
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
+from nerfstudio.utils.images import BasicImages
 from nerfstudio.utils.misc import IterableWrapper
 
 CONSOLE = Console(width=120)
@@ -390,6 +391,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
         for camera_ray_bundle, batch in self.eval_dataloader:
             assert camera_ray_bundle.camera_indices is not None
+            if isinstance(batch["image"], BasicImages):  # If this is a generalized dataset, we need to get image tensor
+                batch["image"] = batch["image"].images[0]
+                camera_ray_bundle = camera_ray_bundle.reshape((*batch["image"].shape[:-1], 1))
             image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
             return image_idx, camera_ray_bundle, batch
         raise ValueError("No more eval images")

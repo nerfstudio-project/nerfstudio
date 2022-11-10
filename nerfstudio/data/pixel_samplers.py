@@ -162,7 +162,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             image_batch: batch of images to sample from
         """
         if isinstance(image_batch["image"], BasicImages):
-            image_batch = {k: v for k, v in image_batch.items()}  # copy the dictioary so we don't modify the original
+            image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
             image_batch["image"] = image_batch["image"].images
             if "mask" in image_batch:
                 image_batch["mask"] = image_batch["mask"].images
