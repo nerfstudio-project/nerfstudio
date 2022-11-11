@@ -36,6 +36,7 @@ from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
+from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.base_model import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -194,7 +195,11 @@ method_configs["dnerf"] = Config(
     method_name="dnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
-        model=VanillaModelConfig(_target=NeRFModel, enable_temporal_distortion=True),
+        model=VanillaModelConfig(
+            _target=NeRFModel,
+            enable_temporal_distortion=True,
+            temporal_distortion_params={"kind": TemporalDistortionKind.DNERF},
+        ),
     ),
     optimizers={
         "fields": {

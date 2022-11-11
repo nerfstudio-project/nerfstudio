@@ -31,7 +31,6 @@ from nerfstudio.field_components.field_heads import (
 )
 from nerfstudio.field_components.mlp import MLP
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
-from nerfstudio.field_components.temporal_distortions import TemporalDistortion
 from nerfstudio.fields.base_field import Field
 
 
@@ -48,7 +47,6 @@ class NeRFField(Field):
         skip_connections: Where to add skip connection in base MLP.
         use_integrated_encoding: Used integrated samples as encoding input.
         spatial_distortion: Spatial distortion.
-        temporal_distortion: Transformation function for warping rays at a given time.
     """
 
     def __init__(
@@ -63,14 +61,12 @@ class NeRFField(Field):
         field_heads: Tuple[FieldHead] = (RGBFieldHead(),),
         use_integrated_encoding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
-        temporal_distortion: Optional[TemporalDistortion] = None,
     ) -> None:
         super().__init__()
         self.position_encoding = position_encoding
         self.direction_encoding = direction_encoding
         self.use_integrated_encoding = use_integrated_encoding
         self.spatial_distortion = spatial_distortion
-        self.temporal_distortion = temporal_distortion
 
         self.mlp_base = MLP(
             in_dim=self.position_encoding.get_out_dim(),

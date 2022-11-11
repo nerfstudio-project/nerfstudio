@@ -55,6 +55,7 @@ class NeRFModel(Model):
     ) -> None:
         self.field_coarse = None
         self.field_fine = None
+        self.temporal_distortion = None
 
         super().__init__(
             config=config,
@@ -100,11 +101,18 @@ class NeRFModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
+        if getattr(self.config, "enable_temporal_distortion", False):
+            params = self.config.temporal_distortion_params
+            kind = params.pop("kind")
+            self.temporal_distortion = kind.to_temporal_distortion(params)
+
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
-        param_groups = super().get_param_groups()
+        param_groups = {}
         if self.field_coarse is None or self.field_fine is None:
             raise ValueError("populate_fields() must be called before get_param_groups")
         param_groups["fields"] = list(self.field_coarse.parameters()) + list(self.field_fine.parameters())
+        if self.temporal_distortion is not None:
+            param_groups["temporal_distortions"] = [self.temporal_distortion.parameters()]
         return param_groups
 
     def get_outputs(self, ray_bundle: RayBundle):
