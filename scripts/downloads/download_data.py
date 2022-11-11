@@ -1,17 +1,14 @@
 """Download datasets and specific captures from the datasets."""
 import os
 import shutil
-import sys
 import tarfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import gdown
 import tyro
 from rich.console import Console
-from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import PrintableConfig
 
@@ -24,7 +21,7 @@ class DatasetDownload(PrintableConfig):
 
     capture_name = None
 
-    def download(self, data_dir: Path) -> None:
+    def download(self, save_dir: Path) -> None:
         """Download the dataset"""
         raise NotImplementedError
 

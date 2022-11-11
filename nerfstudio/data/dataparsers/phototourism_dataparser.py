@@ -92,7 +92,6 @@ class Phototourism(DataParser):
         fys = []
         cxs = []
         cys = []
-        heights = []
         image_filenames = []
 
         flip = torch.eye(3)
