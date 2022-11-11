@@ -39,7 +39,7 @@ class NuScenesDataParserConfig(DataParserConfig):
     """Path to NuScenes dataset."""
     version: Literal['v1.0-mini', 'v1.0-trainval'] = 'v1.0-mini'
     """Dataset version."""
-    cameras: Tuple[Literal['FRONT', 'FRONT_LEFT', 'FRONT_RIGHT', 'BACK', 'BACK_LEFT', 'BACK_RIGHT'], ...] = ('FRONT', 'FRONT_LEFT', 'FRONT_RIGHT', 'BACK', 'BACK_LEFT', 'BACK_RIGHT')
+    cameras: Tuple[Literal['FRONT', 'FRONT_LEFT', 'FRONT_RIGHT', 'BACK', 'BACK_LEFT', 'BACK_RIGHT'], ...] = ('FRONT',)
     """Which cameras to use."""
     mask_dir: Optional[Path] = None
     """Path to masks of dynamic objects."""
@@ -60,9 +60,10 @@ class NuScenes(DataParser):
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
 
-        # TODO: should this be done once on init?
         nusc = NuScenesDatabase(version=self.config.version, dataroot=self.config.data_dir, verbose=self.config.verbose)
         cameras = ['CAM_'+camera for camera in self.config.cameras]
+
+        assert len(cameras) == 1, "waiting on multiple camera support" # TODO: remove once multiple cameras are supported
 
         # get samples for scene
         samples = [samp for samp in nusc.sample if nusc.get('scene', samp['scene_token'])['name'] == str(self.config.data)]
@@ -158,8 +159,6 @@ class NuScenes(DataParser):
                 [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
             )
         )
-
-        intrinsics = intrinsics[:1] # TODO: support multiple cameras once batched intrinsics is supported
 
         cameras = Cameras(
             fx=intrinsics[:,0,0],
