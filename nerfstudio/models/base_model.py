@@ -78,7 +78,6 @@ class Model(nn.Module):
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
-        self.temporal_distortion = None
 
         self.populate_modules()  # populate the modules
         self.callbacks = None
@@ -106,22 +105,13 @@ class Model(nn.Module):
                 near_plane=self.config.collider_params["near_plane"], far_plane=self.config.collider_params["far_plane"]
             )
 
-        self.temporal_distortion = None
-        if getattr(self.config, "enable_temporal_distortion", False):
-            params = self.config.temporal_distortion_params
-            kind = params.pop("kind")
-            self.temporal_distortion = kind.to_temporal_distortion(params)
-
+    @abstractmethod
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         """Obtain the parameter groups for the optimizers
 
         Returns:
             Mapping of different parameter groups
         """
-        param_groups = {}
-        if self.temporal_distortion is not None:
-            param_groups["temporal_distortion"] = list(self.temporal_distortion.parameters())
-        return param_groups
 
     @abstractmethod
     def get_outputs(self, ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
