@@ -2,6 +2,7 @@
 import os
 import shutil
 import sys
+import tarfile
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -127,9 +128,52 @@ def download_dnerf(save_dir: Path):
         download_path.unlink()
 
 
+# pylint: disable=line-too-long
+phototourism_downloads = {
+    "brandenburg-gate": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/brandenburg_gate.tar.gz",
+    "buckingham-palace": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/buckingham_palace.tar.gz",
+    "colosseum-exterior": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/colosseum_exterior.tar.gz",
+    "grand-palace-brussels": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/grand_place_brussels.tar.gz",
+    "notre-dame-facade": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/notre_dame_front_facade.tar.gz",
+    "westminster-palace": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/palace_of_westminster.tar.gz",
+    "pantheon-exterior": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/pantheon_exterior.tar.gz",
+    "taj-mahal": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/taj_mahal.tar.gz",
+    "temple-nara": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/temple_nara_japan.tar.gz",
+    "trevi-fountain": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/trevi_fountain.tar.gz",
+}
+
+
+def download_phototourism(save_dir: Path, capture_name: str):
+    """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
+
+    assert (
+        capture_name in phototourism_downloads
+    ), f"Capture name {capture_name} not found in {phototourism_downloads.keys()}"
+    url = phototourism_downloads[capture_name]
+    target_path = str(save_dir / f"phototourism/{capture_name}")
+    os.makedirs(target_path, exist_ok=True)
+    download_path = Path(f"{target_path}.tar.gz")
+    tmp_path = str(save_dir / ".temp")
+    shutil.rmtree(tmp_path, ignore_errors=True)
+    os.makedirs(tmp_path, exist_ok=True)
+
+    os.system(f"curl -L {url} > {download_path}")
+
+    with tarfile.open(download_path, "r:gz") as tar_ref:
+        tar_ref.extractall(str(tmp_path))
+
+    inner_folders = os.listdir(tmp_path)
+    assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+    folder = os.path.join(tmp_path, inner_folders[0])
+    shutil.rmtree(target_path)
+    shutil.move(folder, target_path)
+    shutil.rmtree(tmp_path)
+    os.remove(download_path)
+
+
 def main(
-    dataset: Literal["blender", "friends", "nerfstudio", "record3d", "dnerf"],
-    capture_name: Optional[DatasetName] = None,  # type: ignore
+    dataset: Literal["blender", "friends", "nerfstudio", "record3d", "dnerf", "phototourism"],
+    capture_name: str = "",  # type: ignore
     save_dir: Path = Path("data/"),
 ):
     """Script to download existing datasets.
@@ -171,6 +215,11 @@ def main(
         if capture_name is not None:
             CONSOLE.print("Capture name is ignored when downloading from the dnerf dataset.")
         download_dnerf(save_dir)
+    if dataset == "phototourism":
+        if capture_name is None:
+            CONSOLE.print("Capture name is required when downloading from the phototourism dataset.")
+            sys.exit()
+        download_phototourism(save_dir, capture_name)
 
 
 def entrypoint():
