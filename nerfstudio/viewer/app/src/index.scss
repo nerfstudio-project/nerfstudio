@@ -369,3 +369,27 @@ $viewer_button_size: 50px;
 .ViewerWindow-iconbutton {
   margin-top: 5px;
 }
+
+// ------------------------------------
+// Export panel styling
+
+.ExportModal-code {
+  padding: 10px;
+  background-color: $base-color3;
+  overflow-x: scroll;
+  font-family: monospace;
+  white-space: pre;
+  margin-top: 16px;
+  font-size: 0.9em;
+}
+
+.ExportModal-text {
+  text-align: left;
+  margin-top: 20px;
+  font-size: 0.9em;
+}
+
+.ExportModal-button {
+  // margin: 15px;
+  padding: 20px;
+}
