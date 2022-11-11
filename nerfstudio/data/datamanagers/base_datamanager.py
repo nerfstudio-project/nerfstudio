@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Data loader.
+Datamanager.
 """
 
 from __future__ import annotations
