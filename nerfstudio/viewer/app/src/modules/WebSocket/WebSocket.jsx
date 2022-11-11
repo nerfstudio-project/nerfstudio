@@ -23,7 +23,11 @@ export default function WebSocketContextFunction({ children }) {
   const connect = () => {
     // of the form wss://ip_address:port
     console.log(websocket_url);
-    socket = new WebSocket(websocket_url);
+    try {
+      socket = new WebSocket(websocket_url);
+    } catch (error) {
+      socket = new WebSocket('ws://localhost:7007');
+    }
     socket.binaryType = 'arraybuffer';
     socket.onopen = () => {
       dispatch({
@@ -56,7 +60,9 @@ export default function WebSocketContextFunction({ children }) {
   useEffect(() => {
     // cleanup function to close the websocket on rerender
     return () => {
-      socket.close();
+      if (socket !== null) {
+        socket.close();
+      }
     };
   }, [websocket_url]);
 
