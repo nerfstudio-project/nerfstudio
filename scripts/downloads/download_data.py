@@ -4,6 +4,7 @@ import shutil
 import sys
 import tarfile
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -12,44 +13,65 @@ import tyro
 from rich.console import Console
 from typing_extensions import Literal
 
+from nerfstudio.configs.base_config import PrintableConfig
+
 CONSOLE = Console(width=120)
 
 
-def download_blender(save_dir: Path):
+@dataclass
+class DatasetDownload(PrintableConfig):
+    """Download a dataset"""
+
+    capture_name = None
+
+    def download(self, data_dir: Path) -> None:
+        """Download the dataset"""
+        raise NotImplementedError
+
+
+@dataclass
+class BlenderDownload(DatasetDownload):
     """Download the blender dataset."""
-    # TODO: give this code the same structure as download_nerfstudio
 
-    # https://drive.google.com/uc?id=18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG
-    blender_file_id = "18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG"
+    def download(self, save_dir: Path):
+        """Download the blender dataset."""
+        # TODO: give this code the same structure as download_nerfstudio
 
-    final_path = save_dir / Path("blender")
-    if os.path.exists(final_path):
-        shutil.rmtree(str(final_path))
-    url = f"https://drive.google.com/uc?id={blender_file_id}"
-    download_path = save_dir / "blender_data.zip"
-    gdown.download(url, output=str(download_path))
-    with zipfile.ZipFile(download_path, "r") as zip_ref:
-        zip_ref.extractall(str(save_dir))
-    unzip_path = save_dir / Path("nerf_synthetic")
-    final_path = save_dir / Path("blender")
-    unzip_path.rename(final_path)
-    if download_path.exists():
-        download_path.unlink()
+        # https://drive.google.com/uc?id=18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG
+        blender_file_id = "18JxhpWD-4ZmuFKLzKlAw-w5PpzZxXOcG"
+
+        final_path = save_dir / Path("blender")
+        if os.path.exists(final_path):
+            shutil.rmtree(str(final_path))
+        url = f"https://drive.google.com/uc?id={blender_file_id}"
+        download_path = save_dir / "blender_data.zip"
+        gdown.download(url, output=str(download_path))
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(str(save_dir))
+        unzip_path = save_dir / Path("nerf_synthetic")
+        final_path = save_dir / Path("blender")
+        unzip_path.rename(final_path)
+        if download_path.exists():
+            download_path.unlink()
 
 
-def download_friends(save_dir: Path):
+@dataclass
+class FriendsDownload(DatasetDownload):
     """Download the friends dataset."""
 
-    # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
-    friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
+    def download(self, save_dir: Path):
+        """Download the friends dataset."""
 
-    # Download the files
-    url = f"https://drive.google.com/uc?id={friends_file_id}"
-    download_path = str(save_dir / "friends.zip")
-    gdown.download(url, output=download_path)
-    with zipfile.ZipFile(download_path, "r") as zip_ref:
-        zip_ref.extractall(str(save_dir))
-    os.remove(download_path)
+        # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
+        friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
+
+        # Download the files
+        url = f"https://drive.google.com/uc?id={friends_file_id}"
+        download_path = str(save_dir / "friends.zip")
+        gdown.download(url, output=download_path)
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(str(save_dir))
+        os.remove(download_path)
 
 
 def grab_file_id(zip_url: str) -> str:
@@ -70,7 +92,7 @@ nerfstudio_file_ids = {
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
 }
 
-DatasetName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
+NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
 
 
 def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, capture_name_to_file_id: dict):
@@ -95,37 +117,54 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
     os.remove(download_path)
 
 
-def download_nerfstudio(save_dir: Path, capture_name: str):
-    """Download specific captures for the nerfstudio dataset."""
-    download_capture_name(save_dir, "nerfstudio", capture_name, capture_name_to_file_id=nerfstudio_file_ids)
+@dataclass
+class NerfstudioDownload(DatasetDownload):
+    """Download the nerfstudio dataset."""
+
+    capture_name: NerfstudioCaptureName = "bww_entrance"  # type: ignore
+
+    def download(self, save_dir: Path):
+        """Download the nerfstudio dataset."""
+        download_capture_name(save_dir, "nerfstudio", self.capture_name, capture_name_to_file_id=nerfstudio_file_ids)
 
 
 record3d_file_ids = {
     "bear": grab_file_id("https://drive.google.com/file/d/1WRZohWMRj0nNlYFIEBwkddDoGPvLTzkR/view?usp=sharing")
 }
 
-
-def download_record3d(save_dir: Path, capture_name: str):
-    """Download specific captures for the record3d dataset."""
-    download_capture_name(save_dir, "record3d", capture_name, capture_name_to_file_id=record3d_file_ids)
+Record3dCaptureName = tyro.extras.literal_type_from_choices(record3d_file_ids.keys())
 
 
-def download_dnerf(save_dir: Path):
-    """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
-    # TODO: give this code the same structure as download_nerfstudio
+@dataclass
+class Record3dDownload(DatasetDownload):
+    """Download the record3d dataset."""
 
-    final_path = save_dir / Path("dnerf")
-    if os.path.exists(final_path):
-        shutil.rmtree(str(final_path))
-    download_path = save_dir / "dnerf_data.zip"
-    os.system(f"curl -L https://www.dropbox.com/s/raw/0bf6fl0ye2vz3vr/data.zip > {download_path}")
-    with zipfile.ZipFile(download_path, "r") as zip_ref:
-        zip_ref.extractall(str(save_dir))
-    unzip_path = save_dir / Path("data")
-    final_path = save_dir / Path("dnerf")
-    unzip_path.rename(final_path)
-    if download_path.exists():
-        download_path.unlink()
+    capture_name: Record3dCaptureName = "bear"  # type: ignore
+
+    def download(self, save_dir: Path):
+        download_capture_name(save_dir, "record3d", self.capture_name, capture_name_to_file_id=record3d_file_ids)
+
+
+@dataclass
+class DNerfDownload(DatasetDownload):
+    """Download the dnerf dataset."""
+
+    def download(self, save_dir: Path):
+        """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
+        # TODO: give this code the same structure as download_nerfstudio
+
+        final_path = save_dir / Path("dnerf")
+        if os.path.exists(final_path):
+            shutil.rmtree(str(final_path))
+        download_path = save_dir / "dnerf_data.zip"
+        os.system(f"curl -L https://www.dropbox.com/s/raw/0bf6fl0ye2vz3vr/data.zip > {download_path}")
+        with zipfile.ZipFile(download_path, "r") as zip_ref:
+            zip_ref.extractall(str(save_dir))
+        unzip_path = save_dir / Path("data")
+        final_path = save_dir / Path("dnerf")
+        unzip_path.rename(final_path)
+        if download_path.exists():
+            download_path.unlink()
 
 
 # pylint: disable=line-too-long
@@ -142,38 +181,45 @@ phototourism_downloads = {
     "trevi-fountain": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/trevi_fountain.tar.gz",
 }
 
+PhototourismCaptureName = tyro.extras.literal_type_from_choices(phototourism_downloads.keys())
 
-def download_phototourism(save_dir: Path, capture_name: str):
-    """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
 
-    assert (
-        capture_name in phototourism_downloads
-    ), f"Capture name {capture_name} not found in {phototourism_downloads.keys()}"
-    url = phototourism_downloads[capture_name]
-    target_path = str(save_dir / f"phototourism/{capture_name}")
-    os.makedirs(target_path, exist_ok=True)
-    download_path = Path(f"{target_path}.tar.gz")
-    tmp_path = str(save_dir / ".temp")
-    shutil.rmtree(tmp_path, ignore_errors=True)
-    os.makedirs(tmp_path, exist_ok=True)
+@dataclass
+class PhototourismDownload(DatasetDownload):
+    """Download the phototourism dataset."""
 
-    os.system(f"curl -L {url} > {download_path}")
+    capture_name: PhototourismCaptureName = "brandenburg-gate"  # type: ignore
 
-    with tarfile.open(download_path, "r:gz") as tar_ref:
-        tar_ref.extractall(str(tmp_path))
+    def download(self, save_dir: Path):
+        """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
 
-    inner_folders = os.listdir(tmp_path)
-    assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
-    folder = os.path.join(tmp_path, inner_folders[0])
-    shutil.rmtree(target_path)
-    shutil.move(folder, target_path)
-    shutil.rmtree(tmp_path)
-    os.remove(download_path)
+        assert (
+            self.capture_name in phototourism_downloads
+        ), f"Capture name {self.capture_name} not found in {phototourism_downloads.keys()}"
+        url = phototourism_downloads[self.capture_name]
+        target_path = str(save_dir / f"phototourism/{self.capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.tar.gz")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+
+        os.system(f"curl -L {url} > {download_path}")
+
+        with tarfile.open(download_path, "r:gz") as tar_ref:
+            tar_ref.extractall(str(tmp_path))
+
+        inner_folders = os.listdir(tmp_path)
+        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        folder = os.path.join(tmp_path, inner_folders[0])
+        shutil.rmtree(target_path)
+        shutil.move(folder, target_path)
+        shutil.rmtree(tmp_path)
+        os.remove(download_path)
 
 
 def main(
-    dataset: Literal["blender", "friends", "nerfstudio", "record3d", "dnerf", "phototourism"],
-    capture_name: str = "",  # type: ignore
+    dataset: DatasetDownload,
     save_dir: Path = Path("data/"),
 ):
     """Script to download existing datasets.
@@ -184,50 +230,49 @@ def main(
         which capture to download.
     - blender: Blender synthetic scenes realeased with NeRF.
     - friends: Friends TV show scenes.
+    - record3d: Record3d dataset.
+    - dnerf: D-NeRF dataset.
+    - phototourism: PhotoTourism dataset. Use the `capture_name` argument to specify which capture to download.
 
     Args:
         dataset: The dataset to download (from).
-        capture_name: The capture name to download (if downloading from nerfstudio dataset).
-        save_dir: The directory to save the data to.
     """
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    if dataset == "blender":
-        if capture_name is not None:
-            CONSOLE.print("Capture name is ignored when downloading from the blender dataset.")
-        download_blender(save_dir)
-    if dataset == "friends":
-        if capture_name is not None:
-            CONSOLE.print("Capture name is ignored when downloading from the blender dataset.")
-        download_friends(save_dir)
-    if dataset == "nerfstudio":
-        if capture_name is None:
-            capture_names = sorted(nerfstudio_file_ids.keys())
-            CONSOLE.rule("[bold red]Error", style="bold red")
-            CONSOLE.print("[bold yellow]You must pass in --capture-name when downloading from the nerfstudio dataset.")
-            CONSOLE.print("Use one of the following:")
-            CONSOLE.print(f"\t {capture_names}")
-            sys.exit()
-        download_nerfstudio(save_dir, capture_name)
-    if dataset == "record3d":
-        download_record3d(save_dir, "bear")
-    if dataset == "dnerf":
-        if capture_name is not None:
-            CONSOLE.print("Capture name is ignored when downloading from the dnerf dataset.")
-        download_dnerf(save_dir)
-    if dataset == "phototourism":
-        if capture_name is None:
-            CONSOLE.print("Capture name is required when downloading from the phototourism dataset.")
-            sys.exit()
-        if capture_name == "all":
-            for name in phototourism_downloads:
-                download_phototourism(save_dir, name)
+    dataset.download(save_dir)
+
+
+method_configs = {
+    "blender": BlenderDownload(),
+    "friends": FriendsDownload(),
+    "nerfstudio": NerfstudioDownload(),
+    "record3d": Record3dDownload(),
+    "dnerf": DNerfDownload(),
+    "phototourism": PhototourismDownload(),
+}
+
+descriptions = {
+    "blender": "Blender synthetic scenes realeased with NeRF.",
+    "friends": "Friends TV show scenes.",
+    "nerfstudio": "Growing collection of real-world scenes. Use the `capture_name` \
+        argument to specify which capture to download.",
+    "record3d": "Record3d dataset.",
+    "dnerf": "D-NeRF dataset.",
+    "phototourism": "PhotoTourism dataset. Use the `capture_name` argument to specify \
+        which capture to download.",
+}
 
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(main)
+    main(
+        tyro.cli(
+            tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+                tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+            ]
+        )
+    )
 
 
 if __name__ == "__main__":
