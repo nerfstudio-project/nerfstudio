@@ -14,6 +14,7 @@ Here are the popular commands that we offer. If you've cloned the repo, you can 
 | ns-train         | Generate a NeRF                        | scripts/train.py                   |
 | ns-eval          | Run evaluation metrics for your Model  | scripts/eval.py                    |
 | ns-render        | Render out a video of your NeRF        | scripts/render.py                  |
+| ns-export        | Export a NeRF into other formats       | scripts/exporter.py                |
 
 ```{toctree}
 :maxdepth: 1
@@ -23,5 +24,6 @@ ns_process_data
 ns_download_data
 ns_train
 ns_render
+ns_export
 ns_eval
 ```

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Semantic datamanager.
+"""
+
 from dataclasses import dataclass, field
 from typing import Type
 

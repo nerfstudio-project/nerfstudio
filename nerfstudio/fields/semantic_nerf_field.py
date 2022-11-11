@@ -67,17 +67,20 @@ class SemanticNerfField(Field):
             num_layers=base_mlp_num_layers,
             layer_width=base_mlp_layer_width,
             skip_connections=skip_connections,
+            out_activation=nn.ReLU(),
         )
         self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim(),
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
+            out_activation=nn.ReLU(),
         )
         self.mlp_semantic = MLP(
             in_dim=self.mlp_head.get_out_dim(),
             layer_width=self.mlp_head.layer_width // 2,
             num_layers=1,
             activation=nn.ReLU(),
+            out_activation=nn.ReLU(),
         )
         self.field_head_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())
         self.field_head_rgb = RGBFieldHead(in_dim=self.mlp_head.get_out_dim())

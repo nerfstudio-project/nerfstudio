@@ -51,7 +51,7 @@ def status(msg: str, spinner: str = "bouncingBall", verbose: bool = False):
     return CONSOLE.status(msg, spinner=spinner)
 
 
-def get_colmap_version(default_version=3.8) -> float:
+def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
     """Returns the version of COLMAP.
     This code assumes that colmap returns a version string of the form
     "COLMAP 3.8 ..." which may not be true for all versions of COLMAP.
@@ -61,7 +61,7 @@ def get_colmap_version(default_version=3.8) -> float:
     Returns:
         The version of COLMAP.
     """
-    output = run_command("colmap", verbose=False)
+    output = run_command(colmap_cmd, verbose=False)
     assert output is not None
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
@@ -352,6 +352,7 @@ def run_colmap(
     gpu: bool = True,
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    colmap_cmd: str = "colmap",
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -363,7 +364,7 @@ def run_colmap(
         verbose: If True, logs the output of the command.
     """
 
-    colmap_version = get_colmap_version()
+    colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
     if colmap_database_path.exists():
@@ -372,7 +373,7 @@ def run_colmap(
 
     # Feature extraction
     feature_extractor_cmd = [
-        "colmap feature_extractor",
+        f"{colmap_cmd} feature_extractor",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         "--ImageReader.single_camera 1",
@@ -387,7 +388,7 @@ def run_colmap(
 
     # Feature matching
     feature_matcher_cmd = [
-        f"colmap {matching_method}_matcher",
+        f"{colmap_cmd} {matching_method}_matcher",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
@@ -403,7 +404,7 @@ def run_colmap(
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
     mapper_cmd = [
-        "colmap mapper",
+        f"{colmap_cmd} mapper",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
@@ -422,7 +423,7 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
     with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
         bundle_adjuster_cmd = [
-            "colmap bundle_adjuster",
+            f"{colmap_cmd} bundle_adjuster",
             f"--input_path {sparse_dir}/0",
             f"--output_path {sparse_dir}/0",
             "--BundleAdjustment.refine_principal_point 1",
@@ -653,6 +654,8 @@ class ProcessImages:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -688,6 +691,7 @@ class ProcessImages:
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
+                colmap_cmd=self.colmap_cmd,
             )
 
         # Save transforms.json
@@ -738,6 +742,8 @@ class ProcessVideo:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -772,6 +778,7 @@ class ProcessVideo:
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
+                colmap_cmd=self.colmap_cmd,
             )
 
         # Save transforms.json
@@ -824,6 +831,8 @@ class ProcessInsta360:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -864,6 +873,7 @@ class ProcessInsta360:
                 gpu=self.gpu,
                 verbose=self.verbose,
                 matching_method=self.matching_method,
+                colmap_cmd=self.colmap_cmd,
             )
 
         # Save transforms.json
