@@ -219,7 +219,9 @@ def main(
         if capture_name is None:
             CONSOLE.print("Capture name is required when downloading from the phototourism dataset.")
             sys.exit()
-        download_phototourism(save_dir, capture_name)
+        if capture_name == "all":
+            for name in phototourism_downloads:
+                download_phototourism(save_dir, name)
 
 
 def entrypoint():
