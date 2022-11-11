@@ -22,14 +22,6 @@ The connection between the Bridge Server and the Client App works with WebSocket
 
 ## Installing and running locally
 
-#### Running the Bridge Server
-
-The viewer bridge server runs on the same machine that you use for training. The training code will connect to this server with a lightweight TCP connection using ZMQ. The training job will launch the viewer bridge server is you specify `--viewer.launch-bridge-server` in the terminal. Otherwise, you can launch the bridge server manually with the following script.
-
-```python
-python scripts/viewer/run_bridge_server.py --help
-```
-
 #### Running the Client App
 
 ```shell
@@ -56,6 +48,14 @@ Install package.json dependencies and start the client viewer app
 ```shell
 yarn install
 yarn start
+```
+
+#### Running the Bridge Server Manually
+
+The viewer bridge server runs on the same machine that you use for training. The training code will connect to this server with a lightweight TCP connection using ZMQ. The training job will launch the viewer bridge server is you specify `--viewer.launch-bridge-server` in the terminal. Otherwise, you can launch the bridge server manually with the following script.
+
+```python
+python scripts/viewer/run_bridge_server.py --help
 ```
 
 ## Acknowledgements and references
