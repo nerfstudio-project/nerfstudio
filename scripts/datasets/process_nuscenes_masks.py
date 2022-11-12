@@ -55,9 +55,6 @@ class ProcessNuScenesMasks:
         # sort by timestamp (only to make chronological viz easier)
         samples.sort(key=lambda x: (x["scene_token"], x["timestamp"]))
 
-        nusc.list_scenes()
-        samples = [samp for samp in nusc.sample if nusc.get("scene", samp["scene_token"])["name"] == "scene-0061"]
-
         # get which instances are moving in any frame (these are what we mask)
         instances = nusc.instance
         for instance in instances:
@@ -123,7 +120,7 @@ class ProcessNuScenesMasks:
                 else:
                     raise ValueError("Only support 1 or 3 or 6 cameras for viz")
                 cv2.imshow("", viz)
-                cv2.waitKey(0)
+                cv2.waitKey(1)
 
 
 def entrypoint():
