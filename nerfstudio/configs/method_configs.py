@@ -185,7 +185,9 @@ method_configs["tensorf"] = Config(
 )
 
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+    tyro.conf.FlagConversionOff[
+        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+    ]
 ]
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and

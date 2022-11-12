@@ -174,16 +174,10 @@ export default function LandingModel(props: LandingModalProps) {
                   .
                 </p>
               </TabPanel>
-              <h3>Camera Keyboard Controls</h3>
-              <div>
-                Spacebar - reset camera to starting position <br />
-                WS - forward camera translation, AD - side to side camera translation <br />
-                QE - up and down camera translation, Arrow Keys - camera rotation
-              </div>
             </div>
           </Typography>
         </Box>
       </Modal>
-    </div >
+    </div>
   );
 }

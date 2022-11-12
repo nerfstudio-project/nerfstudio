@@ -5,6 +5,7 @@ import Button from '@mui/material/Button';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import DescriptionRoundedIcon from '@mui/icons-material/DescriptionRounded';
 import LandingModal from '../LandingModal';
+import ViewportControlsModal from '../ViewportControlsModal';
 
 function getParam(param_name) {
   // https://stackoverflow.com/questions/831030/how-to-get-get-request-parameters-in-javascript
@@ -56,6 +57,7 @@ export default function Banner() {
       >
         Documentation
       </Button>
+      <ViewportControlsModal />
 
       <div className="banner-logo">
         <img
