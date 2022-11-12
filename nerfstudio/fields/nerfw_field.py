@@ -83,6 +83,7 @@ class VanillaNerfWField(Field):
             num_layers=base_mlp_num_layers,
             layer_width=base_mlp_layer_width,
             skip_connections=skip_connections,
+            out_activation=nn.ReLU(),
         )
         self.mlp_transient = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.embedding_transient.get_out_dim(),
@@ -90,6 +91,7 @@ class VanillaNerfWField(Field):
             num_layers=4,
             layer_width=base_mlp_layer_width,
             activation=nn.ReLU(),
+            out_activation=nn.ReLU(),
         )
         self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim()
@@ -97,6 +99,7 @@ class VanillaNerfWField(Field):
             + self.embedding_appearance.get_out_dim(),
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
+            out_activation=nn.ReLU(),
         )
 
         self.field_head_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())

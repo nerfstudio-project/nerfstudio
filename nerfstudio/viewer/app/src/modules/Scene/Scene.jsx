@@ -26,17 +26,17 @@ export function get_scene_tree() {
   const scene_state = {
     value: new Map(),
     callbacks: [],
-    addCallback (callback, key) { this.callbacks.push([callback, key]); },
-    setValue (key, value) {
+    addCallback(callback, key) {
+      this.callbacks.push([callback, key]);
+    },
+    setValue(key, value) {
       this.value.set(key, value);
-      this.callbacks.forEach(
-          (cbk) => {
-            const i = cbk[1];
-            const callback = cbk[0];
-            return callback(this.value.get(i))
-          }
-      );
-    }
+      this.callbacks.forEach((cbk) => {
+        const i = cbk[1];
+        const callback = cbk[0];
+        return callback(this.value.get(i));
+      });
+    },
   };
 
   const sceneTree = new SceneNode(scene, scene_state);
@@ -47,7 +47,11 @@ export function get_scene_tree() {
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
   const start_position = new THREE.Vector3(0.7, -0.7, 0.3);
-  main_camera.position.set(start_position.x, start_position.y, start_position.z);
+  main_camera.position.set(
+    start_position.x,
+    start_position.y,
+    start_position.z,
+  );
   main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
@@ -84,22 +88,31 @@ export function get_scene_tree() {
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
   camera_controls.azimuthRotateSpeed = 0.3;
   camera_controls.polarRotateSpeed = 0.3;
-  camera_controls.dollySpeed = 1.8;
+  camera_controls.dollySpeed = 0.1;
   camera_controls.infinityDolly = true;
   camera_controls.saveState();
 
   const keyMap = [];
   const moveSpeed = 0.02;
-  const rotSpeed = .015;
-  const EPS = .01;
+  const rotSpeed = 0.015;
+  const EPS = 0.01;
 
   function rotate() {
-    if (keyMap.ArrowLeft || keyMap.ArrowRight || keyMap.ArrowUp || keyMap.ArrowDown){ 
+    if (
+      keyMap.ArrowLeft ||
+      keyMap.ArrowRight ||
+      keyMap.ArrowUp ||
+      keyMap.ArrowDown
+    ) {
       const curTar = camera_controls.getTarget();
       const curPos = camera_controls.getPosition();
       const diff = curTar.sub(curPos).clampLength(0, EPS);
-      camera_controls.setTarget(curPos.x + diff.x, curPos.y + diff.y, curPos.z + diff.z);
-  
+      camera_controls.setTarget(
+        curPos.x + diff.x,
+        curPos.y + diff.y,
+        curPos.z + diff.z,
+      );
+
       if (keyMap.ArrowLeft === true) {
         camera_controls.rotate(rotSpeed, 0, true);
       }
@@ -125,8 +138,15 @@ export function get_scene_tree() {
     if (keyMap.KeyW === true) {
       const curPos = camera_controls.getPosition();
       const newTar = camera_controls.getTarget();
-      const newDiff = newTar.sub(curPos).normalize().multiplyScalar(curPos.length());
-      camera_controls.setTarget(curPos.x + newDiff.x, curPos.y + newDiff.y, curPos.z + newDiff.z);
+      const newDiff = newTar
+        .sub(curPos)
+        .normalize()
+        .multiplyScalar(curPos.length());
+      camera_controls.setTarget(
+        curPos.x + newDiff.x,
+        curPos.y + newDiff.y,
+        curPos.z + newDiff.z,
+      );
       camera_controls.dolly(moveSpeed, true);
     }
     if (keyMap.KeyS === true) {
@@ -144,8 +164,8 @@ export function get_scene_tree() {
     if (!scene_state.value.get('mouse_in_scene')) {
       return;
     }
-    translate()
-    rotate()
+    translate();
+    rotate();
   }
 
   function onKeyUp(event) {
@@ -280,8 +300,15 @@ export function get_scene_tree() {
     drag = false;
     const curPos = camera_controls.getPosition();
     const newTar = camera_controls.getTarget();
-    const newDiff = newTar.sub(curPos).normalize().multiplyScalar(curPos.length());
-    camera_controls.setTarget(curPos.x + newDiff.x, curPos.y + newDiff.y, curPos.z + newDiff.z);
+    const newDiff = newTar
+      .sub(curPos)
+      .normalize()
+      .multiplyScalar(curPos.length());
+    camera_controls.setTarget(
+      curPos.x + newDiff.x,
+      curPos.y + newDiff.y,
+      curPos.z + newDiff.z,
+    );
   };
 
   const onMouseMove = (e) => {
@@ -291,7 +318,12 @@ export function get_scene_tree() {
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
 
-    const mouse_in_scene = !(mouseVector.x > 1 || mouseVector.x < -1 || mouseVector.y > 1 || mouseVector.y < -1)
+    const mouse_in_scene = !(
+      mouseVector.x > 1 ||
+      mouseVector.x < -1 ||
+      mouseVector.y > 1 ||
+      mouseVector.y < -1
+    );
 
     scene_state.setValue('mouse_x', mouseVector.x);
     scene_state.setValue('mouse_y', mouseVector.y);

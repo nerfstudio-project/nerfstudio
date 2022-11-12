@@ -105,7 +105,7 @@ We'll be constantly growing this list! So make sure to check back in to see our 
 |                                                            |                        |
 | ---------------------------------------------------------- | ---------------------- |
 | [Github](https://github.com/nerfstudio-project/nerfstudio) | Official Github Repo   |
-| [Discord](https://discord.com/invite/NHGtYRAW)             | Join Discord Community |
+| [Discord](https://discord.gg/RyVk6w5WWP)                   | Join Discord Community |
 | [Viewer](https://viewer.nerf.studio/)                      | Web-based Nerf Viewer  |
 
 ### How-to Videos
