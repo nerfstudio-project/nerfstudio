@@ -28,7 +28,13 @@ def rotation_translation_to_pose(r_vec, t_vec):
 
 @dataclass
 class NuScenesDataParserConfig(DataParserConfig):
-    """Nerfstudio dataset config"""
+    """NuScenes dataset config.
+    NuScenes (https://www.nuscenes.org/nuscenes) is an autonomous driving dataset containing 1000 20s clips.
+    Each clip was recorded with a suite of sensors including 6 souround cameras.
+    It also includes 3D cuboid annotations around obects.
+    We optionally use these cuboids to mask dynamic objects by specifying the mask_dir flag.
+    To create these masks use scripts/datasets/process_nuscenes_masks.py.
+    """
 
     _target: Type = field(default_factory=lambda: NuScenes)
     """target class to instantiate"""
