@@ -45,6 +45,7 @@ dependencies = [
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
     "u-msgpack-python>=2.4.1",
+    "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3"
 ]
 
