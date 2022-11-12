@@ -1,15 +1,29 @@
-from dataclasses import dataclass, field
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Data parser for NuScenes dataset"""
 import math
-import numpy as np
 import os
-from typing import Optional, Type, Tuple
-from typing_extensions import Literal
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional, Tuple, Type
+
+import numpy as np
 import torch
-
 from nuscenes.nuscenes import NuScenes as NuScenesDatabase
+from typing_extensions import Literal
 
-from nerfstudio.utils.colmap_utils import qvec2rotmat
 from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
@@ -17,9 +31,12 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.utils.colmap_utils import qvec2rotmat
 
 
 def rotation_translation_to_pose(r_vec, t_vec):
+    """Convert quaternion rotation and translation vectors to 4x4 matrix"""
+
     pose = np.eye(4)
     pose[:3, :3] = qvec2rotmat(r_vec)
     pose[:3, 3] = t_vec
@@ -103,7 +120,7 @@ class NuScenes(DataParser):
         mask_dir = self.config.mask_dir if self.config.mask_dir is not None else Path("")
         intrinsics = []
         poses = []
-        for i, sample in enumerate(samples):
+        for sample in samples:
             for camera in cameras:
                 camera_data = nusc.get("sample_data", sample["data"][camera])
                 calibrated_sensor_data = nusc.get("calibrated_sensor", camera_data["calibrated_sensor_token"])
