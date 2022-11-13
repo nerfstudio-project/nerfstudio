@@ -103,7 +103,7 @@ class RenderTrajectory:
     # Name of the renderer output to use. rgb, depth, etc.
     rendered_output_name: str = "rgb"
     #  Trajectory to render.
-    traj: Literal["spiral", "interp", "filename"] = "spiral"
+    traj: Literal["spiral", "filename"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
     downscale_factor: int = 1
     # Filename of the camera path to render.
@@ -133,11 +133,6 @@ class RenderTrajectory:
             camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-        elif self.traj == "interp":
-            # cameras_a = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
-            # cameras_b = pipeline.datamanager.eval_dataloader.get_camera(image_idx=10)
-            # camera_path = get_interpolated_camera_path(cameras, steps=30)
-            raise NotImplementedError("Interpolated camera path not implemented.")
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
