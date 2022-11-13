@@ -55,7 +55,7 @@ yarn start
 The viewer bridge server runs on the same machine that you use for training. The training code will connect to this server with a lightweight TCP connection using ZMQ. The training job will launch the viewer bridge server is you specify `--viewer.launch-bridge-server` in the terminal. Otherwise, you can launch the bridge server manually with the following script.
 
 ```python
-python scripts/viewer/run_bridge_server.py --help
+ns-bridge-server --help
 ```
 
 ## Acknowledgements and references

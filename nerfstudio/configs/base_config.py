@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -31,6 +32,8 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 
 # model instances
 from nerfstudio.utils import writer
+
+warnings.filterwarnings("ignore", module="torchvision")
 
 CONSOLE = Console(width=120)
 
