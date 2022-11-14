@@ -76,6 +76,7 @@ class Nerfstudio(DataParser):
 
         meta = load_from_json(self.config.data / "transforms.json")
         image_filenames = []
+        mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
 
@@ -87,6 +88,10 @@ class Nerfstudio(DataParser):
             else:
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
+            if "mask_path" in frame:
+                mask_filepath = PurePath(frame["mask_path"])
+                mask_fname = self._get_fname(mask_filepath)
+                mask_filenames.append(mask_fname)
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -94,6 +99,12 @@ class Nerfstudio(DataParser):
         ), """
         No image files found. 
         You should check the file_paths in the transforms.json file to make sure they are correct.
+        """
+        assert len(mask_filenames) == 0 or (
+            len(mask_filenames) == len(image_filenames)
+        ), """
+        Different number of image and mask filenames.
+        You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """
 
         # filter image_filenames and poses based on train/eval split percentage
@@ -171,6 +182,7 @@ class Nerfstudio(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            mask_filenames=mask_filenames,
         )
         return dataparser_outputs
 
