@@ -49,7 +49,7 @@ class DynamicBatchPipeline(VanillaPipeline):
         self,
         config: DynamicBatchPipelineConfig,
         device: str,
-        test_mode: bool = False,
+        test_mode: str = "val",
         world_size: int = 1,
         local_rank: int = 0,
     ):

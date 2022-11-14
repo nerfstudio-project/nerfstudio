@@ -136,9 +136,9 @@ class DataManager(nn.Module):
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
-        if self.train_dataset:
+        if self.train_dataset and self.test_mode != "inference":
             self.setup_train()
-        if self.eval_dataset:
+        if self.eval_dataset and self.test_mode != "inference":
             self.setup_eval()
 
     def forward(self):
@@ -288,7 +288,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self,
         config: VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
-        test_mode: bool = False,
+        test_mode: str = "val",
         world_size: int = 1,
         local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument
@@ -310,9 +310,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(
-            self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
-        )
+        assert self.test_mode != "inference"
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_mode))
 
     def setup_train(self):
         """Sets up the data loaders for training"""
