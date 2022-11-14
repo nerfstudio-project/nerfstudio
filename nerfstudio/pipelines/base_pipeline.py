@@ -77,7 +77,7 @@ class Pipeline(nn.Module):
     Args:
         config: configuration to instantiate pipeline
         device: location to place model and data
-        test_mode: ['val', 'test', 'inference']
+        test_mode:
             'train': loads train/eval datasets into memory
             'test': loads train/test datset into memory
             'inference': does not load any dataset into memory
@@ -194,7 +194,7 @@ class VanillaPipeline(Pipeline):
 
         config: configuration to instantiate pipeline
         device: location to place model and data
-        test_mode: ['val', 'test', 'inference']
+        test_mode:
             'val': loads train/val datasets into memory
             'test': loads train/test datset into memory
             'inference': does not load any dataset into memory

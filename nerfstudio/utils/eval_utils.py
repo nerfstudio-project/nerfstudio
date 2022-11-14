@@ -73,7 +73,7 @@ def eval_setup(
     Args:
         config_path: Path to config YAML file.
         eval_num_rays_per_chunk: Number of rays per forward pass
-        test_mode: ['val', 'test', 'inference']
+        test_mode:
             'val': loads train/val datasets into memory
             'test': loads train/test datset into memory
             'inference': does not load any dataset into memory

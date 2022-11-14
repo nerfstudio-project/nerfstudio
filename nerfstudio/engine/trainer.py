@@ -106,7 +106,7 @@ class Trainer:
         """Setup the Trainer by calling other setup functions.
 
         Args:
-            test_mode: ['val', 'test', 'inference']
+            test_mode:
                 'val': loads train/val datasets into memory
                 'test': loads train/test datset into memory
                 'inference': does not load any dataset into memory
