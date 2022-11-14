@@ -106,7 +106,7 @@ class RenderTrajectory:
     # Path to config YAML file.
     load_config: Path
     # Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis
-    rendered_output_names: List[str] = field(default_factory=lambda: ["rgb", "semantics_colormap"])
+    rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     #  Trajectory to render.
     traj: Literal["spiral", "filename"] = "spiral"
     # Scaling factor to apply to the camera image resolution.
