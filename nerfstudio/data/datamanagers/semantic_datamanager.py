@@ -44,6 +44,4 @@ class SemanticDataManager(VanillaDataManager):  # pylint: disable=abstract-metho
         return SemanticDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
 
     def create_eval_dataset(self) -> SemanticDataset:
-        return SemanticDataset(
-            self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
-        )
+        return SemanticDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import torch
 import tyro
@@ -136,9 +136,9 @@ class DataManager(nn.Module):
         super().__init__()
         self.train_count = 0
         self.eval_count = 0
-        if self.train_dataset:
+        if self.train_dataset and self.test_mode != "inference":
             self.setup_train()
-        if self.eval_dataset:
+        if self.eval_dataset and self.test_mode != "inference":
             self.setup_eval()
 
     def forward(self):
@@ -288,7 +288,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self,
         config: VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
-        test_mode: bool = False,
+        test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument
@@ -299,6 +299,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.local_rank = local_rank
         self.sampler = None
         self.test_mode = test_mode
+        self.test_split = "test" if test_mode in ["test", "inference"] else "val"
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
@@ -310,9 +311,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(
-            self.config.dataparser.setup().get_dataparser_outputs(split="val" if not self.test_mode else "test")
-        )
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))
 
     def setup_train(self):
         """Sets up the data loaders for training"""

@@ -17,7 +17,7 @@ A pipeline that dynamically chooses the number of rays to sample.
 """
 
 from dataclasses import dataclass, field
-from typing import Type
+from typing import Literal, Type
 
 import torch
 
@@ -49,7 +49,7 @@ class DynamicBatchPipeline(VanillaPipeline):
         self,
         config: DynamicBatchPipelineConfig,
         device: str,
-        test_mode: bool = False,
+        test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
     ):
