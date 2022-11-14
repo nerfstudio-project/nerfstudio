@@ -17,6 +17,7 @@ Collection of Losses.
 """
 
 import torch
+from kornia.losses import total_variation as _total_variation
 from torch import nn
 from torchtyping import TensorType
 
@@ -170,3 +171,17 @@ def nerfstudio_distortion_loss(
     loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ends - starts), dim=-2)
 
     return loss
+
+
+def total_variation(tensor: torch.Tensor):
+    """Total variation loss
+
+    Uses per-pixel normalization from `train.totalVariation` in nex:
+    https://github.com/nex-mpi/nex-code/blob/eeff38c712ac9a665f09d7c2a3fdf48ae83f4693/train.py#L171
+
+    which looks like an obfuscated copy of kornia's `kornia.losses_total_variation`
+    https://kornia.readthedocs.io/en/latest/_modules/kornia/losses/total_variation.html
+    """
+    H, W = tensor.shape[-2:]
+    denominator = max(H - 1, 1) * max(W - 1, 1)  # support {H,W}=1
+    return (_total_variation(tensor) / denominator).mean()  # norm by num pixels
