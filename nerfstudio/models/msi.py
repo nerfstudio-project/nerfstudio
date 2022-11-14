@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Type
 
 import torch
+import torch.nn.functional as F
 from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
@@ -48,6 +49,7 @@ class MSIModelConfig(ModelConfig):
     dmin: float = 0.5
     dmax: float = 200.0
     pose_src: torch.Tensor = torch.eye(4)
+    sigmoid_offset: float = 5.0
 
     init_resolution: int = 128
     """initial render resolution"""
@@ -80,6 +82,7 @@ class MSIModel(Model):
         self.nsublayers = self.config.nsublayers
         self.n_total_layers = self.nlayers * self.nsublayers
         self.planes = 1.0 / torch.linspace(1.0 / self.dmin, 1.0 / self.dmax, self.n_total_layers)
+        self.sigmoid_offset = self.config.sigmoid_offset
 
     def populate_modules(self):
         """Set the fields and modules"""
@@ -120,7 +123,9 @@ class MSIModel(Model):
         Pe = ray_bundle.origins + ray_bundle.directions * t
         d = torch.linalg.norm(Pe - center_src, axis=-1)
 
-        uvs = torch.zeros((self.n_total_layers, *(ray_bundle.shape[:-1]), 2))
+        uvs = torch.zeros(
+            (self.n_total_layers, *(ray_bundle.shape[:-1]), 2)
+        )  # [L, (ray bundle batch), 2], [-1, 1] range
         for i, radius in enumerate(self.planes):
             intersections = torch.sqrt(-1 * d**2 - radius**2)
 
@@ -138,6 +143,11 @@ class MSIModel(Model):
             uvs[i] = uv
 
         # then do the sampling
+        sample_uvs = uvs.reshape(self.n_total_layers, 1, -1, 2)  # (L, 1, <nrays>, 2)
+        alphas = F.grid_sample(self.alpha, sample_uvs)  # (L, 1, <nrays>, 2)
+        alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)
+
+        rgbs = F.grid_sample(self.rgb, sample_uvs[:: self.nsublayers])  # (L // sublayers, 1, <nrays>, 2)
 
         return outputs
 
