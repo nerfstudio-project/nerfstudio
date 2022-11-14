@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Literal, Optional, Tuple, Type, Union
 
 import torch
 import tyro
@@ -288,7 +288,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self,
         config: VanillaDataManagerConfig,
         device: Union[torch.device, str] = "cpu",
-        test_mode: str = "val",
+        test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
         **kwargs,  # pylint: disable=unused-argument

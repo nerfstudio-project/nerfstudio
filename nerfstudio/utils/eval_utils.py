@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import torch
 import yaml
@@ -64,7 +64,9 @@ def eval_load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
 
 
 def eval_setup(
-    config_path: Path, eval_num_rays_per_chunk: Optional[int] = None, test_mode: str = "test"
+    config_path: Path,
+    eval_num_rays_per_chunk: Optional[int] = None,
+    test_mode: Literal["test", "val", "inference"] = "test",
 ) -> Tuple[cfg.Config, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 

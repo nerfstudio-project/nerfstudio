@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Optional, Type, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -210,7 +210,7 @@ class VanillaPipeline(Pipeline):
         self,
         config: VanillaPipelineConfig,
         device: str,
-        test_mode: str = "val",
+        test_mode: Literal["test", "val", "inference"] = "val",
         world_size: int = 1,
         local_rank: int = 0,
     ):

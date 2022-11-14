@@ -21,7 +21,7 @@ import dataclasses
 import functools
 import os
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Literal, Tuple
 
 import torch
 from rich.console import Console
@@ -102,7 +102,7 @@ class Trainer:
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
         profiler.setup_profiler(config.logging)
 
-    def setup(self, test_mode: str = "val"):
+    def setup(self, test_mode: Literal["test", "val", "inference"] = "val"):
         """Setup the Trainer by calling other setup functions.
 
         Args:
