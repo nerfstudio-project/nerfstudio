@@ -1070,7 +1070,7 @@ class ProcessPolycam:
     max_dataset_size: int = 300
     """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
     use all images."""
-    min_blur_score: float = 40
+    min_blur_score: float = 25
     """Minimum blur score to use an image. If the blur score is below this value, the image will be skipped."""
     crop_border_pixels: int = 30
     """Number of pixels to crop from the border of the image. Useful as borders may be black due to undistortion."""
