@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Tuple, Union
 
+import math
+import trimesh
 import numpy as np
 import open3d as o3d
 import torch
@@ -338,7 +340,7 @@ class ExportTextureMesh(Exporter):
 
     px_per_uv_square: int = 10
     """Number of pixels per UV square."""
-    input_ply_filename: int = 10
+    input_ply_filename: Path = Path("mesh.ply")
     """PLY mesh filename to texture."""
 
     def main(self) -> None:
@@ -346,7 +348,59 @@ class ExportTextureMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        # load the mesh
+        mesh = trimesh.load(str(self.input_ply_filename))
+        vertices = torch.from_numpy(mesh.vertices)
+        faces = torch.from_numpy(mesh.faces)
+        vertex_normals = torch.from_numpy(np.copy(mesh.vertex_normals))
+
+        num_squares = len(faces) / 2
+        squares_per_side = math.ceil(math.sqrt(num_squares))
+        num_pixels = squares_per_side * self.px_per_uv_square
+
+        # uv coords (upper left and lower right)
+        uv_coords_upper_left = (torch.tensor([[0, 0], [1, 0], [0, 1]]) * self.px_per_uv_square + 0.5) / num_pixels
+        uv_coords_lower_left = (torch.tensor([[1, 1], [0, 1], [0, 1]]) * self.px_per_uv_square + 0.5) / num_pixels
+        uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_left], dim=0)  # (2, 3, 2)
+        uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
+
+        squares_per_side = math.ceil(math.sqrt(num_squares))
+        square_offsets = (
+            torch.stack(
+                torch.meshgrid(torch.arange(squares_per_side), torch.arange(squares_per_side), indexing="xy"), dim=-1
+            )
+            / squares_per_side
+        )
+        uv_coords_square = uv_coords_square + square_offsets.view(squares_per_side, squares_per_side, 1, 2) # (squares_per_side, squares_per_side, 6, 2)
+        
+        texture_coordinates = uv_coords_square.view(-1, 3, 2)[:len(faces)] # (num_faces, 3, 2)
+
+        uv_indices = torch.stack(
+            torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
+        )
+        uv_coords = (uv_indices + 0.5) / num_pixels
+
+        u_index = torch.div(uv_indices[..., 0], self.px_per_uv_square, rounding_mode="floor")
+        v_index = torch.div(uv_indices[..., 1], self.px_per_uv_square, rounding_mode="floor")
+        square_index = v_index * squares_per_side + u_index
+        u_offset = uv_indices[..., 0] % self.px_per_uv_square
+        v_offset = uv_indices[..., 1] % self.px_per_uv_square
+        lower_right = (u_offset + v_offset) > self.px_per_uv_square
+        triangle_index = square_index * 2 + lower_right
+
+        triangle_index = torch.clamp(triangle_index, min=0, max=len(faces) - 1)
+
+        nearby_vertices = vertices[faces[triangle_index]]
+        nearby_normals = vertex_normals[faces[triangle_index]]
+        nearby_uv_coords = texture_coordinates[faces[triangle_index]]
+
+        print("uv_coords", uv_coords.shape)
+        print("nearby_vertices", nearby_vertices.shape)
+        print("nearby_normals", nearby_normals.shape)
+        print("nearby_uv_coords", nearby_uv_coords.shape)
+
+        # load the NeRF and create the texture
+        # _, pipeline, _ = eval_setup(self.load_config)
 
 
 @dataclass
