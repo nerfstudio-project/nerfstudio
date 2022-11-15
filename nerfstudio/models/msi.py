@@ -33,7 +33,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.model_components.losses import MSELoss, total_variation
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, misc
+from nerfstudio.utils import misc
 
 
 @dataclass

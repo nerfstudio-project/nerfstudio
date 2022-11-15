@@ -44,6 +44,7 @@ from nerfstudio.data.datamanagers.base_datamanager import (
 )
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
+from nerfstudio.models.msi import MSIModelConfig
 from nerfstudio.utils import profiler
 
 
@@ -222,6 +223,23 @@ class VanillaPipeline(Pipeline):
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.dataparser_outputs.metadata,
         )
+
+        if isinstance(config.model, MSIModelConfig):
+            self._model = config.model.setup(
+                scene_box=self.datamanager.train_dataset.dataparser_outputs.scene_box,
+                num_train_data=len(self.datamanager.train_dataset),
+                metadata=self.datamanager.train_dataset.dataparser_outputs.metadata,
+                pose=torch.eye(4),  # poses are centered anyways
+                dmin=1.0,  # hardcoded at the moment
+                dmax=20,  # hardcoded at the moment
+            )
+        else:
+            self._model = config.model.setup(
+                scene_box=self.datamanager.train_dataset.dataparser_outputs.scene_box,
+                num_train_data=len(self.datamanager.train_dataset),
+                metadata=self.datamanager.train_dataset.dataparser_outputs.metadata,
+            )
+
         self.model.to(device)
 
         self.world_size = world_size
