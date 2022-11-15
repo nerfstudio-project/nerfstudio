@@ -166,6 +166,7 @@ class EvalDataloader(DataLoader):
             camera_to_worlds=self.cameras.camera_to_worlds[image_idx : image_idx + 1],
             distortion_params=distortion_params,
             camera_type=self.cameras.camera_type[image_idx : image_idx + 1],
+            times=self.cameras.times[image_idx : image_idx + 1] if self.cameras.time else None,
         )
         return camera
 
