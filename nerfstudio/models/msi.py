@@ -31,8 +31,7 @@ from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
-from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.model_components.losses import total_variation
+from nerfstudio.model_components.losses import MSELoss, total_variation
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps, misc
 
@@ -104,6 +103,7 @@ class MSIModel(Model):
         self.ssim = structural_similarity_index_measure
         self.lpips = LearnedPerceptualImagePatchSimilarity()
         self.tv_loss = total_variation
+        self.rgb_loss = MSELoss()
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -188,10 +188,11 @@ class MSIModel(Model):
         device = outputs["rgb_coarse"].device
         image = batch["image"].to(device)
 
-        rgb_loss_coarse = self.rgb_loss(image, outputs["rgb_coarse"])
-        rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
+        rgb_loss = self.rgb_loss(image, outputs["rgb"])
+        tv_loss = self.tv_loss(torch.sigmoid(self.rgb)) + self.tv_loss(torch.sigmoid(self.alpha))
 
-        loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        loss_dict = {"rgb_loss": rgb_loss, "tv_loss": tv_loss}
+
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
@@ -199,43 +200,22 @@ class MSIModel(Model):
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
         image = batch["image"].to(outputs["rgb_coarse"].device)
-        rgb_coarse = outputs["rgb_coarse"]
-        rgb_fine = outputs["rgb_fine"]
-        acc_coarse = colormaps.apply_colormap(outputs["accumulation_coarse"])
-        acc_fine = colormaps.apply_colormap(outputs["accumulation_fine"])
-        depth_coarse = colormaps.apply_depth_colormap(
-            outputs["depth_coarse"],
-            accumulation=outputs["accumulation_coarse"],
-            near_plane=self.config.collider_params["near_plane"],
-            far_plane=self.config.collider_params["far_plane"],
-        )
-        depth_fine = colormaps.apply_depth_colormap(
-            outputs["depth_fine"],
-            accumulation=outputs["accumulation_fine"],
-            near_plane=self.config.collider_params["near_plane"],
-            far_plane=self.config.collider_params["far_plane"],
-        )
+        rgb = outputs["rgb"]
 
-        combined_rgb = torch.cat([image, rgb_coarse, rgb_fine], dim=1)
-        combined_acc = torch.cat([acc_coarse, acc_fine], dim=1)
-        combined_depth = torch.cat([depth_coarse, depth_fine], dim=1)
+        combined_rgb = torch.cat([image, rgb], dim=1)
 
         # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
         image = torch.moveaxis(image, -1, 0)[None, ...]
-        rgb_coarse = torch.moveaxis(rgb_coarse, -1, 0)[None, ...]
-        rgb_fine = torch.moveaxis(rgb_fine, -1, 0)[None, ...]
+        rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
 
-        coarse_psnr = self.psnr(image, rgb_coarse)
-        fine_psnr = self.psnr(image, rgb_fine)
-        fine_ssim = self.ssim(image, rgb_fine)
-        fine_lpips = self.lpips(image, rgb_fine)
+        psnr = self.psnr(image, rgb)
+        ssim = self.ssim(image, rgb)
+        lpips = self.lpips(image, rgb)
 
         metrics_dict = {
-            "psnr": float(fine_psnr.item()),
-            "coarse_psnr": float(coarse_psnr),
-            "fine_psnr": float(fine_psnr),
-            "fine_ssim": float(fine_ssim),
-            "fine_lpips": float(fine_lpips),
+            "psnr": float(psnr.item()),
+            "ssim": float(ssim),  # type: ignore
+            "lpips": float(lpips),
         }
-        images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+        images_dict = {"img": combined_rgb}
         return metrics_dict, images_dict
