@@ -61,7 +61,9 @@ class MSIModelConfig(ModelConfig):
 
 
 class MSIModel(Model):
-    """Vanilla NeRF model
+    """MSI model
+
+    CUDA_VISIBLE_DEVICES=1 python3 scripts/train.py nerfacto-msi --data /home/akristoffersen/data/bww/ --vis viewer --viewer.websocket-port=7008
 
     Args:
         config: Basic NeRF configuration to instantiate model
@@ -75,8 +77,7 @@ class MSIModel(Model):
         **kwargs,
     ) -> None:
         super().__init__(config=config, **kwargs)
-        print("hi")
-        self.pose = kwargs["pose"]
+        self.pose = kwargs["pose"].cuda()
         self.dmin = kwargs["dmin"]
         self.dmax = kwargs["dmax"]
 
@@ -91,18 +92,15 @@ class MSIModel(Model):
 
         self.n_total_layers = self.nlayers * self.nsublayers
         self.planes = 1.0 / torch.linspace(1.0 / self.dmin, 1.0 / self.dmax, self.n_total_layers)
+        self.planes = self.planes.cuda()
         self.sigmoid_offset = self.config.sigmoid_offset
 
         H = self.config.h
         W = self.config.w
 
-        self.alpha = Parameter(
-            torch.zeros(self.n_total_layers, 1, H, W).uniform_(-1, 1),
-        )
+        self.alpha = torch.zeros(self.n_total_layers, 1, H, W).uniform_(-1, 1).cuda()
 
-        self.rgb = Parameter(
-            torch.zeros(self.nlayers, 3, H, W).uniform_(-1, 1),
-        )
+        self.rgb = torch.zeros(self.nlayers, 3, H, W).uniform_(-1, 1).cuda()
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -120,7 +118,7 @@ class MSIModel(Model):
 
     @classmethod
     def intersect_rays_with_spheres(
-        cls, rays: RayBundle, center=torch.zeros(3)[None], radii=torch.Tensor([1.0])
+        cls, rays: RayBundle, center=torch.zeros(3), radii=torch.Tensor([1.0])
     ) -> Tuple[TensorType["num_rays", "num_layers", 3], TensorType["num_rays", "num_layers"]]:
         """Intersect provided rays with multiple spheres
 
@@ -131,6 +129,10 @@ class MSIModel(Model):
         R = radii.shape[-1]
         N = rays.shape[0]
         O, D = rays.origins, rays.directions
+
+        O = O.unsqueeze(1).tile(1, R, 1)
+        D = D.unsqueeze(1).tile(1, R, 1)
+
         # compute quadratic form coefficients
         ray = O - center
         a = (D**2.0).sum(dim=-1).view(N, R)
@@ -155,7 +157,7 @@ class MSIModel(Model):
         ray_bundle_shape = ray_bundle.shape
         ray_bundle = ray_bundle.flatten()
         # ray-sphere intersection
-        center_src = self.pose[:, :3]
+        center_src = self.pose[:3, 3]
 
         intersections, _ = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
 
@@ -181,6 +183,7 @@ class MSIModel(Model):
         rgbs = F.grid_sample(self.rgb, uvs[:: self.nsublayers], align_corners=True)  # (L // sublayers, 3, 1, N)
         rgbs = rgbs.permute(0, 3, 1, 2)  # (L // sublayers, 3, N, 1)
         rgbs = rgbs.repeat_interleave(self.nsublayers, dim=0)
+        rgbs = rgbs.permute(0, 2, 1, 3)
 
         weight = misc.cumprod(1 - alphas_sig, exclusive=True) * alphas_sig
         output_vals = torch.sum(weight * rgbs, dim=0, keepdim=True)  # [1, 3, N, 1]
@@ -191,7 +194,7 @@ class MSIModel(Model):
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
         # Scaling metrics by coefficients to create the losses.
-        device = outputs["rgb_coarse"].device
+        device = outputs["rgb"].device
         image = batch["image"].to(device)
 
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
