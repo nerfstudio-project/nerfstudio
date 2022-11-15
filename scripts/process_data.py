@@ -6,6 +6,7 @@ import json
 import shutil
 import subprocess
 import sys
+import zipfile
 from contextlib import nullcontext
 from dataclasses import dataclass
 from enum import Enum
@@ -1059,7 +1060,7 @@ class ProcessPolycam:
     """
 
     data: Path
-    """Path the polycam export data folder."""
+    """Path the polycam export data folder. Can be .zip file or folder."""
     output_dir: Path
     """Path to the output directory."""
     num_downscales: int = 3
@@ -1087,15 +1088,27 @@ class ProcessPolycam:
 
         summary_log = []
 
+        if self.data.suffix == ".zip":
+            with zipfile.ZipFile(self.data, "r") as zip_ref:
+                zip_ref.extractall(self.output_dir)
+                extracted_folder = zip_ref.namelist()[0].split("/")[0]
+            self.data = self.output_dir / extracted_folder
+            print(self.data)
+
         if self.use_uncorrected_images:
             polycam_image_dir = self.data / "keyframes" / "images"
             polycam_cameras_dir = self.data / "keyframes" / "cameras"
-        else:
+        elif (self.data / "keyframes" / "corrected_images").exists():
             polycam_image_dir = self.data / "keyframes" / "corrected_images"
             polycam_cameras_dir = self.data / "keyframes" / "corrected_cameras"
+        else:
+            polycam_image_dir = self.data / "keyframes" / "images"
+            polycam_cameras_dir = self.data / "keyframes" / "cameras"
+            self.crop_border_pixels = 0
+            CONSOLE.log("[bold yellow]Corrected images not found, using raw images. No border cropping will be done.")
 
         if not polycam_image_dir.exists():
-            raise ValueError(f"Image directory {image_dir} doesn't exist")
+            raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
 
         # Copy images to output directory
 
