@@ -416,7 +416,6 @@ class TensorVMEncoding(Encoding):
         self.resolution = resolution
         self.num_components = num_components
 
-        # TODO(terrance): Learning rates should be different for these
         self.plane_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, resolution)))
         self.line_coef = nn.Parameter(init_scale * torch.randn((3, num_components, resolution, 1)))
 
@@ -424,7 +423,6 @@ class TensorVMEncoding(Encoding):
         return self.num_components * 3
 
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
-        in_tensor = in_tensor / 4.0 + 0.5
         plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]])  # [3,...,2]
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
         line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
@@ -452,6 +450,7 @@ class TensorVMEncoding(Encoding):
             self.plane_coef.data, size=(resolution, resolution), mode="bilinear", align_corners=True
         )
         line_coef = F.interpolate(self.line_coef.data, size=(resolution, 1), mode="bilinear", align_corners=True)
+
         # TODO(ethan): are these torch.nn.Parameters needed?
         self.plane_coef, self.line_coef = torch.nn.Parameter(plane_coef), torch.nn.Parameter(line_coef)
         self.resolution = resolution

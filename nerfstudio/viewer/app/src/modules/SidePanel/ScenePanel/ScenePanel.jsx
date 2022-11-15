@@ -17,7 +17,7 @@ import {
   VisibilityOff,
 } from '@mui/icons-material/';
 import SceneNode from '../../../SceneNode';
-import LevaTheme from '../../ConfigPanel/leva_theme.json';
+import LevaTheme from '../../../themes/leva_theme.json';
 
 export const snap_to_camera = (sceneTree, camera, matrix) => {
   const mat = new THREE.Matrix4();
@@ -161,6 +161,7 @@ function MenuItems(props: ListItemProps) {
               .map((key) => (
                 <MenuItems
                   name={key}
+                  key={key}
                   sceneTree={sceneTree}
                   scene_node={scene_node.children[key]}
                   level={level + 1}
