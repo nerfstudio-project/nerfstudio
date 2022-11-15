@@ -46,8 +46,8 @@ class MSIModelConfig(ModelConfig):
     w: int = 1920
     nlayers: int = 16
     nsublayers: int = 2
-    dmin: float = 0.5
-    dmax: float = 200.0
+    dmin: float = 1.0
+    dmax: float = 20.0
     pose_src: torch.Tensor = torch.eye(4)
     sigmoid_offset: float = 5.0
 
@@ -57,7 +57,7 @@ class MSIModelConfig(ModelConfig):
     """final render resolution"""
     upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
     """specifies a list of iteration step numbers to perform upsampling"""
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "gradloss": 0.05, "coeff_tv": 0.01})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "tv_loss": 0.01})
 
 
 class MSIModel(Model):
@@ -75,18 +75,24 @@ class MSIModel(Model):
         **kwargs,
     ) -> None:
         super().__init__(config=config, **kwargs)
+        print("hi")
         self.pose = kwargs["pose"]
         self.dmin = kwargs["dmin"]
         self.dmax = kwargs["dmax"]
-        self.nlayers = self.config.nlayers
-        self.nsublayers = self.config.nsublayers
-        self.n_total_layers = self.nlayers * self.nsublayers
-        self.planes = 1.0 / torch.linspace(1.0 / self.dmin, 1.0 / self.dmax, self.n_total_layers)
-        self.sigmoid_offset = self.config.sigmoid_offset
 
     def populate_modules(self):
         """Set the fields and modules"""
         super().populate_modules()
+
+        self.nlayers = self.config.nlayers
+        self.nsublayers = self.config.nsublayers
+        self.dmin = self.config.dmin
+        self.dmax = self.config.dmax
+
+        self.n_total_layers = self.nlayers * self.nsublayers
+        self.planes = 1.0 / torch.linspace(1.0 / self.dmin, 1.0 / self.dmax, self.n_total_layers)
+        self.sigmoid_offset = self.config.sigmoid_offset
+
         H = self.config.h
         W = self.config.w
 

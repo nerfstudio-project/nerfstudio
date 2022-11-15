@@ -218,12 +218,6 @@ class VanillaPipeline(Pipeline):
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
 
-        self._model = config.model.setup(
-            scene_box=self.datamanager.train_dataset.dataparser_outputs.scene_box,
-            num_train_data=len(self.datamanager.train_dataset),
-            metadata=self.datamanager.train_dataset.dataparser_outputs.metadata,
-        )
-
         if isinstance(config.model, MSIModelConfig):
             self._model = config.model.setup(
                 scene_box=self.datamanager.train_dataset.dataparser_outputs.scene_box,
