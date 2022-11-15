@@ -75,11 +75,7 @@ method_configs["nerfacto-msi"] = Config(
         model=MSIModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
-        "alpha_planes": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-            "scheduler": None,
-        },
-        "rgb_planes": {
+        "planes": {
             "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
             "scheduler": None,
         },

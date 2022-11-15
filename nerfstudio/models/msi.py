@@ -81,6 +81,9 @@ class MSIModel(Model):
         self.dmin = kwargs["dmin"]
         self.dmax = kwargs["dmax"]
 
+        # H = self.config.h
+        # W = self.config.w
+
     def populate_modules(self):
         """Set the fields and modules"""
         super().populate_modules()
@@ -98,9 +101,8 @@ class MSIModel(Model):
         H = self.config.h
         W = self.config.w
 
-        self.alpha = torch.zeros(self.n_total_layers, 1, H, W).uniform_(-1, 1).cuda()
-
-        self.rgb = torch.zeros(self.nlayers, 3, H, W).uniform_(-1, 1).cuda()
+        self.alpha = Parameter(torch.zeros(self.n_total_layers, 1, H, W).uniform_(-1, 1).cuda(), requires_grad=True)
+        self.rgb = Parameter(torch.zeros(self.nlayers, 3, H, W).uniform_(-1, 1).cuda(), requires_grad=True)
 
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
@@ -111,8 +113,7 @@ class MSIModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
-        param_groups["alpha_planes"] = list(self.alpha)
-        param_groups["rgb_planes"] = list(self.rgb)
+        param_groups["planes"] = list(self.parameters())
 
         return param_groups
 
