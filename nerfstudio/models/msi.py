@@ -27,6 +27,7 @@ from torch.nn import Parameter
 from torchmetrics import PeakSignalNoiseRatio
 from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.config_utils import to_immutable_dict
@@ -111,43 +112,74 @@ class MSIModel(Model):
 
         return param_groups
 
+    @classmethod
+    def intersect_rays_with_spheres(
+        cls, rays: RayBundle, center=torch.zeros(3)[None], radii=torch.Tensor([1.0])
+    ) -> Tuple[TensorType["num_rays", "num_layers", 3], TensorType["num_rays", "num_layers"]]:
+        """Intersect provided rays with multiple spheres
+
+        :param rays: RayBundle
+        :param center: (1, 3)
+        :param radii: (L,)
+        """
+        R = radii.shape[-1]
+        N = rays.shape[0]
+        O, D = rays.origins, rays.directions
+        # compute quadratic form coefficients
+        ray = O - center
+        a = (D**2.0).sum(dim=-1).view(N, R)
+        b = 2 * (D * ray).sum(dim=-1).view(N, R)
+        c = (ray**2.0).sum(dim=-1).view(N, R) - radii[None] ** 2.0
+
+        # solve for ray intersection with sphere
+        discriminant = b**2.0 - 4 * a * c  # (N, R)
+        t0 = (-b + discriminant.sqrt()) / (2.0 * a)  # (N, R)
+        t1 = (-b - discriminant.sqrt()) / (2.0 * a)  # (N, R)
+
+        # ignore rays that miss (both neg) or intersect from outside (both pos)
+        mask = t0 * t1 < 0  # (N, R) - if sign differs, then ray intersects from the inside
+        intersection = O + D * t0[:, :, None]  # (N, R, 3)
+        return intersection, mask  # (N, R, 3)
+
     def get_outputs(self, ray_bundle: RayBundle):
         # https://diegoinacio.github.io/computer-vision-notebooks-page/pages/ray-intersection_sphere.html
 
         outputs = {}
 
+        ray_bundle_shape = ray_bundle.shape
+        ray_bundle = ray_bundle.flatten()
         # ray-sphere intersection
         center_src = self.pose[:, :3]
-        origin_to_center = center_src - ray_bundle.origins
-        t = torch.sum(origin_to_center * ray_bundle.directions, axis=-1)  # type: ignore
-        Pe = ray_bundle.origins + ray_bundle.directions * t
-        d = torch.linalg.norm(Pe - center_src, axis=-1)
 
-        uvs = torch.zeros(
-            (self.n_total_layers, *(ray_bundle.shape[:-1]), 2)
-        )  # [L, (ray bundle batch), 2], [-1, 1] range
-        for i, radius in enumerate(self.planes):
-            intersections = torch.sqrt(-1 * d**2 - radius**2)
+        intersections, _ = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
 
-            xyzs = ray_bundle.origins + ray_bundle.directions * (t + intersections)
-            xyzs = (xyzs - center_src) / radius
-            lats = torch.asin(torch.clamp(xyzs[..., 1], -1.0, 1.0))
-            lons = torch.atan2(xyzs[..., 0], xyzs[..., 2])
+        # make them in MSI space
+        xyzs = intersections - center_src  # (N, R, 3)
+        # normalize by radius
+        xyzs_normalized = xyzs / self.planes.reshape(1, -1, 1)  # (N, R, 3)
+        lats = torch.asin(torch.clamp(xyzs_normalized[..., 1], -1.0, 1.0))  # (N, R)
+        lons = torch.atan2(xyzs_normalized[..., 0], xyzs_normalized[..., 2])  # (N, R)
 
-            uv = torch.stack(
-                [
-                    lons / torch.pi,
-                    2.0 * lats / torch.pi,
-                ]
-            )
-            uvs[i] = uv
+        uvs = torch.stack(
+            [
+                lons / torch.pi,
+                2.0 * lats / torch.pi,
+            ],
+            dim=2,
+        )  # (N, R, 2)
+        uvs = uvs.reshape(self.n_total_layers, 1, uvs.shape[0], 2)  # (R, 1, N, 2)
+        alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
+        alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
+        alphas_sig = alphas_sig.permute(0, 1, 3, 2)  # (R, 1, N, 1)
 
-        # then do the sampling
-        sample_uvs = uvs.reshape(self.n_total_layers, 1, -1, 2)  # (L, 1, <nrays>, 2)
-        alphas = F.grid_sample(self.alpha, sample_uvs)  # (L, 1, <nrays>, 2)
-        alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)
+        rgbs = F.grid_sample(self.rgb, uvs[:: self.nsublayers], align_corners=True)  # (L // sublayers, 3, 1, N)
+        rgbs = rgbs.permute(0, 3, 1, 2)  # (L // sublayers, 3, N, 1)
+        rgbs = rgbs.repeat_interleave(self.nsublayers, dim=0)
 
-        rgbs = F.grid_sample(self.rgb, sample_uvs[:: self.nsublayers])  # (L // sublayers, 1, <nrays>, 2)
+        weight = misc.cumprod(1 - alphas_sig, exclusive=True) * alphas_sig
+        output_vals = torch.sum(weight * rgbs, dim=0, keepdim=True)  # [1, 3, N, 1]
+
+        outputs["rgb"] = output_vals.reshape(*ray_bundle_shape, 3)
 
         return outputs
 

@@ -147,3 +147,18 @@ def update_avg(prev_avg: float, new_val: float, step: int) -> float:
         float: new updated average
     """
     return (step * prev_avg + new_val) / (step + 1)
+
+
+def cumprod(x, dim=0, exclusive=True, **kwargs):
+    """
+    >>> x = torch.Tensor([2, 3, 4])
+    >>> cumprod(x, exclusive=False)
+    tensor([ 2.,  6., 24.])
+    >>> cumprod(x)
+    tensor([1., 2., 6.])
+    """
+    y = torch.cumprod(x, dim, **kwargs)
+    if exclusive:
+        assert dim == 0
+        y = torch.cat([torch.ones_like(y[:1]), y[:-1]], dim=0)
+    return y
