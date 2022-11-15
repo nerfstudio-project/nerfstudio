@@ -25,6 +25,8 @@ from rich.progress import (
 from torchtyping import TensorType
 from typing_extensions import Annotated
 
+import imageio
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.exporters import generate_point_cloud
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -338,10 +340,12 @@ class ExportTextureMesh(Exporter):
     Export a textured mesh with color computed from the NeRF.
     """
 
-    px_per_uv_square: int = 10
+    px_per_uv_square: int = 2
     """Number of pixels per UV square."""
     input_ply_filename: Path = Path("mesh.ply")
     """PLY mesh filename to texture."""
+    device: str = "cuda"
+    """Device to use for torch operations."""
 
     def main(self) -> None:
 
@@ -371,9 +375,11 @@ class ExportTextureMesh(Exporter):
             )
             / squares_per_side
         )
-        uv_coords_square = uv_coords_square + square_offsets.view(squares_per_side, squares_per_side, 1, 2) # (squares_per_side, squares_per_side, 6, 2)
-        
-        texture_coordinates = uv_coords_square.view(-1, 3, 2)[:len(faces)] # (num_faces, 3, 2)
+        uv_coords_square = uv_coords_square + square_offsets.view(
+            squares_per_side, squares_per_side, 1, 2
+        )  # (squares_per_side, squares_per_side, 6, 2)
+
+        texture_coordinates = uv_coords_square.view(-1, 3, 2)[: len(faces)]  # (num_faces, 3, 2)
 
         uv_indices = torch.stack(
             torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
@@ -390,17 +396,35 @@ class ExportTextureMesh(Exporter):
 
         triangle_index = torch.clamp(triangle_index, min=0, max=len(faces) - 1)
 
+        nearby_uv_coords = texture_coordinates[triangle_index]
         nearby_vertices = vertices[faces[triangle_index]]
         nearby_normals = vertex_normals[faces[triangle_index]]
-        nearby_uv_coords = texture_coordinates[faces[triangle_index]]
 
-        print("uv_coords", uv_coords.shape)
-        print("nearby_vertices", nearby_vertices.shape)
-        print("nearby_normals", nearby_normals.shape)
-        print("nearby_uv_coords", nearby_uv_coords.shape)
+        print("uv_coords", uv_coords.shape)  # (num_pixels, num_pixels, 2)
+        print("nearby_uv_coords", nearby_uv_coords.shape)  # (num_pixels, num_pixels, 3, 2)
+        print("nearby_vertices", nearby_vertices.shape)  # (num_pixels, num_pixels, 3, 3)
+        print("nearby_normals", nearby_normals.shape)  # (num_pixels, num_pixels, 3, 3)
+
+        # TODO: compute barycentric coordinates
 
         # load the NeRF and create the texture
-        # _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(self.load_config)
+
+        # color the texture image
+        origins = nearby_vertices[..., 0, :].to(self.device)
+        directions = nearby_normals[..., 0, :].to(self.device)
+        pixel_area = torch.ones_like(origins[..., 0:1])
+        camera_indices = torch.zeros_like(origins[..., 0:1])
+        camera_ray_bundle = RayBundle(
+            origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+        )
+
+        with torch.no_grad():
+            outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+        # save the texture image
+        texture_image = outputs["rgb"].cpu().numpy()
+        imageio.imsave(str(self.output_dir / "texture.png"), texture_image)
 
 
 @dataclass
