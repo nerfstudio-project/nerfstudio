@@ -342,7 +342,7 @@ class ExportTextureMesh(Exporter):
     Export a textured mesh with color computed from the NeRF.
     """
 
-    px_per_uv_square: int = 4
+    px_per_uv_square: int = 5
     """Number of pixels per UV square."""
     input_ply_filename: Path = Path("mesh.ply")
     """PLY mesh filename to texture."""
@@ -386,7 +386,6 @@ class ExportTextureMesh(Exporter):
         print("texture coordinates min", texture_coordinates.min())
         print("texture coordinates max", texture_coordinates.max())
 
-
         uv_indices = torch.stack(
             torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
         )
@@ -411,15 +410,46 @@ class ExportTextureMesh(Exporter):
         print("nearby_vertices", nearby_vertices.shape)  # (num_pixels, num_pixels, 3, 3)
         print("nearby_normals", nearby_normals.shape)  # (num_pixels, num_pixels, 3, 3)
 
-        # TODO: compute barycentric coordinates
+        # compute barycentric coordinates
+        # TODO: check correctness
+        a = nearby_uv_coords[..., 0, :]  # (num_pixels, num_pixels, 2)
+        b = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
+        c = nearby_uv_coords[..., 2, :]  # (num_pixels, num_pixels, 2)
+        p = uv_coords  # (num_pixels, num_pixels, 2)
+        v0 = b - a
+        v1 = c - a
+        v2 = p - a
+        d00 = torch.sum(v0 * v0, dim=-1)
+        d01 = torch.sum(v0 * v1, dim=-1)
+        d11 = torch.sum(v1 * v1, dim=-1)
+        d20 = torch.sum(v2 * v0, dim=-1)
+        d21 = torch.sum(v2 * v1, dim=-1)
+        denom = d00 * d11 - d01 * d01
+        v = (d11 * d20 - d01 * d21) / (denom + 1e-20)
+        w = (d00 * d21 - d01 * d20) / (denom + 1e-20)
+        u = 1.0 - v - w
 
         # load the NeRF and create the texture
         _, pipeline, _ = eval_setup(self.load_config)
 
         # color the texture image
         offset = 0.2
-        origins = nearby_vertices[..., 0, :].to(self.device)
-        directions = -nearby_normals[..., 0, :].to(self.device)
+
+        # ori = nearby_vertices[..., 0, :].to(self.device)
+        # dir_ = -nearby_normals[..., 0, :].to(self.device)
+        ori = (
+            nearby_vertices[..., 0, :] * u[..., None]
+            + nearby_vertices[..., 1, :] * v[..., None]
+            + nearby_vertices[..., 2, :] * w[..., None]
+        ).to(self.device)
+        dir_ = - (
+            nearby_normals[..., 0, :] * u[..., None]
+            + nearby_normals[..., 1, :] * v[..., None]
+            + nearby_normals[..., 2, :] * w[..., None]
+        ).to(self.device)
+
+        origins = ori
+        directions = dir_
         origins = origins - offset * directions
         pixel_area = torch.ones_like(origins[..., 0:1])
         camera_indices = torch.zeros_like(origins[..., 0:1])
@@ -427,6 +457,7 @@ class ExportTextureMesh(Exporter):
             origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
         )
 
+        CONSOLE.print("Rendering texture...")
         with torch.no_grad():
             outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
@@ -442,7 +473,7 @@ class ExportTextureMesh(Exporter):
             "Kd 0.40000000 0.40000000 0.40000000",
             "Ks 0.40000000 0.40000000 0.40000000",
             "Ns 1.00000000",
-            "map_Kd material_0.png"
+            "map_Kd material_0.png",
         ]
         lines_mtl = [line + "\n" for line in lines_mtl]
         file_mtl = open(self.output_dir / "material_0.mtl", "w", encoding="utf-8")
@@ -450,11 +481,7 @@ class ExportTextureMesh(Exporter):
         file_mtl.close()
 
         # create the .obj file
-        lines_obj = [
-            "# Generated with nerfstudio",
-            "mtllib material_0.mtl",
-            "usemtl material_0"
-        ]
+        lines_obj = ["# Generated with nerfstudio", "mtllib material_0.mtl", "usemtl material_0"]
         lines_obj = [line + "\n" for line in lines_obj]
         file_obj = open(self.output_dir / "mesh.obj", "w", encoding="utf-8")
         file_obj.writelines(lines_obj)
@@ -492,11 +519,8 @@ class ExportTextureMesh(Exporter):
             vn3 = v3
             line = f"f {v1}/{vt1}/{vn1} {v2}/{vt2}/{vn2} {v3}/{vt3}/{vn3}\n"
             file_obj.write(line)
-        
+
         file_obj.close()
-
-
-
 
 
 @dataclass
