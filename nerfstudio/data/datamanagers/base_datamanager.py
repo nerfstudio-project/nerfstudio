@@ -264,6 +264,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
+    num_blur_samples: int = 1
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -365,12 +366,19 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.train_count += 1
         image_batch = next(self.iter_train_image_dataloader)
         batch = self.train_pixel_sampler.sample(image_batch)
-        ray_indices = batch["indices"]
-        ray_bundle = self.train_ray_generator(ray_indices)
+        ray_bundle = self.train_ray_generator(batch["indices"])
+        if self.config.num_blur_samples > 1:
+            # duplicate ray_bundle num_blur_samples times and stack
+            os = ray_bundle.origins.repeat(self.config.num_blur_samples, 1)
+            ds = ray_bundle.directions.repeat(self.config.num_blur_samples, 1)
+            ps = ray_bundle.pixel_area.repeat(self.config.num_blur_samples, 1)
+            cs = ray_bundle.camera_indices.repeat(self.config.num_blur_samples, 1)
+            ray_bundle = RayBundle(origins=os, directions=ds, pixel_area=ps, camera_indices=cs)
 
+        camera_ids = ray_bundle.camera_indices[:, 0]
         # Multiply in the camera optimization deltas to the rays
-        cam_deltas = to4x4(self.train_camera_optimizer(ray_indices[:, 0]))  # B x 3 x 4
-        blur_deltas = self.train_camera_optimizer.sample_blur_correction(ray_indices[:, 0])
+        cam_deltas = to4x4(self.train_camera_optimizer(camera_ids))  # B x 3 x 4
+        blur_deltas = self.train_camera_optimizer.sample_blur_correction(camera_ids)
         # TODO(Justin) is this allowed mathematically
         cam_deltas = torch.bmm(blur_deltas, cam_deltas)
         origins_homogeneous = torch.cat(

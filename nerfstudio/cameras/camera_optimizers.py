@@ -53,7 +53,7 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
     """ADAM parameters for camera optimization."""
 
-    scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000)
+    scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000, lr_final=1e-5)
     """Learning rate scheduler for camera optimizer.."""
 
     param_group: tyro.conf.Suppress[str] = "camera_opt"
@@ -77,6 +77,7 @@ class CameraOptimizer(nn.Module):
         self.config = config
         self.num_cameras = num_cameras
         self.device = device
+        self.i = 0
 
         # Initialize learnable parameters.
         if self.config.mode == "off":
@@ -134,10 +135,15 @@ class CameraOptimizer(nn.Module):
         """
         Samples the blur parameters and returns transformation matrices for the origins and directions
         """
+        self.i += 1
+        # blur_adjs = self.blur_adjustment[indices, :] * torch.rand((indices.shape[0], 1), device=self.device)
         blur_adjs = self.blur_adjustment[indices, :] * torch.normal(
             torch.zeros((indices.shape[0], 1), device=self.device),  # mean
             torch.ones((indices.shape[0], 1), device=self.device),  # std
         )
+        # if self.i % 500 == 0:
+        #     # print the directions
+        #     print(self.blur_adjustment)
         # print(
         #     "trans,rot norm",
         #     torch.mean(torch.linalg.norm(blur_adjs[:, :3], dim=0)),
