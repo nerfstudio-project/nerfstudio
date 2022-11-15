@@ -22,10 +22,12 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
+from nerfstudio.configs import base_config as cfg
+from tqdm import tqdm
 from torchtyping import TensorType
 from typing_extensions import Annotated
 
-import imageio
+import mediapy as media
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.model_components.exporters import generate_point_cloud
@@ -340,7 +342,7 @@ class ExportTextureMesh(Exporter):
     Export a textured mesh with color computed from the NeRF.
     """
 
-    px_per_uv_square: int = 2
+    px_per_uv_square: int = 4
     """Number of pixels per UV square."""
     input_ply_filename: Path = Path("mesh.ply")
     """PLY mesh filename to texture."""
@@ -357,14 +359,15 @@ class ExportTextureMesh(Exporter):
         vertices = torch.from_numpy(mesh.vertices)
         faces = torch.from_numpy(mesh.faces)
         vertex_normals = torch.from_numpy(np.copy(mesh.vertex_normals))
+        assert len(vertices) == len(vertex_normals), "Number of vertices and vertex normals must be equal"
 
         num_squares = len(faces) / 2
         squares_per_side = math.ceil(math.sqrt(num_squares))
         num_pixels = squares_per_side * self.px_per_uv_square
 
         # uv coords (upper left and lower right)
-        uv_coords_upper_left = (torch.tensor([[0, 0], [1, 0], [0, 1]]) * self.px_per_uv_square + 0.5) / num_pixels
-        uv_coords_lower_left = (torch.tensor([[1, 1], [0, 1], [0, 1]]) * self.px_per_uv_square + 0.5) / num_pixels
+        uv_coords_upper_left = (torch.tensor([[0, 0], [1, 0], [0, 1]]) * (self.px_per_uv_square - 1) + 0.5) / num_pixels
+        uv_coords_lower_left = (torch.tensor([[1, 1], [0, 1], [0, 1]]) * (self.px_per_uv_square - 1) + 0.5) / num_pixels
         uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_left], dim=0)  # (2, 3, 2)
         uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
 
@@ -378,8 +381,11 @@ class ExportTextureMesh(Exporter):
         uv_coords_square = uv_coords_square + square_offsets.view(
             squares_per_side, squares_per_side, 1, 2
         )  # (squares_per_side, squares_per_side, 6, 2)
-
         texture_coordinates = uv_coords_square.view(-1, 3, 2)[: len(faces)]  # (num_faces, 3, 2)
+
+        print("texture coordinates min", texture_coordinates.min())
+        print("texture coordinates max", texture_coordinates.max())
+
 
         uv_indices = torch.stack(
             torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
@@ -391,7 +397,7 @@ class ExportTextureMesh(Exporter):
         square_index = v_index * squares_per_side + u_index
         u_offset = uv_indices[..., 0] % self.px_per_uv_square
         v_offset = uv_indices[..., 1] % self.px_per_uv_square
-        lower_right = (u_offset + v_offset) > self.px_per_uv_square
+        lower_right = (u_offset + v_offset) >= self.px_per_uv_square
         triangle_index = square_index * 2 + lower_right
 
         triangle_index = torch.clamp(triangle_index, min=0, max=len(faces) - 1)
@@ -411,8 +417,10 @@ class ExportTextureMesh(Exporter):
         _, pipeline, _ = eval_setup(self.load_config)
 
         # color the texture image
+        offset = 0.2
         origins = nearby_vertices[..., 0, :].to(self.device)
-        directions = nearby_normals[..., 0, :].to(self.device)
+        directions = -nearby_normals[..., 0, :].to(self.device)
+        origins = origins - offset * directions
         pixel_area = torch.ones_like(origins[..., 0:1])
         camera_indices = torch.zeros_like(origins[..., 0:1])
         camera_ray_bundle = RayBundle(
@@ -424,7 +432,71 @@ class ExportTextureMesh(Exporter):
 
         # save the texture image
         texture_image = outputs["rgb"].cpu().numpy()
-        imageio.imsave(str(self.output_dir / "texture.png"), texture_image)
+        media.write_image(str(self.output_dir / "material_0.png"), texture_image)
+
+        # create the .mtl file
+        lines_mtl = [
+            "# Generated with nerfstudio",
+            "newmtl material_0",
+            "Ka 0.40000000 0.40000000 0.40000000",
+            "Kd 0.40000000 0.40000000 0.40000000",
+            "Ks 0.40000000 0.40000000 0.40000000",
+            "Ns 1.00000000",
+            "map_Kd material_0.png"
+        ]
+        lines_mtl = [line + "\n" for line in lines_mtl]
+        file_mtl = open(self.output_dir / "material_0.mtl", "w", encoding="utf-8")
+        file_mtl.writelines(lines_mtl)
+        file_mtl.close()
+
+        # create the .obj file
+        lines_obj = [
+            "# Generated with nerfstudio",
+            "mtllib material_0.mtl",
+            "usemtl material_0"
+        ]
+        lines_obj = [line + "\n" for line in lines_obj]
+        file_obj = open(self.output_dir / "mesh.obj", "w", encoding="utf-8")
+        file_obj.writelines(lines_obj)
+
+        # write the geometric vertices
+        for i in tqdm(range(len(vertices))):
+            vertex = vertices[i]
+            line = f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"
+            file_obj.write(line)
+
+        # write the texture coordinates
+        for i in tqdm(range(len(faces))):
+            for uv in texture_coordinates[i]:
+                # NOTE: not sure why this is necessary, but it is
+                line = f"vt {uv[0]} {-uv[1]}\n"
+                file_obj.write(line)
+
+        # write the vertex normals
+        for i in tqdm(range(len(vertex_normals))):
+            normal = vertex_normals[i]
+            line = f"vn {normal[0]} {normal[1]} {normal[2]}\n"
+            file_obj.write(line)
+
+        # write the faces
+        for i in tqdm(range(len(faces))):
+            face = faces[i]
+            v1 = face[0] + 1
+            v2 = face[1] + 1
+            v3 = face[2] + 1
+            vt1 = i * 3 + 1
+            vt2 = i * 3 + 2
+            vt3 = i * 3 + 3
+            vn1 = v1
+            vn2 = v2
+            vn3 = v3
+            line = f"f {v1}/{vt1}/{vn1} {v2}/{vt2}/{vn2} {v3}/{vt3}/{vn3}\n"
+            file_obj.write(line)
+        
+        file_obj.close()
+
+
+
 
 
 @dataclass
