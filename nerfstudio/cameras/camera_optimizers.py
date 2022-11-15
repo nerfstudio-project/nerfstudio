@@ -53,6 +53,14 @@ class CameraOptimizerConfig(cfg.InstantiateConfig):
     optimizer: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
     """ADAM parameters for camera optimization."""
 
+    blur_opt: AdamOptimizerConfig = AdamOptimizerConfig(lr=6e-4, eps=1e-15)
+    """Optimizer for blur params"""
+
+    blur_sched: SchedulerConfig = SchedulerConfig(max_steps=10000, lr_final=1e-3)
+    """scheduler for blur optimization"""
+
+    blur_group: tyro.conf.Suppress[str] = "blur_opt"
+
     scheduler: SchedulerConfig = SchedulerConfig(max_steps=10000, lr_final=1e-5)
     """Learning rate scheduler for camera optimizer.."""
 
@@ -85,6 +93,10 @@ class CameraOptimizer(nn.Module):
         elif self.config.mode in ("SO3xR3", "SE3"):
             self.pose_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
             self.blur_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
+            n = 5
+            b = 1500
+            ids = [torch.ones((b, 1), device=device, dtype=torch.float32) * delta for delta in torch.linspace(-1, 1, n)]
+            self.times = torch.concat(ids, dim=0).to(device)
         else:
             assert_never(self.config.mode)
 
@@ -136,11 +148,11 @@ class CameraOptimizer(nn.Module):
         Samples the blur parameters and returns transformation matrices for the origins and directions
         """
         self.i += 1
-        # blur_adjs = self.blur_adjustment[indices, :] * torch.rand((indices.shape[0], 1), device=self.device)
-        blur_adjs = self.blur_adjustment[indices, :] * torch.normal(
-            torch.zeros((indices.shape[0], 1), device=self.device),  # mean
-            torch.ones((indices.shape[0], 1), device=self.device),  # std
-        )
+        blur_adjs = self.blur_adjustment[indices, :] * self.times
+        # blur_adjs = self.blur_adjustment[indices, :] * torch.normal(
+        #     torch.zeros((indices.shape[0], 1), device=self.device),  # mean
+        #     torch.ones((indices.shape[0], 1), device=self.device),  # std
+        # )
         # if self.i % 500 == 0:
         #     # print the directions
         #     print(self.blur_adjustment)

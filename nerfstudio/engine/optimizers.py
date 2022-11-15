@@ -81,6 +81,10 @@ def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Pa
             "optimizer": config.pipeline.datamanager.camera_optimizer.optimizer,
             "scheduler": config.pipeline.datamanager.camera_optimizer.scheduler,
         }
+        optimizer_config[camera_optimizer_config.blur_group] = {
+            "optimizer": config.pipeline.datamanager.camera_optimizer.blur_opt,
+            "scheduler": config.pipeline.datamanager.camera_optimizer.blur_sched,
+        }
     return Optimizers(optimizer_config, param_groups)
 
 

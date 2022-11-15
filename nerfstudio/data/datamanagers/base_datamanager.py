@@ -436,7 +436,8 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         camera_opt_params = list(self.train_camera_optimizer.parameters())
         if self.config.camera_optimizer.mode != "off":
             assert len(camera_opt_params) > 0
-            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
+            param_groups[self.config.camera_optimizer.param_group] = [self.train_camera_optimizer.pose_adjustment]
+            param_groups[self.config.camera_optimizer.blur_group] = [self.train_camera_optimizer.blur_adjustment]
         else:
             assert len(camera_opt_params) == 0
 

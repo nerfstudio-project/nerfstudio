@@ -68,8 +68,10 @@ method_configs["nerfacto"] = Config(
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3",
-                optimizer=AdamOptimizerConfig(lr=1e-2, eps=1e-8, weight_decay=0),
-                scheduler=SchedulerConfig(max_steps=10000, lr_final=1e-3),
+                optimizer=AdamOptimizerConfig(lr=1e-3, eps=1e-8, weight_decay=1e-3),
+                scheduler=SchedulerConfig(max_steps=3000, lr_final=1e-7),
+                blur_opt=AdamOptimizerConfig(lr=1e-5, weight_decay=0),
+                blur_sched=SchedulerConfig(max_steps=20000, lr_final=1e-6),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
