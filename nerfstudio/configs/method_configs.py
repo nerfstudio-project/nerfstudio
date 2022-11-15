@@ -32,9 +32,11 @@ from nerfstudio.configs.base_config import (
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
+from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.base_model import VanillaModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -53,6 +55,7 @@ descriptions = {
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. (slow)",
     "tensorf": "tensorf",
+    "dnerf": "Dynamic-NeRF model. (slow)",
 }
 
 method_configs["nerfacto"] = Config(
@@ -159,7 +162,11 @@ method_configs["vanilla-nerf"] = Config(
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
             "scheduler": None,
-        }
+        },
+        "temporal_distortion": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
     },
 )
 
@@ -180,6 +187,28 @@ method_configs["tensorf"] = Config(
         "encodings": {
             "optimizer": AdamOptimizerConfig(lr=0.02),
             "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
+        },
+    },
+)
+
+method_configs["dnerf"] = Config(
+    method_name="dnerf",
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
+        model=VanillaModelConfig(
+            _target=NeRFModel,
+            enable_temporal_distortion=True,
+            temporal_distortion_params={"kind": TemporalDistortionKind.DNERF},
+        ),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
+        "temporal_distortion": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
         },
     },
 )
