@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Ray generator.
+Scene Colliders
 """
 
 from __future__ import annotations
