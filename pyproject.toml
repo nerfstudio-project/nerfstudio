@@ -46,7 +46,7 @@ dependencies = [
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
-    "trimesh==3.16.0",
+    "trimesh[easy]==3.16.0",
     "u-msgpack-python>=2.4.1",
     "wandb>=0.13.3"
 ]
