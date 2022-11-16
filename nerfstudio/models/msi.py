@@ -46,17 +46,11 @@ class MSIModelConfig(ModelConfig):
     w: int = 1920
     nlayers: int = 16
     nsublayers: int = 2
-    dmin: float = 1.0
+    dmin: float = 2.0
     dmax: float = 20.0
     pose_src: torch.Tensor = torch.eye(4)
     sigmoid_offset: float = 5.0
 
-    init_resolution: int = 128
-    """initial render resolution"""
-    final_resolution: int = 300
-    """final render resolution"""
-    upsampling_iters: Tuple[int, ...] = (2000, 3000, 4000, 5500, 7000)
-    """specifies a list of iteration step numbers to perform upsampling"""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "tv_loss": 0.01})
 
 
@@ -96,6 +90,7 @@ class MSIModel(Model):
         self.n_total_layers = self.nlayers * self.nsublayers
         self.planes = 1.0 / torch.linspace(1.0 / self.dmin, 1.0 / self.dmax, self.n_total_layers)
         self.planes = self.planes.cuda()
+        print("self.planes", self.planes)
         self.sigmoid_offset = self.config.sigmoid_offset
 
         H = self.config.h
@@ -133,6 +128,8 @@ class MSIModel(Model):
 
         O = O.unsqueeze(1).tile(1, R, 1)
         D = D.unsqueeze(1).tile(1, R, 1)
+
+        # print("O", O.min(), O.max())
 
         # compute quadratic form coefficients
         ray = O - center
@@ -180,15 +177,16 @@ class MSIModel(Model):
         alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
         alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
         alphas_sig = alphas_sig.permute(0, 1, 3, 2)  # (R, 1, N, 1)
-
+        # print("alphas_sig", alphas_sig.min(), alphas_sig.max())
         rgbs = F.grid_sample(self.rgb, uvs[:: self.nsublayers], align_corners=True)  # (L // sublayers, 3, 1, N)
+        rgbs = torch.sigmoid(rgbs)
         rgbs = rgbs.permute(0, 3, 1, 2)  # (L // sublayers, 3, N, 1)
         rgbs = rgbs.repeat_interleave(self.nsublayers, dim=0)
         rgbs = rgbs.permute(0, 2, 1, 3)
 
         weight = misc.cumprod(1 - alphas_sig, exclusive=True) * alphas_sig
         output_vals = torch.sum(weight * rgbs, dim=0, keepdim=True)  # [1, 3, N, 1]
-
+        # print("output_vals", output_vals.min(), output_vals.max())
         outputs["rgb"] = output_vals.reshape(*ray_bundle_shape, 3)
 
         return outputs
@@ -209,7 +207,7 @@ class MSIModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"].to(outputs["rgb_coarse"].device)
+        image = batch["image"].to(outputs["rgb"].device)
         rgb = outputs["rgb"]
 
         combined_rgb = torch.cat([image, rgb], dim=1)
@@ -219,13 +217,16 @@ class MSIModel(Model):
         rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
 
         psnr = self.psnr(image, rgb)
+        print("test 1")
         ssim = self.ssim(image, rgb)
-        lpips = self.lpips(image, rgb)
+        print("test 2")
+        # lpips = self.lpips(image, rgb)
+        # print("test 3")
 
         metrics_dict = {
             "psnr": float(psnr.item()),
             "ssim": float(ssim),  # type: ignore
-            "lpips": float(lpips),
+            # "lpips": float(lpips),
         }
         images_dict = {"img": combined_rgb}
         return metrics_dict, images_dict
