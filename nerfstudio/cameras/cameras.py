@@ -59,8 +59,7 @@ class Cameras(TensorDataclass):
     down the line in cases where your batches of camera data don't come from the same cameras.
 
     Args:
-        camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format,
-            optionally flattened
+        camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format
         fx: Focal length x. If a single value is provided, it is broadcasted to all cameras.
         fy: Focal length y. If a single value is provided, it is broadcasted to all cameras.
         cx: Principal point x. If a single value is provided, it is broadcasted to all cameras.
@@ -87,17 +86,16 @@ class Cameras(TensorDataclass):
     def __init__(
         self,
         camera_to_worlds: TensorType["batch_c2ws":..., 3, 4],
-        fx: Union[TensorType["batch_fxs":..., 1], TensorType["batch_fxs":...], float],
-        fy: Union[TensorType["batch_fys":..., 1], TensorType["batch_fys":...], float],
-        cx: Union[TensorType["batch_cxs":..., 1], TensorType["batch_cxs":...], float],
-        cy: Union[TensorType["batch_cys":..., 1], TensorType["batch_cys":...], float],
-        width: Optional[Union[TensorType["batch_ws":..., 1], TensorType["batch_ws":...], int]] = None,
-        height: Optional[Union[TensorType["batch_hs":..., 1], TensorType["batch_hs":...], int]] = None,
+        fx: Union[TensorType["batch_fxs":..., 1], float],
+        fy: Union[TensorType["batch_fys":..., 1], float],
+        cx: Union[TensorType["batch_cxs":..., 1], float],
+        cy: Union[TensorType["batch_cys":..., 1], float],
+        width: Optional[Union[TensorType["batch_ws":..., 1], int]] = None,
+        height: Optional[Union[TensorType["batch_hs":..., 1], int]] = None,
         distortion_params: Optional[TensorType["batch_dist_params":..., 6]] = None,
         camera_type: Optional[
             Union[
                 TensorType["batch_cam_types":..., 1],
-                TensorType["batch_cam_types":...],
                 int,
                 List[CameraType],
                 CameraType,

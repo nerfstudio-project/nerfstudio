@@ -209,7 +209,6 @@ class TensorDataclass:
         """
         if isinstance(shape, int):
             shape = (shape,)
-        # custom_dimensions_tensors_fn
         tensor_fn = lambda x: x.reshape((*shape, x.shape[-1]))
         dataclass_fn = lambda x: x.reshape(shape)
 

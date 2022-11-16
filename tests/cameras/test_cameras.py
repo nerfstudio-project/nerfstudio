@@ -22,33 +22,29 @@ CAMERA_TO_WORLDS = [
 ]
 FX_YS = [
     FX_Y,
-    torch.tensor(1).float() * FX_Y,
-    torch.ones(BATCH_SIZE) * FX_Y,
+    torch.tensor([1]).float() * FX_Y,
     torch.ones(BATCH_SIZE, 1) * FX_Y,
-    torch.ones((BATCH_SIZE, BATCH_SIZE)) * FX_Y,
+    torch.ones((BATCH_SIZE, BATCH_SIZE, 1)) * FX_Y,
 ]
 H_WS = [
     None,
     H_W,
-    torch.tensor(1) * H_W,
-    torch.ones(BATCH_SIZE).int() * H_W,
+    torch.tensor([1]) * H_W,
     torch.ones(BATCH_SIZE, 1).int() * H_W,
-    torch.ones((BATCH_SIZE, BATCH_SIZE)).int() * H_W,
+    torch.ones((BATCH_SIZE, BATCH_SIZE, 1)).int() * H_W,
 ]
 CX_YS = [
     CX_Y,
-    torch.tensor(1).float() * CX_Y,
-    torch.ones(BATCH_SIZE) * CX_Y,
+    torch.tensor([1]).float() * CX_Y,
     torch.ones(BATCH_SIZE, 1) * CX_Y,
-    torch.ones((BATCH_SIZE, BATCH_SIZE)) * CX_Y,
+    torch.ones((BATCH_SIZE, BATCH_SIZE, 1)) * CX_Y,
 ]
 DISTORTION_PARAMS = [None, torch.zeros(6), torch.zeros((BATCH_SIZE, 6)), torch.zeros((BATCH_SIZE, BATCH_SIZE, 6))]
 camera_types = [
     1,
-    torch.tensor(1),
-    torch.ones(BATCH_SIZE).int(),
+    torch.tensor([1]),
     torch.ones(BATCH_SIZE, 1).int(),
-    torch.ones((BATCH_SIZE, BATCH_SIZE)).int(),
+    torch.ones((BATCH_SIZE, BATCH_SIZE, 1)).int(),
 ]
 C = Cameras(
     CAMERA_TO_WORLDS[1],
