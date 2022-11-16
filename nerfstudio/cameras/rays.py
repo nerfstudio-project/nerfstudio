@@ -40,6 +40,8 @@ class Frustums(TensorDataclass):
     """Where the frustum ends along a ray."""
     pixel_area: TensorType["bs":..., 1]
     """Projected area of pixel a distance 1 away from origin."""
+    offsets: Optional[TensorType["bs":..., 3]] = None
+    """Offsets for each sample position"""
 
     def get_positions(self) -> TensorType[..., 3]:
         """Calulates "center" position of frustum. Not weighted by mass.
@@ -47,7 +49,14 @@ class Frustums(TensorDataclass):
         Returns:
             xyz positions.
         """
-        return self.origins + self.directions * (self.starts + self.ends) / 2
+        pos = self.origins + self.directions * (self.starts + self.ends) / 2
+        if self.offsets is not None:
+            pos = pos + self.offsets
+        return pos
+
+    def set_offsets(self, offsets):
+        """Sets offsets for this frustum for computing positions"""
+        self.offsets = offsets
 
     def get_gaussian_blob(self) -> Gaussians:
         """Calculates guassian approximation of conical frustum.
@@ -57,6 +66,8 @@ class Frustums(TensorDataclass):
         """
         # Cone radius is set such that the square pixel_area matches the cone area.
         cone_radius = torch.sqrt(self.pixel_area) / 1.7724538509055159  # r = sqrt(pixel_area / pi)
+        if self.offsets is not None:
+            raise NotImplementedError()
         return conical_frustum_to_gaussian(
             origins=self.origins,
             directions=self.directions,
@@ -99,6 +110,9 @@ class RaySamples(TensorDataclass):
     """Function to convert bins to euclidean distance."""
     metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
     """addtional information relevant to generating ray samples"""
+
+    times: Optional[TensorType[..., 1]] = None
+    """Times at which rays are sampled"""
 
     def get_weights(self, densities: TensorType[..., "num_samples", 1]) -> TensorType[..., "num_samples", 1]:
         """Return weights based on predicted densities
@@ -143,6 +157,8 @@ class RayBundle(TensorDataclass):
     """Rays Distance along ray to stop sampling"""
     metadata: Optional[Dict[str, TensorType["num_rays", "latent_dims"]]] = None
     """Additional metadata or data needed for interpolation, will mimic shape of rays"""
+    times: Optional[TensorType[..., 1]] = None
+    """Times at which rays are sampled"""
 
     def set_camera_indices(self, camera_index: int) -> None:
         """Sets all of the the camera indices to a specific camera index.
@@ -223,6 +239,7 @@ class RayBundle(TensorDataclass):
             spacing_ends=spacing_ends,  # [..., num_samples, 1]
             spacing_to_euclidean_fn=spacing_to_euclidean_fn,
             metadata=shaped_raybundle_fields.metadata,
+            times=None if self.times is None else self.times[..., None],  # [..., 1, 1]
         )
 
         return ray_samples

@@ -337,8 +337,14 @@ class Cameras:
         else:
             ray_bundle_camera_indices = camera_indices.view(pixel_area.shape)
 
+        times = self.times[camera_indices, None] if self.times is not None else None
+
         return RayBundle(
-            origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=ray_bundle_camera_indices
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area,
+            camera_indices=ray_bundle_camera_indices,
+            times=times,
         )
 
     def to_json(
@@ -362,7 +368,7 @@ class Cameras:
             "fy": self.fy[camera_idx].tolist(),
             "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
             "camera_index": camera_idx,
-            "times": self.times[camera_idx] if self.times is not None else None,
+            "times": self.times[camera_idx].item() if self.times is not None else None,
         }
         if image is not None:
             image_uint8 = (image * 255).detach().type(torch.uint8)

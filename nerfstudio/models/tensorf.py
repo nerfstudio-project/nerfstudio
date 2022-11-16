@@ -46,12 +46,12 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
-from nerfstudio.models.base_model import Model, VanillaModelConfig
+from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps, colors, misc
 
 
 @dataclass
-class TensoRFModelConfig(VanillaModelConfig):
+class TensoRFModelConfig(ModelConfig):
     """TensoRF model config"""
 
     _target: Type = field(default_factory=lambda: TensoRFModel)
