@@ -259,11 +259,7 @@ def convert_insta360_to_images(
 
 
 def copy_images_list(
-    image_paths: List[Path],
-    image_dir: Path,
-    crop_border_pixels: Optional[int] = None,
-    verbose: bool = False,
-    rename: bool = True,
+    image_paths: List[Path], image_dir: Path, crop_border_pixels: Optional[int] = None, verbose: bool = False
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
@@ -307,7 +303,7 @@ def copy_images_list(
     return copied_image_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool = True) -> int:
+def copy_images(data: Path, image_dir: Path, verbose: bool) -> int:
     """Copy images from a directory to a new directory.
 
     Args:
@@ -955,6 +951,7 @@ class ProcessImages:
                 CONSOLE.log(
                     "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
                 )
+
         elif self.sfm_method == "OpenSfM":
             assert self.opensfm_dir is not None, "Please provide the path to the OpenSfM directory <...>/bin/opensfm"
             # Run the OpenSfM solver
@@ -1065,6 +1062,7 @@ class ProcessVideo:
                 CONSOLE.log(
                     "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
                 )
+
         elif self.sfm_method == "OpenSfM":
             assert self.opensfm_dir is not None, "Please provide the path to the OpenSfM directory <...>/bin/opensfm"
             # Run the OpenSfM solver

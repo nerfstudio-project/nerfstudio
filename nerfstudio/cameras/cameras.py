@@ -250,7 +250,7 @@ class Cameras:
         image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
-    def generate_rays(
+    def generate_rays(  # pylint: disable=too-many-statements
         self,
         camera_indices: Union[TensorType["num_rays":...], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
