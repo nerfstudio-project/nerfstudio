@@ -90,7 +90,7 @@ class Nerfstudio(DataParser):
                 poses.append(np.array(frame["transform_matrix"]))
             if "mask_path" in frame:
                 mask_filepath = PurePath(frame["mask_path"])
-                mask_fname = self._get_fname(mask_filepath)
+                mask_fname = self._get_fname(mask_filepath, downsample_folder_prefix="masks_")
                 mask_filenames.append(mask_fname)
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
@@ -186,8 +186,10 @@ class Nerfstudio(DataParser):
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath: PurePath) -> Path:
-        """Get the filename of the image file."""
+    def _get_fname(self, filepath: PurePath, downsample_folder_prefix="images_") -> Path:
+        """Get the filename of the image file.
+        downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
+        """
 
         if self.downscale_factor is None:
             if self.config.downscale_factor is None:
@@ -198,7 +200,7 @@ class Nerfstudio(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (self.config.data / f"images_{2**(df+1)}" / filepath.name).exists():
+                    if not (self.config.data / downsample_folder_prefix + f"{2**(df+1)}" / filepath.name).exists():
                         break
                     df += 1
 
@@ -208,5 +210,5 @@ class Nerfstudio(DataParser):
                 self.downscale_factor = self.config.downscale_factor
 
         if self.downscale_factor > 1:
-            return self.config.data / f"images_{self.downscale_factor}" / filepath.name
+            return self.config.data / downsample_folder_prefix + f"{self.downscale_factor}" / filepath.name
         return self.config.data / filepath
