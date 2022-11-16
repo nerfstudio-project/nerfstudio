@@ -44,12 +44,12 @@ class MSIModelConfig(ModelConfig):
     """target class to instantiate"""
     h: int = 960
     w: int = 1920
-    nlayers: int = 16
-    nsublayers: int = 2
+    nlayers: int = 1
+    nsublayers: int = 1
     dmin: float = 2.0
     dmax: float = 20.0
     pose_src: torch.Tensor = torch.eye(4)
-    sigmoid_offset: float = 5.0  # 5.0
+    sigmoid_offset: float = -1.0  # 5.0
 
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "tv_loss": 0.05})
 
@@ -158,18 +158,25 @@ class MSIModel(Model):
         center_src = self.pose[:3, 3]
 
         intersections, _ = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
-        # print(torch.all(mask))
+
         # make them in MSI space
         xyzs = intersections - center_src  # (N, R, 3)
         # normalize by radius
         xyzs_normalized = xyzs / self.planes.reshape(1, -1, 1)  # (N, R, 3)
-        lats = torch.asin(torch.clamp(xyzs_normalized[..., 1], -1.0, 1.0))  # (N, R)
-        lons = torch.atan2(xyzs_normalized[..., 0], xyzs_normalized[..., 2])  # (N, R)
+        # lats = torch.asin(torch.clamp(xyzs_normalized[..., 1], -1.0, 1.0))  # (N, R)
+        # lons = torch.atan2(xyzs_normalized[..., 0], -xyzs_normalized[..., 2])  # (N, R)
 
+        # uvs = torch.stack(
+        #     [
+        #         (lons / torch.pi + 1) / 2,
+        #         lats / torch.pi + 0.5,
+        #     ],
+        #     dim=2,
+        # )  # (N, R, 2)
         uvs = torch.stack(
             [
-                lons / torch.pi,
-                2.0 * lats / torch.pi,
+                torch.atan2(xyzs_normalized[..., 0], xyzs_normalized[..., 2]) / (2 * torch.pi) + 0.5,
+                xyzs_normalized[..., 1] * 0.5 + 0.5,
             ],
             dim=2,
         )  # (N, R, 2)
