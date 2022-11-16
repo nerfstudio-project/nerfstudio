@@ -604,7 +604,7 @@ class Cameras(TensorDataclass):
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1], mask).float()
             directions_stack[..., 2][mask] = -1.0
 
-        elif CameraType.FISHEYE.value in cam_types:
+        if CameraType.FISHEYE.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.FISHEYE.value).squeeze(-1)  # (num_rays)
             mask = torch.stack([mask, mask, mask], dim=0)
 
@@ -617,8 +617,9 @@ class Cameras(TensorDataclass):
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
             directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
 
-        else:
-            raise ValueError(f"Camera type {CameraType(self.camera_type.view(-1)[0])} not supported.")
+        for value in cam_types:
+            if value not in [CameraType.PERSPECTIVE.value, CameraType.FISHEYE.value]:
+                raise ValueError(f"Camera type {value} not supported.")
 
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
