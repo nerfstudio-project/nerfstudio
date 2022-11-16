@@ -77,6 +77,7 @@ class Model(nn.Module):
         self.num_train_data = num_train_data
         self.kwargs = kwargs
         self.collider = None
+
         self.populate_modules()  # populate the modules
         self.callbacks = None
         # to keep track of which device the nn.Module is on
@@ -208,13 +209,3 @@ class Model(nn.Module):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
-
-
-@dataclass
-class VanillaModelConfig(ModelConfig):
-    """Vanilla Model Config"""
-
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation"""
-    num_importance_samples: int = 128
-    """Number of samples in fine field evaluation"""

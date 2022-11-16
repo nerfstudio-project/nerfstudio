@@ -146,5 +146,5 @@ reportMissingTypeStubs = false
 reportPrivateImportUsage = false
 reportUndefinedVariable = false
 
-pythonVersion = "3.8"
+pythonVersion = "3.7"
 pythonPlatform = "Linux"
