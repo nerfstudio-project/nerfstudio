@@ -49,9 +49,9 @@ class MSIModelConfig(ModelConfig):
     dmin: float = 2.0
     dmax: float = 20.0
     pose_src: torch.Tensor = torch.eye(4)
-    sigmoid_offset: float = 5.0
+    sigmoid_offset: float = 5.0  # 5.0
 
-    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "tv_loss": 0.01})
+    loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "tv_loss": 0.05})
 
 
 class MSIModel(Model):
@@ -158,7 +158,7 @@ class MSIModel(Model):
         center_src = self.pose[:3, 3]
 
         intersections, _ = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
-
+        # print(torch.all(mask))
         # make them in MSI space
         xyzs = intersections - center_src  # (N, R, 3)
         # normalize by radius
@@ -173,6 +173,7 @@ class MSIModel(Model):
             ],
             dim=2,
         )  # (N, R, 2)
+        # print("uvs", uvs[:, :, 0].min(), uvs[:, :, 0].max(), uvs[:, :, 1].min(), uvs[:, :, 1].max())
         uvs = uvs.reshape(self.n_total_layers, 1, uvs.shape[0], 2)  # (R, 1, N, 2)
         alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
         alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
@@ -180,13 +181,12 @@ class MSIModel(Model):
         # print("alphas_sig", alphas_sig.min(), alphas_sig.max())
         rgbs = F.grid_sample(self.rgb, uvs[:: self.nsublayers], align_corners=True)  # (L // sublayers, 3, 1, N)
         rgbs = torch.sigmoid(rgbs)
-        rgbs = rgbs.permute(0, 3, 1, 2)  # (L // sublayers, 3, N, 1)
+        rgbs = rgbs.permute(0, 1, 3, 2)  # (L // sublayers, 3, N, 1)
         rgbs = rgbs.repeat_interleave(self.nsublayers, dim=0)
-        rgbs = rgbs.permute(0, 2, 1, 3)
-
+        # print("rgbs", rgbs[:, :, 0, 0])
         weight = misc.cumprod(1 - alphas_sig, exclusive=True) * alphas_sig
+        # print(weight[:, 0, 0, 0])
         output_vals = torch.sum(weight * rgbs, dim=0, keepdim=True)  # [1, 3, N, 1]
-        # print("output_vals", output_vals.min(), output_vals.max())
         outputs["rgb"] = output_vals.reshape(*ray_bundle_shape, 3)
 
         return outputs
@@ -195,9 +195,14 @@ class MSIModel(Model):
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
         image = batch["image"].to(device)
-
+        # print("image", image.min(), image.max())
+        # print("image", image.shape)
+        # print('outputs["rgb"]', outputs["rgb"].shape)
+        # print("outputs", outputs["rgb"][:5])
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
         tv_loss = self.tv_loss(torch.sigmoid(self.rgb)) + self.tv_loss(torch.sigmoid(self.alpha))
+
+        # grad_loss = (torch.mean(torch.abs(ox - gx)) + torch.mean(torch.abs(oy - gy)))
 
         loss_dict = {"rgb_loss": rgb_loss, "tv_loss": tv_loss}
 

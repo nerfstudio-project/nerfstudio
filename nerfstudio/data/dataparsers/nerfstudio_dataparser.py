@@ -34,6 +34,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.utils.colors import get_color
 from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console(width=120)
@@ -62,6 +63,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
+    alpha_color: str = "black"
 
 
 @dataclass
@@ -171,6 +173,7 @@ class Nerfstudio(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            alpha_color=get_color(self.config.alpha_color),
         )
         return dataparser_outputs
 
