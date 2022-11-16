@@ -275,8 +275,8 @@ class Cameras:
             coords = self.get_image_coords().to(self.device)
 
         assert coords is not None
-        y = coords[..., 0]  # (..., 1)
-        x = coords[..., 1]  # (..., 1)
+        y = coords[..., 0]
+        x = coords[..., 1]
         fx, fy = self.fx[camera_indices], self.fy[camera_indices]
         cx, cy = self.cx[camera_indices], self.cy[camera_indices]
 

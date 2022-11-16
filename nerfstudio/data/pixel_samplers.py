@@ -110,93 +110,96 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         )
         return pixel_batch
 
-def collate_image_dataset_batch_equirectangular(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
-    """
-    Operates on a batch of images and samples pixels to use for generating rays.
-    Returns a collated batch which is input to the Graph.
-    It will sample only within the valid 'mask' if it's specified.
 
-    Args:
-        batch: batch of images to sample from
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
-    """
-    device = batch["image"].device
-    num_images, image_height, image_width, _ = batch["image"].shape
+# TODO(kevinddchen): Implement equirect pixel sampler
 
-    # only sample within the mask, if the mask is in the batch
-    # if "mask" in batch:
-    #     nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
-    #     chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
-    #     indices = nonzero_indices[chosen_indices]
-    # else:
-    #     indices = torch.floor(
-    #         torch.rand((num_rays_per_batch, 3), device=device)
-    #         * torch.tensor([num_images, image_height, image_width], device=device)
-    #     ).long()
+# def collate_image_dataset_batch_equirectangular(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
+#     """
+#     Operates on a batch of images and samples pixels to use for generating rays.
+#     Returns a collated batch which is input to the Graph.
+#     It will sample only within the valid 'mask' if it's specified.
 
-    number_of_images = torch.rand(num_rays_per_batch, device=device)
-    phi = torch.acos(1 - 2 * torch.rand(num_rays_per_batch, device=device)) / torch.pi
-    theta = torch.rand(num_rays_per_batch, device=device)
-    indices = torch.floor(
-            torch.stack((number_of_images, phi, theta), dim=-1)
-            * torch.tensor([num_images, image_height, image_width], device=device)
-        ).long()
+#     Args:
+#         batch: batch of images to sample from
+#         num_rays_per_batch: number of rays to sample per batch
+#         keep_full_image: whether or not to include a reference to the full image in returned batch
+#     """
+#     device = batch["image"].device
+#     num_images, image_height, image_width, _ = batch["image"].shape
 
-    c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-    image = batch["image"][c, y, x]
-    # mask, semantics = None, None
-    # if "mask" in batch:
-    #     mask = batch["mask"][c, y, x]
-    # if "semantics" in batch:
-    #     semantics = batch["semantics"][c, y, x]
-    # assert image.shape == (num_rays_per_batch, 3), image.shape
+#     # only sample within the mask, if the mask is in the batch
+#     # if "mask" in batch:
+#     #     nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
+#     #     chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
+#     #     indices = nonzero_indices[chosen_indices]
+#     # else:
+#     #     indices = torch.floor(
+#     #         torch.rand((num_rays_per_batch, 3), device=device)
+#     #         * torch.tensor([num_images, image_height, image_width], device=device)
+#     #     ).long()
 
-    # Needed to correct the random indices to their actual camera idx locations.
-    local_indices = indices.clone()
-    indices[:, 0] = batch["image_idx"][c]
-    collated_batch = {
-        "local_indices": local_indices,  # local to the batch returned
-        "indices": indices,  # with the abs camera indices
-        "image": image,
-    }
-    # if mask is not None:
-    #     collated_batch["mask"] = mask
-    # if semantics is not None:
-    #     collated_batch["semantics"] = semantics
+#     number_of_images = torch.rand(num_rays_per_batch, device=device)
+#     phi = torch.acos(1 - 2 * torch.rand(num_rays_per_batch, device=device)) / torch.pi
+#     theta = torch.rand(num_rays_per_batch, device=device)
+#     indices = torch.floor(
+#             torch.stack((number_of_images, phi, theta), dim=-1)
+#             * torch.tensor([num_images, image_height, image_width], device=device)
+#         ).long()
 
-    # if keep_full_image:
-    #     collated_batch["full_image"] = batch["image"]
+#     c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
+#     image = batch["image"][c, y, x]
+#     # mask, semantics = None, None
+#     # if "mask" in batch:
+#     #     mask = batch["mask"][c, y, x]
+#     # if "semantics" in batch:
+#     #     semantics = batch["semantics"][c, y, x]
+#     # assert image.shape == (num_rays_per_batch, 3), image.shape
 
-    return collated_batch
+#     # Needed to correct the random indices to their actual camera idx locations.
+#     local_indices = indices.clone()
+#     indices[:, 0] = batch["image_idx"][c]
+#     collated_batch = {
+#         "local_indices": local_indices,  # local to the batch returned
+#         "indices": indices,  # with the abs camera indices
+#         "image": image,
+#     }
+#     # if mask is not None:
+#     #     collated_batch["mask"] = mask
+#     # if semantics is not None:
+#     #     collated_batch["semantics"] = semantics
 
-class EquirectangularSampler:  # pylint: disable=too-few-public-methods
-    """Samples 'pixel_batch's from 'image_batch's.
+#     # if keep_full_image:
+#     #     collated_batch["full_image"] = batch["image"]
 
-    Args:
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
-    """
+#     return collated_batch
 
-    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False) -> None:
-        self.num_rays_per_batch = num_rays_per_batch
-        self.keep_full_image = keep_full_image
+# class EquirectangularSampler:  # pylint: disable=too-few-public-methods
+#     """Samples 'pixel_batch's from 'image_batch's.
 
-    def set_num_rays_per_batch(self, num_rays_per_batch: int):
-        """Set the number of rays to sample per batch.
+#     Args:
+#         num_rays_per_batch: number of rays to sample per batch
+#         keep_full_image: whether or not to include a reference to the full image in returned batch
+#     """
 
-        Args:
-            num_rays_per_batch: number of rays to sample per batch
-        """
-        self.num_rays_per_batch = num_rays_per_batch
+#     def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False) -> None:
+#         self.num_rays_per_batch = num_rays_per_batch
+#         self.keep_full_image = keep_full_image
 
-    def sample(self, image_batch: Dict):
-        """Sample an image batch and return a pixel batch.
+#     def set_num_rays_per_batch(self, num_rays_per_batch: int):
+#         """Set the number of rays to sample per batch.
 
-        Args:
-            image_batch: batch of images to sample from
-        """
-        pixel_batch = collate_image_dataset_batch_equirectangular(
-            image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
-        )
-        return pixel_batch
+#         Args:
+#             num_rays_per_batch: number of rays to sample per batch
+#         """
+#         self.num_rays_per_batch = num_rays_per_batch
+
+#     def sample(self, image_batch: Dict):
+#         """Sample an image batch and return a pixel batch.
+
+#         Args:
+#             image_batch: batch of images to sample from
+#         """
+#         pixel_batch = collate_image_dataset_batch_equirectangular(
+#             image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
+#         )
+#         return pixel_batch

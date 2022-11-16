@@ -260,7 +260,7 @@ def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool = True)
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
-        rename: If True, rename the images to be sequential.
+        rename: If True, rename the images sequentially to `frame_{num}`.
     Returns:
         The number of images copied.
     """
@@ -578,7 +578,7 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
         aa_vec = np.array(shot_info["rotation"])  # 3D axis angle repr
         angle = np.linalg.norm(aa_vec)
         if angle > 1e-8:
-            # normalilze the axis-angle repr if angle is large enough
+            # normalize the axis-angle repr if angle is large enough
             aa_vec /= angle
             qx = aa_vec[0] * np.sin(angle / 2)
             qy = aa_vec[1] * np.sin(angle / 2)
@@ -594,6 +594,9 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
         # Convert camera +z forwards (OpenSfM) convention to -z forwards (NeRF) convention
         # Equivalent to right-multiplication by diag([1, -1, -1, 1])
         c2w[0:3, 1:3] *= -1
+        # Rotation around global z-axis by -90 degrees
+        c2w = c2w[np.array([1, 0, 2, 3]), :]
+        c2w[2, :] *= -1
 
         name = Path(f"./images/{shot_name}")
 
