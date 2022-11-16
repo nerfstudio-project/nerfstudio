@@ -431,7 +431,7 @@ class VolumetricSampler(Sampler):
         near_plane: float = 0.0,
         far_plane: Optional[float] = None,
         cone_angle: float = 0.0,
-    ) -> Tuple[RaySamples, TensorType["total_samples", 3], TensorType["total_samples", 2]]:
+    ) -> Tuple[RaySamples, TensorType["total_samples", 2]]:
         """Generate ray samples in a bounding box.
 
         Args:
@@ -442,9 +442,8 @@ class VolumetricSampler(Sampler):
             cone_angle: Cone angle for raymarching, set to 0 for uniform marching.
 
         Returns:
-            a tuple of (ray_samples, packed_info, ray_indices)
+            a tuple of (ray_samples, ray_indices)
             The ray_samples are packed, only storing the valid samples.
-            The packed_info contains all the information to recover packed samples into unpacked mode for rendering.
             The ray_indices contains the indices of the rays that each sample belongs to.
         """
 
@@ -455,7 +454,7 @@ class VolumetricSampler(Sampler):
         else:
             camera_indices = None
 
-        packed_info, starts, ends = nerfacc.ray_marching(
+        ray_indices, starts, ends = nerfacc.ray_marching(
             rays_o=rays_o,
             rays_d=rays_d,
             scene_aabb=self.scene_aabb,
@@ -470,13 +469,12 @@ class VolumetricSampler(Sampler):
         )
         num_samples = starts.shape[0]
         if num_samples == 0:
-            # create a single fake sample and update packed_info accordingly
-            # this says the last ray in packed_info has 1 sample, which starts and ends at 1
-            packed_info[-1, 1] = 1
+            # create a single fake sample
+            ray_indices[0] = 1
             starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
             ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
 
-        ray_indices = nerfacc.unpack_info(packed_info)
+        ray_indices = ray_indices.to(torch.long)
         origins = rays_o[ray_indices]
         dirs = rays_d[ray_indices]
         if camera_indices is not None:
@@ -493,7 +491,7 @@ class VolumetricSampler(Sampler):
             ),
             camera_indices=camera_indices,
         )
-        return ray_samples, packed_info, ray_indices
+        return ray_samples, ray_indices
 
 
 class ProposalNetworkSampler(Sampler):
