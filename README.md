@@ -135,9 +135,9 @@ If you have custom data in the form of a video or folder of images, we've provid
 After installing both software, you can process your data via:
 
 ```bash
-ns-process-data {video,images,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
+ns-process-data {video,images,polycam,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 # Or if you're on a system without an attached display (i.e. colab):
-ns-process-data {video,images,insta360,record3d} --data {DATA_PATH}  --output-dir {PROCESSED_DATA_DIR} --no-gpu
+ns-process-data {video,images,poylcam,insta360,record3d} --data {DATA_PATH}  --output-dir {PROCESSED_DATA_DIR} --no-gpu
 ```
 
 ## 3. Training a model
@@ -228,7 +228,7 @@ We provide the following support structures to make life easier for getting star
   - And more!
 - :pencil2: Support for multiple logging interfaces (Tensorboard, Wandb), code profiling, and other built-in debugging tools
 - :chart_with_upwards_trend: Easy-to-use benchmarking scripts on the Blender dataset
-- :iphone: Full pipeline support (w/ Colmap or Record3D) for going from a video on your phone to a full 3D render.
+- :iphone: Full pipeline support (w/ Colmap, Polycam, or Record3D) for going from a video on your phone to a full 3D render.
 
 # Built On
 
