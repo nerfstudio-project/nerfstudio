@@ -32,7 +32,6 @@ from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 
 
@@ -210,18 +209,3 @@ class Model(nn.Module):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
-
-
-@dataclass
-class VanillaModelConfig(ModelConfig):
-    """Vanilla Model Config"""
-
-    num_coarse_samples: int = 64
-    """Number of samples in coarse field evaluation"""
-    num_importance_samples: int = 128
-    """Number of samples in fine field evaluation"""
-
-    enable_temporal_distortion: bool = False
-    """Specifies whether or not to include ray warping based on time."""
-    temporal_distortion_params: Dict[str, Any] = to_immutable_dict({"kind": TemporalDistortionKind.DNERF})
-    """Parameters to instantiate temporal distortion with"""
