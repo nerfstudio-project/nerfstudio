@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Phototourism dataset parser."""
+"""Phototourism dataset parser. Datasets and documentation here: http://phototour.cs.washington.edu/datasets/"""
 from __future__ import annotations
 
 import math
@@ -110,10 +110,6 @@ class Phototourism(DataParser):
             fys.append(torch.tensor(cam.params[1]))
             cxs.append(torch.tensor(cam.params[2]))
             cys.append(torch.tensor(cam.params[3]))
-
-            # assert (cam.width, cam.height) == Image.open(
-            #     "data/phototourism/trevi_fountain/dense/images/" + imgs[k].name
-            # ).size
 
             image_filenames.append(self.data / "dense/images" / img.name)
 
