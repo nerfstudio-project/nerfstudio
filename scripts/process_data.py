@@ -707,7 +707,7 @@ def polycam_to_json(
 
     if len(image_filenames) - skipped_frames == 0:
         CONSOLE.print("[bold red]No images remain after filtering, exiting")
-        exit(1)
+        sys.exit(1)
 
     return summary
 
@@ -1153,7 +1153,7 @@ class ProcessPolycam:
         # Save json
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
-            exit(1)
+            sys.exit(1)
         summary_log.extend(
             polycam_to_json(
                 image_filenames=polycam_image_filenames,
