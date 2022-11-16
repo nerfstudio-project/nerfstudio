@@ -23,6 +23,7 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from PIL import Image
+from rich.progress import Console, track
 from torch.utils.data import Dataset
 from torchtyping import TensorType
 
@@ -117,12 +118,37 @@ class GeneralizedDataset(InputDataset):
         dataparser_outputs: description of where and how to read input images.
     """
 
+    def __init__(self, dataparser_outputs: DataparserOutputs):
+        super().__init__(dataparser_outputs)
+
+        h = None
+        w = None
+        all_hw_same = True
+        for filename in track(
+            self.dataparser_outputs.image_filenames, transient=True, description="Checking image sizes"
+        ):
+            image = Image.open(filename)
+            if h is None:
+                h = image.height
+                w = image.width
+
+            if image.height != h or image.width != w:
+                all_hw_same = False
+                break
+
+        self.all_hw_same = all_hw_same
+
     def get_data(self, image_idx: int) -> Dict:
         """Returns the ImageDataset data as a dictionary.
 
         Args:
             image_idx: The image index in the dataset.
         """
+        # If all images are the same size, we can just return the image and mask tensors in a regular way
+        if self.all_hw_same:
+            return super().get_data(image_idx)
+
+        # Otherwise return them in a custom struct
         image = self.get_image(image_idx)
         data = {"image_idx": image_idx}
         data["image"] = BasicImages([image])
