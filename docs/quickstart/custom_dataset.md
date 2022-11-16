@@ -127,7 +127,9 @@ cd vcpkg
 
 ## Polycam Capture
 
-Nerfstudio can also be trained directly from captures from the [Polycam app](https://poly.cam//). This avoids the need to use COLMAP.
+Nerfstudio can also be trained directly from captures from the [Polycam app](https://poly.cam//). This avoids the need to use COLMAP. Polycam's poses are globally optimized which make them more robust to drift (an issue with ARKit or SLAM methods).
+
+To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoinrts as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.
 
 :::{admonition} Note
 :class: info

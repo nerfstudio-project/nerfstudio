@@ -260,7 +260,7 @@ def copy_images_list(
     Args:
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
-        crop_border_pixels: If not None, crops the image by the specified number of pixels.
+        crop_border_pixels: If not None, crops each edge by the specified number of pixels.
         verbose: If True, print extra logging.
     Returns:
         A list of the copied image Paths.
@@ -284,7 +284,7 @@ def copy_images_list(
     if crop_border_pixels is not None:
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
-        crop = f"crop=iw-{crop_border_pixels}:ih-{crop_border_pixels}"
+        crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
         ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
 
@@ -656,7 +656,7 @@ def polycam_to_json(
         cameras_dir: Path to the polycam cameras directory.
         output_dir: Path to the output directory.
         min_blur_score: Minimum blur score to use an image. Images below this value will be skipped.
-        crop_border_pixels: Number of pixels to crop from the border of the image.
+        crop_border_pixels: Number of pixels to crop from each border of the image.
 
     Returns:
         Summary of the conversion.
@@ -664,14 +664,17 @@ def polycam_to_json(
 
     frame_json = io.load_from_json(cameras_dir / f"{image_filenames[0].stem}.json")
 
+    # TODO Add per-frame intrinsics
+
     data = {}
     data["fl_x"] = frame_json["fx"]
     data["fl_y"] = frame_json["fy"]
-    data["cx"] = frame_json["cx"] - crop_border_pixels / 2
-    data["cy"] = frame_json["cy"] - crop_border_pixels / 2
-    data["w"] = frame_json["width"] - crop_border_pixels
-    data["h"] = frame_json["height"] - crop_border_pixels
+    data["cx"] = frame_json["cx"] - crop_border_pixels
+    data["cy"] = frame_json["cy"] - crop_border_pixels
+    data["w"] = frame_json["width"] - crop_border_pixels * 2
+    data["h"] = frame_json["height"] - crop_border_pixels * 2
     data["camera_model"] = CAMERA_MODELS["perspective"].value
+    # Needs to be a string for camera_utils.auto_orient_and_center_poses
     data["orientation_override"] = "none"
 
     frames = []
@@ -684,6 +687,7 @@ def polycam_to_json(
             continue
         frame = {}
         frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
+        # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         frame["transform_matrix"] = [
             [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],
             [frame_json["t_00"], frame_json["t_01"], frame_json["t_02"], frame_json["t_03"]],
@@ -700,6 +704,10 @@ def polycam_to_json(
     if skipped_frames > 0:
         summary.append(f"Skipped {skipped_frames} frames due to low blur score.")
     summary.append(f"Final dataset is {len(image_filenames) - skipped_frames} frames.")
+
+    if len(image_filenames) - skipped_frames == 0:
+        CONSOLE.print("[bold red]No images remain after filtering, exiting")
+        exit(1)
 
     return summary
 
@@ -1068,13 +1076,13 @@ class ProcessPolycam:
         will downscale the images by 2x, 4x, and 8x."""
     use_uncorrected_images: bool = False
     """If True, use the raw images from the polycam export. If False, use the corrected images."""
-    max_dataset_size: int = 300
+    max_dataset_size: int = 600
     """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
     use all images."""
     min_blur_score: float = 25
     """Minimum blur score to use an image. If the blur score is below this value, the image will be skipped."""
-    crop_border_pixels: int = 30
-    """Number of pixels to crop from the border of the image. Useful as borders may be black due to undistortion."""
+    crop_border_pixels: int = 15
+    """Number of pixels to crop from each border of the image. Useful as borders may be black due to undistortion."""
 
     verbose: bool = False
     """If True, print extra logging."""
@@ -1093,19 +1101,16 @@ class ProcessPolycam:
                 zip_ref.extractall(self.output_dir)
                 extracted_folder = zip_ref.namelist()[0].split("/")[0]
             self.data = self.output_dir / extracted_folder
-            print(self.data)
 
-        if self.use_uncorrected_images:
-            polycam_image_dir = self.data / "keyframes" / "images"
-            polycam_cameras_dir = self.data / "keyframes" / "cameras"
-        elif (self.data / "keyframes" / "corrected_images").exists():
+        if (self.data / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
             polycam_image_dir = self.data / "keyframes" / "corrected_images"
             polycam_cameras_dir = self.data / "keyframes" / "corrected_cameras"
         else:
             polycam_image_dir = self.data / "keyframes" / "images"
             polycam_cameras_dir = self.data / "keyframes" / "cameras"
             self.crop_border_pixels = 0
-            CONSOLE.log("[bold yellow]Corrected images not found, using raw images. No border cropping will be done.")
+            if not self.use_uncorrected_images:
+                CONSOLE.print("[bold yellow]Corrected images not found, using raw images.")
 
         if not polycam_image_dir.exists():
             raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
@@ -1146,6 +1151,9 @@ class ProcessPolycam:
         summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         # Save json
+        if num_frames == 0:
+            CONSOLE.print("[bold red]No images found, exiting")
+            exit(1)
         summary_log.extend(
             polycam_to_json(
                 image_filenames=polycam_image_filenames,
