@@ -168,15 +168,15 @@ class MSIModel(Model):
 
         # uvs = torch.stack(
         #     [
-        #         (lons / torch.pi + 1) / 2,
-        #         lats / torch.pi + 0.5,
+        #         lons / torch.pi,
+        #         2.0 * lats / torch.pi,
         #     ],
         #     dim=2,
         # )  # (N, R, 2)
         uvs = torch.stack(
             [
-                torch.atan2(xyzs_normalized[..., 0], xyzs_normalized[..., 2]) / (2 * torch.pi) + 0.5,
-                xyzs_normalized[..., 1] * 0.5 + 0.5,
+                torch.atan2(xyzs_normalized[..., 0], xyzs_normalized[..., 2]) / (torch.pi),
+                xyzs_normalized[..., 1],
             ],
             dim=2,
         )  # (N, R, 2)
