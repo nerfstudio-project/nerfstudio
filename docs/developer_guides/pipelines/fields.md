@@ -69,8 +69,6 @@ class FieldHeadNames(Enum):
     TRANSIENT_RGB = "transient_rgb"
     TRANSIENT_DENSITY = "transient_density"
     SEMANTICS = "semantics"
-    SEMANTICS_STUFF = "semantics_stuff"
-    SEMANTICS_THING = "semantics_thing"
 ```
 
 ```{button-link} https://github.com/nerfstudio-project/nerfstudio/blob/master/nerfstudio/field_components/field_heads.py

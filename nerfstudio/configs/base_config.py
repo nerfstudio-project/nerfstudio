@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -31,6 +32,8 @@ from nerfstudio.configs.config_utils import to_immutable_dict
 
 # model instances
 from nerfstudio.utils import writer
+
+warnings.filterwarnings("ignore", module="torchvision")
 
 CONSOLE = Console(width=120)
 
@@ -178,6 +181,8 @@ class ViewerConfig(PrintableConfig):
     max_num_display_images: int = 512
     """Maximum number of training images to display in the viewer, to avoid lag. This does not change which images are
     actually used in training/evaluation. If -1, display all."""
+    quit_on_train_completion: bool = False
+    """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
 
 
 from nerfstudio.engine.optimizers import OptimizerConfig
@@ -241,7 +246,7 @@ class Config(PrintableConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("/", "-")
+            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""

@@ -130,7 +130,7 @@ class InstantNGP(DataParser):
         fl_x, fl_y = 0, 0
 
         def fov_to_focal_length(rad, res):
-            return 0.5 * res / np.tanh(0.5 * rad)
+            return 0.5 * res / np.tan(0.5 * rad)
 
         if "fl_x" in meta:
             fl_x = meta["fl_x"]

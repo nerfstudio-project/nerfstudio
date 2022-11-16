@@ -35,8 +35,7 @@ from nerfstudio.field_components.field_heads import (
     FieldHead,
     FieldHeadNames,
     RGBFieldHead,
-    SemanticStuffFieldHead,
-    SemanticThingFieldHead,
+    SemanticFieldHead,
     TransientDensityFieldHead,
     TransientRGBFieldHead,
     UncertaintyFieldHead,
@@ -95,8 +94,7 @@ class TCNNNerfactoField(Field):
         transient_embedding_dim: int = 16,
         use_transient_embedding: bool = False,
         use_semantics: bool = False,
-        num_semantics_thing_classes: int = 100,
-        num_semantics_stuff_classes: int = 100,
+        num_semantic_classes: int = 100,
         use_average_appearance_embedding: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
@@ -180,11 +178,8 @@ class TCNNNerfactoField(Field):
                     "n_hidden_layers": 1,
                 },
             )
-            self.field_head_semantics_stuff = SemanticStuffFieldHead(
-                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantics_stuff_classes
-            )
-            self.field_head_semantics_thing = SemanticThingFieldHead(
-                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantics_thing_classes
+            self.field_head_semantics = SemanticFieldHead(
+                in_dim=self.mlp_semantics.n_output_dims, num_classes=num_semantic_classes
             )
 
         self.mlp_head = tcnn.Network(
@@ -266,8 +261,7 @@ class TCNNNerfactoField(Field):
             )
             # print(semantics_input)
             x = self.mlp_semantics(semantics_input).view(*ray_samples.frustums.directions.shape[:-1], -1).to(directions)
-            outputs[FieldHeadNames.SEMANTICS_STUFF] = self.field_head_semantics_stuff(x)
-            outputs[FieldHeadNames.SEMANTICS_THING] = self.field_head_semantics_thing(x)
+            outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
 
         h = torch.cat(
             [
@@ -318,12 +312,14 @@ class TorchNerfactoField(Field):
             num_layers=base_mlp_num_layers,
             layer_width=base_mlp_layer_width,
             skip_connections=skip_connections,
+            out_activation=nn.ReLU(),
         )
 
         self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim() + self.appearance_embedding_dim,
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
+            out_activation=nn.ReLU(),
         )
 
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())

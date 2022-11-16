@@ -26,6 +26,7 @@ from typing import Dict, List, Tuple
 import torch
 from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.engine.callbacks import (
@@ -90,7 +91,7 @@ class Trainer:
         # set up viewer if enabled
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
-        if self.config.is_viewer_enabled():
+        if self.config.is_viewer_enabled() and local_rank == 0:
             self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
@@ -102,11 +103,14 @@ class Trainer:
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
         profiler.setup_profiler(config.logging)
 
-    def setup(self, test_mode=False):
+    def setup(self, test_mode: Literal["test", "val", "inference"] = "val"):
         """Setup the Trainer by calling other setup functions.
 
         Args:
-            test_mode: Whether to setup for testing. Defaults to False.
+            test_mode:
+                'val': loads train/val datasets into memory
+                'test': loads train/test datset into memory
+                'inference': does not load any dataset into memory
         """
         self.pipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
@@ -131,6 +135,7 @@ class Trainer:
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations
+            step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
 
@@ -149,12 +154,14 @@ class Trainer:
                     for callback in self.callbacks:
                         callback.run_callback_at_location(step, location=TrainingCallbackLocation.AFTER_TRAIN_ITERATION)
 
-                writer.put_time(
-                    name=EventName.TRAIN_RAYS_PER_SEC,
-                    duration=self.config.pipeline.datamanager.train_num_rays_per_batch / train_t.duration,
-                    step=step,
-                    avg_over_steps=True,
-                )
+                # Skip the first two steps to avoid skewed timings that break the viewer rendering speed estimate.
+                if step > 1:
+                    writer.put_time(
+                        name=EventName.TRAIN_RAYS_PER_SEC,
+                        duration=self.config.pipeline.datamanager.train_num_rays_per_batch / train_t.duration,
+                        step=step,
+                        avg_over_steps=True,
+                    )
 
                 self._update_viewer_state(step)
 
@@ -172,14 +179,21 @@ class Trainer:
                 writer.write_out_storage()
             # save checkpoint at the end of training
             self.save_checkpoint(step)
-            self._always_render(step)
 
+            CONSOLE.rule()
+            CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+            if not self.config.viewer.quit_on_train_completion:
+                CONSOLE.print("Use ctrl+c to quit", justify="center")
+                self._always_render(step)
+
+    @check_main_thread
     def _always_render(self, step):
         if self.config.is_viewer_enabled():
             while True:
                 self.viewer_state.vis["renderingState/isTraining"].write(False)
                 self._update_viewer_state(step)
 
+    @check_main_thread
     def _check_viewer_warnings(self) -> None:
         """Helper to print out any warnings regarding the way the viewer/loggers are enabled"""
         if self.config.is_viewer_enabled():

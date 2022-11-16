@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+# pylint: disable=too-many-lines
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 import json
 import shutil
 import subprocess
 import sys
+import zipfile
 from contextlib import nullcontext
 from dataclasses import dataclass
 from enum import Enum
@@ -19,9 +21,10 @@ import yaml
 from PIL import Image
 from rich.console import Console
 from rich.progress import track
+from scipy.spatial.transform import Rotation
 from typing_extensions import Annotated, Literal
 
-from nerfstudio.utils import colmap_utils, install_checks
+from nerfstudio.utils import colmap_utils, install_checks, io
 
 CONSOLE = Console(width=120)
 
@@ -54,7 +57,7 @@ def status(msg: str, spinner: str = "bouncingBall", verbose: bool = False):
     return CONSOLE.status(msg, spinner=spinner)
 
 
-def get_colmap_version(default_version=3.8) -> float:
+def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
     """Returns the version of COLMAP.
     This code assumes that colmap returns a version string of the form
     "COLMAP 3.8 ..." which may not be true for all versions of COLMAP.
@@ -64,7 +67,7 @@ def get_colmap_version(default_version=3.8) -> float:
     Returns:
         The version of COLMAP.
     """
-    output = run_command("colmap", verbose=False)
+    output = run_command(colmap_cmd, verbose=False)
     assert output is not None
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
@@ -138,7 +141,7 @@ def get_num_frames_in_video(video: Path) -> int:
 
 def convert_video_to_images(
     video_path: Path, image_dir: Path, num_frames_target: int, verbose: bool = False
-) -> List[str]:
+) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
     Args:
@@ -147,7 +150,7 @@ def convert_video_to_images(
         num_frames_target: Number of frames to extract.
         verbose: If True, logs the output of the command.
     Returns:
-        A summary of the conversion.
+        A tuple containing summary of the conversion and the number of extracted frames.
     """
 
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
@@ -176,12 +179,13 @@ def convert_video_to_images(
 
         run_command(ffmpeg_cmd, verbose=verbose)
 
+    num_final_frames = len(list(image_dir.glob("*.png")))
     summary_log = []
     summary_log.append(f"Starting with {num_frames} video frames")
-    summary_log.append(f"We extracted {len(list(image_dir.glob('*.png')))} images")
+    summary_log.append(f"We extracted {num_final_frames} images")
     CONSOLE.log("[bold green]:tada: Done converting video to images.")
 
-    return summary_log
+    return summary_log, num_final_frames
 
 
 def convert_insta360_to_images(
@@ -191,7 +195,7 @@ def convert_insta360_to_images(
     num_frames_target: int,
     crop_percentage: float = 0.7,
     verbose: bool = False,
-) -> List[str]:
+) -> Tuple[List[str], int]:
     """Converts a video into a sequence of images.
 
     Args:
@@ -201,7 +205,7 @@ def convert_insta360_to_images(
         num_frames_target: Number of frames to extract.
         verbose: If True, logs the output of the command.
     Returns:
-        A summary of the conversion.
+        A tuple containing summary of the conversion and the number of extracted frames.
     """
 
     with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
@@ -245,12 +249,62 @@ def convert_insta360_to_images(
         for i, img in enumerate(image_dir.glob("back_frame_*.png")):
             img.rename(image_dir / f"frame_{i+1+num_extracted_front_frames:05d}.png")
 
+    num_final_frames = len(list(image_dir.glob("*.png")))
     summary_log = []
     summary_log.append(f"Starting with {num_frames_front + num_frames_back} video frames")
-    summary_log.append(f"We extracted {len(list(image_dir.glob('*.png')))} images")
+    summary_log.append(f"We extracted {num_final_frames} images")
     CONSOLE.log("[bold green]:tada: Done converting insta360 to images.")
 
-    return summary_log
+    return summary_log, num_final_frames
+
+
+def copy_images_list(
+    image_paths: List[Path],
+    image_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    verbose: bool = False,
+    rename: bool = True,
+) -> List[Path]:
+    """Copy all images in a list of Paths. Useful for filtering from a directory.
+    Args:
+        image_paths: List of Paths of images to copy to a new directory.
+        image_dir: Path to the output directory.
+        crop_border_pixels: If not None, crops each edge by the specified number of pixels.
+        verbose: If True, print extra logging.
+    Returns:
+        A list of the copied image Paths.
+    """
+
+    # Remove original directory only if we provide a proper image folder path
+    if image_dir.is_dir() and len(image_paths):
+        shutil.rmtree(image_dir, ignore_errors=True)
+        image_dir.mkdir(exist_ok=True, parents=True)
+
+    copied_image_paths = []
+
+    # Images should be 1-indexed for the rest of the pipeline.
+    for idx, image_path in enumerate(image_paths):
+        if verbose:
+            CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
+        copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        shutil.copy(image_path, copied_image_path)
+        copied_image_paths.append(copied_image_path)
+
+    if crop_border_pixels is not None:
+        file_type = image_paths[0].suffix
+        filename = f"frame_%05d{file_type}"
+        crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
+        ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        run_command(ffmpeg_cmd, verbose=verbose)
+
+    num_frames = len(image_paths)
+
+    if num_frames == 0:
+        CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+    else:
+        CONSOLE.log("[bold green]:tada: Done copying images.")
+
+    return copied_image_paths
 
 
 def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool = True) -> int:
@@ -260,7 +314,6 @@ def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool = True)
         data: Path to the directory of images.
         image_dir: Path to the output directory.
         verbose: If True, print extra logging.
-        rename: If True, rename the images sequentially to `frame_{num}`.
     Returns:
         The number of images copied.
     """
@@ -268,27 +321,7 @@ def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool = True)
         allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
         image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
 
-        # Remove original directory only if we provide a proper image folder path
-        if image_dir.is_dir() and len(image_paths):
-            shutil.rmtree(image_dir, ignore_errors=True)
-            image_dir.mkdir(exist_ok=True, parents=True)
-
-        # Images should be 1-indexed for the rest of the pipeline.
-        for idx, image_path in enumerate(image_paths):
-            if verbose:
-                CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-            if rename:
-                fname = f"frame_{idx + 1:05d}{image_path.suffix}"
-            else:
-                fname = image_path.name
-            shutil.copy(image_path, image_dir / fname)
-
-        num_frames = len(image_paths)
-
-    if num_frames == 0:
-        CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
-    else:
-        CONSOLE.log("[bold green]:tada: Done copying images.")
+        num_frames = len(copy_images_list(image_paths, image_dir, verbose))
 
     return num_frames
 
@@ -340,6 +373,7 @@ def run_colmap(
     gpu: bool = True,
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    colmap_cmd: str = "colmap",
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -351,7 +385,7 @@ def run_colmap(
         verbose: If True, logs the output of the command.
     """
 
-    colmap_version = get_colmap_version()
+    colmap_version = get_colmap_version(colmap_cmd)
 
     colmap_database_path = colmap_dir / "database.db"
     if colmap_database_path.exists():
@@ -360,7 +394,7 @@ def run_colmap(
 
     # Feature extraction
     feature_extractor_cmd = [
-        "colmap feature_extractor",
+        f"{colmap_cmd} feature_extractor",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         "--ImageReader.single_camera 1",
@@ -375,7 +409,7 @@ def run_colmap(
 
     # Feature matching
     feature_matcher_cmd = [
-        f"colmap {matching_method}_matcher",
+        f"{colmap_cmd} {matching_method}_matcher",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
@@ -391,7 +425,7 @@ def run_colmap(
     sparse_dir = colmap_dir / "sparse"
     sparse_dir.mkdir(parents=True, exist_ok=True)
     mapper_cmd = [
-        "colmap mapper",
+        f"{colmap_cmd} mapper",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         f"--output_path {sparse_dir}",
@@ -410,7 +444,7 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
     with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
         bundle_adjuster_cmd = [
-            "colmap bundle_adjuster",
+            f"{colmap_cmd} bundle_adjuster",
             f"--input_path {sparse_dir}/0",
             f"--output_path {sparse_dir}/0",
             "--BundleAdjustment.refine_principal_point 1",
@@ -453,7 +487,7 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
         name = Path(f"./images/{im_data.name}")
 
         frame = {
-            "file_path": str(name),
+            "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
         }
         frames.append(frame)
@@ -635,6 +669,73 @@ def opensfm_to_json(reconstruction_path: Path, output_dir: Path, camera_model: C
                 "k4": float(cam["k4"]),
             }
         )
+
+    out["frames"] = frames
+
+    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=4)
+
+    return len(frames)
+
+
+def record3d_to_json(images_paths: List[Path], metadata_path: Path, output_dir: Path, indices: np.ndarray) -> int:
+    """Converts Record3D's metadata and image paths to a JSON file.
+
+    Args:
+        images_paths: list if image paths.
+        metadata_path: Path to the Record3D metadata JSON file.
+        output_dir: Path to the output directory.
+        indices: Indices to sample the metadata_path. Should be the same length as images_paths.
+
+    Returns:
+        The number of registered images.
+    """
+
+    assert len(images_paths) == len(indices)
+
+    metadata_dict = io.load_from_json(metadata_path)
+
+    poses_data = np.array(metadata_dict["poses"])  # (N, 3, 4)
+    camera_to_worlds = np.concatenate(
+        [Rotation.from_quat(poses_data[:, :4]).as_matrix(), poses_data[:, 4:, None]],
+        axis=-1,
+    ).astype(np.float32)
+    camera_to_worlds = camera_to_worlds[indices]
+
+    homogeneous_coord = np.zeros_like(camera_to_worlds[..., :1, :])
+    homogeneous_coord[..., :, 3] = 1
+    camera_to_worlds = np.concatenate([camera_to_worlds, homogeneous_coord], -2)
+
+    frames = []
+    for i, im_path in enumerate(images_paths):
+        c2w = camera_to_worlds[i]
+        frame = {
+            "file_path": im_path.as_posix(),
+            "transform_matrix": c2w.tolist(),
+        }
+        frames.append(frame)
+
+    # Camera intrinsics
+    K = np.array(metadata_dict["K"]).reshape((3, 3)).T
+    focal_length = K[0, 0]
+
+    H = metadata_dict["h"]
+    W = metadata_dict["w"]
+
+    # TODO(akristoffersen): The metadata dict comes with principle points,
+    # but caused errors in image coord indexing. Should update once that is fixed.
+    cx, cy = W / 2, H / 2
+
+    out = {
+        "fl_x": focal_length,
+        "fl_y": focal_length,
+        "cx": cx,
+        "cy": cy,
+        "w": W,
+        "h": H,
+        "camera_model": CAMERA_MODELS["perspective"].name,
+    }
+
     out["frames"] = frames
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
@@ -672,6 +773,103 @@ def get_insta360_filenames(data: Path) -> Tuple[Path, Path]:
     return filename_back, filename_front
 
 
+def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str:
+    """Returns a summary of the matching results.
+
+    Args:
+        num_intial_frames: The number of initial frames.
+        num_matched_frames: The number of matched frames.
+
+    Returns:
+        A summary of the matching results.
+    """
+    match_ratio = num_matched_frames / num_intial_frames
+    if match_ratio == 1:
+        return "[bold green]COLAMP found poses for all images, CONGRATS!"
+    if match_ratio < 0.4:
+        result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result += " of the images. This is low.\nThis can be caused by a variety of reasons,"
+        result += " such poor scene coverage, blurry images, or large exposure changes."
+        return result
+    if match_ratio < 0.8:
+        result = f"[bold yellow]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result += " of the images.\nThis isn't great, but may be ok."
+        result += "\nMissing poses can be caused by a variety of reasons, such poor scene coverage, blurry images,"
+        result += " or large exposure changes."
+        return result
+    return f"[bold green]COLMAP found poses for {num_matched_frames / num_intial_frames * 100:.2f}% of the images."
+
+
+def polycam_to_json(
+    image_filenames: List[Path],
+    cameras_dir: Path,
+    output_dir: Path,
+    min_blur_score: float = 0.0,
+    crop_border_pixels: int = 0,
+) -> List[str]:
+    """Convert Polycam data into a nerfstudio dataset.
+
+    Args:
+        image_filenames: List of paths to the original images.
+        cameras_dir: Path to the polycam cameras directory.
+        output_dir: Path to the output directory.
+        min_blur_score: Minimum blur score to use an image. Images below this value will be skipped.
+        crop_border_pixels: Number of pixels to crop from each border of the image.
+
+    Returns:
+        Summary of the conversion.
+    """
+
+    frame_json = io.load_from_json(cameras_dir / f"{image_filenames[0].stem}.json")
+
+    # TODO Add per-frame intrinsics
+
+    data = {}
+    data["fl_x"] = frame_json["fx"]
+    data["fl_y"] = frame_json["fy"]
+    data["cx"] = frame_json["cx"] - crop_border_pixels
+    data["cy"] = frame_json["cy"] - crop_border_pixels
+    data["w"] = frame_json["width"] - crop_border_pixels * 2
+    data["h"] = frame_json["height"] - crop_border_pixels * 2
+    data["camera_model"] = CAMERA_MODELS["perspective"].value
+    # Needs to be a string for camera_utils.auto_orient_and_center_poses
+    data["orientation_override"] = "none"
+
+    frames = []
+    skipped_frames = 0
+    for i, image_filename in enumerate(image_filenames):
+        json_filename = cameras_dir / f"{image_filename.stem}.json"
+        frame_json = io.load_from_json(json_filename)
+        if "blur_score" in frame_json and frame_json["blur_score"] < min_blur_score:
+            skipped_frames += 1
+            continue
+        frame = {}
+        frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
+        # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
+        frame["transform_matrix"] = [
+            [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],
+            [frame_json["t_00"], frame_json["t_01"], frame_json["t_02"], frame_json["t_03"]],
+            [frame_json["t_10"], frame_json["t_11"], frame_json["t_12"], frame_json["t_13"]],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+        frames.append(frame)
+    data["frames"] = frames
+
+    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+    summary = []
+    if skipped_frames > 0:
+        summary.append(f"Skipped {skipped_frames} frames due to low blur score.")
+    summary.append(f"Final dataset is {len(image_filenames) - skipped_frames} frames.")
+
+    if len(image_filenames) - skipped_frames == 0:
+        CONSOLE.print("[bold red]No images remain after filtering, exiting")
+        sys.exit(1)
+
+    return summary
+
+
 @dataclass
 class ProcessImages:
     """Process images into a nerfstudio dataset.
@@ -700,6 +898,8 @@ class ProcessImages:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -737,6 +937,7 @@ class ProcessImages:
                     gpu=self.gpu,
                     verbose=self.verbose,
                     matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
                 )
 
             # Save transforms.json
@@ -749,6 +950,7 @@ class ProcessImages:
                         camera_model=CAMERA_MODELS[self.camera_type],
                     )
                     summary_log.append(f"Colmap matched {num_matched_frames} images")
+                summary_log.append(get_matching_summary(num_frames, num_matched_frames))
             else:
                 CONSOLE.log(
                     "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
@@ -808,6 +1010,8 @@ class ProcessVideo:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -823,8 +1027,7 @@ class ProcessVideo:
         image_dir.mkdir(parents=True, exist_ok=True)
 
         # Convert video to images
-        summary_log = []
-        summary_log = convert_video_to_images(
+        summary_log, num_extracted_frames = convert_video_to_images(
             self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
         )
 
@@ -844,6 +1047,7 @@ class ProcessVideo:
                     gpu=self.gpu,
                     verbose=self.verbose,
                     matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
                 )
 
             # Save transforms.json
@@ -856,6 +1060,7 @@ class ProcessVideo:
                         camera_model=CAMERA_MODELS[self.camera_type],
                     )
                     summary_log.append(f"Colmap matched {num_matched_frames} images")
+                summary_log.append(get_matching_summary(num_extracted_frames, num_matched_frames))
             else:
                 CONSOLE.log(
                     "[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json"
@@ -913,6 +1118,8 @@ class ProcessInsta360:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    colmap_cmd: str = "colmap"
+    """How to call the COLMAP executable."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -930,7 +1137,7 @@ class ProcessInsta360:
         filename_back, filename_front = get_insta360_filenames(self.data)
 
         # Convert video to images
-        summary_log = convert_insta360_to_images(
+        summary_log, num_extracted_frames = convert_insta360_to_images(
             video_front=filename_front,
             video_back=filename_back,
             image_dir=image_dir,
@@ -966,8 +1173,201 @@ class ProcessInsta360:
                     camera_model=CAMERA_MODELS["equirectangular"],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
+            summary_log.append(get_matching_summary(num_extracted_frames, num_matched_frames))
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
+@dataclass
+class ProcessRecord3D:
+    """Process Record3D data into a nerfstudio dataset.
+
+    This script does the following:
+
+    1. Scales images to a specified size.
+    2. Converts Record3D poses into the nerfstudio format.
+    """
+
+    data: Path
+    """Path to the record3D data."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    max_dataset_size: int = 300
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
+
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+
+        record3d_image_dir = self.data / "rgb"
+
+        if not record3d_image_dir.exists():
+            raise ValueError(f"Image directory {image_dir} doesn't exist")
+
+        record3d_image_filenames = []
+        for f in record3d_image_dir.iterdir():
+            if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
+                record3d_image_filenames.append(f)
+
+        record3d_image_filenames = sorted(record3d_image_filenames, key=lambda fn: int(fn.stem))
+        num_images = len(record3d_image_filenames)
+        idx = np.arange(num_images)
+        if self.max_dataset_size != -1 and num_images > self.max_dataset_size:
+            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
+
+        record3d_image_filenames = list(np.array(record3d_image_filenames)[idx])
+        # Copy images to output directory
+        copied_image_paths = copy_images_list(record3d_image_filenames, image_dir=image_dir, verbose=self.verbose)
+        num_frames = len(copied_image_paths)
+
+        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+        summary_log.append(f"Used {num_frames} images out of {num_images} total")
+        if self.max_dataset_size > 0:
+            summary_log.append(
+                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
+                f"current value ({self.max_dataset_size}), or -1 to use all images."
+            )
+
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        metadata_path = self.data / "metadata.json"
+        record3d_to_json(copied_image_paths, metadata_path, self.output_dir, indices=idx)
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
+@dataclass
+class ProcessPolycam:
+    """Process Polycam data into a nerfstudio dataset.
+
+    To capture data, use the Polycam app on an iPhone or iPad with LiDAR. The capture must be in LiDAR or ROOM mode.
+    Developer mode must be enabled in the app settings, this will enable a raw data export option in the export menus.
+    The exported data folder is used as the input to this script.
+
+    This script does the following:
+
+    1. Scales images to a specified size.
+    2. Converts Polycam poses into the nerfstudio format.
+    """
+
+    data: Path
+    """Path the polycam export data folder. Can be .zip file or folder."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    use_uncorrected_images: bool = False
+    """If True, use the raw images from the polycam export. If False, use the corrected images."""
+    max_dataset_size: int = 600
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
+    min_blur_score: float = 25
+    """Minimum blur score to use an image. If the blur score is below this value, the image will be skipped."""
+    crop_border_pixels: int = 15
+    """Number of pixels to crop from each border of the image. Useful as borders may be black due to undistortion."""
+
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+
+        if self.data.suffix == ".zip":
+            with zipfile.ZipFile(self.data, "r") as zip_ref:
+                zip_ref.extractall(self.output_dir)
+                extracted_folder = zip_ref.namelist()[0].split("/")[0]
+            self.data = self.output_dir / extracted_folder
+
+        if (self.data / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
+            polycam_image_dir = self.data / "keyframes" / "corrected_images"
+            polycam_cameras_dir = self.data / "keyframes" / "corrected_cameras"
+        else:
+            polycam_image_dir = self.data / "keyframes" / "images"
+            polycam_cameras_dir = self.data / "keyframes" / "cameras"
+            self.crop_border_pixels = 0
+            if not self.use_uncorrected_images:
+                CONSOLE.print("[bold yellow]Corrected images not found, using raw images.")
+
+        if not polycam_image_dir.exists():
+            raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
+
+        # Copy images to output directory
+
+        polycam_image_filenames = []
+        for f in polycam_image_dir.iterdir():
+            polycam_image_filenames.append(f)
+        polycam_image_filenames = sorted(polycam_image_filenames, key=lambda fn: int(fn.stem))
+        num_images = len(polycam_image_filenames)
+        idx = np.arange(num_images)
+        if self.max_dataset_size != -1 and num_images > self.max_dataset_size:
+            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
+
+        polycam_image_filenames = list(np.array(polycam_image_filenames)[idx])
+        # Copy images to output directory
+        copied_image_paths = copy_images_list(
+            polycam_image_filenames,
+            image_dir=image_dir,
+            crop_border_pixels=self.crop_border_pixels,
+            verbose=self.verbose,
+        )
+        num_frames = len(copied_image_paths)
+
+        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+
+        if self.max_dataset_size > 0 and num_frames != num_images:
+            summary_log.append(f"Started with {num_frames} images out of {num_images} total")
+            summary_log.append(
+                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
+                f"current value ({self.max_dataset_size}), or -1 to use all images."
+            )
+        else:
+            summary_log.append(f"Started with {num_frames} images")
+
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        # Save json
+        if num_frames == 0:
+            CONSOLE.print("[bold red]No images found, exiting")
+            sys.exit(1)
+        summary_log.extend(
+            polycam_to_json(
+                image_filenames=polycam_image_filenames,
+                cameras_dir=polycam_cameras_dir,
+                output_dir=self.output_dir,
+                min_blur_score=self.min_blur_score,
+                crop_border_pixels=self.crop_border_pixels,
+            )
+        )
 
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 
@@ -979,7 +1379,9 @@ class ProcessInsta360:
 Commands = Union[
     Annotated[ProcessImages, tyro.conf.subcommand(name="images")],
     Annotated[ProcessVideo, tyro.conf.subcommand(name="video")],
+    Annotated[ProcessPolycam, tyro.conf.subcommand(name="polycam")],
     Annotated[ProcessInsta360, tyro.conf.subcommand(name="insta360")],
+    Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
 ]
 
 

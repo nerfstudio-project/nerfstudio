@@ -22,16 +22,36 @@ const CAMERAS_NAME = 'Training Cameras';
 
 export function get_scene_tree() {
   const scene = new THREE.Scene();
-  const sceneTree = new SceneNode(scene);
+
+  const scene_state = {
+    value: new Map(),
+    callbacks: [],
+    addCallback(callback, key) {
+      this.callbacks.push([callback, key]);
+    },
+    setValue(key, value) {
+      this.value.set(key, value);
+      this.callbacks.forEach((cbk) => {
+        const i = cbk[1];
+        const callback = cbk[0];
+        return callback(this.value.get(i));
+      });
+    },
+  };
+
+  const sceneTree = new SceneNode(scene, scene_state);
 
   const dispatch = useDispatch();
   const BANNER_HEIGHT = 50;
 
   // Main camera
   const main_camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  main_camera.position.x = 0.7;
-  main_camera.position.y = -0.7;
-  main_camera.position.z = 0.3;
+  const start_position = new THREE.Vector3(0.7, -0.7, 0.3);
+  main_camera.position.set(
+    start_position.x,
+    start_position.y,
+    start_position.z,
+  );
   main_camera.up = new THREE.Vector3(0, 0, 1);
   sceneTree.set_object_from_path(['Cameras', 'Main Camera'], main_camera);
 
@@ -68,28 +88,47 @@ export function get_scene_tree() {
   const camera_controls = new CameraControls(main_camera, renderer.domElement);
   camera_controls.azimuthRotateSpeed = 0.3;
   camera_controls.polarRotateSpeed = 0.3;
-  camera_controls.minDistance = 0.3;
-  camera_controls.maxDistance = 20;
-
   camera_controls.dollySpeed = 0.1;
+  camera_controls.infinityDolly = true;
   camera_controls.saveState();
 
   const keyMap = [];
   const moveSpeed = 0.02;
+  const rotSpeed = 0.015;
+  const EPS = 0.01;
 
-  function moveCamera() {
-    if (keyMap.ArrowLeft === true) {
-      camera_controls.rotate(-0.02, 0, true);
+  function rotate() {
+    if (
+      keyMap.ArrowLeft ||
+      keyMap.ArrowRight ||
+      keyMap.ArrowUp ||
+      keyMap.ArrowDown
+    ) {
+      const curTar = camera_controls.getTarget();
+      const curPos = camera_controls.getPosition();
+      const diff = curTar.sub(curPos).clampLength(0, EPS);
+      camera_controls.setTarget(
+        curPos.x + diff.x,
+        curPos.y + diff.y,
+        curPos.z + diff.z,
+      );
+
+      if (keyMap.ArrowLeft === true) {
+        camera_controls.rotate(rotSpeed, 0, true);
+      }
+      if (keyMap.ArrowRight === true) {
+        camera_controls.rotate(-rotSpeed, 0, true);
+      }
+      if (keyMap.ArrowUp === true) {
+        camera_controls.rotate(0, rotSpeed / 1.5, true);
+      }
+      if (keyMap.ArrowDown === true) {
+        camera_controls.rotate(0, -rotSpeed / 1.5, true);
+      }
     }
-    if (keyMap.ArrowRight === true) {
-      camera_controls.rotate(0.02, 0, true);
-    }
-    if (keyMap.ArrowUp === true) {
-      camera_controls.rotate(0, -0.01, true);
-    }
-    if (keyMap.ArrowDown === true) {
-      camera_controls.rotate(0, 0.01, true);
-    }
+  }
+
+  function translate() {
     if (keyMap.KeyD === true) {
       camera_controls.truck(moveSpeed, 0, true);
     }
@@ -97,10 +136,21 @@ export function get_scene_tree() {
       camera_controls.truck(-moveSpeed, 0, true);
     }
     if (keyMap.KeyW === true) {
-      camera_controls.forward(moveSpeed, true);
+      const curPos = camera_controls.getPosition();
+      const newTar = camera_controls.getTarget();
+      const newDiff = newTar
+        .sub(curPos)
+        .normalize()
+        .multiplyScalar(curPos.length());
+      camera_controls.setTarget(
+        curPos.x + newDiff.x,
+        curPos.y + newDiff.y,
+        curPos.z + newDiff.z,
+      );
+      camera_controls.dolly(moveSpeed, true);
     }
     if (keyMap.KeyS === true) {
-      camera_controls.forward(-moveSpeed, true);
+      camera_controls.dolly(-moveSpeed, true);
     }
     if (keyMap.KeyQ === true) {
       camera_controls.truck(0, moveSpeed, true);
@@ -108,6 +158,14 @@ export function get_scene_tree() {
     if (keyMap.KeyE === true) {
       camera_controls.truck(0, -moveSpeed, true);
     }
+  }
+
+  function moveCamera() {
+    if (!scene_state.value.get('mouse_in_scene')) {
+      return;
+    }
+    translate();
+    rotate();
   }
 
   function onKeyUp(event) {
@@ -240,18 +298,44 @@ export function get_scene_tree() {
   let drag = false;
   const onMouseDown = () => {
     drag = false;
+    const curPos = camera_controls.getPosition();
+    const newTar = camera_controls.getTarget();
+    const newDiff = newTar
+      .sub(curPos)
+      .normalize()
+      .multiplyScalar(curPos.length());
+    camera_controls.setTarget(
+      curPos.x + newDiff.x,
+      curPos.y + newDiff.y,
+      curPos.z + newDiff.z,
+    );
   };
 
   const onMouseMove = (e) => {
     drag = true;
 
-    const cameras = Object.values(
-      sceneTree.find_no_create([CAMERAS_NAME]).children,
-    ).map((obj) => obj.object.children[0].children[1]);
-
     sceneTree.metadata.renderer.getSize(size);
     mouseVector.x = 2 * (e.clientX / size.x) - 1;
     mouseVector.y = 1 - 2 * ((e.clientY - BANNER_HEIGHT) / size.y);
+
+    const mouse_in_scene = !(
+      mouseVector.x > 1 ||
+      mouseVector.x < -1 ||
+      mouseVector.y > 1 ||
+      mouseVector.y < -1
+    );
+
+    scene_state.setValue('mouse_x', mouseVector.x);
+    scene_state.setValue('mouse_y', mouseVector.y);
+    scene_state.setValue('mouse_in_scene', mouse_in_scene);
+
+    const camerasParent = sceneTree.find_no_create([CAMERAS_NAME]);
+    if (camerasParent === null) {
+      return;
+    }
+    const cameras = Object.values(camerasParent.children).map(
+      (obj) => obj.object.children[0].children[1],
+    );
 
     if (
       mouseVector.x > 1 ||
@@ -283,7 +367,7 @@ export function get_scene_tree() {
   };
 
   const onMouseUp = () => {
-    if (drag === true) {
+    if (drag === true || !scene_state.value.get('mouse_in_scene')) {
       return;
     }
     if (selectedCam !== null) {

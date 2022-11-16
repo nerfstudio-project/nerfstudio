@@ -83,6 +83,7 @@ class Cameras:
         camera_type: Optional[
             Union[TensorType["num_cameras"], int, List[CameraType], CameraType]
         ] = CameraType.PERSPECTIVE,
+        times: Optional[TensorType["num_cameras"]] = None,
     ):
         self._num_cameras = camera_to_worlds.shape[0]
         self.camera_to_worlds = camera_to_worlds  # This comes first since it determines @property self.device
@@ -122,6 +123,8 @@ class Cameras:
         self._image_widths = self._init_get_height_width(width, cx)
 
         self.camera_type = self._init_get_camera_type(camera_type)
+
+        self.times = times
 
     def _init_get_camera_type(
         self, camera_type: Union[TensorType["num_cameras"], int, List[CameraType], CameraType]
@@ -225,6 +228,7 @@ class Cameras:
             height=self.image_height.to(device),
             distortion_params=distortion_params.to(device) if distortion_params is not None else None,
             camera_type=self.camera_type.to(device),
+            times=self.times.to(device) if self.times is not None else None,
         )
 
     def get_image_coords(self, pixel_offset: float = 0.5) -> TensorType["height", "width", 2]:
@@ -307,11 +311,7 @@ class Cameras:
 
             sin_theta = torch.sin(theta)
             directions_stack = torch.stack(
-                [
-                    coord_stack[..., 0] * sin_theta / theta,
-                    coord_stack[..., 1] * sin_theta / theta,
-                    -torch.cos(theta),
-                ],
+                [coord_stack[..., 0] * sin_theta / theta, coord_stack[..., 1] * sin_theta / theta, -torch.cos(theta)],
                 dim=-1,
             )
         elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
@@ -349,18 +349,18 @@ class Cameras:
         else:
             ray_bundle_camera_indices = camera_indices.view(pixel_area.shape)
 
+        times = self.times[camera_indices, None] if self.times is not None else None
+
         return RayBundle(
             origins=origins,
             directions=directions,
             pixel_area=pixel_area,
             camera_indices=ray_bundle_camera_indices,
+            times=times,
         )
 
     def to_json(
-        self,
-        camera_idx: int,
-        image: Optional[TensorType["height", "width", 2]] = None,
-        max_size: Optional[int] = None,
+        self, camera_idx: int, image: Optional[TensorType["height", "width", 2]] = None, max_size: Optional[int] = None
     ) -> Dict:
         """Convert a camera to a json dictionary.
 
@@ -380,6 +380,7 @@ class Cameras:
             "fy": self.fy[camera_idx].tolist(),
             "camera_to_world": self.camera_to_worlds[camera_idx].tolist(),
             "camera_index": camera_idx,
+            "times": self.times[camera_idx].item() if self.times is not None else None,
         }
         if image is not None:
             image_uint8 = (image * 255).detach().type(torch.uint8)
@@ -432,8 +433,9 @@ class Cameras:
                 self.cy[indices],
                 height=self._image_heights[indices],
                 width=self._image_widths[indices],
-                distortion_params=self.distortion_params[indices] if self.distortion_params else None,
+                distortion_params=self.distortion_params[indices] if self.distortion_params is not None else None,
                 camera_type=self.camera_type[indices],
+                times=self.times[indices] if self.times is not None else None,
             )
         if isinstance(indices, (int, slice)):
             indices = (indices,)
@@ -445,6 +447,9 @@ class Cameras:
             self.cy[indices + (slice(None),)],
             height=self._image_heights[indices + (slice(None),)],
             width=self._image_widths[indices + (slice(None),)],
-            distortion_params=self.distortion_params[indices + (slice(None),)] if self.distortion_params else None,
+            distortion_params=self.distortion_params[indices + (slice(None),)]
+            if self.distortion_params is not None
+            else None,
             camera_type=self.camera_type[indices + (slice(None),)],
+            times=self.times[indices + (slice(None),)] if self.times is not None else None,
         )
