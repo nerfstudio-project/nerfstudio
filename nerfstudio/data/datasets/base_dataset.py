@@ -61,7 +61,7 @@ class InputDataset(Dataset):
         if self.scale_factor != 1.0:
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
-            pil_image = pil_image.resize(newsize, resample=Image.BICUBIC)
+            pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
         assert image.dtype == np.uint8
