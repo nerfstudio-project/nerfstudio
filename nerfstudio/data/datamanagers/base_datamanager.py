@@ -312,11 +312,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"), self.config.dataset_scale_factor)
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split), self.config.dataset_scale_factor)
 
     def setup_train(self):
         """Sets up the data loaders for training"""
