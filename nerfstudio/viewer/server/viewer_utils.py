@@ -310,7 +310,7 @@ class ViewerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.dataparser_outputs.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
+            camera_json = dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene box (i.e., the bounding box)
