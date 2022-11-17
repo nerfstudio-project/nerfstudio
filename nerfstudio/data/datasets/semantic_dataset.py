@@ -32,8 +32,8 @@ class SemanticDataset(InputDataset):
         dataparser_outputs: description of where and how to read input images.
     """
 
-    def __init__(self, dataparser_outputs: DataparserOutputs):
-        super().__init__(dataparser_outputs)
+    def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
+        super().__init__(dataparser_outputs, scale_factor)
         assert "semantics" in dataparser_outputs.metadata.keys() and isinstance(
             dataparser_outputs.metadata["semantics"], Semantics
         )
@@ -46,7 +46,7 @@ class SemanticDataset(InputDataset):
         # handle mask
         filepath = self.semantics.filenames[data["image_idx"]]
         semantic_label, mask = get_semantics_and_mask_tensors_from_path(
-            filepath=filepath, mask_indices=self.mask_indices
+            filepath=filepath, mask_indices=self.mask_indices, scale_factor=self.scale_factor
         )
         if "mask" in data.keys():
             mask = mask & data["mask"]
