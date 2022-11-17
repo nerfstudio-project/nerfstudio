@@ -337,6 +337,10 @@ class ExportPoissonMesh(Exporter):
         CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
 
 
+def edge_function(p, v0, v1):
+    """https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/renderer/mesh/rasterize_meshes.html"""
+    return (p[..., 0] - v0[..., 0]) * (v1[..., 1] - v0[..., 1]) - (p[..., 1] - v0[..., 1]) * (v1[..., 0] - v0[..., 0])
+
 @dataclass
 class ExportTextureMesh(Exporter):
     """
@@ -368,8 +372,12 @@ class ExportTextureMesh(Exporter):
         squares_per_side = math.ceil(math.sqrt(num_squares))
         num_pixels = squares_per_side * self.px_per_uv_square
 
+        scalar = 0.999
         # uv coords (upper left and lower right)
         uv_coords_upper_left = torch.tensor([[0, 0], [1, 0], [0, 1]]) * (self.px_per_uv_square - 1) / num_pixels
+        uv_coords_upper_left_center = torch.mean(uv_coords_upper_left, dim=0)
+        # scale to avoid edge artifacts
+        uv_coords_upper_left = (uv_coords_upper_left - uv_coords_upper_left_center) * scalar + uv_coords_upper_left_center
         lr = self.px_per_uv_square / num_pixels
         px = 1.0 / num_pixels
         uv_coords_lower_right = torch.tensor(
@@ -379,6 +387,9 @@ class ExportTextureMesh(Exporter):
                 [lr, px],
             ]
         )
+        uv_coords_lower_right_center = torch.mean(uv_coords_lower_right, dim=0)
+        # scale to avoid edge artifacts
+        uv_coords_lower_right = (uv_coords_lower_right - uv_coords_lower_right_center) * scalar + uv_coords_lower_right_center
         uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_right], dim=0)  # (2, 3, 2)
         uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
 
@@ -394,9 +405,6 @@ class ExportTextureMesh(Exporter):
         )  # (squares_per_side, squares_per_side, 6, 2)
         texture_coordinates = uv_coords_square.view(-1, 3, 2)[: len(faces)]  # (num_faces, 3, 2)
 
-        print("texture coordinates min", texture_coordinates.min())
-        print("texture coordinates max", texture_coordinates.max())
-
         uv_indices = torch.stack(
             torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
         )
@@ -409,9 +417,9 @@ class ExportTextureMesh(Exporter):
         v_offset = uv_indices[..., 1] % self.px_per_uv_square
         lower_right = (u_offset + v_offset) >= (self.px_per_uv_square - 1)
         triangle_index = square_index * 2 + lower_right
-        triangle_index[
-            (u_offset + v_offset) == (self.px_per_uv_square - 1)
-        ] = 0  # we don't use the diagonals of the squares
+        # triangle_index[
+        #     (u_offset + v_offset) == (self.px_per_uv_square - 1)
+        # ] = 0  # we don't use the diagonals of the squares
         triangle_index = torch.clamp(triangle_index, min=0, max=len(faces) - 1)
 
         nearby_uv_coords = texture_coordinates[triangle_index]
@@ -424,23 +432,20 @@ class ExportTextureMesh(Exporter):
         print("nearby_normals", nearby_normals.shape)  # (num_pixels, num_pixels, 3, 3)
 
         # compute barycentric coordinates
-        # TODO(ethan): check correctness
-        a = nearby_uv_coords[..., 0, :]  # (num_pixels, num_pixels, 2)
-        b = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
-        c = nearby_uv_coords[..., 2, :]  # (num_pixels, num_pixels, 2)
+        v0 = nearby_uv_coords[..., 0, :]  # (num_pixels, num_pixels, 2)
+        v1 = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
+        v2 = nearby_uv_coords[..., 2, :]  # (num_pixels, num_pixels, 2)
         p = uv_coords  # (num_pixels, num_pixels, 2)
-        v0 = b - a
-        v1 = c - a
-        v2 = p - a
-        d00 = torch.sum(v0 * v0, dim=-1)
-        d01 = torch.sum(v0 * v1, dim=-1)
-        d11 = torch.sum(v1 * v1, dim=-1)
-        d20 = torch.sum(v2 * v0, dim=-1)
-        d21 = torch.sum(v2 * v1, dim=-1)
-        denom = d00 * d11 - d01 * d01
-        v = (d11 * d20 - d01 * d21) / (denom + 1e-20)
-        w = (d00 * d21 - d01 * d20) / (denom + 1e-20)
-        u = 1.0 - v - w
+        epsilon = 1e-8
+        area = edge_function(v2, v0, v1) + epsilon  # 2 x face area.
+        w0 = edge_function(p, v1, v2) / area
+        w1 = edge_function(p, v2, v0) / area
+        w2 = edge_function(p, v0, v1) / area
+        u = w0
+        v = w1
+        w = w2
+        # check which ones are outside the triangle
+        outside = (u < 0) | (v < 0) | (w < 0)
 
         # load the NeRF and create the texture
         _, pipeline, _ = eval_setup(self.load_config)
@@ -486,6 +491,7 @@ class ExportTextureMesh(Exporter):
 
         # save the texture image
         texture_image = outputs["rgb"].cpu().numpy()
+        # texture_image[outside] = 0.0
         media.write_image(str(self.output_dir / "material_0.png"), texture_image)
 
         # create the .mtl file
