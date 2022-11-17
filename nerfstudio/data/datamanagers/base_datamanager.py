@@ -266,7 +266,7 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    dataset_scale_factor: float = 1.0
+    dataset_camera_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
     """
@@ -312,11 +312,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"), self.config.dataset_scale_factor)
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"), self.config.dataset_camera_scale_factor)
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split), self.config.dataset_scale_factor)
+        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split), self.config.dataset_camera_scale_factor)
 
     def setup_train(self):
         """Sets up the data loaders for training"""
