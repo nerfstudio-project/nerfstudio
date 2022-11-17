@@ -400,16 +400,18 @@ class ExportTextureMesh(Exporter):
         uv_indices = torch.stack(
             torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
         )
-        uv_coords = (uv_indices + 0.5) / num_pixels
+        uv_coords = uv_indices / (num_pixels - 1.0)
 
         u_index = torch.div(uv_indices[..., 0], self.px_per_uv_square, rounding_mode="floor")
         v_index = torch.div(uv_indices[..., 1], self.px_per_uv_square, rounding_mode="floor")
         square_index = v_index * squares_per_side + u_index
         u_offset = uv_indices[..., 0] % self.px_per_uv_square
         v_offset = uv_indices[..., 1] % self.px_per_uv_square
-        lower_right = (u_offset + v_offset) >= self.px_per_uv_square
+        lower_right = (u_offset + v_offset) >= (self.px_per_uv_square - 1)
         triangle_index = square_index * 2 + lower_right
-
+        triangle_index[
+            (u_offset + v_offset) == (self.px_per_uv_square - 1)
+        ] = 0  # we don't use the diagonals of the squares
         triangle_index = torch.clamp(triangle_index, min=0, max=len(faces) - 1)
 
         nearby_uv_coords = texture_coordinates[triangle_index]
@@ -451,33 +453,31 @@ class ExportTextureMesh(Exporter):
         dist = torch.mean(torch.norm(neary_vertices_dev[..., 0, :] - neary_vertices_dev[..., 1, :], dim=-1))
         offset = dist
 
-        # ori = nearby_vertices[..., 0, :].to(self.device)
-        # dir_ = -nearby_normals[..., 0, :].to(self.device)
-        ori = (
+        origins = (
             nearby_vertices[..., 0, :] * u[..., None]
             + nearby_vertices[..., 1, :] * v[..., None]
             + nearby_vertices[..., 2, :] * w[..., None]
         ).to(self.device)
-        dir_ = -(
+        directions = -(
             nearby_normals[..., 0, :] * u[..., None]
             + nearby_normals[..., 1, :] * v[..., None]
             + nearby_normals[..., 2, :] * w[..., None]
         ).to(self.device)
         # normalize the direction vector to make it a unit vector
-        dir_ = torch.nn.functional.normalize(dir_, dim=-1)
+        directions = torch.nn.functional.normalize(directions, dim=-1)
 
-        origins = ori
-        directions = dir_
         origins = origins - offset * directions
         pixel_area = torch.ones_like(origins[..., 0:1])
         camera_indices = torch.zeros_like(origins[..., 0:1])
+        nears = torch.zeros_like(origins[..., 0:1])
+        fars = torch.ones_like(origins[..., 0:1]) * offset * 2.0
         camera_ray_bundle = RayBundle(
             origins=origins,
             directions=directions,
             pixel_area=pixel_area,
             camera_indices=camera_indices,
-            nears=torch.zeros_like(origins[..., 0:1]),
-            fars=torch.ones_like(origins[..., 0:1]) * offset * 2.0,
+            nears=nears,
+            fars=fars,
         )
 
         CONSOLE.print("Rendering texture...")
