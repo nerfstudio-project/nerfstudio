@@ -44,7 +44,7 @@ class PhototourismDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: Phototourism)
     """target class to instantiate"""
-    data: Path = Path("data/trevi_fountain")
+    data: Path = Path("data/phototourism/trevi-fountain")
     """Directory specifying location of data."""
     scale_factor: float = 3.0
     """How much to scale the camera origins by."""
