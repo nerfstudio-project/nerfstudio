@@ -305,6 +305,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
+        self.dataparser = self.config.dataparser.setup()
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
@@ -312,11 +313,17 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"), self.config.dataset_camera_scale_factor)
+        return InputDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split="train"),
+            scale_factor=self.config.dataset_camera_scale_factor,
+        )
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split), self.config.dataset_camera_scale_factor)
+        return InputDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
+            scale_factor=self.config.dataset_camera_scale_factor,
+        )
 
     def setup_train(self):
         """Sets up the data loaders for training"""
