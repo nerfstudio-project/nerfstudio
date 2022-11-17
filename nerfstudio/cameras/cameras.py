@@ -79,7 +79,7 @@ class Cameras(TensorDataclass):
     cy: TensorType["num_cameras":..., 1]
     width: TensorType["num_cameras":..., 1]
     height: TensorType["num_cameras":..., 1]
-    distortion_params: Union[TensorType["num_cameras":..., 6], None]
+    distortion_params: Optional[TensorType["num_cameras":..., 6]]
     camera_type: TensorType["num_cameras":..., 1]
     times: Optional[TensorType["num_cameras", 1]]
 
