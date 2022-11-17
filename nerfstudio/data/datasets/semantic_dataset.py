@@ -34,10 +34,8 @@ class SemanticDataset(InputDataset):
 
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__(dataparser_outputs, scale_factor)
-        assert "semantics" in dataparser_outputs.metadata.keys() and isinstance(
-            dataparser_outputs.metadata["semantics"], Semantics
-        )
-        self.semantics = dataparser_outputs.metadata["semantics"]
+        assert "semantics" in dataparser_outputs.metadata.keys() and isinstance(self.metadata["semantics"], Semantics)
+        self.semantics = self.metadata["semantics"]
         self.mask_indices = torch.tensor(
             [self.semantics.classes.index(mask_class) for mask_class in self.semantics.mask_classes]
         ).view(1, 1, -1)

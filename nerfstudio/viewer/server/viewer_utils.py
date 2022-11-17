@@ -314,7 +314,7 @@ class ViewerState:
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene box (i.e., the bounding box)
-        json_ = dataset.dataparser_outputs.scene_box.to_json()
+        json_ = dataset.scene_box.to_json()
         self.vis["sceneState/sceneBox"].write(json_)
 
         # set the initial state whether to train or not
