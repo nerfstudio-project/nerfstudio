@@ -25,6 +25,7 @@ from typing import Optional, Tuple
 import torch
 import yaml
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.pipelines.base_pipeline import Pipeline
@@ -63,11 +64,21 @@ def eval_load_checkpoint(config: cfg.TrainerConfig, pipeline: Pipeline) -> Path:
     return load_path
 
 
-def eval_setup(config_path: Path, eval_num_rays_per_chunk: Optional[int] = None) -> Tuple[cfg.Config, Pipeline, Path]:
+def eval_setup(
+    config_path: Path,
+    eval_num_rays_per_chunk: Optional[int] = None,
+    test_mode: Literal["test", "val", "inference"] = "test",
+) -> Tuple[cfg.Config, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
     Args:
         config_path: Path to config YAML file.
+        eval_num_rays_per_chunk: Number of rays per forward pass
+        test_mode:
+            'val': loads train/val datasets into memory
+            'test': loads train/test datset into memory
+            'inference': does not load any dataset into memory
+
 
     Returns:
         Loaded config, pipeline module, and corresponding checkpoint.
@@ -86,7 +97,7 @@ def eval_setup(config_path: Path, eval_num_rays_per_chunk: Optional[int] = None)
 
     # setup pipeline (which includes the DataManager)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    pipeline = config.pipeline.setup(device=device, test_mode=True)
+    pipeline = config.pipeline.setup(device=device, test_mode=test_mode)
     assert isinstance(pipeline, Pipeline)
     pipeline.eval()
 

@@ -13,13 +13,14 @@ import {
   CameraAltRounded,
   TuneRounded,
   WidgetsRounded,
+  ImportExportRounded,
 } from '@mui/icons-material/';
 import StatusPanel from './StatusPanel';
-import LevaTheme from '../ConfigPanel/leva_theme.json';
+import LevaTheme from '../../themes/leva_theme.json';
 import CameraPanel from './CameraPanel';
 import ScenePanel from './ScenePanel';
 import { RenderControls } from '../ConfigPanel/ConfigPanel';
-import { LogPanel } from '../LogPanel/LogPanel';
+import ExportPanel from './ExportPanel';
 
 export const snap_to_camera = (sceneTree, camera, matrix) => {
   const mat = new THREE.Matrix4();
@@ -77,9 +78,11 @@ export function BasicTabs(props: BasicTabsProps) {
   const sceneTree = props.sceneTree;
 
   const [value, setValue] = React.useState(0);
+  const [showExportBox, setShowExportBox] = React.useState(false);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
+    setShowExportBox(newValue === 3);
   };
 
   return (
@@ -97,6 +100,11 @@ export function BasicTabs(props: BasicTabsProps) {
             <Tab icon={<TuneRounded />} label="Controls" {...a11yProps(0)} />
             <Tab icon={<CameraAltRounded />} label="Render" {...a11yProps(1)} />
             <Tab icon={<WidgetsRounded />} label="Scene" {...a11yProps(2)} />
+            <Tab
+              icon={<ImportExportRounded />}
+              label="Export"
+              {...a11yProps(3)}
+            />
           </Tabs>
         </Box>
         <TabPanel value={value} index={0}>
@@ -124,7 +132,7 @@ export function BasicTabs(props: BasicTabsProps) {
         </TabPanel>
 
         <TabPanel value={value} index={3}>
-          <LogPanel>TODO: Something maybe?</LogPanel>
+          <ExportPanel sceneTree={sceneTree} showExportBox={showExportBox} />
         </TabPanel>
       </Box>
     </div>

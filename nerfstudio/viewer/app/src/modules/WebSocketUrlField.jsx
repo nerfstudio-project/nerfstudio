@@ -19,6 +19,16 @@ export default function WebSocketUrlField() {
     });
   };
 
+  const testWebSocket = (url) => {
+    try {
+      // eslint-disable-next-line no-new
+      new WebSocket(url);
+      return false;
+    } catch (error) {
+      return true;
+    }
+  };
+
   return (
     <div>
       <TextField
@@ -28,6 +38,8 @@ export default function WebSocketUrlField() {
         value={websocket_url}
         onChange={websocket_url_onchange}
         size="small"
+        error={testWebSocket(websocket_url)}
+        helperText={testWebSocket(websocket_url) ? 'Invalid websocket URL' : ''}
       />
       <Link href={`/?websocket_url=${websocket_url}`}>
         viewer.nerf.studio?websocket_url={websocket_url}

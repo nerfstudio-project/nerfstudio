@@ -31,7 +31,7 @@ class Exporter:
 
 @dataclass
 class ExportPointCloud(Exporter):
-    """Class to export meshes with the poisson algorithm."""
+    """Export NeRF as a point cloud."""
 
     num_points: int = 1000000
     """Number of points to generate. May result in less if outlier removal is used."""
@@ -84,7 +84,10 @@ class ExportPointCloud(Exporter):
 
 @dataclass
 class ExportTSDFMesh(Exporter):
-    """Class to export meshes with the poisson algorithm."""
+    """
+    NOT YET IMPLEMENTED
+    Export a mesh using TSDF processing.
+    """
 
     def main(self) -> None:
         """Export mesh"""
@@ -93,7 +96,10 @@ class ExportTSDFMesh(Exporter):
 
 @dataclass
 class ExportPoissonMesh(Exporter):
-    """Exports a mesh using poisson mesh reconstruction."""
+    """
+    NOT YET IMPLEMENTED
+    Export a mesh using poisson surface reconstruction.
+    """
 
     def main(self) -> None:
         """Export mesh"""
@@ -102,7 +108,10 @@ class ExportPoissonMesh(Exporter):
 
 @dataclass
 class ExportMarchingCubesMesh(Exporter):
-    """Exports a mesh using marching cubes."""
+    """
+    NOT YET IMPLEMENTED
+    Export a mesh using marching cubes.
+    """
 
     def main(self) -> None:
         """Export mesh"""
@@ -125,3 +134,6 @@ def entrypoint():
 
 if __name__ == "__main__":
     entrypoint()
+
+# For sphinx docs
+get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # noqa

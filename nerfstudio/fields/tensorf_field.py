@@ -68,6 +68,7 @@ class TensoRFField(Field):
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
             activation=nn.ReLU(),
+            out_activation=nn.ReLU(),
         )
 
         self.use_sh = use_sh
