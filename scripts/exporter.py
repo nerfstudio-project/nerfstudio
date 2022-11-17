@@ -4,15 +4,17 @@ Script for exporting NeRF into other formats.
 
 from __future__ import annotations
 
+import math
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Tuple, Union
 
-import math
-import trimesh
+import mediapy as media
 import numpy as np
 import open3d as o3d
 import torch
+import trimesh
 import tyro
 from rich.console import Console
 from rich.progress import (
@@ -22,14 +24,12 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from nerfstudio.configs import base_config as cfg
-from tqdm import tqdm
 from torchtyping import TensorType
+from tqdm import tqdm
 from typing_extensions import Annotated
 
-import mediapy as media
-from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.model_components.exporters import generate_point_cloud
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.eval_utils import eval_setup
@@ -306,6 +306,7 @@ class ExportPoissonMesh(Exporter):
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
 
+        # TODO: optionally use normals from the network
         # with CONSOLE.status("Estimating Normals", spinner="arrow") as status:
         CONSOLE.print("Estimating Normals")
         pcd.estimate_normals()
@@ -317,7 +318,7 @@ class ExportPoissonMesh(Exporter):
 
         # with CONSOLE.status("Saving Point Cloud", spinner="pipe") as status:
         CONSOLE.print("Saving Point Cloud")
-        o3d.io.write_point_cloud(str(output_dir / "point_cloud.ply"), pcd)
+        o3d.io.write_point_cloud(str(self.output_dir / "point_cloud.ply"), pcd)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
@@ -331,7 +332,7 @@ class ExportPoissonMesh(Exporter):
 
         # with CONSOLE.status("Saving Mesh", spinner="pipe") as status:
         CONSOLE.print("Saving Mesh")
-        o3d.io.write_triangle_mesh(str(output_dir / "mesh.ply"), mesh)
+        o3d.io.write_triangle_mesh(str(self.output_dir / "mesh.ply"), mesh)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
 
@@ -350,6 +351,8 @@ class ExportTextureMesh(Exporter):
     """Device to use for torch operations."""
 
     def main(self) -> None:
+        """Export textured mesh"""
+        # pylint: disable=too-many-statements
 
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
@@ -366,9 +369,17 @@ class ExportTextureMesh(Exporter):
         num_pixels = squares_per_side * self.px_per_uv_square
 
         # uv coords (upper left and lower right)
-        uv_coords_upper_left = (torch.tensor([[0, 0], [1, 0], [0, 1]]) * (self.px_per_uv_square - 1) + 0.5) / num_pixels
-        uv_coords_lower_left = (torch.tensor([[1, 1], [0, 1], [0, 1]]) * (self.px_per_uv_square - 1) + 0.5) / num_pixels
-        uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_left], dim=0)  # (2, 3, 2)
+        uv_coords_upper_left = torch.tensor([[0, 0], [1, 0], [0, 1]]) * (self.px_per_uv_square - 1) / num_pixels
+        lr = self.px_per_uv_square / num_pixels
+        px = 1.0 / num_pixels
+        uv_coords_lower_right = torch.tensor(
+            [
+                [lr, lr],
+                [px, lr],
+                [lr, px],
+            ]
+        )
+        uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_right], dim=0)  # (2, 3, 2)
         uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
 
         squares_per_side = math.ceil(math.sqrt(num_squares))
@@ -411,7 +422,7 @@ class ExportTextureMesh(Exporter):
         print("nearby_normals", nearby_normals.shape)  # (num_pixels, num_pixels, 3, 3)
 
         # compute barycentric coordinates
-        # TODO: check correctness
+        # TODO(ethan): check correctness
         a = nearby_uv_coords[..., 0, :]  # (num_pixels, num_pixels, 2)
         b = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
         c = nearby_uv_coords[..., 2, :]  # (num_pixels, num_pixels, 2)
@@ -433,7 +444,12 @@ class ExportTextureMesh(Exporter):
         _, pipeline, _ = eval_setup(self.load_config)
 
         # color the texture image
-        offset = 0.2
+
+        # compute the length of the rays we want to render
+        # we can make a good guess for this by looking at the average distance between vertices on the triangle faces
+        neary_vertices_dev = nearby_vertices.to(self.device)
+        dist = torch.mean(torch.norm(neary_vertices_dev[..., 0, :] - neary_vertices_dev[..., 1, :], dim=-1))
+        offset = dist
 
         # ori = nearby_vertices[..., 0, :].to(self.device)
         # dir_ = -nearby_normals[..., 0, :].to(self.device)
@@ -442,11 +458,13 @@ class ExportTextureMesh(Exporter):
             + nearby_vertices[..., 1, :] * v[..., None]
             + nearby_vertices[..., 2, :] * w[..., None]
         ).to(self.device)
-        dir_ = - (
+        dir_ = -(
             nearby_normals[..., 0, :] * u[..., None]
             + nearby_normals[..., 1, :] * v[..., None]
             + nearby_normals[..., 2, :] * w[..., None]
         ).to(self.device)
+        # normalize the direction vector to make it a unit vector
+        dir_ = torch.nn.functional.normalize(dir_, dim=-1)
 
         origins = ori
         directions = dir_
@@ -454,7 +472,12 @@ class ExportTextureMesh(Exporter):
         pixel_area = torch.ones_like(origins[..., 0:1])
         camera_indices = torch.zeros_like(origins[..., 0:1])
         camera_ray_bundle = RayBundle(
-            origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+            origins=origins,
+            directions=directions,
+            pixel_area=pixel_area,
+            camera_indices=camera_indices,
+            nears=torch.zeros_like(origins[..., 0:1]),
+            fars=torch.ones_like(origins[..., 0:1]) * offset * 2.0,
         )
 
         CONSOLE.print("Rendering texture...")
@@ -476,14 +499,16 @@ class ExportTextureMesh(Exporter):
             "map_Kd material_0.png",
         ]
         lines_mtl = [line + "\n" for line in lines_mtl]
-        file_mtl = open(self.output_dir / "material_0.mtl", "w", encoding="utf-8")
+        file_mtl = open(  # pylint: disable=consider-using-with
+            self.output_dir / "material_0.mtl", "w", encoding="utf-8"
+        )
         file_mtl.writelines(lines_mtl)
         file_mtl.close()
 
         # create the .obj file
         lines_obj = ["# Generated with nerfstudio", "mtllib material_0.mtl", "usemtl material_0"]
         lines_obj = [line + "\n" for line in lines_obj]
-        file_obj = open(self.output_dir / "mesh.obj", "w", encoding="utf-8")
+        file_obj = open(self.output_dir / "mesh.obj", "w", encoding="utf-8")  # pylint: disable=consider-using-with
         file_obj.writelines(lines_obj)
 
         # write the geometric vertices
