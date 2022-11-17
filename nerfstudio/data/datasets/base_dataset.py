@@ -17,6 +17,7 @@ Dataset.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Dict
 
 import numpy as np
@@ -43,7 +44,8 @@ class InputDataset(Dataset):
         self.dataparser_outputs = dataparser_outputs
         self.has_masks = self.dataparser_outputs.mask_filenames is not None
         self.scale_factor = scale_factor
-        self.cameras = dataparser_outputs.cameras.rescale_output_resolution(scaling_factor=scale_factor)
+        self.cameras = deepcopy(dataparser_outputs.cameras)
+        self.cameras.rescale_output_resolution(scaling_factor=scale_factor)
 
     def __len__(self):
         return len(self.dataparser_outputs.image_filenames)
@@ -58,7 +60,7 @@ class InputDataset(Dataset):
         pil_image = Image.open(image_filename)
         if self.scale_factor != 1.0:
             width, height = pil_image.size
-            newsize = (int(width*self.scale_factor), int(height*self.scale_factor))
+            newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.BICUBIC)
         image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
         assert len(image.shape) == 3
