@@ -1,10 +1,12 @@
 #!/usr/bin/env python
+# pylint: disable=too-many-lines
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 import json
 import shutil
 import subprocess
 import sys
+import zipfile
 from contextlib import nullcontext
 from dataclasses import dataclass
 from enum import Enum
@@ -251,11 +253,14 @@ def convert_insta360_to_images(
     return summary_log, num_final_frames
 
 
-def copy_images_list(image_paths: List[Path], image_dir: Path, verbose) -> List[Path]:
+def copy_images_list(
+    image_paths: List[Path], image_dir: Path, crop_border_pixels: Optional[int] = None, verbose: bool = False
+) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
         image_paths: List of Paths of images to copy to a new directory.
         image_dir: Path to the output directory.
+        crop_border_pixels: If not None, crops each edge by the specified number of pixels.
         verbose: If True, print extra logging.
     Returns:
         A list of the copied image Paths.
@@ -275,6 +280,13 @@ def copy_images_list(image_paths: List[Path], image_dir: Path, verbose) -> List[
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
         shutil.copy(image_path, copied_image_path)
         copied_image_paths.append(copied_image_path)
+
+    if crop_border_pixels is not None:
+        file_type = image_paths[0].suffix
+        filename = f"frame_%05d{file_type}"
+        crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
+        ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
 
@@ -630,6 +642,76 @@ def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str
     return f"[bold green]COLMAP found poses for {num_matched_frames / num_intial_frames * 100:.2f}% of the images."
 
 
+def polycam_to_json(
+    image_filenames: List[Path],
+    cameras_dir: Path,
+    output_dir: Path,
+    min_blur_score: float = 0.0,
+    crop_border_pixels: int = 0,
+) -> List[str]:
+    """Convert Polycam data into a nerfstudio dataset.
+
+    Args:
+        image_filenames: List of paths to the original images.
+        cameras_dir: Path to the polycam cameras directory.
+        output_dir: Path to the output directory.
+        min_blur_score: Minimum blur score to use an image. Images below this value will be skipped.
+        crop_border_pixels: Number of pixels to crop from each border of the image.
+
+    Returns:
+        Summary of the conversion.
+    """
+
+    frame_json = io.load_from_json(cameras_dir / f"{image_filenames[0].stem}.json")
+
+    # TODO Add per-frame intrinsics
+
+    data = {}
+    data["fl_x"] = frame_json["fx"]
+    data["fl_y"] = frame_json["fy"]
+    data["cx"] = frame_json["cx"] - crop_border_pixels
+    data["cy"] = frame_json["cy"] - crop_border_pixels
+    data["w"] = frame_json["width"] - crop_border_pixels * 2
+    data["h"] = frame_json["height"] - crop_border_pixels * 2
+    data["camera_model"] = CAMERA_MODELS["perspective"].value
+    # Needs to be a string for camera_utils.auto_orient_and_center_poses
+    data["orientation_override"] = "none"
+
+    frames = []
+    skipped_frames = 0
+    for i, image_filename in enumerate(image_filenames):
+        json_filename = cameras_dir / f"{image_filename.stem}.json"
+        frame_json = io.load_from_json(json_filename)
+        if "blur_score" in frame_json and frame_json["blur_score"] < min_blur_score:
+            skipped_frames += 1
+            continue
+        frame = {}
+        frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
+        # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
+        frame["transform_matrix"] = [
+            [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],
+            [frame_json["t_00"], frame_json["t_01"], frame_json["t_02"], frame_json["t_03"]],
+            [frame_json["t_10"], frame_json["t_11"], frame_json["t_12"], frame_json["t_13"]],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+        frames.append(frame)
+    data["frames"] = frames
+
+    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
+
+    summary = []
+    if skipped_frames > 0:
+        summary.append(f"Skipped {skipped_frames} frames due to low blur score.")
+    summary.append(f"Final dataset is {len(image_filenames) - skipped_frames} frames.")
+
+    if len(image_filenames) - skipped_frames == 0:
+        CONSOLE.print("[bold red]No images remain after filtering, exiting")
+        sys.exit(1)
+
+    return summary
+
+
 @dataclass
 class ProcessImages:
     """Process images into a nerfstudio dataset.
@@ -904,11 +986,11 @@ class ProcessRecord3D:
     This script does the following:
 
     1. Scales images to a specified size.
-    2. Converts Record3D poses into the nerfacto format.
+    2. Converts Record3D poses into the nerfstudio format.
     """
 
     data: Path
-    """Path the data, either a video file or a directory of images."""
+    """Path to the record3D data."""
     output_dir: Path
     """Path to the output directory."""
     num_downscales: int = 3
@@ -971,9 +1053,128 @@ class ProcessRecord3D:
         CONSOLE.rule()
 
 
+@dataclass
+class ProcessPolycam:
+    """Process Polycam data into a nerfstudio dataset.
+
+    To capture data, use the Polycam app on an iPhone or iPad with LiDAR. The capture must be in LiDAR or ROOM mode.
+    Developer mode must be enabled in the app settings, this will enable a raw data export option in the export menus.
+    The exported data folder is used as the input to this script.
+
+    This script does the following:
+
+    1. Scales images to a specified size.
+    2. Converts Polycam poses into the nerfstudio format.
+    """
+
+    data: Path
+    """Path the polycam export data folder. Can be .zip file or folder."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    use_uncorrected_images: bool = False
+    """If True, use the raw images from the polycam export. If False, use the corrected images."""
+    max_dataset_size: int = 600
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
+    min_blur_score: float = 25
+    """Minimum blur score to use an image. If the blur score is below this value, the image will be skipped."""
+    crop_border_pixels: int = 15
+    """Number of pixels to crop from each border of the image. Useful as borders may be black due to undistortion."""
+
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+
+        if self.data.suffix == ".zip":
+            with zipfile.ZipFile(self.data, "r") as zip_ref:
+                zip_ref.extractall(self.output_dir)
+                extracted_folder = zip_ref.namelist()[0].split("/")[0]
+            self.data = self.output_dir / extracted_folder
+
+        if (self.data / "keyframes" / "corrected_images").exists() and not self.use_uncorrected_images:
+            polycam_image_dir = self.data / "keyframes" / "corrected_images"
+            polycam_cameras_dir = self.data / "keyframes" / "corrected_cameras"
+        else:
+            polycam_image_dir = self.data / "keyframes" / "images"
+            polycam_cameras_dir = self.data / "keyframes" / "cameras"
+            self.crop_border_pixels = 0
+            if not self.use_uncorrected_images:
+                CONSOLE.print("[bold yellow]Corrected images not found, using raw images.")
+
+        if not polycam_image_dir.exists():
+            raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
+
+        # Copy images to output directory
+
+        polycam_image_filenames = []
+        for f in polycam_image_dir.iterdir():
+            polycam_image_filenames.append(f)
+        polycam_image_filenames = sorted(polycam_image_filenames, key=lambda fn: int(fn.stem))
+        num_images = len(polycam_image_filenames)
+        idx = np.arange(num_images)
+        if self.max_dataset_size != -1 and num_images > self.max_dataset_size:
+            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
+
+        polycam_image_filenames = list(np.array(polycam_image_filenames)[idx])
+        # Copy images to output directory
+        copied_image_paths = copy_images_list(
+            polycam_image_filenames,
+            image_dir=image_dir,
+            crop_border_pixels=self.crop_border_pixels,
+            verbose=self.verbose,
+        )
+        num_frames = len(copied_image_paths)
+
+        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+
+        if self.max_dataset_size > 0 and num_frames != num_images:
+            summary_log.append(f"Started with {num_frames} images out of {num_images} total")
+            summary_log.append(
+                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
+                f"current value ({self.max_dataset_size}), or -1 to use all images."
+            )
+        else:
+            summary_log.append(f"Started with {num_frames} images")
+
+        # Downscale images
+        summary_log.append(downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        # Save json
+        if num_frames == 0:
+            CONSOLE.print("[bold red]No images found, exiting")
+            sys.exit(1)
+        summary_log.extend(
+            polycam_to_json(
+                image_filenames=polycam_image_filenames,
+                cameras_dir=polycam_cameras_dir,
+                output_dir=self.output_dir,
+                min_blur_score=self.min_blur_score,
+                crop_border_pixels=self.crop_border_pixels,
+            )
+        )
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
 Commands = Union[
     Annotated[ProcessImages, tyro.conf.subcommand(name="images")],
     Annotated[ProcessVideo, tyro.conf.subcommand(name="video")],
+    Annotated[ProcessPolycam, tyro.conf.subcommand(name="polycam")],
     Annotated[ProcessInsta360, tyro.conf.subcommand(name="insta360")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
 ]

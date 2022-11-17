@@ -360,8 +360,11 @@ class VanillaPipeline(Pipeline):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         if self.test_mode == "inference":
+            state.pop("datamanager.train_camera_optimizer.pose_adjustment", None)
             state.pop("datamanager.train_ray_generator.image_coords", None)
+            state.pop("datamanager.train_ray_generator.pose_optimizer.pose_adjustment", None)
             state.pop("datamanager.eval_ray_generator.image_coords", None)
+            state.pop("datamanager.eval_ray_generator.pose_optimizer.pose_adjustment", None)
         self.load_state_dict(state)  # type: ignore
 
     def get_training_callbacks(
