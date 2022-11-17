@@ -157,7 +157,7 @@ class MSIModel(Model):
         # ray-sphere intersection
         center_src = self.pose[:3, 3]
 
-        intersections, _ = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
+        intersections, mask = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
 
         # make them in MSI space
         xyzs = intersections - center_src  # (N, R, 3)
@@ -185,6 +185,14 @@ class MSIModel(Model):
         alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
         alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
         alphas_sig = alphas_sig.permute(0, 1, 3, 2)  # (R, 1, N, 1)
+
+        # # adding mask # (N, R)
+        alphas_sig_clone = alphas_sig.clone()
+        alphas_sig_clone[~mask.reshape((alphas_sig.shape[0], 1, -1, 1))] = 0
+
+        alphas_sig = alphas_sig_clone
+        # alphas_sig[~mask.reshape((alphas_sig.shape[0], 1, -1, 1))] = 0
+
         # print("alphas_sig", alphas_sig.min(), alphas_sig.max())
         rgbs = F.grid_sample(self.rgb, uvs[:: self.nsublayers], align_corners=True)  # (L // sublayers, 3, 1, N)
         rgbs = torch.sigmoid(rgbs)
@@ -194,7 +202,9 @@ class MSIModel(Model):
         weight = misc.cumprod(1 - alphas_sig, exclusive=True) * alphas_sig
         # print(weight[:, 0, 0, 0])
         output_vals = torch.sum(weight * rgbs, dim=0, keepdim=True)  # [1, 3, N, 1]
-        outputs["rgb"] = output_vals.reshape(*ray_bundle_shape, 3)
+        # outputs[mask.squeeze(-1)] = torch.zeros((3,))
+        output_vals = output_vals.reshape(*ray_bundle_shape, 3)
+        outputs["rgb"] = output_vals
 
         return outputs
 
@@ -203,11 +213,13 @@ class MSIModel(Model):
         device = outputs["rgb"].device
         image = batch["image"].to(device)
         # print("image", image.min(), image.max())
-        # print("image", image.shape)
-        # print('outputs["rgb"]', outputs["rgb"].shape)
+        # print("image", image[:5])
+        # # print('outputs["rgb"]', outputs["rgb"].shape)
         # print("outputs", outputs["rgb"][:5])
+        # print("outputs", outputs["rgb"][:5])
+        # print("image", image[:5])
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
-        tv_loss = self.tv_loss(torch.sigmoid(self.rgb)) + self.tv_loss(torch.sigmoid(self.alpha))
+        tv_loss = self.tv_loss(torch.sigmoid(self.rgb)) + self.tv_loss(torch.sigmoid(self.alpha - self.sigmoid_offset))
 
         # grad_loss = (torch.mean(torch.abs(ox - gx)) + torch.mean(torch.abs(oy - gy)))
 
