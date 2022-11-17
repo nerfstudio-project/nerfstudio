@@ -181,20 +181,23 @@ class MSIModel(Model):
             dim=2,
         )  # (N, R, 2)
         # print("uvs", uvs[:, :, 0].min(), uvs[:, :, 0].max(), uvs[:, :, 1].min(), uvs[:, :, 1].max())
-        uvs = uvs.reshape(self.n_total_layers, 1, uvs.shape[0], 2)  # (R, 1, N, 2)
+        uvs = uvs.permute(1, 0, 2).unsqueeze(1)
         alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
         alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
         alphas_sig = alphas_sig.permute(0, 1, 3, 2)  # (R, 1, N, 1)
 
         # # adding mask # (N, R)
         alphas_sig_clone = alphas_sig.clone()
-        alphas_sig_clone[~mask.reshape((alphas_sig.shape[0], 1, -1, 1))] = 0
+        mask = mask.permute(1, 0).unsqueeze(1).unsqueeze(-1)
+        alphas_sig_clone[~mask] = 0
 
         alphas_sig = alphas_sig_clone
         # alphas_sig[~mask.reshape((alphas_sig.shape[0], 1, -1, 1))] = 0
 
         # print("alphas_sig", alphas_sig.min(), alphas_sig.max())
-        rgbs = F.grid_sample(self.rgb, uvs[:: self.nsublayers], align_corners=True)  # (L // sublayers, 3, 1, N)
+        rgbs = F.grid_sample(
+            self.rgb, uvs[:: self.nsublayers], align_corners=True, padding_mode="zeros"
+        )  # (L // sublayers, 3, 1, N)
         rgbs = torch.sigmoid(rgbs)
         rgbs = rgbs.permute(0, 1, 3, 2)  # (L // sublayers, 3, N, 1)
         rgbs = rgbs.repeat_interleave(self.nsublayers, dim=0)
