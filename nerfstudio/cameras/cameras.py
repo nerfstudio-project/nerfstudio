@@ -319,6 +319,7 @@ class Cameras(TensorDataclass):
         coords: Optional[TensorType["num_rays":..., 2]] = None,
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        keep_shape: Optional[bool] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -357,6 +358,9 @@ class Cameras(TensorDataclass):
             coords: Coordinates of the pixels to generate rays for. If None, the full image will be rendered.
             camera_opt_to_camera: Optional transform for the camera to world matrices.
             distortion_params_delta: Optional delta for the distortion parameters.
+            keep_shape: If None, then we default to the regular behavior of flattening if cameras is jagged, otherwise
+                keeping dimensions. If False, we flatten at the end. If True, then we keep the shape of the
+                camera_indices and coords tensors (if we can).
 
         Returns:
             Rays for the given camera indices and coords.
@@ -393,10 +397,18 @@ class Cameras(TensorDataclass):
             cameras.shape
         ), "camera_indices must have shape (num_rays:..., cameras_ndim)"
 
+        # If keep_shape is True, then we need to make sure that the camera indices in question
+        # are all the same height and width and can actually be batched while maintaining the image
+        # shape
+        if keep_shape is True:
+            assert torch.all(cameras.height[camera_indices] == cameras.height[camera_indices[0]]) and torch.all(
+                cameras.width[camera_indices] == cameras.width[camera_indices[0]]
+            ), "Can only keep shape if all cameras have the same height and width"
+
         # If the cameras don't all have same height / width, if coords is not none, we will need to generate
         # a flat list of coords for each camera and then concatenate otherwise our rays will be jagged.
         # Camera indices, camera_opt, and distortion will also need to be broadcasted accordingly which is non-trivial
-        if cameras.is_jagged and coords is None:
+        if cameras.is_jagged and coords is None and (keep_shape is None or keep_shape is False):
             index_dim = camera_indices.shape[-1]
             camera_indices = camera_indices.reshape(-1, index_dim)
             _coords = [cameras.get_image_coords(index=tuple(index)).reshape(-1, 2) for index in camera_indices]
@@ -407,10 +419,14 @@ class Cameras(TensorDataclass):
             assert coords.shape[0] == camera_indices.shape[0]
             # Need to get the coords of each indexed camera and flatten all coordinate maps and concatenate them
 
-        # The case where we aren't jagged (since otherwise coords is already set) and coords is None
-        # In this case we append (h, w) to the num_rays dimensions for all tensors
+        # The case where we aren't jagged && keep_shape (since otherwise coords is already set) and coords
+        # is None. In this case we append (h, w) to the num_rays dimensions for all tensors. In this case,
+        # each image in camera_indices has to have the same shape since otherwise we would have error'd when
+        # we checked keep_shape is valid or we aren't jagged.
         if coords is None:
-            coords: torch.Tensor = cameras.get_image_coords()  # (h, w, 2)
+            index_dim = camera_indices.shape[-1]
+            index = camera_indices.reshape(-1, index_dim)[0]
+            coords: torch.Tensor = cameras.get_image_coords(index=tuple(index))  # (h, w, 2)
             coords = coords.reshape(coords.shape[:2] + (1,) * len(camera_indices.shape[:-1]) + (2,))  # (h, w, 1..., 2)
             coords = coords.expand(coords.shape[:2] + camera_indices.shape[:-1] + (2,))  # (h, w, num_rays, 2)
             camera_opt_to_camera = (  # (h, w, num_rays, 3, 4) or None
@@ -439,6 +455,10 @@ class Cameras(TensorDataclass):
         raybundle = cameras._generate_rays_from_coords(
             camera_indices, coords, camera_opt_to_camera, distortion_params_delta
         )
+
+        # If we have mandated that we don't keep the shape, then we flatten
+        if keep_shape is False:
+            raybundle = raybundle.flatten()
 
         # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
         # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
