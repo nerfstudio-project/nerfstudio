@@ -29,7 +29,12 @@ from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
-from nerfstudio.field_components.encodings import Encoding, HashEncoding, SHEncoding
+from nerfstudio.field_components.encodings import (
+    Encoding,
+    HashEncoding,
+    NeRFEncoding,
+    SHEncoding,
+)
 from nerfstudio.field_components.field_heads import (
     DensityFieldHead,
     FieldHead,
@@ -129,6 +134,11 @@ class TCNNNerfactoField(Field):
             },
         )
 
+        self.position_encoding = tcnn.Encoding(
+            n_input_dims=3,
+            encoding_config={"otype": "Frequency", "n_frequencies": 2},
+        )
+
         self.mlp_base = tcnn.NetworkWithInputEncoding(
             n_input_dims=3,
             n_output_dims=1 + self.geo_feat_dim,
@@ -188,7 +198,7 @@ class TCNNNerfactoField(Field):
         # predicted normals
         if self.use_pred_normals:
             self.mlp_pred_normals = tcnn.Network(
-                n_input_dims=self.geo_feat_dim,
+                n_input_dims=self.geo_feat_dim + (3 * 2 * 2),
                 n_output_dims=hidden_dim_transient,
                 network_config={
                     "otype": "FullyFusedMLP",
@@ -289,11 +299,12 @@ class TCNNNerfactoField(Field):
 
         # predicted normals
         if self.use_pred_normals:
-            x = (
-                self.mlp_pred_normals(density_embedding.view(-1, self.geo_feat_dim).detach())
-                .view(*outputs_shape, -1)
-                .to(directions)
-            )
+            positions = ray_samples.frustums.get_positions()
+
+            positions_flat = self.position_encoding(positions.view(-1, 3))
+            pred_normals_inp = torch.cat([positions_flat, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+
+            x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
         h = torch.cat(

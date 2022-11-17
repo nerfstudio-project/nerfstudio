@@ -92,9 +92,9 @@ class NerfactoModelConfig(ModelConfig):
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
-    orientation_loss_mult: float = 0.1
-    """Orientation loss multiplier."""
-    pred_normal_loss_mult: float = 0.01
+    orientation_loss_mult: float = 0.0001
+    """Orientation loss multipier on computed noramls."""
+    pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
@@ -253,11 +253,13 @@ class NerfactoModel(Model):
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
 
+        if self.training and self.config.compute_normals:
+            outputs["rendered_orientation_loss"] = orientation_loss(
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            )
+
         if self.training and self.config.use_pred_normals:
             assert self.config.compute_normals, "Must compute normals from density to compute predicted normal loss."
-            outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(), field_outputs[FieldHeadNames.PRED_NORMALS], ray_bundle.directions
-            )
             outputs["rendered_pred_normal_loss"] = pred_normal_loss(
                 weights.detach(),
                 field_outputs[FieldHeadNames.NORMALS].detach(),
@@ -287,14 +289,15 @@ class NerfactoModel(Model):
             )
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
+            if self.config.compute_normals:
+                # orientation loss for computed normals
+                loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+                    outputs["rendered_orientation_loss"]
+                )
             if self.config.use_pred_normals:
                 assert (
                     self.config.compute_normals
                 ), "Must compute normals from density to compute predicted normal loss."
-                # orientation loss for normals
-                loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
-                    outputs["rendered_orientation_loss"]
-                )
                 # ground truth supervision for normals
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
@@ -333,9 +336,9 @@ class NerfactoModel(Model):
 
         # normals to RGB for visualization. TODO: use a colormap
         if "normals" in outputs:
-            images_dict["normals"] = outputs["normals"] / 2.0 + 0.5
+            images_dict["normals"] = outputs["normals"]
         if "pred_normals" in outputs:
-            images_dict["pred_normals"] = outputs["pred_normals"] / 2.0 + 0.5
+            images_dict["pred_normals"] = outputs["pred_normals"]
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
