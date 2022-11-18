@@ -6,14 +6,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Tuple, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 import open3d as o3d
 import torch
 import tyro
 from rich.console import Console
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Literal
 
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
