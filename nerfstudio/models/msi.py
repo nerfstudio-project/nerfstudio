@@ -43,8 +43,8 @@ class MSIModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: MSIModel)
     """target class to instantiate"""
-    h: int = 2
-    w: int = 4
+    h: int = 480
+    w: int = 960
     nlayers: int = 1
     nsublayers: int = 1
     dmin: float = 2.0
@@ -78,22 +78,15 @@ class MSI_field(nn.Module):
 
         center_src = self.pose[:3, 3]
 
+        # get the intersection (world coords) of each ray with each of the concentric spheres
         intersections, mask = MSIModel.intersect_rays_with_spheres(ray_bundle, center_src, self.planes)
 
         # make them in MSI space
         xyzs = intersections - center_src  # (N, R, 3)
         # normalize by radius
         xyzs_normalized = xyzs / self.planes.reshape(1, -1, 1)  # (N, R, 3)
-        # lats = torch.asin(torch.clamp(xyzs_normalized[..., 1], -1.0, 1.0))  # (N, R)
-        # lons = torch.atan2(xyzs_normalized[..., 0], -xyzs_normalized[..., 2])  # (N, R)
 
-        # uvs = torch.stack(
-        #     [
-        #         lons / torch.pi,
-        #         2.0 * lats / torch.pi,
-        #     ],
-        #     dim=2,
-        # )  # (N, R, 2)
+        # convert these into uv coordinates (equirectangular projection)
         uvs = torch.stack(
             [
                 xyzs_normalized[..., 2],
@@ -104,39 +97,40 @@ class MSI_field(nn.Module):
 
         # output_vals = torch.zeros((uvs.shape[0], uvs.shape[1], 3))
         # output_vals[(uvs < 0.0).any(dim=-1)] = torch.tensor([1.0, 0.0, 0.0])
-        # output_vals = output_vals.reshape(*ray_bundle_shape, 3)
-        # outputs["rgb"] = output_vals
 
-        # return outputs
+        # return output_vals
 
-        # print("uvs", uvs[:, :, 0].min(), uvs[:, :, 0].max(), uvs[:, :, 1].min(), uvs[:, :, 1].max())
+        # sample the alphas
         uvs = uvs.permute(1, 0, 2).unsqueeze(1)  # (R, 1, N, 2)
-        alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
+        alphas = F.grid_sample(self.alpha, uvs, align_corners=True, padding_mode="reflection")  # (R, 1, 1, N)
         alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
         alphas_sig = alphas_sig.permute(0, 1, 3, 2)  # (R, 1, N, 1)
 
-        # # adding mask # (N, R)
-        alphas_sig_clone = alphas_sig.clone()
+        # adding mask for when intersections are bad (alpha -> 0 if so) (N, R)
+        alphas_sig_clone = alphas_sig.clone()  # clone done to allow gradients to flow
         mask = mask.permute(1, 0).unsqueeze(1).unsqueeze(-1)
         alphas_sig_clone[~mask] = 0
-
         alphas_sig = alphas_sig_clone
-        # alphas_sig[~mask.reshape((alphas_sig.shape[0], 1, -1, 1))] = 0
 
-        # print("alphas_sig", alphas_sig.min(), alphas_sig.max())
+        # sample the RGBs
         rgbs = F.grid_sample(
             self.rgb,
             uvs[:: self.nsublayers],
             align_corners=True,
+            padding_mode="reflection",
         )  # (L // sublayers, 3, 1, N)
         rgbs = torch.sigmoid(rgbs)
         rgbs = rgbs.permute(0, 1, 3, 2)  # (L // sublayers, 3, N, 1)
+
+        # since RGBs are samples at a smaller rate, we will repeat interleave to get the
+        # same output shape as the alphas
         rgbs = rgbs.repeat_interleave(self.nsublayers, dim=0)
-        # print("rgbs", rgbs[:, :, 0, 0])
+
+        # accrue alphas over the rays
         weight = misc.cumprod(1 - alphas_sig, exclusive=True) * alphas_sig
-        # print(weight[:, 0, 0, 0])
+
+        # weighted sum
         output_vals = torch.sum(weight * rgbs, dim=0, keepdim=True)  # [1, 3, N, 1]
-        # outputs[mask.squeeze(-1)] = torch.zeros((3,))
 
         return output_vals
 
@@ -249,29 +243,11 @@ class MSIModel(Model):
         device = outputs["rgb"].device
         image = batch["image"].to(device)
 
-        image = torch.zeros_like(image).cuda()
-        image[:, 0] = 1.0
-        # print("image", image.min(), image.max())
-        # print("image", image[:5])
-        # # print('outputs["rgb"]', outputs["rgb"].shape)
-        # print("outputs", outputs["rgb"][0])
-        # print("outputs", outputs["rgb"][:5])
-        # print("image", image[0])
-        print(torch.sigmoid(self.msi_field.rgb[..., 0]))
+        print(outputs["rgb"][0])
         rgb_loss = self.rgb_loss(image, outputs["rgb"])  # (N, 3)
         tv_loss = self.tv_loss(torch.sigmoid(self.msi_field.rgb)) + self.tv_loss(
             torch.sigmoid(self.msi_field.alpha - self.msi_field.sigmoid_offset)
         )
-
-        # max_size = image.shape[0] // 3 - 1
-
-        # ox = outputs["rgb"][1::3][:max_size] - outputs["rgb"][0::3][:max_size]
-        # oy = outputs["rgb"][2::3][:max_size] - outputs["rgb"][0::3][:max_size]
-        # gx = image[1::3][:max_size] - image[0::3][:max_size]
-        # gy = image[2::3][:max_size] - image[0::3][:max_size]
-
-        # grad_loss = torch.mean(torch.abs(ox - gx)) + torch.mean(torch.abs(oy - gy))
-        # grad_loss = torch.zeros((1,)).cuda()
 
         loss_dict = {"rgb_loss": rgb_loss, "tv_loss": tv_loss}
 
