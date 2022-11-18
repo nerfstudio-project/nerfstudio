@@ -31,7 +31,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataparserOutputs,
 )
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.utils.colmap_utils import qvec2rotmat
+from nerfstudio.process_data.colmap_utils import qvec2rotmat
 
 
 def rotation_translation_to_pose(r_vec, t_vec):
