@@ -1,0 +1,61 @@
+"""
+Script to texture an existing mesh file.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+
+import tyro
+from rich.console import Console
+
+from nerfstudio.exporter import texture_utils
+from nerfstudio.exporter.exporter_utils import get_mesh_from_filename
+from nerfstudio.utils.eval_utils import eval_setup
+
+CONSOLE = Console(width=120)
+
+
+@dataclass
+class TextureMesh:
+    """
+    Export a textured mesh with color computed from the NeRF.
+    """
+
+    load_config: Path
+    """Path to the config YAML file."""
+    output_dir: Path
+    """Path to the output directory."""
+    input_ply_filename: Path
+    """Mesh filename to texture."""
+    px_per_uv_triangle: int = 4
+    """Number of pixels per UV square."""
+
+    def main(self) -> None:
+        """Export textured mesh"""
+        # pylint: disable=too-many-statements
+
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        # load the Mesh
+        mesh = get_mesh_from_filename(str(self.input_ply_filename))
+
+        # load the Pipeline
+        _, pipeline, _ = eval_setup(self.load_config)
+
+        texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
+
+
+def entrypoint():
+    """Entrypoint for use with pyproject scripts."""
+    tyro.extras.set_accent_color("bright_yellow")
+    tyro.cli(tyro.conf.FlagConversionOff[TextureMesh]).main()
+
+
+if __name__ == "__main__":
+    entrypoint()
+
+# For sphinx docs
+get_parser_fn = lambda: tyro.extras.get_parser(TextureMesh)  # noqa

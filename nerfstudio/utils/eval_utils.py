@@ -20,11 +20,12 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Literal, Optional, Tuple
+from typing import Optional, Tuple
 
 import torch
 import yaml
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.pipelines.base_pipeline import Pipeline

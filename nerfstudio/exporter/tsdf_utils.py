@@ -12,36 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Some utilities for creating TSDFs."""
+"""
+TSDF utils.
+"""
 
-from dataclasses import dataclass
-from typing import Optional
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 import trimesh
+from rich.console import Console
 from skimage import measure
 from torchtyping import TensorType
 
+from nerfstudio.exporter.exporter_utils import Mesh, _render_trajectory
+from nerfstudio.pipelines.base_pipeline import Pipeline
 
-@dataclass
-class Mesh:
-    """Class for a mesh."""
-
-    vertices: TensorType["n", 3]
-    """Vertices of the mesh."""
-    faces: TensorType["m", 3]
-    """Faces of the mesh."""
-    normals: TensorType["n", 3]
-    """Normals of the mesh."""
-    colors: TensorType["n", 3]
-    """Colors of the mesh."""
+CONSOLE = Console(width=120)
 
 
 @dataclass
 class TSDF:
-    """Class for creating TSDFs."""
+    """
+    Class for creating TSDFs.
+    """
 
     voxel_coords: TensorType[3, "xdim", "ydim", "zdim"]
     """Coordinates of each voxel in the TSDF."""
@@ -135,6 +134,7 @@ class TSDF:
             filename: The filename to export the mesh to.
         """
         assert filename.endswith(".ply"), "Only .ply files are supported."
+        # TODO(ethan): rename normals to vertex_normals
         mesh_trimesh = trimesh.Trimesh(
             vertices=mesh.vertices.cpu().numpy(),
             faces=mesh.faces.cpu().numpy(),
@@ -251,3 +251,68 @@ class TSDF:
                 self.colors[valid_points_i_shape] = (
                     old_colors_i * old_weights_i[:, None] + new_colors_i * new_weights_i
                 ) / total_weights[:, None]
+
+
+def export_tsdf_mesh(
+    pipeline: Pipeline,
+    output_dir: Path,
+    downscale_factor: int = 2,
+    depth_output_name: str = "depth",
+    rgb_output_name: str = "rgb",
+    resolution: Union[int, List[int]] = field(default_factory=lambda: [256, 256, 256]),
+    batch_size: int = 10,
+):
+    """Export a TSDF mesh from a pipeline.
+
+    Args:
+    """
+
+    device = pipeline.device
+
+    dataparser_outputs = pipeline.datamanager.train_dataset.dataparser_outputs
+
+    # initialize the TSDF volume
+    aabb = dataparser_outputs.scene_box.aabb
+    if isinstance(resolution, int):
+        volume_dims = torch.tensor([resolution] * 3)
+    elif isinstance(resolution, List):
+        volume_dims = torch.tensor(resolution)
+    else:
+        raise ValueError("Resolution must be an int or a list.")
+    tsdf = TSDF.from_aabb(aabb, volume_dims=volume_dims)
+    # move TSDF to device
+    tsdf.to(device)
+
+    cameras = dataparser_outputs.cameras
+    # we turn off distortion when populating the TSDF
+    color_images, depth_images = _render_trajectory(
+        pipeline,
+        cameras,
+        rgb_output_name=rgb_output_name,
+        depth_output_name=depth_output_name,
+        rendered_resolution_scaling_factor=1.0 / downscale_factor,
+        disable_distortion=True,
+    )
+
+    # camera extrinsics and intrinsics
+    c2w: TensorType["N", 3, 4] = cameras.camera_to_worlds.to(device)
+    # make c2w homogeneous
+    c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=device)], dim=1)
+    c2w[:, 3, 3] = 1
+    K: TensorType["N", 3, 3] = cameras.get_intrinsics_matrices().to(device)
+    color_images = torch.tensor(np.array(color_images), device=device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
+    depth_images = torch.tensor(np.array(depth_images), device=device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
+
+    CONSOLE.print("Integrating the TSDF")
+    for i in range(0, len(c2w), batch_size):
+        tsdf.integrate_tsdf(
+            c2w[i : i + batch_size],
+            K[i : i + batch_size],
+            depth_images[i : i + batch_size],
+            color_images=color_images[i : i + batch_size],
+        )
+
+    CONSOLE.print("Computing Mesh")
+    mesh = tsdf.get_mesh()
+    CONSOLE.print("Saving Mesh")
+    tsdf.export_mesh(mesh, filename=str(output_dir / "tsdf_mesh.ply"))

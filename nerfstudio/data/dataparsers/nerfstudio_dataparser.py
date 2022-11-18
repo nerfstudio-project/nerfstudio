@@ -113,9 +113,17 @@ class Nerfstudio(DataParser):
         else:
             raise ValueError(f"Unknown dataparser split {split}")
 
+        if "orientation_override" in meta:
+            orientation_method = meta["orientation_override"]
+            CONSOLE.log(f"[yellow] Dataset is overriding orientation method to {orientation_method}")
+        else:
+            orientation_method = self.config.orientation_method
+
         poses = torch.from_numpy(np.array(poses).astype(np.float32))
         poses = camera_utils.auto_orient_and_center_poses(
-            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+            poses,
+            method=orientation_method,
+            center_poses=self.config.center_poses,
         )
 
         # Scale poses

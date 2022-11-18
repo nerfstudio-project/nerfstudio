@@ -21,7 +21,7 @@ import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
-from typing import Any, Dict, List, Literal, Optional, Type, Union, cast
+from typing import Any, Dict, List, Optional, Type, Union, cast
 
 import torch
 import torch.distributed as dist
@@ -35,6 +35,7 @@ from rich.progress import (
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -359,8 +360,11 @@ class VanillaPipeline(Pipeline):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         if self.test_mode == "inference":
+            state.pop("datamanager.train_camera_optimizer.pose_adjustment", None)
             state.pop("datamanager.train_ray_generator.image_coords", None)
+            state.pop("datamanager.train_ray_generator.pose_optimizer.pose_adjustment", None)
             state.pop("datamanager.eval_ray_generator.image_coords", None)
+            state.pop("datamanager.eval_ray_generator.pose_optimizer.pose_adjustment", None)
         self.load_state_dict(state)  # type: ignore
 
     def get_training_callbacks(

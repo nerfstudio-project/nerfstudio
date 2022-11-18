@@ -1,18 +1,29 @@
 # Using custom data
 
-Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into an existing format. Specifically we need to know the camera poses for each image. [COLMAP](https://github.com/colmap/colmap) is a standard tool for extracting poses. It is possible to use other methods like [SLAM](https://en.wikipedia.org/wiki/Simultaneous_localization_and_mapping) or hardware recorded poses. We intend to add documentation for these other methods in the future.
+Training model on existing datasets is only so fun. If you would like to train on self captured data you will need to process the data into the nerfstudio format. Specifically we need to know the camera poses for each image.
 
-## Nerfstudio dataset
-
-To assist running on custom data we have a script that will process a video or folder of images into a format that is compatible with nerfstudio. We use [COLMAP](https://colmap.github.io) and [FFmpeg](https://ffmpeg.org/download.html) in our data processing script, please have these installed. We have provided a quickstart to installing COLMAP below, FFmpeg can be downloaded from [here](https://ffmpeg.org/download.html)
-
-To process your data run:
+To process your own data run:
 
 ```bash
-ns-process-data {video,images,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
+ns-process-data {video,images,polycam,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
 ```
 
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
+
+We Currently support the following custom data types:
+| Data | Requirements | Preprocessing Speed |
+| -------- | ----------------------- | ------------------- |
+| [Images](images_and_video) | COLMAP | 🐢 |
+| [Video](images_and_video) | COLMAP | 🐢 |
+| [Polycam](polycam) | LiDAR iOS Device | 🐇 |
+| [Record3D](record3d) | LiDAR iOS Device | 🐇 |
+| Insta360 | 2 Sensor camera, COLMAP | 🐢 |
+
+(images_and_video)=
+
+## Images or Video
+
+To assist running on custom data we have a script that will process a video or folder of images into a format that is compatible with nerfstudio. We use [COLMAP](https://colmap.github.io) and [FFmpeg](https://ffmpeg.org/download.html) in our data processing script, please have these installed. We have provided a quickstart to installing COLMAP below, FFmpeg can be downloaded from [here](https://ffmpeg.org/download.html)
 
 :::{admonition} Tip
 :class: info
@@ -20,12 +31,16 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 - COLMAP can be finicky. Try your best to capture overlapping, non-blurry images.
   :::
 
-### Training on your data
-
-Simply specify that you are using the `nerfstudio` dataparser and point the data directory to your processed data.
+### Processing Data
 
 ```bash
-ns-train nerfacto --data {PROCESSED_DATA_DIR} nerfstudio-data
+ns-process-data {images, video} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
+```
+
+### Training on your data
+
+```bash
+ns-train nerfacto --data {PROCESSED_DATA_DIR}
 ```
 
 ### Installing COLMAP
@@ -108,6 +123,59 @@ cd vcpkg
 :::::
 ::::::
 
+(polycam)=
+
+## Polycam Capture
+
+Nerfstudio can also be trained directly from captures from the [Polycam app](https://poly.cam//). This avoids the need to use COLMAP. Polycam's poses are globally optimized which make them more robust to drift (an issue with ARKit or SLAM methods).
+
+To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoinrts as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.
+
+:::{admonition} Note
+:class: info
+A LiDAR enabled iPhone or iPad is necessary.
+:::
+
+### Setting up Polycam
+
+```{image} imgs/polycam_settings.png
+:width: 200
+:align: center
+:alt: polycam settings
+```
+
+Devoloper settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
+
+### Process data
+
+```{image} imgs/polycam_export.png
+:width: 400
+:align: center
+:alt: polycam export options
+```
+
+0. Capture data in LiDAR or Room mode.
+
+1. Tap `Process` to process the data in the Polycam app.
+
+2. Navigate to the export app pane.
+
+3. Select `raw data` to export a `.zip` file.
+
+4. Convert the Polycam data into the nerfstudio format using the following command:
+
+```bash
+ns-process-data polycam --data {OUTPUT_FILE.zip} --output-dir {output directory}
+```
+
+5. Train the model using the following command:
+
+```bash
+ns-train nerfacto --data {output directory}
+```
+
+(record3d)=
+
 ## Record3D Capture
 
 Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
@@ -125,20 +193,14 @@ At a high level, you can follow these 3 steps:
 
 2. Then, move the exported capture folder from your iPhone to your computer.
 
+3. Convert the data to the nerfstudio format.
+
+```bash
+ns-process-data record3d --data {data directory} --output-dir {output directory}
+```
+
 3. Train with nerfstudio!
 
 ```
-ns-train nerfacto --data {RECORD3D_CAPTURE_DIR/EXR_RGBD} record3d-data
-```
-
-We provide some example recordings for you to try out and to see the correct formatting.
-
-```shell
-ns-download-data --dataset record3d
-```
-
-This will download data to `data/record3d/bear`. Then you can train, and don't forget to open up the viewer.
-
-```shell
-ns-train nerfacto record3d-data --data data/record3d/bear
+ns-train nerfacto --data {output directory}
 ```

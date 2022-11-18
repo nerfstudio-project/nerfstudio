@@ -21,11 +21,12 @@ import dataclasses
 import functools
 import os
 import time
-from typing import Dict, List, Literal, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.engine.callbacks import (

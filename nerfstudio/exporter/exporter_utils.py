@@ -12,16 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-"""Algorithms for exporting data."""
+"""
+Export structs.
+"""
 
 from __future__ import annotations
 
 import sys
-from typing import Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
+import numpy as np
 import open3d as o3d
 import torch
+import trimesh
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -30,11 +34,44 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
+from torchtyping import TensorType
 
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.configs.base_config import Config  # pylint: disable=unused-import
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
 CONSOLE = Console(width=120)
+
+
+@dataclass
+class Mesh:
+    """Class for a mesh."""
+
+    vertices: TensorType["n", 3]
+    """Vertices of the mesh."""
+    faces: TensorType["m", 3]
+    """Faces of the mesh."""
+    normals: TensorType["n", 3]
+    """Normals of the mesh."""
+    colors: Optional[TensorType["n", 3]] = None
+    """Colors of the mesh."""
+
+
+def get_mesh_from_trimesh(mesh: trimesh.Trimesh) -> Mesh:
+    """Get a Mesh from a trimesh."""
+    return Mesh(
+        vertices=torch.from_numpy(mesh.vertices),
+        faces=torch.from_numpy(mesh.faces),
+        normals=torch.from_numpy(np.copy(mesh.vertex_normals)),
+        colors=torch.from_numpy(mesh.visual.vertex_colors),
+    )
+
+
+def get_mesh_from_filename(filename: str) -> Mesh:
+    """Get a Mesh from a filename."""
+    trimesh_mesh = trimesh.load(filename)
+    return get_mesh_from_trimesh(trimesh_mesh)
 
 
 def generate_point_cloud(
@@ -126,3 +163,57 @@ def generate_point_cloud(
         CONSOLE.print("[bold green]:white_check_mark: Estimating Point Cloud Normals")
 
     return pcd
+
+
+def _render_trajectory(
+    pipeline: Pipeline,
+    cameras: Cameras,
+    rgb_output_name: str,
+    depth_output_name: str,
+    rendered_resolution_scaling_factor: float = 1.0,
+    disable_distortion: bool = False,
+) -> Tuple[List[np.ndarray], List[np.ndarray]]:
+    """Helper function to create a video of a trajectory.
+
+    Args:
+        pipeline: Pipeline to evaluate with.
+        cameras: Cameras to render.
+        rgb_output_name: Name of the RGB output.
+        depth_output_name: Name of the depth output.
+        rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
+        disable_distortion: Whether to disable distortion.
+
+    Returns:
+        List of rgb images, list of depth images.
+    """
+    images = []
+    depths = []
+    cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
+
+    progress = Progress(
+        TextColumn(":cloud: Computing rgb and depth images :cloud:"),
+        BarColumn(),
+        TaskProgressColumn(show_speed=True),
+        ItersPerSecColumn(suffix="fps"),
+        TimeRemainingColumn(elapsed_when_finished=True, compact=True),
+    )
+    with progress:
+        for camera_idx in progress.track(range(cameras.size), description=""):
+            camera_ray_bundle = cameras.generate_rays(
+                camera_indices=camera_idx, disable_distortion=disable_distortion
+            ).to(pipeline.device)
+            with torch.no_grad():
+                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            if rgb_output_name not in outputs:
+                CONSOLE.rule("Error", style="red")
+                CONSOLE.print(f"Could not find {rgb_output_name} in the model outputs", justify="center")
+                CONSOLE.print(f"Please set --rgb_output_name to one of: {outputs.keys()}", justify="center")
+                sys.exit(1)
+            if depth_output_name not in outputs:
+                CONSOLE.rule("Error", style="red")
+                CONSOLE.print(f"Could not find {depth_output_name} in the model outputs", justify="center")
+                CONSOLE.print(f"Please set --depth_output_name to one of: {outputs.keys()}", justify="center")
+                sys.exit(1)
+            images.append(outputs[rgb_output_name].cpu().numpy())
+            depths.append(outputs[depth_output_name].cpu().numpy())
+    return images, depths
