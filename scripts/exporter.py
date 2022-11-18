@@ -341,13 +341,14 @@ def edge_function(p, v0, v1):
     """https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/renderer/mesh/rasterize_meshes.html"""
     return (p[..., 0] - v0[..., 0]) * (v1[..., 1] - v0[..., 1]) - (p[..., 1] - v0[..., 1]) * (v1[..., 0] - v0[..., 0])
 
+
 @dataclass
 class ExportTextureMesh(Exporter):
     """
     Export a textured mesh with color computed from the NeRF.
     """
 
-    px_per_uv_square: int = 5
+    px_per_uv_square: int = 7
     """Number of pixels per UV square."""
     input_ply_filename: Path = Path("mesh.ply")
     """PLY mesh filename to texture."""
@@ -372,33 +373,35 @@ class ExportTextureMesh(Exporter):
         squares_per_side = math.ceil(math.sqrt(num_squares))
         num_pixels = squares_per_side * self.px_per_uv_square
 
-        scalar = 0.999
-        # uv coords (upper left and lower right)
-        uv_coords_upper_left = torch.tensor([[0, 0], [1, 0], [0, 1]]) * (self.px_per_uv_square - 1) / num_pixels
-        uv_coords_upper_left_center = torch.mean(uv_coords_upper_left, dim=0)
-        # scale to avoid edge artifacts
-        uv_coords_upper_left = (uv_coords_upper_left - uv_coords_upper_left_center) * scalar + uv_coords_upper_left_center
         lr = self.px_per_uv_square / num_pixels
         px = 1.0 / num_pixels
+        edge_len = (self.px_per_uv_square - 1 - 2) / num_pixels
+        scalar = (self.px_per_uv_square - 2 - 2) / (self.px_per_uv_square - 1 - 2)
+        # uv coords (upper left and lower right)
+        uv_coords_upper_left = torch.tensor([[0, 0], [edge_len, 0], [0, edge_len]])
+        # scale for bilinear interpolation reasons
+        uv_coords_upper_left = (
+            uv_coords_upper_left
+        ) * scalar + px/2
+        lower_right = [lr, lr - 3*px] # NOTE(ethan): -3*px depends on the number of pixels per square
         uv_coords_lower_right = torch.tensor(
             [
-                [lr, lr],
-                [px, lr],
-                [lr, px],
+                lower_right, # lower right
+                [3*px, lr - 3*px], # lower left # NOTE(ethan): -3*px depends on the number of pixels per square
+                [lr, 0], # upper right
             ]
         )
-        uv_coords_lower_right_center = torch.mean(uv_coords_lower_right, dim=0)
-        # scale to avoid edge artifacts
-        uv_coords_lower_right = (uv_coords_lower_right - uv_coords_lower_right_center) * scalar + uv_coords_lower_right_center
+        # scale for bilinear interpolation reasons
+        uv_coords_lower_right = (
+            uv_coords_lower_right - torch.tensor(lower_right)
+        ) * scalar + torch.tensor(lower_right) - px/2
         uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_right], dim=0)  # (2, 3, 2)
         uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
-
-        squares_per_side = math.ceil(math.sqrt(num_squares))
         square_offsets = (
             torch.stack(
                 torch.meshgrid(torch.arange(squares_per_side), torch.arange(squares_per_side), indexing="xy"), dim=-1
             )
-            / squares_per_side
+            * lr
         )
         uv_coords_square = uv_coords_square + square_offsets.view(
             squares_per_side, squares_per_side, 1, 2
@@ -408,14 +411,16 @@ class ExportTextureMesh(Exporter):
         uv_indices = torch.stack(
             torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
         )
-        uv_coords = uv_indices / (num_pixels - 1.0)
+        linspace = torch.linspace(px / 2, 1 - px / 2, num_pixels)
+        uv_coords = torch.stack(torch.meshgrid(linspace, linspace, indexing="xy"), dim=-1)
+        print("uv_coords", uv_coords.shape)
 
         u_index = torch.div(uv_indices[..., 0], self.px_per_uv_square, rounding_mode="floor")
         v_index = torch.div(uv_indices[..., 1], self.px_per_uv_square, rounding_mode="floor")
         square_index = v_index * squares_per_side + u_index
         u_offset = uv_indices[..., 0] % self.px_per_uv_square
         v_offset = uv_indices[..., 1] % self.px_per_uv_square
-        lower_right = (u_offset + v_offset) >= (self.px_per_uv_square - 1)
+        lower_right = (u_offset + v_offset) >= (self.px_per_uv_square - 2)
         triangle_index = square_index * 2 + lower_right
         # triangle_index[
         #     (u_offset + v_offset) == (self.px_per_uv_square - 1)
@@ -526,8 +531,7 @@ class ExportTextureMesh(Exporter):
         # write the texture coordinates
         for i in tqdm(range(len(faces))):
             for uv in texture_coordinates[i]:
-                # NOTE: not sure why this is necessary, but it is
-                line = f"vt {uv[0]} {-uv[1]}\n"
+                line = f"vt {uv[0]} {1.0 - uv[1]}\n"
                 file_obj.write(line)
 
         # write the vertex normals
