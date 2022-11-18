@@ -338,7 +338,7 @@ class ExportPoissonMesh(Exporter):
 
 
 def edge_function(p, v0, v1):
-    """https://pytorch3d.readthedocs.io/en/latest/_modules/pytorch3d/renderer/mesh/rasterize_meshes.html"""
+    """Computes the area."""
     return (p[..., 0] - v0[..., 0]) * (v1[..., 1] - v0[..., 1]) - (p[..., 1] - v0[..., 1]) * (v1[..., 0] - v0[..., 0])
 
 
@@ -348,7 +348,7 @@ class ExportTextureMesh(Exporter):
     Export a textured mesh with color computed from the NeRF.
     """
 
-    px_per_uv_square: int = 7
+    px_per_uv_triangle: int = 4
     """Number of pixels per UV square."""
     input_ply_filename: Path = Path("mesh.ply")
     """PLY mesh filename to texture."""
@@ -369,62 +369,72 @@ class ExportTextureMesh(Exporter):
         vertex_normals = torch.from_numpy(np.copy(mesh.vertex_normals))
         assert len(vertices) == len(vertex_normals), "Number of vertices and vertex normals must be equal"
 
-        num_squares = len(faces) / 2
-        squares_per_side = math.ceil(math.sqrt(num_squares))
-        num_pixels = squares_per_side * self.px_per_uv_square
+        # calculate the number of rectangles needed
+        triangle_padding = 3
+        num_squares = math.ceil(len(faces) / 2)
+        squares_per_side_w = math.ceil(math.sqrt(num_squares))
+        squares_per_side_h = math.ceil(num_squares / squares_per_side_w)
+        px_per_square_w = self.px_per_uv_triangle + triangle_padding
+        px_per_square_h = self.px_per_uv_triangle
+        num_pixels_w = squares_per_side_w * px_per_square_w
+        num_pixels_h = squares_per_side_h * px_per_square_h
 
-        lr = self.px_per_uv_square / num_pixels
-        px = 1.0 / num_pixels
-        edge_len = (self.px_per_uv_square - 1 - 2) / num_pixels
-        scalar = (self.px_per_uv_square - 2 - 2) / (self.px_per_uv_square - 1 - 2)
+        lr_w = (self.px_per_uv_triangle + triangle_padding) / num_pixels_w
+        lr_h = (self.px_per_uv_triangle) / num_pixels_h
+        lr = torch.tensor([lr_w, lr_h])
+        px_w = 1.0 / num_pixels_w
+        px_h = 1.0 / num_pixels_h
+        px = torch.tensor([px_w, px_h])
+        edge_len_w = self.px_per_uv_triangle / num_pixels_w
+        edge_len_h = self.px_per_uv_triangle / num_pixels_h
+        scalar = (self.px_per_uv_triangle - 1) / self.px_per_uv_triangle
         # uv coords (upper left and lower right)
-        uv_coords_upper_left = torch.tensor([[0, 0], [edge_len, 0], [0, edge_len]])
+        uv_coords_upper_left = torch.tensor([[0, 0], [edge_len_w, 0], [0, edge_len_h]])
         # scale for bilinear interpolation reasons
-        uv_coords_upper_left = (
-            uv_coords_upper_left
-        ) * scalar + px/2
-        lower_right = [lr, lr - 3*px] # NOTE(ethan): -3*px depends on the number of pixels per square
+        uv_coords_upper_left = uv_coords_upper_left * scalar + px / 2
+        lower_right = [lr_w, lr_h]
         uv_coords_lower_right = torch.tensor(
             [
-                lower_right, # lower right
-                [3*px, lr - 3*px], # lower left # NOTE(ethan): -3*px depends on the number of pixels per square
-                [lr, 0], # upper right
+                lower_right,  # lower right
+                [3 * px_w, lr_h],  # lower left
+                [lr_w, 0],  # upper right
             ]
         )
         # scale for bilinear interpolation reasons
         uv_coords_lower_right = (
-            uv_coords_lower_right - torch.tensor(lower_right)
-        ) * scalar + torch.tensor(lower_right) - px/2
+            (uv_coords_lower_right - torch.tensor(lower_right)) * scalar + torch.tensor(lower_right) - px / 2
+        )
         uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_right], dim=0)  # (2, 3, 2)
         uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
         square_offsets = (
             torch.stack(
-                torch.meshgrid(torch.arange(squares_per_side), torch.arange(squares_per_side), indexing="xy"), dim=-1
+                torch.meshgrid(torch.arange(squares_per_side_w), torch.arange(squares_per_side_h), indexing="xy"), dim=-1
             )
             * lr
         )
+        print("squares_per_side_h", squares_per_side_h)
+        print("squares_per_side_w", squares_per_side_w)
+        print(square_offsets.shape)
         uv_coords_square = uv_coords_square + square_offsets.view(
-            squares_per_side, squares_per_side, 1, 2
-        )  # (squares_per_side, squares_per_side, 6, 2)
+            squares_per_side_h, squares_per_side_w, 1, 2
+        )  # (num_squares_h, num_squares_w, 6, 2)
         texture_coordinates = uv_coords_square.view(-1, 3, 2)[: len(faces)]  # (num_faces, 3, 2)
 
         uv_indices = torch.stack(
-            torch.meshgrid(torch.arange(num_pixels), torch.arange(num_pixels), indexing="xy"), dim=-1
+            torch.meshgrid(torch.arange(num_pixels_w), torch.arange(num_pixels_h), indexing="xy"), dim=-1
         )
-        linspace = torch.linspace(px / 2, 1 - px / 2, num_pixels)
-        uv_coords = torch.stack(torch.meshgrid(linspace, linspace, indexing="xy"), dim=-1)
+        linspace_h = torch.linspace(px_h / 2, 1 - px_h / 2, num_pixels_h)
+        linspace_w = torch.linspace(px_w / 2, 1 - px_w / 2, num_pixels_w)
+        uv_coords = torch.stack(torch.meshgrid(linspace_w, linspace_h, indexing="xy"), dim=-1)
         print("uv_coords", uv_coords.shape)
 
-        u_index = torch.div(uv_indices[..., 0], self.px_per_uv_square, rounding_mode="floor")
-        v_index = torch.div(uv_indices[..., 1], self.px_per_uv_square, rounding_mode="floor")
-        square_index = v_index * squares_per_side + u_index
-        u_offset = uv_indices[..., 0] % self.px_per_uv_square
-        v_offset = uv_indices[..., 1] % self.px_per_uv_square
-        lower_right = (u_offset + v_offset) >= (self.px_per_uv_square - 2)
+        u_index = torch.div(uv_indices[..., 0], px_per_square_w, rounding_mode="floor")
+        v_index = torch.div(uv_indices[..., 1], px_per_square_h, rounding_mode="floor")
+        square_index = v_index * squares_per_side_w + u_index
+        u_offset = uv_indices[..., 0] % px_per_square_w
+        v_offset = uv_indices[..., 1] % px_per_square_h
+        lower_right = (u_offset + v_offset) >= (px_per_square_w - 2)
         triangle_index = square_index * 2 + lower_right
-        # triangle_index[
-        #     (u_offset + v_offset) == (self.px_per_uv_square - 1)
-        # ] = 0  # we don't use the diagonals of the squares
         triangle_index = torch.clamp(triangle_index, min=0, max=len(faces) - 1)
 
         nearby_uv_coords = texture_coordinates[triangle_index]
