@@ -43,14 +43,14 @@ class MSIModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: MSIModel)
     """target class to instantiate"""
-    h: int = 960
-    w: int = 1920
+    h: int = 2
+    w: int = 4
     nlayers: int = 1
     nsublayers: int = 1
     dmin: float = 2.0
     dmax: float = 20.0
     pose_src: torch.Tensor = torch.eye(4)
-    sigmoid_offset: float = -1.0  # 5.0
+    sigmoid_offset: float = 5.0
 
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0, "tv_loss": 0.0})
 
@@ -113,7 +113,7 @@ class MSI_field(nn.Module):
         uvs = uvs.permute(1, 0, 2).unsqueeze(1)  # (R, 1, N, 2)
         alphas = F.grid_sample(self.alpha, uvs, align_corners=True)  # (R, 1, 1, N)
         alphas_sig = torch.sigmoid(alphas - self.sigmoid_offset)  # (R, 1, 1, N)
-        alphas_sig = alphas_sig.permute(0, 2, 3, 1)  # (R, 1, N, 1)
+        alphas_sig = alphas_sig.permute(0, 1, 3, 2)  # (R, 1, N, 1)
 
         # # adding mask # (N, R)
         alphas_sig_clone = alphas_sig.clone()
@@ -125,7 +125,9 @@ class MSI_field(nn.Module):
 
         # print("alphas_sig", alphas_sig.min(), alphas_sig.max())
         rgbs = F.grid_sample(
-            self.rgb, uvs[:: self.nsublayers], align_corners=True, padding_mode="zeros"
+            self.rgb,
+            uvs[:: self.nsublayers],
+            align_corners=True,
         )  # (L // sublayers, 3, 1, N)
         rgbs = torch.sigmoid(rgbs)
         rgbs = rgbs.permute(0, 1, 3, 2)  # (L // sublayers, 3, N, 1)
@@ -246,18 +248,32 @@ class MSIModel(Model):
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
         image = batch["image"].to(device)
+
+        image = torch.zeros_like(image).cuda()
+        image[:, 0] = 1.0
         # print("image", image.min(), image.max())
         # print("image", image[:5])
         # # print('outputs["rgb"]', outputs["rgb"].shape)
+        # print("outputs", outputs["rgb"][0])
         # print("outputs", outputs["rgb"][:5])
-        # print("outputs", outputs["rgb"][:5])
-        # print("image", image[:5])
-        rgb_loss = self.rgb_loss(image, outputs["rgb"])
-        # tv_loss = self.tv_loss(torch.sigmoid(self.rgb)) + self.tv_loss(torch.sigmoid(self.alpha - self.sigmoid_offset))
+        # print("image", image[0])
+        print(torch.sigmoid(self.msi_field.rgb[..., 0]))
+        rgb_loss = self.rgb_loss(image, outputs["rgb"])  # (N, 3)
+        tv_loss = self.tv_loss(torch.sigmoid(self.msi_field.rgb)) + self.tv_loss(
+            torch.sigmoid(self.msi_field.alpha - self.msi_field.sigmoid_offset)
+        )
 
-        # grad_loss = (torch.mean(torch.abs(ox - gx)) + torch.mean(torch.abs(oy - gy)))
+        # max_size = image.shape[0] // 3 - 1
 
-        loss_dict = {"rgb_loss": rgb_loss}
+        # ox = outputs["rgb"][1::3][:max_size] - outputs["rgb"][0::3][:max_size]
+        # oy = outputs["rgb"][2::3][:max_size] - outputs["rgb"][0::3][:max_size]
+        # gx = image[1::3][:max_size] - image[0::3][:max_size]
+        # gy = image[2::3][:max_size] - image[0::3][:max_size]
+
+        # grad_loss = torch.mean(torch.abs(ox - gx)) + torch.mean(torch.abs(oy - gy))
+        # grad_loss = torch.zeros((1,)).cuda()
+
+        loss_dict = {"rgb_loss": rgb_loss, "tv_loss": tv_loss}
 
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
