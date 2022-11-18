@@ -35,6 +35,7 @@ https://github.com/colmap/colmap/blob/1a4d0bad2e90aa65ce997c9d1779518eaed998d5/s
 #
 # Author: Johannes L. Schoenberger (jsch-at-demuc-dot-de)
 
+import json
 import os
 import struct
 from dataclasses import dataclass
@@ -42,11 +43,22 @@ from io import BufferedReader
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
+import appdirs
 import numpy as np
+import requests
+from rich.console import Console
+from rich.progress import track
+from typing_extensions import Literal
+
+from nerfstudio.process_data.process_data_utils import CameraModel
+from nerfstudio.utils.rich_utils import status
+from nerfstudio.utils.scripts import run_command
+
+CONSOLE = Console(width=120)
 
 
 @dataclass
-class CameraModel:
+class ColmapCameraModel:
     """Camera model"""
 
     model_id: int
@@ -111,21 +123,40 @@ class Point3D:
     """Point2D indices"""
 
 
-CAMERA_MODELS = [
-    CameraModel(model_id=0, model_name="SIMPLE_PINHOLE", num_params=3),
-    CameraModel(model_id=1, model_name="PINHOLE", num_params=4),
-    CameraModel(model_id=2, model_name="SIMPLE_RADIAL", num_params=4),
-    CameraModel(model_id=3, model_name="RADIAL", num_params=5),
-    CameraModel(model_id=4, model_name="OPENCV", num_params=8),
-    CameraModel(model_id=5, model_name="OPENCV_FISHEYE", num_params=8),
-    CameraModel(model_id=6, model_name="FULL_OPENCV", num_params=12),
-    CameraModel(model_id=7, model_name="FOV", num_params=5),
-    CameraModel(model_id=8, model_name="SIMPLE_RADIAL_FISHEYE", num_params=4),
-    CameraModel(model_id=9, model_name="RADIAL_FISHEYE", num_params=5),
-    CameraModel(model_id=10, model_name="THIN_PRISM_FISHEYE", num_params=12),
+COLMAP_CAMERA_MODELS = [
+    ColmapCameraModel(model_id=0, model_name="SIMPLE_PINHOLE", num_params=3),
+    ColmapCameraModel(model_id=1, model_name="PINHOLE", num_params=4),
+    ColmapCameraModel(model_id=2, model_name="SIMPLE_RADIAL", num_params=4),
+    ColmapCameraModel(model_id=3, model_name="RADIAL", num_params=5),
+    ColmapCameraModel(model_id=4, model_name="OPENCV", num_params=8),
+    ColmapCameraModel(model_id=5, model_name="OPENCV_FISHEYE", num_params=8),
+    ColmapCameraModel(model_id=6, model_name="FULL_OPENCV", num_params=12),
+    ColmapCameraModel(model_id=7, model_name="FOV", num_params=5),
+    ColmapCameraModel(model_id=8, model_name="SIMPLE_RADIAL_FISHEYE", num_params=4),
+    ColmapCameraModel(model_id=9, model_name="RADIAL_FISHEYE", num_params=5),
+    ColmapCameraModel(model_id=10, model_name="THIN_PRISM_FISHEYE", num_params=12),
 ]
-CAMERA_MODEL_IDS = {camera_model.model_id: camera_model for camera_model in CAMERA_MODELS}
-CAMERA_MODEL_NAMES = {camera_model.model_name: camera_model for camera_model in CAMERA_MODELS}
+COLMAP_CAMERA_MODEL_IDS = {camera_model.model_id: camera_model for camera_model in COLMAP_CAMERA_MODELS}
+COLMAP_CAMERA_MODEL_NAMES = {camera_model.model_name: camera_model for camera_model in COLMAP_CAMERA_MODELS}
+
+
+def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
+    """Returns the version of COLMAP.
+    This code assumes that colmap returns a version string of the form
+    "COLMAP 3.8 ..." which may not be true for all versions of COLMAP.
+
+    Args:
+        default_version: Default version to return if COLMAP version can't be determined.
+    Returns:
+        The version of COLMAP.
+    """
+    output = run_command(colmap_cmd, verbose=False)
+    assert output is not None
+    for line in output.split("\n"):
+        if line.startswith("COLMAP"):
+            return float(line.split(" ")[1])
+    CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
+    return default_version
 
 
 def read_next_bytes(fid: BufferedReader, num_bytes: int, format_char_sequence, endian_character: str = "<"):
@@ -183,10 +214,10 @@ def read_cameras_binary(path_to_model_file: Path) -> Dict[int, Camera]:
             camera_properties = read_next_bytes(fid, num_bytes=24, format_char_sequence="iiQQ")
             camera_id = camera_properties[0]
             model_id = camera_properties[1]
-            model_name = CAMERA_MODEL_IDS[camera_properties[1]].model_name
+            model_name = COLMAP_CAMERA_MODEL_IDS[camera_properties[1]].model_name
             width = camera_properties[2]
             height = camera_properties[3]
-            num_params = CAMERA_MODEL_IDS[model_id].num_params
+            num_params = COLMAP_CAMERA_MODEL_IDS[model_id].num_params
             params = read_next_bytes(fid, num_bytes=8 * num_params, format_char_sequence="d" * num_params)
             cameras[camera_id] = Camera(
                 id=camera_id, model=model_name, width=width, height=height, params=np.array(params)
@@ -430,3 +461,218 @@ def rotmat2qvec(R):
     if qvec[0] < 0:
         qvec *= -1
     return qvec
+
+
+def get_vocab_tree() -> Path:
+    """Return path to vocab tree. Downloads vocab tree if it doesn't exist.
+
+    Returns:
+        The path to the vocab tree.
+    """
+    vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
+
+    if not vocab_tree_filename.exists():
+        r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)
+        vocab_tree_filename.parent.mkdir(parents=True, exist_ok=True)
+        with open(vocab_tree_filename, "wb") as f:
+            total_length = r.headers.get("content-length")
+            assert total_length is not None
+            for chunk in track(
+                r.iter_content(chunk_size=1024),
+                total=int(total_length) / 1024 + 1,
+                description="Downloading vocab tree...",
+            ):
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+    return vocab_tree_filename
+
+
+def run_colmap(
+    image_dir: Path,
+    colmap_dir: Path,
+    camera_model: CameraModel,
+    gpu: bool = True,
+    verbose: bool = False,
+    matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
+    colmap_cmd: str = "colmap",
+) -> None:
+    """Runs COLMAP on the images.
+
+    Args:
+        image_dir: Path to the directory containing the images.
+        colmap_dir: Path to the output directory.
+        camera_model: Camera model to use.
+        gpu: If True, use GPU.
+        verbose: If True, logs the output of the command.
+    """
+
+    colmap_version = get_colmap_version(colmap_cmd)
+
+    colmap_database_path = colmap_dir / "database.db"
+    if colmap_database_path.exists():
+        # Can't use missing_ok argument because of Python 3.7 compatibility.
+        colmap_database_path.unlink()
+
+    # Feature extraction
+    feature_extractor_cmd = [
+        f"{colmap_cmd} feature_extractor",
+        f"--database_path {colmap_dir / 'database.db'}",
+        f"--image_path {image_dir}",
+        "--ImageReader.single_camera 1",
+        f"--ImageReader.camera_model {camera_model.value}",
+        f"--SiftExtraction.use_gpu {int(gpu)}",
+    ]
+    feature_extractor_cmd = " ".join(feature_extractor_cmd)
+    with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
+        run_command(feature_extractor_cmd, verbose=verbose)
+
+    CONSOLE.log("[bold green]:tada: Done extracting COLMAP features.")
+
+    # Feature matching
+    feature_matcher_cmd = [
+        f"{colmap_cmd} {matching_method}_matcher",
+        f"--database_path {colmap_dir / 'database.db'}",
+        f"--SiftMatching.use_gpu {int(gpu)}",
+    ]
+    if matching_method == "vocab_tree":
+        vocab_tree_filename = get_vocab_tree()
+        feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
+    feature_matcher_cmd = " ".join(feature_matcher_cmd)
+    with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
+        run_command(feature_matcher_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
+
+    # Bundle adjustment
+    sparse_dir = colmap_dir / "sparse"
+    sparse_dir.mkdir(parents=True, exist_ok=True)
+    mapper_cmd = [
+        f"{colmap_cmd} mapper",
+        f"--database_path {colmap_dir / 'database.db'}",
+        f"--image_path {image_dir}",
+        f"--output_path {sparse_dir}",
+    ]
+    if colmap_version >= 3.7:
+        mapper_cmd.append("--Mapper.ba_global_function_tolerance 1e-6")
+
+    mapper_cmd = " ".join(mapper_cmd)
+
+    with status(
+        msg="[bold yellow]Running COLMAP bundle adjustment... (This may take a while)",
+        spinner="circle",
+        verbose=verbose,
+    ):
+        run_command(mapper_cmd, verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
+    with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
+        bundle_adjuster_cmd = [
+            f"{colmap_cmd} bundle_adjuster",
+            f"--input_path {sparse_dir}/0",
+            f"--output_path {sparse_dir}/0",
+            "--BundleAdjustment.refine_principal_point 1",
+        ]
+        run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
+    CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
+
+
+def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel) -> int:
+    """Converts COLMAP's cameras.bin and images.bin to a JSON file.
+
+    Args:
+        cameras_path: Path to the cameras.bin file.
+        images_path: Path to the images.bin file.
+        output_dir: Path to the output directory.
+        camera_model: Camera model used.
+
+    Returns:
+        The number of registered images.
+    """
+
+    cameras = read_cameras_binary(cameras_path)
+    images = read_images_binary(images_path)
+
+    # Only supports one camera
+    camera_params = cameras[1].params
+
+    frames = []
+    for _, im_data in images.items():
+        rotation = qvec2rotmat(im_data.qvec)
+        translation = im_data.tvec.reshape(3, 1)
+        w2c = np.concatenate([rotation, translation], 1)
+        w2c = np.concatenate([w2c, np.array([[0, 0, 0, 1]])], 0)
+        c2w = np.linalg.inv(w2c)
+        # Convert from COLMAP's camera coordinate system to ours
+        c2w[0:3, 1:3] *= -1
+        c2w = c2w[np.array([1, 0, 2, 3]), :]
+        c2w[2, :] *= -1
+
+        name = Path(f"./images/{im_data.name}")
+
+        frame = {
+            "file_path": name.as_posix(),
+            "transform_matrix": c2w.tolist(),
+        }
+        frames.append(frame)
+
+    out = {
+        "fl_x": float(camera_params[0]),
+        "fl_y": float(camera_params[1]),
+        "cx": float(camera_params[2]),
+        "cy": float(camera_params[3]),
+        "w": cameras[1].width,
+        "h": cameras[1].height,
+        "camera_model": camera_model.value,
+    }
+
+    if camera_model == CameraModel.OPENCV:
+        out.update(
+            {
+                "k1": float(camera_params[4]),
+                "k2": float(camera_params[5]),
+                "p1": float(camera_params[6]),
+                "p2": float(camera_params[7]),
+            }
+        )
+    if camera_model == CameraModel.OPENCV_FISHEYE:
+        out.update(
+            {
+                "k1": float(camera_params[4]),
+                "k2": float(camera_params[5]),
+                "k3": float(camera_params[6]),
+                "k4": float(camera_params[7]),
+            }
+        )
+
+    out["frames"] = frames
+
+    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=4)
+
+    return len(frames)
+
+
+def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str:
+    """Returns a summary of the matching results.
+
+    Args:
+        num_intial_frames: The number of initial frames.
+        num_matched_frames: The number of matched frames.
+
+    Returns:
+        A summary of the matching results.
+    """
+    match_ratio = num_matched_frames / num_intial_frames
+    if match_ratio == 1:
+        return "[bold green]COLAMP found poses for all images, CONGRATS!"
+    if match_ratio < 0.4:
+        result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result += " of the images. This is low.\nThis can be caused by a variety of reasons,"
+        result += " such poor scene coverage, blurry images, or large exposure changes."
+        return result
+    if match_ratio < 0.8:
+        result = f"[bold yellow]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
+        result += " of the images.\nThis isn't great, but may be ok."
+        result += "\nMissing poses can be caused by a variety of reasons, such poor scene coverage, blurry images,"
+        result += " or large exposure changes."
+        return result
+    return f"[bold green]COLMAP found poses for {num_matched_frames / num_intial_frames * 100:.2f}% of the images."
