@@ -61,12 +61,12 @@ descriptions = {
 method_configs["nerfacto-msi"] = Config(
     method_name="nerfacto-msi",
     trainer=TrainerConfig(
-        steps_per_eval_batch=100, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
+        steps_per_eval_batch=100, steps_per_save=30000, max_num_iterations=30000, mixed_precision=True
     ),
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
-            train_num_rays_per_batch=48096,
+            train_num_rays_per_batch=64096,
             eval_num_rays_per_batch=32096,
             camera_optimizer=CameraOptimizerConfig(
                 mode="off", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
@@ -76,7 +76,7 @@ method_configs["nerfacto-msi"] = Config(
     ),
     optimizers={
         "planes": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-1, eps=1e-15),
             "scheduler": None,
         },
     },
