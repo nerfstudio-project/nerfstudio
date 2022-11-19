@@ -45,7 +45,6 @@ from nerfstudio.data.datamanagers.base_datamanager import (
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
-from nerfstudio.utils.images import BasicImages
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -323,13 +322,6 @@ class VanillaPipeline(Pipeline):
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
             for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
-                isbasicimages = False
-                if isinstance(
-                    batch["image"], BasicImages
-                ):  # If this is a generalized dataset, we need to get image tensor
-                    isbasicimages = True
-                    batch["image"] = batch["image"].images[0]
-                    camera_ray_bundle = camera_ray_bundle.reshape((*batch["image"].shape[:-1],))
                 # time this the following line
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
@@ -338,10 +330,9 @@ class VanillaPipeline(Pipeline):
                 metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
-                if not isbasicimages:  # If our resolutions are all diff, this doesn't make sense
-                    fps_str = f"fps_at_{height}x{width}"
-                    assert fps_str not in metrics_dict
-                    metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
+                fps_str = f"fps_at_{height}x{width}"
+                assert fps_str not in metrics_dict
+                metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
                 metrics_dict_list.append(metrics_dict)
                 progress.advance(task)
         # average the metrics list

@@ -21,8 +21,6 @@ from typing import Dict
 
 import torch
 
-from nerfstudio.utils.images import BasicImages
-
 
 def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
     """
@@ -161,7 +159,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         Args:
             image_batch: batch of images to sample from
         """
-        if isinstance(image_batch["image"], BasicImages):
+        if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
             image_batch["image"] = image_batch["image"].images
             if "mask" in image_batch:
