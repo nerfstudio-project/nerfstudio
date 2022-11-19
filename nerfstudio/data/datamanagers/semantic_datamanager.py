@@ -41,7 +41,13 @@ class SemanticDataManager(VanillaDataManager):  # pylint: disable=abstract-metho
     """
 
     def create_train_dataset(self) -> SemanticDataset:
-        return SemanticDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+        return SemanticDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split="train"),
+            scale_factor=self.config.camera_res_scale_factor,
+        )
 
     def create_eval_dataset(self) -> SemanticDataset:
-        return SemanticDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))
+        return SemanticDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
+            scale_factor=self.config.camera_res_scale_factor,
+        )
