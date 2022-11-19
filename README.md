@@ -119,7 +119,7 @@ pip install --upgrade pip setuptools
 pip install -e .
 ```
 
-## 2. Training you first model!
+## 2. Training your first model!
 
 The following will train a _nerfacto_ model, our recommended model for real world scenes.
 
@@ -136,7 +136,7 @@ If everything works, you should see training progress like the following:
     <img width="800" alt="image" src="https://user-images.githubusercontent.com/3310961/202766069-cadfd34f-8833-4156-88b7-ad406d688fc0.png">
 </p>
 
-Navigating to the link at the end of the terminal will load the webviewer. If you are running on a remote machine, you will need to port forward the websocket port, by default it is port 7007.
+Navigating to the link at the end of the terminal will load the webviewer. If you are running on a remote machine, you will need to port forward the websocket port (defaults to 7007).
 
 <p align="center">
     <img width="800" alt="image" src="https://user-images.githubusercontent.com/3310961/202766653-586a0daa-466b-4140-a136-6b02f2ce2c54.png">
@@ -150,13 +150,15 @@ It is possible to load a pretrained model by running
 ns-train nerfacto --data data/nerfstudio/poster --trainer.load_dir {outputs/.../nerfstudio_models}
 ```
 
+This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
+
 ## 3. Exporting Results
 
 Once you have a NeRF model you can either render out a video or export a point cloud.
 
 ### Render Video
 
-First we must create a path for the camera to follow. This can be done in the viewer un the "RENDER" tab. Orient your 3D view to the location where you wish the video the start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine you camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the the command to generate the video.
+First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the command to generate the video.
 
 Other video export options are available, learn more by running,
 
@@ -166,7 +168,7 @@ ns-render --help
 
 ### Generate Point Cloud
 
-While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab the the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
+While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab in the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
 
 Alternatively you can use the CLI without the viewer. Learn about the export options by running,
 
@@ -176,7 +178,7 @@ ns-export pointcloud --help
 
 ## 4. Using Custom Data
 
-Using our existing datasets is great, but likely you want to use your own data! We support various methods for using your own data. Before it can be used in nerfstudio, the camera location and orientations must be determined and then converted into our format using `ns-process-data`. We rely one external tool for this, instructions and information can be found in the documenation.
+Using an existing dataset is great, but likely you want to use your own data! We support various methods for using your own data. Before it can be used in nerfstudio, the camera location and orientations must be determined and then converted into our format using `ns-process-data`. We rely on external tools for this, instructions and information can be found in the documentation.
 
 | Data                                                                                              | Requirements     | Preprocessing Speed |
 | ------------------------------------------------------------------------------------------------- | ---------------- | ------------------- |
@@ -200,7 +202,7 @@ For a full list of included models run `ns-train --help`.
 
 ### Modify Configuration
 
-Each model contains many parameters that can be changed, too many to list here. Use the `--help` command to see the full list of configurations.
+Each model contains many parameters that can be changed, too many to list here. Use the `--help` command to see the full list of configuration options.
 
 ```bash
 ns-train nerfacto --help
@@ -208,7 +210,7 @@ ns-train nerfacto --help
 
 ### Tensorboard / WandB
 
-We support three different methods track training progress, using the viewer, [tensorboard](https://www.tensorflow.org/tensorboard), and [Weights and Biases](https://wandb.ai/site). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb}` to the training command. Note that only one may be used at a time. Additionally the viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
+We support three different methods to track training progress, using the viewer, [tensorboard](https://www.tensorflow.org/tensorboard), and [Weights and Biases](https://wandb.ai/site). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb}` to the training command. Note that only one may be used at a time. Additionally the viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
 
 # Learn More
 
@@ -234,7 +236,6 @@ If you're interested in learning more on how to create your own pipelines, devel
 | 💖 **Community**                                                                                   |
 | [Discord](https://discord.gg/uMbNqcraFc)                                                           | Join our community to discuss more. We would love to hear from you!                                |
 | [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                         |
-| [TikTok](#)                                                                                        | Coming soon! Follow us on TikTok to see some of our fan favorite results                           |
 
 # Supported Features
 
