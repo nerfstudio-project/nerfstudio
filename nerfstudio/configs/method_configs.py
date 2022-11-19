@@ -32,16 +32,17 @@ from nerfstudio.configs.base_config import (
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
-from nerfstudio.models.base_model import VanillaModelConfig
+from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
-from nerfstudio.models.vanilla_nerf import NeRFModel
+from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
@@ -53,6 +54,7 @@ descriptions = {
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. (slow)",
     "tensorf": "tensorf",
+    "dnerf": "Dynamic-NeRF model. (slow)",
 }
 
 method_configs["nerfacto"] = Config(
@@ -159,7 +161,11 @@ method_configs["vanilla-nerf"] = Config(
         "fields": {
             "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
             "scheduler": None,
-        }
+        },
+        "temporal_distortion": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
     },
 )
 
@@ -184,8 +190,32 @@ method_configs["tensorf"] = Config(
     },
 )
 
+method_configs["dnerf"] = Config(
+    method_name="dnerf",
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
+        model=VanillaModelConfig(
+            _target=NeRFModel,
+            enable_temporal_distortion=True,
+            temporal_distortion_params={"kind": TemporalDistortionKind.DNERF},
+        ),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
+        "temporal_distortion": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
+    },
+)
+
 AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+    tyro.conf.FlagConversionOff[
+        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+    ]
 ]
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and

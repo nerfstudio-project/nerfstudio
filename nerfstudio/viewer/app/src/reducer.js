@@ -4,7 +4,7 @@ const initialState = {
   // the websocket connection state
   websocketState: {
     isConnected: false,
-    websocket_url: "ws://localhost:7007",
+    websocket_url: 'ws://localhost:7007',
   },
   // the webrtc connection state
   webrtcState: {
@@ -34,6 +34,11 @@ const initialState = {
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
     log_errors: '',
+
+    // export options
+    clipping_enabled: true,
+    clipping_center: [0.0, 0.0, 0.0],
+    clipping_box_scale: [2.0, 2.0, 2.0],
   },
   // the scene state
   sceneState: {

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Some dataset code.
+Dataset.
 """
 from __future__ import annotations
 

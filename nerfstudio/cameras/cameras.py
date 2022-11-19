@@ -669,11 +669,14 @@ class Cameras(TensorDataclass):
         pixel_area = (dx * dy)[..., None]  # ("num_rays":..., 1)
         assert pixel_area.shape == num_rays_shape + (1,)
 
+        times = self.times[camera_indices, None] if self.times is not None else None
+
         return RayBundle(
             origins=origins,
             directions=directions,
             pixel_area=pixel_area,
             camera_indices=camera_indices,
+            times=times,
         )
 
     def to_json(

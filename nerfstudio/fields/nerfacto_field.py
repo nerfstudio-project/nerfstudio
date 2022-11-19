@@ -312,12 +312,14 @@ class TorchNerfactoField(Field):
             num_layers=base_mlp_num_layers,
             layer_width=base_mlp_layer_width,
             skip_connections=skip_connections,
+            out_activation=nn.ReLU(),
         )
 
         self.mlp_head = MLP(
             in_dim=self.mlp_base.get_out_dim() + self.direction_encoding.get_out_dim() + self.appearance_embedding_dim,
             num_layers=head_mlp_num_layers,
             layer_width=head_mlp_layer_width,
+            out_activation=nn.ReLU(),
         )
 
         self.field_output_density = DensityFieldHead(in_dim=self.mlp_base.get_out_dim())

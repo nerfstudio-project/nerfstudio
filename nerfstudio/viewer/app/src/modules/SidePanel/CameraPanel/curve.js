@@ -19,6 +19,9 @@ export function get_curve_object_from_cameras(
   is_cycle,
   smoothness_value,
 ) {
+  if (cameras.length === 0) {
+    return null;
+  }
   // interpolate positions, lookat directions, and ups
   // similar to
   // https://github.com/google-research/multinerf/blob/1c8b1c552133cdb2de1c1f3c871b2813f6662265/internal/camera_utils.py#L281
@@ -64,11 +67,7 @@ export function get_curve_object_from_cameras(
   let curve_ups = null;
   let curve_fovs = null;
 
-  curve_positions = get_catmull_rom_curve(
-    positions,
-    false,
-    smoothness_value,
-  );
+  curve_positions = get_catmull_rom_curve(positions, false, smoothness_value);
   curve_lookats = get_catmull_rom_curve(lookats, false, smoothness_value);
   curve_ups = get_catmull_rom_curve(ups, false, smoothness_value);
   curve_fovs = get_catmull_rom_curve(fovs, false, 0.05);
