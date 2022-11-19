@@ -110,7 +110,7 @@ Easy option:
 pip install nerfstudio
 ```
 
-If you want the latest and greatest:
+**OR** if you want the latest and greatest:
 
 ```bash
 git clone https://github.com/nerfstudio-project/nerfstudio.git
@@ -119,75 +119,98 @@ pip install --upgrade pip setuptools
 pip install -e .
 ```
 
-## 2. Setting up the data
+## 2. Training your first model!
 
-Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html).
+The following will train a _nerfacto_ model, our recommended model for real world scenes.
 
 ```bash
-ns-download-data --dataset=blender
+# Download some test data:
 ns-download-data --dataset=nerfstudio --capture=poster
+# Train model
+ns-train nerfacto --data data/nerfstudio/poster
 ```
 
-### 2.x Using custom data
+If everything works, you should see training progress like the following:
 
-If you have custom data in the form of a video or folder of images, we've provided some [COLMAP](https://colmap.github.io/) and [FFmpeg](https://ffmpeg.org/download.html) scripts to help you process your data so it is compatible with nerfstudio.
+<p align="center">
+    <img width="800" alt="image" src="https://user-images.githubusercontent.com/3310961/202766069-cadfd34f-8833-4156-88b7-ad406d688fc0.png">
+</p>
 
-After installing both software, you can process your data via:
+Navigating to the link at the end of the terminal will load the webviewer. If you are running on a remote machine, you will need to port forward the websocket port (defaults to 7007).
+
+<p align="center">
+    <img width="800" alt="image" src="https://user-images.githubusercontent.com/3310961/202766653-586a0daa-466b-4140-a136-6b02f2ce2c54.png">
+</p>
+
+### Resume from checkpoint / visualize existing run
+
+It is possible to load a pretrained model by running
 
 ```bash
-ns-process-data {video,images,polycam,insta360,record3d} --data {DATA_PATH} --output-dir {PROCESSED_DATA_DIR}
-# Or if you're on a system without an attached display (i.e. colab):
-ns-process-data {video,images,poylcam,insta360,record3d} --data {DATA_PATH}  --output-dir {PROCESSED_DATA_DIR} --no-gpu
+ns-train nerfacto --data data/nerfstudio/poster --trainer.load_dir {outputs/.../nerfstudio_models}
 ```
 
-## 3. Training a model
+This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
 
-To run with all the defaults, e.g., vanilla NeRF method with the Blender Lego image
+## 3. Exporting Results
+
+Once you have a NeRF model you can either render out a video or export a point cloud.
+
+### Render Video
+
+First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the command to generate the video.
+
+Other video export options are available, learn more by running,
 
 ```bash
-# To see what models are available.
-ns-train --help
+ns-render --help
+```
 
-# To see what model-specific cli arguments are available.
+### Generate Point Cloud
+
+While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab in the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
+
+Alternatively you can use the CLI without the viewer. Learn about the export options by running,
+
+```bash
+ns-export pointcloud --help
+```
+
+## 4. Using Custom Data
+
+Using an existing dataset is great, but likely you want to use your own data! We support various methods for using your own data. Before it can be used in nerfstudio, the camera location and orientations must be determined and then converted into our format using `ns-process-data`. We rely on external tools for this, instructions and information can be found in the documentation.
+
+| Data                                                                                              | Requirements     | Preprocessing Speed |
+| ------------------------------------------------------------------------------------------------- | ---------------- | ------------------- |
+| 📷 [Images](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-or-video)    | COLMAP           | 🐢                  |
+| 📹 [Video](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-or-video)     | COLMAP           | 🐢                  |
+| 📱 [Polycam](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#polycam-capture)   | LiDAR iOS Device | 🐇                  |
+| 📱 [Record3D](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#record3d-capture) | LiDAR iOS Device | 🐇                  |
+| 🛠 [Custom](https://docs.nerf.studio/en/latest/quickstart/data_conventions.html)                   | Poses            | 🐇                  |
+
+## 5. Advanced Options
+
+### Training models other than nerfacto
+
+We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command,
+
+```bash
+ns-train vanilla-nerf --data DATA_PATH
+```
+
+For a full list of included models run `ns-train --help`.
+
+### Modify Configuration
+
+Each model contains many parameters that can be changed, too many to list here. Use the `--help` command to see the full list of configuration options.
+
+```bash
 ns-train nerfacto --help
-
-# Run with nerfacto model.
-ns-train nerfacto
-
-# We provide support for other models. E.g., to run instant-ngp.
-ns-train instant-ngp
-
-# To train on your custom data.
-ns-train nerfacto --data {PROCESSED_DATA_DIR}
 ```
 
-### 3.x Training a model with the viewer
+### Tensorboard / WandB
 
-You can visualize training in real-time using our web-based viewer.
-
-Make sure to forward a port for the websocket to localhost. The default port is 7007, which you should expose to localhost:7007.
-
-```bash
-# with the default port
-ns-train nerfacto --vis viewer
-
-# with a specified websocket port
-ns-train nerfacto --vis viewer --viewer.websocket-port=7008
-
-# port forward if running on remote
-ssh -L localhost:7008:localhost:7008 {REMOTE HOST}
-```
-
-For more details on how to interact with the visualizer, please visit our viewer [walk-through](https://docs.nerf.studio/en/latest/quickstart/viewer_quickstart.html).
-
-## 4. Rendering a trajectory during inference
-
-After your model has trained, you can headlessly render out a video of the scene with a pre-defined trajectory.
-
-```bash
-# assuming previously ran `ns-train nerfacto`
-ns-render --load-config=outputs/data-nerfstudio-poster/nerfacto/{TIMESTAMP}/config.yml --traj=spiral --output-path=renders/output.mp4
-```
+We support three different methods to track training progress, using the viewer, [tensorboard](https://www.tensorflow.org/tensorboard), and [Weights and Biases](https://wandb.ai/site). You can specify which visualizer to use by appending `--vis {viewer, tensorboard, wandb}` to the training command. Note that only one may be used at a time. Additionally the viewer only works for methods that are fast (ie. nerfacto, instant-ngp), for slower methods like NeRF, use the other loggers.
 
 # Learn More
 
@@ -213,7 +236,6 @@ If you're interested in learning more on how to create your own pipelines, devel
 | 💖 **Community**                                                                                   |
 | [Discord](https://discord.gg/uMbNqcraFc)                                                           | Join our community to discuss more. We would love to hear from you!                                |
 | [Twitter](https://twitter.com/nerfstudioteam)                                                      | Follow us on Twitter @nerfstudioteam to see cool updates and announcements                         |
-| [TikTok](#)                                                                                        | Coming soon! Follow us on TikTok to see some of our fan favorite results                           |
 
 # Supported Features
 
