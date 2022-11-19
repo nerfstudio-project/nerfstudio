@@ -73,6 +73,15 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     num_pixels_w = squares_per_side_w * px_per_square_w
     num_pixels_h = squares_per_side_h * px_per_square_h
 
+    # Construct what one square would look like
+    # The height is equal to px_per_uv_triangle pixels.
+    # The width is equal to px_per_uv_triangle + 3 pixels.
+    # v0---------------v1------------------------v2
+    # --Triangle 1---------------------------------
+    # -----------------3px gap---------------------
+    # --------------------------------Triangle 2---
+    # v2-----------------------v1----------------v0
+
     lr_w = (px_per_uv_triangle + triangle_padding) / num_pixels_w
     lr_h = (px_per_uv_triangle) / num_pixels_h
     lr = torch.tensor([lr_w, lr_h], device=device)
@@ -101,6 +110,8 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
         + torch.tensor(lower_right, device=device)
         - px / 2
     )
+
+    # Tile this pattern across the entire texture
     uv_coords_square = torch.stack([uv_coords_upper_left, uv_coords_lower_right], dim=0)  # (2, 3, 2)
     uv_coords_square = uv_coords_square.reshape(1, 1, 6, 2)  # (6, 2)
     square_offsets = (
@@ -114,12 +125,13 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
         )
         * lr
     )
-
     uv_coords_square = uv_coords_square + square_offsets.view(
         squares_per_side_h, squares_per_side_w, 1, 2
     )  # (num_squares_h, num_squares_w, 6, 2)
     texture_coordinates = uv_coords_square.view(-1, 3, 2)[: len(faces)]  # (num_faces, 3, 2)
 
+    # Now find the triangle indices for every pixel and the barycentric coordinates
+    # which can be used to interpolate the XYZ and normal values to then query with NeRF
     uv_indices = torch.stack(
         torch.meshgrid(
             torch.arange(num_pixels_w, device=device), torch.arange(num_pixels_h, device=device), indexing="xy"
@@ -155,27 +167,22 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     w0 = get_parallelogram_area(p, v1, v2) / area
     w1 = get_parallelogram_area(p, v2, v0) / area
     w2 = get_parallelogram_area(p, v0, v1) / area
-    u = w0
-    v = w1
-    w = w2
 
-    # color the texture image
-
+    # TODO: clean this up
     # compute the length of the rays we want to render
     # we can make a good guess for this by looking at the average distance between vertices on the triangle faces
     neary_vertices_dev = nearby_vertices.to(device)
-    dist = torch.mean(torch.norm(neary_vertices_dev[..., 0, :] - neary_vertices_dev[..., 1, :], dim=-1))
-    offset = dist
+    offset = torch.mean(torch.norm(neary_vertices_dev[..., 0, :] - neary_vertices_dev[..., 1, :], dim=-1))
 
     origins = (
-        nearby_vertices[..., 0, :] * u[..., None]
-        + nearby_vertices[..., 1, :] * v[..., None]
-        + nearby_vertices[..., 2, :] * w[..., None]
+        nearby_vertices[..., 0, :] * w0[..., None]
+        + nearby_vertices[..., 1, :] * w1[..., None]
+        + nearby_vertices[..., 2, :] * w2[..., None]
     ).to(device)
     directions = -(
-        nearby_normals[..., 0, :] * u[..., None]
-        + nearby_normals[..., 1, :] * v[..., None]
-        + nearby_normals[..., 2, :] * w[..., None]
+        nearby_normals[..., 0, :] * w0[..., None]
+        + nearby_normals[..., 1, :] * w1[..., None]
+        + nearby_normals[..., 2, :] * w2[..., None]
     ).to(device)
     # normalize the direction vector to make it a unit vector
     directions = torch.nn.functional.normalize(directions, dim=-1)
@@ -194,7 +201,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
         fars=fars,
     )
 
-    CONSOLE.print("Rendering texture...")
+    CONSOLE.print("Creating texture image by rendering with NeRF...")
     with torch.no_grad():
         outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
 
@@ -202,6 +209,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     texture_image = outputs["rgb"].cpu().numpy()
     media.write_image(str(output_dir / "material_0.png"), texture_image)
 
+    CONSOLE.print("Writing relevant OBJ files...")
     # create the .mtl file
     lines_mtl = [
         "# Generated with nerfstudio",

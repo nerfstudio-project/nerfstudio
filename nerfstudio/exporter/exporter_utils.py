@@ -165,7 +165,7 @@ def generate_point_cloud(
     return pcd
 
 
-def _render_trajectory(
+def render_trajectory(
     pipeline: Pipeline,
     cameras: Cameras,
     rgb_output_name: str,

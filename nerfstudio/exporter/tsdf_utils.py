@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -30,7 +30,7 @@ from rich.console import Console
 from skimage import measure
 from torchtyping import TensorType
 
-from nerfstudio.exporter.exporter_utils import Mesh, _render_trajectory
+from nerfstudio.exporter.exporter_utils import Mesh, render_trajectory
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
 CONSOLE = Console(width=120)
@@ -54,6 +54,8 @@ class TSDF:
     """Size of each voxel in the TSDF. [x, y, z] size."""
     origin: TensorType[3]
     """Origin of the TSDF [xmin, ymin, zmin]."""
+    truncation_margin: float = 5.0
+    """Margin for truncation."""
 
     def to(self, device: str):
         """Move the tensors to the specified device.
@@ -73,6 +75,13 @@ class TSDF:
     def device(self):
         """Returns the device that voxel_coords is on."""
         return self.voxel_coords.device
+
+    @property
+    def truncation(self):
+        """Returns the truncation distance."""
+        # TODO: clean this up
+        truncation = self.voxel_size[0] * self.truncation_margin
+        return truncation
 
     @staticmethod
     def from_aabb(aabb: TensorType[2, 3], volume_dims: TensorType[3]):
@@ -213,14 +222,9 @@ class TSDF:
             )  # [batch, N, 3]
             sampled_colors = sampled_colors.squeeze(2)  # [batch, 3, N]
 
-        # calculate the truncation
-        # TODO: clean this up
-        truncation_margin = 5.0
-        truncation = self.voxel_size[0] * truncation_margin
-
         dist = sampled_depth - voxel_depth  # [batch, 1, N]
-        tsdf_values = torch.clamp(dist / truncation, min=-1.0, max=1.0)  # [batch, 1, N]
-        valid_points = (voxel_depth > 0) & (sampled_depth > 0) & (dist > -truncation)  # [batch, 1, N]
+        tsdf_values = torch.clamp(dist / self.truncation, min=-1.0, max=1.0)  # [batch, 1, N]
+        valid_points = (voxel_depth > 0) & (sampled_depth > 0) & (dist > -self.truncation)  # [batch, 1, N]
 
         # Sequentially update the TSDF...
 
@@ -261,10 +265,21 @@ def export_tsdf_mesh(
     rgb_output_name: str = "rgb",
     resolution: Union[int, List[int]] = field(default_factory=lambda: [256, 256, 256]),
     batch_size: int = 10,
+    use_bounding_box: bool = True,
+    bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
+    bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
 ):
     """Export a TSDF mesh from a pipeline.
 
     Args:
+        pipeline: The pipeline to export the mesh from.
+        output_dir: The directory to save the mesh to.
+        downscale_factor: Downscale factor for the images.
+        depth_output_name: Name of the depth output.
+        rgb_output_name: Name of the RGB output.
+        resolution: Resolution of the TSDF volume or [x, y, z] resolutions individually.
+        batch_size: How many depth images to integrate per batch.
+        use_bounding_box: Whether to use a bounding box for the TSDF volume.
     """
 
     device = pipeline.device
@@ -272,7 +287,10 @@ def export_tsdf_mesh(
     dataparser_outputs = pipeline.datamanager.train_dataset.dataparser_outputs
 
     # initialize the TSDF volume
-    aabb = dataparser_outputs.scene_box.aabb
+    if not use_bounding_box:
+        aabb = dataparser_outputs.scene_box.aabb
+    else:
+        aabb = torch.tensor([bounding_box_min, bounding_box_max])
     if isinstance(resolution, int):
         volume_dims = torch.tensor([resolution] * 3)
     elif isinstance(resolution, List):
@@ -285,7 +303,7 @@ def export_tsdf_mesh(
 
     cameras = dataparser_outputs.cameras
     # we turn off distortion when populating the TSDF
-    color_images, depth_images = _render_trajectory(
+    color_images, depth_images = render_trajectory(
         pipeline,
         cameras,
         rgb_output_name=rgb_output_name,
@@ -314,5 +332,5 @@ def export_tsdf_mesh(
 
     CONSOLE.print("Computing Mesh")
     mesh = tsdf.get_mesh()
-    CONSOLE.print("Saving Mesh")
+    CONSOLE.print("Saving TSDF Mesh")
     tsdf.export_mesh(mesh, filename=str(output_dir / "tsdf_mesh.ply"))

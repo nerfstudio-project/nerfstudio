@@ -17,9 +17,9 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
-    _render_trajectory,
     generate_point_cloud,
     get_mesh_from_filename,
+    render_trajectory,
 )
 from nerfstudio.utils.eval_utils import eval_setup
 
@@ -101,10 +101,16 @@ class ExportTSDFMesh(Exporter):
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
     """Name of the RGB output."""
-    resolution: Union[int, List[int]] = field(default_factory=lambda: [256, 256, 256])
+    resolution: Union[int, List[int]] = field(default_factory=lambda: [128, 128, 128])
     """Resolution of the TSDF volume or [x, y, z] resolutions individually."""
     batch_size: int = 10
     """How many depth images to integrate per batch."""
+    use_bounding_box: bool = True
+    """Whether to use a bounding box for the TSDF volume."""
+    bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
+    """Minimum of the bounding box, used if use_bounding_box is True."""
+    bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
+    """Minimum of the bounding box, used if use_bounding_box is True."""
     texture_method: Literal["tsdf", "nerf"] = "nerf"
     """Method to texture the mesh with. Either 'tsdf' or 'nerf'."""
     px_per_uv_triangle: int = 4
@@ -126,11 +132,17 @@ class ExportTSDFMesh(Exporter):
             self.rgb_output_name,
             self.resolution,
             self.batch_size,
+            use_bounding_box=self.use_bounding_box,
+            bounding_box_min=self.bounding_box_min,
+            bounding_box_max=self.bounding_box_max,
         )
 
+        # load the mesh frmo the tsdf export
         mesh = get_mesh_from_filename(str(self.output_dir / "tsdf_mesh.ply"))
 
-        # possibly texture with NeRF
+        # possibly
+        # texture the mesh with NeRF and export to a mesh.obj file
+        # and a material and texture file
         if self.texture_method == "nerf":
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
@@ -164,7 +176,7 @@ class ExportPoissonMesh(Exporter):
         dataparser_outputs = pipeline.datamanager.train_dataset.dataparser_outputs
         cameras = dataparser_outputs.cameras
 
-        color_images, depth_images = _render_trajectory(
+        color_images, depth_images = render_trajectory(
             pipeline,
             cameras,
             rgb_output_name=self.rgb_output_name,

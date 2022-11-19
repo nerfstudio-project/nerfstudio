@@ -45,6 +45,8 @@ class TextureMesh:
         # load the Pipeline
         _, pipeline, _ = eval_setup(self.load_config)
 
+        # texture the mesh with NeRF and export to a mesh.obj file
+        # and a material and texture file
         texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
 
 
