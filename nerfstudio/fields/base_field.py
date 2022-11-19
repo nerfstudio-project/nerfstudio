@@ -104,12 +104,10 @@ class Field(nn.Module):
             density, density_embedding = self.get_density(ray_samples)
 
         field_outputs = self.get_outputs(ray_samples, density_embedding=density_embedding)
-
         field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
+
         if compute_normals:
             with torch.enable_grad():
                 normals = self.get_normals()
             field_outputs[FieldHeadNames.NORMALS] = normals  # type: ignore
-            if FieldHeadNames.NORMALS not in field_outputs:
-                raise ValueError("Normal field head must be defined if compute_normals is True.")
         return field_outputs

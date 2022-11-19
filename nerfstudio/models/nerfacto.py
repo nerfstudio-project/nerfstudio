@@ -106,10 +106,8 @@ class NerfactoModelConfig(ModelConfig):
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
-    use_pred_normals: bool = False
+    predict_normals: bool = False
     """Whether to predict normals or not."""
-    compute_normals: bool = False
-    """Whether to compute normals from density gradient or not."""
 
 
 class NerfactoModel(Model):
@@ -132,7 +130,7 @@ class NerfactoModel(Model):
             self.scene_box.aabb,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
-            use_pred_normals=self.config.use_pred_normals,
+            use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
 
@@ -227,7 +225,7 @@ class NerfactoModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
-        field_outputs = self.field(ray_samples, compute_normals=self.config.compute_normals)
+        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
@@ -242,10 +240,8 @@ class NerfactoModel(Model):
             "depth": depth,
         }
 
-        if self.config.compute_normals:
+        if self.config.predict_normals:
             outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-
-        if self.config.use_pred_normals:
             outputs["pred_normals"] = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
@@ -253,13 +249,11 @@ class NerfactoModel(Model):
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
 
-        if self.training and self.config.compute_normals:
+        if self.training and self.config.predict_normals:
             outputs["rendered_orientation_loss"] = orientation_loss(
                 weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
 
-        if self.training and self.config.use_pred_normals:
-            assert self.config.compute_normals, "Must compute normals from density to compute predicted normal loss."
             outputs["rendered_pred_normal_loss"] = pred_normal_loss(
                 weights.detach(),
                 field_outputs[FieldHeadNames.NORMALS].detach(),
@@ -289,15 +283,12 @@ class NerfactoModel(Model):
             )
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
-            if self.config.compute_normals:
+            if self.config.predict_normals:
                 # orientation loss for computed normals
                 loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
                     outputs["rendered_orientation_loss"]
                 )
-            if self.config.use_pred_normals:
-                assert (
-                    self.config.compute_normals
-                ), "Must compute normals from density to compute predicted normal loss."
+
                 # ground truth supervision for normals
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]

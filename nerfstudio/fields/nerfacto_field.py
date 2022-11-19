@@ -288,7 +288,6 @@ class TCNNNerfactoField(Field):
                 ],
                 dim=-1,
             )
-            # print(semantics_input)
             x = self.mlp_semantics(semantics_input).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.SEMANTICS] = self.field_head_semantics(x)
 
