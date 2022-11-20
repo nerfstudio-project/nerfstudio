@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
 import tyro
@@ -44,7 +44,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import PixelSampler
+from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
@@ -266,6 +266,9 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
+    use_equirect_sampler: bool = False
+    """Assume images are equirectangular and sample rays uniformly on the sphere. If your dataset contains images of
+    multiple types, setting this to False should still perform well enough."""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -314,6 +317,12 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         """Sets up the data loaders for evaluation"""
         return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))
 
+    def _get_pixel_sampler(self, *args: Any, **kwargs: Any) -> PixelSampler:
+        if self.config.use_equirect_sampler:
+            return EquirectangularPixelSampler(*args, **kwargs)
+        else:
+            return PixelSampler(*args, **kwargs)
+
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
@@ -327,7 +336,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             pin_memory=True,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
+        self.train_pixel_sampler = self._get_pixel_sampler(self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
@@ -349,7 +358,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             pin_memory=True,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
+        self.eval_pixel_sampler = self._get_pixel_sampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.dataparser_outputs.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
