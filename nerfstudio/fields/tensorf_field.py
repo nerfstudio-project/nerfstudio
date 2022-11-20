@@ -113,7 +113,6 @@ class TensoRFField(Field):
     def forward(
         self,
         ray_samples: RaySamples,
-        compute_normals: bool = False,
         mask: Optional[TensorType] = None,
         bg_color: Optional[TensorType] = None,
     ):
