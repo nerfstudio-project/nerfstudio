@@ -72,6 +72,8 @@ class TensoRFModelConfig(ModelConfig):
     """Number of components in color encoding"""
     appearance_dim: int = 27
     """Number of channels for color encoding"""
+    predict_normals: bool = False
+    """Whether to predict normals or not."""
 
 
 class TensoRFModel(Model):
@@ -91,6 +93,8 @@ class TensoRFModel(Model):
         self.num_den_components = config.num_den_components
         self.num_color_components = config.num_color_components
         self.appearance_dim = config.appearance_dim
+        self.predict_normals = config.predict_normals
+        self.num_samples = config.num_samples
         self.upsampling_steps = (
             np.round(
                 np.exp(
@@ -173,8 +177,8 @@ class TensoRFModel(Model):
         )
 
         # samplers
-        self.sampler_uniform = UniformSampler(num_samples=self.config.num_samples, single_jitter=True)
-        self.sampler_pdf = PDFSampler(num_samples=self.config.num_samples // 2, single_jitter=True)
+        self.sampler_uniform = UniformSampler(num_samples=self.num_samples, single_jitter=True)
+        self.sampler_pdf = PDFSampler(num_samples=self.num_samples // 2, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
@@ -219,7 +223,9 @@ class TensoRFModel(Model):
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights)
 
         # fine field:
-        field_outputs_fine = self.field.forward(ray_samples_pdf, acc_mask, colors.WHITE.to(weights.device))
+        field_outputs_fine = self.field.forward(
+            ray_samples_pdf, self.predict_normals, acc_mask, colors.WHITE.to(weights.device)
+        )
 
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
 
