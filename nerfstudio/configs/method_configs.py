@@ -55,6 +55,7 @@ descriptions = {
     "vanilla-nerf": "Original NeRF model. (slow)",
     "tensorf": "tensorf",
     "dnerf": "Dynamic-NeRF model. (slow)",
+    "nrnerf": "Non-Rigid NeRF model. (slow)",
 }
 
 method_configs["nerfacto"] = Config(
@@ -198,6 +199,28 @@ method_configs["dnerf"] = Config(
             _target=NeRFModel,
             enable_temporal_distortion=True,
             temporal_distortion_params={"kind": TemporalDistortionKind.DNERF},
+        ),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
+        "temporal_distortion": {
+            "optimizer": RAdamOptimizerConfig(lr=5e-4, eps=1e-08),
+            "scheduler": None,
+        },
+    },
+)
+
+method_configs["nrnerf"] = Config(
+    method_name="nrnerf",
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
+        model=VanillaModelConfig(
+            _target=NeRFModel,
+            enable_temporal_distortion=True,
+            temporal_distortion_params={"kind": TemporalDistortionKind.NRNERF},
         ),
     ),
     optimizers={

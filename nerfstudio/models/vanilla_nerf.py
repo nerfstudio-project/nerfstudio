@@ -163,6 +163,7 @@ class NeRFModel(Model):
 
         # fine field:
         field_outputs_fine = self.field_fine.forward(ray_samples_pdf)
+        alphas_fine = ray_samples_pdf.get_alphas(field_outputs_fine[FieldHeadNames.DENSITY])
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
         rgb_fine = self.renderer_rgb(
             rgb=field_outputs_fine[FieldHeadNames.RGB],
@@ -178,6 +179,10 @@ class NeRFModel(Model):
             "accumulation_fine": accumulation_fine,
             "depth_coarse": depth_coarse,
             "depth_fine": depth_fine,
+            "alphas_fine": alphas_fine,
+            # "alphas_coarse": alphas_coarse,
+            "weights_fine": weights_fine,
+            # "weights_coarse": weights_coarse,
         }
         return outputs
 
@@ -190,6 +195,8 @@ class NeRFModel(Model):
         rgb_loss_fine = self.rgb_loss(image, outputs["rgb_fine"])
 
         loss_dict = {"rgb_loss_coarse": rgb_loss_coarse, "rgb_loss_fine": rgb_loss_fine}
+        if self.temporal_distortion is not None:
+            loss_dict = {**loss_dict, **self.temporal_distortion.get_loss_dict(outputs, batch)}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 

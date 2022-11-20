@@ -191,3 +191,27 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """
 
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
+
+
+# approximate divergence using ffjord, taken from NR-NeRF taken from elsewhere.
+def hutchinson_div_approx(x: TensorType[..., 3], fn_x: TensorType[..., 3]):
+    """Approximates divergence of a function.
+
+    Proposed in [NR-NeRF](https://arxiv.org/pdf/2012.12247.pdf),
+    originally from [Ffjord](https://arxiv.org/pdf/1810.01367.pdf)
+
+    Args:
+        x: input to function to compute divergence of
+        fn_x: output of function to compute divergence.
+    """
+    assert fn_x.shape[-1] == 3, "Can only take divergence of vector field"
+    assert x.shape[-1] == 3, "Can only take divergence of vector field"
+    e = torch.randn_like(fn_x)
+    (e_dydx,) = torch.autograd.grad(
+        inputs=x,
+        outputs=fn_x,
+        grad_outputs=e,
+        retain_graph=True,
+        only_inputs=True,
+    )
+    return (e_dydx * e).sum(dim=-1)
