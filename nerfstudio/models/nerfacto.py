@@ -327,9 +327,9 @@ class NerfactoModel(Model):
 
         # normals to RGB for visualization. TODO: use a colormap
         if "normals" in outputs:
-            images_dict["normals"] = outputs["normals"]
+            images_dict["normals"] = (outputs["normals"] + 1.0) / 2.0
         if "pred_normals" in outputs:
-            images_dict["pred_normals"] = outputs["pred_normals"]
+            images_dict["pred_normals"] = (outputs["pred_normals"] + 1.0) / 2.0
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"

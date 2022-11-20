@@ -193,7 +193,7 @@ class TCNNNerfactoField(Field):
         # predicted normals
         if self.use_pred_normals:
             self.mlp_pred_normals = tcnn.Network(
-                n_input_dims=self.geo_feat_dim + (3 * 2 * 2),
+                n_input_dims=self.geo_feat_dim + self.position_encoding.n_output_dims,
                 n_output_dims=hidden_dim_transient,
                 network_config={
                     "otype": "FullyFusedMLP",
