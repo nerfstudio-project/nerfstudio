@@ -132,7 +132,7 @@ class EvalDataloader(DataLoader):
         **kwargs,
     ):
         self.input_dataset = input_dataset
-        self.cameras = input_dataset.dataparser_outputs.cameras.to(device)
+        self.cameras = input_dataset.cameras.to(device)
         self.device = device
         self.kwargs = kwargs
         super().__init__(dataset=input_dataset)
