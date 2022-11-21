@@ -214,9 +214,11 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     lines_mtl = [
         "# Generated with nerfstudio",
         "newmtl material_0",
-        "Ka 0.40000000 0.40000000 0.40000000",
-        "Kd 0.40000000 0.40000000 0.40000000",
-        "Ks 0.40000000 0.40000000 0.40000000",
+        "Ka 1.000 1.000 1.000",
+        "Kd 1.000 1.000 1.000",
+        "Ks 0.000 0.000 0.000",
+        "d 1.0",
+        "illum 2",
         "Ns 1.00000000",
         "map_Kd material_0.png",
     ]
