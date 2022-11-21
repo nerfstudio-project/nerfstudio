@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Export structs.
+Export utils such as structs, point cloud generation, and rendering code.
 """
 
 from __future__ import annotations
@@ -48,13 +48,13 @@ CONSOLE = Console(width=120)
 class Mesh:
     """Class for a mesh."""
 
-    vertices: TensorType["n", 3]
+    vertices: TensorType["num_verts", 3]
     """Vertices of the mesh."""
-    faces: TensorType["m", 3]
+    faces: TensorType["num_faces", 3]
     """Faces of the mesh."""
-    normals: TensorType["n", 3]
+    normals: TensorType["num_verts", 3]
     """Normals of the mesh."""
-    colors: Optional[TensorType["n", 3]] = None
+    colors: Optional[TensorType["num_verts", 3]] = None
     """Colors of the mesh."""
 
 
@@ -81,6 +81,7 @@ def generate_point_cloud(
     estimate_normals: bool = False,
     rgb_output_name: str = "rgb",
     depth_output_name: str = "depth",
+    normal_output_name: Optional[str] = None,
     use_bounding_box: bool = True,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
@@ -94,6 +95,7 @@ def generate_point_cloud(
         estimate_normals: Whether to estimate normals.
         rgb_output_name: Name of the RGB output.
         depth_output_name: Name of the depth output.
+        normal_output_name: Name of the normal output.
         use_bounding_box: Whether to use a bounding box to sample points.
         bounding_box_min: Minimum of the bounding box.
         bounding_box_max: Maximum of the bounding box.
@@ -101,6 +103,8 @@ def generate_point_cloud(
     Returns:
         Point cloud.
     """
+
+    # pylint: disable=too-many-statements
 
     progress = Progress(
         TextColumn(":cloud: Computing Point Cloud :cloud:"),
@@ -110,6 +114,7 @@ def generate_point_cloud(
     )
     points = []
     rgbs = []
+    normals = []
     with progress as progress_bar:
         task = progress_bar.add_task("Generating Point Cloud", total=num_points)
         while not progress_bar.finished:
@@ -128,6 +133,13 @@ def generate_point_cloud(
                 sys.exit(1)
             rgb = outputs[rgb_output_name]
             depth = outputs[depth_output_name]
+            if normal_output_name is not None:
+                if normal_output_name not in outputs:
+                    CONSOLE.rule("Error", style="red")
+                    CONSOLE.print(f"Could not find {normal_output_name} in the model outputs", justify="center")
+                    CONSOLE.print(f"Please set --normal_output_name to one of: {outputs.keys()}", justify="center")
+                    sys.exit(1)
+                normal = outputs[normal_output_name]
             point = ray_bundle.origins + ray_bundle.directions * depth
 
             if use_bounding_box:
@@ -139,9 +151,13 @@ def generate_point_cloud(
                 mask = torch.all(torch.concat([point > comp_l, point < comp_m], dim=-1), dim=-1)
                 point = point[mask]
                 rgb = rgb[mask]
+                if normal_output_name is not None:
+                    normal = normal[mask]
 
             points.append(point)
             rgbs.append(rgb)
+            if normal_output_name is not None:
+                normals.append(normal)
             progress.advance(task, point.shape[0])
     points = torch.cat(points, dim=0)
     rgbs = torch.cat(rgbs, dim=0)
@@ -150,17 +166,29 @@ def generate_point_cloud(
     pcd.points = o3d.utility.Vector3dVector(points.float().cpu().numpy())
     pcd.colors = o3d.utility.Vector3dVector(rgbs.float().cpu().numpy())
 
+    ind = None
     if remove_outliers:
         CONSOLE.print("Cleaning Point Cloud")
-        pcd, _ = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=1.0)
+        pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=1.0)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
 
+    # either estimate_normals or normal_output_name, not both
     if estimate_normals:
+        if normal_output_name is not None:
+            CONSOLE.rule("Error", style="red")
+            CONSOLE.print("Cannot estimate normals and use normal_output_name at the same time", justify="center")
+            sys.exit(1)
         CONSOLE.print("Estimating Point Cloud Normals")
         pcd.estimate_normals()
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Estimating Point Cloud Normals")
+    elif normal_output_name is not None:
+        normals = torch.cat(normals, dim=0)
+        if ind is not None:
+            # mask out normals for points that were removed with remove_outliers
+            normals = normals[ind]
+        pcd.normals = o3d.utility.Vector3dVector(normals.float().cpu().numpy())
 
     return pcd
 

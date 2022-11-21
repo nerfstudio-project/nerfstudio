@@ -90,7 +90,6 @@ ns-render = "scripts.render:entrypoint"
 ns-export = "scripts.exporter:entrypoint"
 ns-dev-test = "scripts.github.run_actions:entrypoint"
 ns-bridge-server = "nerfstudio.viewer.server.server:entrypoint"
-ns-mesh = "scripts.mesh:entrypoint"
 
 [options]
 # equivalent to using --extra-index-url with pip, which is needed for specifying the CUDA version torch and torchvision

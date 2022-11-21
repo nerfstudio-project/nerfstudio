@@ -24,8 +24,8 @@ from pathlib import Path
 import mediapy as media
 import torch
 from rich.console import Console
+from rich.progress import track
 from torchtyping import TensorType
-from tqdm import tqdm
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
@@ -171,19 +171,18 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     # TODO: clean this up
     # compute the length of the rays we want to render
     # we can make a good guess for this by looking at the average distance between vertices on the triangle faces
-    neary_vertices_dev = nearby_vertices.to(device)
-    offset = torch.mean(torch.norm(neary_vertices_dev[..., 0, :] - neary_vertices_dev[..., 1, :], dim=-1))
+    offset = torch.mean(torch.norm(nearby_vertices[..., 0, :] - nearby_vertices[..., 1, :], dim=-1)).float()
 
     origins = (
         nearby_vertices[..., 0, :] * w0[..., None]
         + nearby_vertices[..., 1, :] * w1[..., None]
         + nearby_vertices[..., 2, :] * w2[..., None]
-    ).to(device)
+    ).float()
     directions = -(
         nearby_normals[..., 0, :] * w0[..., None]
         + nearby_normals[..., 1, :] * w1[..., None]
         + nearby_normals[..., 2, :] * w2[..., None]
-    ).to(device)
+    ).float()
     # normalize the direction vector to make it a unit vector
     directions = torch.nn.functional.normalize(directions, dim=-1)
 
@@ -209,7 +208,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     texture_image = outputs["rgb"].cpu().numpy()
     media.write_image(str(output_dir / "material_0.png"), texture_image)
 
-    CONSOLE.print("Writing relevant OBJ files...")
+    CONSOLE.print("Writing relevant OBJ information to files...")
     # create the .mtl file
     lines_mtl = [
         "# Generated with nerfstudio",
@@ -236,7 +235,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     # write the geometric vertices
     # move vertices back to cpu
     vertices = vertices.cpu().numpy()
-    for i in tqdm(range(len(vertices))):
+    for i in track(range(len(vertices)), description="Writing vertices"):
         vertex = vertices[i]
         line = f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"
         file_obj.write(line)
@@ -244,7 +243,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     # write the texture coordinates
     # move texture coordinates back to cpu
     texture_coordinates = texture_coordinates.cpu().numpy()
-    for i in tqdm(range(len(faces))):
+    for i in track(range(len(faces)), description="Writing texture coordinates"):
         for uv in texture_coordinates[i]:
             line = f"vt {uv[0]} {1.0 - uv[1]}\n"
             file_obj.write(line)
@@ -252,7 +251,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     # write the vertex normals
     # move vertex normals back to cpu
     vertex_normals = vertex_normals.cpu().numpy()
-    for i in tqdm(range(len(vertex_normals))):
+    for i in track(range(len(vertex_normals)), description="Writing vertex normals"):
         normal = vertex_normals[i]
         line = f"vn {normal[0]} {normal[1]} {normal[2]}\n"
         file_obj.write(line)
@@ -260,7 +259,7 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     # write the faces
     # move faces back to cpu
     faces = faces.cpu().numpy()
-    for i in tqdm(range(len(faces))):
+    for i in track(range(len(faces)), description="Writing faces"):
         face = faces[i]
         v1 = face[0] + 1
         v2 = face[1] + 1

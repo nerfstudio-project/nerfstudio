@@ -284,7 +284,7 @@ def export_tsdf_mesh(
 
     device = pipeline.device
 
-    dataparser_outputs = pipeline.datamanager.train_dataset.dataparser_outputs
+    dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs  # pylint: disable=protected-access
 
     # initialize the TSDF volume
     if not use_bounding_box:
