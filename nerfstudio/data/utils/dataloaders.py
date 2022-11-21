@@ -132,7 +132,7 @@ class EvalDataloader(DataLoader):
         **kwargs,
     ):
         self.input_dataset = input_dataset
-        self.cameras = input_dataset.dataparser_outputs.cameras.to(device)
+        self.cameras = input_dataset.cameras.to(device)
         self.device = device
         self.kwargs = kwargs
         super().__init__(dataset=input_dataset)
@@ -166,7 +166,7 @@ class EvalDataloader(DataLoader):
             camera_to_worlds=self.cameras.camera_to_worlds[image_idx : image_idx + 1],
             distortion_params=distortion_params,
             camera_type=self.cameras.camera_type[image_idx : image_idx + 1],
-            times=self.cameras.times[image_idx : image_idx + 1] if self.cameras.time else None,
+            times=self.cameras.times[image_idx : image_idx + 1] if self.cameras.times else None,
         )
         return camera
 

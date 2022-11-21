@@ -39,11 +39,18 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.nerfacto_field import TCNNNerfactoField
-from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
+from nerfstudio.model_components.losses import (
+    MSELoss,
+    distortion_loss,
+    interlevel_loss,
+    orientation_loss,
+    pred_normal_loss,
+)
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
+    NormalsRenderer,
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
@@ -85,6 +92,10 @@ class NerfactoModelConfig(ModelConfig):
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
+    orientation_loss_mult: float = 0.0001
+    """Orientation loss multipier on computed noramls."""
+    pred_normal_loss_mult: float = 0.001
+    """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
     use_average_appearance_embedding: bool = True
@@ -95,6 +106,8 @@ class NerfactoModelConfig(ModelConfig):
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
+    predict_normals: bool = False
+    """Whether to predict normals or not."""
 
 
 class NerfactoModel(Model):
@@ -117,6 +130,7 @@ class NerfactoModel(Model):
             self.scene_box.aabb,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
+            use_pred_normals=self.config.predict_normals,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
 
@@ -162,6 +176,7 @@ class NerfactoModel(Model):
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
+        self.renderer_normals = NormalsRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -210,7 +225,7 @@ class NerfactoModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
-        field_outputs = self.field(ray_samples)
+        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
         weights_list.append(weights)
         ray_samples_list.append(ray_samples)
@@ -219,12 +234,31 @@ class NerfactoModel(Model):
         depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
         accumulation = self.renderer_accumulation(weights=weights)
 
-        outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
+        outputs = {
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
+        }
+
+        if self.config.predict_normals:
+            outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+            outputs["pred_normals"] = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
             outputs["weights_list"] = weights_list
             outputs["ray_samples_list"] = ray_samples_list
+
+        if self.training and self.config.predict_normals:
+            outputs["rendered_orientation_loss"] = orientation_loss(
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            )
+
+            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+                weights.detach(),
+                field_outputs[FieldHeadNames.NORMALS].detach(),
+                field_outputs[FieldHeadNames.PRED_NORMALS],
+            )
 
         for i in range(self.config.num_proposal_iterations):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
@@ -249,6 +283,16 @@ class NerfactoModel(Model):
             )
             assert metrics_dict is not None and "distortion" in metrics_dict
             loss_dict["distortion_loss"] = self.config.distortion_loss_mult * metrics_dict["distortion"]
+            if self.config.predict_normals:
+                # orientation loss for computed normals
+                loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+                    outputs["rendered_orientation_loss"]
+                )
+
+                # ground truth supervision for normals
+                loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
+                    outputs["rendered_pred_normal_loss"]
+                )
         return loss_dict
 
     def get_image_metrics_and_images(
@@ -280,6 +324,12 @@ class NerfactoModel(Model):
         metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
+
+        # normals to RGB for visualization. TODO: use a colormap
+        if "normals" in outputs:
+            images_dict["normals"] = (outputs["normals"] + 1.0) / 2.0
+        if "pred_normals" in outputs:
+            images_dict["pred_normals"] = (outputs["pred_normals"] + 1.0) / 2.0
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"

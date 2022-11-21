@@ -30,6 +30,11 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 class Field(nn.Module):
     """Base class for fields."""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._sample_locations = None
+        self._density_before_activation = None
+
     def density_fn(self, positions: TensorType["bs":..., 3]) -> TensorType["bs":..., 1]:
         """Returns only the density. Used primarily with the density grid.
 
@@ -57,6 +62,24 @@ class Field(nn.Module):
             ray_samples: Samples locations to compute density.
         """
 
+    def get_normals(self) -> TensorType[..., 3]:
+        """Computes and returns a tensor of normals.
+
+        Args:
+            density: Tensor of densities.
+        """
+        assert self._sample_locations is not None, "Sample locations must be set before calling get_normals."
+        assert self._density_before_activation is not None, "Density must be set before calling get_normals."
+        assert (
+            self._sample_locations.shape[:-1] == self._density_before_activation.shape[:-1]
+        ), "Sample locations and density must have the same shape besides the last dimension."
+
+        self._density_before_activation.backward(
+            gradient=torch.ones_like(self._density_before_activation), inputs=self._sample_locations, retain_graph=True
+        )
+        normals = -torch.nn.functional.normalize(self._sample_locations.grad, dim=-1)
+        return normals
+
     @abstractmethod
     def get_outputs(
         self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None
@@ -68,14 +91,23 @@ class Field(nn.Module):
             density_embedding: Density embeddings to condition on.
         """
 
-    def forward(self, ray_samples: RaySamples):
+    def forward(self, ray_samples: RaySamples, compute_normals: bool = False):
         """Evaluates the field at points along the ray.
 
         Args:
             ray_samples: Samples to evaluate field on.
         """
-        density, density_embedding = self.get_density(ray_samples)
-        field_outputs = self.get_outputs(ray_samples, density_embedding=density_embedding)
+        if compute_normals:
+            with torch.enable_grad():
+                density, density_embedding = self.get_density(ray_samples)
+        else:
+            density, density_embedding = self.get_density(ray_samples)
 
+        field_outputs = self.get_outputs(ray_samples, density_embedding=density_embedding)
         field_outputs[FieldHeadNames.DENSITY] = density  # type: ignore
+
+        if compute_normals:
+            with torch.enable_grad():
+                normals = self.get_normals()
+            field_outputs[FieldHeadNames.NORMALS] = normals  # type: ignore
         return field_outputs

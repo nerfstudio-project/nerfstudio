@@ -111,8 +111,14 @@ class TensoRFField(Field):
         return rgb
 
     def forward(
-        self, ray_samples: RaySamples, mask: Optional[TensorType] = None, bg_color: Optional[TensorType] = None
+        self,
+        ray_samples: RaySamples,
+        compute_normals: bool = False,
+        mask: Optional[TensorType] = None,
+        bg_color: Optional[TensorType] = None,
     ):
+        if compute_normals is True:
+            raise ValueError("Surface normals are not currently supported with TensoRF")
         if mask is not None and bg_color is not None:
             base_density = torch.zeros(ray_samples.shape)[:, :, None].to(mask.device)
             base_rgb = bg_color.repeat(ray_samples[:, :, None].shape)

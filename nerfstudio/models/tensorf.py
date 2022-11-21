@@ -219,7 +219,9 @@ class TensoRFModel(Model):
         ray_samples_pdf = self.sampler_pdf(ray_bundle, ray_samples_uniform, weights)
 
         # fine field:
-        field_outputs_fine = self.field.forward(ray_samples_pdf, acc_mask, colors.WHITE.to(weights.device))
+        field_outputs_fine = self.field.forward(
+            ray_samples_pdf, mask=acc_mask, bg_color=colors.WHITE.to(weights.device)
+        )
 
         weights_fine = ray_samples_pdf.get_weights(field_outputs_fine[FieldHeadNames.DENSITY])
 
