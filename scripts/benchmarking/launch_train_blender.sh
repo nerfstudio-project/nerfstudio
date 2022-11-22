@@ -25,7 +25,7 @@ if [ -z "${method_name+x}" ]; then
     echo "Missing method name"
     helpFunction_launch_train
 fi
-method_opts=""
+method_opts=()
 if [ "$method_name" = "nerfacto" ]; then
     # https://github.com/nerfstudio-project/nerfstudio/issues/806#issuecomment-1284327844
     method_opts=(--pipeline.model.near-plane 2. --pipeline.model.far-plane 6. --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-average-appearance-embedding False)
