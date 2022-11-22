@@ -136,13 +136,12 @@ class ExportTSDFMesh(Exporter):
             bounding_box_max=self.bounding_box_max,
         )
 
-        # load the mesh frmo the tsdf export
-        mesh = get_mesh_from_filename(str(self.output_dir / "tsdf_mesh.ply"))
-
         # possibly
         # texture the mesh with NeRF and export to a mesh.obj file
         # and a material and texture file
         if self.texture_method == "nerf":
+            # load the mesh from the tsdf export
+            mesh = get_mesh_from_filename(str(self.output_dir / "tsdf_mesh.ply"))
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
 
@@ -173,6 +172,10 @@ class ExportPoissonMesh(Exporter):
     """Minimum of the bounding box, used if use_bounding_box is True."""
     num_rays_per_batch: int = 65536
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
+    texture_method: Literal["point_cloud", "nerf"] = "nerf"
+    """Method to texture the mesh with. Either 'point_cloud' or 'nerf'."""
+    px_per_uv_triangle: int = 4
+    """Number of pixels per UV triangle."""
 
     def main(self) -> None:
         """Export mesh"""
@@ -214,12 +217,18 @@ class ExportPoissonMesh(Exporter):
             CONSOLE.print("[bold green]:white_check_mark: Computing Mesh")
 
         with CONSOLE.status("Saving Mesh", spinner="pipe"):
-            CONSOLE.print("Saving Mesh")
             o3d.io.write_triangle_mesh(str(self.output_dir / "poisson_mesh.ply"), mesh)
             print("\033[A\033[A")
             CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
 
-        # TODO: texture the mesh with NeRF and export to a mesh.obj file
+        # possibly
+        # texture the mesh with NeRF and export to a mesh.obj file
+        # and a material and texture file
+        if self.texture_method == "nerf":
+            # load the mesh from the poisson reconstruction
+            mesh = get_mesh_from_filename(str(self.output_dir / "poisson_mesh.ply"))
+            CONSOLE.print("Texturing mesh with NeRF")
+            texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
 
 
 @dataclass

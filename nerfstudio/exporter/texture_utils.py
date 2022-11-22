@@ -41,27 +41,15 @@ def get_parallelogram_area(
     return (p[..., 0] - v0[..., 0]) * (v1[..., 1] - v0[..., 1]) - (p[..., 1] - v0[..., 1]) * (v1[..., 0] - v0[..., 0])
 
 
-def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int, output_dir: Path):
-    """Textures a mesh using the radiance field from the Pipeline.
-    The mesh is written to an OBJ file in the output directory,
-    along with the corresponding material and texture files.
-    Operations will occur on the same device as the Pipeline.
-
-    Args:
-        mesh: The mesh to texture.
-        pipeline: The pipeline to use for texturing.
-        px_per_uv_triangle: The number of pixels per side of UV triangle.
-        output_dir: The directory to write the textured mesh to.
-    """
-
-    # pylint: disable=too-many-statements
-
-    device = pipeline.device
-
-    vertices = mesh.vertices.to(device)
-    faces = mesh.faces.to(device)
-    vertex_normals = mesh.normals.to(device)
+def unwrap_mesh_per_uv_triangle(
+    vertices: TensorType["num_verts", 3],
+    faces: TensorType["num_faces", 3],
+    vertex_normals: TensorType["num_verts", 3],
+    px_per_uv_triangle: int,
+):
+    """Unwrap a mesh to a UV texture."""
     assert len(vertices) == len(vertex_normals), "Number of vertices and vertex normals must be equal"
+    device = vertices.device
 
     # calculate the number of rectangles needed
     triangle_padding = 3
@@ -157,13 +145,48 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     nearby_vertices = vertices[faces[triangle_index]]  # (num_pixels_h, num_pixels_w, 3, 3)
     nearby_normals = vertex_normals[faces[triangle_index]]  # (num_pixels_h, num_pixels_w, 3, 3)
 
+    return texture_coordinates, uv_coords, nearby_uv_coords, nearby_vertices, nearby_normals
+
+
+def unwrap_mesh_with_xatlas(
+    vertices: TensorType["num_verts", 3], faces: TensorType["num_faces", 3], vertex_normals: TensorType["num_verts", 3]
+):
+    """Unwrap a mesh using xatlas."""
+    raise NotImplementedError()
+
+
+def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int, output_dir: Path):
+    """Textures a mesh using the radiance field from the Pipeline.
+    The mesh is written to an OBJ file in the output directory,
+    along with the corresponding material and texture files.
+    Operations will occur on the same device as the Pipeline.
+
+    Args:
+        mesh: The mesh to texture.
+        pipeline: The pipeline to use for texturing.
+        px_per_uv_triangle: The number of pixels per side of UV triangle.
+        output_dir: The directory to write the textured mesh to.
+    """
+
+    # pylint: disable=too-many-statements
+
+    device = pipeline.device
+
+    vertices = mesh.vertices.to(device)
+    faces = mesh.faces.to(device)
+    vertex_normals = mesh.normals.to(device)
+
+    texture_coordinates, uv_coords, nearby_uv_coords, nearby_vertices, nearby_normals = unwrap_mesh_per_uv_triangle(
+        vertices, faces, vertex_normals, px_per_uv_triangle
+    )
+
     # compute barycentric coordinates
     v0 = nearby_uv_coords[..., 0, :]  # (num_pixels, num_pixels, 2)
     v1 = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
     v2 = nearby_uv_coords[..., 2, :]  # (num_pixels, num_pixels, 2)
     p = uv_coords  # (num_pixels, num_pixels, 2)
     epsilon = 1e-8
-    area = get_parallelogram_area(v2, v0, v1) + epsilon  # 2 x face area.
+    area = get_parallelogram_area(v2, v0, v1) + epsilon  # 2x face area.
     w0 = get_parallelogram_area(p, v1, v2) / area
     w1 = get_parallelogram_area(p, v2, v0) / area
     w2 = get_parallelogram_area(p, v0, v1) / area
