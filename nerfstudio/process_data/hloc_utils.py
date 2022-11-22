@@ -25,15 +25,21 @@ def run_hloc(
     outputs = colmap_dir
     sfm_pairs = outputs / 'pairs-netvlad.txt'
     sfm_dir = outputs / 'sparse' / '0'
+    features = outputs / 'features.h5'
+    matches = outputs / 'matches.h5'
     
     retrieval_conf = extract_features.confs['netvlad']
     feature_conf = extract_features.confs['superpoint_aachen']
     matcher_conf = match_features.confs['superglue']
     
-    retrieval_path = extract_features.main(retrieval_conf, image_dir, outputs)
-    pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=5)
+    references = [str(p.relative_to(image_dir)) for p in (image_dir).iterdir()]
+    extract_features.main(feature_conf, image_dir, image_list=references, feature_path=features)
+    if matching_method == "exhaustive":
+        pairs_from_exhaustive.main(sfm_pairs, image_list=references)
+    else:
+        retrieval_path = extract_features.main(retrieval_conf, image_dir, outputs)
+        pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=25)
+    match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
+    match_path = match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
     
-    feature_path = extract_features.main(feature_conf, image_dir, outputs)
-    match_path = match_features.main(matcher_conf, sfm_pairs, feature_conf['output'], outputs)
-    
-    model = reconstruction.main(sfm_dir, image_dir, sfm_pairs, feature_path, match_path, camera_mode=pycolmap.CameraMode.SINGLE, image_options=pycolmap.ImageReaderOptions(camera_model='OPENCV'))
+    model = reconstruction.main(sfm_dir, image_dir, sfm_pairs, features, matches, image_list=references, camera_mode=pycolmap.CameraMode.SINGLE, image_options=pycolmap.ImageReaderOptions(camera_model='OPENCV'))
