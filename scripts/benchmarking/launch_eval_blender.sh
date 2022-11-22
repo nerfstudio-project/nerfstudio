@@ -57,7 +57,7 @@ if [ -z "${GPU_IDX[0]+x}" ]; then
     done
 fi
 echo "available gpus... ${GPU_IDX[*]}"
-exit
+
 DATASETS=("mic" "ficus" "chair" "hotdog" "materials" "drums" "ship" "lego")
 idx=0
 len=${#GPU_IDX[@]}
