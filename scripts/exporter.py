@@ -63,7 +63,7 @@ class ExportPointCloud(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(self.load_config, test_mode="inference")
 
         # Increase the batchsize to speed up the evaluation.
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
@@ -114,6 +114,10 @@ class ExportTSDFMesh(Exporter):
     """Method to texture the mesh with. Either 'tsdf' or 'nerf'."""
     px_per_uv_triangle: int = 4
     """Number of pixels per UV triangle."""
+    unwrap_method: Literal["xatlas", "custom"] = "xatlas"
+    """The method to use for unwrapping the mesh."""
+    num_pixels_per_side: int = 2048
+    """If using xatlas for unwrapping, the pixels per side of the texture image."""
 
     def main(self) -> None:
         """Export mesh"""
@@ -143,7 +147,14 @@ class ExportTSDFMesh(Exporter):
             # load the mesh from the tsdf export
             mesh = get_mesh_from_filename(str(self.output_dir / "tsdf_mesh.ply"))
             CONSOLE.print("Texturing mesh with NeRF")
-            texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
+            texture_utils.export_textured_mesh(
+                mesh,
+                pipeline,
+                self.px_per_uv_triangle,
+                self.output_dir,
+                unwrap_method=self.unwrap_method,
+                num_pixels_per_side=self.num_pixels_per_side,
+            )
 
 
 @dataclass
@@ -176,6 +187,10 @@ class ExportPoissonMesh(Exporter):
     """Method to texture the mesh with. Either 'point_cloud' or 'nerf'."""
     px_per_uv_triangle: int = 4
     """Number of pixels per UV triangle."""
+    unwrap_method: Literal["xatlas", "custom"] = "xatlas"
+    """The method to use for unwrapping the mesh."""
+    num_pixels_per_side: int = 2048
+    """If using xatlas for unwrapping, the pixels per side of the texture image."""
 
     def main(self) -> None:
         """Export mesh"""
@@ -228,7 +243,14 @@ class ExportPoissonMesh(Exporter):
             # load the mesh from the poisson reconstruction
             mesh = get_mesh_from_filename(str(self.output_dir / "poisson_mesh.ply"))
             CONSOLE.print("Texturing mesh with NeRF")
-            texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
+            texture_utils.export_textured_mesh(
+                mesh,
+                pipeline,
+                self.px_per_uv_triangle,
+                self.output_dir,
+                unwrap_method=self.unwrap_method,
+                num_pixels_per_side=self.num_pixels_per_side,
+            )
 
 
 @dataclass

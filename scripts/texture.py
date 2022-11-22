@@ -9,6 +9,7 @@ from pathlib import Path
 
 import tyro
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.exporter import texture_utils
 from nerfstudio.exporter.exporter_utils import get_mesh_from_filename
@@ -27,10 +28,14 @@ class TextureMesh:
     """Path to the config YAML file."""
     output_dir: Path
     """Path to the output directory."""
-    input_ply_filename: Path
+    input_mesh_filename: Path
     """Mesh filename to texture."""
     px_per_uv_triangle: int = 4
     """Number of pixels per UV square."""
+    unwrap_method: Literal["xatlas", "custom"] = "xatlas"
+    """The method to use for unwrapping the mesh."""
+    num_pixels_per_side: int = 2048
+    """If using xatlas for unwrapping, the pixels per side of the texture image."""
 
     def main(self) -> None:
         """Export textured mesh"""
@@ -40,14 +45,21 @@ class TextureMesh:
             self.output_dir.mkdir(parents=True)
 
         # load the Mesh
-        mesh = get_mesh_from_filename(str(self.input_ply_filename))
+        mesh = get_mesh_from_filename(str(self.input_mesh_filename))
 
         # load the Pipeline
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(self.load_config, test_mode="inference")
 
         # texture the mesh with NeRF and export to a mesh.obj file
         # and a material and texture file
-        texture_utils.export_textured_mesh(mesh, pipeline, self.px_per_uv_triangle, self.output_dir)
+        texture_utils.export_textured_mesh(
+            mesh,
+            pipeline,
+            self.px_per_uv_triangle,
+            self.output_dir,
+            unwrap_method=self.unwrap_method,
+            num_pixels_per_side=self.num_pixels_per_side,
+        )
 
 
 def entrypoint():

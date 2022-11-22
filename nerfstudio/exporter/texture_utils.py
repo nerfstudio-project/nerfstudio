@@ -20,12 +20,15 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
+from typing import Tuple
 
 import mediapy as media
+import numpy as np
 import torch
 from rich.console import Console
 from rich.progress import track
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
@@ -41,6 +44,25 @@ def get_parallelogram_area(
     return (p[..., 0] - v0[..., 0]) * (v1[..., 1] - v0[..., 1]) - (p[..., 1] - v0[..., 1]) * (v1[..., 0] - v0[..., 0])
 
 
+def get_texture_image(num_pixels_w, num_pixels_h, device):
+    """Get a texture image."""
+    px_w = 1.0 / num_pixels_w
+    px_h = 1.0 / num_pixels_h
+    uv_indices = torch.stack(
+        torch.meshgrid(
+            torch.arange(num_pixels_w, device=device), torch.arange(num_pixels_h, device=device), indexing="xy"
+        ),
+        dim=-1,
+    )
+    linspace_h = torch.linspace(px_h / 2, 1 - px_h / 2, num_pixels_h, device=device)
+    linspace_w = torch.linspace(px_w / 2, 1 - px_w / 2, num_pixels_w, device=device)
+    uv_coords = torch.stack(
+        torch.meshgrid(linspace_w, linspace_h, indexing="xy"), dim=-1
+    )  # (num_pixels_h, num_pixels_w, 2)
+
+    return uv_coords, uv_indices
+
+
 def unwrap_mesh_per_uv_triangle(
     vertices: TensorType["num_verts", 3],
     faces: TensorType["num_faces", 3],
@@ -48,6 +70,9 @@ def unwrap_mesh_per_uv_triangle(
     px_per_uv_triangle: int,
 ):
     """Unwrap a mesh to a UV texture."""
+
+    # pylint: disable=too-many-statements
+
     assert len(vertices) == len(vertex_normals), "Number of vertices and vertex normals must be equal"
     device = vertices.device
 
@@ -120,17 +145,7 @@ def unwrap_mesh_per_uv_triangle(
 
     # Now find the triangle indices for every pixel and the barycentric coordinates
     # which can be used to interpolate the XYZ and normal values to then query with NeRF
-    uv_indices = torch.stack(
-        torch.meshgrid(
-            torch.arange(num_pixels_w, device=device), torch.arange(num_pixels_h, device=device), indexing="xy"
-        ),
-        dim=-1,
-    )
-    linspace_h = torch.linspace(px_h / 2, 1 - px_h / 2, num_pixels_h, device=device)
-    linspace_w = torch.linspace(px_w / 2, 1 - px_w / 2, num_pixels_w, device=device)
-    uv_coords = torch.stack(
-        torch.meshgrid(linspace_w, linspace_h, indexing="xy"), dim=-1
-    )  # (num_pixels_h, num_pixels_w, 2)
+    uv_coords, uv_indices = get_texture_image(num_pixels_w, num_pixels_h, device)
 
     u_index = torch.div(uv_indices[..., 0], px_per_square_w, rounding_mode="floor")
     v_index = torch.div(uv_indices[..., 1], px_per_square_h, rounding_mode="floor")
@@ -145,41 +160,6 @@ def unwrap_mesh_per_uv_triangle(
     nearby_vertices = vertices[faces[triangle_index]]  # (num_pixels_h, num_pixels_w, 3, 3)
     nearby_normals = vertex_normals[faces[triangle_index]]  # (num_pixels_h, num_pixels_w, 3, 3)
 
-    return texture_coordinates, uv_coords, nearby_uv_coords, nearby_vertices, nearby_normals
-
-
-def unwrap_mesh_with_xatlas(
-    vertices: TensorType["num_verts", 3], faces: TensorType["num_faces", 3], vertex_normals: TensorType["num_verts", 3]
-):
-    """Unwrap a mesh using xatlas."""
-    raise NotImplementedError()
-
-
-def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int, output_dir: Path):
-    """Textures a mesh using the radiance field from the Pipeline.
-    The mesh is written to an OBJ file in the output directory,
-    along with the corresponding material and texture files.
-    Operations will occur on the same device as the Pipeline.
-
-    Args:
-        mesh: The mesh to texture.
-        pipeline: The pipeline to use for texturing.
-        px_per_uv_triangle: The number of pixels per side of UV triangle.
-        output_dir: The directory to write the textured mesh to.
-    """
-
-    # pylint: disable=too-many-statements
-
-    device = pipeline.device
-
-    vertices = mesh.vertices.to(device)
-    faces = mesh.faces.to(device)
-    vertex_normals = mesh.normals.to(device)
-
-    texture_coordinates, uv_coords, nearby_uv_coords, nearby_vertices, nearby_normals = unwrap_mesh_per_uv_triangle(
-        vertices, faces, vertex_normals, px_per_uv_triangle
-    )
-
     # compute barycentric coordinates
     v0 = nearby_uv_coords[..., 0, :]  # (num_pixels, num_pixels, 2)
     v1 = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
@@ -190,11 +170,6 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     w0 = get_parallelogram_area(p, v1, v2) / area
     w1 = get_parallelogram_area(p, v2, v0) / area
     w2 = get_parallelogram_area(p, v0, v1) / area
-
-    # TODO: clean this up
-    # compute the length of the rays we want to render
-    # we can make a good guess for this by looking at the average distance between vertices on the triangle faces
-    offset = torch.mean(torch.norm(nearby_vertices[..., 0, :] - nearby_vertices[..., 1, :], dim=-1)).float()
 
     origins = (
         nearby_vertices[..., 0, :] * w0[..., None]
@@ -208,6 +183,130 @@ def export_textured_mesh(mesh: Mesh, pipeline: Pipeline, px_per_uv_triangle: int
     ).float()
     # normalize the direction vector to make it a unit vector
     directions = torch.nn.functional.normalize(directions, dim=-1)
+
+    return texture_coordinates, origins, directions
+
+
+def unwrap_mesh_with_xatlas(
+    vertices: TensorType["num_verts", 3],
+    faces: TensorType["num_faces", 3, torch.long],
+    vertex_normals: TensorType["num_verts", 3],
+    num_pixels_per_side=1024,
+) -> Tuple[
+    TensorType["num_faces", 3, 2],
+    TensorType["num_pixels", "num_pixels", 3],
+    TensorType["num_pixels", "num_pixels", "num_pixels"],
+]:
+    """Unwrap a mesh using xatlas. We use xatlas to unwrap the mesh with UV coordinates.
+    Then we rasterize the mesh with a square pattern. We interpolate the XYZ and normal
+    values for every pixel in the texture image. We return the texture coordinates, the
+    origins, and the directions for every pixel.
+
+    Args:
+        vertices: Tensor of mesh vertices.
+        faces: Tensor of mesh faces.
+        vertex_normals: Tensor of mesh vertex normals.
+        num_pixels_per_side: Number of pixels per side of the texture image. We use a square.
+
+    Returns:
+        texture_coordinates: Tensor of texture coordinates for every face.
+        origins: Tensor of origins for every pixel.
+        directions: Tensor of directions for every pixel.
+    """
+
+    # pylint: disable=import-outside-toplevel
+    # pylint: disable=unused-variable
+
+    import nvdiffrast.torch as dr
+    import xatlas
+
+    device = vertices.device
+
+    # unwrap the mesh
+    vertices_np = vertices.cpu().numpy()
+    faces_np = faces.cpu().numpy()
+    vertex_normals_np = vertex_normals.cpu().cpu().numpy()
+    vmapping, indices, uvs = xatlas.parametrize(  # pylint: disable=c-extension-no-member
+        vertices_np, faces_np, vertex_normals_np
+    )
+
+    # vertices texture coordinates
+    vertices_tc = torch.from_numpy(uvs.astype(np.float32)).to(device)
+    # face vertex indices
+    face_vi = torch.from_numpy(indices.astype(np.int64)).int().to(device)
+
+    # render uv maps
+    vertices_tc = vertices_tc * 2.0 - 1.0  # uvs to range [-1, 1]
+    vertices_tc = torch.cat(
+        (vertices_tc, torch.zeros_like(vertices_tc[..., :1]), torch.ones_like(vertices_tc[..., :1])), dim=-1
+    )  # [num_verts, 4]
+
+    glctx = dr.RasterizeCudaContext()
+
+    texture_coordinates = torch.from_numpy(uvs[indices]).to(device)  # (num_faces, 3, 2)
+
+    h = num_pixels_per_side
+    w = num_pixels_per_side
+    rast, _ = dr.rasterize(glctx, vertices_tc.unsqueeze(0), face_vi, (h, w))  # [1, h, w, 4]
+    xyz, _ = dr.interpolate(vertices.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
+    xyz = xyz[0]  # [h, w, 3]
+    nor, _ = dr.interpolate(vertex_normals.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
+    nor = nor[0]  # [h, w, 3]
+
+    origins = xyz
+    directions = -nor
+    # normalize the direction vector to make it a unit vector
+    directions = torch.nn.functional.normalize(directions, dim=-1)
+
+    return texture_coordinates, origins, directions
+
+
+def export_textured_mesh(
+    mesh: Mesh,
+    pipeline: Pipeline,
+    px_per_uv_triangle: int,
+    output_dir: Path,
+    unwrap_method: Literal["xatlas", "custom"] = "xatlas",
+    num_pixels_per_side=1024,
+):
+    """Textures a mesh using the radiance field from the Pipeline.
+    The mesh is written to an OBJ file in the output directory,
+    along with the corresponding material and texture files.
+    Operations will occur on the same device as the Pipeline.
+
+    Args:
+        mesh: The mesh to texture.
+        pipeline: The pipeline to use for texturing.
+        px_per_uv_triangle: The number of pixels per side of UV triangle.
+        output_dir: The directory to write the textured mesh to.
+        unwrap_method: The method to use for unwrapping the mesh.
+    """
+
+    # pylint: disable=too-many-statements
+
+    device = pipeline.device
+
+    vertices = mesh.vertices.to(device)
+    faces = mesh.faces.to(device)
+    vertex_normals = mesh.normals.to(device)
+
+    if unwrap_method == "xatlas":
+        CONSOLE.print("Unwrapping mesh with xatlas method...")
+        texture_coordinates, origins, directions = unwrap_mesh_with_xatlas(
+            vertices, faces, vertex_normals, num_pixels_per_side=num_pixels_per_side
+        )
+    elif unwrap_method == "custom":
+        CONSOLE.print("Unwrapping mesh with custom method...")
+        texture_coordinates, origins, directions = unwrap_mesh_per_uv_triangle(
+            vertices, faces, vertex_normals, px_per_uv_triangle
+        )
+    else:
+        raise ValueError(f"Unwrap method {unwrap_method} not supported.")
+
+    # compute the length of the rays we want to render
+    # we make a reasonable approximation by looking at the mean distance between 2 vertices of the triangle faces
+    face_vertices = vertices[faces]
+    offset = torch.mean(torch.norm(face_vertices[:, 1, :] - face_vertices[:, 0, :], dim=-1)).float()
 
     origins = origins - offset * directions
     pixel_area = torch.ones_like(origins[..., 0:1])
