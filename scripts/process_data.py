@@ -15,6 +15,7 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
+    hloc_utils,
     insta360_utils,
     metashape_utils,
     polycam_utils,
@@ -80,8 +81,17 @@ class ProcessImages:
         colmap_dir = self.output_dir / "colmap"
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
+            
+            hloc_utils.run_hloc(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+            )
 
-            colmap_utils.run_colmap(
+            """colmap_utils.run_colmap(
                 image_dir=image_dir,
                 colmap_dir=colmap_dir,
                 camera_model=CAMERA_MODELS[self.camera_type],
@@ -89,7 +99,7 @@ class ProcessImages:
                 verbose=self.verbose,
                 matching_method=self.matching_method,
                 colmap_cmd=self.colmap_cmd,
-            )
+            )"""
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
