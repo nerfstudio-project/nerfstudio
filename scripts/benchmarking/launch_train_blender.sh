@@ -88,4 +88,6 @@ done
 wait
 echo "Done."
 echo "Launch eval with:"
-echo "$(dirname "$0")/launch_eval_blender.sh -m $method_name -o outputs/ -t $timestamp"
+s=""
+$single && s="-s"
+echo "$(dirname "$0")/launch_eval_blender.sh -m $method_name -o outputs/ -t $timestamp $s"
