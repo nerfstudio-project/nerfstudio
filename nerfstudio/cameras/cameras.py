@@ -315,9 +315,9 @@ class Cameras:
                 dim=-1,
             )
         elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
-            # u goes from -1 to 1
-            # v goes from -1/2 to 1/2 (height is half of width)
-            theta = -torch.pi * coord_stack[..., 0]
+            # For equirect, fx = fy = height = width/2
+            # Thus coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
+            theta = -torch.pi * coord_stack[..., 0]  # minus sign for right-handed
             phi = torch.pi * (0.5 - coord_stack[..., 1])
             # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
             directions_stack = torch.stack(

@@ -115,8 +115,10 @@ def collate_image_dataset_batch_equirectangular(batch: Dict, num_rays_per_batch:
         # TODO(kevinddchen): implement this
         raise NotImplementedError("Masking not implemented for equirectangular images.")
     else:
+        # We sample theta uniformly in [0, 2*pi]
+        # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
+        # This is done by inverse transform sampling.
         num_images_rand = torch.rand(num_rays_per_batch, device=device)
-        # sample phis according to pdf(x) = sin(x) / pi, but normalized to the range [0, 1]
         phi_rand = torch.acos(1 - 2 * torch.rand(num_rays_per_batch, device=device)) / torch.pi
         theta_rand = torch.rand(num_rays_per_batch, device=device)
         indices = torch.floor(
