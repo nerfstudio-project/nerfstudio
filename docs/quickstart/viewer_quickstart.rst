@@ -54,10 +54,6 @@ Training on a local machine
 
 You should be able to click the link obtained while running a script to open the viewer in your browser.
 
-.. image:: imgs/viewer_link.png
-  :width: 800
-  :alt: Visualize dataset
-
 Training on a remote machine
 ----------------------------
 
