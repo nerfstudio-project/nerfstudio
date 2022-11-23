@@ -69,14 +69,13 @@ def get_spiral_path(
     """
 
     assert radius is not None or radiuses is not None, "Either radius or radiuses must be specified."
+    assert camera.ndim == 1, "We assume only one batch dim here"
     if radius is not None and radiuses is None:
         rad = torch.tensor([radius] * 3, device=camera.device)
     elif radiuses is not None and radius is None:
         rad = torch.tensor(radiuses, device=camera.device)
     else:
         raise ValueError("Only one of radius or radiuses must be specified.")
-
-    camera = camera.flatten()
 
     up = camera.camera_to_worlds[0, :3, 2]  # scene is z up
     focal = torch.min(camera.fx[0], camera.fy[0])
