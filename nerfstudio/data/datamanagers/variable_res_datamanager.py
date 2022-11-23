@@ -39,16 +39,16 @@ def variable_res_collate(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torc
     for data in batch:
         image = data.pop("image")
         mask = data.pop("mask", None)
-        images.extend(image)
+        images.append(image)
         if mask:
-            masks.extend(mask)
+            masks.append(mask)
 
     new_batch: dict = nerfstudio_collate(batch)
     new_batch["image"] = images
     if masks:
         new_batch["mask"] = masks
 
-    return batch
+    return new_batch
 
 
 @dataclass
@@ -57,12 +57,12 @@ class VariableResDataManagerConfig(VanillaDataManagerConfig):
     for the fact that we are now dealing with lists of images and masks.
     """
 
-    train_num_images_to_sample_from: int = 20
+    train_num_images_to_sample_from: int = 40
     """Number of images to sample during training iteration."""
-    train_num_times_to_repeat_images: int = 50
+    train_num_times_to_repeat_images: int = 100
     """When not training on all images, number of iterations before picking new
     images. If -1, never pick new images."""
-    eval_num_images_to_sample_from: int = 20
+    eval_num_images_to_sample_from: int = 40
     """Number of images to sample during eval iteration."""
-    eval_num_times_to_repeat_images: int = 50
+    eval_num_times_to_repeat_images: int = 100
     collate_fn = staticmethod(variable_res_collate)

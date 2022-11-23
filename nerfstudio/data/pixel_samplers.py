@@ -161,9 +161,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
-            image_batch["image"] = image_batch["image"].images
-            if "mask" in image_batch:
-                image_batch["mask"] = image_batch["mask"].images
             pixel_batch = collate_image_dataset_batch_list(
                 image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
