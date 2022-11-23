@@ -248,6 +248,7 @@ def unwrap_mesh_with_xatlas(
     h = num_pixels_per_side
     w = num_pixels_per_side
     rast, _ = dr.rasterize(glctx, vertices_tc.unsqueeze(0), face_vi, (h, w))  # [1, h, w, 4]
+    triangle_id = rast[..., 3].long()  # [1, h, w]
     xyz, _ = dr.interpolate(vertices.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
     xyz = xyz[0]  # [h, w, 3]
     nor, _ = dr.interpolate(vertex_normals.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
