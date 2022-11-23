@@ -208,7 +208,7 @@ class Nerfstudio(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (self.config.data / downsample_folder_prefix + f"{2**(df+1)}" / filepath.name).exists():
+                    if not (self.config.data / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
                         break
                     df += 1
 
@@ -218,5 +218,5 @@ class Nerfstudio(DataParser):
                 self.downscale_factor = self.config.downscale_factor
 
         if self.downscale_factor > 1:
-            return self.config.data / downsample_folder_prefix + f"{self.downscale_factor}" / filepath.name
+            return self.config.data / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
         return self.config.data / filepath
