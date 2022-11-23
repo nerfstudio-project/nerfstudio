@@ -750,12 +750,17 @@ class ViewerState:
             dim=0,
         )
 
+        # FIXME pipe this time from visualization state
+        # And add a slider in the visualizer.
+        times = torch.tensor([0.0])
+
         camera = Cameras(
             fx=intrinsics_matrix[0, 0],
             fy=intrinsics_matrix[1, 1],
             cx=intrinsics_matrix[0, 2],
             cy=intrinsics_matrix[1, 2],
             camera_to_worlds=camera_to_world[None, ...],
+            times=times,
         )
         camera = camera.to(graph.device)
 
