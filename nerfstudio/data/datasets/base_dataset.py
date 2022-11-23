@@ -24,7 +24,6 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from PIL import Image
-from rich.progress import Console, track
 from torch.utils.data import Dataset
 from torchtyping import TensorType
 
