@@ -73,9 +73,6 @@ class Phototourism(DataParser):
     def __init__(self, config: PhototourismDataParserConfig):
         super().__init__(config=config)
         self.data: Path = config.data
-        self.scale_factor: float = config.scale_factor
-        self.alpha_color = config.alpha_color
-        self.train_split_percentage = config.train_split_percentage
 
     # pylint: disable=too-many-statements
     def _generate_dataparser_outputs(self, split="train"):
