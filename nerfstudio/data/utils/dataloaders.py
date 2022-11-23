@@ -107,7 +107,7 @@ class CacheDataloader(DataLoader):
                 res = executor.submit(self.dataset.__getitem__, idx)
                 results.append(res)
 
-            for res in track(results, description="Loading data batch"):
+            for res in track(results, description="Loading data batch", transient=True):
                 batch_list.append(res.result())
 
         return batch_list
