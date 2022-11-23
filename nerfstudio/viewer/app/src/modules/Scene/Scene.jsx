@@ -93,7 +93,7 @@ export function get_scene_tree() {
   camera_controls.saveState();
 
   const keyMap = [];
-  const moveSpeed = 0.02;
+  const moveSpeed = 0.008;
   const rotSpeed = 0.015;
   const EPS = 0.01;
 

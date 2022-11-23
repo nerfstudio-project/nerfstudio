@@ -170,3 +170,27 @@ def nerfstudio_distortion_loss(
     loss = loss + 1 / 3.0 * torch.sum(weights**2 * (ends - starts), dim=-2)
 
     return loss
+
+
+def orientation_loss(
+    weights: TensorType["bs":..., "num_samples", 1],
+    normals: TensorType["bs":..., "num_samples", 3],
+    viewdirs: TensorType["bs":..., 3],
+):
+    """Orientation loss proposed in Ref-NeRF.
+    Loss that encourages that all visible normals are facing towards the camera.
+    """
+    w = weights
+    n = normals
+    v = viewdirs
+    n_dot_v = (n * v[..., None, :]).sum(axis=-1)
+    return (w[..., 0] * torch.fmin(torch.zeros_like(n_dot_v), n_dot_v) ** 2).sum(dim=-1)
+
+
+def pred_normal_loss(
+    weights: TensorType["bs":..., "num_samples", 1],
+    normals: TensorType["bs":..., "num_samples", 3],
+    pred_normals: TensorType["bs":..., "num_samples", 3],
+):
+    """Loss between normals calculated from density and normals from prediction network."""
+    return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
