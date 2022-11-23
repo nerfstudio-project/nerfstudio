@@ -5,10 +5,12 @@ import tarfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 import gdown
 import tyro
 from rich.console import Console
+from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
 
@@ -215,6 +217,16 @@ class PhototourismDownload(DatasetDownload):
         os.remove(download_path)
 
 
+Commands = Union[
+    Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
+    Annotated[FriendsDownload, tyro.conf.subcommand(name="friends")],
+    Annotated[NerfstudioDownload, tyro.conf.subcommand(name="nerfstudio")],
+    Annotated[Record3dDownload, tyro.conf.subcommand(name="record3d")],
+    Annotated[DNerfDownload, tyro.conf.subcommand(name="dnerf")],
+    Annotated[PhototourismDownload, tyro.conf.subcommand(name="phototourism")],
+]
+
+
 def main(
     dataset: DatasetDownload,
     save_dir: Path = Path("data/"),
@@ -239,41 +251,14 @@ def main(
     dataset.download(save_dir)
 
 
-method_configs = {
-    "blender": BlenderDownload(),
-    "friends": FriendsDownload(),
-    "nerfstudio": NerfstudioDownload(),
-    "record3d": Record3dDownload(),
-    "dnerf": DNerfDownload(),
-    "phototourism": PhototourismDownload(),
-}
-
-descriptions = {
-    "blender": "Blender synthetic scenes realeased with NeRF.",
-    "friends": "Friends TV show scenes.",
-    "nerfstudio": "Growing collection of real-world scenes. Use the `capture_name` \
-        argument to specify which capture to download.",
-    "record3d": "Record3d dataset.",
-    "dnerf": "D-NeRF dataset.",
-    "phototourism": "PhotoTourism dataset. Use the `capture_name` argument to specify \
-        which capture to download.",
-}
-
-
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    main(
-        tyro.cli(
-            tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-                tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
-            ]
-        )
-    )
+    main(tyro.cli(Commands))
 
 
 if __name__ == "__main__":
     entrypoint()
 
 # For sphinx docs
-get_parser_fn = lambda: tyro.extras.get_parser(main)  # noqa
+get_parser_fn = lambda: tyro.extras.get_parser(Commands)  # noqa
