@@ -76,6 +76,7 @@ class Nerfstudio(DataParser):
 
         meta = load_from_json(self.config.data / "transforms.json")
         image_filenames = []
+        mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
 
@@ -87,6 +88,10 @@ class Nerfstudio(DataParser):
             else:
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
+            if "mask_path" in frame:
+                mask_filepath = PurePath(frame["mask_path"])
+                mask_fname = self._get_fname(mask_filepath, downsample_folder_prefix="masks_")
+                mask_filenames.append(mask_fname)
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -94,6 +99,12 @@ class Nerfstudio(DataParser):
         ), """
         No image files found. 
         You should check the file_paths in the transforms.json file to make sure they are correct.
+        """
+        assert len(mask_filenames) == 0 or (
+            len(mask_filenames) == len(image_filenames)
+        ), """
+        Different number of image and mask filenames.
+        You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
         """
 
         # filter image_filenames and poses based on train/eval split percentage
@@ -179,11 +190,14 @@ class Nerfstudio(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath: PurePath) -> Path:
-        """Get the filename of the image file."""
+    def _get_fname(self, filepath: PurePath, downsample_folder_prefix="images_") -> Path:
+        """Get the filename of the image file.
+        downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
+        """
 
         if self.downscale_factor is None:
             if self.config.downscale_factor is None:
@@ -194,7 +208,7 @@ class Nerfstudio(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (self.config.data / f"images_{2**(df+1)}" / filepath.name).exists():
+                    if not (self.config.data / downsample_folder_prefix + f"{2**(df+1)}" / filepath.name).exists():
                         break
                     df += 1
 
@@ -204,5 +218,5 @@ class Nerfstudio(DataParser):
                 self.downscale_factor = self.config.downscale_factor
 
         if self.downscale_factor > 1:
-            return self.config.data / f"images_{self.downscale_factor}" / filepath.name
+            return self.config.data / downsample_folder_prefix + f"{self.downscale_factor}" / filepath.name
         return self.config.data / filepath
