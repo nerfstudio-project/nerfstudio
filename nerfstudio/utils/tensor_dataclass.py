@@ -106,7 +106,7 @@ class TensorDataclass:
         batch_shapes = []
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
-                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions.keys():
+                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
                     # pylint: disable=unsubscriptable-object
                     batch_shapes.append(v.shape[: -self._field_custom_dimensions[k]])
                 else:
@@ -130,7 +130,7 @@ class TensorDataclass:
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
                 # If custom dimension key, then we need to
-                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions.keys():
+                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
                     # pylint: disable=unsubscriptable-object
                     new_dict[k] = v.broadcast_to(
                         (
@@ -317,7 +317,7 @@ class TensorDataclass:
                 elif (
                     isinstance(v, torch.Tensor)
                     and isinstance(self._field_custom_dimensions, dict)
-                    and f in self._field_custom_dimensions.keys()
+                    and f in self._field_custom_dimensions
                     and custom_tensor_dims_fn is not None
                 ):
                     new_dict[f] = custom_tensor_dims_fn(f, v)
