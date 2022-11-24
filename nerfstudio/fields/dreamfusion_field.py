@@ -152,7 +152,7 @@ class DreamFusionField(Field):
             self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
         self.mlp_head = tcnn.Network(
-            n_input_dims=self.direction_encoding.n_output_dims + self.geo_feat_dim,
+            n_input_dims=self.geo_feat_dim,
             n_output_dims=3,
             network_config={
                 "otype": "FullyFusedMLP",
@@ -205,10 +205,8 @@ class DreamFusionField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
-        h = torch.cat(
-            [d, density_embedding.view(-1, self.geo_feat_dim)],
-            dim=-1,
-        )
+        h = [density_embedding.view(-1, self.geo_feat_dim)]
+
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
 
