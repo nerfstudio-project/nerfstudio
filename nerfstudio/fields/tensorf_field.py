@@ -85,6 +85,7 @@ class TensoRFField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = positions * 2 - 1
         density = self.density_encoding(positions)
         density_enc = torch.sum(density, dim=-1)[:, :, None]
         relu = torch.nn.ReLU()
@@ -94,6 +95,7 @@ class TensoRFField(Field):
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None) -> TensorType:
         d = ray_samples.frustums.directions
         positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = positions * 2 - 1
         rgb_features = self.color_encoding(positions)
         rgb_features = self.B(rgb_features)
 
@@ -111,8 +113,14 @@ class TensoRFField(Field):
         return rgb
 
     def forward(
-        self, ray_samples: RaySamples, mask: Optional[TensorType] = None, bg_color: Optional[TensorType] = None
+        self,
+        ray_samples: RaySamples,
+        compute_normals: bool = False,
+        mask: Optional[TensorType] = None,
+        bg_color: Optional[TensorType] = None,
     ):
+        if compute_normals is True:
+            raise ValueError("Surface normals are not currently supported with TensoRF")
         if mask is not None and bg_color is not None:
             base_density = torch.zeros(ray_samples.shape)[:, :, None].to(mask.device)
             base_rgb = bg_color.repeat(ray_samples[:, :, None].shape)

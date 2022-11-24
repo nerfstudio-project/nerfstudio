@@ -13,11 +13,12 @@ A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`
 We Currently support the following custom data types:
 | Data | Requirements | Preprocessing Speed |
 | -------- | ----------------------- | ------------------- |
-| [Images](images_and_video) | COLMAP | 🐢 |
-| [Video](images_and_video) | COLMAP | 🐢 |
-| [Polycam](polycam) | LiDAR iOS Device | 🐇 |
-| [Record3D](record3d) | LiDAR iOS Device | 🐇 |
-| Insta360 | 2 Sensor camera, COLMAP | 🐢 |
+| 📷 [Images](images_and_video) | COLMAP | 🐢 |
+| 📹 [Video](images_and_video) | COLMAP | 🐢 |
+| 📱 [Polycam](polycam) | LiDAR iOS Device | 🐇 |
+| 📱 [Record3D](record3d) | LiDAR iOS Device | 🐇 |
+| 🖥 [Metashape](metashape) | | 🐢 |
+| 📷 Insta360 | 2 Sensor camera, COLMAP | 🐢 |
 
 (images_and_video)=
 
@@ -168,7 +169,7 @@ Devoloper settings must be enabled in Polycam. To do this, navigate to the setti
 ns-process-data polycam --data {OUTPUT_FILE.zip} --output-dir {output directory}
 ```
 
-5. Train the model using the following command:
+5. Train with nerfstudio!
 
 ```bash
 ns-train nerfacto --data {output directory}
@@ -199,7 +200,39 @@ At a high level, you can follow these 3 steps:
 ns-process-data record3d --data {data directory} --output-dir {output directory}
 ```
 
-3. Train with nerfstudio!
+4. Train with nerfstudio!
+
+```
+ns-train nerfacto --data {output directory}
+```
+
+(metashape)=
+
+## Metashape
+
+1. Align your images using Metashape. `File -> Workflow -> Align Photos...`
+
+```{image} https://user-images.githubusercontent.com/3310961/203389662-12760210-2b52-49d4-ab21-4f23bfa4a2b3.png
+:width: 400
+:align: center
+:alt: metashape alignment
+```
+
+2. Export the camera alignment as a `xml` file. `File -> Export -> Export Cameras...`
+
+```{image} https://user-images.githubusercontent.com/3310961/203385691-74565704-e4f6-4034-867e-5d8b940fc658.png
+:width: 400
+:align: center
+:alt: metashape export
+```
+
+3. Convert the data to the nerfstudio format.
+
+```bash
+ns-process-data metashape --data {data directory} --xml {xml file} --output-dir {output directory}
+```
+
+4. Train with nerfstudio!
 
 ```
 ns-train nerfacto --data {output directory}

@@ -266,6 +266,10 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
+    camera_res_scale_factor: float = 1.0
+    """The scale factor for scaling spatial data such as images, mask, semantics
+    along with relevant information about camera intrinsics
+    """
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -301,6 +305,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.sampler = None
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
+        self.dataparser = self.config.dataparser.setup()
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
@@ -308,11 +313,17 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def create_train_dataset(self) -> InputDataset:
         """Sets up the data loaders for training"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split="train"))
+        return InputDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split="train"),
+            scale_factor=self.config.camera_res_scale_factor,
+        )
 
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
-        return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))
+        return InputDataset(
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
+            scale_factor=self.config.camera_res_scale_factor,
+        )
 
     def setup_train(self):
         """Sets up the data loaders for training"""
@@ -329,10 +340,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
         self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
-            num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
+            num_cameras=self.train_dataset.cameras.size, device=self.device
         )
         self.train_ray_generator = RayGenerator(
-            self.train_dataset.dataparser_outputs.cameras.to(self.device),
+            self.train_dataset.cameras.to(self.device),
             self.train_camera_optimizer,
         )
 
@@ -351,7 +362,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.dataparser_outputs.cameras.to(self.device),
+            self.eval_dataset.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
         )
         # for loading full images
