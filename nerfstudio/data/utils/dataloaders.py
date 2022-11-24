@@ -16,6 +16,9 @@
 Code for sampling images from a dataset of images.
 """
 
+# for multithreading
+import concurrent.futures
+import multiprocessing
 import random
 from abc import abstractmethod
 from typing import Dict, Optional, Tuple, Union
@@ -57,6 +60,7 @@ class CacheDataloader(DataLoader):
         self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
         self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
         self.device = device
+        self.num_workers = kwargs.get("num_workers", 0)
 
         self.num_repeated = self.num_times_to_repeat_images  # starting value
         self.first_time = True
@@ -85,10 +89,23 @@ class CacheDataloader(DataLoader):
 
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
+
         indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
         batch_list = []
-        for idx in track(indices, description="Loading data batch"):
-            batch_list.append(self.dataset.__getitem__(idx))
+        results = []
+
+        num_threads = int(self.num_workers) * 4
+        num_threads = min(num_threads, multiprocessing.cpu_count() - 1)
+        num_threads = max(num_threads, 1)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            for idx in indices:
+                res = executor.submit(self.dataset.__getitem__, idx)
+                results.append(res)
+
+            for res in track(results, description="Loading data batch"):
+                batch_list.append(res.result())
+
         return batch_list
 
     def _get_collated_batch(self):
@@ -132,7 +149,7 @@ class EvalDataloader(DataLoader):
         **kwargs,
     ):
         self.input_dataset = input_dataset
-        self.cameras = input_dataset.dataparser_outputs.cameras.to(device)
+        self.cameras = input_dataset.cameras.to(device)
         self.device = device
         self.kwargs = kwargs
         super().__init__(dataset=input_dataset)
@@ -166,7 +183,7 @@ class EvalDataloader(DataLoader):
             camera_to_worlds=self.cameras.camera_to_worlds[image_idx : image_idx + 1],
             distortion_params=distortion_params,
             camera_type=self.cameras.camera_type[image_idx : image_idx + 1],
-            times=self.cameras.times[image_idx : image_idx + 1] if self.cameras.time else None,
+            times=self.cameras.times[image_idx : image_idx + 1] if self.cameras.times else None,
         )
         return camera
 

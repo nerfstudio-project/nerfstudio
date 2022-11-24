@@ -14,8 +14,13 @@
 
 """Additional rich ui components"""
 
+from contextlib import nullcontext
+
+from rich.console import Console
 from rich.progress import ProgressColumn
 from rich.text import Text
+
+CONSOLE = Console(width=120)
 
 
 class ItersPerSecColumn(ProgressColumn):
@@ -31,3 +36,16 @@ class ItersPerSecColumn(ProgressColumn):
         if speed is None:
             return Text("?", style="progress.data.speed")
         return Text(f"{speed:.2f} {self.suffix}", style="progress.data.speed")
+
+
+def status(msg: str, spinner: str = "bouncingBall", verbose: bool = False):
+    """A context manager that does nothing is verbose is True. Otherwise it hides logs under a message.
+
+    Args:
+        msg: The message to log.
+        spinner: The spinner to use.
+        verbose: If True, print all logs, else hide them.
+    """
+    if verbose:
+        return nullcontext()
+    return CONSOLE.status(msg, spinner=spinner)
