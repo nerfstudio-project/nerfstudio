@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-videos-hovedbygget",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-videos-hovedbygget/nerfacto/2022-11-24_161443/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 21.921875,
+    "ssim": 0.653595507144928,
+    "lpips": 0.18923194706439972,
+    "num_rays_per_sec": 791255.8125,
+    "fps_at_960x540": 1.5263422727584839
+  }
+}
