@@ -331,7 +331,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     ) -> PixelSampler:
         """Infer pixel sampler to use."""
         # If all images are equirectangular, use equirectangular pixel sampler
-        is_equirectangular = dataset.dataparser_outputs.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
         if is_equirectangular.all():
             return EquirectangularPixelSampler(*args, **kwargs)
         if is_equirectangular.any():
