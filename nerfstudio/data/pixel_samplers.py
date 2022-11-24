@@ -111,7 +111,7 @@ def collate_image_dataset_batch_equirectangular(batch: Dict, num_rays_per_batch:
     num_images, image_height, image_width, _ = batch["image"].shape
 
     # only sample within the mask, if the mask is in the batch
-    if "mask" in batch:
+    if "mask" in batch:  # pylint: disable=no-else-raise
         # TODO(kevinddchen): implement this
         raise NotImplementedError("Masking not implemented for equirectangular images.")
     else:

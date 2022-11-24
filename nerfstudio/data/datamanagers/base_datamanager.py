@@ -32,6 +32,7 @@ from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
+from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
@@ -266,9 +267,6 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
-    use_equirect_sampler: bool = False
-    """Assume images are equirectangular and sample rays uniformly on the sphere. If your dataset contains images of
-    multiple types, setting this to False should still perform well enough."""
 
 
 class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
@@ -317,11 +315,17 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         """Sets up the data loaders for evaluation"""
         return InputDataset(self.config.dataparser.setup().get_dataparser_outputs(split=self.test_split))
 
-    def _get_pixel_sampler(self, *args: Any, **kwargs: Any) -> PixelSampler:
-        if self.config.use_equirect_sampler:
+    def _get_pixel_sampler(  # pylint: disable=no-self-use
+        self, dataset: InputDataset, *args: Any, **kwargs: Any
+    ) -> PixelSampler:
+        """Infer pixel sampler to use."""
+        # If all images are equirectangular, use equirectangular pixel sampler
+        is_equirectangular = dataset.dataparser_outputs.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        if is_equirectangular.all():
             return EquirectangularPixelSampler(*args, **kwargs)
-        else:
-            return PixelSampler(*args, **kwargs)
+        if is_equirectangular.any():
+            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+        return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
         """Sets up the data loaders for training"""
@@ -336,7 +340,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             pin_memory=True,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = self._get_pixel_sampler(self.config.train_num_rays_per_batch)
+        self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.dataparser_outputs.cameras.size, device=self.device
         )
@@ -358,7 +362,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             pin_memory=True,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = self._get_pixel_sampler(self.config.eval_num_rays_per_batch)
+        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.dataparser_outputs.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
