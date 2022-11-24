@@ -564,11 +564,12 @@ class ProcessMetashape:
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
             sys.exit(1)
-        summary_log.append(
+        summary_log.extend(
             metashape_utils.metashape_to_json(
                 image_filename_map=image_filename_map,
                 xml_filename=self.xml,
                 output_dir=self.output_dir,
+                verbose=self.verbose,
             )
         )
 
