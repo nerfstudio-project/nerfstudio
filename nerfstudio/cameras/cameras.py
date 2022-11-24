@@ -298,7 +298,7 @@ class Cameras:
         elif distortion_params_delta is not None:
             distortion_params = distortion_params_delta
 
-        if distortion_params is not None:
+        if distortion_params is not None and self.camera_type[0] != CameraType.EQUIRECTANGULAR.value:
             coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
 
         if self.camera_type[0] == CameraType.PERSPECTIVE.value:
@@ -321,7 +321,11 @@ class Cameras:
             phi = torch.pi * (0.5 - coord_stack[..., 1])
             # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
             directions_stack = torch.stack(
-                [-torch.sin(theta) * torch.sin(phi), torch.cos(phi), -torch.cos(theta) * torch.sin(phi)],
+                [
+                    -torch.sin(theta) * torch.sin(phi),
+                    torch.cos(phi),
+                    -torch.cos(theta) * torch.sin(phi),
+                ],
                 dim=-1,
             )
         else:
