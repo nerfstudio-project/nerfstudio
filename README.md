@@ -147,7 +147,7 @@ Navigating to the link at the end of the terminal will load the webviewer. If yo
 It is possible to load a pretrained model by running
 
 ```bash
-ns-train nerfacto --data data/nerfstudio/poster --trainer.load_dir {outputs/.../nerfstudio_models}
+ns-train nerfacto --data data/nerfstudio/poster --trainer.load-dir {outputs/.../nerfstudio_models}
 ```
 
 This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
@@ -186,6 +186,7 @@ Using an existing dataset is great, but likely you want to use your own data! We
 | 📹 [Video](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-or-video)     | COLMAP           | 🐢                  |
 | 📱 [Polycam](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#polycam-capture)   | LiDAR iOS Device | 🐇                  |
 | 📱 [Record3D](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#record3d-capture) | LiDAR iOS Device | 🐇                  |
+| 🖥 [Metashape](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#metashape)        |                  | 🐢                  |
 | 🛠 [Custom](https://docs.nerf.studio/en/latest/quickstart/data_conventions.html)                   | Poses            | 🐇                  |
 
 ## 5. Advanced Options
