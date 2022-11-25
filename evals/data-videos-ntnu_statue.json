@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-videos-ntnu_statue",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-videos-ntnu_statue/nerfacto/2022-11-24_184433/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 19.319068908691406,
+    "ssim": 0.3893485963344574,
+    "lpips": 0.3559947609901428,
+    "num_rays_per_sec": 692346.5,
+    "fps_at_960x540": 1.3355449438095093
+  }
+}

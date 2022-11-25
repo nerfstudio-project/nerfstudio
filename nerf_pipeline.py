@@ -9,7 +9,7 @@ from typing import Union
 import tyro
 from rich.console import Console
 
-from scripts.process_data import run_command
+from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
 
