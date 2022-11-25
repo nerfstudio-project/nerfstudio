@@ -23,6 +23,9 @@ class DatasetDownload(PrintableConfig):
 
     capture_name = None
 
+    save_dir: Path = Path("data/")
+    """The directory to save the dataset to"""
+
     def download(self, save_dir: Path) -> None:
         """Download the dataset"""
         raise NotImplementedError
@@ -229,7 +232,6 @@ Commands = Union[
 
 def main(
     dataset: DatasetDownload,
-    save_dir: Path = Path("data/"),
 ):
     """Script to download existing datasets.
 
@@ -246,9 +248,9 @@ def main(
     Args:
         dataset: The dataset to download (from).
     """
-    save_dir.mkdir(parents=True, exist_ok=True)
+    dataset.save_dir.mkdir(parents=True, exist_ok=True)
 
-    dataset.download(save_dir)
+    dataset.download(dataset.save_dir)
 
 
 def entrypoint():
