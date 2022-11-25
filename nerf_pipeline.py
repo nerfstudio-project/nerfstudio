@@ -4,10 +4,11 @@ import glob
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
 
+import cv2
 import tyro
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.utils.scripts import run_command
 
@@ -16,14 +17,22 @@ CONSOLE = Console(width=120)
 @dataclass
 class Args:
     model: str
-    data_source: str
+    data_source: Literal["video", "images", "polycam"]
     input_data_dir: Path
     output_dir: Path
+    percent_frames: float = 1.0
 
-
-def process_data(data_source: str, input_data_dir: Path, output_dir: Path):
+def process_data(data_source: Literal["video", "images", "polycam"], input_data_dir: Path, output_dir: Path, percent_frames: float):
     CONSOLE.print("Processing data")
     cmd = f"ns-process-data {data_source} --data {input_data_dir} --output-dir {output_dir}"
+
+    if data_source == "video" and percent_frames != 1.0:
+        video = cv2.VideoCapture(path)
+        total = int(video.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+        print(f"Num frames: {total}")
+        num_frames = int(total * percent_frames)
+        cmd = f"ns-process-data {data_source} --data {input_data_dir} --output-dir {output_dir} --num-frames-target {num_frames}"
+
     print(cmd)
     run_command(cmd, verbose=True)
 
@@ -47,7 +56,7 @@ if __name__ == '__main__':
     args = tyro.cli(Args)
     print(args)
     
-    process_data(args.data_source, args.input_data_dir, args.output_dir)
+    process_data(args.data_source, args.input_data_dir, args.output_dir, args.percent_frames)
     train(args.model, args.output_dir)
 
     experiment_name = '-'.join(str(args.output_dir).split('/'))
