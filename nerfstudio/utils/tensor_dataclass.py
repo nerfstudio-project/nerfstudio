@@ -151,6 +151,7 @@ class TensorDataclass:
             return self._apply_fn_to_fields(lambda x: x[indices])
         if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
+        assert isinstance(indices, tuple)
         tensor_fn = lambda x: x[indices + (slice(None),)]
         dataclass_fn = lambda x: x[indices]
 

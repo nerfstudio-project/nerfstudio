@@ -126,6 +126,9 @@ class Phototourism(DataParser):
             0, num_images - 1, num_train_images, dtype=int
         )  # equally spaced training images starting and ending at 0 and num_images-1
         i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+        i_all = torch.tensor(i_all)
+        i_train = torch.tensor(i_train)
+        i_eval = torch.tensor(i_eval)
         assert len(i_eval) == num_eval_images
         if split == "train":
             indices = i_train
