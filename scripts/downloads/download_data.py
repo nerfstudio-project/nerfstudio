@@ -250,9 +250,7 @@ def main(
     dataset: DatasetDownload,
 ):
     """Script to download existing datasets.
-
     We currently support the following datasets:
-
     - nerfstudio: Growing collection of real-world scenes. Use the `capture_name` argument to specify
         which capture to download.
     - blender: Blender synthetic scenes realeased with NeRF.
