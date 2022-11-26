@@ -169,5 +169,5 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
                 image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
         else:
-            raise ValueError("image_batch['image'] must be a BasicImages or torch.Tensor")
+            raise ValueError("image_batch['image'] must be a list or torch.Tensor")
         return pixel_batch
