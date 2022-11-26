@@ -5,8 +5,8 @@
 Download datasets provided by nerfstudio. We support the major datasets and allow users to create their own dataset, described in detail [here](./custom_dataset.md).
 
 ```
-ns-download-data --dataset=blender
-ns-download-data --dataset=nerfstudio --capture=poster
+ns-download-data blender
+ns-download-data nerfstudio --capture-name=poster
 ```
 
 :::{admonition} Tip

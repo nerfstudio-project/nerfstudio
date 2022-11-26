@@ -1,4 +1,6 @@
 """Download datasets and specific captures from the datasets."""
+from __future__ import annotations
+
 import os
 import shutil
 import tarfile
@@ -124,7 +126,7 @@ def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, 
 class NerfstudioDownload(DatasetDownload):
     """Download the nerfstudio dataset."""
 
-    capture_name: NerfstudioCaptureName = "bww_entrance"  # type: ignore
+    capture_name: NerfstudioCaptureName = "bww_entrance"
 
     def download(self, save_dir: Path):
         """Download the nerfstudio dataset."""
@@ -148,7 +150,7 @@ Record3dCaptureName = tyro.extras.literal_type_from_choices(record3d_file_ids.ke
 class Record3dDownload(DatasetDownload):
     """Download the record3d dataset."""
 
-    capture_name: Record3dCaptureName = "bear"  # type: ignore
+    capture_name: Record3dCaptureName = "bear"
 
     def download(self, save_dir: Path):
         download_capture_name(save_dir, "record3d", self.capture_name, capture_name_to_file_id=record3d_file_ids)
@@ -198,7 +200,7 @@ PhototourismCaptureName = tyro.extras.literal_type_from_choices(phototourism_dow
 class PhototourismDownload(DatasetDownload):
     """Download the phototourism dataset."""
 
-    capture_name: PhototourismCaptureName = "brandenburg-gate"  # type: ignore
+    capture_name: PhototourismCaptureName = "brandenburg-gate"
 
     def download(self, save_dir: Path):
         """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""

@@ -124,8 +124,8 @@ pip install -e .
 Download the original NeRF Blender dataset. We support the major datasets and allow users to create their own dataset, described in detail [here](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html).
 
 ```bash
-ns-download-data --dataset=blender
-ns-download-data --dataset=nerfstudio --capture=poster
+ns-download-data blender
+ns-download-data nerfstudio --capture-name=poster
 ```
 
 ### 2.x Using custom data
