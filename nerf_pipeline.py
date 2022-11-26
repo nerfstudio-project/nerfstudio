@@ -63,7 +63,6 @@ class ExperimentPipeline:
 
     @my_timer("Process")
     def process_data(self):
-        start = timer()
         CONSOLE.print("Processing data")
         cmd = f"ns-process-data {self.args.data_source} --data {self.args.input_data_dir} --output-dir {self.args.output_dir}"
 
@@ -76,28 +75,20 @@ class ExperimentPipeline:
 
         print(cmd)
         run_command(cmd, verbose=True)
-        end = timer()
-        print(f"[time] process: {end - start}\n")
 
     # ns-train instant-ngp --data data/videos/tier2 --trainer.load_dir $output_path --viewer.start-train False
     @my_timer("Train")
     def train(self):
-        
         input_data_dir = self.args.output_dir
-        CONSOLE.print(f"Trainig model\nModel: {model}\nInput dir: {input_data_dir}")
+        CONSOLE.print(f"Trainig model\nModel: {self.args.model}\nInput dir: {input_data_dir}")
         cmd = f"ns-train {self.args.model} --data {input_data_dir} --vis wandb --viewer.quit-on-train-completion True"
         run_command(cmd, verbose=True)
         
-
     @my_timer("Evaluate")
     def eval(self, config: Path, output_name: Path):
-        start = timer()
         CONSOLE.print("Evaluating model")
         cmd = f"ns-eval --load-config {config} --output-path evals/{output_name}.json"
         run_command(cmd, verbose=True)
-        end = timer()
-        print(f"[time] eval: {end - start}\n")
-
 
 if __name__ == '__main__':
     """

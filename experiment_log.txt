@@ -1,0 +1,14 @@
+5%
+[time] Process: 157.08786338660866
+[time] Train: 1743.3789185862988
+[time] Evaluate: 19.10142131987959
+
+10%
+[time] Process: 370.7027831329033
+[time] Train: 1711.272970246151
+[time] Evaluate: 24.858463904820383
+
+15%
+[time] Process: 770.3617085097358
+[time] Train: 1719.05106420815
+[time] Evaluate: 32.408158604986966
