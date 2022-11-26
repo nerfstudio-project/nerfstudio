@@ -423,6 +423,13 @@ class TensorVMEncoding(Encoding):
         return self.num_components * 3
 
     def forward(self, in_tensor: TensorType["bs":..., "input_dim"]) -> TensorType["bs":..., "output_dim"]:
+        """Compute encoding for each position in in_positions
+
+        Args:
+            in_tensor: position inside bounds in range [-1,1],
+
+        Returns: Encoded position
+        """
         plane_coord = torch.stack([in_tensor[..., [0, 1]], in_tensor[..., [0, 2]], in_tensor[..., [1, 2]]])  # [3,...,2]
         line_coord = torch.stack([in_tensor[..., 2], in_tensor[..., 1], in_tensor[..., 0]])  # [3, ...]
         line_coord = torch.stack([torch.zeros_like(line_coord), line_coord], dim=-1)  # [3, ...., 2]
