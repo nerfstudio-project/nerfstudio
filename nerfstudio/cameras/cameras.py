@@ -58,17 +58,18 @@ class Cameras(TensorDataclass):
     the focal lengths, principal points, and image sizes as tensors is to allow for batched cameras
     down the line in cases where your batches of camera data don't come from the same cameras.
 
+     If a single value is provided, it is broadcasted to all cameras.
+
     Args:
         camera_to_worlds: Camera to world matrices. Tensor of per-image c2w matrices, in [R | t] format
-        fx: Focal length x. If a single value is provided, it is broadcasted to all cameras.
-        fy: Focal length y. If a single value is provided, it is broadcasted to all cameras.
-        cx: Principal point x. If a single value is provided, it is broadcasted to all cameras.
-        cy: Principal point y. If a single value is provided, it is broadcasted to all cameras.
-        width: Image width. If a single value is provided, it is broadcasted to all cameras.
-        height: Image height. If a single value is provided, it is broadcasted to all cameras.
-        distortion_params: OpenCV 6 radial distortion coefficients.
-        camera_type: Type of camera model. If a single value is provided, it is broadcasted to
-            all cameras. This will be an int corresponding to the CameraType enum.
+        fx: Focal length x
+        fy: Focal length y
+        cx: Principal point x
+        cy: Principal point y
+        width: Image width
+        height: Image height
+        distortion_params: OpenCV 6 radial distortion coefficients
+        camera_type: Type of camera model. This will be an int corresponding to the CameraType enum.
         times: Timestamps for each camera
     """
 
