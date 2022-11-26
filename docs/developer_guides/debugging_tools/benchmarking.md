@@ -65,7 +65,7 @@ If we wanted to run the benchmark on all the blender data for the above example,
 
 ```bash
 
-./scripts/benchmarking/launch_eval_blender.sh -m instant-ngp -o outputs/ -t 2022-08-10_172517   
+./scripts/benchmarking/launch_eval_blender.sh -m instant-ngp -o outputs/ -t 2022-08-10_172517 [{GPU_LIST}]
 ```
 
 The flags used in the benchmarking script are defined as follows:
@@ -74,7 +74,7 @@ The flags used in the benchmarking script are defined as follows:
 - `-o`: base output directory for where all of the benchmarks are stored (e.g. `outputs/`). Corresponds to the `--output-dir` in the base `Config` for training.
 - `-t`: timestamp of benchmark; also the identifier (e.g. `2022-08-10_172517`).
 - `-s`: Launch a single job per GPU.
-- `-g`: specifies the gpus to use and if not specified (no -g flag), will automaticaly search for available gpus.
+- `{GPU_LIST}`: (optional) Specify the list of gpus you want to use on your machine space separated. For instance, if you want to use GPU's 0-3, you will need to pass in `0 1 2 3`. If left empty, the script will automatically find available GPU's and distribute evaluation jobs on the available GPUs.
 
 The script will simultaneously run the benchmarking across all the objects in the blender dataset and calculates the PSNR/FPS/other stats. The results are saved as .json files in the `-o` directory with the following format:
 
