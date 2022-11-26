@@ -58,6 +58,7 @@ def _render_trajectory_video(
     CONSOLE.print("[bold green]Creating trajectory video")
     images = []
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
+    cameras = cameras.to(pipeline.device)
 
     progress = Progress(
         TextColumn(":movie_camera: Rendering :movie_camera:"),
@@ -71,7 +72,7 @@ def _render_trajectory_video(
         output_image_dir.mkdir(parents=True, exist_ok=True)
     with progress:
         for camera_idx in progress.track(range(cameras.size), description=""):
-            camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx).to(pipeline.device)
+            camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
             with torch.no_grad():
                 outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
             render_image = []
@@ -136,7 +137,7 @@ class RenderTrajectory:
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "filename":
