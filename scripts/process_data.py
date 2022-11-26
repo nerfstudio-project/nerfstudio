@@ -330,7 +330,7 @@ class ProcessRecord3D:
         record3d_image_dir = self.data / "rgb"
 
         if not record3d_image_dir.exists():
-            raise ValueError(f"Image directory {image_dir} doesn't exist")
+            raise ValueError(f"Image directory {record3d_image_dir} doesn't exist")
 
         record3d_image_filenames = []
         for f in record3d_image_dir.iterdir():
