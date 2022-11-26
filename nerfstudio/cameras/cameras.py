@@ -301,7 +301,7 @@ class Cameras(TensorDataclass):
 
     def generate_rays(
         self,
-        camera_indices: Union[TensorType["num_rays":..., "cameras_ndim"], int],
+        camera_indices: Union[TensorType["num_rays":..., "num_cameras_batch_dims"], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
@@ -311,10 +311,10 @@ class Cameras(TensorDataclass):
 
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
         to generate the rays. Our goal is to parse the arguments and then get them into the right shape:
-            - camera_indices: (num_rays:..., cameras_ndim)
-            - coords: (num_rays, 2)
-            - camera_opt_to_camera: (num_rays, 3, 4) or None
-            - distortion_params_delta: (num_rays, 6) or None
+            - camera_indices: (num_rays:..., num_cameras_batch_dims)
+            - coords: (num_rays:..., 2)
+            - camera_opt_to_camera: (num_rays:..., 3, 4) or None
+            - distortion_params_delta: (num_rays:..., 6) or None
 
         Read the docstring for _generate_rays_from_coords for more information on how we generate the rays
         after we have standardized the arguments.
@@ -381,7 +381,7 @@ class Cameras(TensorDataclass):
 
         assert camera_indices.shape[-1] == len(
             cameras.shape
-        ), "camera_indices must have shape (num_rays:..., cameras_ndim)"
+        ), "camera_indices must have shape (num_rays:..., num_cameras_batch_dims)"
 
         # If keep_shape is True, then we need to make sure that the camera indices in question
         # are all the same height and width and can actually be batched while maintaining the image
@@ -454,7 +454,7 @@ class Cameras(TensorDataclass):
     # pylint: disable=too-many-statements
     def _generate_rays_from_coords(
         self,
-        camera_indices: TensorType["num_rays":..., "cameras_ndim"],
+        camera_indices: TensorType["num_rays":..., "num_cameras_batch_dims"],
         coords: TensorType["num_rays":..., 2],
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
@@ -465,7 +465,7 @@ class Cameras(TensorDataclass):
 
         Shapes involved:
             - num_rays: This is your output raybundle shape. It dictates the number and shape of the rays generated
-            - cameras_ndim: This is the number of dimensions of our camera
+            - num_cameras_batch_dims: This is the number of dimensions of our camera
 
         Args:
             camera_indices: Camera indices of the flattened cameras object to generate rays for.
@@ -505,8 +505,8 @@ class Cameras(TensorDataclass):
 
                 If you want more examples, check tests/cameras/test_cameras and the function check_generate_rays_shape
 
-                The bottom line is that for camera_indices: (num_rays:..., cameras_ndim), num_rays is the output
-                shape and if you index into the output RayBundle with some indices [i:...], if you index into
+                The bottom line is that for camera_indices: (num_rays:..., num_cameras_batch_dims), num_rays is the
+                output shape and if you index into the output RayBundle with some indices [i:...], if you index into
                 camera_indices with camera_indices[i:...] as well, you will get a 1D tensor containing the batch
                 indices into the original cameras object corresponding to that ray (ie: you will get the camera
                 from our batched cameras corresponding to the ray at RayBundle[i:...]).
@@ -538,8 +538,8 @@ class Cameras(TensorDataclass):
         assert camera_opt_to_camera is None or camera_opt_to_camera.shape == num_rays_shape + (3, 4)
         assert distortion_params_delta is None or distortion_params_delta.shape == num_rays_shape + (6,)
 
-        # Here, we've broken our indices down along the cameras_ndim dimension allowing us to index by all of our output
-        # rays at each dimension of our cameras object
+        # Here, we've broken our indices down along the num_cameras_batch_dims dimension allowing us to index by all
+        # of our output rays at each dimension of our cameras object
         true_indices = [camera_indices[..., i] for i in range(camera_indices.shape[-1])]
 
         # Get all our focal lengths, principal points and make sure they are the right shapes
