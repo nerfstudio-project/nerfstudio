@@ -92,6 +92,7 @@ nerfstudio_file_ids = {
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
+    "all": None,
 }
 
 NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
@@ -127,6 +128,12 @@ class NerfstudioDownload(DatasetDownload):
 
     def download(self, save_dir: Path):
         """Download the nerfstudio dataset."""
+        if self.capture_name == "all":
+            for capture_name in nerfstudio_file_ids:
+                if capture_name != "all":
+                    download_capture_name(save_dir, "nerfstudio", capture_name, nerfstudio_file_ids)
+            return
+
         download_capture_name(save_dir, "nerfstudio", self.capture_name, capture_name_to_file_id=nerfstudio_file_ids)
 
 
@@ -181,6 +188,7 @@ phototourism_downloads = {
     "taj-mahal": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/taj_mahal.tar.gz",
     "temple-nara": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/temple_nara_japan.tar.gz",
     "trevi-fountain": "https://www.cs.ubc.ca/research/kmyi_data/imw2020/TrainingData/trevi_fountain.tar.gz",
+    "all": None,
 }
 
 PhototourismCaptureName = tyro.extras.literal_type_from_choices(phototourism_downloads.keys())
@@ -194,6 +202,12 @@ class PhototourismDownload(DatasetDownload):
 
     def download(self, save_dir: Path):
         """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
+
+        if self.capture_name == "all":
+            for capture_name in phototourism_downloads:
+                if capture_name != "all":
+                    PhototourismDownload(capture_name=capture_name).download(save_dir)
+            return
 
         assert (
             self.capture_name in phototourism_downloads
