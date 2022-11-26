@@ -4,6 +4,7 @@ import glob
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from timeit import default_timer as timer
 
 import cv2
 import tyro
@@ -23,29 +24,38 @@ class Args:
     percent_frames: float = 1.0
 
 def process_data(data_source: Literal["video", "images", "polycam"], input_data_dir: Path, output_dir: Path, percent_frames: float):
+    start = timer()
     CONSOLE.print("Processing data")
     cmd = f"ns-process-data {data_source} --data {input_data_dir} --output-dir {output_dir}"
 
     if data_source == "video" and percent_frames != 1.0:
-        video = cv2.VideoCapture(path)
-        total = int(video.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
+        video = cv2.VideoCapture(str(input_data_dir))
+        total = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
         print(f"Num frames: {total}")
         num_frames = int(total * percent_frames)
         cmd = f"ns-process-data {data_source} --data {input_data_dir} --output-dir {output_dir} --num-frames-target {num_frames}"
 
     print(cmd)
     run_command(cmd, verbose=True)
+    end = timer()
+    print(f"[time] process: {end - start}\n")
 
 # ns-train instant-ngp --data data/videos/tier2 --trainer.load_dir $output_path --viewer.start-train False
 def train(model: str, input_data_dir: Path):
+    start = timer()
     CONSOLE.print(f"Trainig model\nModel: {model}\nInput dir: {input_data_dir}")
     cmd = f"ns-train {model} --data {input_data_dir} --vis wandb --viewer.quit-on-train-completion True"
     run_command(cmd, verbose=True)
+    end = timer()
+    print(f"[time] train: {end - start}\n")
 
 def eval(config: Path, output_name: Path):
+    start = timer()
     CONSOLE.print("Evaluating model")
     cmd = f"ns-eval --load-config {config} --output-path evals/{output_name}.json"
     run_command(cmd, verbose=True)
+    end = timer()
+    print(f"[time] eval: {end - start}\n")
 
 
 if __name__ == '__main__':
