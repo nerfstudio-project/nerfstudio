@@ -301,7 +301,7 @@ class Cameras(TensorDataclass):
 
     def generate_rays(
         self,
-        camera_indices: Union[TensorType["num_rays":..., "cameras_ndim"], int],
+        camera_indices: Union[TensorType["num_rays":..., "num_cameras_batch_dims"], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
@@ -312,9 +312,9 @@ class Cameras(TensorDataclass):
         This function will standardize the input arguments and then call the _generate_rays_from_coords function
         to generate the rays. Our goal is to parse the arguments and then get them into the right shape:
             - camera_indices: (num_rays:..., cameras_ndim)
-            - coords: (num_rays, 2)
-            - camera_opt_to_camera: (num_rays, 3, 4) or None
-            - distortion_params_delta: (num_rays, 6) or None
+            - coords: (num_rays:..., 2)
+            - camera_opt_to_camera: (num_rays:..., 3, 4) or None
+            - distortion_params_delta: (num_rays:..., 6) or None
 
         Read the docstring for _generate_rays_from_coords for more information on how we generate the rays
         after we have standardized the arguments.
