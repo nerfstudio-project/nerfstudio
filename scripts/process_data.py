@@ -27,6 +27,26 @@ from nerfstudio.utils import install_checks
 
 CONSOLE = Console(width=120)
 
+def findToolFeatureMatcherCombination(sfm_tool, feature_type, matcher_type):
+    if sfm_tool == "any":
+        if (feature_type == "any" or feature_type == "sift") and (matcher_type == "any" or matcher_type == "NN"):
+            sfm_tool = "colmap"
+        else:
+            sfm_tool = "hloc"
+    
+    if sfm_tool == "colmap":
+        return ("colmap", "sift", "NN")
+    elif sfm_tool == "hloc":
+        if feature_type == "any" or feature_type == "superpoint":
+            feature_type = "superpoint_aachen"
+        
+        if matcher_type == "any":
+            matcher_type = "superglue"
+        elif matcher_type == "NN":
+            matcher_type = "NN-mutual"
+        
+        return (sfm_tool, feature_type, matcher_type)
+    return (None, None, None)
 
 @dataclass
 class ProcessImages:
@@ -47,6 +67,12 @@ class ProcessImages:
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods such as superpoint features and superglue matcher"""
+    feature_type: Literal["any", "sift", "superpoint", "superpoint_aachen", "superpoint_max", "superpoint_inloc", "r2d2", "d2net-ss", "sosnet", "disk"] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal["any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"] = "any"
+    """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -82,24 +108,31 @@ class ProcessImages:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
             
-            hloc_utils.run_hloc(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-            )
-
-            """colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
-            )"""
+            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(self.sfm_tool, self.feature_type, self.matcher_type)
+            
+            if sfm_tool == "colmap":
+                colmap_utils.run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
+                )
+            elif sfm_tool == "hloc":
+                hloc_utils.run_hloc(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    feature_type=feature_type,
+                    matcher_type=matcher_type,
+                )
+            else:
+                CONSOLE.log("[bold yellow]Warning: Invalid combination of sfm_tool, feature_type, and matcher_type ")
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
@@ -144,6 +177,12 @@ class ProcessVideo:
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods such as superpoint features and superglue matcher"""
+    feature_type: Literal["any", "sift", "superpoint", "superpoint_aachen", "superpoint_max", "superpoint_inloc", "r2d2", "d2net-ss", "sosnet", "disk"] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal["any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"] = "any"
+    """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -177,16 +216,32 @@ class ProcessVideo:
         colmap_dir = self.output_dir / "colmap"
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
-
-            colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
-            )
+            
+            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(self.sfm_tool, self.feature_type, self.matcher_type)
+            
+            if sfm_tool == "colmap":
+                colmap_utils.run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
+                )
+            elif sfm_tool == "hloc":
+                hloc_utils.run_hloc(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    feature_type=feature_type,
+                    matcher_type=matcher_type,
+                )
+            else:
+                CONSOLE.log("[bold yellow]Warning: Invalid combination of sfm_tool, feature_type, and matcher_type ")
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
