@@ -501,7 +501,7 @@ class ProposalNetworkSampler(Sampler):
 
     def __init__(
         self,
-        num_proposal_samples_per_ray: Tuple[int] = (64,),
+        num_proposal_samples_per_ray: Tuple[int, ...] = (64,),
         num_nerf_samples_per_ray: int = 32,
         num_proposal_network_iterations: int = 2,
         single_jitter: bool = False,

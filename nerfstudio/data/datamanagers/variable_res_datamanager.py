@@ -21,13 +21,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
-import torch
-
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 
 
-def variable_res_collate(batch: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+def variable_res_collate(batch: List[Dict]) -> Dict:
     """Default collate function for the cached dataloader.
     Args:
         batch: Batch of samples from the dataset.
