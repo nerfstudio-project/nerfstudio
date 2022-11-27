@@ -137,7 +137,7 @@ class RenderTrajectory:
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0)
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "filename":
