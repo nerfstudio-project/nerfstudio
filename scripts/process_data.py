@@ -252,12 +252,12 @@ class ProcessInsta360:
 
         ffprobe_cmd = f"ffprobe -v quiet -print_format json -show_streams -select_streams v:0 {filename_back}"
 
-        output = process_data_utils.run_command(ffprobe_cmd)
+        ffprobe_output = process_data_utils.run_command(ffprobe_cmd)
 
-        assert output is not None
-        decoded = json.loads(output)
+        assert ffprobe_output is not None
+        ffprobe_decoded = json.loads(ffprobe_output)
 
-        width, height = decoded["streams"][0]["width"], decoded["streams"][0]["height"]
+        width, height = ffprobe_decoded["streams"][0]["width"], ffprobe_decoded["streams"][0]["height"]
 
         summary_log, num_extracted_frames = [], 0
 
