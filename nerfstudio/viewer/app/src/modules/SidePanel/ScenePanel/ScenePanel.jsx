@@ -77,6 +77,11 @@ function MenuItems(props: ListItemProps) {
   const toggleVisible = (e) => {
     e.stopPropagation();
     setVisible(!visible);
+    scene_node.object.traverse(
+      (obj) => {
+        obj.visible = !visible;
+      }
+    );
   };
 
   React.useEffect(() => {
