@@ -79,7 +79,10 @@ function MenuItems(props: ListItemProps) {
     setVisible(!visible);
     scene_node.object.traverse(
       (obj) => {
-        obj.visible = !visible;
+        if (obj.name === 'CAMERA_LABEL') {
+          // eslint-disable-next-line no-param-reassign
+          obj.visible = !visible;
+        }
       }
     );
   };
