@@ -79,6 +79,7 @@ export function BasicTabs(props: BasicTabsProps) {
 
   const [value, setValue] = React.useState(0);
   const [showExportBox, setShowExportBox] = React.useState(false);
+  const [sidePanelState, setSidePanelState] = React.useState(false);
 
   const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
@@ -122,12 +123,17 @@ export function BasicTabs(props: BasicTabsProps) {
         <TabPanel value={value} index={1}>
           <CameraPanel
             sceneTree={sceneTree}
+            sidePanelState={sidePanelState}
             // camera_controls={sceneTree.metadata.camera_controls}
           />
         </TabPanel>
         <TabPanel value={value} index={2}>
           <div className="Scene-container">
-            <ScenePanel sceneTree={sceneTree} />
+            <ScenePanel
+              sceneTree={sceneTree}
+              sidePanelState={sidePanelState}
+              setSidePanelState={setSidePanelState}
+            />
           </div>
         </TabPanel>
 

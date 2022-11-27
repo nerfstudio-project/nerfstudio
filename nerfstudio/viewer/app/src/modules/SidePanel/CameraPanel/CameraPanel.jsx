@@ -422,6 +422,7 @@ function CameraList(props) {
 export default function CameraPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
+  const sidePanelState = props.sidePanelState;
   const camera_main = sceneTree.find_object_no_create([
     'Cameras',
     'Main Camera',
@@ -582,6 +583,19 @@ export default function CameraPanel(props) {
     // reset_slider_render_on_change();
   };
 
+  const checkCameraVisibility = (camera) => {
+    let curr = camera;
+    
+    console.log(curr)
+    console.log(curr.visible)
+    while (curr !== null) {
+      if (!curr.visible) return false;
+      curr = curr.parent;
+      console.log(curr)
+    }
+    return true;
+  }
+
   // force a rerender if the cameras are dragged around
   let update_cameras_interval = null;
   // eslint-disable-next-line no-unused-vars
@@ -618,8 +632,15 @@ export default function CameraPanel(props) {
     }
     for (let i = 0; i < cameras.length; i += 1) {
       const camera = cameras[i];
+      
       // camera.aspect = render_width / render_height;
       const camera_helper = new CameraHelper(camera, 0x393e46);
+
+      // console.log(camera_helper)
+
+      console.log('CAMERA VISIBILITY')
+      const camVisibility = checkCameraVisibility(camera_helper);
+      // console.log(camVisibility)
 
       const labelDiv = document.createElement('div');
       labelDiv.className = 'label';
@@ -629,7 +650,7 @@ export default function CameraPanel(props) {
       labelDiv.style.backdropFilter = 'blur(5px)';
       labelDiv.style.padding = '6px';
       labelDiv.style.borderRadius = '6px';
-      labelDiv.style.visibility = 'visible';
+      labelDiv.style.visibility = camVisibility ? 'visible' : 'hidden';
       const camera_label = new CSS2DObject(labelDiv);
       camera_label.position.set(0, -0.1, -0.1);
       camera_helper.add(camera_label);
@@ -646,7 +667,7 @@ export default function CameraPanel(props) {
         camera_helper,
       );
     }
-  }, [cameras, cameraProperties, render_width, render_height]);
+  }, [cameras, cameraProperties, render_width, render_height, sidePanelState]);
 
   // update the camera curve
   const curve_object = get_curve_object_from_cameras(

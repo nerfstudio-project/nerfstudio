@@ -1,7 +1,7 @@
 {
   "name": "viewer",
   "homepage": ".",
-  "version": "22-11-10-0",
+  "version": "22.10.13",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.10.4",
@@ -37,7 +37,9 @@
     "three": "^0.142.0",
     "three-wtm": "^1.0",
     "websocket": "^1.0.34",
-    "wwobjloader2": "^4.0"
+    "wwobjloader2": "^4.0",
+    "react-dnd": "^10.0.2",
+    "react-dnd-html5-backend": "^10.0.2"
   },
   "scripts": {
     "start": "react-scripts start",

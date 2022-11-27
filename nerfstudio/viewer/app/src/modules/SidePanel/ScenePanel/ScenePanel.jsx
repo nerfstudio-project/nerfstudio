@@ -51,6 +51,8 @@ function MenuItems(props: ListItemProps) {
   const level = props.level;
   const groupVisible = props.groupVisible;
   const canSnap = props.canSnap;
+  const sidePanelState = props.sidePanelState;
+  const setSidePanelState = props.setSidePanelState;
 
   // TODO: sort the keys by string
   const terminal = Object.keys(scene_node.children).includes('<object>');
@@ -71,12 +73,15 @@ function MenuItems(props: ListItemProps) {
 
   const [visible, setVisible] = React.useState(groupVisible);
   if (terminal) {
+    // console.log(scene_node)
     scene_node.object.visible = visible;
   }
 
   const toggleVisible = (e) => {
     e.stopPropagation();
     setVisible(!visible);
+    setSidePanelState(!sidePanelState);
+    console.log('TOGGLING')
   };
 
   React.useEffect(() => {
@@ -167,6 +172,8 @@ function MenuItems(props: ListItemProps) {
                   level={level + 1}
                   groupVisible={visible}
                   canSnap={name === 'Training Cameras'}
+                  sidePanelState={sidePanelState}
+                  setSidePanelState={setSidePanelState}
                 />
               ))}
           </List>
@@ -178,10 +185,14 @@ function MenuItems(props: ListItemProps) {
 
 interface ClickableListProps {
   sceneTree: object;
+  sidePanelState: any;
+  setSidePanelState: any;
 }
 
 function ClickableList(props: ClickableListProps) {
   const sceneTree = props.sceneTree;
+  const sidePanelState = props.sidePanelState;
+  const setSidePanelState = props.setSidePanelState;
 
   return (
     <List sx={{ color: LevaTheme.colors.accent2 }}>
@@ -189,6 +200,8 @@ function ClickableList(props: ClickableListProps) {
         name="Scene"
         sceneTree={sceneTree}
         scene_node={sceneTree}
+        sidePanelState={sidePanelState}
+        setSidePanelState={setSidePanelState}
         level={0}
         groupVisible
       />
@@ -198,6 +211,8 @@ function ClickableList(props: ClickableListProps) {
 
 export default function ScenePanel(props) {
   const sceneTree = props.sceneTree;
+  const sidePanelState = props.sidePanelState;
+  const setSidePanelState = props.setSidePanelState;
   const camera_main = sceneTree.find_object_no_create([
     'Cameras',
     'Main Camera',
@@ -236,7 +251,11 @@ export default function ScenePanel(props) {
           Reset Up Direction
         </Button>
       </div>
-      <ClickableList sceneTree={sceneTree} />
+      <ClickableList
+        sceneTree={sceneTree}
+        sidePanelState={sidePanelState}
+        setSidePanelState={setSidePanelState}
+      />
     </div>
   );
 }
