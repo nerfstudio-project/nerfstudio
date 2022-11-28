@@ -29,6 +29,8 @@ class TensorDataclass:
     Fields that are not Tensors will not be batched unless they are also a TensorDataclass.
     Any fields that are dictionaries will have their Tensors or TensorDataclasses batched, and
     dictionaries will have their tensors or TensorDataclasses considered in the initial broadcast.
+    Tensor fields must have at least 1 dimension, meaning that you must convert a field like torch.Tensor(1)
+    to torch.Tensor([1])
 
     Example:
 
@@ -56,12 +58,24 @@ class TensorDataclass:
 
     _shape: tuple
 
+    # A mapping from field-name (str): n (int)
+    # Any field OR any key in a dictionary field with this name (field-name) and a corresponding
+    # torch.Tensor will be assumed to have n dimensions after the batch dims. These n final dimensions
+    # will remain the same shape when doing reshapes, broadcasting, etc on the tensordataclass
+    _field_custom_dimensions: Dict[str, int] = {}
+
     def __post_init__(self) -> None:
         """Finishes setting up the TensorDataclass
 
         This will 1) find the broadcasted shape and 2) broadcast all fields to this shape 3)
         set _shape to be the broadcasted shape.
         """
+        if self._field_custom_dimensions is not None:
+            for k, v in self._field_custom_dimensions.items():
+                assert (
+                    isinstance(v, int) and v > 1
+                ), f"Custom dimensions must be an integer greater than 1, since 1 is the default, received {k}: {v}"
+
         if not dataclasses.is_dataclass(self):
             raise TypeError("TensorDataclass must be a dataclass")
 
@@ -90,9 +104,13 @@ class TensorDataclass:
             The batch shapes of all tensors in the dictionary.
         """
         batch_shapes = []
-        for v in dict_.values():
+        for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
-                batch_shapes.append(v.shape[:-1])
+                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
+                    # pylint: disable=unsubscriptable-object
+                    batch_shapes.append(v.shape[: -self._field_custom_dimensions[k]])
+                else:
+                    batch_shapes.append(v.shape[:-1])
             elif isinstance(v, TensorDataclass):
                 batch_shapes.append(v.shape)
             elif isinstance(v, Dict):
@@ -111,7 +129,17 @@ class TensorDataclass:
         new_dict = {}
         for k, v in dict_.items():
             if isinstance(v, torch.Tensor):
-                new_dict[k] = v.broadcast_to((*batch_shape, v.shape[-1]))
+                # If custom dimension key, then we need to
+                if isinstance(self._field_custom_dimensions, dict) and k in self._field_custom_dimensions:
+                    # pylint: disable=unsubscriptable-object
+                    new_dict[k] = v.broadcast_to(
+                        (
+                            *batch_shape,
+                            *v.shape[-self._field_custom_dimensions[k] :],
+                        )
+                    )
+                else:
+                    new_dict[k] = v.broadcast_to((*batch_shape, v.shape[-1]))
             elif isinstance(v, TensorDataclass):
                 new_dict[k] = v.broadcast_to(batch_shape)
             elif isinstance(v, Dict):
@@ -119,18 +147,26 @@ class TensorDataclass:
         return new_dict
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
-        if isinstance(indices, torch.Tensor):
+        if isinstance(indices, (torch.Tensor)):
             return self._apply_fn_to_fields(lambda x: x[indices])
-        if isinstance(indices, (int, slice)):
+        if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
+        assert isinstance(indices, tuple)
         tensor_fn = lambda x: x[indices + (slice(None),)]
         dataclass_fn = lambda x: x[indices]
-        return self._apply_fn_to_fields(tensor_fn, dataclass_fn)
+
+        def custom_tensor_dims_fn(k, v):
+            custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
+            return v[indices + ((slice(None),) * custom_dims)]
+
+        return self._apply_fn_to_fields(tensor_fn, dataclass_fn, custom_tensor_dims_fn=custom_tensor_dims_fn)
 
     def __setitem__(self, indices, value) -> NoReturn:
         raise RuntimeError("Index assignment is not supported for TensorDataclass")
 
     def __len__(self) -> int:
+        if len(self._shape) == 0:
+            raise TypeError("len() of a 0-d tensor")
         return self.shape[0]
 
     def __bool__(self) -> bool:
@@ -173,7 +209,12 @@ class TensorDataclass:
             shape = (shape,)
         tensor_fn = lambda x: x.reshape((*shape, x.shape[-1]))
         dataclass_fn = lambda x: x.reshape(shape)
-        return self._apply_fn_to_fields(tensor_fn, dataclass_fn)
+
+        def custom_tensor_dims_fn(k, v):
+            custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
+            return v.reshape((*shape, *v.shape[-custom_dims:]))
+
+        return self._apply_fn_to_fields(tensor_fn, dataclass_fn, custom_tensor_dims_fn=custom_tensor_dims_fn)
 
     def flatten(self: TensorDataclassT) -> TensorDataclassT:
         """Returns a new TensorDataclass with flattened batch dimensions
@@ -195,7 +236,14 @@ class TensorDataclass:
         Returns:
             A new TensorDataclass with the same data but with a new shape.
         """
-        return self._apply_fn_to_fields(lambda x: x.broadcast_to((*shape, x.shape[-1])))
+
+        def custom_tensor_dims_fn(k, v):
+            custom_dims = self._field_custom_dimensions[k]  # pylint: disable=unsubscriptable-object
+            return v.broadcast_to((*shape, *v.shape[-custom_dims:]))
+
+        return self._apply_fn_to_fields(
+            lambda x: x.broadcast_to((*shape, x.shape[-1])), custom_tensor_dims_fn=custom_tensor_dims_fn
+        )
 
     def to(self: TensorDataclassT, device) -> TensorDataclassT:
         """Returns a new TensorDataclass with the same data but on the specified device.
@@ -209,7 +257,10 @@ class TensorDataclass:
         return self._apply_fn_to_fields(lambda x: x.to(device))
 
     def _apply_fn_to_fields(
-        self: TensorDataclassT, fn: Callable, dataclass_fn: Optional[Callable] = None
+        self: TensorDataclassT,
+        fn: Callable,
+        dataclass_fn: Optional[Callable] = None,
+        custom_tensor_dims_fn: Optional[Callable] = None,
     ) -> TensorDataclassT:
         """Applies a function to all fields of the tensor dataclass.
 
@@ -231,12 +282,21 @@ class TensorDataclass:
         """
 
         new_fields = self._apply_fn_to_dict(
-            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)}, fn, dataclass_fn
+            {f.name: self.__getattribute__(f.name) for f in dataclasses.fields(self)},
+            fn,
+            dataclass_fn,
+            custom_tensor_dims_fn,
         )
 
         return dataclasses.replace(self, **new_fields)
 
-    def _apply_fn_to_dict(self, dict_: Dict, fn: Callable, dataclass_fn: Optional[Callable] = None) -> Dict:
+    def _apply_fn_to_dict(
+        self,
+        dict_: Dict,
+        fn: Callable,
+        dataclass_fn: Optional[Callable] = None,
+        custom_tensor_dims_fn: Optional[Callable] = None,
+    ) -> Dict:
         """A helper function for _apply_fn_to_fields, applying a function to all fields of dict_
 
         Args:
@@ -254,6 +314,14 @@ class TensorDataclass:
             if v is not None:
                 if isinstance(v, TensorDataclass) and dataclass_fn is not None:
                     new_dict[f] = dataclass_fn(v)
+                # This is the case when we have a custom dimensions tensor
+                elif (
+                    isinstance(v, torch.Tensor)
+                    and isinstance(self._field_custom_dimensions, dict)
+                    and f in self._field_custom_dimensions
+                    and custom_tensor_dims_fn is not None
+                ):
+                    new_dict[f] = custom_tensor_dims_fn(f, v)
                 elif isinstance(v, (torch.Tensor, TensorDataclass)):
                     new_dict[f] = fn(v)
                 elif isinstance(v, Dict):
