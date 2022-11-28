@@ -509,23 +509,23 @@ class ViewerState:
         offer = RTCSessionDescription(data["sdp"], data["type"])
 
         pc = RTCPeerConnection(
-            # configuration=RTCConfiguration(
-            #     iceServers=[
-            #         RTCIceServer(urls="stun:stun.l.google.com:19302"),
-            #         RTCIceServer(urls="stun:openrelay.metered.ca:80"),
-            #         RTCIceServer(
-            #             urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
-            #         ),
-            #         RTCIceServer(
-            #             urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
-            #         ),
-            #         RTCIceServer(
-            #             urls="turn:openrelay.metered.ca:443?transport=tcp",
-            #             username="openrelayproject",
-            #             credential="openrelayproject",
-            #         ),
-            #     ]
-            # )
+            configuration=RTCConfiguration(
+                iceServers=[
+                    # RTCIceServer(urls="stun:stun.l.google.com:19302"),
+                    # RTCIceServer(urls="stun:openrelay.metered.ca:80"),
+                    RTCIceServer(
+                        urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
+                    ),
+                    # RTCIceServer(
+                    #     urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
+                    # ),
+                    # RTCIceServer(
+                    #     urls="turn:openrelay.metered.ca:443?transport=tcp",
+                    #     username="openrelayproject",
+                    #     credential="openrelayproject",
+                    # ),
+                ]
+            )
         )
         self.pcs.add(pc)
 
