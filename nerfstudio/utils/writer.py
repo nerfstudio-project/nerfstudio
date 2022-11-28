@@ -208,8 +208,8 @@ def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
     if using_event_writer:
         string = f"logging events to: {log_dir}"
     else:
-        string = "disabled tensorboard/wandb event writers"
-    CONSOLE.print(f"[bold red]{string}")
+        string = "Disabled tensorboard/wandb event writers"
+    CONSOLE.print(f"[bold yellow]{string}")
 
 
 class Writer:
@@ -387,7 +387,7 @@ class LocalWriter:
             if not self.has_printed and self.config.max_log_size:
                 CONSOLE.log(
                     f"Printing max of {self.config.max_log_size} lines. "
-                    "Set flag  `--logging.local-writer.max-log-size=0` "
+                    "Set flag çççç[yellow]--logging.local-writer.max-log-size=0[/yellow] "
                     "to disable line wrapping."
                 )
             latest_map, new_key = self._consolidate_events()
@@ -430,10 +430,8 @@ class LocalWriter:
             self.past_mssgs[0] = mssg
             self.past_mssgs[1] = "-" * len(mssg)
             if full_log_cond or not self.has_printed:
-                print("testeing testing!")
                 print(mssg)
                 print("-" * len(mssg))
-                # self.has_printed = True
 
     def _print_stats(self, latest_map, padding=" "):
         """helper to print out the stats in a readable format

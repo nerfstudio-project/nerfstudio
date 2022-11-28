@@ -125,7 +125,7 @@ The following will train a _nerfacto_ model, our recommended model for real worl
 
 ```bash
 # Download some test data:
-ns-download-data --dataset=nerfstudio --capture=poster
+ns-download-data nerfstudio --capture-name=poster
 # Train model
 ns-train nerfacto --data data/nerfstudio/poster
 ```
@@ -147,7 +147,7 @@ Navigating to the link at the end of the terminal will load the webviewer. If yo
 It is possible to load a pretrained model by running
 
 ```bash
-ns-train nerfacto --data data/nerfstudio/poster --trainer.load_dir {outputs/.../nerfstudio_models}
+ns-train nerfacto --data data/nerfstudio/poster --trainer.load-dir {outputs/.../nerfstudio_models}
 ```
 
 This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.

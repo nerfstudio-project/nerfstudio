@@ -65,11 +65,14 @@ dev = [
 
 # Documentation related packages
 docs = [
-    "furo==2022.4.7",
+    "furo==2022.09.29",
+    # Specifying ipython for https://github.com/ipython/ipython/issues/13845
+    "ipython==8.6.0",
     "readthedocs-sphinx-search==0.1.2",
     "myst-nb==0.16.0",
+    "nbconvert==7.2.5",
     "nbformat==5.5.0",
-    "sphinx==4.5.0",
+    "sphinx==5.2.1",
     "sphinxemoji==0.2.0",
     "sphinx-argparse==0.3.1",
     "sphinx-copybutton==0.5.0",
