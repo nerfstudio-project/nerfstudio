@@ -151,9 +151,6 @@ class TSDF:
         # colors need an alpha channel
         v_color_matrix = np.concatenate([v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1)
 
-        print(vertex_matrix.dtype, face_matrix.dtype, v_normals_matrix.dtype, v_color_matrix.dtype)
-        print(vertex_matrix.shape, face_matrix.shape, v_normals_matrix.shape, v_color_matrix.shape)
-
         # create a new Mesh
         m = pymeshlab.Mesh(
             vertex_matrix=vertex_matrix,
@@ -296,6 +293,8 @@ def export_tsdf_mesh(
         resolution: Resolution of the TSDF volume or [x, y, z] resolutions individually.
         batch_size: How many depth images to integrate per batch.
         use_bounding_box: Whether to use a bounding box for the TSDF volume.
+        bounding_box_min: Minimum coordinates of the bounding box.
+        bounding_box_max: Maximum coordinates of the bounding box.
     """
 
     device = pipeline.device

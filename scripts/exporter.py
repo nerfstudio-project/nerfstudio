@@ -118,7 +118,7 @@ class ExportTSDFMesh(Exporter):
     """The method to use for unwrapping the mesh."""
     num_pixels_per_side: int = 2048
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
-    target_num_faces: Optional[int] = 10000
+    target_num_faces: Optional[int] = 50000
     """Target number of faces for the mesh to texture."""
 
     def main(self) -> None:
@@ -195,7 +195,7 @@ class ExportPoissonMesh(Exporter):
     """The method to use for unwrapping the mesh."""
     num_pixels_per_side: int = 2048
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
-    target_num_faces: Optional[int] = 10000
+    target_num_faces: Optional[int] = 50000
     """Target number of faces for the mesh to texture."""
 
     def main(self) -> None:
@@ -230,6 +230,7 @@ class ExportPoissonMesh(Exporter):
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
+        CONSOLE.print("Computing Mesh... this may take a while.")
         with CONSOLE.status("Computing Mesh", spinner="triangle"):
             mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
             vertices_to_remove = densities < np.quantile(densities, 0.1)
