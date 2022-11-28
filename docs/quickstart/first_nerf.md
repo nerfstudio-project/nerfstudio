@@ -6,7 +6,7 @@ The following will train a _nerfacto_ model, our recommended model for real worl
 
 ```bash
 # Download some test data:
-ns-download-data --dataset=nerfstudio --capture=poster
+ns-download-data nerfstudio --capture-name=poster
 # Train model
 ns-train nerfacto --data data/nerfstudio/poster
 ```
