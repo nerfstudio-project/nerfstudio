@@ -66,6 +66,8 @@ def convert_insta360_to_images(
         video_back: Path to the back video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
+        crop_percentage: Percentage used to calculate the cropped dimentions of extracted frames. Currently used to crop
+         out the curved portions of the fish-eye lens.
         verbose: If True, logs the output of the command.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
@@ -133,6 +135,8 @@ def convert_insta360_single_file_to_images(
         video: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
+        crop_percentage: Percentage used to calculate the cropped dimentions of extracted frames. Currently used to crop
+         out the curved portions of the fish-eye lens.
         verbose: If True, logs the output of the command.
     Returns:
         A tuple containing summary of the conversion and the number of extracted frames.
