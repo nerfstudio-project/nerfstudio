@@ -27,26 +27,28 @@ from nerfstudio.utils import install_checks
 
 CONSOLE = Console(width=120)
 
+
 def findToolFeatureMatcherCombination(sfm_tool, feature_type, matcher_type):
     if sfm_tool == "any":
         if (feature_type == "any" or feature_type == "sift") and (matcher_type == "any" or matcher_type == "NN"):
             sfm_tool = "colmap"
         else:
             sfm_tool = "hloc"
-    
+
     if sfm_tool == "colmap":
         return ("colmap", "sift", "NN")
     elif sfm_tool == "hloc":
         if feature_type == "any" or feature_type == "superpoint":
             feature_type = "superpoint_aachen"
-        
+
         if matcher_type == "any":
             matcher_type = "superglue"
         elif matcher_type == "NN":
             matcher_type = "NN-mutual"
-        
+
         return (sfm_tool, feature_type, matcher_type)
     return (None, None, None)
+
 
 @dataclass
 class ProcessImages:
@@ -69,9 +71,22 @@ class ProcessImages:
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods such as superpoint features and superglue matcher"""
-    feature_type: Literal["any", "sift", "superpoint", "superpoint_aachen", "superpoint_max", "superpoint_inloc", "r2d2", "d2net-ss", "sosnet", "disk"] = "any"
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
     """Type of feature to use."""
-    matcher_type: Literal["any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"] = "any"
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
     """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
@@ -96,6 +111,8 @@ class ProcessImages:
 
         summary_log = []
 
+        # hloc_utils.inspect_matches(image_dir=image_dir, colmap_dir=self.output_dir / "colmap")
+
         # Copy images to output directory
         num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
         summary_log.append(f"Starting with {num_frames} images")
@@ -107,9 +124,11 @@ class ProcessImages:
         colmap_dir = self.output_dir / "colmap"
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
-            
-            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(self.sfm_tool, self.feature_type, self.matcher_type)
-            
+
+            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(
+                self.sfm_tool, self.feature_type, self.matcher_type
+            )
+
             if sfm_tool == "colmap":
                 colmap_utils.run_colmap(
                     image_dir=image_dir,
@@ -179,9 +198,22 @@ class ProcessVideo:
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
     """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods such as superpoint features and superglue matcher"""
-    feature_type: Literal["any", "sift", "superpoint", "superpoint_aachen", "superpoint_max", "superpoint_inloc", "r2d2", "d2net-ss", "sosnet", "disk"] = "any"
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
     """Type of feature to use."""
-    matcher_type: Literal["any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"] = "any"
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
     """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
@@ -216,9 +248,11 @@ class ProcessVideo:
         colmap_dir = self.output_dir / "colmap"
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
-            
-            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(self.sfm_tool, self.feature_type, self.matcher_type)
-            
+
+            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(
+                self.sfm_tool, self.feature_type, self.matcher_type
+            )
+
             if sfm_tool == "colmap":
                 colmap_utils.run_colmap(
                     image_dir=image_dir,
