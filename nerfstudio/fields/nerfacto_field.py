@@ -72,6 +72,9 @@ class TCNNNerfactoField(Field):
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
         geo_feat_dim: output geo feat dimensions
+        num_levels: number of levels of the hashmap for the base mlp
+        max_res: maximum resolution of the hashmap for the base mlp
+        log2_hashmap_size: size of the hashmap for the base mlp
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
         appearance_embedding_dim: dimension of appearance embedding
@@ -87,6 +90,9 @@ class TCNNNerfactoField(Field):
         num_layers: int = 2,
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
+        num_levels: int = 16,
+        max_res: int = 1024,
+        log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
         num_layers_transient: int = 2,
         hidden_dim_color: int = 64,
@@ -114,10 +120,7 @@ class TCNNNerfactoField(Field):
         self.use_semantics = use_semantics
         self.use_pred_normals = use_pred_normals
 
-        num_levels = 16
-        max_res = 1024
         base_res = 16
-        log2_hashmap_size = 19
         features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
