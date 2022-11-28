@@ -85,7 +85,6 @@ class DreamFusionField(Field):
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
         hidden_dim_transient: int = 64,
-        use_pred_normals: bool = False,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
@@ -94,7 +93,6 @@ class DreamFusionField(Field):
         self.geo_feat_dim = geo_feat_dim
 
         self.spatial_distortion = spatial_distortion
-        self.use_pred_normals = use_pred_normals
 
         num_levels = 16
         max_res = 1024
@@ -129,19 +127,18 @@ class DreamFusionField(Field):
         )
 
         # predicted normals
-        if self.use_pred_normals:
-            self.mlp_pred_normals = tcnn.Network(
-                n_input_dims=self.geo_feat_dim + self.position_encoding.n_output_dims,
-                n_output_dims=hidden_dim_transient,
-                network_config={
-                    "otype": "FullyFusedMLP",
-                    "activation": "ReLU",
-                    "output_activation": "None",
-                    "n_neurons": 64,
-                    "n_hidden_layers": 2,
-                },
-            )
-            self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
+        self.mlp_pred_normals = tcnn.Network(
+            n_input_dims=self.geo_feat_dim + self.position_encoding.n_output_dims,
+            n_output_dims=hidden_dim_transient,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": 64,
+                "n_hidden_layers": 2,
+            },
+        )
+        self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
         self.mlp_head = tcnn.Network(
             n_input_dims=self.geo_feat_dim,
@@ -182,19 +179,17 @@ class DreamFusionField(Field):
         outputs = {}
 
         directions = get_normalized_directions(ray_samples.frustums.directions)
-        directions_flat = directions.view(-1, 3)
 
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
 
         # predicted normals
-        if self.use_pred_normals:
-            positions = ray_samples.frustums.get_positions()
+        positions = ray_samples.frustums.get_positions()
 
-            positions_flat = self.position_encoding(positions.view(-1, 3))
-            pred_normals_inp = torch.cat([positions_flat, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
+        positions_flat = self.position_encoding(positions.view(-1, 3))
+        pred_normals_inp = torch.cat([positions_flat, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
 
-            x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
-            outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
+        x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
+        outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
         h = density_embedding.view(-1, self.geo_feat_dim)
 

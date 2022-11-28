@@ -38,6 +38,7 @@ from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
+    NormalsRenderer,
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
@@ -87,6 +88,7 @@ class DreamFusionModel(Model):
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
+        self.renderer_normals = NormalsRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -108,14 +110,22 @@ class DreamFusionModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
-        field_outputs = self.field(ray_samples_uniform)
+        field_outputs = self.field(ray_samples_uniform, compute_normals=True)
         weights = ray_samples_uniform.get_weights(field_outputs[FieldHeadNames.DENSITY])
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples_uniform)
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
-        outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
+        outputs = {
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
+            "normals": normals,
+            "pred_normals": pred_normals,
+        }
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
