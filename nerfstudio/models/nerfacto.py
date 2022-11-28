@@ -69,6 +69,12 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to stop sampling."""
     background_color: Literal["background", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
+    num_levels: int = 16
+    """Number of levels of the hashmap for the base mlp."""
+    max_res: int = 1024
+    """Maximum resolution of the hashmap for the base mlp."""
+    log2_hashmap_size: int = 19
+    """Size of the hashmap for the base mlp"""
     num_proposal_samples_per_ray: Tuple[int] = (256, 96)
     """Number of samples per ray for the proposal network."""
     num_nerf_samples_per_ray: int = 48
@@ -128,6 +134,9 @@ class NerfactoModel(Model):
         # Fields
         self.field = TCNNNerfactoField(
             self.scene_box.aabb,
+            num_levels=self.config.num_levels,
+            max_res=self.config.max_res,
+            log2_hashmap_size=self.config.log2_hashmap_size,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
