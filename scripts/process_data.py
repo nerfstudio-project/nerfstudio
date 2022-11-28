@@ -2,6 +2,7 @@
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 
+import json
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -246,14 +247,38 @@ class ProcessInsta360:
 
         filename_back, filename_front = insta360_utils.get_insta360_filenames(self.data)
 
-        # Convert video to images
-        summary_log, num_extracted_frames = insta360_utils.convert_insta360_to_images(
-            video_front=filename_front,
-            video_back=filename_back,
-            image_dir=image_dir,
-            num_frames_target=self.num_frames_target,
-            verbose=self.verbose,
-        )
+        if not filename_back.exists():
+            raise FileNotFoundError(f"Could not find {filename_back}")
+
+        ffprobe_cmd = f"ffprobe -v quiet -print_format json -show_streams -select_streams v:0 {filename_back}"
+
+        ffprobe_output = process_data_utils.run_command(ffprobe_cmd)
+
+        assert ffprobe_output is not None
+        ffprobe_decoded = json.loads(ffprobe_output)
+
+        width, height = ffprobe_decoded["streams"][0]["width"], ffprobe_decoded["streams"][0]["height"]
+
+        summary_log, num_extracted_frames = [], 0
+
+        if width / height == 1:
+            if not filename_front.exists():
+                raise FileNotFoundError(f"Could not find {filename_front}")
+            # Convert video to images
+            summary_log, num_extracted_frames = insta360_utils.convert_insta360_to_images(
+                video_front=filename_front,
+                video_back=filename_back,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                verbose=self.verbose,
+            )
+        else:
+            summary_log, num_extracted_frames = insta360_utils.convert_insta360_single_file_to_images(
+                video=filename_back,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                verbose=self.verbose,
+            )
 
         # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
