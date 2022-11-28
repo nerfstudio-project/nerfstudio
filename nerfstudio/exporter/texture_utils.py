@@ -33,6 +33,7 @@ from typing_extensions import Literal
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from tqdm import tqdm
 
 CONSOLE = Console(width=120)
 
@@ -267,15 +268,17 @@ def unwrap_mesh_with_xatlas(
     # v0 = texture_coordinates[:, 0:1, :] # (F, 1, 2)
     # v1 = texture_coordinates[:, 1:2, :] # (F, 1, 2)
     # v2 = texture_coordinates[:, 2:3, :] # (F, 1, 2)
+    num_vertices = p.shape[1]
     num_faces = texture_coordinates.shape[0]
     chunk_size = 10
     triangle_distances = torch.ones_like(p[..., 0]) * torch.finfo(torch.float32).max  # (1, N)
-    triangle_indices = torch.zeros_like(p[..., 0]).long() # (1, N)
+    triangle_indices = torch.zeros_like(p[..., 0]).long()  # (1, N)
     triangle_w0 = torch.zeros_like(p[..., 0])  # (1, N)
     triangle_w1 = torch.zeros_like(p[..., 0])  # (1, N)
     triangle_w2 = torch.zeros_like(p[..., 0])  # (1, N)
-    for i in range(math.ceil(num_faces // chunk_size)):
-        print(i)
+    arange_list = torch.arange(num_vertices, device=device)
+    for i in range(num_faces // chunk_size):
+        # print(i)
         s = i * chunk_size
         e = min((i + 1) * chunk_size, num_faces)
         v0 = texture_coordinates[s:e, 0:1, :]  # (F, 1, 2)
@@ -283,29 +286,29 @@ def unwrap_mesh_with_xatlas(
         v2 = texture_coordinates[s:e, 2:3, :]  # (F, 1, 2)
         epsilon = 1e-8
         area = get_parallelogram_area(v2, v0, v1) + epsilon  # 2x face area.
+        # NOTE: could try clockwise vs counter clockwise
         w0 = get_parallelogram_area(p, v1, v2) / area
         w1 = get_parallelogram_area(p, v2, v0) / area
         w2 = get_parallelogram_area(p, v0, v1) / area
         # get distance from center of triangle
         dist_to_center = (w0 / 3.0) ** 2 + (w1 / 3.0) ** 2 + (w2 / 3.0) ** 2
         d_values, d_indices = torch.min(dist_to_center, dim=0, keepdim=True)
-        d_indices = d_indices + s # add offset
-        print(d_values.shape)
-        print(d_indices.shape)
-        print(triangle_distances.shape)
-        print(triangle_indices.shape)
+        d_indices_with_offset = d_indices + s  # add offset
         condition = d_values < triangle_distances
         triangle_distances = torch.where(condition, d_values, triangle_distances)
-        triangle_indices = torch.where(condition, d_indices, triangle_indices)
-        triangle_w0 = torch.where(condition, w0, triangle_w0)
-        triangle_w1 = torch.where(condition, w1, triangle_w1)
-        triangle_w2 = torch.where(condition, w2, triangle_w2)
-
-    print(triangle_indices)
-
+        triangle_indices = torch.where(condition, d_indices_with_offset, triangle_indices)
+        w0_selected = torch.zeros_like(triangle_w0)
+        w1_selected = torch.zeros_like(triangle_w0)
+        w2_selected = torch.zeros_like(triangle_w0)
+        w0_selected = w0[d_indices[0], arange_list]
+        w1_selected = w1[d_indices[0], arange_list]
+        w2_selected = w2[d_indices[0], arange_list]
+        triangle_w0 = torch.where(condition, w0_selected, triangle_w0)
+        triangle_w1 = torch.where(condition, w1_selected, triangle_w1)
+        triangle_w2 = torch.where(condition, w2_selected, triangle_w2)
+        
     nearby_vertices = vertices[faces[triangle_indices[0]]]  # (N, 3, 3)
     nearby_normals = vertex_normals[faces[triangle_indices[0]]]  # (N, 3, 3)
-    print(nearby_normals.shape)
 
     origins = (
         nearby_vertices[..., 0, :] * triangle_w0[0, :, None]
