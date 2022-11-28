@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 from pathlib import Path
-
 from typing_extensions import Literal
+from rich.console import Console
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 
@@ -34,6 +35,8 @@ except ImportError:
     _has_hloc = False
 else:
     _has_hloc = True
+
+CONSOLE = Console(width=120)
 
 
 def run_hloc(
@@ -62,7 +65,7 @@ def run_hloc(
     """
     if not _has_hloc:
         CONSOLE.print(
-            f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), you must install hloc!!"
+            f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), you must install hloc toolbox!!"
         )
         sys.exit(1)
 
