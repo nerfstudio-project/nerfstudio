@@ -63,6 +63,43 @@ pip install -e .[dev]
 pip install -e .[docs]
 ```
 
+## Use docker image
+Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided. \
+### Prerequisites
+Docker ([det docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.3, must be installed.
+The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.10)
+```bash
+docker pull dromni/nerfstudio:<version>
+```
+or be built from the repository using
+```bash
+docker build --tag nerfstudio -f Dockerfile .
+```
+### Using an interactive container
+The docker container can be launched with an interactive terminal where nerfstudio commands can be entered as usual. Some parameters are required and some are strongly reocmmended for usage as following:
+```bash
+docker run --gpus all \                                         # Give the container access to nvidia GPU (required).
+            -v /folder/of/your/data:/workspace/ \               # Mount a folder from the local machine into the container to be able to process them (required).
+            -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ \   # Mount cache folder to avoid re-downloading of models everytime (recommended).
+            -p 7007:7007 \                                      # Map port from local machine to docker container (required to access the web interface/UI).
+            --rm \                                              # Remove container after it is closed (recommended).
+            -it \                                               # Start container in interactive mode.
+            nerfstudio                                          # Docker image name
+```
+### Call nerfstudio commands directly
+Besides, the container can also directly be used by adding the nerfstudio command to the end.
+```bash
+docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.cache/:/home/user/.cache/ -p 7007:7007 --rm # Parameters.
+            nerfstudio \                                        # Docker image name
+            ns-process-data video --data /workspace/video.mp4   # Smaple command of nerfstudio.
+```
+### Note
+- The container works on Linux and Windows, depending on your OS some additional setup steps might be required to provide access to your GPU inside containers.
+- Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
+- The user inside the container is called user and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).
+- The container currently is based on nvidia:cudagl-11.3.1, consequently it comes with CUDA 11.3 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
+
+
 ## Installation FAQ
 
 - [TinyCUDA installation errors out with cuda mismatch](tiny-cuda-error)
