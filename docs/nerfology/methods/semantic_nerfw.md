@@ -25,7 +25,7 @@ The transient embeddings are still under development. Please stay tuned.
 Download the Friends Dataset
 
 ```bash
-ns-download-data --dataset friends
+ns-download-data friends
 ```
 
 ```bash

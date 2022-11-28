@@ -17,7 +17,7 @@
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 from rich.console import Console
@@ -34,17 +34,19 @@ def _find_distortion_param(calib_xml: ET.Element, param_name: str):
     return 0.0
 
 
-def metashape_to_json(
+def metashape_to_json(  # pylint: disable=too-many-statements
     image_filename_map: Dict[str, Path],
     xml_filename: Path,
     output_dir: Path,
-) -> str:
+    verbose: bool = False,
+) -> List[str]:
     """Convert Metashape data into a nerfstudio dataset.
 
     Args:
         image_filename_map: Mapping of original image filenames to their saved locations.
         xml_filename: Path to the metashap cameras xml file.
         output_dir: Path to the output directory.
+        verbose: Whether to print verbose output.
 
     Returns:
         Summary of the conversion.
@@ -88,9 +90,17 @@ def metashape_to_json(
     frames = []
     cameras = chunk.find("cameras")
     assert cameras is not None, "Cameras not found in Metashape xml"
+    num_skipped = 0
     for camera in cameras:
         frame = {}
+        if camera.get("label") not in image_filename_map:
+            continue
         frame["file_path"] = image_filename_map[camera.get("label")].as_posix()  # type: ignore
+        if camera.find("transform") is None:
+            if verbose:
+                CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
+            num_skipped += 1
+            continue
         t = [float(x) for x in camera.find("transform").text.split()]  # type: ignore
         transform = np.array(
             [
@@ -108,6 +118,12 @@ def metashape_to_json(
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
 
-    summary = f"Final dataset is {len(data['frames'])} frames."
+    summary = []
+    if num_skipped == 1:
+        summary.append(f"{num_skipped} image skipped because it was missing its camera pose.")
+    if num_skipped > 1:
+        summary.append(f"{num_skipped} images were skipped because they were missing camera poses.")
+
+    summary.append(f"Final dataset is {len(data['frames'])} frames.")
 
     return summary

@@ -330,12 +330,13 @@ class ProcessRecord3D:
         record3d_image_dir = self.data / "rgb"
 
         if not record3d_image_dir.exists():
-            raise ValueError(f"Image directory {image_dir} doesn't exist")
+            raise ValueError(f"Image directory {record3d_image_dir} doesn't exist")
 
         record3d_image_filenames = []
         for f in record3d_image_dir.iterdir():
             if f.stem.isdigit():  # removes possible duplicate images (for example, 123(3).jpg)
-                record3d_image_filenames.append(f)
+                if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
+                    record3d_image_filenames.append(f)
 
         record3d_image_filenames = sorted(record3d_image_filenames, key=lambda fn: int(fn.stem))
         num_images = len(record3d_image_filenames)
@@ -436,7 +437,8 @@ class ProcessPolycam:
 
         polycam_image_filenames = []
         for f in polycam_image_dir.iterdir():
-            polycam_image_filenames.append(f)
+            if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
+                polycam_image_filenames.append(f)
         polycam_image_filenames = sorted(polycam_image_filenames, key=lambda fn: int(fn.stem))
         num_images = len(polycam_image_filenames)
         idx = np.arange(num_images)
@@ -528,7 +530,8 @@ class ProcessMetashape:
         # Copy images to output directory
         image_filenames = []
         for f in self.data.iterdir():
-            image_filenames.append(f)
+            if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
+                image_filenames.append(f)
         image_filenames = sorted(image_filenames, key=lambda fn: fn.stem)
         num_images = len(image_filenames)
         idx = np.arange(num_images)
@@ -564,11 +567,12 @@ class ProcessMetashape:
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
             sys.exit(1)
-        summary_log.append(
+        summary_log.extend(
             metashape_utils.metashape_to_json(
                 image_filename_map=image_filename_map,
                 xml_filename=self.xml,
                 output_dir=self.output_dir,
+                verbose=self.verbose,
             )
         )
 

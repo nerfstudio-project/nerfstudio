@@ -338,7 +338,7 @@ class VanillaPipeline(Pipeline):
                 metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
-                fps_str = f"fps_at_{height}x{width}"
+                fps_str = "fps"
                 assert fps_str not in metrics_dict
                 metrics_dict[fps_str] = metrics_dict["num_rays_per_sec"] / (height * width)
                 metrics_dict_list.append(metrics_dict)

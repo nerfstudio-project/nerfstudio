@@ -43,6 +43,17 @@ export default function StatusPanel(props: StatusPanelProps) {
       is_images_visible;
   }
 
+  React.useEffect(() => {
+    sceneTree.object.traverse(
+      (obj) => {
+        if (obj.name === 'CAMERA_LABEL') {
+          // eslint-disable-next-line no-param-reassign
+          obj.visible = is_scene_visible;
+        }
+      }
+    );
+  }, [is_scene_visible]);
+
   const handlePlayChange = () => {
     dispatch({
       type: 'write',
