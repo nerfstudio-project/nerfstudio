@@ -216,8 +216,6 @@ def unwrap_mesh_with_xatlas(
 
     # pylint: disable=import-outside-toplevel
     # pylint: disable=unused-variable
-
-    import nvdiffrast.torch as dr
     import xatlas
 
     device = vertices.device
@@ -241,21 +239,88 @@ def unwrap_mesh_with_xatlas(
         (vertices_tc, torch.zeros_like(vertices_tc[..., :1]), torch.ones_like(vertices_tc[..., :1])), dim=-1
     )  # [num_verts, 4]
 
-    glctx = dr.RasterizeCudaContext()
-
     texture_coordinates = torch.from_numpy(uvs[indices]).to(device)  # (num_faces, 3, 2)
 
-    h = num_pixels_per_side
-    w = num_pixels_per_side
-    rast, _ = dr.rasterize(glctx, vertices_tc.unsqueeze(0), face_vi, (h, w))  # [1, h, w, 4]
-    triangle_id = rast[..., 3].long()  # [1, h, w]
-    xyz, _ = dr.interpolate(vertices.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
-    xyz = xyz[0]  # [h, w, 3]
-    nor, _ = dr.interpolate(vertex_normals.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
-    nor = nor[0]  # [h, w, 3]
+    ####
+    # This uses nvdiffrast.
+    # This has an artifact where the edges look bad.
+    ####
+    # import nvdiffrast.torch as dr
+    # glctx = dr.RasterizeCudaContext()
+    # h = num_pixels_per_side
+    # w = num_pixels_per_side
+    # rast, _ = dr.rasterize(glctx, vertices_tc.unsqueeze(0), face_vi, (h, w))  # [1, h, w, 4]
+    # triangle_id = rast[..., 3].long()  # [1, h, w]
+    # xyz, _ = dr.interpolate(vertices.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
+    # xyz = xyz[0]  # [h, w, 3]
+    # nor, _ = dr.interpolate(vertex_normals.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
+    # nor = nor[0]  # [h, w, 3]
 
-    origins = xyz
-    directions = -nor
+    ####
+    # This uses PyTorch.
+    ####
+    # Now find the triangle indices for every pixel and the barycentric coordinates
+    # which can be used to interpolate the XYZ and normal values to then query with NeRF
+    uv_coords, uv_indices = get_texture_image(num_pixels_per_side, num_pixels_per_side, device)
+    uv_coords_shape = uv_coords.shape
+    p = uv_coords.reshape(1, -1, 2)  # (1, N, 2)
+    # v0 = texture_coordinates[:, 0:1, :] # (F, 1, 2)
+    # v1 = texture_coordinates[:, 1:2, :] # (F, 1, 2)
+    # v2 = texture_coordinates[:, 2:3, :] # (F, 1, 2)
+    num_faces = texture_coordinates.shape[0]
+    chunk_size = 10
+    triangle_distances = torch.ones_like(p[..., 0]) * torch.finfo(torch.float32).max  # (1, N)
+    triangle_indices = torch.zeros_like(p[..., 0]).long() # (1, N)
+    triangle_w0 = torch.zeros_like(p[..., 0])  # (1, N)
+    triangle_w1 = torch.zeros_like(p[..., 0])  # (1, N)
+    triangle_w2 = torch.zeros_like(p[..., 0])  # (1, N)
+    for i in range(math.ceil(num_faces // chunk_size)):
+        print(i)
+        s = i * chunk_size
+        e = min((i + 1) * chunk_size, num_faces)
+        v0 = texture_coordinates[s:e, 0:1, :]  # (F, 1, 2)
+        v1 = texture_coordinates[s:e, 1:2, :]  # (F, 1, 2)
+        v2 = texture_coordinates[s:e, 2:3, :]  # (F, 1, 2)
+        epsilon = 1e-8
+        area = get_parallelogram_area(v2, v0, v1) + epsilon  # 2x face area.
+        w0 = get_parallelogram_area(p, v1, v2) / area
+        w1 = get_parallelogram_area(p, v2, v0) / area
+        w2 = get_parallelogram_area(p, v0, v1) / area
+        # get distance from center of triangle
+        dist_to_center = (w0 / 3.0) ** 2 + (w1 / 3.0) ** 2 + (w2 / 3.0) ** 2
+        d_values, d_indices = torch.min(dist_to_center, dim=0, keepdim=True)
+        d_indices = d_indices + s # add offset
+        print(d_values.shape)
+        print(d_indices.shape)
+        print(triangle_distances.shape)
+        print(triangle_indices.shape)
+        condition = d_values < triangle_distances
+        triangle_distances = torch.where(condition, d_values, triangle_distances)
+        triangle_indices = torch.where(condition, d_indices, triangle_indices)
+        triangle_w0 = torch.where(condition, w0, triangle_w0)
+        triangle_w1 = torch.where(condition, w1, triangle_w1)
+        triangle_w2 = torch.where(condition, w2, triangle_w2)
+
+    print(triangle_indices)
+
+    nearby_vertices = vertices[faces[triangle_indices[0]]]  # (N, 3, 3)
+    nearby_normals = vertex_normals[faces[triangle_indices[0]]]  # (N, 3, 3)
+    print(nearby_normals.shape)
+
+    origins = (
+        nearby_vertices[..., 0, :] * triangle_w0[0, :, None]
+        + nearby_vertices[..., 1, :] * triangle_w1[0, :, None]
+        + nearby_vertices[..., 2, :] * triangle_w2[0, :, None]
+    ).float()
+    directions = -(
+        nearby_normals[..., 0, :] * triangle_w0[0, :, None]
+        + nearby_normals[..., 1, :] * triangle_w1[0, :, None]
+        + nearby_normals[..., 2, :] * triangle_w2[0, :, None]
+    ).float()
+
+    origins = origins.reshape(uv_coords_shape[0], uv_coords_shape[1], 3)
+    directions = directions.reshape(uv_coords_shape[0], uv_coords_shape[1], 3)
+
     # normalize the direction vector to make it a unit vector
     directions = torch.nn.functional.normalize(directions, dim=-1)
 
