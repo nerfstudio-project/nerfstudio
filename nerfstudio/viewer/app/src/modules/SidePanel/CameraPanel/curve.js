@@ -47,30 +47,15 @@ export function get_curve_object_from_cameras(
     fovs.push(new THREE.Vector3(0, 0, camera.fov));
   }
 
-  if (is_cycle) {
-    const camera = cameras[0];
-
-    const up = new THREE.Vector3(0, 1, 0);
-    const lookat = new THREE.Vector3(0, 0, 1);
-
-    up.applyQuaternion(camera.quaternion);
-    lookat.applyQuaternion(camera.quaternion);
-
-    positions.push(camera.position);
-    ups.push(up);
-    lookats.push(lookat);
-    fovs.push(new THREE.Vector3(0, 0, camera.fov));
-  }
-
   let curve_positions = null;
   let curve_lookats = null;
   let curve_ups = null;
   let curve_fovs = null;
 
-  curve_positions = get_catmull_rom_curve(positions, false, smoothness_value);
-  curve_lookats = get_catmull_rom_curve(lookats, false, smoothness_value);
-  curve_ups = get_catmull_rom_curve(ups, false, smoothness_value);
-  curve_fovs = get_catmull_rom_curve(fovs, false, 0.05);
+  curve_positions = get_catmull_rom_curve(positions, is_cycle, smoothness_value);
+  curve_lookats = get_catmull_rom_curve(lookats, is_cycle, smoothness_value);
+  curve_ups = get_catmull_rom_curve(ups, is_cycle, smoothness_value);
+  curve_fovs = get_catmull_rom_curve(fovs, is_cycle, smoothness_value / 10);
 
   const curve_object = {
     curve_positions,
