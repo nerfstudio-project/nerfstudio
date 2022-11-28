@@ -89,6 +89,9 @@ class SemanticNerfWModel(Model):
         # Fields
         self.field = TCNNNerfactoField(
             self.scene_box.aabb,
+            num_levels=self.config.num_levels,
+            max_res=self.config.max_res,
+            log2_hashmap_size=self.config.log2_hashmap_size,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
