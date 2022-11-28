@@ -429,7 +429,7 @@ class ProcessRecord3D:
         record3d_image_dir = self.data / "rgb"
 
         if not record3d_image_dir.exists():
-            raise ValueError(f"Image directory {image_dir} doesn't exist")
+            raise ValueError(f"Image directory {record3d_image_dir} doesn't exist")
 
         record3d_image_filenames = []
         for f in record3d_image_dir.iterdir():
@@ -663,11 +663,12 @@ class ProcessMetashape:
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
             sys.exit(1)
-        summary_log.append(
+        summary_log.extend(
             metashape_utils.metashape_to_json(
                 image_filename_map=image_filename_map,
                 xml_filename=self.xml,
                 output_dir=self.output_dir,
+                verbose=self.verbose,
             )
         )
 
