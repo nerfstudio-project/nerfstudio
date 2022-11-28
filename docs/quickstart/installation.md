@@ -59,10 +59,6 @@ ns-install-cli
 
 See the [export geometry docs](export_geometry.md) for more details.
 
-```bash
-pip install git+https://github.com/NVlabs/nvdiffrast/
-```
-
 **Development packages**
 
 ```bash

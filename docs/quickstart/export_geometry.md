@@ -4,11 +4,7 @@ Here we document how to export point clouds and meshes from nerfstudio. The main
 
 ## Install extra dependencies
 
-If you want to texture the mesh with `--unwrap-method xatlas`, then you need to install the following package shown below. We use [nvdiffrast](https://github.com/NVlabs/nvdiffrast/) to rasterize the mesh and interpolate vertices and normals in the texture image.
-
-```bash
-pip install git+https://github.com/NVlabs/nvdiffrast/
-```
+If you want to texture the mesh with `--unwrap-method xatlas`, then you need to install the following package shown below. We use PyTorch to rasterize the mesh and interpolate vertices and normals in the texture image.
 
 ## Exporting a mesh
 

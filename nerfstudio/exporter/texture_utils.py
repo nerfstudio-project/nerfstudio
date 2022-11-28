@@ -33,7 +33,6 @@ from typing_extensions import Literal
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from tqdm import tqdm
 
 CONSOLE = Console(width=120)
 
@@ -193,6 +192,7 @@ def unwrap_mesh_with_xatlas(
     faces: TensorType["num_faces", 3, torch.long],
     vertex_normals: TensorType["num_verts", 3],
     num_pixels_per_side=1024,
+    num_faces_per_barycentric_chunk=100,
 ) -> Tuple[
     TensorType["num_faces", 3, 2],
     TensorType["num_pixels", "num_pixels", 3],
@@ -208,6 +208,7 @@ def unwrap_mesh_with_xatlas(
         faces: Tensor of mesh faces.
         vertex_normals: Tensor of mesh vertex normals.
         num_pixels_per_side: Number of pixels per side of the texture image. We use a square.
+        num_faces_per_barycentric_chunk: Number of faces to use for barycentric chunk computation.
 
     Returns:
         texture_coordinates: Tensor of texture coordinates for every face.
@@ -217,6 +218,7 @@ def unwrap_mesh_with_xatlas(
 
     # pylint: disable=import-outside-toplevel
     # pylint: disable=unused-variable
+    # pylint: disable=too-many-statements
     import xatlas
 
     device = vertices.device
@@ -231,8 +233,6 @@ def unwrap_mesh_with_xatlas(
 
     # vertices texture coordinates
     vertices_tc = torch.from_numpy(uvs.astype(np.float32)).to(device)
-    # face vertex indices
-    face_vi = torch.from_numpy(indices.astype(np.int64)).int().to(device)
 
     # render uv maps
     vertices_tc = vertices_tc * 2.0 - 1.0  # uvs to range [-1, 1]
@@ -243,44 +243,24 @@ def unwrap_mesh_with_xatlas(
     texture_coordinates = torch.from_numpy(uvs[indices]).to(device)  # (num_faces, 3, 2)
 
     ####
-    # This uses nvdiffrast.
-    # This has an artifact where the edges look bad.
-    ####
-    # import nvdiffrast.torch as dr
-    # glctx = dr.RasterizeCudaContext()
-    # h = num_pixels_per_side
-    # w = num_pixels_per_side
-    # rast, _ = dr.rasterize(glctx, vertices_tc.unsqueeze(0), face_vi, (h, w))  # [1, h, w, 4]
-    # triangle_id = rast[..., 3].long()  # [1, h, w]
-    # xyz, _ = dr.interpolate(vertices.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
-    # xyz = xyz[0]  # [h, w, 3]
-    # nor, _ = dr.interpolate(vertex_normals.unsqueeze(0).float().contiguous(), rast, faces.int())  # [1, h, w, 3]
-    # nor = nor[0]  # [h, w, 3]
-
-    ####
     # This uses PyTorch.
     ####
     # Now find the triangle indices for every pixel and the barycentric coordinates
     # which can be used to interpolate the XYZ and normal values to then query with NeRF
-    uv_coords, uv_indices = get_texture_image(num_pixels_per_side, num_pixels_per_side, device)
+    uv_coords, _ = get_texture_image(num_pixels_per_side, num_pixels_per_side, device)
     uv_coords_shape = uv_coords.shape
     p = uv_coords.reshape(1, -1, 2)  # (1, N, 2)
-    # v0 = texture_coordinates[:, 0:1, :] # (F, 1, 2)
-    # v1 = texture_coordinates[:, 1:2, :] # (F, 1, 2)
-    # v2 = texture_coordinates[:, 2:3, :] # (F, 1, 2)
     num_vertices = p.shape[1]
     num_faces = texture_coordinates.shape[0]
-    chunk_size = 10
     triangle_distances = torch.ones_like(p[..., 0]) * torch.finfo(torch.float32).max  # (1, N)
     triangle_indices = torch.zeros_like(p[..., 0]).long()  # (1, N)
     triangle_w0 = torch.zeros_like(p[..., 0])  # (1, N)
     triangle_w1 = torch.zeros_like(p[..., 0])  # (1, N)
     triangle_w2 = torch.zeros_like(p[..., 0])  # (1, N)
     arange_list = torch.arange(num_vertices, device=device)
-    for i in range(num_faces // chunk_size):
-        # print(i)
-        s = i * chunk_size
-        e = min((i + 1) * chunk_size, num_faces)
+    for i in track(range(num_faces // num_faces_per_barycentric_chunk), description="Chunking up rasterization"):
+        s = i * num_faces_per_barycentric_chunk
+        e = min((i + 1) * num_faces_per_barycentric_chunk, num_faces)
         v0 = texture_coordinates[s:e, 0:1, :]  # (F, 1, 2)
         v1 = texture_coordinates[s:e, 1:2, :]  # (F, 1, 2)
         v2 = texture_coordinates[s:e, 2:3, :]  # (F, 1, 2)
