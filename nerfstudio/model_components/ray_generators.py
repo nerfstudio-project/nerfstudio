@@ -52,7 +52,7 @@ class RayGenerator(nn.Module):
         camera_opt_to_camera = self.pose_optimizer(c)
 
         ray_bundle = self.cameras.generate_rays(
-            camera_indices=c,
+            camera_indices=c.unsqueeze(-1),
             coords=coords,
             camera_opt_to_camera=camera_opt_to_camera,
         )

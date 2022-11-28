@@ -77,6 +77,14 @@ function MenuItems(props: ListItemProps) {
   const toggleVisible = (e) => {
     e.stopPropagation();
     setVisible(!visible);
+    scene_node.object.traverse(
+      (obj) => {
+        if (obj.name === 'CAMERA_LABEL') {
+          // eslint-disable-next-line no-param-reassign
+          obj.visible = !visible;
+        }
+      }
+    );
   };
 
   React.useEffect(() => {
