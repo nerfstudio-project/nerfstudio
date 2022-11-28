@@ -43,7 +43,7 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors, misc
+from nerfstudio.utils import colormaps, colors, math, misc
 
 
 @dataclass
@@ -119,13 +119,26 @@ class DreamFusionModel(Model):
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
         pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
+        # lambertian shading
+        light_d = ray_bundle.origins[0]  # + torch.randn(3, dtype=torch.float).to(normals)
+        light_d = math.safe_normalize(light_d)
+
+        ratio = 0.5
+        lambertian = ratio + (1 - ratio) * (pred_normals @ light_d).clamp(min=0)  # [N,]
+
+        shaded = lambertian.unsqueeze(-1).repeat(1, 3)
+        shaded_albedo = rgb * lambertian.unsqueeze(-1)
+
         outputs = {
             "rgb": rgb,
             "accumulation": accumulation,
             "depth": depth,
             "normals": normals,
             "pred_normals": pred_normals,
+            "shaded": shaded,
+            "shaded_albedo": shaded_albedo,
         }
+
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
