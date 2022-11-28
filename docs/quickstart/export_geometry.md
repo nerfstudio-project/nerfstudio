@@ -46,7 +46,7 @@ ns-export --help
 
 ## Texturing an existing mesh with NeRF
 
-Say you want to simplify and/or smooth a mesh offline, and then you want to texture it with NeRF. You can do that with the following command. It will work for any mesh filetypes that trimesh can support, for example a `.ply`.
+Say you want to simplify and/or smooth a mesh offline, and then you want to texture it with NeRF. You can do that with the following command. It will work for any mesh filetypes that [PyMeshLab](https://pymeshlab.readthedocs.io/en/latest/) can support, for example a `.ply`.
 
 ```python
 python scripts/texture.py --load-config CONFIG.yml --output-dir OUTPUT_DIR --input-mesh-filename FILENAME

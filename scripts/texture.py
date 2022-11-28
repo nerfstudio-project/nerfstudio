@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 import tyro
 from rich.console import Console
@@ -36,6 +37,8 @@ class TextureMesh:
     """The method to use for unwrapping the mesh."""
     num_pixels_per_side: int = 2048
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
+    target_num_faces: Optional[int] = 10000
+    """Target number of faces for the mesh to texture."""
 
     def main(self) -> None:
         """Export textured mesh"""
@@ -45,7 +48,7 @@ class TextureMesh:
             self.output_dir.mkdir(parents=True)
 
         # load the Mesh
-        mesh = get_mesh_from_filename(str(self.input_mesh_filename))
+        mesh = get_mesh_from_filename(str(self.input_mesh_filename), target_num_faces=self.target_num_faces)
 
         # load the Pipeline
         _, pipeline, _ = eval_setup(self.load_config, test_mode="inference")

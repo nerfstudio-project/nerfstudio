@@ -35,6 +35,7 @@ dependencies = [
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
     "protobuf==3.20.0",
+    "pymeshlab==2022.2.post2",
     "pyngrok==5.1.0",
     "python-socketio==5.7.1",
     "requests",
@@ -45,7 +46,6 @@ dependencies = [
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
-    "trimesh[easy]==3.16.0",
     "u-msgpack-python>=2.4.1",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3"

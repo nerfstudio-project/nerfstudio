@@ -16,6 +16,8 @@
 TSDF utils.
 """
 
+# pylint: disable=no-member
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -23,9 +25,9 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+import pymeshlab
 import torch
 import torch.nn.functional as F
-import trimesh
 from rich.console import Console
 from skimage import measure
 from torchtyping import TensorType
@@ -136,21 +138,35 @@ class TSDF:
     @classmethod
     def export_mesh(cls, mesh: Mesh, filename: str):
         """Exports the mesh to a file.
-        We use trimesh to export the mesh as a PLY file.
+        We use pymeshlab to export the mesh as a PLY file.
 
         Args:
             mesh: The mesh to export.
             filename: The filename to export the mesh to.
         """
-        assert filename.endswith(".ply"), "Only .ply files are supported."
-        # TODO(ethan): rename normals to vertex_normals
-        mesh_trimesh = trimesh.Trimesh(
-            vertices=mesh.vertices.cpu().numpy(),
-            faces=mesh.faces.cpu().numpy(),
-            normals=mesh.normals.cpu().numpy(),
-            vertex_colors=mesh.colors.cpu().numpy(),
+        vertex_matrix = mesh.vertices.cpu().numpy().astype("float64")
+        face_matrix = mesh.faces.cpu().numpy().astype("int32")
+        v_normals_matrix = mesh.normals.cpu().numpy().astype("float64")
+        v_color_matrix = mesh.colors.cpu().numpy().astype("float64")
+        # colors need an alpha channel
+        v_color_matrix = np.concatenate([v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1)
+
+        print(vertex_matrix.dtype, face_matrix.dtype, v_normals_matrix.dtype, v_color_matrix.dtype)
+        print(vertex_matrix.shape, face_matrix.shape, v_normals_matrix.shape, v_color_matrix.shape)
+
+        # create a new Mesh
+        m = pymeshlab.Mesh(
+            vertex_matrix=vertex_matrix,
+            face_matrix=face_matrix,
+            v_normals_matrix=v_normals_matrix,
+            v_color_matrix=v_color_matrix,
         )
-        mesh_trimesh.export(filename)
+        # create a new MeshSet
+        ms = pymeshlab.MeshSet()
+        # add the mesh to the MeshSet
+        ms.add_mesh(m, "mesh")
+        # save the current mesh
+        ms.save_current_mesh(filename)
 
     def integrate_tsdf(
         self,

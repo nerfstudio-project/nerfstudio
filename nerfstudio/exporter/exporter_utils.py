@@ -16,6 +16,8 @@
 Export utils such as structs, point cloud generation, and rendering code.
 """
 
+# pylint: disable=no-member
+
 from __future__ import annotations
 
 import sys
@@ -24,8 +26,8 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
+import pymeshlab
 import torch
-import trimesh
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -58,20 +60,27 @@ class Mesh:
     """Colors of the mesh."""
 
 
-def get_mesh_from_trimesh(mesh: trimesh.Trimesh) -> Mesh:
-    """Get a Mesh from a trimesh."""
+def get_mesh_from_pymeshlab_mesh(mesh: pymeshlab.Mesh) -> Mesh:
+    """Get a Mesh from a pymeshlab mesh.
+    See https://pymeshlab.readthedocs.io/en/0.1.5/classes/mesh.html for details.
+    """
     return Mesh(
-        vertices=torch.from_numpy(mesh.vertices),
-        faces=torch.from_numpy(mesh.faces),
-        normals=torch.from_numpy(np.copy(mesh.vertex_normals)),
-        colors=torch.from_numpy(mesh.visual.vertex_colors),
+        vertices=torch.from_numpy(mesh.vertex_matrix()).float(),
+        faces=torch.from_numpy(mesh.face_matrix()).long(),
+        normals=torch.from_numpy(np.copy(mesh.vertex_normal_matrix())).float(),
+        colors=torch.from_numpy(mesh.vertex_color_matrix()).float(),
     )
 
 
-def get_mesh_from_filename(filename: str) -> Mesh:
+def get_mesh_from_filename(filename: str, target_num_faces: Optional[int] = None) -> Mesh:
     """Get a Mesh from a filename."""
-    trimesh_mesh = trimesh.load(filename)
-    return get_mesh_from_trimesh(trimesh_mesh)
+    ms = pymeshlab.MeshSet()
+    ms.load_new_mesh(filename)
+    if target_num_faces is not None:
+        CONSOLE.print("Running meshing decimation with quadric edge collapse")
+        ms.meshing_decimation_quadric_edge_collapse(targetfacenum=target_num_faces)
+    mesh = ms.current_mesh()
+    return get_mesh_from_pymeshlab_mesh(mesh)
 
 
 def generate_point_cloud(

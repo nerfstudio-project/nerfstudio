@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import open3d as o3d
@@ -118,6 +118,8 @@ class ExportTSDFMesh(Exporter):
     """The method to use for unwrapping the mesh."""
     num_pixels_per_side: int = 2048
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
+    target_num_faces: Optional[int] = 10000
+    """Target number of faces for the mesh to texture."""
 
     def main(self) -> None:
         """Export mesh"""
@@ -145,7 +147,9 @@ class ExportTSDFMesh(Exporter):
         # and a material and texture file
         if self.texture_method == "nerf":
             # load the mesh from the tsdf export
-            mesh = get_mesh_from_filename(str(self.output_dir / "tsdf_mesh.ply"))
+            mesh = get_mesh_from_filename(
+                str(self.output_dir / "tsdf_mesh.ply"), target_num_faces=self.target_num_faces
+            )
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(
                 mesh,
@@ -191,6 +195,8 @@ class ExportPoissonMesh(Exporter):
     """The method to use for unwrapping the mesh."""
     num_pixels_per_side: int = 2048
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
+    target_num_faces: Optional[int] = 10000
+    """Target number of faces for the mesh to texture."""
 
     def main(self) -> None:
         """Export mesh"""
@@ -241,7 +247,9 @@ class ExportPoissonMesh(Exporter):
         # and a material and texture file
         if self.texture_method == "nerf":
             # load the mesh from the poisson reconstruction
-            mesh = get_mesh_from_filename(str(self.output_dir / "poisson_mesh.ply"))
+            mesh = get_mesh_from_filename(
+                str(self.output_dir / "poisson_mesh.ply"), target_num_faces=self.target_num_faces
+            )
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(
                 mesh,

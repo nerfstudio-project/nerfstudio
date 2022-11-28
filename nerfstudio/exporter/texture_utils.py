@@ -16,6 +16,8 @@
 Texture utils.
 """
 
+# pylint: disable=no-member
+
 from __future__ import annotations
 
 import math
@@ -165,8 +167,7 @@ def unwrap_mesh_per_uv_triangle(
     v1 = nearby_uv_coords[..., 1, :]  # (num_pixels, num_pixels, 2)
     v2 = nearby_uv_coords[..., 2, :]  # (num_pixels, num_pixels, 2)
     p = uv_coords  # (num_pixels, num_pixels, 2)
-    epsilon = 1e-8
-    area = get_parallelogram_area(v2, v0, v1) + epsilon  # 2x face area.
+    area = get_parallelogram_area(v2, v0, v1)  # 2x face area.
     w0 = get_parallelogram_area(p, v1, v2) / area
     w1 = get_parallelogram_area(p, v2, v0) / area
     w2 = get_parallelogram_area(p, v0, v1) / area
@@ -242,9 +243,6 @@ def unwrap_mesh_with_xatlas(
 
     texture_coordinates = torch.from_numpy(uvs[indices]).to(device)  # (num_faces, 3, 2)
 
-    ####
-    # This uses PyTorch.
-    ####
     # Now find the triangle indices for every pixel and the barycentric coordinates
     # which can be used to interpolate the XYZ and normal values to then query with NeRF
     uv_coords, _ = get_texture_image(num_pixels_per_side, num_pixels_per_side, device)
@@ -264,29 +262,25 @@ def unwrap_mesh_with_xatlas(
         v0 = texture_coordinates[s:e, 0:1, :]  # (F, 1, 2)
         v1 = texture_coordinates[s:e, 1:2, :]  # (F, 1, 2)
         v2 = texture_coordinates[s:e, 2:3, :]  # (F, 1, 2)
-        epsilon = 1e-8
-        area = get_parallelogram_area(v2, v0, v1) + epsilon  # 2x face area.
         # NOTE: could try clockwise vs counter clockwise
-        w0 = get_parallelogram_area(p, v1, v2) / area
+        area = get_parallelogram_area(v2, v0, v1)  # 2x face area.
+        w0 = get_parallelogram_area(p, v1, v2) / area  # (num_faces_per_barycentric_chunk, N)
         w1 = get_parallelogram_area(p, v2, v0) / area
         w2 = get_parallelogram_area(p, v0, v1) / area
         # get distance from center of triangle
-        dist_to_center = (w0 / 3.0) ** 2 + (w1 / 3.0) ** 2 + (w2 / 3.0) ** 2
+        dist_to_center = torch.abs(w0) + torch.abs(w1) + torch.abs(w2)
         d_values, d_indices = torch.min(dist_to_center, dim=0, keepdim=True)
         d_indices_with_offset = d_indices + s  # add offset
         condition = d_values < triangle_distances
         triangle_distances = torch.where(condition, d_values, triangle_distances)
         triangle_indices = torch.where(condition, d_indices_with_offset, triangle_indices)
-        w0_selected = torch.zeros_like(triangle_w0)
-        w1_selected = torch.zeros_like(triangle_w0)
-        w2_selected = torch.zeros_like(triangle_w0)
-        w0_selected = w0[d_indices[0], arange_list]
-        w1_selected = w1[d_indices[0], arange_list]
-        w2_selected = w2[d_indices[0], arange_list]
+        w0_selected = w0[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
+        w1_selected = w1[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
+        w2_selected = w2[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
         triangle_w0 = torch.where(condition, w0_selected, triangle_w0)
         triangle_w1 = torch.where(condition, w1_selected, triangle_w1)
         triangle_w2 = torch.where(condition, w2_selected, triangle_w2)
-        
+
     nearby_vertices = vertices[faces[triangle_indices[0]]]  # (N, 3, 3)
     nearby_normals = vertex_normals[faces[triangle_indices[0]]]  # (N, 3, 3)
 
