@@ -30,7 +30,7 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 
-from nerfstudio.field_components.encodings import NeRFEncoding, 
+# from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
 from nerfstudio.model_components.losses import MSELoss

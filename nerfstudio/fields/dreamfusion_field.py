@@ -103,14 +103,6 @@ class DreamFusionField(Field):
         features_per_level = 2
         growth_factor = np.exp((np.log(max_res) - np.log(base_res)) / (num_levels - 1))
 
-        self.direction_encoding = tcnn.Encoding(
-            n_input_dims=3,
-            encoding_config={
-                "otype": "SphericalHarmonics",
-                "degree": 4,
-            },
-        )
-
         self.position_encoding = tcnn.Encoding(
             n_input_dims=3,
             encoding_config={"otype": "Frequency", "n_frequencies": 2},
@@ -191,7 +183,6 @@ class DreamFusionField(Field):
 
         directions = get_normalized_directions(ray_samples.frustums.directions)
         directions_flat = directions.view(-1, 3)
-        d = self.direction_encoding(directions_flat)
 
         outputs_shape = ray_samples.frustums.directions.shape[:-1]
 
@@ -205,7 +196,7 @@ class DreamFusionField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
-        h = [density_embedding.view(-1, self.geo_feat_dim)]
+        h = density_embedding.view(-1, self.geo_feat_dim)
 
         rgb = self.mlp_head(h).view(*outputs_shape, -1).to(directions)
         outputs.update({FieldHeadNames.RGB: rgb})
