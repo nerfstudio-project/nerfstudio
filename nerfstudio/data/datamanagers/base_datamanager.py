@@ -341,6 +341,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
         if is_equirectangular.all():
             return EquirectangularPixelSampler(*args, **kwargs)
+        # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
         return PixelSampler(*args, **kwargs)

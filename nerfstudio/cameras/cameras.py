@@ -590,8 +590,15 @@ class Cameras(TensorDataclass):
         elif distortion_params_delta is not None:
             distortion_params = distortion_params_delta
 
-        if distortion_params is not None and self.camera_type[0] != CameraType.EQUIRECTANGULAR.value:
-            coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
+        # Do not apply distortion for equirectangular images
+        if distortion_params is not None:
+            mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+            coord_mask = torch.stack([mask, mask, mask], dim=0)
+            if mask.any():
+                coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                    coord_stack[coord_mask, :].reshape(3, -1, 2),
+                    distortion_params[mask, :],
+                ).reshape(-1, 2)
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
@@ -637,7 +644,7 @@ class Cameras(TensorDataclass):
             directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
 
         for value in cam_types:
-            if value not in [CameraType.PERSPECTIVE.value, CameraType.FISHEYE.value]:
+            if value not in [CameraType.PERSPECTIVE.value, CameraType.FISHEYE.value, CameraType.EQUIRECTANGULAR.value]:
                 raise ValueError(f"Camera type {value} not supported.")
 
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
