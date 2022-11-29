@@ -35,7 +35,7 @@ try:
         pairs_from_retrieval,
         reconstruction,
     )
-    from pycolmap import pycolmap
+    import pycolmap
 except ImportError:
     _HAS_HLOC = False
 else:
