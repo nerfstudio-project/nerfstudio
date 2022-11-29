@@ -38,6 +38,7 @@ class CameraType(Enum):
 
     PERSPECTIVE = auto()
     FISHEYE = auto()
+    EQUIRECTANGULAR = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -47,6 +48,7 @@ CAMERA_MODEL_TO_TYPE = {
     "RADIAL": CameraType.PERSPECTIVE,
     "OPENCV": CameraType.PERSPECTIVE,
     "OPENCV_FISHEYE": CameraType.FISHEYE,
+    "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
 }
 
 
@@ -299,7 +301,7 @@ class Cameras(TensorDataclass):
             image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
-    def generate_rays(
+    def generate_rays(  # pylint: disable=too-many-statements
         self,
         camera_indices: Union[TensorType["num_rays":..., "num_cameras_batch_dims"], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
@@ -588,8 +590,15 @@ class Cameras(TensorDataclass):
         elif distortion_params_delta is not None:
             distortion_params = distortion_params_delta
 
+        # Do not apply distortion for equirectangular images
         if distortion_params is not None:
-            coord_stack = camera_utils.radial_and_tangential_undistort(coord_stack, distortion_params)
+            mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+            coord_mask = torch.stack([mask, mask, mask], dim=0)
+            if mask.any():
+                coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                    coord_stack[coord_mask, :].reshape(3, -1, 2),
+                    distortion_params[mask, :],
+                ).reshape(-1, 2)
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
@@ -621,8 +630,21 @@ class Cameras(TensorDataclass):
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
             directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
 
+        if CameraType.EQUIRECTANGULAR.value in cam_types:
+            mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+            mask = torch.stack([mask, mask, mask], dim=0)
+
+            # For equirect, fx = fy = height = width/2
+            # Then coord[..., 0] goes from -1 to 1 and coord[..., 1] goes from -1/2 to 1/2
+            theta = -torch.pi * coord_stack[..., 0]  # minus sign for right-handed
+            phi = torch.pi * (0.5 - coord_stack[..., 1])
+            # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
+            directions_stack[..., 0][mask] = torch.masked_select(-torch.sin(theta) * torch.sin(phi), mask).float()
+            directions_stack[..., 1][mask] = torch.masked_select(torch.cos(phi), mask).float()
+            directions_stack[..., 2][mask] = torch.masked_select(-torch.cos(theta) * torch.sin(phi), mask).float()
+
         for value in cam_types:
-            if value not in [CameraType.PERSPECTIVE.value, CameraType.FISHEYE.value]:
+            if value not in [CameraType.PERSPECTIVE.value, CameraType.FISHEYE.value, CameraType.EQUIRECTANGULAR.value]:
                 raise ValueError(f"Camera type {value} not supported.")
 
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
