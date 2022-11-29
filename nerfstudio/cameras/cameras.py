@@ -244,7 +244,7 @@ class Cameras(TensorDataclass):
             if times.ndim == 0 or times.shape[-1] != 1:
                 times = times.unsqueeze(-1).to(self.device)
         else:
-            raise ValueError(f"times must be a tensor, got {type(times)}")
+            raise ValueError(f"times must be None or a tensor, got {type(times)}")
 
         return times
 
