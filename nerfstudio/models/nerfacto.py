@@ -106,7 +106,7 @@ class NerfactoModelConfig(ModelConfig):
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
-    predict_normals: bool = False
+    predict_normals: bool = True
     """Whether to predict normals or not."""
 
 

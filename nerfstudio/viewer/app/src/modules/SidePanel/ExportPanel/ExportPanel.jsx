@@ -4,7 +4,6 @@ import * as React from 'react';
 import { Box, Typography, Tab, Tabs } from '@mui/material';
 import { LevaPanel, LevaStoreProvider, useCreateStore } from 'leva';
 import BlurOnIcon from '@mui/icons-material/BlurOn';
-import CategoryIcon from '@mui/icons-material/Category';
 import PointcloudSubPanel from './PointcloudSubPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
 
@@ -67,17 +66,17 @@ export default function ExportPanel(props) {
         <Tab
           icon={<BlurOnIcon />}
           iconPosition="start"
-          label="Point Cloud"
+          label="Point Cloud and Mesh"
           disableRipple
           {...a11yProps(0)}
         />
-        <Tab
+        {/* <Tab
           icon={<CategoryIcon />}
           iconPosition="start"
           label="Mesh"
           disableRipple
           {...a11yProps(1)}
-        />
+        /> */}
       </Tabs>
       <TabPanel value={type_value} index={0}>
         <LevaPanel
@@ -95,9 +94,9 @@ export default function ExportPanel(props) {
           />
         </LevaStoreProvider>
       </TabPanel>
-      <TabPanel value={type_value} index={1}>
-        Coming Soon
-      </TabPanel>
+      {/* <TabPanel value={type_value} index={1}>
+        Coming soon...
+      </TabPanel> */}
     </div>
   );
 }

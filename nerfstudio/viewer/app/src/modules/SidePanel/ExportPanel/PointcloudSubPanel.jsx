@@ -102,7 +102,12 @@ export default function PointcloudSubPanel(props) {
           });
         },
       },
-      outputDir: { label: 'Output Directory', value: 'pcd/' },
+      outputDir: { label: 'Output Directory', value: 'exports/' },
+      meshMethod: {
+        label: 'Mesh Method',
+        value: 'poisson',
+        options: ['poisson', 'tsdf'],
+      }
     },
     { store },
   );
@@ -133,8 +138,22 @@ export default function PointcloudSubPanel(props) {
     ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
     ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
 
+  const cmd_mesh =
+    `ns-export ${controlValues.meshMethod}` +
+    ` --load-config ${config_filename}` +
+    ` --output-dir ${controlValues.outputDir}` +
+    ` --num-points ${controlValues.numPoints}` +
+    ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}` +
+    ` --use-bounding-box ${getPythonBool(clippingEnabled)}` +
+    ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
+    ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
+
   const handleCopy = () => {
     navigator.clipboard.writeText(cmd);
+  };
+
+  const handleCopyMesh = () => {
+    navigator.clipboard.writeText(cmd_mesh);
   };
 
   useEffect(() => {
@@ -155,7 +174,21 @@ export default function PointcloudSubPanel(props) {
           startIcon={<ContentCopyRoundedIcon />}
           onClick={handleCopy}
         >
-          Copy Command
+          Copy PC Command
+        </Button>
+      </div>
+      <div className="ExportModal-text">
+        Run the following command in a terminal to export the mesh:
+      </div>
+      <div className="ExportModal-code">{cmd_mesh}</div>
+      <div className="ExportModal-button" style={{ textAlign: 'center' }}>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ContentCopyRoundedIcon />}
+          onClick={handleCopyMesh}
+        >
+          Copy Mesh Command
         </Button>
       </div>
     </div>
