@@ -28,6 +28,7 @@ from typing_extensions import Literal
 from nerfstudio.process_data.process_data_utils import CameraModel
 
 try:
+    import pycolmap
     from hloc import (
         extract_features,
         match_features,
@@ -35,7 +36,6 @@ try:
         pairs_from_retrieval,
         reconstruction,
     )
-    import pycolmap
 except ImportError:
     _HAS_HLOC = False
 else:
