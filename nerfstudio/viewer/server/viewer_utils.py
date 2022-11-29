@@ -325,7 +325,7 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
-        self.vis["renderingState/render_time"].write(str(0))
+        # self.vis["renderingState/render_time"].write(str(0))
 
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
@@ -756,8 +756,9 @@ class ViewerState:
             dim=0,
         )
 
-        times = float(self.vis["renderingState/render_time"].read())
-        times = torch.tensor([times])
+        times = self.vis["renderingState/render_time"].read()
+        if times:
+            times = torch.tensor([float(times)])
 
         camera = Cameras(
             fx=intrinsics_matrix[0, 0],
