@@ -33,7 +33,11 @@ from nerfstudio.cameras.rays import RayBundle
 # from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
-from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.losses import (
+    MSELoss,
+    orientation_loss,
+    pred_normal_loss,
+)
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
@@ -55,6 +59,10 @@ class DreamFusionModelConfig(ModelConfig):
 
     num_samples: int = 256
     """Number of samples in field evaluation"""
+    orientation_loss_mult: float = 0.0001
+    """Orientation loss multipier on computed normals."""
+    pred_normal_loss_mult: float = 0.001
+    """Predicted normal loss multiplier."""
 
 
 class DreamFusionModel(Model):
@@ -63,6 +71,8 @@ class DreamFusionModel(Model):
     Args:
         config: DreamFusion configuration to instantiate model
     """
+
+    config: DreamFusionModelConfig
 
     def __init__(
         self,
@@ -120,10 +130,10 @@ class DreamFusionModel(Model):
         pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # lambertian shading
-        light_d = ray_bundle.origins[0]  # + torch.randn(3, dtype=torch.float).to(normals)
+        light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
         light_d = math.safe_normalize(light_d)
 
-        ratio = 0.5
+        ratio = 0.1
         lambertian = ratio + (1 - ratio) * (pred_normals @ light_d).clamp(min=0)  # [N,]
 
         shaded = lambertian.unsqueeze(-1).repeat(1, 3)
@@ -139,6 +149,17 @@ class DreamFusionModel(Model):
             "shaded_albedo": shaded_albedo,
         }
 
+        if self.training:
+            outputs["rendered_orientation_loss"] = orientation_loss(
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            )
+
+            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+                weights.detach(),
+                field_outputs[FieldHeadNames.NORMALS].detach(),
+                field_outputs[FieldHeadNames.PRED_NORMALS],
+            )
+
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -151,6 +172,16 @@ class DreamFusionModel(Model):
 
         loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
+        if self.training:
+            # orientation loss for computed normals
+            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+                outputs["rendered_orientation_loss"]
+            )
+
+            # ground truth supervision for normals
+            loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
+                outputs["rendered_pred_normal_loss"]
+            )
         return loss_dict
 
     def get_image_metrics_and_images(

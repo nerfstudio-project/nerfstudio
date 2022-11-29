@@ -70,9 +70,6 @@ class DreamFusionField(Field):
         geo_feat_dim: output geo feat dimensions
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
-        appearance_embedding_dim: dimension of appearance embedding
-        transient_embedding_dim: dimension of transient embedding
-        use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
     """
 
