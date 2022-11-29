@@ -373,6 +373,27 @@ def export_textured_mesh(
     texture_image = outputs["rgb"].cpu().numpy()
     media.write_image(str(output_dir / "material_0.png"), texture_image)
 
+    # # Here we render a ray with zero length.
+    # # This could be sped up by quering a single point in 3D,
+    # # but we rely on the current Model functions which require RayBundles as input.
+    # pixel_area = torch.ones_like(origins[..., 0:1])
+    # camera_indices = torch.zeros_like(origins[..., 0:1])
+    # nears = torch.zeros_like(origins[..., 0:1])
+    # fars = nears
+    # camera_ray_bundle = RayBundle(
+    #     origins=origins,
+    #     directions=directions,
+    #     pixel_area=pixel_area,
+    #     camera_indices=camera_indices,
+    #     nears=nears,
+    #     fars=fars,
+    # )
+    # CONSOLE.print("Creating texture image by rendering with NeRF...")
+    # with torch.no_grad():
+    #     outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+    # texture_image_np = outputs["rgb"].cpu().numpy()
+    # media.write_image(str(output_dir / "material_0.png"), texture_image_np)
+
     CONSOLE.print("Writing relevant OBJ information to files...")
     # create the .mtl file
     lines_mtl = [

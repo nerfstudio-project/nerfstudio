@@ -177,7 +177,7 @@ class ExportPoissonMesh(Exporter):
     """Name of the RGB output."""
     normal_method: Literal["open3d", "model_output"] = "model_output"
     """Method to estimate normals with."""
-    normal_output_name: str = "pred_normals"
+    normal_output_name: str = "normals"
     """Name of the normal output."""
     use_bounding_box: bool = True
     """Only query points within the bounding box"""
@@ -231,17 +231,16 @@ class ExportPoissonMesh(Exporter):
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
         CONSOLE.print("Computing Mesh... this may take a while.")
-        with CONSOLE.status("Computing Mesh", spinner="triangle"):
-            mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
-            vertices_to_remove = densities < np.quantile(densities, 0.1)
-            mesh.remove_vertices_by_mask(vertices_to_remove)
-            print("\033[A\033[A")
-            CONSOLE.print("[bold green]:white_check_mark: Computing Mesh")
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+        vertices_to_remove = densities < np.quantile(densities, 0.1)
+        mesh.remove_vertices_by_mask(vertices_to_remove)
+        print("\033[A\033[A")
+        CONSOLE.print("[bold green]:white_check_mark: Computing Mesh")
 
-        with CONSOLE.status("Saving Mesh", spinner="pipe"):
-            o3d.io.write_triangle_mesh(str(self.output_dir / "poisson_mesh.ply"), mesh)
-            print("\033[A\033[A")
-            CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
+        CONSOLE.print("Saving Mesh...")
+        o3d.io.write_triangle_mesh(str(self.output_dir / "poisson_mesh.ply"), mesh)
+        print("\033[A\033[A")
+        CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
 
         # possibly
         # texture the mesh with NeRF and export to a mesh.obj file
