@@ -546,6 +546,11 @@ class ProcessMetashape:
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
 
+        if self.xml.suffix != ".xml":
+            raise ValueError(f"XML file {self.xml} must have a .xml extension")
+        if not self.xml.exists:
+            raise ValueError(f"XML file {self.xml} doesn't exist")
+
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
