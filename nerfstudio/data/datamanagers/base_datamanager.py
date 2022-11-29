@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import torch
 import tyro
@@ -32,6 +32,7 @@ from torch.utils.data.distributed import DistributedSampler
 from typing_extensions import Literal
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
+from nerfstudio.cameras.cameras import CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
@@ -42,14 +43,18 @@ from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
 )
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
+from nerfstudio.data.dataparsers.phototourism_dataparser import (
+    PhototourismDataParserConfig,
+)
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import PixelSampler
+from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
     RandIndicesEvalDataloader,
 )
+from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -66,6 +71,7 @@ AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of
             "nuscenes-data": NuScenesDataParserConfig(),
             "record3d-data": Record3DDataParserConfig(),
             "dnerf-data": DNeRFDataParserConfig(),
+            "phototourism-data": PhototourismDataParserConfig(),
         },
         prefix_names=False,  # Omit prefixes in subcommands themselves.
     )
@@ -266,6 +272,8 @@ class VanillaDataManagerConfig(InstantiateConfig):
     camera_optimizer: CameraOptimizerConfig = CameraOptimizerConfig()
     """Specifies the camera pose optimizer used during training. Helpful if poses are noisy, such as for data from
     Record3D."""
+    collate_fn = staticmethod(nerfstudio_collate)
+    """Specifies the collate function to use for the train and eval dataloaders."""
     camera_res_scale_factor: float = 1.0
     """The scale factor for scaling spatial data such as images, mask, semantics
     along with relevant information about camera intrinsics
@@ -325,6 +333,19 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             scale_factor=self.config.camera_res_scale_factor,
         )
 
+    def _get_pixel_sampler(  # pylint: disable=no-self-use
+        self, dataset: InputDataset, *args: Any, **kwargs: Any
+    ) -> PixelSampler:
+        """Infer pixel sampler to use."""
+        # If all images are equirectangular, use equirectangular pixel sampler
+        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        if is_equirectangular.all():
+            return EquirectangularPixelSampler(*args, **kwargs)
+        # Otherwise, use the default pixel sampler
+        if is_equirectangular.any():
+            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+        return PixelSampler(*args, **kwargs)
+
     def setup_train(self):
         """Sets up the data loaders for training"""
         assert self.train_dataset is not None
@@ -336,9 +357,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
+            collate_fn=self.config.collate_fn,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = PixelSampler(self.config.train_num_rays_per_batch)
+        self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.cameras.size, device=self.device
         )
@@ -358,9 +380,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             device=self.device,
             num_workers=self.world_size * 4,
             pin_memory=True,
+            collate_fn=self.config.collate_fn,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = PixelSampler(self.config.eval_num_rays_per_batch)
+        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.

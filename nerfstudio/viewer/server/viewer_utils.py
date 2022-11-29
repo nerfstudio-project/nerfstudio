@@ -28,7 +28,12 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import (
+    RTCConfiguration,
+    RTCIceServer,
+    RTCPeerConnection,
+    RTCSessionDescription,
+)
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
@@ -320,6 +325,8 @@ class ViewerState:
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
 
+        # self.vis["renderingState/render_time"].write(str(0))
+
         # set the properties of the camera
         # self.vis["renderingState/camera"].write(json_)
 
@@ -367,6 +374,9 @@ class ViewerState:
             step: iteration step of training
             graph: the current checkpoint of the model
         """
+
+        has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
+        self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
@@ -503,7 +513,28 @@ class ViewerState:
         # returns the description to for WebRTC to the specific websocket connection
         offer = RTCSessionDescription(data["sdp"], data["type"])
 
-        pc = RTCPeerConnection()
+        if self.config.skip_openrelay:
+            ice_servers = [
+                RTCIceServer(urls="stun:stun.l.google.com:19302"),
+            ]
+        else:
+            ice_servers = [
+                RTCIceServer(urls="stun:stun.l.google.com:19302"),
+                RTCIceServer(urls="stun:openrelay.metered.ca:80"),
+                RTCIceServer(
+                    urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
+                ),
+                RTCIceServer(
+                    urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
+                ),
+                RTCIceServer(
+                    urls="turn:openrelay.metered.ca:443?transport=tcp",
+                    username="openrelayproject",
+                    credential="openrelayproject",
+                ),
+            ]
+
+        pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
         self.pcs.add(pc)
 
         video = SingleFrameStreamTrack()
@@ -674,6 +705,7 @@ class ViewerState:
 
     @profiler.time_function
     def _render_image_in_viewer(self, camera_object, graph: Model, is_training: bool) -> None:
+        # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
         The image is sent of a TCP connection and then uses WebRTC to send it to the viewer.
@@ -724,12 +756,17 @@ class ViewerState:
             dim=0,
         )
 
+        times = self.vis["renderingState/render_time"].read()
+        if times:
+            times = torch.tensor([float(times)])
+
         camera = Cameras(
             fx=intrinsics_matrix[0, 0],
             fy=intrinsics_matrix[1, 1],
             cx=intrinsics_matrix[0, 2],
             cy=intrinsics_matrix[1, 2],
             camera_to_worlds=camera_to_world[None, ...],
+            times=times,
         )
         camera = camera.to(graph.device)
 

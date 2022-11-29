@@ -34,6 +34,7 @@ const initialState = {
     train_eta: 'Paused',
     vis_train_ratio: 'Paused',
     log_errors: '',
+    renderTime: 0.0,
 
     // export options
     clipping_enabled: true,
