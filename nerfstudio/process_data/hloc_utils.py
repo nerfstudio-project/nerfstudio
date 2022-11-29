@@ -1,3 +1,10 @@
+"""
+Code that uses the hierarchical localization toolbox (hloc)
+to extract and match image features, estimate camera poses,
+and do sparse reconstruction.
+Requires hloc module from : https://github.com/cvg/Hierarchical-Localization
+"""
+
 # Copyright 2022 The Nerfstudio Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,27 +21,25 @@
 
 import sys
 from pathlib import Path
-from typing_extensions import Literal
+
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.process_data.process_data_utils import CameraModel
 
 try:
-    import pycolmap
     from hloc import (
         extract_features,
         match_features,
         pairs_from_exhaustive,
         pairs_from_retrieval,
         reconstruction,
-        visualization,
     )
-    from hloc.triangulation import import_features, import_matches
-    from hloc.utils.io import get_keypoints, get_matches
+    from pycolmap import pycolmap
 except ImportError:
-    _has_hloc = False
+    _HAS_HLOC = False
 else:
-    _has_hloc = True
+    _HAS_HLOC = True
 
 CONSOLE = Console(width=120)
 
@@ -43,7 +48,6 @@ def run_hloc(
     image_dir: Path,
     colmap_dir: Path,
     camera_model: CameraModel,
-    gpu: bool = True,
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     feature_type: Literal[
@@ -63,9 +67,10 @@ def run_hloc(
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
     """
-    if not _has_hloc:
+    if not _HAS_HLOC:
         CONSOLE.print(
-            f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), you must install hloc toolbox!!"
+            f"[bold red]Error: To use this set of parameters ({feature_type}/{matcher_type}/hloc), "
+            "you must install hloc toolbox!!"
         )
         sys.exit(1)
 
@@ -88,10 +93,10 @@ def run_hloc(
         if num_matched >= len(references):
             num_matched = len(references)
         pairs_from_retrieval.main(retrieval_path, sfm_pairs, num_matched=num_matched)
-    match_path = match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
+    match_features.main(matcher_conf, sfm_pairs, features=features, matches=matches)
 
     image_options = pycolmap.ImageReaderOptions(camera_model=camera_model.value)
-    model = reconstruction.main(
+    reconstruction.main(
         sfm_dir,
         image_dir,
         sfm_pairs,

@@ -28,17 +28,19 @@ from nerfstudio.utils import install_checks
 CONSOLE = Console(width=120)
 
 
-def findToolFeatureMatcherCombination(sfm_tool, feature_type, matcher_type):
+def find_tool_feature_matcher_combination(sfm_tool, feature_type, matcher_type):
+    """Find a valid combination of sfm tool, feature type, and matcher type.
+    Basically, replace the default parameters 'any' by usable value"""
     if sfm_tool == "any":
-        if (feature_type == "any" or feature_type == "sift") and (matcher_type == "any" or matcher_type == "NN"):
+        if (feature_type in ("any", "sift")) and (matcher_type in ("any", "NN")):
             sfm_tool = "colmap"
         else:
             sfm_tool = "hloc"
 
     if sfm_tool == "colmap":
         return ("colmap", "sift", "NN")
-    elif sfm_tool == "hloc":
-        if feature_type == "any" or feature_type == "superpoint":
+    if sfm_tool == "hloc":
+        if feature_type in ("any", "superpoint"):
             feature_type = "superpoint_aachen"
 
         if matcher_type == "any":
@@ -70,7 +72,8 @@ class ProcessImages:
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
-    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods such as superpoint features and superglue matcher"""
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
     feature_type: Literal[
         "any",
         "sift",
@@ -125,7 +128,7 @@ class ProcessImages:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(
+            (sfm_tool, feature_type, matcher_type) = find_tool_feature_matcher_combination(
                 self.sfm_tool, self.feature_type, self.matcher_type
             )
 
@@ -144,7 +147,6 @@ class ProcessImages:
                     image_dir=image_dir,
                     colmap_dir=colmap_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
-                    gpu=self.gpu,
                     verbose=self.verbose,
                     matching_method=self.matching_method,
                     feature_type=feature_type,
@@ -197,7 +199,8 @@ class ProcessVideo:
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
     sfm_tool: Literal["any", "colmap", "hloc"] = "any"
-    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods such as superpoint features and superglue matcher"""
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
     feature_type: Literal[
         "any",
         "sift",
@@ -249,7 +252,7 @@ class ProcessVideo:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            (sfm_tool, feature_type, matcher_type) = findToolFeatureMatcherCombination(
+            (sfm_tool, feature_type, matcher_type) = find_tool_feature_matcher_combination(
                 self.sfm_tool, self.feature_type, self.matcher_type
             )
 
@@ -268,7 +271,6 @@ class ProcessVideo:
                     image_dir=image_dir,
                     colmap_dir=colmap_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
-                    gpu=self.gpu,
                     verbose=self.verbose,
                     matching_method=self.matching_method,
                     feature_type=feature_type,
@@ -429,7 +431,7 @@ class ProcessRecord3D:
         record3d_image_dir = self.data / "rgb"
 
         if not record3d_image_dir.exists():
-            raise ValueError(f"Image directory {record3d_image_dir} doesn't exist")
+            raise ValueError(f"Image directory {image_dir} doesn't exist")
 
         record3d_image_filenames = []
         for f in record3d_image_dir.iterdir():
@@ -663,12 +665,11 @@ class ProcessMetashape:
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
             sys.exit(1)
-        summary_log.extend(
+        summary_log.append(
             metashape_utils.metashape_to_json(
                 image_filename_map=image_filename_map,
                 xml_filename=self.xml,
                 output_dir=self.output_dir,
-                verbose=self.verbose,
             )
         )
 
