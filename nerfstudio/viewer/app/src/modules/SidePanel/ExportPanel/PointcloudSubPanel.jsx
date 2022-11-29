@@ -36,7 +36,7 @@ export default function PointcloudSubPanel(props) {
   const material = new THREE.MeshBasicMaterial({
     color: 0xffd369,
     transparent: true,
-    opacity: 0.7,
+    opacity: 0.3,
     side: THREE.DoubleSide,
   });
   const cube = new THREE.Mesh(geometry, material);
@@ -138,13 +138,21 @@ export default function PointcloudSubPanel(props) {
     ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
     ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
 
+  let cmd_numPoints = '';
+  if (controlValues.meshMethod === 'poisson') {
+    cmd_numPoints = ` --num-points ${controlValues.numPoints}`;
+  }
+  let cmd_removeOutliers = '';
+  if (controlValues.meshMethod === 'poisson') {
+    cmd_removeOutliers = ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}`;
+  }
   const cmd_mesh =
     `ns-export ${controlValues.meshMethod}` +
     ` --load-config ${config_filename}` +
-    ` --output-dir ${controlValues.outputDir}` +
-    ` --num-points ${controlValues.numPoints}` +
-    ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}` +
-    ` --use-bounding-box ${getPythonBool(clippingEnabled)}` +
+    ` --output-dir ${controlValues.outputDir}${ 
+    cmd_numPoints 
+    }${cmd_removeOutliers 
+    } --use-bounding-box ${getPythonBool(clippingEnabled)}` +
     ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
     ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
 
