@@ -212,7 +212,7 @@ class Nerfstudio(DataParser):
         else:
             camera_type = CameraType.PERSPECTIVE
 
-        idx_tensor = torch.tensor(indices)
+        idx_tensor = torch.tensor(indices, dtype=torch.long)
         fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
         fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
         cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
@@ -229,7 +229,7 @@ class Nerfstudio(DataParser):
                 p2=float(meta["p2"]) if "p2" in meta else 0.0,
             )
         else:
-            distortion_params = torch.stack(distort, dim=0)[idx_tensor.type(torch.long)]
+            distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 
         cameras = Cameras(
             fx=fx,
