@@ -63,7 +63,7 @@ class ExportPointCloud(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config, test_mode="inference")
+        _, pipeline, _ = eval_setup(self.load_config)
 
         # Increase the batchsize to speed up the evaluation.
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch

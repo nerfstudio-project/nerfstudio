@@ -178,7 +178,7 @@ def generate_point_cloud(
     ind = None
     if remove_outliers:
         CONSOLE.print("Cleaning Point Cloud")
-        pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=1.0)
+        pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=10.0)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
 
