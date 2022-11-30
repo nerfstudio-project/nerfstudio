@@ -46,6 +46,8 @@ def realitycapture_to_json(
     """
     data = {}
     data["camera_model"] = CAMERA_MODELS["perspective"].value
+    # Needs to be a string for camera_utils.auto_orient_and_center_poses
+    data["orientation_override"] = "none"
 
     frames = []
 
@@ -61,23 +63,22 @@ def realitycapture_to_json(
 
     data["h"] = int(height)
     data["w"] = int(width)
-    data["cx"] = width / 2
-    data["cy"] = height / 2
 
     for i, name in enumerate(cameras["#name"]):
         frame = {}
         frame["file_path"] = image_filename_map[name.split(".")[0]].as_posix()
         frame["fl_x"] = float(cameras["f"][i]) * width / 36
         frame["fl_y"] = float(cameras["f"][i]) * width / 36
-        # TODO: Adding these principal points and distortion parameters hurts reconstruction. Must be a bug in the code.
-        # frame["cx"] = float(cameras["px"][i]) / 36.0 + width / 2.0
-        # frame["cy"] = float(cameras["py"][i]) / 36.0 + width / 2.0
-        # frame["k1"] = cameras["k1"][i]
-        # frame["k2"] = cameras["k2"][i]
-        # frame["k3"] = cameras["k3"][i]
-        # frame["k4"] = cameras["k4"][i]
-        # frame["p1"] = cameras["t1"][i]
-        # frame["p2"] = cameras["t2"][i]
+        # TODO: Unclear how to get the principal point from RealityCapture, here a guess...
+        frame["cx"] = float(cameras["px"][i]) / 36.0 + width / 2.0
+        frame["cy"] = float(cameras["py"][i]) / 36.0 + height / 2.0
+        # TODO: Not sure if RealityCapture uses this distortion model
+        frame["k1"] = cameras["k1"][i]
+        frame["k2"] = cameras["k2"][i]
+        frame["k3"] = cameras["k3"][i]
+        frame["k4"] = cameras["k4"][i]
+        frame["p1"] = cameras["t1"][i]
+        frame["p2"] = cameras["t2"][i]
 
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         rot = _get_rotation_matrix(-float(cameras["heading"][i]), float(cameras["pitch"][i]), float(cameras["roll"][i]))
@@ -85,7 +86,7 @@ def realitycapture_to_json(
         transform = np.eye(4)
         transform[:3, :3] = rot
         transform[:3, 3] = np.array([float(cameras["x"][i]), float(cameras["y"][i]), float(cameras["alt"][i])])
-        transform = np.array([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]]) @ transform
+        transform = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) @ transform
 
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
@@ -112,8 +113,8 @@ def _get_rotation_matrix(yaw, pitch, roll):
     s_roll = np.sin(np.deg2rad(roll))
     c_roll = np.cos(np.deg2rad(roll))
 
-    rot_y = np.array([[1, 0, 0], [0, c_roll, -s_roll], [0, s_roll, c_roll]])
-    rot_x = np.array([[c_pitch, 0, s_pitch], [0, 1, 0], [-s_pitch, 0, c_pitch]])
+    rot_x = np.array([[1, 0, 0], [0, c_pitch, -s_pitch], [0, s_pitch, c_pitch]])
+    rot_y = np.array([[c_roll, 0, s_roll], [0, 1, 0], [-s_roll, 0, c_roll]])
     rot_z = np.array([[c_yaw, -s_yaw, 0], [s_yaw, c_yaw, 0], [0, 0, 1]])
 
     return rot_z @ rot_x @ rot_y
