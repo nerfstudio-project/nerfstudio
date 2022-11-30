@@ -183,6 +183,9 @@ class ViewerConfig(PrintableConfig):
     actually used in training/evaluation. If -1, display all."""
     quit_on_train_completion: bool = False
     """Whether to kill the training job when it has completed. Note this will stop rendering in the viewer."""
+    skip_openrelay: bool = False
+    """Avoid using openrelay to communicate with the viewer. Try disabling if you have trouble
+    connecting to the viewer"""
 
 
 from nerfstudio.engine.optimizers import OptimizerConfig

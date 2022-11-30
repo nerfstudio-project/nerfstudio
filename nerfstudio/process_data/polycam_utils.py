@@ -46,18 +46,7 @@ def polycam_to_json(
     Returns:
         Summary of the conversion.
     """
-
-    frame_json = io.load_from_json(cameras_dir / f"{image_filenames[0].stem}.json")
-
-    # TODO Add per-frame intrinsics
-
     data = {}
-    data["fl_x"] = frame_json["fx"]
-    data["fl_y"] = frame_json["fy"]
-    data["cx"] = frame_json["cx"] - crop_border_pixels
-    data["cy"] = frame_json["cy"] - crop_border_pixels
-    data["w"] = frame_json["width"] - crop_border_pixels * 2
-    data["h"] = frame_json["height"] - crop_border_pixels * 2
     data["camera_model"] = CAMERA_MODELS["perspective"].value
     # Needs to be a string for camera_utils.auto_orient_and_center_poses
     data["orientation_override"] = "none"
@@ -71,6 +60,12 @@ def polycam_to_json(
             skipped_frames += 1
             continue
         frame = {}
+        frame["fl_x"] = frame_json["fx"]
+        frame["fl_y"] = frame_json["fy"]
+        frame["cx"] = frame_json["cx"] - crop_border_pixels
+        frame["cy"] = frame_json["cy"] - crop_border_pixels
+        frame["w"] = frame_json["width"] - crop_border_pixels * 2
+        frame["h"] = frame_json["height"] - crop_border_pixels * 2
         frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         frame["transform_matrix"] = [
