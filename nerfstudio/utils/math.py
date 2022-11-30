@@ -83,8 +83,6 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
 
     return components
 
-    return components
-
 
 @dataclass
 class Gaussians:
