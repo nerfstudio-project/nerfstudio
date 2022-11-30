@@ -229,7 +229,7 @@ class Nerfstudio(DataParser):
                 p2=float(meta["p2"]) if "p2" in meta else 0.0,
             )
         else:
-            distortion_params = torch.stack(distort, dim=0)[idx_tensor]
+            distortion_params = torch.stack(distort, dim=0)[idx_tensor.type(torch.long)]
 
         cameras = Cameras(
             fx=fx,
