@@ -147,7 +147,7 @@ class TensorDataclass:
         return new_dict
 
     def __getitem__(self: TensorDataclassT, indices) -> TensorDataclassT:
-        if isinstance(indices, (torch.Tensor)):
+        if isinstance(indices, (torch.Tensor, list)):
             return self._apply_fn_to_fields(lambda x: x[indices])
         if isinstance(indices, (int, slice, type(Ellipsis))):
             indices = (indices,)
@@ -255,6 +255,14 @@ class TensorDataclass:
             A new TensorDataclass with the same data but on the specified device.
         """
         return self._apply_fn_to_fields(lambda x: x.to(device))
+
+    def detach(self: TensorDataclassT) -> TensorDataclassT:
+        """Returns a new TensorDataclass with the same data but detached from the computation graph.
+
+        Returns:
+            A new TensorDataclass with the same data but detached from the computation graph.
+        """
+        return self._apply_fn_to_fields(lambda x: x.detach())
 
     def _apply_fn_to_fields(
         self: TensorDataclassT,

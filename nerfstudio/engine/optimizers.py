@@ -35,10 +35,24 @@ class OptimizerConfig(base_config.PrintableConfig):
 
     _target: Type = torch.optim.Adam
     lr: float = 0.0005
-    eps: float = 1e-08
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
+    def setup(self, params) -> Any:
+        """Returns the instantiated object using the config."""
+        kwargs = vars(self).copy()
+        kwargs.pop("_target")
+        return self._target(params, **kwargs)
+
+
+@dataclass
+class SGDOptimizerConfig(OptimizerConfig):
+    """Basic optimizer config with RAdam"""
+
+    _target: Type = torch.optim.SGD
+    lr: float = 0.0005
+    weight_decay: float = 0.0
+
     def setup(self, params) -> Any:
         """Returns the instantiated object using the config."""
         kwargs = vars(self).copy()
@@ -52,6 +66,7 @@ class AdamOptimizerConfig(OptimizerConfig):
 
     _target: Type = torch.optim.Adam
     weight_decay: float = 0
+    eps: float = 1e-08
 
 
 @dataclass
@@ -59,6 +74,7 @@ class RAdamOptimizerConfig(OptimizerConfig):
     """Basic optimizer config with RAdam"""
 
     _target: Type = torch.optim.RAdam
+    eps: float = 1e-08
 
 
 def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
