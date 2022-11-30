@@ -63,6 +63,8 @@ class DreamFusionModelConfig(ModelConfig):
     """Orientation loss multipier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
+    random_light_source: bool = True
+    """Randomizes light source per output."""
 
 
 class DreamFusionModel(Model):
@@ -130,7 +132,10 @@ class DreamFusionModel(Model):
         pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # lambertian shading
-        light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
+        if self.config.random_light_source:
+            light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
+        else:
+            light_d = ray_bundle.origins[0]
         light_d = math.safe_normalize(light_d)
 
         ratio = 0.1
