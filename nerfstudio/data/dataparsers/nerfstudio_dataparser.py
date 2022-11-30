@@ -212,7 +212,7 @@ class Nerfstudio(DataParser):
         else:
             camera_type = CameraType.PERSPECTIVE
 
-        idx_tensor = torch.tensor(indices)
+        idx_tensor = torch.tensor(indices, dtype=torch.long)
         fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
         fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
         cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
