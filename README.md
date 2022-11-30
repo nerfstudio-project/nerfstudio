@@ -119,6 +119,10 @@ pip install --upgrade pip setuptools
 pip install -e .
 ```
 
+**OR** if you want to skip all installation steps and directly start using nerfstudio, use the docker image:
+
+See [Installation](https://github.com/nerfstudio-project/nerfstudio/blob/main/docs/quickstart/installation.md) - **Use docker image**.
+
 ## 2. Training your first model!
 
 The following will train a _nerfacto_ model, our recommended model for real world scenes.

@@ -9,13 +9,15 @@ To launch training jobs automatically on each of these items, you can call:
 
 ```bash
 
-./scripts/benchmarking/launch_train_blender.sh -m {METHOD_NAME} -g {GPU_LIST}
+./scripts/benchmarking/launch_train_blender.sh -m {METHOD_NAME} [-s] [-v {VIS}] [{GPU_LIST}]
 ```
 
 Simply replace the arguments in brackets with the correct arguments.
 
-- `-m`: name of the method you want to benchmark (e.g. `nerfacto`, `mipnerf`).
-- `-g`: specify the list of gpus you want to use on your machine space separated. for instance, if you want to use GPU's 0-3, you will need to pass in `0 1 2 3`. If left empty, the script will automatically find available GPU's and distribute training jobs on the available GPUs.
+- `-m {METHOD_NAME}`: Name of the method you want to benchmark (e.g. `nerfacto`, `mipnerf`).
+- `-s`: Launch a single job per GPU.
+- `-v {VIS}`: Use another visualization than wandb, which is the default. Only other option is tensorboard.
+- `{GPU_LIST}`: (optional) Specify the list of gpus you want to use on your machine space separated. for instance, if you want to use GPU's 0-3, you will need to pass in `0 1 2 3`. If left empty, the script will automatically find available GPU's and distribute training jobs on the available GPUs.
   
 :::{admonition} Tip
 :class: info
@@ -26,12 +28,12 @@ To view all the arguments and annotations, you can run `./scripts/benchmarking/l
 
 A full example would be:
 
-- With `-g` specifying gpus
+- Specifying gpus
     ```bash
-    ./scripts/benchmarking/launch_train_blender.sh -m nerfacto -g 0 1 2 3
+    ./scripts/benchmarking/launch_train_blender.sh -m nerfacto 0 1 2 3
     ```
 
-- Without `-g` automatically finds available gpus
+- Automatically find available gpus
     ```bash
     ./scripts/benchmarking/launch_train_blender.sh -m nerfacto
     ```
@@ -63,7 +65,7 @@ If we wanted to run the benchmark on all the blender data for the above example,
 
 ```bash
 
-./scripts/benchmarking/launch_eval_blender.sh -m instant-ngp -o outputs/ -t 2022-08-10_172517   
+./scripts/benchmarking/launch_eval_blender.sh -m instant-ngp -o outputs/ -t 2022-08-10_172517 [{GPU_LIST}]
 ```
 
 The flags used in the benchmarking script are defined as follows:
@@ -71,7 +73,8 @@ The flags used in the benchmarking script are defined as follows:
 - `-m`: config name (e.g. `instant-ngp`). This should be the same as what was passed in for -c in the train script.
 - `-o`: base output directory for where all of the benchmarks are stored (e.g. `outputs/`). Corresponds to the `--output-dir` in the base `Config` for training.
 - `-t`: timestamp of benchmark; also the identifier (e.g. `2022-08-10_172517`).
-- `-g`: specifies the gpus to use and if not specified (no -g flag), will automaticaly search for available gpus.
+- `-s`: Launch a single job per GPU.
+- `{GPU_LIST}`: (optional) Specify the list of gpus you want to use on your machine space separated. For instance, if you want to use GPU's 0-3, you will need to pass in `0 1 2 3`. If left empty, the script will automatically find available GPU's and distribute evaluation jobs on the available GPUs.
 
 The script will simultaneously run the benchmarking across all the objects in the blender dataset and calculates the PSNR/FPS/other stats. The results are saved as .json files in the `-o` directory with the following format:
 
