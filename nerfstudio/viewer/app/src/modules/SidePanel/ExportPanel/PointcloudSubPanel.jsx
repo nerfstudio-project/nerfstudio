@@ -36,7 +36,7 @@ export default function PointcloudSubPanel(props) {
   const material = new THREE.MeshBasicMaterial({
     color: 0xffd369,
     transparent: true,
-    opacity: 0.3,
+    opacity: 0.7,
     side: THREE.DoubleSide,
   });
   const cube = new THREE.Mesh(geometry, material);
@@ -102,12 +102,7 @@ export default function PointcloudSubPanel(props) {
           });
         },
       },
-      outputDir: { label: 'Output Directory', value: 'exports/' },
-      meshMethod: {
-        label: 'Mesh Method',
-        value: 'poisson',
-        options: ['poisson', 'tsdf'],
-      }
+      outputDir: { label: 'Output Directory', value: 'pcd/' },
     },
     { store },
   );
@@ -138,30 +133,8 @@ export default function PointcloudSubPanel(props) {
     ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
     ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
 
-  let cmd_numPoints = '';
-  if (controlValues.meshMethod === 'poisson') {
-    cmd_numPoints = ` --num-points ${controlValues.numPoints}`;
-  }
-  let cmd_removeOutliers = '';
-  if (controlValues.meshMethod === 'poisson') {
-    cmd_removeOutliers = ` --remove-outliers ${getPythonBool(controlValues.removeOutliers)}`;
-  }
-  const cmd_mesh =
-    `ns-export ${controlValues.meshMethod}` +
-    ` --load-config ${config_filename}` +
-    ` --output-dir ${controlValues.outputDir}${ 
-    cmd_numPoints 
-    }${cmd_removeOutliers 
-    } --use-bounding-box ${getPythonBool(clippingEnabled)}` +
-    ` --bounding-box-min ${bbox_min[0]} ${bbox_min[1]} ${bbox_min[2]}` +
-    ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
-
   const handleCopy = () => {
     navigator.clipboard.writeText(cmd);
-  };
-
-  const handleCopyMesh = () => {
-    navigator.clipboard.writeText(cmd_mesh);
   };
 
   useEffect(() => {
@@ -182,21 +155,7 @@ export default function PointcloudSubPanel(props) {
           startIcon={<ContentCopyRoundedIcon />}
           onClick={handleCopy}
         >
-          Copy PC Command
-        </Button>
-      </div>
-      <div className="ExportModal-text">
-        Run the following command in a terminal to export the mesh:
-      </div>
-      <div className="ExportModal-code">{cmd_mesh}</div>
-      <div className="ExportModal-button" style={{ textAlign: 'center' }}>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<ContentCopyRoundedIcon />}
-          onClick={handleCopyMesh}
-        >
-          Copy Mesh Command
+          Copy Command
         </Button>
       </div>
     </div>
