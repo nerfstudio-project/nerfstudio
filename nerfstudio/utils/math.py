@@ -191,3 +191,8 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """
 
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
+
+
+# From https://github.com/ashawkey/stable-dreamfusion
+def safe_normalize(x, eps=1e-20):
+    return x / torch.sqrt(torch.clamp(torch.sum(x * x, -1, keepdim=True), min=eps))

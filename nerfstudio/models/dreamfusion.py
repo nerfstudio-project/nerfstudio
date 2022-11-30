@@ -30,19 +30,24 @@ from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 
-from nerfstudio.field_components.encodings import NeRFEncoding, 
+# from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
-from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.losses import (
+    MSELoss,
+    orientation_loss,
+    pred_normal_loss,
+)
 from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
+    NormalsRenderer,
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors, misc
+from nerfstudio.utils import colormaps, colors, math, misc
 
 
 @dataclass
@@ -54,6 +59,10 @@ class DreamFusionModelConfig(ModelConfig):
 
     num_samples: int = 256
     """Number of samples in field evaluation"""
+    orientation_loss_mult: float = 0.0001
+    """Orientation loss multipier on computed normals."""
+    pred_normal_loss_mult: float = 0.001
+    """Predicted normal loss multiplier."""
 
 
 class DreamFusionModel(Model):
@@ -62,6 +71,8 @@ class DreamFusionModel(Model):
     Args:
         config: DreamFusion configuration to instantiate model
     """
+
+    config: DreamFusionModelConfig
 
     def __init__(
         self,
@@ -87,6 +98,7 @@ class DreamFusionModel(Model):
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
+        self.renderer_normals = NormalsRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -108,14 +120,46 @@ class DreamFusionModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
-        field_outputs = self.field(ray_samples_uniform)
+        field_outputs = self.field(ray_samples_uniform, compute_normals=True)
         weights = ray_samples_uniform.get_weights(field_outputs[FieldHeadNames.DENSITY])
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples_uniform)
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
-        outputs = {"rgb": rgb, "accumulation": accumulation, "depth": depth}
+        # lambertian shading
+        light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
+        light_d = math.safe_normalize(light_d)
+
+        ratio = 0.1
+        lambertian = ratio + (1 - ratio) * (pred_normals @ light_d).clamp(min=0)  # [N,]
+
+        shaded = lambertian.unsqueeze(-1).repeat(1, 3)
+        shaded_albedo = rgb * lambertian.unsqueeze(-1)
+
+        outputs = {
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
+            "normals": normals,
+            "pred_normals": pred_normals,
+            "shaded": shaded,
+            "shaded_albedo": shaded_albedo,
+        }
+
+        if self.training:
+            outputs["rendered_orientation_loss"] = orientation_loss(
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            )
+
+            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+                weights.detach(),
+                field_outputs[FieldHeadNames.NORMALS].detach(),
+                field_outputs[FieldHeadNames.PRED_NORMALS],
+            )
+
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -128,6 +172,16 @@ class DreamFusionModel(Model):
 
         loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
+        if self.training:
+            # orientation loss for computed normals
+            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+                outputs["rendered_orientation_loss"]
+            )
+
+            # ground truth supervision for normals
+            loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
+                outputs["rendered_pred_normal_loss"]
+            )
         return loss_dict
 
     def get_image_metrics_and_images(
