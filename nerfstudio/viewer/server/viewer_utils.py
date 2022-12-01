@@ -757,7 +757,7 @@ class ViewerState:
         )
 
         times = self.vis["renderingState/render_time"].read()
-        if times:
+        if times is not None:
             times = torch.tensor([float(times)])
 
         camera = Cameras(
