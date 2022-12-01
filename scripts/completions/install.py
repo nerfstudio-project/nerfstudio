@@ -95,21 +95,13 @@ def _generate_completion(
     target_path = completions_dir / shell / target_name
 
     # Generate and write the new completion.
-    try:
-        new = subprocess.run(
-            args=args,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            encoding="utf8",
-            check=True,
-        ).stdout
-    except subprocess.CalledProcessError as e:
-        CONSOLE.log(f":x: Completion script generation failed: {args}")
-        if e.stdout is not None and len(e.stdout) > 0:
-            CONSOLE.log(e.stdout)
-        if e.stderr is not None and len(e.stderr) > 0:
-            CONSOLE.log(e.stderr)
-        raise e
+    new = subprocess.run(
+        args=args,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        encoding="utf8",
+        check=True,
+    ).stdout
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
     if not target_path.exists():
