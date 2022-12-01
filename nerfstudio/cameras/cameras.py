@@ -677,7 +677,7 @@ class Cameras(TensorDataclass):
         pixel_area = (dx * dy)[..., None]  # ("num_rays":..., 1)
         assert pixel_area.shape == num_rays_shape + (1,)
 
-        times = self.times[camera_indices, None] if self.times is not None else None
+        times = self.times[camera_indices, 0] if self.times is not None else None
 
         return RayBundle(
             origins=origins,
