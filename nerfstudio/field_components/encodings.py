@@ -279,8 +279,9 @@ class HashEncoding(Encoding):
             )
 
         if not TCNN_EXISTS or self.tcnn_encoding is None:
-            assert interpolation is None or interpolation == "Linear", \
-                f"interpolation '{interpolation}' is not supported for torch encoding backend"
+            assert (
+                interpolation is None or interpolation == "Linear"
+            ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
