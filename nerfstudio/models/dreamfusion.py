@@ -29,6 +29,11 @@ from torchmetrics.functional import structural_similarity_index_measure
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.engine.callbacks import (
+    TrainingCallback,
+    TrainingCallbackAttributes,
+    TrainingCallbackLocation,
+)
 
 # from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
@@ -63,7 +68,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Orientation loss multipier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
-    random_light_source: bool = True
+    random_light_source: bool = False
     """Randomizes light source per output."""
 
 
@@ -82,7 +87,28 @@ class DreamFusionModel(Model):
         **kwargs,
     ) -> None:
         self.num_samples = config.num_samples
+        self.initialize_density = True
         super().__init__(config=config, **kwargs)
+
+    def get_training_callbacks(
+        self, training_callback_attributes: TrainingCallbackAttributes
+    ) -> List[TrainingCallback]:
+
+        # the callback that we want to run every X iterations after the training iteration
+        def stop_initialize_density(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            self.initialize_density = False
+
+        callbacks = [
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                iters=(1000,),
+                func=stop_initialize_density,
+                args=[self, training_callback_attributes],
+            )
+        ]
+        return callbacks
 
     def populate_modules(self):
         """Set the fields and modules"""
@@ -123,7 +149,14 @@ class DreamFusionModel(Model):
         # uniform sampling
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
         field_outputs = self.field(ray_samples_uniform, compute_normals=True)
-        weights = ray_samples_uniform.get_weights(field_outputs[FieldHeadNames.DENSITY])
+
+        density = field_outputs[FieldHeadNames.DENSITY]
+        if self.initialize_density:
+            pos = ray_samples_uniform.frustums.get_positions()
+            density_blob = 10 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density += density_blob
+
+        weights = ray_samples_uniform.get_weights(density)
 
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples_uniform)
