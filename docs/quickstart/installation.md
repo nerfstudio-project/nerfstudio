@@ -56,10 +56,6 @@ This needs to be rerun when the CLI changes, for example if nerfstudio is update
 ns-install-cli
 ```
 
-**Mesh export (optional)**
-
-See the [export geometry docs](export_geometry.md) for more details.
-
 **Development packages**
 
 ```bash

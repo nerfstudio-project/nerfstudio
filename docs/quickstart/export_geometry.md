@@ -2,41 +2,48 @@
 
 Here we document how to export point clouds and meshes from nerfstudio. The main command you'll be working with is `ns-export`. Our point clouds are exported as `.ply` files and the textured meshes are exported as `.obj` files.
 
-## Install extra dependencies
+## Dependencies
 
-If you want to texture the mesh with `--unwrap-method xatlas`, then you need to install the following package shown below. We use PyTorch to rasterize the mesh and interpolate vertices and normals in the texture image.
+Our dependencies are shipped with the pip package in the pyproject.toml file. These are the following:
+
+- [xatlas-python](https://github.com/mworchel/xatlas-python) for unwrapping meshes to a UV map
+- [pymeshlab](https://pymeshlab.readthedocs.io/en/latest/) for reducing the number of faces in a mesh
 
 ## Exporting a mesh
 
-> Poisson surface reconstruction
-
-    We default to using Poisson surface reconstruction implemented in Open3D, followed by higher resolution texturing by using a texture image and querying the NeRF. See the steps below to train your own model and export as a mesh.
-
-    1. Train nerfacto with network settings that predict normals.
-
-    ```python
-    ns-train nerfacto --pipeline.model.predict-normals True
-    ```
-
-    2. Export a mesh with the Poisson algorithm.
-
-    ```python
-    ns-export poisson --load-config CONFIG.yml --output-dir OUTPUT_DIR
-    ```
-
 > TSDF Fusion
 
-    Run the folowing command to see non-default export commands. For example, `ns-export tsdf` will run TSDF Fusion on depth and color images from NeRF, followed by texturing. This will work for models that don't have predicted normals.
+    TSDF (truncated signed distance function) Fusion is a meshing algorithm that uses depth maps to extract a surface as a mesh. This method works for all models.
 
     ```python
     ns-export tsdf --load-config CONFIG.yml --output-dir OUTPUT_DIR
     ```
 
+> Poisson surface reconstruction
+
+    Poisson surface reconstruction gives the highest quality meshes. However, it requires the Model to output normals. See the steps below to use Poisson surface reconstruction in our repo.
+
+    1. Train nerfacto with network settings that predict normals.
+
+    ```bash
+    ns-train nerfacto --pipeline.model.predict-normals True
+    ```
+
+    2. Export a mesh with the Poisson meshing algorithm.
+
+    ```bash
+    ns-export poisson --load-config CONFIG.yml --output-dir OUTPUT_DIR
+    ```
+
 ## Exporting a point cloud
+
+```bash
+ns-export pointcloud --help
+```
 
 ## Other exporting methods
 
-Run the folowing command to see non-default export commands.
+Run the folowing command to see other export methods that may exist.
 
 ```python
 ns-export --help
@@ -49,5 +56,5 @@ ns-export --help
 Say you want to simplify and/or smooth a mesh offline, and then you want to texture it with NeRF. You can do that with the following command. It will work for any mesh filetypes that [PyMeshLab](https://pymeshlab.readthedocs.io/en/latest/) can support, for example a `.ply`.
 
 ```python
-python scripts/texture.py --load-config CONFIG.yml --output-dir OUTPUT_DIR --input-mesh-filename FILENAME
+python scripts/texture.py --load-config CONFIG.yml --input-mesh-filename FILENAME --output-dir OUTPUT_DIR
 ```
