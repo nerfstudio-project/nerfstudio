@@ -303,7 +303,7 @@ def copy_images_list(
     return copied_image_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool),  -> int:
+def copy_images(data: Path, image_dir: Path, verbose: bool, rename: bool) -> int:
     """Copy images from a directory to a new directory.
 
     Args:
