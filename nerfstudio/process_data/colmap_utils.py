@@ -46,6 +46,8 @@ from typing import Dict, Optional, Tuple
 import appdirs
 import numpy as np
 import requests
+import yaml
+from PIL import Image as pil_Image
 from rich.console import Console
 from rich.progress import track
 from typing_extensions import Literal

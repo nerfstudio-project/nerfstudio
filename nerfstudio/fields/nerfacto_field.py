@@ -115,7 +115,7 @@ class TCNNNerfactoField(Field):
         self.use_pred_normals = use_pred_normals
 
         num_levels = 16
-        max_res = 1024
+        max_res = 2048
         base_res = 16
         log2_hashmap_size = 19
         features_per_level = 2

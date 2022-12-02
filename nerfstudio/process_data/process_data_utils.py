@@ -33,11 +33,13 @@ class CameraModel(Enum):
 
     OPENCV = "OPENCV"
     OPENCV_FISHEYE = "OPENCV_FISHEYE"
+    EQUIRECTANGULAR = "EQUIRECTANGULAR"
 
 
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
+    "equirectangular": CameraModel.EQUIRECTANGULAR,
 }
 
 
@@ -108,7 +110,11 @@ def convert_video_to_images(
 
 
 def copy_images_list(
-    image_paths: List[Path], image_dir: Path, crop_border_pixels: Optional[int] = None, verbose: bool = False
+    image_paths: List[Path],
+    image_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    verbose: bool = False,
+    rename: bool = True,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
@@ -131,7 +137,10 @@ def copy_images_list(
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
-        copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        if rename:
+            copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
+        else:
+            copied_image_path = image_dir / image_path.name
         shutil.copy(image_path, copied_image_path)
         copied_image_paths.append(copied_image_path)
 
@@ -152,7 +161,7 @@ def copy_images_list(
     return copied_image_paths
 
 
-def copy_images(data: Path, image_dir: Path, verbose) -> int:
+def copy_images(data: Path, image_dir: Path, verbose, rename: bool = True) -> int:
     """Copy images from a directory to a new directory.
 
     Args:
@@ -166,7 +175,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
         allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
         image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
 
-        num_frames = len(copy_images_list(image_paths, image_dir, verbose))
+        num_frames = len(copy_images_list(image_paths, image_dir, verbose, rename=rename))
 
     return num_frames
 

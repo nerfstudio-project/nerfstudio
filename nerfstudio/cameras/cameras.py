@@ -36,6 +36,7 @@ class CameraType(Enum):
 
     PERSPECTIVE = auto()
     FISHEYE = auto()
+    EQUIRECTANGULAR = auto()
 
 
 CAMERA_MODEL_TO_TYPE = {
@@ -45,6 +46,7 @@ CAMERA_MODEL_TO_TYPE = {
     "RADIAL": CameraType.PERSPECTIVE,
     "OPENCV": CameraType.PERSPECTIVE,
     "OPENCV_FISHEYE": CameraType.FISHEYE,
+    "EQUIRECTANGULAR": CameraType.EQUIRECTANGULAR,
 }
 
 
@@ -248,7 +250,7 @@ class Cameras:
         image_coords = torch.stack(image_coords, dim=-1) + pixel_offset  # stored as (y, x) coordinates
         return image_coords
 
-    def generate_rays(
+    def generate_rays(  # pylint: disable=too-many-statements
         self,
         camera_indices: Union[TensorType["num_rays":...], int],
         coords: Optional[TensorType["num_rays":..., 2]] = None,
@@ -277,8 +279,8 @@ class Cameras:
             coords = self.get_image_coords().to(self.device)
 
         assert coords is not None
-        y = coords[..., 0]  # (..., 1)
-        x = coords[..., 1]  # (..., 1)
+        y = coords[..., 0]
+        x = coords[..., 1]
         fx, fy = self.fx[camera_indices], self.fy[camera_indices]
         cx, cy = self.cx[camera_indices], self.cy[camera_indices]
 
@@ -310,6 +312,16 @@ class Cameras:
             sin_theta = torch.sin(theta)
             directions_stack = torch.stack(
                 [coord_stack[..., 0] * sin_theta / theta, coord_stack[..., 1] * sin_theta / theta, -torch.cos(theta)],
+                dim=-1,
+            )
+        elif self.camera_type[0] == CameraType.EQUIRECTANGULAR.value:
+            # u goes from -1 to 1
+            # v goes from -1/2 to 1/2 (height is half of width)
+            theta = -torch.pi * coord_stack[..., 0]
+            phi = torch.pi * (0.5 - coord_stack[..., 1])
+            # use spherical in local camera coordinates (+y up, x=0 and z<0 is theta=0)
+            directions_stack = torch.stack(
+                [-torch.sin(theta) * torch.sin(phi), torch.cos(phi), -torch.cos(theta) * torch.sin(phi)],
                 dim=-1,
             )
         else:
