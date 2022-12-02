@@ -96,7 +96,7 @@ export default function ExportPanel(props) {
         </LevaStoreProvider>
       </TabPanel>
       <TabPanel value={type_value} index={1}>
-        Coming Soon
+        Meshing coming Soon
       </TabPanel>
     </div>
   );
