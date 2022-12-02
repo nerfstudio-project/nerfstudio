@@ -22,19 +22,20 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import mediapy as media
 import numpy as np
 import torch
+import xatlas
 from rich.console import Console
-from rich.progress import track
 from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter.exporter_utils import Mesh
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.utils.rich_utils import get_progress
 
 CONSOLE = Console(width=120)
 
@@ -42,7 +43,16 @@ CONSOLE = Console(width=120)
 def get_parallelogram_area(
     p: TensorType["bs":..., 2], v0: TensorType["bs":..., 2], v1: TensorType["bs":..., 2]
 ) -> TensorType["bs":...]:
-    """Given three 2D points, return the area defined by the parallelogram. I.e., 2x the triangle area."""
+    """Given three 2D points, return the area defined by the parallelogram. I.e., 2x the triangle area.
+
+    Args:
+        p: The origin of the parallelogram.
+        v0: The first vector of the parallelogram.
+        v1: The second vector of the parallelogram.
+
+    Returns:
+        The area of the parallelogram.
+    """
     return (p[..., 0] - v0[..., 0]) * (v1[..., 1] - v0[..., 1]) - (p[..., 1] - v0[..., 1]) * (v1[..., 0] - v0[..., 0])
 
 
@@ -71,7 +81,16 @@ def unwrap_mesh_per_uv_triangle(
     vertex_normals: TensorType["num_verts", 3],
     px_per_uv_triangle: int,
 ):
-    """Unwrap a mesh to a UV texture."""
+    """Unwrap a mesh to a UV texture. This is done by making a grid of rectangles in the UV texture map
+    and then having two triangles per rectangle. Then the texture image is rasterized and uses barycentric
+    interpolation to get the origins and directions, per pixel, that are needed to render the NeRF with.
+
+    Args:
+        vertices: The vertices of the mesh.
+        faces: The faces of the mesh.
+        vertex_normals: The vertex normals of the mesh.
+        px_per_uv_triangle: The number of pixels per UV triangle.
+    """
 
     # pylint: disable=too-many-statements
 
@@ -193,7 +212,7 @@ def unwrap_mesh_with_xatlas(
     faces: TensorType["num_faces", 3, torch.long],
     vertex_normals: TensorType["num_verts", 3],
     num_pixels_per_side=1024,
-    num_faces_per_barycentric_chunk=100,
+    num_faces_per_barycentric_chunk=10,
 ) -> Tuple[
     TensorType["num_faces", 3, 2],
     TensorType["num_pixels", "num_pixels", 3],
@@ -217,10 +236,8 @@ def unwrap_mesh_with_xatlas(
         directions: Tensor of directions for every pixel.
     """
 
-    # pylint: disable=import-outside-toplevel
     # pylint: disable=unused-variable
     # pylint: disable=too-many-statements
-    import xatlas
 
     device = vertices.device
 
@@ -256,30 +273,32 @@ def unwrap_mesh_with_xatlas(
     triangle_w1 = torch.zeros_like(p[..., 0])  # (1, N)
     triangle_w2 = torch.zeros_like(p[..., 0])  # (1, N)
     arange_list = torch.arange(num_vertices, device=device)
-    for i in track(range(num_faces // num_faces_per_barycentric_chunk), description="Chunking up rasterization"):
-        s = i * num_faces_per_barycentric_chunk
-        e = min((i + 1) * num_faces_per_barycentric_chunk, num_faces)
-        v0 = texture_coordinates[s:e, 0:1, :]  # (F, 1, 2)
-        v1 = texture_coordinates[s:e, 1:2, :]  # (F, 1, 2)
-        v2 = texture_coordinates[s:e, 2:3, :]  # (F, 1, 2)
-        # NOTE: could try clockwise vs counter clockwise
-        area = get_parallelogram_area(v2, v0, v1)  # 2x face area.
-        w0 = get_parallelogram_area(p, v1, v2) / area  # (num_faces_per_barycentric_chunk, N)
-        w1 = get_parallelogram_area(p, v2, v0) / area
-        w2 = get_parallelogram_area(p, v0, v1) / area
-        # get distance from center of triangle
-        dist_to_center = torch.abs(w0) + torch.abs(w1) + torch.abs(w2)
-        d_values, d_indices = torch.min(dist_to_center, dim=0, keepdim=True)
-        d_indices_with_offset = d_indices + s  # add offset
-        condition = d_values < triangle_distances
-        triangle_distances = torch.where(condition, d_values, triangle_distances)
-        triangle_indices = torch.where(condition, d_indices_with_offset, triangle_indices)
-        w0_selected = w0[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
-        w1_selected = w1[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
-        w2_selected = w2[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
-        triangle_w0 = torch.where(condition, w0_selected, triangle_w0)
-        triangle_w1 = torch.where(condition, w1_selected, triangle_w1)
-        triangle_w2 = torch.where(condition, w2_selected, triangle_w2)
+    progress = get_progress("Chunking faces for rasterization")
+    with progress:
+        for i in progress.track(range(num_faces // num_faces_per_barycentric_chunk)):
+            s = i * num_faces_per_barycentric_chunk
+            e = min((i + 1) * num_faces_per_barycentric_chunk, num_faces)
+            v0 = texture_coordinates[s:e, 0:1, :]  # (F, 1, 2)
+            v1 = texture_coordinates[s:e, 1:2, :]  # (F, 1, 2)
+            v2 = texture_coordinates[s:e, 2:3, :]  # (F, 1, 2)
+            # NOTE: could try clockwise vs counter clockwise
+            area = get_parallelogram_area(v2, v0, v1)  # 2x face area.
+            w0 = get_parallelogram_area(p, v1, v2) / area  # (num_faces_per_barycentric_chunk, N)
+            w1 = get_parallelogram_area(p, v2, v0) / area
+            w2 = get_parallelogram_area(p, v0, v1) / area
+            # get distance from center of triangle
+            dist_to_center = torch.abs(w0) + torch.abs(w1) + torch.abs(w2)
+            d_values, d_indices = torch.min(dist_to_center, dim=0, keepdim=True)
+            d_indices_with_offset = d_indices + s  # add offset
+            condition = d_values < triangle_distances
+            triangle_distances = torch.where(condition, d_values, triangle_distances)
+            triangle_indices = torch.where(condition, d_indices_with_offset, triangle_indices)
+            w0_selected = w0[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
+            w1_selected = w1[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
+            w2_selected = w2[d_indices[0], arange_list].unsqueeze(0)  # (1, N)
+            triangle_w0 = torch.where(condition, w0_selected, triangle_w0)
+            triangle_w1 = torch.where(condition, w1_selected, triangle_w1)
+            triangle_w2 = torch.where(condition, w2_selected, triangle_w2)
 
     nearby_vertices = vertices[faces[triangle_indices[0]]]  # (N, 3, 3)
     nearby_normals = vertex_normals[faces[triangle_indices[0]]]  # (N, 3, 3)
@@ -307,9 +326,10 @@ def unwrap_mesh_with_xatlas(
 def export_textured_mesh(
     mesh: Mesh,
     pipeline: Pipeline,
-    px_per_uv_triangle: int,
     output_dir: Path,
+    px_per_uv_triangle: Optional[int] = None,
     unwrap_method: Literal["xatlas", "custom"] = "xatlas",
+    raylen_method: Literal["edge", "none"] = "edge",
     num_pixels_per_side=1024,
 ):
     """Textures a mesh using the radiance field from the Pipeline.
@@ -320,9 +340,11 @@ def export_textured_mesh(
     Args:
         mesh: The mesh to texture.
         pipeline: The pipeline to use for texturing.
-        px_per_uv_triangle: The number of pixels per side of UV triangle.
         output_dir: The directory to write the textured mesh to.
+        px_per_uv_triangle: The number of pixels per side of UV triangle.
         unwrap_method: The method to use for unwrapping the mesh.
+        offset_method: The method to use for computing the ray length to render.
+        num_pixels_per_side: The number of pixels per side of the texture image.
     """
 
     # pylint: disable=too-many-statements
@@ -333,29 +355,44 @@ def export_textured_mesh(
     faces = mesh.faces.to(device)
     vertex_normals = mesh.normals.to(device)
 
+    summary_log = []
+    summary_log.append(f"Unwrapped mesh using {unwrap_method} method.")
+    summary_log.append(f"Mesh has {len(vertices)} vertices and {len(faces)} faces.")
+
     if unwrap_method == "xatlas":
-        CONSOLE.print("Unwrapping mesh with xatlas method...")
+        CONSOLE.print("Unwrapping mesh with xatlas method... this may take a while.")
         texture_coordinates, origins, directions = unwrap_mesh_with_xatlas(
             vertices, faces, vertex_normals, num_pixels_per_side=num_pixels_per_side
         )
+        print("\033[A\033[A")
+        CONSOLE.print("[bold green]:white_check_mark: Unwrapped mesh with xatlas method")
     elif unwrap_method == "custom":
         CONSOLE.print("Unwrapping mesh with custom method...")
         texture_coordinates, origins, directions = unwrap_mesh_per_uv_triangle(
             vertices, faces, vertex_normals, px_per_uv_triangle
         )
+        print("\033[A\033[A")
+        CONSOLE.print("[bold green]:white_check_mark: Unwrapped mesh with custom method")
     else:
         raise ValueError(f"Unwrap method {unwrap_method} not supported.")
 
-    # compute the length of the rays we want to render
-    # we make a reasonable approximation by looking at the mean distance between 2 vertices of the triangle faces
-    face_vertices = vertices[faces]
-    offset = torch.mean(torch.norm(face_vertices[:, 1, :] - face_vertices[:, 0, :], dim=-1)).float()
+    if raylen_method == "edge":
+        face_vertices = vertices[faces]
+        # compute the length of the rays we want to render
+        # we make a reasonable approximation by using the mean length of one edge per face
+        raylen = 2.0 * torch.mean(torch.norm(face_vertices[:, 1, :] - face_vertices[:, 0, :], dim=-1)).float()
+    elif raylen_method == "none":
+        raylen = 0.0
+    else:
+        raise ValueError(f"Ray length method {raylen_method} not supported.")
 
-    origins = origins - offset * directions
+    summary_log.append(f"Length of rendered rays to compute texture values: {raylen}")
+
+    origins = origins - 0.5 * raylen * directions
     pixel_area = torch.ones_like(origins[..., 0:1])
     camera_indices = torch.zeros_like(origins[..., 0:1])
     nears = torch.zeros_like(origins[..., 0:1])
-    fars = torch.ones_like(origins[..., 0:1]) * offset * 2.0
+    fars = torch.ones_like(origins[..., 0:1]) * raylen
     camera_ray_bundle = RayBundle(
         origins=origins,
         directions=directions,
@@ -372,27 +409,6 @@ def export_textured_mesh(
     # save the texture image
     texture_image = outputs["rgb"].cpu().numpy()
     media.write_image(str(output_dir / "material_0.png"), texture_image)
-
-    # # Here we render a ray with zero length.
-    # # This could be sped up by quering a single point in 3D,
-    # # but we rely on the current Model functions which require RayBundles as input.
-    # pixel_area = torch.ones_like(origins[..., 0:1])
-    # camera_indices = torch.zeros_like(origins[..., 0:1])
-    # nears = torch.zeros_like(origins[..., 0:1])
-    # fars = nears
-    # camera_ray_bundle = RayBundle(
-    #     origins=origins,
-    #     directions=directions,
-    #     pixel_area=pixel_area,
-    #     camera_indices=camera_indices,
-    #     nears=nears,
-    #     fars=fars,
-    # )
-    # CONSOLE.print("Creating texture image by rendering with NeRF...")
-    # with torch.no_grad():
-    #     outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-    # texture_image_np = outputs["rgb"].cpu().numpy()
-    # media.write_image(str(output_dir / "material_0.png"), texture_image_np)
 
     CONSOLE.print("Writing relevant OBJ information to files...")
     # create the .mtl file
@@ -419,44 +435,60 @@ def export_textured_mesh(
     file_obj.writelines(lines_obj)
 
     # write the geometric vertices
-    # move vertices back to cpu
     vertices = vertices.cpu().numpy()
-    for i in track(range(len(vertices)), description="Writing vertices"):
-        vertex = vertices[i]
-        line = f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"
-        file_obj.write(line)
-
-    # write the texture coordinates
-    # move texture coordinates back to cpu
-    texture_coordinates = texture_coordinates.cpu().numpy()
-    for i in track(range(len(faces)), description="Writing texture coordinates"):
-        for uv in texture_coordinates[i]:
-            line = f"vt {uv[0]} {1.0 - uv[1]}\n"
+    progress = get_progress("Writing vertices to file", suffix="lines-per-sec")
+    with progress:
+        for i in progress.track(range(len(vertices))):
+            vertex = vertices[i]
+            line = f"v {vertex[0]} {vertex[1]} {vertex[2]}\n"
             file_obj.write(line)
 
+    # write the texture coordinates
+    texture_coordinates = texture_coordinates.cpu().numpy()
+    with progress:
+        progress = get_progress("Writing texture coordinates to file", suffix="lines-per-sec")
+        for i in progress.track(range(len(faces))):
+            for uv in texture_coordinates[i]:
+                line = f"vt {uv[0]} {1.0 - uv[1]}\n"
+                file_obj.write(line)
+
     # write the vertex normals
-    # move vertex normals back to cpu
     vertex_normals = vertex_normals.cpu().numpy()
-    for i in track(range(len(vertex_normals)), description="Writing vertex normals"):
-        normal = vertex_normals[i]
-        line = f"vn {normal[0]} {normal[1]} {normal[2]}\n"
-        file_obj.write(line)
+    progress = get_progress("Writing vertex normals to file", suffix="lines-per-sec")
+    with progress:
+        for i in progress.track(range(len(vertex_normals))):
+            normal = vertex_normals[i]
+            line = f"vn {normal[0]} {normal[1]} {normal[2]}\n"
+            file_obj.write(line)
 
     # write the faces
-    # move faces back to cpu
     faces = faces.cpu().numpy()
-    for i in track(range(len(faces)), description="Writing faces"):
-        face = faces[i]
-        v1 = face[0] + 1
-        v2 = face[1] + 1
-        v3 = face[2] + 1
-        vt1 = i * 3 + 1
-        vt2 = i * 3 + 2
-        vt3 = i * 3 + 3
-        vn1 = v1
-        vn2 = v2
-        vn3 = v3
-        line = f"f {v1}/{vt1}/{vn1} {v2}/{vt2}/{vn2} {v3}/{vt3}/{vn3}\n"
-        file_obj.write(line)
+    progress = get_progress("Writing faces to file", suffix="lines-per-sec")
+    with progress:
+        for i in progress.track(range(len(faces))):
+            face = faces[i]
+            v1 = face[0] + 1
+            v2 = face[1] + 1
+            v3 = face[2] + 1
+            vt1 = i * 3 + 1
+            vt2 = i * 3 + 2
+            vt3 = i * 3 + 3
+            vn1 = v1
+            vn2 = v2
+            vn3 = v3
+            line = f"f {v1}/{vt1}/{vn1} {v2}/{vt2}/{vn2} {v3}/{vt3}/{vn3}\n"
+            file_obj.write(line)
 
     file_obj.close()
+
+    summary_log.append(f"OBJ file saved to {output_dir / 'mesh.obj'}")
+    summary_log.append(f"MTL file saved to {output_dir / 'material_0.mtl'}")
+    summary_log.append(
+        f"Texture image saved to {output_dir / 'material_0.png'} "
+        f"with resolution {texture_image.shape[1]}x{texture_image.shape[0]} (WxH)"
+    )
+
+    CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+    for summary in summary_log:
+        CONSOLE.print(summary, justify="center")
+    CONSOLE.rule()

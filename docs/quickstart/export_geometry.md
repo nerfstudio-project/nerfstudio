@@ -2,16 +2,9 @@
 
 Here we document how to export point clouds and meshes from nerfstudio. The main command you'll be working with is `ns-export`. Our point clouds are exported as `.ply` files and the textured meshes are exported as `.obj` files.
 
-## Dependencies
-
-Our dependencies are shipped with the pip package in the pyproject.toml file. These are the following:
-
-- [xatlas-python](https://github.com/mworchel/xatlas-python) for unwrapping meshes to a UV map
-- [pymeshlab](https://pymeshlab.readthedocs.io/en/latest/) for reducing the number of faces in a mesh
-
 ## Exporting a mesh
 
-> TSDF Fusion
+### 1. TSDF Fusion
 
     TSDF (truncated signed distance function) Fusion is a meshing algorithm that uses depth maps to extract a surface as a mesh. This method works for all models.
 
@@ -19,9 +12,15 @@ Our dependencies are shipped with the pip package in the pyproject.toml file. Th
     ns-export tsdf --load-config CONFIG.yml --output-dir OUTPUT_DIR
     ```
 
-> Poisson surface reconstruction
+### 2. Poisson surface reconstruction
 
-    Poisson surface reconstruction gives the highest quality meshes. However, it requires the Model to output normals. See the steps below to use Poisson surface reconstruction in our repo.
+    Poisson surface reconstruction gives the highest quality meshes. See the steps below to use Poisson surface reconstruction in our repo.
+
+    :::{admonition} Note
+    :class: info
+
+    This will only work with a Model that computes or predicts normals, e.g., nerfacto.
+    :::
 
     1. Train nerfacto with network settings that predict normals.
 
@@ -49,8 +48,6 @@ Run the folowing command to see other export methods that may exist.
 ns-export --help
 ```
 
-<hr>
-
 ## Texturing an existing mesh with NeRF
 
 Say you want to simplify and/or smooth a mesh offline, and then you want to texture it with NeRF. You can do that with the following command. It will work for any mesh filetypes that [PyMeshLab](https://pymeshlab.readthedocs.io/en/latest/) can support, for example a `.ply`.
@@ -58,3 +55,10 @@ Say you want to simplify and/or smooth a mesh offline, and then you want to text
 ```python
 python scripts/texture.py --load-config CONFIG.yml --input-mesh-filename FILENAME --output-dir OUTPUT_DIR
 ```
+
+## Dependencies
+
+Our dependencies are shipped with the pip package in the pyproject.toml file. These are the following:
+
+- [xatlas-python](https://github.com/mworchel/xatlas-python) for unwrapping meshes to a UV map
+- [pymeshlab](https://pymeshlab.readthedocs.io/en/latest/) for reducing the number of faces in a mesh

@@ -94,6 +94,7 @@ def generate_point_cloud(
     use_bounding_box: bool = True,
     bounding_box_min: Tuple[float, float, float] = (-1.0, -1.0, -1.0),
     bounding_box_max: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    std_ratio: float = 10.0,
 ) -> o3d.geometry.PointCloud:
     """Generate a point cloud from a nerf.
 
@@ -108,6 +109,7 @@ def generate_point_cloud(
         use_bounding_box: Whether to use a bounding box to sample points.
         bounding_box_min: Minimum of the bounding box.
         bounding_box_max: Maximum of the bounding box.
+        std_ratio: Threshold based on STD of the average distances across the point cloud to remove outliers.
 
     Returns:
         Point cloud.
@@ -178,7 +180,7 @@ def generate_point_cloud(
     ind = None
     if remove_outliers:
         CONSOLE.print("Cleaning Point Cloud")
-        pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=10.0)
+        pcd, ind = pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=std_ratio)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Cleaning Point Cloud")
 

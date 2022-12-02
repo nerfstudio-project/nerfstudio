@@ -4,21 +4,25 @@ Script for exporting NeRF into other formats.
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import open3d as o3d
+import torch
 import tyro
 from rich.console import Console
 from typing_extensions import Annotated, Literal
 
+from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
     generate_point_cloud,
     get_mesh_from_filename,
 )
+from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.eval_utils import eval_setup
 
 CONSOLE = Console(width=120)
@@ -56,6 +60,8 @@ class ExportPointCloud(Exporter):
     """Minimum of the bounding box, used if use_bounding_box is True."""
     num_rays_per_batch: int = 65536
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
+    std_ratio: float = 10.0
+    """Threshold based on STD of the average distances across the point cloud to remove outliers."""
 
     def main(self) -> None:
         """Export point cloud."""
@@ -79,10 +85,12 @@ class ExportPointCloud(Exporter):
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            std_ratio=self.std_ratio,
         )
+        torch.cuda.empty_cache()
 
         CONSOLE.print(f"[bold green]:white_check_mark: Generated {pcd}")
-        CONSOLE.print("Saving Point Cloud")
+        CONSOLE.print("Saving Point Cloud...")
         o3d.io.write_point_cloud(str(self.output_dir / "point_cloud.ply"), pcd)
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
@@ -95,7 +103,7 @@ class ExportTSDFMesh(Exporter):
     """
 
     downscale_factor: int = 2
-    """Downscale factor for the images."""
+    """Downscale the images starting from the resolution used for training."""
     depth_output_name: str = "depth"
     """Name of the depth output."""
     rgb_output_name: str = "rgb"
@@ -154,8 +162,8 @@ class ExportTSDFMesh(Exporter):
             texture_utils.export_textured_mesh(
                 mesh,
                 pipeline,
-                self.px_per_uv_triangle,
                 self.output_dir,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -179,6 +187,8 @@ class ExportPoissonMesh(Exporter):
     """Method to estimate normals with."""
     normal_output_name: str = "normals"
     """Name of the normal output."""
+    save_point_cloud: bool = False
+    """Whether to save the point cloud."""
     use_bounding_box: bool = True
     """Only query points within the bounding box"""
     bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
@@ -197,6 +207,33 @@ class ExportPoissonMesh(Exporter):
     """If using xatlas for unwrapping, the pixels per side of the texture image."""
     target_num_faces: Optional[int] = 50000
     """Target number of faces for the mesh to texture."""
+    std_ratio: float = 10.0
+    """Threshold based on STD of the average distances across the point cloud to remove outliers."""
+
+    def validate_pipeline(self, pipeline: Pipeline) -> None:
+        """Check that the pipeline is valid for this exporter."""
+        if self.normal_method == "model_output":
+            CONSOLE.print("Checking that the pipeline has a normal output.")
+            origins = torch.zeros((1, 3), device=pipeline.device)
+            directions = torch.ones_like(origins)
+            pixel_area = torch.ones_like(origins[..., :1])
+            camera_indices = torch.zeros_like(origins[..., :1])
+            ray_bundle = RayBundle(
+                origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+            )
+            outputs = pipeline.model(ray_bundle)
+            if self.normal_output_name not in outputs:
+                CONSOLE.print(
+                    f"[bold yellow]Warning: Normal output '{self.normal_output_name}' not found in pipeline outputs."
+                )
+                CONSOLE.print(f"Available outputs: {list(outputs.keys())}")
+                CONSOLE.print(
+                    "[bold yellow]Warning: Please train a model with normals "
+                    "(e.g., nerfacto with predicted normals turned on)."
+                )
+                CONSOLE.print("[bold yellow]Warning: Or change --normal-method")
+                CONSOLE.print("[bold yellow]Exiting early.")
+                sys.exit(1)
 
     def main(self) -> None:
         """Export mesh"""
@@ -205,10 +242,12 @@ class ExportPoissonMesh(Exporter):
             self.output_dir.mkdir(parents=True)
 
         _, pipeline, _ = eval_setup(self.load_config)
+        self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
 
+        # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
 
         pcd = generate_point_cloud(
@@ -222,13 +261,16 @@ class ExportPoissonMesh(Exporter):
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
+            std_ratio=self.std_ratio,
         )
-
+        torch.cuda.empty_cache()
         CONSOLE.print(f"[bold green]:white_check_mark: Generated {pcd}")
-        CONSOLE.print("Saving Point Cloud")
-        o3d.io.write_point_cloud(str(self.output_dir / "point_cloud.ply"), pcd)
-        print("\033[A\033[A")
-        CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
+
+        if self.save_point_cloud:
+            CONSOLE.print("Saving Point Cloud...")
+            o3d.io.write_point_cloud(str(self.output_dir / "point_cloud.ply"), pcd)
+            print("\033[A\033[A")
+            CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
         CONSOLE.print("Computing Mesh... this may take a while.")
         mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
@@ -242,8 +284,7 @@ class ExportPoissonMesh(Exporter):
         print("\033[A\033[A")
         CONSOLE.print("[bold green]:white_check_mark: Saving Mesh")
 
-        # possibly
-        # texture the mesh with NeRF and export to a mesh.obj file
+        # This will texture the mesh with NeRF and export to a mesh.obj file
         # and a material and texture file
         if self.texture_method == "nerf":
             # load the mesh from the poisson reconstruction
@@ -254,8 +295,8 @@ class ExportPoissonMesh(Exporter):
             texture_utils.export_textured_mesh(
                 mesh,
                 pipeline,
-                self.px_per_uv_triangle,
                 self.output_dir,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
