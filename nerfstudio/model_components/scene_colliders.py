@@ -26,19 +26,25 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.scene_box import SceneBox
 
 
-class SceneBoxCollider(nn.Module):
+class SceneCollider(nn.Module):
     """Module for setting near and far values for rays."""
 
     def __init__(self, **kwargs) -> None:
         self.kwargs = kwargs
         super().__init__()
 
-    def forward(self, ray_bundle: RayBundle) -> RayBundle:
+    def set_nears_and_fars(self, ray_bundle) -> RayBundle:
         """To be implemented."""
         raise NotImplementedError
 
+    def forward(self, ray_bundle: RayBundle) -> RayBundle:
+        """Sets the nears and fars if they are not set already."""
+        if ray_bundle.nears is not None and ray_bundle.fars is not None:
+            return ray_bundle
+        return self.set_nears_and_fars(ray_bundle)
 
-class AABBBoxCollider(SceneBoxCollider):
+
+class AABBBoxCollider(SceneCollider):
     """Module for colliding rays with the scene box to compute near and far values.
 
     Args:
@@ -88,7 +94,7 @@ class AABBBoxCollider(SceneBoxCollider):
 
         return nears, fars
 
-    def forward(self, ray_bundle: RayBundle) -> RayBundle:
+    def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
         """Intersects the rays with the scene box and updates the near and far values.
         Populates nears and fars fields and returns the ray_bundle.
 
@@ -102,7 +108,7 @@ class AABBBoxCollider(SceneBoxCollider):
         return ray_bundle
 
 
-class NearFarCollider(SceneBoxCollider):
+class NearFarCollider(SceneCollider):
     """Sets the nears and fars with fixed values.
 
     Args:
@@ -115,7 +121,7 @@ class NearFarCollider(SceneBoxCollider):
         self.far_plane = far_plane
         super().__init__(**kwargs)
 
-    def forward(self, ray_bundle: RayBundle) -> RayBundle:
+    def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
         ones = torch.ones_like(ray_bundle.origins[..., 0:1])
         near_plane = self.near_plane if self.training else 0
         ray_bundle.nears = ones * near_plane

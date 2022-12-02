@@ -308,6 +308,7 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
         keep_shape: Optional[bool] = None,
+        disable_distortion: bool = False,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -349,6 +350,7 @@ class Cameras(TensorDataclass):
             keep_shape: If None, then we default to the regular behavior of flattening if cameras is jagged, otherwise
                 keeping dimensions. If False, we flatten at the end. If True, then we keep the shape of the
                 camera_indices and coords tensors (if we can).
+            disable_distortion: If True, disables distortion.
 
         Returns:
             Rays for the given camera indices and coords.
@@ -441,7 +443,7 @@ class Cameras(TensorDataclass):
         # raybundle.shape == (num_rays) when done
         # pylint: disable=protected-access
         raybundle = cameras._generate_rays_from_coords(
-            camera_indices, coords, camera_opt_to_camera, distortion_params_delta
+            camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
@@ -460,6 +462,7 @@ class Cameras(TensorDataclass):
         coords: TensorType["num_rays":..., 2],
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        disable_distortion: bool = False,
     ) -> RayBundle:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
@@ -525,6 +528,8 @@ class Cameras(TensorDataclass):
                 In terms of shape, it follows the same rules as coords, but indexing into it with [i:...] gets you
                 the 1D tensor with the 6 distortion parameters for the camera optimization at RayBundle[i:...].
 
+            disable_distortion: If True, disables distortion.
+
         Returns:
             Rays for the given camera indices and coords. RayBundle.shape == num_rays
         """
@@ -582,23 +587,24 @@ class Cameras(TensorDataclass):
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
 
         # Undistorts our images according to our distortion parameters
-        distortion_params = None
-        if self.distortion_params is not None:
-            distortion_params = self.distortion_params[true_indices]
-            if distortion_params_delta is not None:
-                distortion_params = distortion_params + distortion_params_delta
-        elif distortion_params_delta is not None:
-            distortion_params = distortion_params_delta
+        if not disable_distortion:
+            distortion_params = None
+            if self.distortion_params is not None:
+                distortion_params = self.distortion_params[true_indices]
+                if distortion_params_delta is not None:
+                    distortion_params = distortion_params + distortion_params_delta
+            elif distortion_params_delta is not None:
+                distortion_params = distortion_params_delta
 
-        # Do not apply distortion for equirectangular images
-        if distortion_params is not None:
-            mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
-            coord_mask = torch.stack([mask, mask, mask], dim=0)
-            if mask.any():
-                coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
-                    coord_stack[coord_mask, :].reshape(3, -1, 2),
-                    distortion_params[mask, :],
-                ).reshape(-1, 2)
+            # Do not apply distortion for equirectangular images
+            if distortion_params is not None:
+                mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+                coord_mask = torch.stack([mask, mask, mask], dim=0)
+                if mask.any():
+                    coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                        coord_stack[coord_mask, :].reshape(3, -1, 2),
+                        distortion_params[mask, :],
+                    ).reshape(-1, 2)
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
