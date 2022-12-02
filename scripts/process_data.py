@@ -76,7 +76,8 @@ class ProcessImages:
 
         # Copy images to output directory
 
-        rename = self.sfm_method != "OpenSfM"
+        # rename = self.sfm_method != "OpenSfM"
+        rename = True
         num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose, rename=rename)
         summary_log.append(f"Starting with {num_frames} images")
 
