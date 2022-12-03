@@ -19,6 +19,7 @@ import sys
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple
+from typing_extensions import Literal
 
 from rich.console import Console
 
@@ -209,3 +210,52 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
     downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
+
+def find_tool_feature_matcher_combination(
+    sfm_tool: Literal["any", "colmap", "hloc"],
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ],
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ]):
+    """Find a valid combination of sfm tool, feature type, and matcher type.
+    Basically, replace the default parameters 'any' by usable value
+    
+    Args:
+        sfm_tool: Sfm tool name (any, colmap, hloc)
+        feature_type: Type of image features (any, sift, superpoint, ...)
+        matcher_type: Type of matching algorithm (any, NN, superglue,...)
+
+    Returns:
+        Tuple of sfm tool, feature type, and matcher type.
+        Returns (None,None,None) if no valid combination can be found
+    """
+    if sfm_tool == "any":
+        if (feature_type in ("any", "sift")) and (matcher_type in ("any", "NN")):
+            sfm_tool = "colmap"
+        else:
+            sfm_tool = "hloc"
+
+    if sfm_tool == "colmap":
+        return ("colmap", "sift", "NN")
+    if sfm_tool == "hloc":
+        if feature_type in ("any", "superpoint"):
+            feature_type = "superpoint_aachen"
+
+        if matcher_type == "any":
+            matcher_type = "superglue"
+        elif matcher_type == "NN":
+            matcher_type = "NN-mutual"
+
+        return (sfm_tool, feature_type, matcher_type)
+    return (None, None, None)

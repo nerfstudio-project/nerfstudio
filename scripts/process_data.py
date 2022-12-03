@@ -29,30 +29,6 @@ from nerfstudio.utils import install_checks
 CONSOLE = Console(width=120)
 
 
-def find_tool_feature_matcher_combination(sfm_tool, feature_type, matcher_type):
-    """Find a valid combination of sfm tool, feature type, and matcher type.
-    Basically, replace the default parameters 'any' by usable value"""
-    if sfm_tool == "any":
-        if (feature_type in ("any", "sift")) and (matcher_type in ("any", "NN")):
-            sfm_tool = "colmap"
-        else:
-            sfm_tool = "hloc"
-
-    if sfm_tool == "colmap":
-        return ("colmap", "sift", "NN")
-    if sfm_tool == "hloc":
-        if feature_type in ("any", "superpoint"):
-            feature_type = "superpoint_aachen"
-
-        if matcher_type == "any":
-            matcher_type = "superglue"
-        elif matcher_type == "NN":
-            matcher_type = "NN-mutual"
-
-        return (sfm_tool, feature_type, matcher_type)
-    return (None, None, None)
-
-
 @dataclass
 class ProcessImages:
     """Process images into a nerfstudio dataset.
@@ -127,7 +103,7 @@ class ProcessImages:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            (sfm_tool, feature_type, matcher_type) = find_tool_feature_matcher_combination(
+            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
                 self.sfm_tool, self.feature_type, self.matcher_type
             )
 
@@ -251,7 +227,7 @@ class ProcessVideo:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            (sfm_tool, feature_type, matcher_type) = find_tool_feature_matcher_combination(
+            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
                 self.sfm_tool, self.feature_type, self.matcher_type
             )
 
