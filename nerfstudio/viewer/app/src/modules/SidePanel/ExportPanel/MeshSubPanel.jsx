@@ -66,7 +66,7 @@ export default function MeshSubPanel(props) {
         label: 'Normal Options',
         options: [...new Set(normal_options)],
         value: normal_options[0],
-        render: (get) => get('mesh_method_options') === 'poisson (best)',
+        render: (get) => get('mesh_method_options') === 'poisson',
       },
       numFaces: { label: 'Number of Faces', value: 50000, min: 1 },
       textureResolution: { label: 'Texture Resolution', value: 2048, min: 1 },
@@ -74,12 +74,12 @@ export default function MeshSubPanel(props) {
         label: 'Number of Points',
         value: 1000000,
         min: 1,
-        render: (get) => get('mesh_method_options') === 'poisson (best)',
+        render: (get) => get('mesh_method_options') === 'poisson',
       },
       removeOutliers: {
         label: 'Remove Outliers',
         value: true,
-        render: (get) => get('mesh_method_options') === 'poisson (best)',
+        render: (get) => get('mesh_method_options') === 'poisson',
       },
       useBoundingBox: {
         label: 'Crop',
@@ -147,6 +147,7 @@ export default function MeshSubPanel(props) {
   ];
 
   const mesh_method_choice = controlValues.mesh_method_options;
+  console.log(mesh_method_choice);
   let cmd = '';
   if (mesh_method_choice === 'tsdf') {
     cmd =
