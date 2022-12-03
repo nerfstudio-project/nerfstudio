@@ -48,7 +48,7 @@ export default function MeshSubPanel(props) {
     (state) => state.renderingState.output_options,
   );
   const normal_options = get_normal_outputs(output_options);
-  const mesh_method_options = ['tsdf', 'poisson'];
+  const mesh_method_options = ['poisson', 'tsdf'];
 
   const config_filename = `${config_base_dir}/config.yml`;
 
@@ -56,14 +56,17 @@ export default function MeshSubPanel(props) {
     {
       mesh_method_options: {
         label: 'Mesh Method Options',
-        options: [...new Set(mesh_method_options)],
+        options: {
+          'Poisson (best)': 'poisson',
+          TSDF: 'tsdf',
+        },
         value: mesh_method_options[0],
       },
       normal_options: {
         label: 'Normal Options',
         options: [...new Set(normal_options)],
         value: normal_options[0],
-        render: (get) => get('mesh_method_options') === 'poisson',
+        render: (get) => get('mesh_method_options') === 'poisson (best)',
       },
       numFaces: { label: 'Number of Faces', value: 50000, min: 1 },
       textureResolution: { label: 'Texture Resolution', value: 2048, min: 1 },
@@ -71,12 +74,12 @@ export default function MeshSubPanel(props) {
         label: 'Number of Points',
         value: 1000000,
         min: 1,
-        render: (get) => get('mesh_method_options') === 'poisson',
+        render: (get) => get('mesh_method_options') === 'poisson (best)',
       },
       removeOutliers: {
         label: 'Remove Outliers',
         value: true,
-        render: (get) => get('mesh_method_options') === 'poisson',
+        render: (get) => get('mesh_method_options') === 'poisson (best)',
       },
       useBoundingBox: {
         label: 'Crop',
@@ -147,7 +150,7 @@ export default function MeshSubPanel(props) {
   let cmd = '';
   if (mesh_method_choice === 'tsdf') {
     cmd =
-      `ns-export ${controlValues.mesh_method_options}` +
+      `ns-export ${mesh_method_choice}` +
       ` --load-config ${config_filename}` +
       ` --output-dir ${controlValues.outputDir}` +
       ` --target-num-faces ${controlValues.numFaces}` +
@@ -157,7 +160,7 @@ export default function MeshSubPanel(props) {
       ` --bounding-box-max ${bbox_max[0]} ${bbox_max[1]} ${bbox_max[2]}`;
   } else if (mesh_method_choice === 'poisson') {
     cmd =
-      `ns-export ${controlValues.mesh_method_options}` +
+      `ns-export ${mesh_method_choice}` +
       ` --load-config ${config_filename}` +
       ` --output-dir ${controlValues.outputDir}` +
       ` --target-num-faces ${controlValues.numFaces}` +
@@ -187,7 +190,9 @@ export default function MeshSubPanel(props) {
     // check if normals aren't available when using poisson meshing
     inner_html = (
       <div className="ExportModal-text">
-        You need to train a model with normals to use poisson meshing.
+        You need to train a model with normals to use poisson meshing. Try tsdf
+        or retrain the model with normals. You can use nerfacto with <br/>
+        <b>--pipeline.model.predict-normals True</b>
       </div>
     );
   } else {
