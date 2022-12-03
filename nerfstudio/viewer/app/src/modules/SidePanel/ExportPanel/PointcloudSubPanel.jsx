@@ -1,5 +1,4 @@
 import * as React from 'react';
-import * as THREE from 'three';
 import { useControls, useStoreContext } from 'leva';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -7,11 +6,9 @@ import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
 import { Button } from '@mui/material';
 
-const PCD_CLIPPING_BOX_NAME = 'PCD Clipping Box';
-
 export default function PointcloudSubPanel(props) {
-  const sceneTree = props.sceneTree;
-  const showExportBox = props.showExportBox;
+  const update_box_center = props.update_box_center;
+  const update_box_scale = props.update_box_scale;
   const store = useStoreContext();
 
   const dispatch = useDispatch();
@@ -32,27 +29,6 @@ export default function PointcloudSubPanel(props) {
 
   const config_filename = `${config_base_dir}/config.yml`;
 
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffd369,
-    transparent: true,
-    opacity: 0.7,
-    side: THREE.DoubleSide,
-  });
-  const cube = new THREE.Mesh(geometry, material);
-  sceneTree.set_object_from_path([PCD_CLIPPING_BOX_NAME], cube);
-  cube.visible = showExportBox && clippingEnabled;
-
-  const update_box_center = (value) => {
-    const box = sceneTree.find_object_no_create([PCD_CLIPPING_BOX_NAME]);
-    box.position.set(value[0], value[1], value[2]);
-  };
-
-  const update_box_scale = (value) => {
-    const box = sceneTree.find_object_no_create([PCD_CLIPPING_BOX_NAME]);
-    box.scale.set(value[0], value[1], value[2]);
-  };
-
   const controlValues = useControls(
     {
       numPoints: { label: 'Number of Points', value: 1000000, min: 1 },
@@ -62,8 +38,6 @@ export default function PointcloudSubPanel(props) {
         label: 'Crop',
         value: clippingEnabled,
         onChange: (value) => {
-          const box = sceneTree.find_object_no_create([PCD_CLIPPING_BOX_NAME]);
-          box.visible = value;
           dispatch({
             type: 'write',
             path: 'renderingState/clipping_enabled',
@@ -102,7 +76,7 @@ export default function PointcloudSubPanel(props) {
           });
         },
       },
-      outputDir: { label: 'Output Directory', value: 'pcd/' },
+      outputDir: { label: 'Output Directory', value: 'exports/pcd/' },
     },
     { store },
   );

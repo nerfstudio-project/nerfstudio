@@ -1,11 +1,14 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import * as React from 'react';
+import * as THREE from 'three';
+import { useSelector } from 'react-redux';
 
 import { Box, Typography, Tab, Tabs } from '@mui/material';
 import { LevaPanel, LevaStoreProvider, useCreateStore } from 'leva';
 import BlurOnIcon from '@mui/icons-material/BlurOn';
 import CategoryIcon from '@mui/icons-material/Category';
 import PointcloudSubPanel from './PointcloudSubPanel';
+import MeshSubPanel from './MeshSubPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
 
 interface TabPanelProps {
@@ -41,6 +44,8 @@ function a11yProps(index: number) {
   };
 }
 
+const CLIPPING_BOX_NAME = 'Clipping Box';
+
 export default function ExportPanel(props) {
   // unpack relevant information
   const sceneTree = props.sceneTree;
@@ -52,7 +57,32 @@ export default function ExportPanel(props) {
     setTypeValue(newValue);
   };
 
+  // create the clipping box
+  const clippingEnabled = useSelector(
+    (state) => state.renderingState.clipping_enabled,
+  );
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffd369,
+    transparent: true,
+    opacity: 0.3,
+    side: THREE.DoubleSide,
+  });
+  const cube = new THREE.Mesh(geometry, material);
+  sceneTree.set_object_from_path([CLIPPING_BOX_NAME], cube);
+  cube.visible = showExportBox && clippingEnabled;
+  const update_box_center = (value) => {
+    const box = sceneTree.find_object_no_create([CLIPPING_BOX_NAME]);
+    box.position.set(value[0], value[1], value[2]);
+  };
+
+  const update_box_scale = (value) => {
+    const box = sceneTree.find_object_no_create([CLIPPING_BOX_NAME]);
+    box.scale.set(value[0], value[1], value[2]);
+  };
+
   const pointcloudStore = useCreateStore();
+  const meshStore = useCreateStore();
 
   return (
     <div className="ExportPanel">
@@ -90,13 +120,26 @@ export default function ExportPanel(props) {
         />
         <LevaStoreProvider store={pointcloudStore}>
           <PointcloudSubPanel
-            sceneTree={sceneTree}
-            showExportBox={showExportBox}
+            update_box_center={update_box_center}
+            update_box_scale={update_box_scale}
           />
         </LevaStoreProvider>
       </TabPanel>
       <TabPanel value={type_value} index={1}>
-        Coming Soon
+        <LevaPanel
+          store={meshStore}
+          className="Leva-panel"
+          theme={LevaTheme}
+          titleBar={false}
+          fill
+          flat
+        />
+        <LevaStoreProvider store={meshStore}>
+          <MeshSubPanel
+            update_box_center={update_box_center}
+            update_box_scale={update_box_scale}
+          />
+        </LevaStoreProvider>
       </TabPanel>
     </div>
   );
