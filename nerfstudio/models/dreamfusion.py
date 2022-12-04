@@ -64,12 +64,14 @@ class DreamFusionModelConfig(ModelConfig):
 
     num_samples: int = 256
     """Number of samples in field evaluation"""
-    orientation_loss_mult: float = 0.0001
+    orientation_loss_mult: float = 0.01
     """Orientation loss multipier on computed normals."""
-    pred_normal_loss_mult: float = 0.001
+    pred_normal_loss_mult: float = 0.0003
     """Predicted normal loss multiplier."""
     random_light_source: bool = False
     """Randomizes light source per output."""
+    initialize_density: bool = True
+    """Initialize density in center of scene."""
 
 
 class DreamFusionModel(Model):
@@ -87,7 +89,8 @@ class DreamFusionModel(Model):
         **kwargs,
     ) -> None:
         self.num_samples = config.num_samples
-        self.initialize_density = True
+        self.initialize_density = config.initialize_density
+        self.train_normals = False
         super().__init__(config=config, **kwargs)
 
     def get_training_callbacks(
@@ -100,13 +103,24 @@ class DreamFusionModel(Model):
         ):
             self.initialize_density = False
 
+        def start_training_normals(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            self.train_normals = True
+
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 iters=(1000,),
                 func=stop_initialize_density,
                 args=[self, training_callback_attributes],
-            )
+            ),
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                iters=(1000,),
+                func=start_training_normals,
+                args=[self, training_callback_attributes],
+            ),
         ]
         return callbacks
 
@@ -161,6 +175,13 @@ class DreamFusionModel(Model):
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples_uniform)
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+
+        outputs = {
+            "rgb": rgb,
+            "accumulation": accumulation,
+            "depth": depth,
+        }
+
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
         pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
@@ -177,17 +198,13 @@ class DreamFusionModel(Model):
         shaded = lambertian.unsqueeze(-1).repeat(1, 3)
         shaded_albedo = rgb * lambertian.unsqueeze(-1)
 
-        outputs = {
-            "rgb": rgb,
-            "accumulation": accumulation,
-            "depth": depth,
-            "normals": normals,
-            "pred_normals": pred_normals,
-            "shaded": shaded,
-            "shaded_albedo": shaded_albedo,
-        }
+        outputs["normals"] = normals
+        outputs["pred_normals"] = pred_normals
+        outputs["shaded"] = shaded
+        outputs["shaded_albedo"] = shaded_albedo
 
-        if self.training:
+        if self.train_normals:
+
             outputs["rendered_orientation_loss"] = orientation_loss(
                 weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
@@ -210,7 +227,7 @@ class DreamFusionModel(Model):
 
         loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
-        if self.training:
+        if self.train_normals:
             # orientation loss for computed normals
             loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
                 outputs["rendered_orientation_loss"]

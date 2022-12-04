@@ -625,7 +625,7 @@ export default function CameraPanel(props) {
       labelDiv.className = 'label';
       labelDiv.textContent = camera.properties.get('NAME');
       labelDiv.style.color = 'black';
-      labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.61)";
+      labelDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.61)';
       labelDiv.style.backdropFilter = 'blur(5px)';
       labelDiv.style.padding = '6px';
       labelDiv.style.borderRadius = '6px';
