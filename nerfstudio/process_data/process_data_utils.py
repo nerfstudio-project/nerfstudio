@@ -19,9 +19,9 @@ import sys
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple
-from typing_extensions import Literal
 
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -211,6 +211,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
 
+
 def find_tool_feature_matcher_combination(
     sfm_tool: Literal["any", "colmap", "hloc"],
     feature_type: Literal[
@@ -227,10 +228,11 @@ def find_tool_feature_matcher_combination(
     ],
     matcher_type: Literal[
         "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
-    ]):
+    ],
+):
     """Find a valid combination of sfm tool, feature type, and matcher type.
     Basically, replace the default parameters 'any' by usable value
-    
+
     Args:
         sfm_tool: Sfm tool name (any, colmap, hloc)
         feature_type: Type of image features (any, sift, superpoint, ...)
@@ -247,6 +249,8 @@ def find_tool_feature_matcher_combination(
             sfm_tool = "hloc"
 
     if sfm_tool == "colmap":
+        if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
+            return (None, None, None)
         return ("colmap", "sift", "NN")
     if sfm_tool == "hloc":
         if feature_type in ("any", "superpoint"):

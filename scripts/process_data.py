@@ -128,7 +128,8 @@ class ProcessImages:
                     matcher_type=matcher_type,
                 )
             else:
-                CONSOLE.log("[bold yellow]Warning: Invalid combination of sfm_tool, feature_type, and matcher_type ")
+                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+                sys.exit(1)
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
@@ -252,7 +253,8 @@ class ProcessVideo:
                     matcher_type=matcher_type,
                 )
             else:
-                CONSOLE.log("[bold yellow]Warning: Invalid combination of sfm_tool, feature_type, and matcher_type ")
+                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+                sys.exit(1)
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
