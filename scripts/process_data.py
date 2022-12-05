@@ -2,6 +2,7 @@
 """Processes a video or image sequence to a nerfstudio compatible dataset."""
 
 
+import json
 import sys
 import zipfile
 from dataclasses import dataclass
@@ -15,6 +16,7 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
+    hloc_utils,
     insta360_utils,
     metashape_utils,
     polycam_utils,
@@ -46,6 +48,26 @@ class ProcessImages:
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
+    """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -81,15 +103,33 @@ class ProcessImages:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
+            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
+                self.sfm_tool, self.feature_type, self.matcher_type
             )
+
+            if sfm_tool == "colmap":
+                colmap_utils.run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
+                )
+            elif sfm_tool == "hloc":
+                hloc_utils.run_hloc(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    feature_type=feature_type,
+                    matcher_type=matcher_type,
+                )
+            else:
+                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+                sys.exit(1)
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
@@ -134,6 +174,26 @@ class ProcessVideo:
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
+    """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -168,15 +228,33 @@ class ProcessVideo:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
+            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
+                self.sfm_tool, self.feature_type, self.matcher_type
             )
+
+            if sfm_tool == "colmap":
+                colmap_utils.run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
+                )
+            elif sfm_tool == "hloc":
+                hloc_utils.run_hloc(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    feature_type=feature_type,
+                    matcher_type=matcher_type,
+                )
+            else:
+                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+                sys.exit(1)
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
@@ -246,14 +324,38 @@ class ProcessInsta360:
 
         filename_back, filename_front = insta360_utils.get_insta360_filenames(self.data)
 
-        # Convert video to images
-        summary_log, num_extracted_frames = insta360_utils.convert_insta360_to_images(
-            video_front=filename_front,
-            video_back=filename_back,
-            image_dir=image_dir,
-            num_frames_target=self.num_frames_target,
-            verbose=self.verbose,
-        )
+        if not filename_back.exists():
+            raise FileNotFoundError(f"Could not find {filename_back}")
+
+        ffprobe_cmd = f"ffprobe -v quiet -print_format json -show_streams -select_streams v:0 {filename_back}"
+
+        ffprobe_output = process_data_utils.run_command(ffprobe_cmd)
+
+        assert ffprobe_output is not None
+        ffprobe_decoded = json.loads(ffprobe_output)
+
+        width, height = ffprobe_decoded["streams"][0]["width"], ffprobe_decoded["streams"][0]["height"]
+
+        summary_log, num_extracted_frames = [], 0
+
+        if width / height == 1:
+            if not filename_front.exists():
+                raise FileNotFoundError(f"Could not find {filename_front}")
+            # Convert video to images
+            summary_log, num_extracted_frames = insta360_utils.convert_insta360_to_images(
+                video_front=filename_front,
+                video_back=filename_back,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                verbose=self.verbose,
+            )
+        else:
+            summary_log, num_extracted_frames = insta360_utils.convert_insta360_single_file_to_images(
+                video=filename_back,
+                image_dir=image_dir,
+                num_frames_target=self.num_frames_target,
+                verbose=self.verbose,
+            )
 
         # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
@@ -520,6 +622,11 @@ class ProcessMetashape:
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
+
+        if self.xml.suffix != ".xml":
+            raise ValueError(f"XML file {self.xml} must have a .xml extension")
+        if not self.xml.exists:
+            raise ValueError(f"XML file {self.xml} doesn't exist")
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"

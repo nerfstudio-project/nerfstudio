@@ -162,8 +162,9 @@ cython_debug/
 #.idea/
 
 # Experiments and outputs
-runs/
 outputs/
+exports/
+renders/
 # tensorboard log files
 events.out.*
 
@@ -178,10 +179,8 @@ temp*
 .nfs*
 external/
 __MACOSX/
-outputs*/
 node_modules/
 bash/
 cache/
-renders/
 package-lock.json
 camera_paths/

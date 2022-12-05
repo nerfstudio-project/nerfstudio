@@ -116,12 +116,11 @@ class Friends(DataParser):
 
         # --- semantics ---
         if self.config.include_semantics:
+            empty_path = Path()
+            replace_this_path = str(empty_path / images_folder / empty_path)
+            with_this_path = str(empty_path / segmentations_folder / "thing" / empty_path)
             filenames = [
-                Path(
-                    str(image_filename)
-                    .replace(f"/{images_folder}/", f"/{segmentations_folder}/thing/")
-                    .replace(".jpg", ".png")
-                )
+                Path(str(image_filename).replace(replace_this_path, with_this_path).replace(".jpg", ".png"))
                 for image_filename in image_filenames
             ]
             panoptic_classes = load_from_json(self.config.data / "panoptic_classes.json")

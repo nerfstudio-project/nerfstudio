@@ -55,7 +55,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
     if levels > 2:
         components[..., 4] = 1.0925484305920792 * x * y
         components[..., 5] = 1.0925484305920792 * y * z
-        components[..., 6] = 0.9461746957575601 * zz
+        components[..., 6] = 0.9461746957575601 * zz - 0.31539156525251999
         components[..., 7] = 1.0925484305920792 * x * z
         components[..., 8] = 0.5462742152960396 * (xx - yy)
 
@@ -74,7 +74,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
         components[..., 16] = 2.5033429417967046 * x * y * (xx - yy)
         components[..., 17] = 1.7701307697799304 * y * z * (3 * xx - yy)
         components[..., 18] = 0.9461746957575601 * x * y * (7 * zz - 1)
-        components[..., 19] = 0.6690465435572892 * y * (7 * zz - 3 * z)
+        components[..., 19] = 0.6690465435572892 * y * (7 * zz - 3)
         components[..., 20] = 0.10578554691520431 * (35 * zz * zz - 30 * zz + 3)
         components[..., 21] = 0.6690465435572892 * x * z * (7 * zz - 3)
         components[..., 22] = 0.47308734787878004 * (xx - yy) * (7 * zz - 1)
