@@ -66,7 +66,7 @@ pip install -e .[docs]
 ## Use docker image
 Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided. \
 ### Prerequisites
-Docker ([det docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.3, must be installed.
+Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.3, must be installed.
 The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.10)
 ```bash
 docker pull dromni/nerfstudio:<version>
