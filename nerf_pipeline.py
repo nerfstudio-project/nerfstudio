@@ -29,7 +29,7 @@ class Args:
     data_source: Literal["video", "images", "polycam"]
     input_data_dir: Path
     output_dir: Path
-    percent_frames: float = 1.0
+    percent_frames: float = None
 
 class my_timer(ContextDecorator):
     def __init__(self, name):
@@ -77,14 +77,14 @@ class ExperimentPipeline:
     @my_timer("Process")
     def process_data(self):
         CONSOLE.print("Processing data")
-        cmd = f"ns-process-data {self.args.data_source} --data {self.args.input_data_dir} --output-dir {self.args.output_dir}"
+        cmd = f"ns-process-data {self.args.data_source} --data {self.args.input_data_dir} --output-dir {self.args.output_dir} --verbose"
 
-        if self.args.data_source == "video" and self.args.percent_frames != 1.0:
+        if self.args.data_source == "video" and self.args.percent_frames is not None:
             video = cv2.VideoCapture(str(self.args.input_data_dir))
             total = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
             num_frames = int(total * self.args.percent_frames)
             self.write(f"Num frames: {num_frames}/{total}\n")
-            cmd = f"ns-process-data {self.args.data_source} --data {self.args.input_data_dir} --output-dir {self.args.output_dir} --num-frames-target {num_frames}"
+            cmd = f"ns-process-data {self.args.data_source} --data {self.args.input_data_dir} --output-dir {self.args.output_dir} --num-frames-target {num_frames} --matching-method sequential --verbose"
 
         print(cmd)
         run_command(cmd, verbose=True)

@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-images-streetview",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-images-streetview/nerfacto/2022-12-04_175800/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 20.4083251953125,
+    "ssim": 0.5198834538459778,
+    "lpips": 0.43053367733955383,
+    "num_rays_per_sec": 797832.0625,
+    "fps": 1.0927529335021973
+  }
+}

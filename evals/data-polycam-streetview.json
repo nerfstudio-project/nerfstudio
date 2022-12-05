@@ -1,0 +1,12 @@
+{
+  "experiment_name": "data-polycam-streetview",
+  "method_name": "nerfacto",
+  "checkpoint": "outputs/data-polycam-streetview/nerfacto/2022-12-04_100335/nerfstudio_models/step-000029999.ckpt",
+  "results": {
+    "psnr": 21.48874282836914,
+    "ssim": 0.543681263923645,
+    "lpips": 0.4134199023246765,
+    "num_rays_per_sec": 797244.125,
+    "fps": 1.0867974758148193
+  }
+}
