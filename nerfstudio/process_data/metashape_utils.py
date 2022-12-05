@@ -94,9 +94,10 @@ def metashape_to_json(  # pylint: disable=too-many-statements
     for camera in cameras:
         frame = {}
         # Labels sometimes have a file extension. We remove it for consistency.
-        if camera.get("label").split(".")[0] not in image_filename_map:  # type: ignore
+        camera_label = camera.get("label").split(".")[0]  # type: ignore
+        if camera_label not in image_filename_map:
             continue
-        frame["file_path"] = image_filename_map[camera.get("label")].as_posix()  # type: ignore
+        frame["file_path"] = image_filename_map[camera_label].as_posix()
         if camera.find("transform") is None:
             if verbose:
                 CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
