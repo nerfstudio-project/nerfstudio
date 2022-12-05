@@ -93,8 +93,12 @@ class ExperimentPipeline:
     @my_timer("Train")
     def train(self):
         input_data_dir = self.args.output_dir
-        CONSOLE.print(f"Trainig model\nModel: {self.args.model}\nInput dir: {input_data_dir}")
+        CONSOLE.print(f"Training model\nModel: {self.args.model}\nInput dir: {input_data_dir}")
         cmd = f"ns-train {self.args.model} --data {input_data_dir} --vis wandb --viewer.quit-on-train-completion True"
+        
+        if self.args.model == "mipnerf":
+            cmd += " nerfstudio-data"
+
         run_command(cmd, verbose=True)
         
     @my_timer("Evaluate")
