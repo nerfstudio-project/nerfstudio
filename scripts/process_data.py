@@ -16,6 +16,7 @@ from typing_extensions import Annotated, Literal
 
 from nerfstudio.process_data import (
     colmap_utils,
+    hloc_utils,
     insta360_utils,
     metashape_utils,
     polycam_utils,
@@ -47,6 +48,26 @@ class ProcessImages:
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
+    """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -82,15 +103,33 @@ class ProcessImages:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
+            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
+                self.sfm_tool, self.feature_type, self.matcher_type
             )
+
+            if sfm_tool == "colmap":
+                colmap_utils.run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
+                )
+            elif sfm_tool == "hloc":
+                hloc_utils.run_hloc(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    feature_type=feature_type,
+                    matcher_type=matcher_type,
+                )
+            else:
+                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+                sys.exit(1)
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
@@ -135,6 +174,26 @@ class ProcessVideo:
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
         accuracy. Exhaustive is slower but more accurate. Sequential is faster but should only be used for videos."""
+    sfm_tool: Literal["any", "colmap", "hloc"] = "any"
+    """Structure from motion tool to use. Colmap will use sift features, hloc can use many modern methods
+       such as superpoint features and superglue matcher"""
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ] = "any"
+    """Type of feature to use."""
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ] = "any"
+    """Matching algorithm."""
     num_downscales: int = 3
     """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
         will downscale the images by 2x, 4x, and 8x."""
@@ -169,15 +228,33 @@ class ProcessVideo:
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
 
-            colmap_utils.run_colmap(
-                image_dir=image_dir,
-                colmap_dir=colmap_dir,
-                camera_model=CAMERA_MODELS[self.camera_type],
-                gpu=self.gpu,
-                verbose=self.verbose,
-                matching_method=self.matching_method,
-                colmap_cmd=self.colmap_cmd,
+            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
+                self.sfm_tool, self.feature_type, self.matcher_type
             )
+
+            if sfm_tool == "colmap":
+                colmap_utils.run_colmap(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    gpu=self.gpu,
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    colmap_cmd=self.colmap_cmd,
+                )
+            elif sfm_tool == "hloc":
+                hloc_utils.run_hloc(
+                    image_dir=image_dir,
+                    colmap_dir=colmap_dir,
+                    camera_model=CAMERA_MODELS[self.camera_type],
+                    verbose=self.verbose,
+                    matching_method=self.matching_method,
+                    feature_type=feature_type,
+                    matcher_type=matcher_type,
+                )
+            else:
+                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+                sys.exit(1)
 
         # Save transforms.json
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
