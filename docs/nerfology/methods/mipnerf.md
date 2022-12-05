@@ -10,8 +10,13 @@ Paper Website
 
 ### Running Model
 
+The model requires requires a fair amount of GPU memory. You can decrease the batch size using the `--pipeline.datamanager.train-num-rays-per-batch` argument to solve CUDA out of memory error (Tested with 4096 rays on 24GB GPU).
+
 ```bash
-ns-train mipnerf
+ns-train mipnerf \
+  --data data/nerfstudio/poster \
+  --pipeline.datamanager.train-num-rays-per-batch 4096 \
+  nerfstudio-data
 ```
 
 ## Overview
