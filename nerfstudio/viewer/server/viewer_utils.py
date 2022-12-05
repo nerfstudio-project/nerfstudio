@@ -672,9 +672,12 @@ class ViewerState:
 
         aspect_ratio = camera_object["aspect"]
 
-        image_height = (num_vis_rays / aspect_ratio) ** 0.5
-        image_height = int(round(image_height, -1))
-        image_height = min(self.max_resolution, image_height)
+        if not self.camera_moving and not is_training:
+            image_height = self.max_resolution
+        else:
+            image_height = (num_vis_rays / aspect_ratio) ** 0.5
+            image_height = int(round(image_height, -1))
+            image_height = min(self.max_resolution, image_height)
         image_width = int(image_height * aspect_ratio)
         if image_width > self.max_resolution:
             image_width = self.max_resolution
