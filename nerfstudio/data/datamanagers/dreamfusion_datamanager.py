@@ -164,7 +164,7 @@ def random_train_pose(
     origins = torch.stack([torch.tensor([0, 0, 1])] * size, dim=0)
     origins = (origins * radius_mean) + (origins * (torch.randn((origins.shape)) * radius_std))
     R = torch.bmm(rot_z, rot_x)  # Want to have Rx @ Ry @ origin
-    print(torch.bmm(R, origins.unsqueeze(-1)).shape, (torch.randn((size, 3, 1)) * jitter_std).shape)
+    # print(torch.bmm(R, origins.unsqueeze(-1)).shape, (torch.randn((size, 3, 1)) * jitter_std).shape)
     t = torch.bmm(R, origins.unsqueeze(-1)) + torch.randn((size, 3, 1)) * jitter_std
     camera_to_worlds = torch.cat([R, t], dim=-1)
 
@@ -191,7 +191,7 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     _target: Type = field(default_factory=lambda: DreamFusionDataManager)
     train_resolution: int = 64
     """Training resolution"""
-    eval_resolution: int = 256
+    eval_resolution: int = 64
     """Evaluation resolution"""
     num_eval_angles: int = 256
     """Number of evaluation angles"""
@@ -199,8 +199,6 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     """Number of images per batch for training"""
     eval_images_per_batch: int = 1
     """Number of images per batch for evaluation"""
-    prompt: str = "A surfer sitting on a surfboard in the sky watching the sunset."
-    """Prompt to optimize for."""
 
 
 class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-method
@@ -276,7 +274,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             vertical_rotation_range=[-180, 180],
             jitter_std=0,
         )
-        ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(self.config.train_images_per_batch)]))
+        ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation, "initialization": True}
 

@@ -1,7 +1,9 @@
 
 # From https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
+import matplotlib.pyplot as plt
 import torch
+import torch.nn.functional as F
 from diffusers import AutoencoderKL, PNDMScheduler, UNet2DConditionModel
 from rich.console import Console
 from torch import nn
@@ -71,15 +73,13 @@ class StableDiffusion(nn.Module):
         text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
         return text_embeddings
 
+    def sds_loss(self, text_embeddings, nerf_output, guidance_scale=100):
 
-    def train_step(self, text_embeddings, pred_nerf, guidance_scale=100):
-        
-        # Upscale NeRF render for Stable Diffusion
-        pred_nerf = F.interpolate(pred_nerf, (IMG_DIM, IMG_DIM), mode='bilinear')
+        plt.imsave('nerf_output.png', nerf_output.view(3, 64, 64).permute(1, 2, 0).detach().cpu().numpy())
+        nerf_output = F.interpolate(nerf_output, (IMG_DIM, IMG_DIM), mode='bilinear')
 
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
-        latents = self.imgs_to_latent(pred_nerf)
-
+        latents = self.imgs_to_latent(nerf_output)
         # predict the noise residual with unet, NO grad!
         with torch.no_grad():
             # add noise
@@ -105,9 +105,10 @@ class StableDiffusion(nn.Module):
         # manually backward, since we omitted an item in grad and cannot simply autodiff.
         # _t = time.time()
         latents.backward(gradient=grad, retain_graph=True)
-        # torch.cuda.synchronize(); print(f'[TIME] guiding: backward {time.time() - _t:.4f}s')
 
-        return 0 # dummy loss value
+        rgb_loss = torch.square(noise_pred - noise)
+
+        return rgb_loss
 
     def produce_latents(self, text_embeddings, height=IMG_DIM, width=IMG_DIM, num_inference_steps=50, guidance_scale=7.5, latents=None):
 
@@ -147,7 +148,6 @@ class StableDiffusion(nn.Module):
 
     def imgs_to_latent(self, imgs):
         # imgs: [B, 3, H, W]
-
         imgs = 2 * imgs - 1
 
         posterior = self.auto_encoder.encode(imgs).latent_dist
@@ -175,8 +175,6 @@ def seed_everything(seed):
 if __name__ == '__main__':
 
     import argparse
-
-    import matplotlib.pyplot as plt
 
     parser = argparse.ArgumentParser()
     parser.add_argument('prompt', type=str)

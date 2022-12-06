@@ -314,9 +314,9 @@ class Trainer:
         with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):
             _, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step=step)
             loss = functools.reduce(torch.add, loss_dict.values())
-        self.grad_scaler.scale(loss).backward()  # type: ignore
-        self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
-        self.grad_scaler.update()
+        # self.grad_scaler.scale(loss).backward()  # type: ignore
+        # self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+        # self.grad_scaler.update()
         self.optimizers.scheduler_step_all(step)
 
         # Merging loss and metrics dict into a single output.

@@ -229,6 +229,7 @@ class VanillaPipeline(Pipeline):
             scene_box=self.datamanager.train_dataset.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
+            device=device
         )
         self.model.to(device)
 

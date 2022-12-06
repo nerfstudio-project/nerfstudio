@@ -38,6 +38,7 @@ from nerfstudio.engine.callbacks import (
 # from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
+from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.model_components.losses import (
     MSELoss,
     orientation_loss,
@@ -72,6 +73,8 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
+    prompt: str = "A high quality photo of a pineaple."
+    """Text prompt to optimize scene for."""
 
 
 class DreamFusionModel(Model):
@@ -92,6 +95,8 @@ class DreamFusionModel(Model):
         self.initialize_density = config.initialize_density
         self.train_normals = False
         super().__init__(config=config, **kwargs)
+        self.sd = StableDiffusion(kwargs['device'])
+        self.text_embedding = self.sd.get_text_embeds(config.prompt, "")
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
@@ -193,7 +198,8 @@ class DreamFusionModel(Model):
         light_d = math.safe_normalize(light_d)
 
         ratio = 0.1
-        lambertian = ratio + (1 - ratio) * (pred_normals @ light_d).clamp(min=0)  # [N,]
+        lambertian = ratio + (1 - ratio) * (normals @ light_d).clamp(min=0)
+        # lambertian = ratio + (1 - ratio) * (pred_normals @ light_d).clamp(min=0)  # [N,]
 
         shaded = lambertian.unsqueeze(-1).repeat(1, 3)
         shaded_albedo = rgb * lambertian.unsqueeze(-1)
@@ -221,9 +227,11 @@ class DreamFusionModel(Model):
         # TODO: modify to not take in data images, need to get diffusion loss here
         # Scaling metrics by coefficients to create the losses.
         device = outputs["rgb"].device
-        image = batch["image"].to(device)
 
-        rgb_loss = self.rgb_loss(image, outputs["rgb"])
+        # change to key 'shaded_albedo'
+        albedo_output = outputs["rgb"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
+
+        rgb_loss = self.sd.sds_loss(self.text_embedding, albedo_output)
 
         loss_dict = {"rgb_loss": rgb_loss}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
