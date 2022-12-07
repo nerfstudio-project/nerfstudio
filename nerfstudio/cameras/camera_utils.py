@@ -457,7 +457,7 @@ def auto_orient_and_center_poses(
         transform = torch.cat([rotation, rotation @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
     elif method == "none":
-        oriented_poses = poses
-        poses[:, :3, 3] -= translation
+        oriented_poses = poses[:, :3]
+        oriented_poses[..., 3] -= translation
 
     return oriented_poses
