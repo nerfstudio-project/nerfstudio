@@ -2,6 +2,7 @@
 # From https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn.functional as F
 from diffusers import AutoencoderKL, PNDMScheduler, UNet2DConditionModel
@@ -75,7 +76,9 @@ class StableDiffusion(nn.Module):
 
     def sds_loss(self, text_embeddings, nerf_output, guidance_scale=100):
 
-        plt.imsave('nerf_output.png', nerf_output.view(3, 64, 64).permute(1, 2, 0).detach().cpu().numpy())
+        nerf_output_np = nerf_output.view(3, 64, 64).permute(1, 2, 0).detach().cpu().numpy()
+        nerf_output_np = np.clip(nerf_output_np, 0.0, 1.0)
+        plt.imsave('nerf_output.png', nerf_output_np)
         nerf_output = F.interpolate(nerf_output, (IMG_DIM, IMG_DIM), mode='bilinear')
 
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
@@ -102,13 +105,17 @@ class StableDiffusion(nn.Module):
         # grad = grad.clamp(-10, 10)
         grad = torch.nan_to_num(grad)
 
+        # noise_difference = self.latents_to_img(grad)
+        # plt.imsave('noise_difference.png', noise_difference.view(3, 512, 512).permute(1, 2, 0).detach().cpu().numpy())
+
         # manually backward, since we omitted an item in grad and cannot simply autodiff.
         # _t = time.time()
-        latents.backward(gradient=grad, retain_graph=True)
 
-        rgb_loss = torch.square(noise_pred - noise)
+        noise_loss = torch.mean(torch.nan_to_num(torch.square(noise_pred - noise)))
 
-        return rgb_loss
+        # print('SDS LOSS:', noise_loss)
+
+        return noise_loss, latents, grad
 
     def produce_latents(self, text_embeddings, height=IMG_DIM, width=IMG_DIM, num_inference_steps=50, guidance_scale=7.5, latents=None):
 

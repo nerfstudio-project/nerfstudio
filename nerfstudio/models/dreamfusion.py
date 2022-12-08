@@ -38,7 +38,6 @@ from nerfstudio.engine.callbacks import (
 # from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
-from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.model_components.losses import (
     MSELoss,
     orientation_loss,
@@ -73,8 +72,6 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    prompt: str = "A high quality photo of a pineaple."
-    """Text prompt to optimize scene for."""
 
 
 class DreamFusionModel(Model):
@@ -95,8 +92,6 @@ class DreamFusionModel(Model):
         self.initialize_density = config.initialize_density
         self.train_normals = False
         super().__init__(config=config, **kwargs)
-        self.sd = StableDiffusion(kwargs['device'])
-        self.text_embedding = self.sd.get_text_embeds(config.prompt, "")
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
@@ -172,7 +167,7 @@ class DreamFusionModel(Model):
         density = field_outputs[FieldHeadNames.DENSITY]
         if self.initialize_density:
             pos = ray_samples_uniform.frustums.get_positions()
-            density_blob = 10 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density_blob = 50 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
             density += density_blob
 
         weights = ray_samples_uniform.get_weights(density)
@@ -224,16 +219,9 @@ class DreamFusionModel(Model):
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
-        # TODO: modify to not take in data images, need to get diffusion loss here
         # Scaling metrics by coefficients to create the losses.
-        device = outputs["rgb"].device
 
-        # change to key 'shaded_albedo'
-        albedo_output = outputs["rgb"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
-
-        rgb_loss = self.sd.sds_loss(self.text_embedding, albedo_output)
-
-        loss_dict = {"rgb_loss": rgb_loss}
+        loss_dict = {}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         if self.train_normals:
             # orientation loss for computed normals

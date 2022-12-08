@@ -54,6 +54,7 @@ from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
+from nerfstudio.pipelines.dreamfusion_pipeline import DreamfusionPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
 method_configs: Dict[str, Config] = {}
@@ -261,7 +262,7 @@ method_configs["dreamfusion"] = Config(
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
     ),
-    pipeline=VanillaPipelineConfig(
+    pipeline=DreamfusionPipelineConfig(
         datamanager=DreamFusionDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
