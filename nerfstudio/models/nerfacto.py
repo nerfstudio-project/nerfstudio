@@ -71,7 +71,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether to randomize the background color."""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
-    max_res: int = 1024
+    max_res: int = 2048
     """Maximum resolution of the hashmap for the base mlp."""
     log2_hashmap_size: int = 19
     """Size of the hashmap for the base mlp"""
@@ -104,6 +104,8 @@ class NerfactoModelConfig(ModelConfig):
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""
+    use_appearance_embedding: bool = True
+    """Whether to use appearance embedding."""
     use_average_appearance_embedding: bool = True
     """Whether to use average appearance embedding or zeros for inference."""
     proposal_weights_anneal_slope: float = 10.0
@@ -140,6 +142,7 @@ class NerfactoModel(Model):
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
             use_pred_normals=self.config.predict_normals,
+            use_appearance_embedding=self.config.use_appearance_embedding,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,
         )
 

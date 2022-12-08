@@ -228,6 +228,8 @@ class Config(PrintableConfig):
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.dataparser.data"""
+    wandb_name: Optional[str] = None
+    """Alias for --logging.wandb.name"""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
