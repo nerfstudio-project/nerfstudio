@@ -34,8 +34,9 @@ def check_ffmpeg_installed():
 
 def check_colmap_installed():
     """Checks if colmap is installed."""
-    colmap_path = shutil.which("colmap")
-    if colmap_path is None:
-        CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
-        print("See https://colmap.github.io/install.html for installation instructions.")
-        sys.exit(1)
+    print("Skips the check of COLMAP")
+    #colmap_path = shutil.which("colmap")
+    #if colmap_path is None:
+    #    CONSOLE.print("[bold red]Could not find COLMAP. Please install COLMAP.")
+    #    print("See https://colmap.github.io/install.html for installation instructions.")
+    #    sys.exit(1)

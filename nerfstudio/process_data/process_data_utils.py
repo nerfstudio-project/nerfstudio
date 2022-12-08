@@ -89,6 +89,7 @@ def convert_video_to_images(
         out_filename = image_dir / "frame_%05d.png"
         ffmpeg_cmd = f"ffmpeg -i {video_path}"
         spacing = num_frames // num_frames_target
+        print(f"spacing: {spacing}")
 
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
