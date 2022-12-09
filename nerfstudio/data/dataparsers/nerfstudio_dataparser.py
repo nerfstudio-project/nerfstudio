@@ -194,10 +194,12 @@ class Nerfstudio(DataParser):
 
         poses[:, :3, 3] *= scale_factor * self.config.scale_factor
 
-        # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
+        # Choose image_filenames, poses and optionally masks based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
         poses = poses[indices]
+        if mask_filenames:
+            mask_filenames = [mask_filenames[i] for i in indices]
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
