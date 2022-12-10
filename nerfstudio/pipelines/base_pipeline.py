@@ -23,6 +23,7 @@ from dataclasses import dataclass, field
 from time import time
 from typing import Any, Dict, List, Optional, Type, Union, cast
 
+import random
 import torch
 import torch.distributed as dist
 from rich.progress import (
@@ -183,11 +184,15 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """Configuration for pipeline instantiation"""
 
     _target: Type = field(default_factory=lambda: VanillaPipeline)
-    """target class to instantiate"""
+    """Target class to instantiate."""
     datamanager: VanillaDataManagerConfig = VanillaDataManagerConfig()
-    """specifies the datamanager config"""
+    """Specifies the datamanager config."""
     model: ModelConfig = ModelConfig()
-    """specifies the model config"""
+    """Specifies the model config."""
+    eval_optimize_cameras: bool = False
+    """Whether to optimize the cameras during evaluation."""
+    eval_optimize_appearance: bool = False
+    """Whether to optimize the appearance during evaluation."""
 
 
 class VanillaPipeline(Pipeline):
@@ -255,7 +260,7 @@ class VanillaPipeline(Pipeline):
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
 
-        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group
+        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_train"
         if camera_opt_param_group in self.datamanager.get_param_groups():
             # Report the camera optimization metrics
             metrics_dict["camera_opt_translation"] = (
@@ -320,7 +325,7 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         metrics_dict_list = []
-        num_images = len(self.datamanager.fixed_indices_eval_dataloader)
+        num_images = len(self.datamanager.eval_dataset)
         with Progress(
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
@@ -329,11 +334,52 @@ class VanillaPipeline(Pipeline):
             transient=True,
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
-            for camera_ray_bundle, batch in self.datamanager.fixed_indices_eval_dataloader:
+            for idx in range(num_images):
+                camera_ray_bundle, batch = self.datamanager.get_eval_image(idx)
                 # time this the following line
                 inner_start = time()
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
+
+                # optimize camera poses on full image
+                if self.config.eval_optimize_cameras:
+
+                    # get the eval camera optimizer's parameters
+                    camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_eval"
+                    param_groups = self.datamanager.get_param_groups()
+                    optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=0.1)
+
+                    # check that camera optimizer is on
+                    if self.config.datamanager.camera_optimizer.mode == "off":
+                        raise ValueError(
+                            "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
+                        )
+                    num_pose_iters = 100
+                    for i in range(num_pose_iters):
+                        print("pose iter: ", i)
+                        # need to optimize the ray generator's camera optimizer
+                        # TODO: need to add require_grad in various locations to make it work
+                        optimizer.zero_grad()
+                        camera_ray_bundle, batch = self.datamanager.get_eval_image(idx)
+                        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                        metrics_dict = self.model.get_metrics_dict(outputs, batch)
+                        loss_dict = self.model.get_loss_dict(outputs, batch, metrics_dict)
+                        loss_dict["rgb_loss"].backward()
+                        optimizer.step()
+
+                # optimize appearance on half image
+                if self.config.eval_optimize_appearance:
+                    num_appearance_iters = 100
+                    side = random.choice([0, 1])
+                    half_width = width // 2
+                    if side == 0:
+                        half_camera_ray_bundle = camera_ray_bundle[:, :half_width]
+                    else:
+                        half_camera_ray_bundle = camera_ray_bundle[:, half_width:]
+                    for i in range(num_appearance_iters):
+                        # need to optimize the "embedding_appearance" in the nerfacto field
+                        pass
+
                 outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                 metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict

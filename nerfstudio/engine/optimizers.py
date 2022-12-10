@@ -21,11 +21,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Type
 
 import torch
+from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.nn.parameter import Parameter
 
 from nerfstudio.configs import base_config
 from nerfstudio.utils import writer
+
+CONSOLE = Console(width=120)
 
 
 # Optimizer related configs
@@ -77,7 +80,7 @@ def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Pa
     camera_optimizer_config = config.pipeline.datamanager.camera_optimizer
     if camera_optimizer_config.mode != "off":
         assert camera_optimizer_config.param_group not in optimizer_config
-        optimizer_config[camera_optimizer_config.param_group] = {
+        optimizer_config[camera_optimizer_config.param_group + "_train"] = {
             "optimizer": config.pipeline.datamanager.camera_optimizer.optimizer,
             "scheduler": config.pipeline.datamanager.camera_optimizer.scheduler,
         }
@@ -97,6 +100,11 @@ class Optimizers:
         self.optimizers = {}
         self.schedulers = {}
         for param_group_name, params in param_groups.items():
+            if param_group_name not in config:
+                CONSOLE.print(
+                    f"[bold yellow]Warning: Skipping param group '{param_group_name}' because optimizer and scheduler are not in the config."
+                )
+                continue
             lr_init = config[param_group_name]["optimizer"].lr
             self.optimizers[param_group_name] = config[param_group_name]["optimizer"].setup(params=params)
             if config[param_group_name]["scheduler"]:

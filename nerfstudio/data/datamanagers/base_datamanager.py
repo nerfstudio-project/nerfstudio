@@ -49,12 +49,9 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
 from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
-from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
+from nerfstudio.data.utils.dataloaders import CacheDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
+from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
@@ -384,22 +381,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_ray_generator = RayGenerator(
-            self.eval_dataset.cameras.to(self.device),
-            self.train_camera_optimizer,  # should be shared between train and eval.
+        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+            num_cameras=self.eval_dataset.cameras.size, device=self.device
         )
-        # for loading full images
-        self.fixed_indices_eval_dataloader = FixedIndicesEvalDataloader(
-            input_dataset=self.eval_dataset,
-            device=self.device,
-            num_workers=self.world_size * 4,
-        )
-        self.eval_dataloader = RandIndicesEvalDataloader(
-            input_dataset=self.eval_dataset,
-            image_indices=self.config.eval_image_indices,
-            device=self.device,
-            num_workers=self.world_size * 4,
-        )
+        self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device), self.eval_camera_optimizer)
+        # TODO(ethan): remove use of self.eval_dataloader from the spiral trajectory code
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""
@@ -419,12 +405,28 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         ray_bundle = self.eval_ray_generator(ray_indices)
         return ray_bundle, batch
 
+    def get_eval_image(self, idx: int) -> Tuple[RayBundle, Dict]:
+        """Returns the full image at the given index."""
+        image_batch = self.eval_dataset[idx]
+        image_batch = self.config.collate_fn([image_batch])
+        image_batch = get_dict_to_torch(image_batch, device=self.device, exclude=["image"])
+        # image_batch["image"].shape == (1, H, W, 3)
+        # this will sample the entire image
+        batch = self.eval_pixel_sampler.sample(image_batch, sample_all_pixels=True)
+        ray_indices = batch["indices"]
+        ray_indices_shape = ray_indices.shape  # (1, H, W, 3)
+        ray_bundle = self.eval_ray_generator(ray_indices.view(-1, 3))
+        camera_ray_bundle = ray_bundle.reshape(tuple(ray_indices_shape[1:-1]))  # (H, W)
+        # remove batch dimension from batch
+        for key in batch:
+            batch[key] = batch[key][0]
+        return camera_ray_bundle, batch
+
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        for camera_ray_bundle, batch in self.eval_dataloader:
-            assert camera_ray_bundle.camera_indices is not None
-            image_idx = int(camera_ray_bundle.camera_indices[0, 0, 0])
-            return image_idx, camera_ray_bundle, batch
-        raise ValueError("No more eval images")
+        for idx in range(len(self.eval_dataset)):
+            camera_ray_bundle, batch = self.get_eval_image(idx)
+            return idx, camera_ray_bundle, batch
+        raise ValueError("No more eval images.")
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.
@@ -433,11 +435,15 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         """
         param_groups = {}
 
-        camera_opt_params = list(self.train_camera_optimizer.parameters())
+        camera_opt_params_train = list(self.train_camera_optimizer.parameters())
+        camera_opt_params_eval = list(self.eval_camera_optimizer.parameters())
         if self.config.camera_optimizer.mode != "off":
-            assert len(camera_opt_params) > 0
-            param_groups[self.config.camera_optimizer.param_group] = camera_opt_params
+            assert len(camera_opt_params_train) > 0
+            assert len(camera_opt_params_eval) > 0
+            param_groups[self.config.camera_optimizer.param_group + "_train"] = camera_opt_params_train
+            param_groups[self.config.camera_optimizer.param_group + "_eval"] = camera_opt_params_eval
         else:
-            assert len(camera_opt_params) == 0
+            assert len(camera_opt_params_train) == 0
+            assert len(camera_opt_params_eval) == 0
 
         return param_groups
