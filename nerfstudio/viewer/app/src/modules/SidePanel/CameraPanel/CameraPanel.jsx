@@ -612,6 +612,11 @@ export default function CameraPanel(props) {
 
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     if (cameras.length < 1) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/camera_choice',
+        data: 'Main Camera',
+      });
       camera_render_helper.set_visibility(false);
     } else {
       camera_render_helper.set_visibility(true);
