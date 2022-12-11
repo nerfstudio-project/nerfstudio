@@ -84,6 +84,8 @@ class DataparserOutputs:
             "transform": self.dataparser_transform.tolist(),
             "scale": self.dataparser_scale,
         }
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True)
         with open(path, "w", encoding="UTF-8") as file:
             json.dump(data, file, indent=4)
 
