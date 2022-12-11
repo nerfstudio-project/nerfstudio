@@ -132,6 +132,10 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
+        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+            self.base_dir / "dataparser_transforms.json"
+        )
+
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
             num_iterations = self.config.trainer.max_num_iterations

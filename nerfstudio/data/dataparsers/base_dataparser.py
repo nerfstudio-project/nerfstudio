@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import json
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -63,10 +64,30 @@ class DataparserOutputs:
     """Dictionary of any metadata that be required for the given experiment.
     Will be processed by the InputDataset to create any additional tensors that may be required.
     """
+    dataparser_transform: TensorType[3, 4] = torch.eye(4)[:3, :]
+    """Transform applied by the dataparser."""
+    dataparser_scale: float = 1.0
+    """Scale applied by the dataparser."""
 
     def as_dict(self) -> dict:
         """Returns the dataclass as a dictionary."""
         return vars(self)
+
+    def save_dataparser_transform(self, path: Path):
+        """Save dataparser transform to json file. Some dataparsers will apply a transform to the poses,
+        this method allows the transform to be saved so that it can be used in other applications.
+
+        Args:
+            path: path to save transform to
+        """
+        data = {
+            "transform": self.dataparser_transform.tolist(),
+            "scale": self.dataparser_scale,
+        }
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True)
+        with open(path, "w", encoding="UTF-8") as file:
+            json.dump(data, file, indent=4)
 
 
 @dataclass

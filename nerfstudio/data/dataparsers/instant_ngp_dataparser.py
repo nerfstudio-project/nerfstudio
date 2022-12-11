@@ -115,6 +115,7 @@ class InstantNGP(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            dataparser_scale=self.config.scene_scale,
         )
 
         return dataparser_outputs
