@@ -22,6 +22,8 @@ from typing import Dict
 
 import tyro
 
+from nerfacc import ContractionType
+
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import (
     Config,
@@ -38,6 +40,8 @@ from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConf
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
+from  nerfstudio.data.dataparsers.instant_ngp_dataparser import InstantNGPDataParserConfig
+
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
@@ -112,6 +116,28 @@ method_configs["instant-ngp"] = Config(
     viewer=ViewerConfig(num_rays_per_chunk=64000),
     vis="viewer",
 )
+
+method_configs["instant-ngp-bounded"] = Config(
+    method_name="instant-ngp-bounded",
+    trainer=TrainerConfig(
+        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
+    ),
+    pipeline=DynamicBatchPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
+        model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192, contraction_type=ContractionType.AABB,
+                                    render_step_size=0.001, max_num_samples_per_ray=48, near_plane = 0.2,
+                                    randomize_background=False),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    vis="viewer",
+)
+
 
 method_configs["mipnerf"] = Config(
     method_name="mipnerf",
