@@ -107,6 +107,60 @@ class AABBBoxCollider(SceneCollider):
         ray_bundle.fars = fars[..., None]
         return ray_bundle
 
+class SphereCollider(SceneCollider):
+    """Module for colliding rays with the scene box to compute near and far values.
+
+    Args:
+        center: center of sphere to intersect
+        redius: radius of sphere to intersect
+    """
+
+    def __init__(self, center: TensorType[3], radius: float, near_plane: float = 0.0, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.center = center
+        self.radius = radius
+        self.near_plane = near_plane
+
+    def _intersect_with_sphere(
+        self, rays_o: TensorType["num_rays":..., 3], rays_d: TensorType["num_rays":..., 3]
+    ):
+        """Returns collection of valid rays within a specified near/far bounding box along with a mask
+        specifying which rays are valid
+
+        Args:
+            rays_o: (num_rays, 3) ray origins
+            rays_d: (num_rays, 3) ray directions
+        """
+
+        a = (rays_d * rays_d).sum(dim = -1, keepdim = True)
+        self.center = self.center.to(rays_o)
+        b = 2 * (rays_o - self.center) * rays_d
+        b = b.sum(dim = -1, keepdim = True)
+        c = (rays_o - self.center) * (rays_o - self.center)
+        c = c.sum(dim = -1, keepdim = True) - self.radius ** 2
+
+        # clamp to near plane
+        near_plane = self.near_plane if self.training else 0
+        nears = (-b - torch.sqrt(torch.square(b) - 4 * a * c)) / (2 * a)
+        fars = (-b + torch.sqrt(torch.square(b) - 4 * a * c)) / (2 * a)
+
+        nears = torch.clamp(nears, min=near_plane)
+        fars = torch.maximum(fars, nears + 1e-6)
+
+        return nears, fars
+
+    def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:
+        """Intersects the rays with the scene box and updates the near and far values.
+        Populates nears and fars fields and returns the ray_bundle.
+
+        Args:
+            ray_bundle: specified ray bundle to operate on
+        """
+        nears, fars = self._intersect_with_sphere(ray_bundle.origins, ray_bundle.directions)
+        ray_bundle.nears = nears
+        ray_bundle.fars = fars
+        return ray_bundle
+
 
 class NearFarCollider(SceneCollider):
     """Sets the nears and fars with fixed values.

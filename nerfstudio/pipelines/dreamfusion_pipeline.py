@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Type
 
+import matplotlib.pyplot as plt
+import numpy as np
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
@@ -58,7 +60,19 @@ class DreamfusionPipeline(VanillaPipeline):
         model_outputs = self.model(ray_bundle)
 
         # Just uses albedo for now
-        albedo_output = model_outputs["rgb"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
+        albedo_output = model_outputs["render"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
+
+        accumulation = model_outputs["accumulation"].view(64, 64).detach().cpu().numpy()
+        accumulation = np.clip(accumulation, 0.0, 1.0)
+        plt.imsave('nerf_accumulation.jpg', accumulation)
+
+        background = model_outputs["background"].view(64, 64, 3).detach().cpu().numpy()
+        background = np.clip(background, 0.0, 1.0)
+        plt.imsave('nerf_background.jpg', background)
+
+        shaded = model_outputs["shaded"].view(64, 64, 3).detach().cpu().numpy()
+        shaded = np.clip(shaded, 0.0, 1.0)
+        plt.imsave('nerf_textureless.jpg', shaded)
 
         sds_loss, latents, grad = self.sd.sds_loss(self.text_embedding, albedo_output)
 

@@ -25,7 +25,7 @@ from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
-from nerfstudio.cameras.rays import RaySamples
+from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
@@ -137,6 +137,18 @@ class DreamFusionField(Field):
         )
         self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
+        self.mlp_background_color = tcnn.Network(
+            n_input_dims=self.position_encoding.n_output_dims,
+            n_output_dims=3,
+            network_config={
+                "otype": "FullyFusedMLP",
+                "activation": "ReLU",
+                "output_activation": "None",
+                "n_neurons": 64,
+                "n_hidden_layers": 2,
+            },
+        )
+
         self.mlp_head = tcnn.Network(
             n_input_dims=self.geo_feat_dim,
             n_output_dims=3,
@@ -170,6 +182,17 @@ class DreamFusionField(Field):
         # from smaller internal (float16) parameters.
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
+
+    def get_background_rgb(self, ray_bundle: RayBundle):
+        """Predicts background colors at infinity."""
+        directions = get_normalized_directions(ray_bundle.directions)
+
+        outputs_shape = ray_bundle.directions.shape[:-1]
+
+        positions_flat = self.position_encoding(directions.view(-1, 3))
+        background_rgb = self.mlp_background_color(positions_flat).view(*outputs_shape, -1).to(directions)
+        return background_rgb
+
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         assert density_embedding is not None

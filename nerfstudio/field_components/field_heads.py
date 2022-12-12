@@ -34,6 +34,7 @@ class FieldHeadNames(Enum):
     NORMALS = "normals"
     PRED_NORMALS = "pred_normals"
     UNCERTAINTY = "uncertainty"
+    BACKGROUND_RGB = "background_rgb"
     TRANSIENT_RGB = "transient_rgb"
     TRANSIENT_DENSITY = "transient_density"
     SEMANTICS = "semantics"

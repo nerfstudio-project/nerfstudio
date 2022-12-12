@@ -13,6 +13,7 @@ from transformers import CLIPTextModel, CLIPTokenizer, logging
 CONSOLE = Console(width=120)
 logging.set_verbosity_error()
 IMG_DIM = 512
+const_scale = 0.15#8215
 
 class StableDiffusion(nn.Module):
     """Stable Diffusion implementation
@@ -144,7 +145,7 @@ class StableDiffusion(nn.Module):
 
     def latents_to_img(self, latents):
 
-        latents = 1 / 0.18215 * latents
+        latents = 1 / const_scale * latents
 
         with torch.no_grad():
             imgs = self.auto_encoder.decode(latents).sample
@@ -158,7 +159,7 @@ class StableDiffusion(nn.Module):
         imgs = 2 * imgs - 1
 
         posterior = self.auto_encoder.encode(imgs).latent_dist
-        latents = posterior.sample() * 0.18215
+        latents = posterior.sample() * const_scale
 
         return latents
 

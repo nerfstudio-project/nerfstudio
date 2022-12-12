@@ -50,7 +50,7 @@ from nerfstudio.model_components.renderers import (
     NormalsRenderer,
     RGBRenderer,
 )
-from nerfstudio.model_components.scene_colliders import AABBBoxCollider
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider, SphereCollider
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps, colors, math, misc
 
@@ -153,6 +153,7 @@ class DreamFusionModel(Model):
         # colliders
         if self.config.enable_collider:
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
+        # self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 1.0)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -161,13 +162,15 @@ class DreamFusionModel(Model):
 
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
+        background_rgb = self.field.get_background_rgb(ray_bundle)
+        # ray_bundle = self.sphere_collider(ray_bundle)
         ray_samples_uniform = self.sampler_uniform(ray_bundle)
         field_outputs = self.field(ray_samples_uniform, compute_normals=True)
 
         density = field_outputs[FieldHeadNames.DENSITY]
         if self.initialize_density:
             pos = ray_samples_uniform.frustums.get_positions()
-            density_blob = 50 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density_blob = 100 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
             density += density_blob
 
         weights = ray_samples_uniform.get_weights(density)
@@ -176,8 +179,12 @@ class DreamFusionModel(Model):
         depth = self.renderer_depth(weights, ray_samples_uniform)
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
 
+        background = torch.clamp((1 - torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0) * background_rgb
+
         outputs = {
             "rgb": rgb,
+            "background_rgb": background_rgb,
+            "background": background,
             "accumulation": accumulation,
             "depth": depth,
         }
@@ -192,17 +199,17 @@ class DreamFusionModel(Model):
             light_d = ray_bundle.origins[0]
         light_d = math.safe_normalize(light_d)
 
-        ratio = 0.1
+        ratio = 0.3
         lambertian = ratio + (1 - ratio) * (normals @ light_d).clamp(min=0)
-        # lambertian = ratio + (1 - ratio) * (pred_normals @ light_d).clamp(min=0)  # [N,]
 
         shaded = lambertian.unsqueeze(-1).repeat(1, 3)
         shaded_albedo = rgb * lambertian.unsqueeze(-1)
 
         outputs["normals"] = normals
         outputs["pred_normals"] = pred_normals
-        outputs["shaded"] = shaded
+        outputs["shaded"] = torch.nan_to_num(accumulation, nan=0.0) * shaded + torch.ones_like(shaded) * torch.clamp((1 - torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
         outputs["shaded_albedo"] = shaded_albedo
+        outputs["render"] = torch.nan_to_num(accumulation, nan=0.0) * shaded_albedo + background
 
         if self.train_normals:
 

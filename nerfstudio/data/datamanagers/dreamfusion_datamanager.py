@@ -241,7 +241,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             radius_mean=1.5,
             radius_std=0,
             focal_range=[1, 1],
-            vertical_rotation_range=[0, 20],
+            vertical_rotation_range=[-30, 30],
             # jitter_std=0,
         )
 
