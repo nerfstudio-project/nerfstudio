@@ -28,13 +28,13 @@ from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
-from nerfstudio.configs import base_config as cfg
+from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-from nerfstudio.engine.optimizers import Optimizers, setup_optimizers
+from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
@@ -71,7 +71,7 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(self, config: cfg.Config, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: ExperimentConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -96,7 +96,7 @@ class Trainer:
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
-        writer.setup_event_writer(config, log_dir=writer_log_path)
+        writer.setup_event_writer(config.is_wandb_enabled(), config.is_tensorboard_enabled(), log_dir=writer_log_path)
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )
@@ -115,7 +115,7 @@ class Trainer:
         self.pipeline = self.config.pipeline.setup(
             device=self.device, test_mode=test_mode, world_size=self.world_size, local_rank=self.local_rank
         )
-        self.optimizers = setup_optimizers(self.config, self.pipeline.get_param_groups())
+        self.optimizers = self.setup_optimizers()
 
         self._load_checkpoint()
 
@@ -127,6 +127,23 @@ class Trainer:
                 config=self.config.trainer,  # type: ignore
             )
         )
+
+    def setup_optimizers(self) -> Optimizers:
+        """Helper to set up the optimizers
+
+        Returns:
+            The optimizers object given the experiment config.
+        """
+        optimizer_config = self.config.optimizers.copy()
+        camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
+        param_groups = self.pipeline.get_param_groups()
+        if camera_optimizer_config.mode != "off":
+            assert camera_optimizer_config.param_group not in optimizer_config
+            optimizer_config[camera_optimizer_config.param_group] = {
+                "optimizer": camera_optimizer_config.optimizer,
+                "scheduler": camera_optimizer_config.scheduler,
+            }
+        return Optimizers(optimizer_config, param_groups)
 
     def train(self) -> None:
         """Train the model."""
