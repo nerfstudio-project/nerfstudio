@@ -218,7 +218,7 @@ class DreamFusionModel(Model):
             light_d = ray_bundle.origins[0]
         light_d = math.safe_normalize(light_d)
 
-        if self.train_shaded:
+        if self.train_shaded and np.random.random_sample() > 0.75:
             ratio = 0.1
         else:
             ratio = 0.0
