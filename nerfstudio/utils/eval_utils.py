@@ -28,7 +28,7 @@ from rich.console import Console
 from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import TrainerConfig
-from nerfstudio.configs.config import Config
+from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
 CONSOLE = Console(width=120)
@@ -69,7 +69,7 @@ def eval_setup(
     config_path: Path,
     eval_num_rays_per_chunk: Optional[int] = None,
     test_mode: Literal["test", "val", "inference"] = "test",
-) -> Tuple[Config, Pipeline, Path]:
+) -> Tuple[ExperimentConfig, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
     Args:
@@ -86,7 +86,7 @@ def eval_setup(
     """
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
-    assert isinstance(config, Config)
+    assert isinstance(config, ExperimentConfig)
 
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk

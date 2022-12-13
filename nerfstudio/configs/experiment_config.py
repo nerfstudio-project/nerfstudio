@@ -39,7 +39,7 @@ CONSOLE = Console(width=120)
 
 
 @dataclass
-class Config(PrintableConfig):
+class ExperimentConfig(PrintableConfig):
     """Full config contents"""
 
     output_dir: Path = Path("outputs")
