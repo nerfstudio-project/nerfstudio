@@ -43,11 +43,11 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: InstantNGP)
     """target class to instantiate"""
-    data: Path = Path("data/wayve-ngp-run")
+    data: Path = Path("data/ours/posterv2")
     """Directory specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    scene_scale: float = 1.0
+    scene_scale: float = 0.33
     """How much to scale the scene."""
 
 
@@ -61,19 +61,15 @@ class InstantNGP(DataParser):
 
         meta = load_from_json(self.config.data / "transforms.json")
         image_filenames = []
-        mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
             fname = self.config.data / Path(frame["file_path"])
-            image_ts = frame["file_path"].split("/")[-1][:-5]
-            mask_filename = self.config.data / Path(f"images/dynamic_mask_{image_ts}.png")
             if not fname:
                 num_skipped_image_filenames += 1
             else:
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
-                mask_filenames.append(mask_filename)
         if num_skipped_image_filenames >= 0:
             CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -86,7 +82,7 @@ class InstantNGP(DataParser):
         poses[:, :3, 3] *= self.config.scene_scale
 
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
-        camera_to_world[..., :3, -1] *= 1 / 16.0
+
         distortion_params = camera_utils.get_distortion_params(
             k1=float(meta["k1"]), k2=float(meta["k2"]), p1=float(meta["p1"]), p2=float(meta["p2"])
         )
@@ -98,7 +94,6 @@ class InstantNGP(DataParser):
             aabb=torch.tensor(
                 [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
             )
-            / 16.0
         )
 
         fl_x, fl_y = InstantNGP.get_focal_lengths(meta)
@@ -121,7 +116,6 @@ class InstantNGP(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             dataparser_scale=self.config.scene_scale,
-            mask_filenames=mask_filenames,
         )
 
         return dataparser_outputs

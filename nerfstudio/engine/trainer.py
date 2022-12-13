@@ -128,7 +128,6 @@ class Trainer:
             )
         )
 
-
     def setup_optimizers(self) -> Optimizers:
         """Helper to set up the optimizers
 
@@ -149,7 +148,6 @@ class Trainer:
                 "scheduler": camera_optimizer_config.scheduler,
             }
         return Optimizers(optimizer_config, param_groups)
-
 
     def train(self) -> None:
         """Train the model."""
