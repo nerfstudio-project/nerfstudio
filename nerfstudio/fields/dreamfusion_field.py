@@ -143,7 +143,7 @@ class DreamFusionField(Field):
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
-                "output_activation": "None",
+                "output_activation": "Sigmoid",
                 "n_neurons": 64,
                 "n_hidden_layers": 2,
             },
@@ -192,7 +192,6 @@ class DreamFusionField(Field):
         positions_flat = self.position_encoding(directions.view(-1, 3))
         background_rgb = self.mlp_background_color(positions_flat).view(*outputs_shape, -1).to(directions)
         return background_rgb
-
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         assert density_embedding is not None

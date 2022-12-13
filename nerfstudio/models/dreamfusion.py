@@ -72,6 +72,8 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
+    sphere_collider: bool = True
+    """Use spherical collider instead of box"""
 
 
 class DreamFusionModel(Model):
@@ -151,9 +153,10 @@ class DreamFusionModel(Model):
         self.lpips = LearnedPerceptualImagePatchSimilarity()
 
         # colliders
-        if self.config.enable_collider:
+        if self.config.sphere_collider:
+            self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 0.8)
+        else:
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
-        self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 0.8)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -178,7 +181,7 @@ class DreamFusionModel(Model):
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples_uniform)
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
-        rgb = torch.clamp(rgb, 0.0, 1.0)
+        # rgb = torch.clamp(rgb, 0.0, 1.0)
 
         accum_mask = torch.clamp((torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
         accum_mask_inv = 1.0 - accum_mask
@@ -194,9 +197,7 @@ class DreamFusionModel(Model):
         }
 
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)#.detach()
-
-
+        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)  # .detach()
 
         # lambertian shading
         if self.config.random_light_source:

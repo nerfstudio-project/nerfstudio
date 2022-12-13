@@ -23,9 +23,11 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """target class to instantiate"""
     datamanager: DreamFusionDataManagerConfig = DreamFusionDataManagerConfig()
     """specifies the datamanager config"""
+    prompt: str = "A high quality photo of a pineapple"
+    """prompt for stable dreamfusion"""
+
 
 class DreamfusionPipeline(VanillaPipeline):
-    
     def __init__(
         self,
         config: DreamfusionPipelineConfig,
@@ -34,15 +36,9 @@ class DreamfusionPipeline(VanillaPipeline):
         world_size: int = 1,
         local_rank: int = 0,
     ):
-        super().__init__(
-            config,
-            device,
-            test_mode,
-            world_size,
-            local_rank
-        )
+        super().__init__(config, device, test_mode, world_size, local_rank)
         self.sd = StableDiffusion(device)
-        self.text_embedding = self.sd.get_text_embeds("A high quality photo of a squirrel.", "")
+        self.text_embedding = self.sd.get_text_embeds(config.prompt, "")
 
     @profiler.time_function
     def custom_step(self, step: int, grad_scaler: GradScaler, optimizers: Optimizers):
@@ -64,15 +60,15 @@ class DreamfusionPipeline(VanillaPipeline):
 
         accumulation = model_outputs["accumulation"].view(64, 64).detach().cpu().numpy()
         accumulation = np.clip(accumulation, 0.0, 1.0)
-        plt.imsave('nerf_accumulation.jpg', accumulation)
+        plt.imsave("nerf_accumulation.jpg", accumulation)
 
         background = model_outputs["background"].view(64, 64, 3).detach().cpu().numpy()
         background = np.clip(background, 0.0, 1.0)
-        plt.imsave('nerf_background.jpg', background)
+        plt.imsave("nerf_background.jpg", background)
 
         shaded = model_outputs["shaded"].view(64, 64, 3).detach().cpu().numpy()
         shaded = np.clip(shaded, 0.0, 1.0)
-        plt.imsave('nerf_textureless.jpg', shaded)
+        plt.imsave("nerf_textureless.jpg", shaded)
 
         sds_loss, latents, grad = self.sd.sds_loss(self.text_embedding, albedo_output)
 
