@@ -30,7 +30,7 @@ def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -
         width, height = pil_mask.size
         newsize = (int(width * scale_factor), int(height * scale_factor))
         pil_mask = pil_mask.resize(newsize, resample=Image.NEAREST)
-    mask_tensor = (torch.from_numpy(np.array(pil_mask)).unsqueeze(-1) == 0).bool()
+    mask_tensor = torch.from_numpy(np.array(pil_mask)).unsqueeze(-1).bool()
     return mask_tensor
 
 
