@@ -116,7 +116,7 @@ method_configs["instant-ngp"] = ExperimentConfig(
 )
 
 
-method_configs["instant-ngp-bounded"] = Config(
+method_configs["instant-ngp-bounded"] = ExperimentConfig(
     method_name="instant-ngp-bounded",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
