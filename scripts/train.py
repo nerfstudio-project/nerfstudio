@@ -45,7 +45,7 @@ import tyro
 import yaml
 from rich.console import Console
 
-from nerfstudio.configs import base_config as cfg
+from nerfstudio.configs.config import Config
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import Trainer
@@ -74,7 +74,7 @@ def _set_random_seed(seed) -> None:
     torch.manual_seed(seed)
 
 
-def train_loop(local_rank: int, world_size: int, config: cfg.Config, global_rank: int = 0):
+def train_loop(local_rank: int, world_size: int, config: Config, global_rank: int = 0):
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -95,7 +95,7 @@ def _distributed_worker(
     num_gpus_per_machine: int,
     machine_rank: int,
     dist_url: str,
-    config: cfg.Config,
+    config: Config,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
@@ -150,7 +150,7 @@ def launch(
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
-    config: Optional[cfg.Config] = None,
+    config: Optional[Config] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
@@ -215,7 +215,7 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-def main(config: cfg.Config) -> None:
+def main(config: Config) -> None:
     """Main function."""
 
     config.set_timestamp()

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from nerfstudio.configs.base_config import Config
+from nerfstudio.configs.config import Config
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from scripts.train import train_loop
