@@ -382,12 +382,12 @@ class LocalWriter:
         Args:
             step: current train step
         """
-        valid_step = step > 0 and step % GLOBAL_BUFFER["steps_per_log"] == 0
+        valid_step = step % GLOBAL_BUFFER["steps_per_log"] == 0
         if valid_step:
             if not self.has_printed and self.config.max_log_size:
                 CONSOLE.log(
                     f"Printing max of {self.config.max_log_size} lines. "
-                    "Set flag çççç[yellow]--logging.local-writer.max-log-size=0[/yellow] "
+                    "Set flag [yellow]--logging.local-writer.max-log-size=0[/yellow] "
                     "to disable line wrapping."
                 )
             latest_map, new_key = self._consolidate_events()
