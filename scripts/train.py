@@ -45,8 +45,8 @@ import tyro
 import yaml
 from rich.console import Console
 
-from nerfstudio.configs import base_config as cfg
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
+from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 from nerfstudio.engine.trainer import Trainer
 from nerfstudio.utils import comms, profiler
@@ -74,7 +74,7 @@ def _set_random_seed(seed) -> None:
     torch.manual_seed(seed)
 
 
-def train_loop(local_rank: int, world_size: int, config: cfg.Config, global_rank: int = 0):
+def train_loop(local_rank: int, world_size: int, config: ExperimentConfig, global_rank: int = 0):
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -95,7 +95,7 @@ def _distributed_worker(
     num_gpus_per_machine: int,
     machine_rank: int,
     dist_url: str,
-    config: cfg.Config,
+    config: ExperimentConfig,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
@@ -110,7 +110,7 @@ def _distributed_worker(
         dist_url: URL to connect to for distributed jobs, including protocol
             E.g., "tcp://127.0.0.1:8686".
             It can be set to "auto" to automatically select a free port on localhost.
-        config: Config specifying training regimen.
+        config: ExperimentConfig specifying training regimen.
         timeout: Timeout of the distributed workers.
 
     Raises:
@@ -150,7 +150,7 @@ def launch(
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
-    config: Optional[cfg.Config] = None,
+    config: Optional[ExperimentConfig] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
@@ -161,7 +161,7 @@ def launch(
         num_machines (int, optional): total number of machines
         machine_rank (int, optional): rank of this machine.
         dist_url (str, optional): url to connect to for distributed jobs.
-        config (Config, optional): config file specifying training regimen.
+        config (ExperimentConfig, optional): config file specifying training regimen.
         timeout (timedelta, optional): timeout of the distributed workers.
     """
     assert config is not None
@@ -215,7 +215,7 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-def main(config: cfg.Config) -> None:
+def main(config: ExperimentConfig) -> None:
     """Main function."""
 
     config.set_timestamp()

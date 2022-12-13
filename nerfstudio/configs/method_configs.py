@@ -23,12 +23,8 @@ from typing import Dict
 import tyro
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import (
-    Config,
-    SchedulerConfig,
-    TrainerConfig,
-    ViewerConfig,
-)
+from nerfstudio.configs.base_config import TrainerConfig, ViewerConfig
+from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.datamanagers.variable_res_datamanager import (
@@ -42,6 +38,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
+from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -52,7 +49,7 @@ from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
-method_configs: Dict[str, Config] = {}
+method_configs: Dict[str, ExperimentConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
@@ -64,7 +61,7 @@ descriptions = {
     "phototourism": "Uses the Phototourism data.",
 }
 
-method_configs["nerfacto"] = Config(
+method_configs["nerfacto"] = ExperimentConfig(
     method_name="nerfacto",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
@@ -94,7 +91,7 @@ method_configs["nerfacto"] = Config(
     vis="viewer",
 )
 
-method_configs["instant-ngp"] = Config(
+method_configs["instant-ngp"] = ExperimentConfig(
     method_name="instant-ngp",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
@@ -113,7 +110,7 @@ method_configs["instant-ngp"] = Config(
     vis="viewer",
 )
 
-method_configs["mipnerf"] = Config(
+method_configs["mipnerf"] = ExperimentConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
@@ -133,7 +130,7 @@ method_configs["mipnerf"] = Config(
     },
 )
 
-method_configs["semantic-nerfw"] = Config(
+method_configs["semantic-nerfw"] = ExperimentConfig(
     method_name="semantic-nerfw",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
@@ -158,7 +155,7 @@ method_configs["semantic-nerfw"] = Config(
     vis="viewer",
 )
 
-method_configs["vanilla-nerf"] = Config(
+method_configs["vanilla-nerf"] = ExperimentConfig(
     method_name="vanilla-nerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -178,7 +175,7 @@ method_configs["vanilla-nerf"] = Config(
     },
 )
 
-method_configs["tensorf"] = Config(
+method_configs["tensorf"] = ExperimentConfig(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=False),
     pipeline=VanillaPipelineConfig(
@@ -199,7 +196,7 @@ method_configs["tensorf"] = Config(
     },
 )
 
-method_configs["dnerf"] = Config(
+method_configs["dnerf"] = ExperimentConfig(
     method_name="dnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
@@ -221,7 +218,7 @@ method_configs["dnerf"] = Config(
     },
 )
 
-method_configs["phototourism"] = Config(
+method_configs["phototourism"] = ExperimentConfig(
     method_name="phototourism",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True

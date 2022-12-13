@@ -188,7 +188,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
 
 
 @check_main_thread
-def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
+def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -197,11 +197,11 @@ def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
         banner_messages: list of messages to always display at bottom of screen
     """
     using_event_writer = False
-    if config.is_wandb_enabled():
+    if is_wandb_enabled:
         curr_writer = WandbWriter(log_dir=log_dir)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
-    if config.is_tensorboard_enabled():
+    if is_tensorboard_enabled:
         curr_writer = TensorboardWriter(log_dir=log_dir)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
