@@ -147,6 +147,9 @@ class SphereCollider(SceneCollider):
         nears = torch.clamp(nears, min=near_plane)
         fars = torch.maximum(fars, nears + 1e-6)
 
+        nears = torch.nan_to_num(nears, nan=0.0)
+        fars = torch.nan_to_num(fars, nan=0.0)
+
         return nears, fars
 
     def set_nears_and_fars(self, ray_bundle: RayBundle) -> RayBundle:

@@ -68,7 +68,7 @@ class DreamFusionModelConfig(ModelConfig):
     """Orientation loss multipier on computed normals."""
     pred_normal_loss_mult: float = 0.0003
     """Predicted normal loss multiplier."""
-    random_light_source: bool = False
+    random_light_source: bool = True
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
@@ -153,7 +153,7 @@ class DreamFusionModel(Model):
         # colliders
         if self.config.enable_collider:
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
-        # self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 1.0)
+        self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 0.8)
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
@@ -178,19 +178,25 @@ class DreamFusionModel(Model):
         accumulation = self.renderer_accumulation(weights)
         depth = self.renderer_depth(weights, ray_samples_uniform)
         rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
+        rgb = torch.clamp(rgb, 0.0, 1.0)
 
-        background = torch.clamp((1 - torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0) * background_rgb
+        accum_mask = torch.clamp((torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
+        accum_mask_inv = 1.0 - accum_mask
+
+        background = accum_mask_inv * background_rgb
 
         outputs = {
             "rgb": rgb,
             "background_rgb": background_rgb,
             "background": background,
-            "accumulation": accumulation,
+            "accumulation": accum_mask,
             "depth": depth,
         }
 
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)#.detach()
+
+
 
         # lambertian shading
         if self.config.random_light_source:
@@ -200,28 +206,28 @@ class DreamFusionModel(Model):
         light_d = math.safe_normalize(light_d)
 
         ratio = 0.3
-        lambertian = ratio + (1 - ratio) * (normals @ light_d).clamp(min=0)
-
+        # with torch.no_grad():
+        lambertian = ratio + (1 - ratio) * (pred_normals.detach() @ light_d).clamp(min=0)
         shaded = lambertian.unsqueeze(-1).repeat(1, 3)
         shaded_albedo = rgb * lambertian.unsqueeze(-1)
 
         outputs["normals"] = normals
         outputs["pred_normals"] = pred_normals
-        outputs["shaded"] = torch.nan_to_num(accumulation, nan=0.0) * shaded + torch.ones_like(shaded) * torch.clamp((1 - torch.nan_to_num(accumulation, nan=0.0)), min=0.0, max=1.0)
+        outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
         outputs["shaded_albedo"] = shaded_albedo
-        outputs["render"] = torch.nan_to_num(accumulation, nan=0.0) * shaded_albedo + background
+        outputs["render"] = accum_mask * shaded_albedo + background
 
-        if self.train_normals:
+        # if self.train_normals:
 
-            outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
-            )
+        outputs["rendered_orientation_loss"] = orientation_loss(
+            weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+        )
 
-            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-                weights.detach(),
-                field_outputs[FieldHeadNames.NORMALS].detach(),
-                field_outputs[FieldHeadNames.PRED_NORMALS],
-            )
+        outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+            weights.detach(),
+            field_outputs[FieldHeadNames.NORMALS].detach(),
+            field_outputs[FieldHeadNames.PRED_NORMALS],
+        )
 
         return outputs
 
@@ -230,16 +236,16 @@ class DreamFusionModel(Model):
 
         loss_dict = {}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
-        if self.train_normals:
-            # orientation loss for computed normals
-            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
-                outputs["rendered_orientation_loss"]
-            )
+        # if self.train_normals:
+        # orientation loss for computed normals
+        loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+            outputs["rendered_orientation_loss"]
+        )
 
-            # ground truth supervision for normals
-            loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
-                outputs["rendered_pred_normal_loss"]
-            )
+        # ground truth supervision for normals
+        loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
+            outputs["rendered_pred_normal_loss"]
+        )
         return loss_dict
 
     def get_image_metrics_and_images(

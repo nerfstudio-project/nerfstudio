@@ -42,7 +42,7 @@ class DreamfusionPipeline(VanillaPipeline):
             local_rank
         )
         self.sd = StableDiffusion(device)
-        self.text_embedding = self.sd.get_text_embeds("A high quality photo of a pineapple.", "")
+        self.text_embedding = self.sd.get_text_embeds("A high quality photo of a squirrel.", "")
 
     @profiler.time_function
     def custom_step(self, step: int, grad_scaler: GradScaler, optimizers: Optimizers):
@@ -77,12 +77,19 @@ class DreamfusionPipeline(VanillaPipeline):
         sds_loss, latents, grad = self.sd.sds_loss(self.text_embedding, albedo_output)
 
         grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
-        optimizers.optimizer_scaler_step_all(grad_scaler)
-        grad_scaler.update()
-        optimizers.scheduler_step_all(step)
+        # optimizers.scheduler_step_all(step)
+        # optimizers.optimizer_scaler_step_all(grad_scaler)
+        # grad_scaler.update()
 
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
         loss_dict["sds_loss"] = sds_loss
+
+        normals_loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
+        grad_scaler.scale(normals_loss).backward()  # type: ignore
+        optimizers.optimizer_scaler_step_all(grad_scaler)
+
+        grad_scaler.update()
+        optimizers.scheduler_step_all(step)
 
         return model_outputs, loss_dict, metrics_dict
