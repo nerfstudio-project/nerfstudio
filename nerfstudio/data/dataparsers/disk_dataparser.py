@@ -50,9 +50,8 @@ class DiskDataParser(DataParser):
 
     def _generate_dataparser_outputs(self, split="train"):
         # pylint: disable=too-many-statements
-
-        with open(self.config.data / split, mode="r", encoding="utf-8") as f:
-            data = np.load(f)
+        filepath = self.config.data / f"{split}.npz"
+        data = np.load(filepath)
 
         image_filenames = data["image_filenames"].tolist()
         mask_filenames = data["mask_filenames"].tolist() if "mask_filenames" in data.keys() else None
