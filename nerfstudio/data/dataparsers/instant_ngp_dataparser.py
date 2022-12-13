@@ -44,11 +44,11 @@ class InstantNGPDataParserConfig(DataParserConfig):
 
     _target: Type = field(default_factory=lambda: InstantNGP)
     """target class to instantiate"""
-    data: Path = Path("data/wayve-ngp-run")
-    """Directory specifying location of data."""
+    data: Path = Path("data/ours/posterv2")
+    """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
-    scene_scale: float = 1.0
+    scene_scale: float = 0.3333
     """How much to scale the scene."""
 
 
@@ -67,14 +67,15 @@ class InstantNGP(DataParser):
             data_dir = self.config.data
 
         image_filenames = []
-        mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
-            fname = self.config.data / Path(frame["file_path"])
-            image_ts = frame["file_path"].split("/")[-1][:-5]
-            mask_filename = self.config.data / Path(f"images/dynamic_mask_{image_ts}.png")
-            if not fname:
+            fname = data_dir / Path(frame["file_path"])
+            # search for png file
+            if not fname.exists():
+                fname = data_dir / Path(frame["file_path"] + ".png")
+            if not fname.exists():
+                CONSOLE.log(f"couldnt find {fname} image")
                 num_skipped_image_filenames += 1
             else:
                 if "w" not in meta:
@@ -88,7 +89,6 @@ class InstantNGP(DataParser):
                         meta["h"] = h
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
-                mask_filenames.append(mask_filename)
         if num_skipped_image_filenames >= 0:
             CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -101,7 +101,7 @@ class InstantNGP(DataParser):
         poses[:, :3, 3] *= self.config.scene_scale
 
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
-        camera_to_world[..., :3, -1] *= 1 / 16.0
+
         distortion_params = camera_utils.get_distortion_params(
             k1=float(meta.get("k1", 0)),
             k2=float(meta.get("k2", 0)),
@@ -119,7 +119,6 @@ class InstantNGP(DataParser):
             aabb=torch.tensor(
                 [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
             )
-            / 16.0
         )
 
         fl_x, fl_y = InstantNGP.get_focal_lengths(meta)
@@ -144,7 +143,6 @@ class InstantNGP(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             dataparser_scale=self.config.scene_scale,
-            mask_filenames=mask_filenames,
         )
 
         return dataparser_outputs
