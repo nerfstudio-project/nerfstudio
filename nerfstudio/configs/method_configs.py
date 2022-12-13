@@ -59,7 +59,7 @@ from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 method_configs: Dict[str, Config] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
-    "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
+    "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
     "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
     "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
@@ -131,7 +131,7 @@ method_configs["instant-ngp-bounded"] = Config(
             render_step_size=0.001,
             max_num_samples_per_ray=48,
             near_plane=0.01,
-            randomize_background=False,
+            background_color="black",
         ),
     ),
     optimizers={
