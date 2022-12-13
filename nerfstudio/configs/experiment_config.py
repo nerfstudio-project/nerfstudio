@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Main config used for running an experiment"""
+"""Config used for running an experiment"""
 
 from dataclasses import dataclass
 from datetime import datetime
