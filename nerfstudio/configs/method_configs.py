@@ -130,7 +130,7 @@ method_configs["instant-ngp-bounded"] = Config(
             contraction_type=ContractionType.AABB,
             render_step_size=0.001,
             max_num_samples_per_ray=48,
-            near_plane=0.2,
+            near_plane=0.01,
             randomize_background=False,
         ),
     ),
