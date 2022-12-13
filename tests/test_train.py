@@ -14,7 +14,7 @@ from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from scripts.train import train_loop
 
-BLACKLIST = ["base", "semantic-nerfw", "instant-ngp", "nerfacto", "phototourism"]
+BLACKLIST = ["base", "semantic-nerfw", "instant-ngp", "instant-ngp-bounded", "nerfacto", "phototourism"]
 
 
 def set_reduced_config(config: ExperimentConfig):
