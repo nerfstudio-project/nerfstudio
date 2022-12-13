@@ -21,7 +21,6 @@ from __future__ import annotations
 from typing import Dict
 
 import tyro
-
 from nerfacc import ContractionType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
@@ -39,9 +38,10 @@ from nerfstudio.data.datamanagers.variable_res_datamanager import (
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
+from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
+    InstantNGPDataParserConfig,
+)
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
-from  nerfstudio.data.dataparsers.instant_ngp_dataparser import InstantNGPDataParserConfig
-
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
@@ -60,6 +60,7 @@ method_configs: Dict[str, Config] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
+    "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
     "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. (slow)",
@@ -124,9 +125,14 @@ method_configs["instant-ngp-bounded"] = Config(
     ),
     pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
-        model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192, contraction_type=ContractionType.AABB,
-                                    render_step_size=0.001, max_num_samples_per_ray=48, near_plane = 0.2,
-                                    randomize_background=False),
+        model=InstantNGPModelConfig(
+            eval_num_rays_per_chunk=8192,
+            contraction_type=ContractionType.AABB,
+            render_step_size=0.001,
+            max_num_samples_per_ray=48,
+            near_plane=0.2,
+            randomize_background=False,
+        ),
     ),
     optimizers={
         "fields": {

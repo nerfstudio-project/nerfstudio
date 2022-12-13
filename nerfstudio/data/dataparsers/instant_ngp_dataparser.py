@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Tuple, Type
 
-import numpy as np
 import imageio
+import numpy as np
 import torch
 from rich.console import Console
 
@@ -73,7 +73,7 @@ class InstantNGP(DataParser):
             fname = data_dir / Path(frame["file_path"])
             # search for png file
             if not fname.exists():
-                fname = data_dir / Path(frame["file_path"]+ ".png")
+                fname = data_dir / Path(frame["file_path"] + ".png")
             if not fname.exists():
                 CONSOLE.log(f"couldnt find {fname} image")
                 num_skipped_image_filenames += 1
@@ -84,9 +84,9 @@ class InstantNGP(DataParser):
                     meta["w"] = w
                     if "h" in meta:
                         meta_h = meta["h"]
-                        assert meta_h==h, f"height of image dont not correspond metadata {h} != {meta_h}"
+                        assert meta_h == h, f"height of image dont not correspond metadata {h} != {meta_h}"
                     else:
-                        meta["h"]=h
+                        meta["h"] = h
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
         if num_skipped_image_filenames >= 0:
@@ -103,13 +103,17 @@ class InstantNGP(DataParser):
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
 
         distortion_params = camera_utils.get_distortion_params(
-            k1=float(meta.get("k1",0)), k2=float(meta.get("k2",0)),
-            k3=float(meta.get("k3",0)), k4=float(meta.get("k4",0)),
-            p1=float(meta.get("p1",0)), p2=float(meta.get("p2",0)))
+            k1=float(meta.get("k1", 0)),
+            k2=float(meta.get("k2", 0)),
+            k3=float(meta.get("k3", 0)),
+            k4=float(meta.get("k4", 0)),
+            p1=float(meta.get("p1", 0)),
+            p2=float(meta.get("p2", 0)),
+        )
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
-        aabb_scale = 0.5*meta.get("aabb_scale",1)
+        aabb_scale = 0.5 * meta.get("aabb_scale", 1)
 
         scene_box = SceneBox(
             aabb=torch.tensor(
@@ -124,8 +128,8 @@ class InstantNGP(DataParser):
         cameras = Cameras(
             fx=float(fl_x),
             fy=float(fl_y),
-            cx=float(meta.get("cx", 0.5*w)),
-            cy=float(meta.get("cy", 0.5*h)),
+            cx=float(meta.get("cx", 0.5 * w)),
+            cy=float(meta.get("cy", 0.5 * h)),
             distortion_params=distortion_params,
             height=int(h),
             width=int(w),
@@ -163,7 +167,7 @@ class InstantNGP(DataParser):
         elif "camera_angle_x" in meta:
             fl_x = fov_to_focal_length(meta["camera_angle_x"], meta["w"])
 
-        if "camera_angle_y" not in meta  or "y_fov" not in meta:
+        if "camera_angle_y" not in meta or "y_fov" not in meta:
             fl_y = fl_x
         else:
             if "fl_y" in meta:

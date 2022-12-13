@@ -122,7 +122,7 @@ class NGPModel(Model):
         )
 
         # renderers
-        background_color = "random" if self.config.randomize_background else colors.WHITE
+        background_color = "random" if self.config.randomize_background else colors.BLACK
         self.renderer_rgb = RGBRenderer(background_color=background_color)
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer(method="expected")
