@@ -28,7 +28,7 @@ from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
-from nerfstudio.configs.config import Config
+from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -71,7 +71,7 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(self, config: Config, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: ExperimentConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
@@ -128,16 +128,11 @@ class Trainer:
             )
         )
 
-
     def setup_optimizers(self) -> Optimizers:
         """Helper to set up the optimizers
 
-        Args:
-            config: The trainer configuration object.
-            param_groups: A dictionary of parameter groups to optimize.
-
         Returns:
-            The optimizers object.
+            The optimizers object given the experiment config.
         """
         optimizer_config = self.config.optimizers.copy()
         camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
@@ -149,7 +144,6 @@ class Trainer:
                 "scheduler": camera_optimizer_config.scheduler,
             }
         return Optimizers(optimizer_config, param_groups)
-
 
     def train(self) -> None:
         """Train the model."""

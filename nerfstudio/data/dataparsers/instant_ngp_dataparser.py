@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Tuple, Type
 
+import imageio
 import numpy as np
 import torch
 from rich.console import Console
@@ -58,8 +59,13 @@ class InstantNGP(DataParser):
     config: InstantNGPDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
+        if self.config.data.suffix == ".json":
+            meta = load_from_json(self.config.data)
+            data_dir = self.config.data.parent
+        else:
+            meta = load_from_json(self.config.data / "transforms.json")
+            data_dir = self.config.data
 
-        meta = load_from_json(self.config.data / "transforms.json")
         image_filenames = []
         mask_filenames = []
         poses = []
@@ -71,6 +77,15 @@ class InstantNGP(DataParser):
             if not fname:
                 num_skipped_image_filenames += 1
             else:
+                if "w" not in meta:
+                    img_0 = imageio.imread(fname)
+                    h, w = img_0.shape[:2]
+                    meta["w"] = w
+                    if "h" in meta:
+                        meta_h = meta["h"]
+                        assert meta_h == h, f"height of image dont not correspond metadata {h} != {meta_h}"
+                    else:
+                        meta["h"] = h
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
                 mask_filenames.append(mask_filename)
@@ -88,12 +103,18 @@ class InstantNGP(DataParser):
         camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
         camera_to_world[..., :3, -1] *= 1 / 16.0
         distortion_params = camera_utils.get_distortion_params(
-            k1=float(meta["k1"]), k2=float(meta["k2"]), p1=float(meta["p1"]), p2=float(meta["p2"])
+            k1=float(meta.get("k1", 0)),
+            k2=float(meta.get("k2", 0)),
+            k3=float(meta.get("k3", 0)),
+            k4=float(meta.get("k4", 0)),
+            p1=float(meta.get("p1", 0)),
+            p2=float(meta.get("p2", 0)),
         )
 
         # in x,y,z order
         # assumes that the scene is centered at the origin
-        aabb_scale = meta["aabb_scale"]
+        aabb_scale = 0.5 * meta.get("aabb_scale", 1)
+
         scene_box = SceneBox(
             aabb=torch.tensor(
                 [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
@@ -103,14 +124,16 @@ class InstantNGP(DataParser):
 
         fl_x, fl_y = InstantNGP.get_focal_lengths(meta)
 
+        w, h = meta["w"], meta["h"]
+
         cameras = Cameras(
             fx=float(fl_x),
             fy=float(fl_y),
-            cx=float(meta["cx"]),
-            cy=float(meta["cy"]),
+            cx=float(meta.get("cx", 0.5 * w)),
+            cy=float(meta.get("cy", 0.5 * h)),
             distortion_params=distortion_params,
-            height=int(meta["h"]),
-            width=int(meta["w"]),
+            height=int(h),
+            width=int(w),
             camera_to_worlds=camera_to_world,
             camera_type=CameraType.PERSPECTIVE,
         )
@@ -146,12 +169,15 @@ class InstantNGP(DataParser):
         elif "camera_angle_x" in meta:
             fl_x = fov_to_focal_length(meta["camera_angle_x"], meta["w"])
 
-        if "fl_y" in meta:
-            fl_y = meta["fl_y"]
-        elif "y_fov" in meta:
-            fl_y = fov_to_focal_length(np.deg2rad(meta["y_fov"]), meta["h"])
-        elif "camera_angle_y" in meta:
-            fl_y = fov_to_focal_length(meta["camera_angle_y"], meta["h"])
+        if "camera_angle_y" not in meta or "y_fov" not in meta:
+            fl_y = fl_x
+        else:
+            if "fl_y" in meta:
+                fl_y = meta["fl_y"]
+            elif "y_fov" in meta:
+                fl_y = fov_to_focal_length(np.deg2rad(meta["y_fov"]), meta["h"])
+            elif "camera_angle_y" in meta:
+                fl_y = fov_to_focal_length(meta["camera_angle_y"], meta["h"])
 
         if fl_x == 0 or fl_y == 0:
             raise AttributeError("Focal length cannot be calculated from transforms.json (missing fields).")
