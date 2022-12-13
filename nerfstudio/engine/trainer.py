@@ -131,12 +131,8 @@ class Trainer:
     def setup_optimizers(self) -> Optimizers:
         """Helper to set up the optimizers
 
-        Args:
-            config: The trainer configuration object.
-            param_groups: A dictionary of parameter groups to optimize.
-
         Returns:
-            The optimizers object.
+            The optimizers object given the experiment config.
         """
         optimizer_config = self.config.optimizers.copy()
         camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
