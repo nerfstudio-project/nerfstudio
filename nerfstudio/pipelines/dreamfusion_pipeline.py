@@ -56,7 +56,7 @@ class DreamfusionPipeline(VanillaPipeline):
         model_outputs = self.model(ray_bundle)
 
         # Just uses albedo for now
-        albedo_output = model_outputs["render"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
+        albedo_output = model_outputs["train_output"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
 
         accumulation = model_outputs["accumulation"].view(64, 64).detach().cpu().numpy()
         accumulation = np.clip(accumulation, 0.0, 1.0)
@@ -71,6 +71,9 @@ class DreamfusionPipeline(VanillaPipeline):
         plt.imsave("nerf_textureless.jpg", shaded)
 
         sds_loss, latents, grad = self.sd.sds_loss(self.text_embedding, albedo_output)
+        # TODO: opacity penalty using transmittance, not accumultation
+        accum_mean = np.mean(1.0 - accumulation)
+        sds_loss *= np.min((0.8, accum_mean))
 
         grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
         # optimizers.scheduler_step_all(step)

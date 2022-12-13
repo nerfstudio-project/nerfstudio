@@ -93,6 +93,7 @@ class DreamFusionModel(Model):
         self.num_samples = config.num_samples
         self.initialize_density = config.initialize_density
         self.train_normals = False
+        self.train_shaded = False
         super().__init__(config=config, **kwargs)
 
     def get_training_callbacks(
@@ -110,6 +111,11 @@ class DreamFusionModel(Model):
         ):
             self.train_normals = True
 
+        def start_shaded_training(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            self.train_shaded = True
+
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
@@ -121,6 +127,12 @@ class DreamFusionModel(Model):
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 iters=(1000,),
                 func=start_training_normals,
+                args=[self, training_callback_attributes],
+            ),
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                iters=(1000,),
+                func=start_shaded_training,
                 args=[self, training_callback_attributes],
             ),
         ]
@@ -154,7 +166,7 @@ class DreamFusionModel(Model):
 
         # colliders
         if self.config.sphere_collider:
-            self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 0.8)
+            self.collider = SphereCollider(torch.Tensor([0, 0, 0]), 1.0)
         else:
             self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
@@ -206,7 +218,10 @@ class DreamFusionModel(Model):
             light_d = ray_bundle.origins[0]
         light_d = math.safe_normalize(light_d)
 
-        ratio = 0.3
+        if self.train_shaded:
+            ratio = 0.1
+        else:
+            ratio = 0.0
         # with torch.no_grad():
         lambertian = ratio + (1 - ratio) * (pred_normals.detach() @ light_d).clamp(min=0)
         shaded = lambertian.unsqueeze(-1).repeat(1, 3)
@@ -217,6 +232,14 @@ class DreamFusionModel(Model):
         outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
         outputs["shaded_albedo"] = shaded_albedo
         outputs["render"] = accum_mask * shaded_albedo + background
+
+        if ratio > 0:
+            if np.random.random_sample() > 0.5:
+                outputs["train_output"] = accum_mask * shaded + background
+            else:
+                outputs["train_output"] = accum_mask * shaded_albedo + background
+        else:
+            outputs["train_output"] = accum_mask * rgb + background
 
         # if self.train_normals:
 
