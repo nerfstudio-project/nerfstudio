@@ -354,6 +354,7 @@ class VanillaPipeline(Pipeline):
                         raise ValueError(
                             "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
                         )
+                    # TODO: make this a parameter
                     num_pose_iters = 100
                     for i in range(num_pose_iters):
                         print("pose iter: ", i)
@@ -369,6 +370,7 @@ class VanillaPipeline(Pipeline):
 
                 # optimize appearance on half image
                 if self.config.eval_optimize_appearance:
+                    # TODO: make this a parameter
                     num_appearance_iters = 100
                     side = random.choice([0, 1])
                     half_width = width // 2

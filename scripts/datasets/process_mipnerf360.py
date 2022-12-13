@@ -29,15 +29,17 @@ from nerfstudio.utils.scripts import run_command
 # mipnerf 360 experiments
 
 splits = ["bicycle", "garden", "stump", "room", "counter", "kitchen", "bonsai"]  # 7 splits
-gpus = [0, 1, 3, 4, 5, 6, 7]
+# method = "nerfacto"
+method = "instant-ngp"
+gpus = [0, 3, 6, 7, 8, 9, 3]
 
 commands = []
 for split, gpu in zip(splits, gpus):
-    wandb_name = f"mipnerf360-{split}"
+    wandb_name = f"mipnerf360-{split}-{method}"
     command = " ".join(
         (
             f"CUDA_VISIBLE_DEVICES={gpu}",
-            "ns-train nerfacto",
+            f"ns-train {method}",
             "--vis wandb",
             f"--wandb-name {wandb_name}",
             f"--data data/_prep/images/mipnerf360/processed/{split}",
@@ -51,16 +53,19 @@ for split, gpu in zip(splits, gpus):
     )
     print(command)
     commands.append(command)
-# import subprocess
-# import sys
-# def f(cmd):
-#     out = subprocess.run(cmd, capture_output=False, shell=True, check=False)
-#     if out.returncode != 0:
-#         print(f"Error running command: {cmd}")
-#         sys.exit(1)
-#     if out.stdout is not None:
-#         return out.stdout.decode("utf-8")
+import subprocess
+import sys
+def f(cmd):
+    out = subprocess.run(cmd, capture_output=False, shell=True, check=False)
+    if out.returncode != 0:
+        print(f"Error running command: {cmd}")
+        sys.exit(1)
+    if out.stdout is not None:
+        return out.stdout.decode("utf-8")
 
-# from multiprocessing import Pool
-# with Pool() as p:
-#     print(p.map(f, commands))
+from multiprocessing import Pool
+with Pool() as p:
+    print(p.map(f, commands))
+
+
+# evaluation...
