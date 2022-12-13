@@ -45,7 +45,7 @@ class InstantNGPDataParserConfig(DataParserConfig):
     _target: Type = field(default_factory=lambda: InstantNGP)
     """target class to instantiate"""
     data: Path = Path("data/ours/posterv2")
-    """Directory specifying location of data."""
+    """Directory or explicit json file path specifying location of data."""
     scale_factor: float = 1.0
     """How much to scale the camera origins by."""
     scene_scale: float = 0.3333
