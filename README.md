@@ -131,13 +131,7 @@ The following will train a _nerfacto_ model, our recommended model for real worl
 # Download some test data:
 ns-download-data nerfstudio --capture-name=poster
 # Train model
-ns-train nerfacto --data data/nerfstudio/poster 
-```
-The last command-line can be also replaced by referring explicitly to the transformation file:
-
-```bash
-ns-train nerfacto --data data/nerfstudio/poster/transforms.json
-
+ns-train nerfacto --data data/nerfstudio/poster
 ```
 
 If everything works, you should see training progress like the following:
