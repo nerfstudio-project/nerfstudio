@@ -133,7 +133,7 @@ ns-download-data nerfstudio --capture-name=poster
 # Train model
 ns-train nerfacto --data data/nerfstudio/poster 
 ```
-or
+The last command-line can be also replaced by referring explicitly to the transformation file:
 
 ```bash
 ns-train nerfacto --data data/nerfstudio/poster/transforms.json
