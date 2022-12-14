@@ -167,6 +167,10 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
         allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
         image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
 
+        if len(image_paths) == 0:
+            CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+            sys.exit(1)
+
         num_frames = len(copy_images_list(image_paths, image_dir, verbose))
 
     return num_frames

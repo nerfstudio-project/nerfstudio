@@ -21,14 +21,11 @@ from __future__ import annotations
 from typing import Dict
 
 import tyro
+from nerfacc import ContractionType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import (
-    Config,
-    SchedulerConfig,
-    TrainerConfig,
-    ViewerConfig,
-)
+from nerfstudio.configs.base_config import TrainerConfig, ViewerConfig
+from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
     DreamFusionDataManagerConfig,
@@ -40,11 +37,15 @@ from nerfstudio.data.datamanagers.variable_res_datamanager import (
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
+from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
+    InstantNGPDataParserConfig,
+)
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
+from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.dreamfusion import DreamFusionModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
@@ -57,10 +58,11 @@ from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dreamfusion_pipeline import DreamfusionPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
-method_configs: Dict[str, Config] = {}
+method_configs: Dict[str, ExperimentConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
-    "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for bounded synthetic data.",
+    "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
+    "instant-ngp-bounded": "Implementation of Instant-NGP. Recommended for bounded real and synthetic scenes",
     "mipnerf": "High quality model for bounded scenes. (slow)",
     "semantic-nerfw": "Predicts semantic segmentations and filters out transient objects.",
     "vanilla-nerf": "Original NeRF model. (slow)",
@@ -70,7 +72,7 @@ descriptions = {
     "dreamfusion": "NeRF Model used in implementation of stable dreamfusion.",
 }
 
-method_configs["nerfacto"] = Config(
+method_configs["nerfacto"] = ExperimentConfig(
     method_name="nerfacto",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
@@ -100,7 +102,7 @@ method_configs["nerfacto"] = Config(
     vis="viewer",
 )
 
-method_configs["instant-ngp"] = Config(
+method_configs["instant-ngp"] = ExperimentConfig(
     method_name="instant-ngp",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
@@ -119,7 +121,35 @@ method_configs["instant-ngp"] = Config(
     vis="viewer",
 )
 
-method_configs["mipnerf"] = Config(
+
+method_configs["instant-ngp-bounded"] = ExperimentConfig(
+    method_name="instant-ngp-bounded",
+    trainer=TrainerConfig(
+        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
+    ),
+    pipeline=DynamicBatchPipelineConfig(
+        datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
+        model=InstantNGPModelConfig(
+            eval_num_rays_per_chunk=8192,
+            contraction_type=ContractionType.AABB,
+            render_step_size=0.001,
+            max_num_samples_per_ray=48,
+            near_plane=0.01,
+            background_color="black",
+        ),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=64000),
+    vis="viewer",
+)
+
+
+method_configs["mipnerf"] = ExperimentConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
@@ -139,7 +169,7 @@ method_configs["mipnerf"] = Config(
     },
 )
 
-method_configs["semantic-nerfw"] = Config(
+method_configs["semantic-nerfw"] = ExperimentConfig(
     method_name="semantic-nerfw",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
@@ -164,7 +194,7 @@ method_configs["semantic-nerfw"] = Config(
     vis="viewer",
 )
 
-method_configs["vanilla-nerf"] = Config(
+method_configs["vanilla-nerf"] = ExperimentConfig(
     method_name="vanilla-nerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -184,7 +214,7 @@ method_configs["vanilla-nerf"] = Config(
     },
 )
 
-method_configs["tensorf"] = Config(
+method_configs["tensorf"] = ExperimentConfig(
     method_name="tensorf",
     trainer=TrainerConfig(mixed_precision=False),
     pipeline=VanillaPipelineConfig(
@@ -205,7 +235,7 @@ method_configs["tensorf"] = Config(
     },
 )
 
-method_configs["dnerf"] = Config(
+method_configs["dnerf"] = ExperimentConfig(
     method_name="dnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
@@ -227,7 +257,7 @@ method_configs["dnerf"] = Config(
     },
 )
 
-method_configs["phototourism"] = Config(
+method_configs["phototourism"] = ExperimentConfig(
     method_name="phototourism",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True

@@ -39,7 +39,6 @@ from rich.progress import (
 from torchtyping import TensorType
 
 from nerfstudio.cameras.cameras import Cameras
-from nerfstudio.configs.base_config import Config  # pylint: disable=unused-import
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
