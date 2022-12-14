@@ -29,6 +29,14 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """enables location based prompting"""
     opacity_penalty: bool = True
     """enables penalty to encourage transparent scenes"""
+    target_transmittance: float = 0.25
+    """target transmittance for opacity penalty"""
+    side_prompt: str = ", side view"
+    """appended to prompt for side view"""
+    front_prompt: str = ", front view"
+    """appended to prompt for front view"""
+    back_prompt: str = ", back view"
+    """appended to prompt for back view"""
 
 
 class DreamfusionPipeline(VanillaPipeline):
@@ -41,12 +49,13 @@ class DreamfusionPipeline(VanillaPipeline):
         local_rank: int = 0,
     ):
         super().__init__(config, device, test_mode, world_size, local_rank)
+        self.generative = True
         self.sd = StableDiffusion(device)
         self.base_text_embedding = self.sd.get_text_embeds(config.prompt, "")
         if config.location_based_prompting:
-            self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}, front view", "")
-            self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}, side view", "")
-            self.back_text_embedding = self.sd.get_text_embeds(f"{config.prompt}, back view", "")
+            self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.front_prompt}", "")
+            self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.side_prompt}", "")
+            self.back_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.back_prompt}", "")
 
     @profiler.time_function
     def custom_step(self, step: int, grad_scaler: GradScaler, optimizers: Optimizers):

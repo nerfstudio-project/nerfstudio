@@ -287,7 +287,7 @@ method_configs["phototourism"] = ExperimentConfig(
     vis="viewer",
 )
 
-method_configs["dreamfusion"] = Config(
+method_configs["dreamfusion"] = ExperimentConfig(
     method_name="dreamfusion",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True

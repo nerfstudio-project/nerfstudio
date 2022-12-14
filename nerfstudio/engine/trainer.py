@@ -149,9 +149,10 @@ class Trainer:
         """Train the model."""
         assert self.pipeline.datamanager.train_dataset is not None, "Missing DatsetInputs"
 
-        self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
-            self.base_dir / "dataparser_transforms.json"
-        )
+        if not self.pipeline.generative:
+            self.pipeline.datamanager.train_dataparser_outputs.save_dataparser_transform(
+                self.base_dir / "dataparser_transforms.json"
+            )
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
@@ -333,8 +334,10 @@ class Trainer:
         self.optimizers.zero_grad_all()
         cpu_or_cuda_str = self.device.split(":")[0]
 
-        if hasattr(self.pipeline, 'custom_step'):
-            _, loss_dict, metrics_dict = self.pipeline.custom_step(step=step, grad_scaler=self.grad_scaler, optimizers=self.optimizers)
+        if hasattr(self.pipeline, "custom_step"):
+            _, loss_dict, metrics_dict = self.pipeline.custom_step(
+                step=step, grad_scaler=self.grad_scaler, optimizers=self.optimizers
+            )
             loss = functools.reduce(torch.add, loss_dict.values())
         else:
             with torch.autocast(device_type=cpu_or_cuda_str, enabled=self.mixed_precision):

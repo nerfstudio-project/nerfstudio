@@ -18,64 +18,24 @@ Data manager for dreamfusion
 
 from __future__ import annotations
 
-import random
-from abc import abstractmethod
-from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Tuple, Type, Union
 
-import numpy as np
-import numpy.typing as npt
 import torch
-import torch.nn.functional as F
-import tyro
-from PIL import Image
 from rich.progress import Console
-from torch import nn
 from torch.nn import Parameter
-from torch.utils.data import Dataset
-from torch.utils.data.distributed import DistributedSampler
-from torchtyping import TensorType
 from typing_extensions import Literal
 
-import nerfstudio.utils.profiler as profiler
-from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.data.datamanagers.base_datamanager import (
     DataManager,
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
-from nerfstudio.data.dataparsers.base_dataparser import DataparserOutputs
-from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
-from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
-from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
-    InstantNGPDataParserConfig,
-)
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
-from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
-from nerfstudio.data.dataparsers.phototourism_dataparser import (
-    PhototourismDataParserConfig,
-)
-from nerfstudio.data.dataparsers.record3d_dataparser import Record3DDataParserConfig
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import PixelSampler
 from nerfstudio.data.scene_box import SceneBox
-from nerfstudio.data.utils.data_utils import get_image_mask_tensor_from_path
-from nerfstudio.data.utils.dataloaders import (
-    CacheDataloader,
-    FixedIndicesEvalDataloader,
-    RandIndicesEvalDataloader,
-)
-from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
-from nerfstudio.engine.optimizers import AdamOptimizerConfig
-from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
 
 CONSOLE = Console(width=120)
 
@@ -104,9 +64,9 @@ def random_train_pose(
     device,
     radius_mean=1.0,
     radius_std=0.1,
-    central_rotation_range=[0, 360],
-    vertical_rotation_range=[-90, 10],
-    focal_range=[0.75, 1.35],
+    central_rotation_range=(0, 360),
+    vertical_rotation_range=(-90, 10),
+    focal_range=(0.75, 1.35),
     jitter_std=0.01,
 ):
     """generate random poses from an orbit camera

@@ -94,6 +94,7 @@ class Pipeline(nn.Module):
 
     datamanager: DataManager
     _model: Model
+    generative: bool
 
     @property
     def model(self):
@@ -221,6 +222,7 @@ class VanillaPipeline(Pipeline):
         self.datamanager: VanillaDataManager = config.datamanager.setup(
             device=device, test_mode=test_mode, world_size=world_size, local_rank=local_rank
         )
+        self.generative = False
         self.datamanager.to(device)
         # TODO(ethan): get rid of scene_bounds from the model
         assert self.datamanager.train_dataset is not None, "Missing input dataset"
@@ -229,7 +231,7 @@ class VanillaPipeline(Pipeline):
             scene_box=self.datamanager.train_dataset.scene_box,
             num_train_data=len(self.datamanager.train_dataset),
             metadata=self.datamanager.train_dataset.metadata,
-            device=device
+            device=device,
         )
         self.model.to(device)
 
