@@ -94,6 +94,7 @@ class DreamFusionModel(Model):
         self.initialize_density = config.initialize_density
         self.train_normals = False
         self.train_shaded = False
+        self.density_strength = 1.0
         super().__init__(config=config, **kwargs)
 
     def get_training_callbacks(
@@ -101,10 +102,10 @@ class DreamFusionModel(Model):
     ) -> List[TrainingCallback]:
 
         # the callback that we want to run every X iterations after the training iteration
-        def stop_initialize_density(
+        def taper_density(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            self.initialize_density = False
+            self.density_strength -= 0.2
 
         def start_training_normals(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -119,8 +120,8 @@ class DreamFusionModel(Model):
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(1000,),
-                func=stop_initialize_density,
+                iters=(200, 400, 600, 800, 1000),
+                func=taper_density,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
@@ -185,7 +186,7 @@ class DreamFusionModel(Model):
         density = field_outputs[FieldHeadNames.DENSITY]
         if self.initialize_density:
             pos = ray_samples_uniform.frustums.get_positions()
-            density_blob = 100 * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density_blob = 50 * self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
             density += density_blob
 
         weights = ray_samples_uniform.get_weights(density)
@@ -231,15 +232,15 @@ class DreamFusionModel(Model):
         outputs["pred_normals"] = pred_normals
         outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
         outputs["shaded_albedo"] = shaded_albedo
-        outputs["render"] = accum_mask * shaded_albedo + background
+        outputs["render"] = accum_mask * rgb + background
 
         if ratio > 0:
             if np.random.random_sample() > 0.5:
-                outputs["train_output"] = accum_mask * shaded + background
+                outputs["train_output"] = shaded
             else:
                 outputs["train_output"] = accum_mask * shaded_albedo + background
         else:
-            outputs["train_output"] = accum_mask * rgb + background
+            outputs["train_output"] = outputs["render"]
 
         # if self.train_normals:
 

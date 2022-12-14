@@ -25,6 +25,10 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """specifies the datamanager config"""
     prompt: str = "A high quality photo of a pineapple"
     """prompt for stable dreamfusion"""
+    location_based_prompting: bool = True
+    """enables location based prompting"""
+    opacity_penalty: bool = True
+    """enables penalty to encourage transparent scenes"""
 
 
 class DreamfusionPipeline(VanillaPipeline):
@@ -38,7 +42,11 @@ class DreamfusionPipeline(VanillaPipeline):
     ):
         super().__init__(config, device, test_mode, world_size, local_rank)
         self.sd = StableDiffusion(device)
-        self.text_embedding = self.sd.get_text_embeds(config.prompt, "")
+        self.base_text_embedding = self.sd.get_text_embeds(config.prompt, "")
+        if config.location_based_prompting:
+            self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}, front view", "")
+            self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}, side view", "")
+            self.back_text_embedding = self.sd.get_text_embeds(f"{config.prompt}, back view", "")
 
     @profiler.time_function
     def custom_step(self, step: int, grad_scaler: GradScaler, optimizers: Optimizers):
@@ -55,8 +63,7 @@ class DreamfusionPipeline(VanillaPipeline):
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)
 
-        # Just uses albedo for now
-        albedo_output = model_outputs["train_output"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
+        train_output = model_outputs["train_output"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
 
         accumulation = model_outputs["accumulation"].view(64, 64).detach().cpu().numpy()
         accumulation = np.clip(accumulation, 0.0, 1.0)
@@ -70,10 +77,23 @@ class DreamfusionPipeline(VanillaPipeline):
         shaded = np.clip(shaded, 0.0, 1.0)
         plt.imsave("nerf_textureless.jpg", shaded)
 
-        sds_loss, latents, grad = self.sd.sds_loss(self.text_embedding, albedo_output)
+        if self.config.location_based_prompting:
+            if batch["central"] > 315 or batch["central"] <= 45:
+                text_embedding = self.front_text_embedding
+            elif batch["central"] > 45 and batch["central"] <= 135:
+                text_embedding = self.side_text_embedding
+            elif batch["central"] > 135 and batch["central"] <= 225:
+                text_embedding = self.back_text_embedding
+            elif batch["central"] > 225 and batch["central"] <= 315:
+                text_embedding = self.side_text_embedding
+        else:
+            text_embedding = self.base_text_embedding
+
+        sds_loss, latents, grad = self.sd.sds_loss(text_embedding, train_output)
         # TODO: opacity penalty using transmittance, not accumultation
-        accum_mean = np.mean(1.0 - accumulation)
-        sds_loss *= np.min((0.8, accum_mean))
+        if self.config.opacity_penalty:
+            accum_mean = np.mean(1.0 - accumulation)
+            sds_loss *= np.min((0.5, accum_mean))
 
         grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
         # optimizers.scheduler_step_all(step)

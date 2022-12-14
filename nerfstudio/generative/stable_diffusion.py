@@ -113,6 +113,11 @@ class StableDiffusion(nn.Module):
         # perform guidance (high scale from paper!)
         noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        # with torch.no_grad():
+        #     diffused_img = self.latents_to_img(latents_noisy - noise_pred)
+        #     diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy().reshape((512, 512, 3))
+        #     diffused_img = (diffused_img * 255).round().astype("uint8")
+        #     plt.imsave("sd_img.png", diffused_img)
 
         # w(t), sigma_t^2
         w = 1 - self.alphas[t]
