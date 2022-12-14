@@ -11,14 +11,14 @@ ns-process-data {video,images,polycam,insta360,record3d} --data {DATA_PATH} --ou
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
 
 We Currently support the following custom data types:
-| Data | Requirements | Preprocessing Speed |
-| -------- | ----------------------- | ------------------- |
-| 📷 [Images](images_and_video) | COLMAP | 🐢 |
-| 📹 [Video](images_and_video) | COLMAP | 🐢 |
-| 📱 [Polycam](polycam) | LiDAR iOS Device | 🐇 |
-| 📱 [Record3D](record3d) | LiDAR iOS Device | 🐇 |
-| 🖥 [Metashape](metashape) | | 🐢 |
-| 📷 Insta360 | 2 Sensor camera, COLMAP | 🐢 |
+| Data | Capture Device | Requirements | `ns-process-data` Speed |
+| ----------------------------- | -------------- | ----------------------------------------------- | ----------------------- |
+| 📷 [Images](images_and_video) | Any | [COLMAP](https://colmap.github.io/install.html) | 🐢 |
+| 📹 [Video](images_and_video) | Any | [COLMAP](https://colmap.github.io/install.html) | 🐢 |
+| 📱 [Polycam](polycam) | IOS with LiDAR | [Polycam App](https://poly.cam/) | 🐇 |
+| 📱 [KIRI Engine](kiri) | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/) | 🐇 |
+| 📱 [Record3D](record3d) | IOS with LiDAR | [Record3D app](https://record3d.app/) | 🐇 |
+| 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
 
 (images_and_video)=
 
@@ -175,11 +175,58 @@ ns-process-data polycam --data {OUTPUT_FILE.zip} --output-dir {output directory}
 ns-train nerfacto --data {output directory}
 ```
 
+(kiri)=
+
+## KIRI Engine Capture
+
+Nerfstudio can trained from data processed by the [KIRI Engine app](https://www.kiriengine.com/). This works for both Android and iPhone and does not require a LiDAR supported device.
+
+:::{admonition} Note
+:class: info
+`ns-process-data` does not need to be run when using KIRI Engine.
+:::
+
+### Setting up KIRI Engine
+
+```{image} imgs/kiri_setup.png
+:width: 400
+:align: center
+:alt: KIRI Engine setup
+```
+
+After downloading the app, `Developer Mode` needs to be enabled. A toggle can be found in the settings menu.
+
+### Process data
+
+```{image} imgs/kiri_capture.png
+:width: 400
+:align: center
+:alt: KIRI Engine setup
+```
+
+1. Navigate to captures window.
+
+2. Select `Dev.` tab.
+
+3. Tap the `+` button to create a new capture.
+
+4. Choose `Camera pose` as the capture option
+
+5. Capture the scene and provide a name.
+
+6. After processing is complete, export the scene. It will be sent to your email.
+
+7. Unzip the file and run the training script (`ns-process-data` is not necessary).
+
+```
+ns-train nerfacto --data {kiri output directory}
+```
+
 (record3d)=
 
 ## Record3D Capture
 
-Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
+Nerfstudio can be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
 
 Click on the image down below 👇 for a 1-minute tutorial on how to run nerfstudio with Record3D from start to finish.
 
