@@ -117,7 +117,7 @@ class StableDiffusion(nn.Module):
         #     diffused_img = self.latents_to_img(latents_noisy - noise_pred)
         #     diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy().reshape((512, 512, 3))
         #     diffused_img = (diffused_img * 255).round().astype("uint8")
-        #     plt.imsave("sd_img.png", diffused_img)
+        #     plt.imsave("sdimg.png", diffused_img)
 
         # w(t), sigma_t^2
         w = 1 - self.alphas[t]

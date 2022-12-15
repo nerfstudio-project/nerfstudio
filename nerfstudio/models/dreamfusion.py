@@ -66,12 +66,14 @@ class DreamFusionModelConfig(ModelConfig):
     """Number of samples in field evaluation"""
     orientation_loss_mult: float = 0.01
     """Orientation loss multipier on computed normals."""
-    pred_normal_loss_mult: float = 0.0003
+    pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
     random_light_source: bool = True
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
+    init_density_strength: float = 50.0
+    """Initial strength of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
 
@@ -184,9 +186,13 @@ class DreamFusionModel(Model):
         field_outputs = self.field(ray_samples_uniform, compute_normals=True)
 
         density = field_outputs[FieldHeadNames.DENSITY]
-        if self.initialize_density:
+        if self.initialize_density and self.training:
             pos = ray_samples_uniform.frustums.get_positions()
-            density_blob = 50 * self.density_strength * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            density_blob = (
+                self.config.init_density_strength
+                * self.density_strength
+                * torch.exp(-torch.norm(pos, dim=-1) / (2 * 0.04))[..., None]
+            )
             density += density_blob
 
         weights = ray_samples_uniform.get_weights(density)
@@ -213,7 +219,7 @@ class DreamFusionModel(Model):
         pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)  # .detach()
 
         # lambertian shading
-        if self.config.random_light_source:
+        if self.config.random_light_source and self.training:  # and if training
             light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
         else:
             light_d = ray_bundle.origins[0]

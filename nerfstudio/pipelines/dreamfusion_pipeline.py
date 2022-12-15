@@ -25,18 +25,23 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """specifies the datamanager config"""
     prompt: str = "A high quality photo of a pineapple"
     """prompt for stable dreamfusion"""
+
     location_based_prompting: bool = True
     """enables location based prompting"""
-    opacity_penalty: bool = True
-    """enables penalty to encourage transparent scenes"""
-    target_transmittance: float = 0.25
-    """target transmittance for opacity penalty"""
     side_prompt: str = ", side view"
     """appended to prompt for side view"""
     front_prompt: str = ", front view"
     """appended to prompt for front view"""
     back_prompt: str = ", back view"
     """appended to prompt for back view"""
+
+    opacity_penalty: bool = True
+    """enables penalty to encourage transparent scenes"""
+    target_transmittance: float = 0.5
+    """target transmittance for opacity penalty"""
+
+    guidance_scale: float = 100
+    """guidance scale for sds loss"""
 
 
 class DreamfusionPipeline(VanillaPipeline):
@@ -51,11 +56,12 @@ class DreamfusionPipeline(VanillaPipeline):
         super().__init__(config, device, test_mode, world_size, local_rank)
         self.generative = True
         self.sd = StableDiffusion(device)
-        self.base_text_embedding = self.sd.get_text_embeds(config.prompt, "")
         if config.location_based_prompting:
             self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.front_prompt}", "")
             self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.side_prompt}", "")
             self.back_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.back_prompt}", "")
+        else:
+            self.base_text_embedding = self.sd.get_text_embeds(config.prompt, "")
 
     @profiler.time_function
     def custom_step(self, step: int, grad_scaler: GradScaler, optimizers: Optimizers):
@@ -78,13 +84,13 @@ class DreamfusionPipeline(VanillaPipeline):
         accumulation = np.clip(accumulation, 0.0, 1.0)
         plt.imsave("nerf_accumulation.jpg", accumulation)
 
-        background = model_outputs["background"].view(64, 64, 3).detach().cpu().numpy()
-        background = np.clip(background, 0.0, 1.0)
-        plt.imsave("nerf_background.jpg", background)
+        # background = model_outputs["background"].view(64, 64, 3).detach().cpu().numpy()
+        # background = np.clip(background, 0.0, 1.0)
+        # plt.imsave("nerf_background.jpg", background)
 
-        shaded = model_outputs["shaded"].view(64, 64, 3).detach().cpu().numpy()
-        shaded = np.clip(shaded, 0.0, 1.0)
-        plt.imsave("nerf_textureless.jpg", shaded)
+        # shaded = model_outputs["shaded"].view(64, 64, 3).detach().cpu().numpy()
+        # shaded = np.clip(shaded, 0.0, 1.0)
+        # plt.imsave("nerf_textureless.jpg", shaded)
 
         if self.config.location_based_prompting:
             if batch["central"] > 315 or batch["central"] <= 45:
@@ -98,7 +104,9 @@ class DreamfusionPipeline(VanillaPipeline):
         else:
             text_embedding = self.base_text_embedding
 
-        sds_loss, latents, grad = self.sd.sds_loss(text_embedding, train_output)
+        sds_loss, latents, grad = self.sd.sds_loss(
+            text_embedding, train_output, guidance_scale=self.config.guidance_scale
+        )
         # TODO: opacity penalty using transmittance, not accumultation
         if self.config.opacity_penalty:
             accum_mean = np.mean(1.0 - accumulation)
