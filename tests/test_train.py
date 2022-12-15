@@ -60,10 +60,12 @@ def test_train():
 
         train_loop(local_rank=0, world_size=0, config=config)
 
+
 def test_simple_io():
+    """test to check minimal data IO works correctly"""
     config = method_configs["vanilla-nerf"]
     config.pipeline.datamanager.dataparser = MinimalDataParserConfig(data=Path("tests/data/minimal_parser"))
-    config=set_reduced_config(config)
+    config = set_reduced_config(config)
     train_loop(local_rank=0, world_size=0, config=config)
 
 

@@ -25,7 +25,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
     DataParser,
     DataParserConfig,
     DataparserOutputs,
-    Semantics
+    Semantics,
 )
 from nerfstudio.data.scene_box import SceneBox
 
@@ -52,16 +52,16 @@ class MinimalDataParser(DataParser):
 
         image_filenames = data["image_filenames"].tolist()
         mask_filenames = data["mask_filenames"].tolist() if "mask_filenames" in data.keys() else None
-        
+
         metadata = None
         if "semantics" in data.keys():
             semantics = data["semantics"].item()
             metadata = {
                 "semantics": Semantics(
-                    filenames=semantics["filenames"].tolist(), 
-                    classes=semantics["classes"].tolist(), 
-                    colors=semantics["colors"].tolist(), 
-                    mask_classes=semantics["mask_classes"].tolist()
+                    filenames=semantics["filenames"].tolist(),
+                    classes=semantics["classes"].tolist(),
+                    colors=semantics["colors"].tolist(),
+                    mask_classes=semantics["mask_classes"].tolist(),
                 )
             }
 
@@ -74,7 +74,9 @@ class MinimalDataParser(DataParser):
             fy=torch.from_numpy(camera_np["fy"]),
             cx=torch.from_numpy(camera_np["cx"]),
             cy=torch.from_numpy(camera_np["cy"]),
-            distortion_params=torch.from_numpy(camera_np["distortion_params"]) if "distortion_params" in camera_np.keys() else None ,
+            distortion_params=torch.from_numpy(camera_np["distortion_params"])
+            if "distortion_params" in camera_np.keys()
+            else None,
             height=torch.from_numpy(camera_np["height"]),
             width=torch.from_numpy(camera_np["width"]),
             camera_to_worlds=torch.from_numpy(camera_np["camera_to_worlds"])[:, :3, :4],
