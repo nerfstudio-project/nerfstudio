@@ -149,7 +149,6 @@ class DreamFusionModel(Model):
 
         # samplers
         self.sampler_uniform = UniformSampler(num_samples=self.num_samples, single_jitter=True)
-        self.sampler_pdf = PDFSampler(num_samples=self.num_samples // 2, single_jitter=True)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=colors.WHITE)
