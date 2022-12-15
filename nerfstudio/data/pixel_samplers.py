@@ -38,7 +38,7 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, keep_full_
 
     # only sample within the mask, if the mask is in the batch
     if "mask" in batch:
-        nonzero_indices = torch.nonzero(batch["mask"][..., 0].to(device), as_tuple=False)
+        nonzero_indices = torch.nonzero(batch["mask"][..., 0], as_tuple=False)
         chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_per_batch)
         indices = nonzero_indices[chosen_indices]
     else:

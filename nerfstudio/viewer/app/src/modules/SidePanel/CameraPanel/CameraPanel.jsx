@@ -612,6 +612,11 @@ export default function CameraPanel(props) {
 
     sceneTree.delete(['Camera Path', 'Cameras']); // delete old cameras, which is important
     if (cameras.length < 1) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/camera_choice',
+        data: 'Main Camera',
+      });
       camera_render_helper.set_visibility(false);
     } else {
       camera_render_helper.set_visibility(true);
@@ -625,7 +630,7 @@ export default function CameraPanel(props) {
       labelDiv.className = 'label';
       labelDiv.textContent = camera.properties.get('NAME');
       labelDiv.style.color = 'black';
-      labelDiv.style.backgroundColor = "rgba(255, 255, 255, 0.61)";
+      labelDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.61)';
       labelDiv.style.backdropFilter = 'blur(5px)';
       labelDiv.style.padding = '6px';
       labelDiv.style.borderRadius = '6px';

@@ -61,29 +61,6 @@ class RAdamOptimizerConfig(OptimizerConfig):
     _target: Type = torch.optim.RAdam
 
 
-def setup_optimizers(config: base_config.Config, param_groups: Dict[str, List[Parameter]]) -> "Optimizers":
-    """Helper to set up the optimizers
-
-    Args:
-        config: The trainer configuration object.
-        param_groups: A dictionary of parameter groups to optimize.
-
-    Returns:
-        The optimizers object.
-    """
-    optimizer_config = config.optimizers.copy()
-
-    # Add the camera optimizer if enabled.
-    camera_optimizer_config = config.pipeline.datamanager.camera_optimizer
-    if camera_optimizer_config.mode != "off":
-        assert camera_optimizer_config.param_group not in optimizer_config
-        optimizer_config[camera_optimizer_config.param_group] = {
-            "optimizer": config.pipeline.datamanager.camera_optimizer.optimizer,
-            "scheduler": config.pipeline.datamanager.camera_optimizer.scheduler,
-        }
-    return Optimizers(optimizer_config, param_groups)
-
-
 class Optimizers:
     """A set of optimizers.
 

@@ -54,6 +54,9 @@ def three_js_perspective_camera_focal_length(fov: float, image_height: int):
         fov: the field of view of the camera in degrees.
         image_height: the height of the image in pixels.
     """
+    if fov is None:
+        print("Warning: fov is None, using default value")
+        return 50
     pp_h = image_height / 2.0
     focal_length = pp_h / np.tan(fov * (np.pi / 180.0) / 2.0)
     return focal_length
