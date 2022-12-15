@@ -37,6 +37,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import { LevaPanel, LevaStoreProvider, useCreateStore } from 'leva';
 import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import { Stack } from '@mui/system';
 import TextField from '@mui/material/TextField';
@@ -46,6 +47,8 @@ import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 import RenderModal from '../../RenderModal';
+import CameraPropPanel from './CameraPropPanel';
+import LevaTheme from '../../../themes/leva_theme.json';
 
 const msgpack = require('msgpack-lite');
 
@@ -460,6 +463,9 @@ export default function CameraPanel(props) {
   const [animate, setAnimate] = React.useState(new Set());
   const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
 
+  // leva store
+  const cameraPropsStore = useCreateStore();
+
   const scene_state = sceneTree.get_scene_state();
 
   // Template for sharing state between Vanilla JS Three.js and React components
@@ -496,10 +502,6 @@ export default function CameraPanel(props) {
   };
 
   // ui state
-  const [ui_render_height, setUIRenderHeight] = React.useState(render_height);
-  const [ui_render_width, setUIRenderWidth] = React.useState(render_width);
-  const [ui_seconds, setUISeconds] = React.useState(seconds);
-  const [ui_fps, setUIfps] = React.useState(fps);
   const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
   // nonlinear render option
@@ -868,15 +870,10 @@ export default function CameraPanel(props) {
     const new_properties = new Map(cameraProperties);
 
     setRenderHeight(camera_path_object.render_height);
-    setUIRenderHeight(camera_path_object.render_height);
     setRenderWidth(camera_path_object.render_width);
-    setUIRenderWidth(camera_path_object.render_width);
 
     setFps(camera_path_object.fps);
-    setUIfps(camera_path_object.fps);
-
     setSeconds(camera_path_object.seconds);
-    setUISeconds(camera_path_object.seconds);
 
     set_smoothness_value(camera_path_object.smoothness_value);
     setIsCycle(camera_path_object.is_cycle);
@@ -968,7 +965,7 @@ export default function CameraPanel(props) {
   return (
     <div className="CameraPanel">
       <div>
-        <div className="CameraPanel-top-button">
+        <div className="CameraPanel-path-row">
           <Button
             size="small"
             className="CameraPanel-top-button"
@@ -986,7 +983,7 @@ export default function CameraPanel(props) {
             />
           </Button>
         </div>
-        <div className="CameraPanel-top-button">
+        <div className="CameraPanel-path-row">
           <Button
             size="small"
             className="CameraPanel-top-button"
@@ -1009,110 +1006,23 @@ export default function CameraPanel(props) {
           Render
         </Button>
       </div>
-      <div className="CameraList-row-time-interval">
-        <TextField
-          label="Height"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIRenderHeight(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setRenderHeight(parseInt(e.target.value, 10));
-              } else {
-                setUIRenderHeight(render_height);
-              }
-            }
-          }}
-          value={ui_render_height}
-          error={ui_render_height <= 0}
-          helperText={ui_render_height <= 0 ? 'Required' : ''}
-          variant="standard"
+      <div className="CameraPanel-props">
+        <LevaPanel
+          store={cameraPropsStore}
+          className="Leva-panel"
+          theme={LevaTheme}
+          titleBar={false}
+          fill
+          flat
         />
-        <TextField
-          label="Width"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIRenderWidth(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setRenderWidth(parseInt(e.target.value, 10));
-              } else {
-                setUIRenderWidth(render_width);
-              }
-            }
-          }}
-          value={ui_render_width}
-          error={ui_render_width <= 0}
-          helperText={ui_render_width <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
-      </div>
-      <div className="CameraList-row-time-interval">
-        <TextField
-          label="Seconds"
-          inputProps={{
-            inputMode: 'numeric',
-            pattern: '[+-]?([0-9]*[.])?[0-9]+',
-          }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUISeconds(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setSeconds(parseInt(e.target.value, 10));
-              } else {
-                setUISeconds(seconds);
-              }
-            }
-          }}
-          value={ui_seconds}
-          error={ui_seconds <= 0}
-          helperText={ui_seconds <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
-        <TextField
-          label="FPS"
-          inputProps={{ inputMode: 'numeric', pattern: '[0-9]*' }}
-          size="small"
-          onChange={(e) => {
-            if (e.target.validity.valid) {
-              setUIfps(e.target.value);
-            }
-          }}
-          onBlur={(e) => {
-            if (e.target.validity.valid) {
-              if (e.target.value !== '') {
-                setFps(parseInt(e.target.value, 10));
-              } else {
-                setUIfps(fps);
-              }
-            }
-          }}
-          value={ui_fps}
-          error={ui_fps <= 0}
-          helperText={ui_fps <= 0 ? 'Required' : ''}
-          variant="standard"
-        />
+        <LevaStoreProvider store={cameraPropsStore}>
+          <CameraPropPanel
+            seconds={seconds}
+            set_seconds={setSeconds}
+            fps={fps}
+            set_fps={setFps}
+          />
+        </LevaStoreProvider>
       </div>
       <div className="CameraList-row-animation-properties">
         <Tooltip title="Animate FOV for Each Camera">
@@ -1161,7 +1071,7 @@ export default function CameraPanel(props) {
         />
       </div>
       <div>
-        <div className="CameraPanel-top-button">
+        <div className="CameraPanel-row">
           <Button
             size="small"
             variant="outlined"
@@ -1171,7 +1081,7 @@ export default function CameraPanel(props) {
             Add Camera
           </Button>
         </div>
-        <div className="CameraPanel-top-button">
+        <div className="CameraPanel-row">
           <Tooltip
             className="curve-button"
             title="Toggle looping camera spline"
@@ -1199,7 +1109,7 @@ export default function CameraPanel(props) {
             )}
           </Tooltip>
         </div>
-        <div className="CameraPanel-top-button">
+        <div className="CameraPanel-row">
           <Tooltip title="Reset Keyframe Timing">
             <Button
               size="small"
