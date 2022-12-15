@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Data parser for pre-prepared datasets for all cameras, with no additional processing needed"""
+""" 
+Data parser for pre-prepared datasets for all cameras, with no additional processing needed
+Optional fields - semantics, mask_filenames, cameras.distortion_params, cameras.times
+"""
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,7 +35,7 @@ from nerfstudio.data.scene_box import SceneBox
 
 @dataclass
 class MinimalDataParserConfig(DataParserConfig):
-    """Nerfstudio dataset config"""
+    """Minimal dataset config"""
 
     _target: Type = field(default_factory=lambda: MinimalDataParser)
     """target class to instantiate"""
@@ -41,12 +44,11 @@ class MinimalDataParserConfig(DataParserConfig):
 
 @dataclass
 class MinimalDataParser(DataParser):
-    """Nerfstudio DatasetParser"""
+    """Minimal DatasetParser"""
 
     config: MinimalDataParserConfig
 
     def _generate_dataparser_outputs(self, split="train"):
-        # pylint: disable=too-many-statements
         filepath = self.config.data / f"{split}.npz"
         data = np.load(filepath, allow_pickle=True)
 
