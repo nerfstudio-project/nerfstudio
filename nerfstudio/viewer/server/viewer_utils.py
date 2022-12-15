@@ -37,7 +37,7 @@ from aiortc import (
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
-from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
