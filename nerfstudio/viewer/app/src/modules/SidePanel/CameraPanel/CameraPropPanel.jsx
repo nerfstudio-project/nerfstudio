@@ -18,6 +18,7 @@ export default function CameraPropPanel(props) {
   const render_width = useSelector(
     (state) => state.renderingState.render_width,
   );
+  const camera_type = useSelector((state) => state.renderingState.camera_type);
 
   const setResolution = (value) => {
     dispatch({
@@ -29,6 +30,14 @@ export default function CameraPropPanel(props) {
       type: 'write',
       path: 'renderingState/render_height',
       data: value.height,
+    });
+  };
+
+  const setCameraType = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/camera_type',
+      data: value,
     });
   };
 
@@ -59,6 +68,18 @@ export default function CameraPropPanel(props) {
           set_fps(v);
         },
       },
+      camera_type_selector: {
+        label: 'Camera Type',
+        value: camera_type,
+        options: {
+          Perspective: 'perspective',
+          Fisheye: 'fisheye',
+          Equirectangular: 'equirectangular',
+        },
+        onChange: (v) => {
+          setCameraType(v);
+        },
+      },
     }),
     { store },
   );
@@ -68,6 +89,7 @@ export default function CameraPropPanel(props) {
   setControls({
     camera_resolution: { width: render_width, height: render_height },
   });
+  setControls({ camera_type_selector: camera_type });
 
   return null;
 }
