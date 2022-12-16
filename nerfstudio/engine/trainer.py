@@ -144,10 +144,14 @@ class Trainer:
         param_groups = self.pipeline.get_param_groups()
         if camera_optimizer_config.mode != "off":
             assert camera_optimizer_config.param_group not in optimizer_config
-            optimizer_config[camera_optimizer_config.param_group] = {
+            optimizer_config[camera_optimizer_config.param_group + "_train"] = {
                 "optimizer": camera_optimizer_config.optimizer,
                 "scheduler": camera_optimizer_config.scheduler,
             }
+            # optimizer_config[camera_optimizer_config.param_group + "_eval"] = {
+            #     "optimizer": camera_optimizer_config.optimizer,
+            #     "scheduler": camera_optimizer_config.scheduler,
+            # }
         return Optimizers(optimizer_config, param_groups)
 
     def train(self) -> None:

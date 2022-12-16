@@ -79,4 +79,10 @@ with Pool() as p:
 # the default method
 # DATASET="person" METHOD="nerfacto-default" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}-${DATASET}" --experiment-name "${METHOD}-${DATASET}"
 # without pose optimization
-# DATASET="person" METHOD="nerfacto-no-pose" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}-${DATASET}" --experiment-name "${METHOD}-${DATASET}" --pipeline.datamanager.camera-optimizer.mode off
+# DATASET="plane" METHOD="nerfacto-no-pose" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}-${DATASET}" --experiment-name "${METHOD}-${DATASET}" --pipeline.datamanager.camera-optimizer.mode off
+
+# debugging the evaluation method
+# --trainer.steps-per-eval-all-images 5000
+
+# --load-config outputs/nerfacto-no-pose-plane/nerfacto/2022-12-16_194940/config.yml
+# start train but run eval on all images at the start...
