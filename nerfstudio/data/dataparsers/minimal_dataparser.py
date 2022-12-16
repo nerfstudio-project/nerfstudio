@@ -71,14 +71,15 @@ class MinimalDataParser(DataParser):
         scene_box = SceneBox(aabb=scene_box_aabb)
 
         camera_np = data["cameras"].item()
+        distortion_params = None
+        if "distortion_params" in camera_np.keys():
+            distortion_params = torch.from_numpy(camera_np["distortion_params"])
         cameras = Cameras(
             fx=torch.from_numpy(camera_np["fx"]),
             fy=torch.from_numpy(camera_np["fy"]),
             cx=torch.from_numpy(camera_np["cx"]),
             cy=torch.from_numpy(camera_np["cy"]),
-            distortion_params=torch.from_numpy(camera_np["distortion_params"])
-            if "distortion_params" in camera_np.keys()
-            else None,
+            distortion_params=distortion_params,
             height=torch.from_numpy(camera_np["height"]),
             width=torch.from_numpy(camera_np["width"]),
             camera_to_worlds=torch.from_numpy(camera_np["camera_to_worlds"])[:, :3, :4],
