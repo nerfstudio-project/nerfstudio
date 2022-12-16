@@ -104,6 +104,7 @@ class Blender(DataParser):
             cameras=cameras,
             alpha_color=alpha_color_tensor,
             scene_box=scene_box,
+            dataparser_scale=self.scale_factor,
         )
 
         return dataparser_outputs

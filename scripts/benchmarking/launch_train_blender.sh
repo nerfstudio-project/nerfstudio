@@ -62,6 +62,13 @@ timestamp=$(date "+%Y-%m-%d_%H%M%S")
 # kill all the background jobs if terminated:
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
+dataparser="blender-data"
+trans_file=""
+if [ "$method_name" = "instant-ngp-bounded" ]; then
+    dataparser=""
+    trans_file="/transforms_train.json"
+fi
+
 for dataset in "${DATASETS[@]}"; do
     if "$single" && [ -n "${GPU_PID[$idx]+x}" ]; then
         echo "Waiting for GPU ${GPU_IDX[$idx]}"
@@ -70,7 +77,7 @@ for dataset in "${DATASETS[@]}"; do
     fi
     export CUDA_VISIBLE_DEVICES="${GPU_IDX[$idx]}"
     ns-train "${method_name}" "${method_opts[@]}" \
-             --data="data/blender/${dataset}" \
+             --data="data/blender/${dataset}${trans_file}" \
              --experiment-name="blender_${dataset}_${tag}" \
              --trainer.relative-model-dir=nerfstudio_models/ \
              --trainer.steps-per-save=1000 \
@@ -79,7 +86,7 @@ for dataset in "${DATASETS[@]}"; do
              --logging.enable-profiler=False \
              --vis "${vis}" \
              --timestamp "$timestamp" \
-             blender-data & GPU_PID[$idx]=$!
+             ${dataparser} & GPU_PID[$idx]=$!
     echo "Launched ${method_name} ${dataset} on gpu ${GPU_IDX[$idx]}, ${tag}"
     
     # update gpu

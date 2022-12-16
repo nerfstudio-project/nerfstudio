@@ -188,7 +188,7 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
 
 
 @check_main_thread
-def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
+def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path, wandb_name: Optional[str] = None) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -197,11 +197,11 @@ def setup_event_writer(config: cfg.Config, log_dir: Path) -> None:
         banner_messages: list of messages to always display at bottom of screen
     """
     using_event_writer = False
-    if config.is_wandb_enabled():
-        curr_writer = WandbWriter(log_dir=log_dir, wandb_name=config.wandb_name)
+    if is_wandb_enabled:
+        curr_writer = WandbWriter(log_dir=log_dir, wandb_name=wandb_name)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
-    if config.is_tensorboard_enabled():
+    if is_tensorboard_enabled:
         curr_writer = TensorboardWriter(log_dir=log_dir)
         EVENT_WRITERS.append(curr_writer)
         using_event_writer = True
@@ -385,12 +385,12 @@ class LocalWriter:
         Args:
             step: current train step
         """
-        valid_step = step > 0 and step % GLOBAL_BUFFER["steps_per_log"] == 0
+        valid_step = step % GLOBAL_BUFFER["steps_per_log"] == 0
         if valid_step:
             if not self.has_printed and self.config.max_log_size:
                 CONSOLE.log(
                     f"Printing max of {self.config.max_log_size} lines. "
-                    "Set flag çççç[yellow]--logging.local-writer.max-log-size=0[/yellow] "
+                    "Set flag [yellow]--logging.local-writer.max-log-size=0[/yellow] "
                     "to disable line wrapping."
                 )
             latest_map, new_key = self._consolidate_events()

@@ -9,6 +9,8 @@ import OpenWithIcon from '@mui/icons-material/OpenWith';
 import PublicOffSharpIcon from '@mui/icons-material/PublicOffSharp';
 import PublicSharpIcon from '@mui/icons-material/PublicSharp';
 import SyncOutlinedIcon from '@mui/icons-material/SyncOutlined';
+import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation';
+import VideoCameraBackIcon from '@mui/icons-material/VideoCameraBackOutlined';
 import WebRtcWindow from '../WebRtcWindow/WebRtcWindow';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
@@ -19,27 +21,36 @@ function CameraToggle() {
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
   );
-  const set_camera_choice = (event: SelectChangeEvent) => {
-    const value = event.target.value;
-    dispatch({
-      type: 'write',
-      path: 'renderingState/camera_choice',
-      data: value,
-    });
+  const set_camera_choice = (event: SelectChangeEvent, value: string[]) => {
+    if (value != null) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/camera_choice',
+        data: value,
+      });
+    }
   };
 
   return (
     <ToggleButtonGroup
-      color="primary"
       value={camera_choice}
       exclusive
       onChange={set_camera_choice}
       aria-label="camera view"
       size="small"
-      varient="filled"
     >
-      <ToggleButton value="Main Camera">Viewport</ToggleButton>
-      <ToggleButton value="Render Camera">Render View</ToggleButton>
+      <ToggleButton value="Main Camera" disableRipple sx={{ width: '160px' }}>
+        <ThreeDRotationIcon fontSize="small" sx={{ mr: 1, ml: -0.5 }} />
+        Viewport
+      </ToggleButton>
+      <ToggleButton value="Render Camera" disableRipple sx={{ width: '160px' }}>
+        <VideoCameraBackIcon
+          value="Render Camera"
+          fontSize="small"
+          sx={{ mr: 1, ml: 0.5 }}
+        />
+        Render View
+      </ToggleButton>
     </ToggleButtonGroup>
   );
 }

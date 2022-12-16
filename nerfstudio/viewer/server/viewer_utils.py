@@ -454,6 +454,19 @@ class ViewerState:
         else:
             self.prev_camera_matrix = camera_object["matrix"]
             self.camera_moving = True
+
+        output_type = self.vis["renderingState/output_choice"].read()
+        if output_type is None:
+            output_type = OutputTypes.INIT
+        if self.prev_output_type != output_type:
+            self.camera_moving = True
+
+        colormap_type = self.vis["renderingState/colormap_choice"].read()
+        if colormap_type is None:
+            colormap_type = ColormapTypes.INIT
+        if self.prev_colormap_type != colormap_type:
+            self.camera_moving = True
+
         return camera_object
 
     def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
@@ -672,9 +685,12 @@ class ViewerState:
 
         aspect_ratio = camera_object["aspect"]
 
-        image_height = (num_vis_rays / aspect_ratio) ** 0.5
-        image_height = int(round(image_height, -1))
-        image_height = min(self.max_resolution, image_height)
+        if not self.camera_moving and not is_training:
+            image_height = self.max_resolution
+        else:
+            image_height = (num_vis_rays / aspect_ratio) ** 0.5
+            image_height = int(round(image_height, -1))
+            image_height = min(self.max_resolution, image_height)
         image_width = int(image_height * aspect_ratio)
         if image_width > self.max_resolution:
             image_width = self.max_resolution

@@ -91,7 +91,7 @@ class TCNNNerfactoField(Field):
         hidden_dim: int = 64,
         geo_feat_dim: int = 15,
         num_levels: int = 16,
-        max_res: int = 1024,
+        max_res: int = 2048,
         log2_hashmap_size: int = 19,
         num_layers_color: int = 3,
         num_layers_transient: int = 2,
