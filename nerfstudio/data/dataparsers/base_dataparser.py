@@ -82,7 +82,7 @@ class DataparserOutputs:
         """
         data = {
             "transform": self.dataparser_transform.tolist(),
-            "scale": self.dataparser_scale,
+            "scale": float(self.dataparser_scale),
         }
         if not path.parent.exists():
             path.parent.mkdir(parents=True)
