@@ -137,7 +137,10 @@ $sidebar-width: 100% !default;
 }
 
 .StatusPanel .StatusPanel-hide-scene-button {
-  margin: 12px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  margin-left: 6px;
+  margin-right: 6px;
 }
 
 .StatusPanel .WebSocketUrlField {
