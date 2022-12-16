@@ -12,6 +12,7 @@ import pytest
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
 from scripts.train import train_loop
 
 BLACKLIST = ["base", "semantic-nerfw", "instant-ngp", "instant-ngp-bounded", "nerfacto", "phototourism"]
@@ -60,5 +61,14 @@ def test_train():
         train_loop(local_rank=0, world_size=0, config=config)
 
 
+def test_simple_io():
+    """test to check minimal data IO works correctly"""
+    config = method_configs["vanilla-nerf"]
+    config.pipeline.datamanager.dataparser = MinimalDataParserConfig(data=Path("tests/data/minimal_parser"))
+    config = set_reduced_config(config)
+    train_loop(local_rank=0, world_size=0, config=config)
+
+
 if __name__ == "__main__":
     test_train()
+    test_simple_io()
