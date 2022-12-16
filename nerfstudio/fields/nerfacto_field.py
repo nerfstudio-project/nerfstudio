@@ -310,10 +310,7 @@ class TCNNNerfactoField(Field):
             x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
             outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
-        h_list = [
-            d,
-            density_embedding.view(-1, self.geo_feat_dim)
-        ]
+        h_list = [d, density_embedding.view(-1, self.geo_feat_dim)]
         if self.use_appearance_embedding:
             h_list += [embedded_appearance.view(-1, self.appearance_embedding_dim)]
         h = torch.cat(

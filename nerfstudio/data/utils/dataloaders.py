@@ -32,8 +32,8 @@ from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.model_components.ray_generators import RayGenerator
+from nerfstudio.utils.misc import get_dict_to_torch
 
 CONSOLE = Console(width=120)
 

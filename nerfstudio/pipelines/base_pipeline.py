@@ -17,13 +17,13 @@ Abstracts for the Pipeline class.
 """
 from __future__ import annotations
 
+import random
 import typing
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from time import time
 from typing import Any, Dict, List, Optional, Type, Union, cast
 
-import random
 import torch
 import torch.distributed as dist
 from rich.progress import (

@@ -37,12 +37,14 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, sample_all
     num_images, image_height, image_width, _ = batch["image"].shape
 
     if sample_all_pixels:
+        image_indices = (torch.ones(num_images, device=device) * batch["image_idx"].to(device)).to(torch.int64)
         collated_batch = {key: value for key, value in batch.items() if key != "image_idx" and value is not None}
         collated_batch["indices"] = torch.stack(
             torch.meshgrid(
-                torch.arange(num_images, device=device),
+                image_indices,
                 torch.arange(image_height, device=device),
                 torch.arange(image_width, device=device),
+                indexing="ij",
             ),
             dim=-1,
         )
@@ -59,7 +61,9 @@ def collate_image_dataset_batch(batch: Dict, num_rays_per_batch: int, sample_all
             ).long()
 
         c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-        collated_batch = {key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None}
+        collated_batch = {
+            key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
+        }
 
         assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
 
@@ -170,9 +174,13 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
-            pixel_batch = collate_image_dataset_batch_list(image_batch, self.num_rays_per_batch, sample_all_pixels=sample_all_pixels)
+            pixel_batch = collate_image_dataset_batch_list(
+                image_batch, self.num_rays_per_batch, sample_all_pixels=sample_all_pixels
+            )
         elif isinstance(image_batch["image"], torch.Tensor):
-            pixel_batch = collate_image_dataset_batch(image_batch, self.num_rays_per_batch, sample_all_pixels=sample_all_pixels)
+            pixel_batch = collate_image_dataset_batch(
+                image_batch, self.num_rays_per_batch, sample_all_pixels=sample_all_pixels
+            )
         else:
             raise ValueError("image_batch['image'] must be a list or torch.Tensor")
         return pixel_batch

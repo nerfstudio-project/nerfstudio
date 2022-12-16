@@ -96,7 +96,12 @@ class Trainer:
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
-        writer.setup_event_writer(config.is_wandb_enabled(), config.is_tensorboard_enabled(), log_dir=writer_log_path, wandb_name=config.wandb_name)
+        writer.setup_event_writer(
+            config.is_wandb_enabled(),
+            config.is_tensorboard_enabled(),
+            log_dir=writer_log_path,
+            wandb_name=config.wandb_name,
+        )
         writer.setup_local_writer(
             config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
         )

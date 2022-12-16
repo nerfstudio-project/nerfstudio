@@ -283,6 +283,7 @@ class PhototourismDownload(DatasetDownload):
         shutil.rmtree(tmp_path)
         os.remove(download_path)
 
+
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
     Annotated[FriendsDownload, tyro.conf.subcommand(name="friends")],

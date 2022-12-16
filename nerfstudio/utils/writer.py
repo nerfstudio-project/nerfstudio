@@ -188,7 +188,9 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
 
 
 @check_main_thread
-def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path, wandb_name: Optional[str] = None) -> None:
+def setup_event_writer(
+    is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path, wandb_name: Optional[str] = None
+) -> None:
     """Initialization of all event writers specified in config
 
     Args:

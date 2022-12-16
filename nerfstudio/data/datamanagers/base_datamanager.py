@@ -18,6 +18,7 @@ Datamanager.
 
 from __future__ import annotations
 
+import random
 from abc import abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
@@ -51,10 +52,9 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
 from nerfstudio.data.utils.dataloaders import CacheDataloader
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
-from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.model_components.ray_generators import RayGenerator
-from nerfstudio.utils.misc import IterableWrapper
+from nerfstudio.utils.misc import IterableWrapper, get_dict_to_torch
 
 CONSOLE = Console(width=120)
 
@@ -424,10 +424,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         return camera_ray_bundle, batch
 
     def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        for idx in range(len(self.eval_dataset)):
-            camera_ray_bundle, batch = self.get_eval_image(idx)
-            return idx, camera_ray_bundle, batch
-        raise ValueError("No more eval images.")
+        # sample a random index from the eval dataset
+        idx = random.randint(0, len(self.eval_dataset) - 1)
+        camera_ray_bundle, batch = self.get_eval_image(idx)
+        return idx, camera_ray_bundle, batch
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.
