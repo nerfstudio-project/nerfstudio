@@ -281,7 +281,7 @@ class NerfactoModel(Model):
         metrics_dict = {}
         image = batch["image"].to(self.device)
         metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
-        if self.training:
+        if self.training and ("weights_list" in outputs and "ray_samples_list" in outputs):
             metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
         return metrics_dict
 
@@ -289,7 +289,7 @@ class NerfactoModel(Model):
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
-        if self.training:
+        if self.training and ("weights_list" in outputs and "ray_samples_list" in outputs):
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )

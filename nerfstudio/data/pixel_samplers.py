@@ -17,7 +17,7 @@ Code for sampling pixels.
 """
 
 import random
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 
@@ -165,7 +165,9 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         self.num_rays_per_batch = num_rays_per_batch
 
-    def sample(self, image_batch: Dict, sample_all_pixels: bool = False) -> Dict:
+    def sample(
+        self, image_batch: Dict, num_rays_per_batch: Optional[int] = None, sample_all_pixels: bool = False
+    ) -> Dict:
         """Sample an image batch and return a pixel batch.
 
         Args:
@@ -175,11 +177,15 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         if isinstance(image_batch["image"], list):
             image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
             pixel_batch = collate_image_dataset_batch_list(
-                image_batch, self.num_rays_per_batch, sample_all_pixels=sample_all_pixels
+                image_batch,
+                self.num_rays_per_batch if not num_rays_per_batch else num_rays_per_batch,
+                sample_all_pixels=sample_all_pixels,
             )
         elif isinstance(image_batch["image"], torch.Tensor):
             pixel_batch = collate_image_dataset_batch(
-                image_batch, self.num_rays_per_batch, sample_all_pixels=sample_all_pixels
+                image_batch,
+                self.num_rays_per_batch if not num_rays_per_batch else num_rays_per_batch,
+                sample_all_pixels=sample_all_pixels,
             )
         else:
             raise ValueError("image_batch['image'] must be a list or torch.Tensor")

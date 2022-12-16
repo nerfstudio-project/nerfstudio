@@ -158,7 +158,6 @@ class Model(nn.Module):
             metrics_dict: dictionary of metrics, some of which we can use for loss
         """
 
-    @torch.no_grad()
     def get_outputs_for_camera_ray_bundle(self, camera_ray_bundle: RayBundle) -> Dict[str, torch.Tensor]:
         """Takes in camera parameters and computes the output of the model.
 

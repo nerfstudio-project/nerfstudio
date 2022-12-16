@@ -406,13 +406,25 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         ray_bundle = self.eval_ray_generator(ray_indices)
         return ray_bundle, batch
 
-    def get_eval_image(self, idx: int) -> Tuple[RayBundle, Dict]:
-        """Returns the full image at the given index."""
+    def get_eval_image(self, idx: int, scale_factor: float = 1.0) -> Tuple[RayBundle, Dict]:
+        """Returns the full image at the given index.
+        
+        Args:
+            idx: index of the image to get
+            scale_factor: scale factor to apply to the image
+        """
         image_batch = self.eval_dataset[idx]
         image_batch = self.config.collate_fn([image_batch])
         image_batch = get_dict_to_torch(image_batch, device=self.device, exclude=["image"])
         # image_batch["image"].shape == (1, H, W, 3)
         # this will sample the entire image
+        # we downsample the image so it fits in memory. TODO: make this a parameter
+        print(image_batch["image"].shape)
+        image_batch["image"] = torch.nn.functional.interpolate(
+            image_batch["image"].permute(0, 3, 1, 2), scale_factor=scale_factor, mode="bilinear", align_corners=False
+        ).permute(0, 2, 3, 1)
+        print(image_batch["image"].shape)
+
         batch = self.eval_pixel_sampler.sample(image_batch, sample_all_pixels=True)
         ray_indices = batch["indices"]
         ray_indices_shape = ray_indices.shape  # (1, H, W, 3)

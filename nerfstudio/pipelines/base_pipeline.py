@@ -37,6 +37,8 @@ from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
 from typing_extensions import Literal
+from rich.progress import track
+from tqdm import tqdm
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -189,10 +191,14 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """Specifies the datamanager config."""
     model: ModelConfig = ModelConfig()
     """Specifies the model config."""
-    eval_optimize_cameras: bool = False
+    eval_optimize_cameras: bool = True
     """Whether to optimize the cameras during evaluation."""
+    num_pose_iters: int = 10
+    """Number of iterations to optimize the cameras."""
     eval_optimize_appearance: bool = False
     """Whether to optimize the appearance during evaluation."""
+    num_appearance_iters: int = 10
+    """Number of iterations to optimize the appearance."""
 
 
 class VanillaPipeline(Pipeline):
@@ -307,8 +313,9 @@ class VanillaPipeline(Pipeline):
         """
         self.eval()
         image_idx, camera_ray_bundle, batch = self.datamanager.next_eval_image(step)
-        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-        metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
+        with torch.no_grad():
+            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            metrics_dict, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
         assert "image_idx" not in metrics_dict
         metrics_dict["image_idx"] = image_idx
         assert "num_rays" not in metrics_dict
@@ -347,43 +354,63 @@ class VanillaPipeline(Pipeline):
                     # get the eval camera optimizer's parameters
                     camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_eval"
                     param_groups = self.datamanager.get_param_groups()
-                    optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=0.1)
+                    optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=6e-4, eps=1e-15)
 
                     # check that camera optimizer is on
                     if self.config.datamanager.camera_optimizer.mode == "off":
                         raise ValueError(
                             "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
                         )
-                    # TODO: make this a parameter
-                    num_pose_iters = 100
-                    for i in range(num_pose_iters):
-                        print("pose iter: ", i)
-                        # need to optimize the ray generator's camera optimizer
-                        # TODO: need to add require_grad in various locations to make it work
+
+                    print("Optimizing camera poses...")
+                    # rescale the image to 1/4 resolution
+                    scale_factor = 0.25
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(scale_factor)
+                    self.train()
+                    for i in range(self.config.num_pose_iters):
+                        print("pose opt iter: ", i)
+                        # optimize the ray generator's camera optimizer
                         optimizer.zero_grad()
-                        camera_ray_bundle, batch = self.datamanager.get_eval_image(idx)
+                        print(self.datamanager.eval_camera_optimizer.pose_adjustment)
+                        camera_ray_bundle, batch = self.datamanager.get_eval_image(idx, scale_factor=0.25)
                         outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                         metrics_dict = self.model.get_metrics_dict(outputs, batch)
                         loss_dict = self.model.get_loss_dict(outputs, batch, metrics_dict)
+                        _, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
+
+                        # save the image
+                        import mediapy as media
+
+                        media.write_image("camera_opt.png", images_dict["img"].detach().cpu().numpy())
+
                         loss_dict["rgb_loss"].backward()
                         optimizer.step()
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / scale_factor)
+                    self.eval()
+                    print("Done optimizing camera poses.")
 
                 # optimize appearance on half image
                 if self.config.eval_optimize_appearance:
-                    # TODO: make this a parameter
-                    num_appearance_iters = 100
-                    side = random.choice([0, 1])
-                    half_width = width // 2
-                    if side == 0:
-                        half_camera_ray_bundle = camera_ray_bundle[:, :half_width]
-                    else:
-                        half_camera_ray_bundle = camera_ray_bundle[:, half_width:]
-                    for i in range(num_appearance_iters):
-                        # need to optimize the "embedding_appearance" in the nerfacto field
-                        pass
 
-                outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
+                    # get the parameters for the appearance embedding
+                    # optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=6e-4, eps=1e-15)
+
+                    for i in range(self.config.num_appearance_iters):
+                        print("appearance iter: ", i)
+                        # need to optimize the "embedding_appearance" in the nerfacto field
+                        # pass
+                        # side = random.choice([0, 1])
+                        # half_width = width // 2
+                        # if side == 0:
+                        #     half_camera_ray_bundle = camera_ray_bundle[:, :half_width]
+                        # else:
+                        #     half_camera_ray_bundle = camera_ray_bundle[:, half_width:]
+                        # for i in range(num_appearance_iters):
+                        #     # need to optimize the "embedding_appearance" in the nerfacto field
+                        #     pass
+                with torch.no_grad():
+                    outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                    metrics_dict, _ = self.model.get_image_metrics_and_images(outputs, batch)
                 assert "num_rays_per_sec" not in metrics_dict
                 metrics_dict["num_rays_per_sec"] = num_rays / (time() - inner_start)
                 fps_str = "fps"
