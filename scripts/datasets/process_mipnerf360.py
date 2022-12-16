@@ -55,6 +55,8 @@ for split, gpu in zip(splits, gpus):
     commands.append(command)
 import subprocess
 import sys
+
+
 def f(cmd):
     out = subprocess.run(cmd, capture_output=False, shell=True, check=False)
     if out.returncode != 0:
@@ -63,9 +65,18 @@ def f(cmd):
     if out.stdout is not None:
         return out.stdout.decode("utf-8")
 
+
 from multiprocessing import Pool
+
 with Pool() as p:
     print(p.map(f, commands))
 
 
 # evaluation...
+
+#
+
+# the default method
+# DATASET="person" METHOD="nerfacto-default" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}-${DATASET}" --experiment-name "${METHOD}-${DATASET}"
+# without pose optimization
+# DATASET="person" METHOD="nerfacto-no-pose" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}-${DATASET}" --experiment-name "${METHOD}-${DATASET}" --pipeline.datamanager.camera-optimizer.mode off
