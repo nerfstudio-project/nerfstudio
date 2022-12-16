@@ -43,7 +43,7 @@ from nerfstudio.field_components.spatial_distortions import (
     SpatialDistortion,
 )
 from nerfstudio.fields.base_field import Field
-from nerfstudio.utils import colormaps, colors, math
+from nerfstudio.utils import math
 
 try:
     import tinycudann as tcnn
@@ -104,6 +104,14 @@ class DreamFusionField(Field):
             encoding_config={"otype": "Frequency", "n_frequencies": 2},
         )
 
+        self.direction_encoding = tcnn.Encoding(
+            n_input_dims=3,
+            encoding_config={
+                "otype": "SphericalHarmonics",
+                "degree": 4,
+            },
+        )
+
         self.mlp_base = tcnn.NetworkWithInputEncoding(
             n_input_dims=3,
             n_output_dims=1 + self.geo_feat_dim,
@@ -139,7 +147,7 @@ class DreamFusionField(Field):
         self.field_head_pred_normals = PredNormalsFieldHead(in_dim=self.mlp_pred_normals.n_output_dims)
 
         self.mlp_background_color = tcnn.Network(
-            n_input_dims=self.position_encoding.n_output_dims,
+            n_input_dims=self.direction_encoding.n_output_dims,
             n_output_dims=3,
             network_config={
                 "otype": "FullyFusedMLP",
@@ -189,9 +197,9 @@ class DreamFusionField(Field):
         directions = get_normalized_directions(ray_bundle.directions)
 
         outputs_shape = ray_bundle.directions.shape[:-1]
+        directions_flat = self.direction_encoding(directions.view(-1, 3))
+        background_rgb = self.mlp_background_color(directions_flat).view(*outputs_shape, -1).to(directions)
 
-        positions_flat = self.position_encoding(directions.view(-1, 3))
-        background_rgb = self.mlp_background_color(positions_flat).view(*outputs_shape, -1).to(directions)
         return background_rgb
 
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
