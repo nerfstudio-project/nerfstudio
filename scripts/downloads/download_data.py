@@ -15,6 +15,7 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
 
@@ -84,17 +85,39 @@ def grab_file_id(zip_url: str) -> str:
     return s.split("/")[0]
 
 
+nerfstudio_dataset = [
+    "Egypt",
+    "person",
+    "kitchen",
+    "plane",
+    "dozer",
+    "floating-tree",
+    "aspen",
+    "stump",
+    "sculpture",
+    "Giannini-Hall",
+]
 nerfstudio_file_ids = {
     "bww_entrance": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
     "campanile": grab_file_id("https://drive.google.com/file/d/13aOfGJRRH05pOOk9ikYGTwqFc2L1xskU/view?usp=sharing"),
     "desolation": grab_file_id("https://drive.google.com/file/d/14IzOOQm9KBJ3kPbunQbUTHPnXnmZus-f/view?usp=sharing"),
-    "dozer": grab_file_id("https://drive.google.com/file/d/1-OR5F_V5S4s-yzxohbwTylaXjzYLu8ZR/view?usp=sharing"),
     "library": grab_file_id("https://drive.google.com/file/d/1Hjbh_-BuaWETQExn2x2qGD74UwrFugHx/view?usp=sharing"),
     "poster": grab_file_id("https://drive.google.com/file/d/1dmjWGXlJnUxwosN6MVooCDQe970PkD-1/view?usp=sharing"),
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
+    "Egypt": "https://data.nerf.studio/nerfstudio/Egypt.zip",
+    "person": "https://data.nerf.studio/nerfstudio/person.zip",
+    "kitchen": "https://data.nerf.studio/nerfstudio/kitchen.zip",
+    "plane": "https://data.nerf.studio/nerfstudio/plane.zip",
+    "dozer": "https://data.nerf.studio/nerfstudio/dozer.zip",
+    "floating-tree": "https://data.nerf.studio/nerfstudio/floating-tree.zip",
+    "aspen": "https://data.nerf.studio/nerfstudio/aspen.zip",
+    "stump": "https://data.nerf.studio/nerfstudio/stump.zip",
+    "sculpture": "https://data.nerf.studio/nerfstudio/sculpture.zip",
+    "Giannini-Hall": "https://data.nerf.studio/nerfstudio/Giannini-Hall.zip",
     "all": None,
+    "nerfstudio-dataset": nerfstudio_dataset,
 }
 
 NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
@@ -103,14 +126,33 @@ NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_id
 def download_capture_name(save_dir: Path, dataset_name: str, capture_name: str, capture_name_to_file_id: dict):
     """Download specific captures a given dataset and capture name."""
 
-    url = f"https://drive.google.com/uc?id={capture_name_to_file_id[capture_name]}"
-    target_path = str(save_dir / f"{dataset_name}/{capture_name}")
-    os.makedirs(target_path, exist_ok=True)
-    download_path = Path(f"{target_path}.zip")
-    tmp_path = str(save_dir / ".temp")
-    shutil.rmtree(tmp_path, ignore_errors=True)
-    os.makedirs(tmp_path, exist_ok=True)
-    gdown.download(url, output=str(download_path))
+    file_id_or_zip_url = capture_name_to_file_id[capture_name]
+    if file_id_or_zip_url.endswith(".zip"):
+        url = file_id_or_zip_url  # zip url
+        target_path = str(save_dir / f"{dataset_name}/{capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.zip")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+        try:
+            os.remove(download_path)
+        except OSError:
+            pass
+        run_command(f"wget {url} -O {download_path}", verbose=True)
+    else:
+        url = f"https://drive.google.com/uc?id={file_id_or_zip_url}"  # file id
+        target_path = str(save_dir / f"{dataset_name}/{capture_name}")
+        os.makedirs(target_path, exist_ok=True)
+        download_path = Path(f"{target_path}.zip")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+        try:
+            os.remove(download_path)
+        except OSError:
+            pass
+        gdown.download(url, output=str(download_path))
     with zipfile.ZipFile(download_path, "r") as zip_ref:
         zip_ref.extractall(tmp_path)
     inner_folders = os.listdir(tmp_path)
@@ -132,7 +174,13 @@ class NerfstudioDownload(DatasetDownload):
         """Download the nerfstudio dataset."""
         if self.capture_name == "all":
             for capture_name in nerfstudio_file_ids:
-                if capture_name != "all":
+                if capture_name not in ("all", "nerfstudio-dataset"):
+                    download_capture_name(save_dir, "nerfstudio", capture_name, nerfstudio_file_ids)
+            return
+
+        if self.capture_name == "nerfstudio-dataset":
+            for capture_name in nerfstudio_dataset:
+                if capture_name not in ("all", "nerfstudio-dataset"):
                     download_capture_name(save_dir, "nerfstudio", capture_name, nerfstudio_file_ids)
             return
 
