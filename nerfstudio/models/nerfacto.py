@@ -141,6 +141,7 @@ class NerfactoModel(Model):
             log2_hashmap_size=self.config.log2_hashmap_size,
             spatial_distortion=scene_contraction,
             num_images=self.num_train_data,
+            num_eval_images=self.num_eval_data,
             use_pred_normals=self.config.predict_normals,
             use_appearance_embedding=self.config.use_appearance_embedding,
             use_average_appearance_embedding=self.config.use_average_appearance_embedding,

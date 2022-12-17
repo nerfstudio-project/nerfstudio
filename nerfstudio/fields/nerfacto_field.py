@@ -105,6 +105,8 @@ class TCNNNerfactoField(Field):
         num_semantic_classes: int = 100,
         use_pred_normals: bool = False,
         use_average_appearance_embedding: bool = False,
+        use_eval_appearance_embedding: bool = False,
+        num_eval_images: Optional[int] = None,
         spatial_distortion: Optional[SpatialDistortion] = None,
     ) -> None:
         super().__init__()
@@ -114,8 +116,10 @@ class TCNNNerfactoField(Field):
 
         self.spatial_distortion = spatial_distortion
         self.num_images = num_images
+        self.num_eval_images = num_eval_images
         self.appearance_embedding_dim = appearance_embedding_dim
         self.use_average_appearance_embedding = use_average_appearance_embedding
+        self.use_eval_appearance_embedding = use_eval_appearance_embedding
         self.use_appearance_embedding = use_appearance_embedding
         self.use_transient_embedding = use_transient_embedding
         self.use_semantics = use_semantics
@@ -123,6 +127,7 @@ class TCNNNerfactoField(Field):
 
         if self.use_appearance_embedding:
             self.embedding_appearance = Embedding(self.num_images, self.appearance_embedding_dim)
+            self.embedding_appearance_eval = None
 
         base_res = 16
         features_per_level = 2
@@ -247,6 +252,16 @@ class TCNNNerfactoField(Field):
         density = trunc_exp(density_before_activation.to(positions))
         return density, base_mlp_out
 
+    def initialize_embedding_appearance_eval(self):
+        """Initializes the appearance embeddings for per-image evaluation.
+        We initialize them to the mean of the appearance embeddings for training."""
+        assert self.num_eval_images and self.num_eval_images > 0, "Number of eval images is not set or is 0."
+        device = self.aabb.device
+        self.embedding_appearance_eval = Embedding(self.num_eval_images, self.appearance_embedding_dim)
+        ones = torch.ones_like(self.embedding_appearance_eval.embedding.weight).to(device)
+        mean = self.embedding_appearance.mean(dim=0)
+        self.embedding_appearance_eval.embedding.weight = torch.nn.Parameter(ones * mean)
+
     def get_outputs(self, ray_samples: RaySamples, density_embedding: Optional[TensorType] = None):
         assert density_embedding is not None
         outputs = {}
@@ -263,15 +278,18 @@ class TCNNNerfactoField(Field):
         if self.use_appearance_embedding:
             if self.training:
                 embedded_appearance = self.embedding_appearance(camera_indices)
+            elif self.embedding_appearance_eval:
+                # if eval appearance embedding exists, use it
+                embedded_appearance = self.embedding_appearance_eval(camera_indices)
+            elif self.use_average_appearance_embedding:
+                # otherwise, if enabled, use the average appearance embedding
+                embedded_appearance = torch.ones(
+                    (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                ) * self.embedding_appearance.mean(dim=0)
             else:
-                if self.use_average_appearance_embedding:
-                    embedded_appearance = torch.ones(
-                        (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-                    ) * self.embedding_appearance.mean(dim=0)
-                else:
-                    embedded_appearance = torch.zeros(
-                        (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
-                    )
+                embedded_appearance = torch.zeros(
+                    (*directions.shape[:-1], self.appearance_embedding_dim), device=directions.device
+                )
 
         # transients
         if self.use_transient_embedding and self.training:

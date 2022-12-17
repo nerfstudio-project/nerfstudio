@@ -69,12 +69,14 @@ class Model(nn.Module):
         config: ModelConfig,
         scene_box: SceneBox,
         num_train_data: int,
+        num_eval_data: Optional[int] = None,
         **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
         self.scene_box = scene_box
         self.num_train_data = num_train_data
+        self.num_eval_data = num_eval_data
         self.kwargs = kwargs
         self.collider = None
 
