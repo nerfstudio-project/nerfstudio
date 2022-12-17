@@ -78,23 +78,27 @@ class CameraOptimizer(nn.Module):
         self.num_cameras = num_cameras
         self.device = device
 
+        self.initialize_parameters()
+
+    def initialize_parameters(self) -> None:
         # Initialize learnable parameters.
         if self.config.mode == "off":
             pass
         elif self.config.mode in ("SO3xR3", "SE3"):
-            self.pose_adjustment = torch.nn.Parameter(torch.zeros((num_cameras, 6), device=device))
+            self.pose_adjustment = torch.nn.Parameter(torch.zeros((self.num_cameras, 6), device=self.device))
         else:
             assert_never(self.config.mode)
 
         # Initialize pose noise; useful for debugging.
-        if config.position_noise_std != 0.0 or config.orientation_noise_std != 0.0:
-            assert config.position_noise_std >= 0.0 and config.orientation_noise_std >= 0.0
+        if self.config.position_noise_std != 0.0 or self.config.orientation_noise_std != 0.0:
+            assert self.config.position_noise_std >= 0.0 and self.config.orientation_noise_std >= 0.0
             std_vector = torch.tensor(
-                [config.position_noise_std] * 3 + [config.orientation_noise_std] * 3, device=device
+                [self.config.position_noise_std] * 3 + [self.config.orientation_noise_std] * 3, device=self.device
             )
-            self.pose_noise = exp_map_SE3(torch.normal(torch.zeros((num_cameras, 6), device=device), std_vector))
+            self.pose_noise = exp_map_SE3(torch.normal(torch.zeros((self.num_cameras, 6), device=self.device), std_vector))
         else:
             self.pose_noise = None
+
 
     def forward(
         self,

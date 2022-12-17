@@ -355,6 +355,8 @@ class VanillaPipeline(Pipeline):
 
                     # get the eval camera optimizer's parameters
                     camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_eval"
+                    # reinitialize the parameters
+                    self.datamanager.eval_camera_optimizer.initialize_parameters()
                     param_groups = self.datamanager.get_param_groups()
                     optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=1e-3, eps=1e-15)
 

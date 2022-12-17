@@ -86,3 +86,8 @@ with Pool() as p:
 
 # --load-config outputs/nerfacto-no-pose-plane/nerfacto/2022-12-16_194940/config.yml
 # start train but run eval on all images at the start...
+
+# DATASET="plane" METHOD="nerfacto-none" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}" --experiment-name "${METHOD}-${DATASET}" --trainer.load-dir outputs/nerfacto-no-pose-plane/nerfacto/2022-12-16_220419/nerfstudio_models --trainer.steps-per-eval-all-images 10 --pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance False
+# DATASET="plane" METHOD="nerfacto-pose" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}" --experiment-name "${METHOD}-${DATASET}" --trainer.load-dir outputs/nerfacto-no-pose-plane/nerfacto/2022-12-16_220419/nerfstudio_models --trainer.steps-per-eval-all-images 10 --pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False
+# DATASET="plane" METHOD="nerfacto-pose-app" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}" --experiment-name "${METHOD}-${DATASET}" --trainer.load-dir outputs/nerfacto-no-pose-plane/nerfacto/2022-12-16_220419/nerfstudio_models --trainer.steps-per-eval-all-images 10 --pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance True
+# DATASET="plane" METHOD="nerfacto-app" && ns-train nerfacto --vis wandb --data "data/nerfstudio/${DATASET}" --wandb-name "${METHOD}" --experiment-name "${METHOD}-${DATASET}" --trainer.load-dir outputs/nerfacto-no-pose-plane/nerfacto/2022-12-16_220419/nerfstudio_models --trainer.steps-per-eval-all-images 10 --pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance True

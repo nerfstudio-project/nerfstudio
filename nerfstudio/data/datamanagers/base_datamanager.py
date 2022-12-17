@@ -418,12 +418,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         image_batch = get_dict_to_torch(image_batch, device=self.device, exclude=["image"])
         # image_batch["image"].shape == (1, H, W, 3)
         # this will sample the entire image
-        # we downsample the image so it fits in memory. TODO: make this a parameter
-        print(image_batch["image"].shape)
+        # we downsample the image so it fits in memory
         image_batch["image"] = torch.nn.functional.interpolate(
             image_batch["image"].permute(0, 3, 1, 2), scale_factor=scale_factor, mode="bilinear", align_corners=False
         ).permute(0, 2, 3, 1)
-        print(image_batch["image"].shape)
 
         batch = self.eval_pixel_sampler.sample(image_batch, sample_all_pixels=True)
         ray_indices = batch["indices"]
