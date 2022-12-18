@@ -32,6 +32,7 @@ from rich.progress import (
     Progress,
     TextColumn,
     TimeElapsedColumn,
+    Console
 )
 from torch import nn
 from torch.nn import Parameter
@@ -50,6 +51,8 @@ from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
+
+CONSOLE = Console(width=120)
 
 
 def module_wrapper(ddp_or_model: Union[DDP, Model]) -> Model:
@@ -194,12 +197,14 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """Specifies the model config."""
     eval_optimize_cameras: bool = False
     """Whether to optimize the cameras during evaluation."""
-    num_pose_iters: int = 10
+    eval_num_pose_iters: int = 10
     """Number of iterations to optimize the cameras."""
     eval_optimize_appearance: bool = False
     """Whether to optimize the appearance during evaluation."""
-    num_appearance_iters: int = 10
+    eval_num_appearance_iters: int = 10
     """Number of iterations to optimize the appearance."""
+    eval_image_scale_factor: float = 0.25
+    """Scale factor to use for evaluation images so that they fit in memory."""
 
 
 class VanillaPipeline(Pipeline):
@@ -353,6 +358,8 @@ class VanillaPipeline(Pipeline):
                 # optimize camera poses on full image
                 if self.config.eval_optimize_cameras:
 
+                    # raise error if the method not nerfacto
+
                     # get the eval camera optimizer's parameters
                     camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_eval"
                     # reinitialize the parameters
@@ -366,17 +373,18 @@ class VanillaPipeline(Pipeline):
                             "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
                         )
 
-                    print("Optimizing camera poses...")
+                    # CONSOLE.print("Optimizing camera poses...")
                     # rescale the image to 1/4 resolution
-                    scale_factor = 0.25
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(scale_factor)
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
+                        self.config.eval_image_scale_factor
+                    )
                     self.train()
-                    for i in range(self.config.num_pose_iters):
-                        # print("pose opt iter: ", i)
+                    for _ in range(self.config.eval_num_pose_iters):
                         # optimize the ray generator's camera optimizer
                         optimizer.zero_grad()
-                        # print(self.datamanager.eval_camera_optimizer.pose_adjustment)
-                        camera_ray_bundle, batch = self.datamanager.get_eval_image(idx, scale_factor=0.25)
+                        camera_ray_bundle, batch = self.datamanager.get_eval_image(
+                            idx, scale_factor=self.config.eval_image_scale_factor
+                        )
                         outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                         metrics_dict = self.model.get_metrics_dict(outputs, batch)
                         loss_dict = self.model.get_loss_dict(outputs, batch, metrics_dict)
@@ -388,14 +396,17 @@ class VanillaPipeline(Pipeline):
 
                         loss_dict["rgb_loss"].backward()
                         optimizer.step()
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / scale_factor)
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
+                        1.0 / self.config.eval_image_scale_factor
+                    )
                     self.eval()
-                    print("Done optimizing camera poses.")
+                    # CONSOLE.print("Done optimizing camera poses.")
 
                 if self.config.eval_optimize_appearance:
-                    print("Optimizing appearance...")
-                    scale_factor = 0.25
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(scale_factor)
+                    # CONSOLE.print("Optimizing appearance...")
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
+                        self.config.eval_image_scale_factor
+                    )
                     self.train()
 
                     # initial the parameters as the mean appearance embedding
@@ -407,11 +418,11 @@ class VanillaPipeline(Pipeline):
                     half_width = width // 2
                     rgb_loss = MSELoss()
 
-                    for i in range(self.config.num_appearance_iters):
-                        # print("appearance iter: ", i)
+                    for _ in range(self.config.eval_num_appearance_iters):
                         optimizer.zero_grad()
-                        # print(self.model.field.embedding_appearance_eval.embedding.weight)
-                        camera_ray_bundle, batch = self.datamanager.get_eval_image(idx, scale_factor=0.25)
+                        camera_ray_bundle, batch = self.datamanager.get_eval_image(
+                            idx, scale_factor=self.config.eval_image_scale_factor
+                        )
                         outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
                         metrics_dict = self.model.get_metrics_dict(outputs, batch)
 
@@ -430,11 +441,11 @@ class VanillaPipeline(Pipeline):
                         loss.backward()
                         optimizer.step()
 
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / scale_factor)
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / self.config.eval_image_scale_factor)
                     # delete the appearance embedding
                     self.model.field.embedding_appearance_eval = None
                     self.eval()
-                    print("Done optimizing appearance.")
+                    # CONSOLE.print("Done optimizing appearance.")
 
                 with torch.no_grad():
                     outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
