@@ -634,7 +634,7 @@ class Cameras(TensorDataclass):
 
             directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask).float()
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
-            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
+            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
 
         if CameraType.EQUIRECTANGULAR.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
