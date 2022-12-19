@@ -1,5 +1,5 @@
 # Define base image.
-FROM nvidia/cudagl:11.3.1-devel
+FROM nvidia/cuda:11.7.1-devel-ubuntu22.04
 
 # Set environment variables.
 ## Set non-interactive to prevent asking for user inputs blocking image creation.
@@ -11,7 +11,7 @@ ENV TCNN_CUDA_ARCHITECTURES=86
 ## CUDA Home, required to find CUDA in some packages.
 ENV CUDA_HOME="/usr/local/cuda"
 
-# Install required apt packages.
+# Install required apt packages and clear cache afterwards.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -36,10 +36,11 @@ RUN apt-get update && \
     libsuitesparse-dev \
     nano \
     protobuf-compiler \
-    python3.8-dev \
+    python3.10-dev \
     python3-pip \
     qtbase5-dev \
-    wget
+    wget && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install GLOG (required by ceres).
 RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch && \
@@ -50,7 +51,7 @@ RUN git clone --branch v0.6.0 https://github.com/google/glog.git --single-branch
     make -j && \
     make install && \
     cd ../.. && \
-    rm -r glog
+    rm -rf glog
 # Add glog path to LD_LIBRARY_PATH.
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
 
@@ -64,18 +65,19 @@ RUN git clone --branch 2.1.0 https://ceres-solver.googlesource.com/ceres-solver.
     make -j && \
     make install && \
     cd ../.. && \
-    rm -r ceres-solver
+    rm -rf ceres-solver
 
 # Install colmap.
 RUN git clone --branch 3.7 https://github.com/colmap/colmap.git --single-branch && \
     cd colmap && \
     mkdir build && \
     cd build && \
-    cmake .. && \
+    cmake .. -DCUDA_ENABLED=ON \
+        	 -DCUDA_NVCC_FLAGS="--std c++14" && \
     make -j && \
     make install && \
     cd ../.. && \
-    rm -r colmap
+    rm -rf colmap
     
 # Create non root user and setup environment.
 RUN useradd -m -d /home/user -u 1000 user
@@ -89,11 +91,11 @@ ENV PATH="${PATH}:/home/user/.local/bin"
 SHELL ["/bin/bash", "-c"]
 
 # Upgrade pip and install packages.
-RUN python3.8 -m pip install --upgrade pip setuptools pathtools promise
+RUN python3.10 -m pip install --upgrade pip setuptools pathtools promise
 # Install pytorch and submodules.
-RUN python3.8 -m pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
+RUN python3.10 -m pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu116
 # Install tynyCUDNN.
-RUN python3.8 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
+RUN python3.10 -m pip install git+https://github.com/NVlabs/tiny-cuda-nn.git#subdirectory=bindings/torch
 
 # Copy nerfstudio folder and give ownership to user.
 ADD . /home/user/nerfstudio
@@ -103,7 +105,7 @@ USER 1000:1000
 
 # Install nerfstudio dependencies.
 RUN cd nerfstudio && \
-    python3.8 -m pip install -e . && \
+    python3.10 -m pip install -e . && \
     cd ..
 
 # Change working directory
