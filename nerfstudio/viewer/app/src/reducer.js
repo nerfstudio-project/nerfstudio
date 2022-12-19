@@ -22,6 +22,7 @@ const initialState = {
     render_height: 1080,
     render_width: 1920,
     field_of_view: 50,
+    camera_type: 'perspective',
 
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs

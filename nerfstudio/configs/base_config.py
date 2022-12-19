@@ -20,22 +20,13 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
-
-import yaml
-from rich.console import Console
-from typing_extensions import Literal
-
-from nerfstudio.configs.config_utils import to_immutable_dict
+from typing import Any, List, Optional, Tuple, Type
 
 # model instances
 from nerfstudio.utils import writer
 
 warnings.filterwarnings("ignore", module="torchvision")
-
-CONSOLE = Console(width=120)
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -186,93 +177,3 @@ class ViewerConfig(PrintableConfig):
     skip_openrelay: bool = False
     """Avoid using openrelay to communicate with the viewer. Try disabling if you have trouble
     connecting to the viewer"""
-
-
-from nerfstudio.engine.optimizers import OptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-
-
-@dataclass
-class Config(PrintableConfig):
-    """Full config contents"""
-
-    output_dir: Path = Path("outputs")
-    """relative or absolute output directory to save all checkpoints and logging"""
-    method_name: Optional[str] = None
-    """Method name. Required to set in python or via cli"""
-    experiment_name: Optional[str] = None
-    """Experiment name. If None, will automatically be set to dataset name"""
-    timestamp: str = "{timestamp}"
-    """Experiment timestamp."""
-    machine: MachineConfig = MachineConfig()
-    """Machine configuration"""
-    logging: LoggingConfig = LoggingConfig()
-    """Logging configuration"""
-    viewer: ViewerConfig = ViewerConfig()
-    """Viewer configuration"""
-    trainer: TrainerConfig = TrainerConfig()
-    """Trainer configuration"""
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
-    """Pipeline configuration"""
-    optimizers: Dict[str, Any] = to_immutable_dict(
-        {
-            "fields": {
-                "optimizer": OptimizerConfig(),
-                "scheduler": SchedulerConfig(),
-            }
-        }
-    )
-    """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
-    """Which visualizer to use."""
-    data: Optional[Path] = None
-    """Alias for --pipeline.datamanager.dataparser.data"""
-
-    def is_viewer_enabled(self) -> bool:
-        """Checks if a viewer is enabled."""
-        return "viewer" == self.vis
-
-    def is_wandb_enabled(self) -> bool:
-        """Checks if wandb is enabled."""
-        return "wandb" == self.vis
-
-    def is_tensorboard_enabled(self) -> bool:
-        """Checks if tensorboard is enabled."""
-        return "tensorboard" == self.vis
-
-    def set_timestamp(self) -> None:
-        """Dynamically set the experiment timestamp"""
-        if self.timestamp == "{timestamp}":
-            self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-
-    def set_experiment_name(self) -> None:
-        """Dynamically set the experiment name"""
-        if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
-
-    def get_base_dir(self) -> Path:
-        """Retrieve the base directory to set relative paths"""
-        # check the experiment and method names
-        assert self.method_name is not None, "Please set method name in config or via the cli"
-        self.set_experiment_name()
-        return Path(f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}")
-
-    def get_checkpoint_dir(self) -> Path:
-        """Retrieve the checkpoint directory"""
-        return Path(self.get_base_dir() / self.trainer.relative_model_dir)
-
-    def print_to_terminal(self) -> None:
-        """Helper to pretty print config to terminal"""
-        CONSOLE.rule("Config")
-        CONSOLE.print(self)
-        CONSOLE.rule("")
-
-    def save_config(self) -> None:
-        """Save config to base directory"""
-        base_dir = self.get_base_dir()
-        assert base_dir is not None
-        base_dir.mkdir(parents=True, exist_ok=True)
-        config_yaml_path = base_dir / "config.yml"
-        CONSOLE.log(f"Saving config to: {config_yaml_path}")
-        config_yaml_path.write_text(yaml.dump(self), "utf8")

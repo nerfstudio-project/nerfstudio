@@ -37,7 +37,7 @@ from aiortc import (
 from cryptography.utils import CryptographyDeprecationWarning
 from rich.console import Console
 
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
@@ -454,6 +454,19 @@ class ViewerState:
         else:
             self.prev_camera_matrix = camera_object["matrix"]
             self.camera_moving = True
+
+        output_type = self.vis["renderingState/output_choice"].read()
+        if output_type is None:
+            output_type = OutputTypes.INIT
+        if self.prev_output_type != output_type:
+            self.camera_moving = True
+
+        colormap_type = self.vis["renderingState/colormap_choice"].read()
+        if colormap_type is None:
+            colormap_type = ColormapTypes.INIT
+        if self.prev_colormap_type != colormap_type:
+            self.camera_moving = True
+
         return camera_object
 
     def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
@@ -763,11 +776,22 @@ class ViewerState:
         if times is not None:
             times = torch.tensor([float(times)])
 
+        camera_type_msg = camera_object["camera_type"]
+        if camera_type_msg == "perspective":
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_type_msg == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_type_msg == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
+
         camera = Cameras(
             fx=intrinsics_matrix[0, 0],
             fy=intrinsics_matrix[1, 1],
             cx=intrinsics_matrix[0, 2],
             cy=intrinsics_matrix[1, 2],
+            camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
             times=times,
         )
