@@ -27,7 +27,7 @@ from rich.progress import (
 from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
-from nerfstudio.cameras.cameras import Cameras
+from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
@@ -44,7 +44,7 @@ def _render_trajectory_video(
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
-    camera_type: str = "",
+    camera_type: CameraType = CameraType.PERSPECTIVE,
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -56,6 +56,7 @@ def _render_trajectory_video(
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         seconds: Length of output video.
         output_format: How to save output data.
+        camera_type: Camera projection format type.
     """
     CONSOLE.print("[bold green]Creating trajectory video")
     images = []
@@ -104,7 +105,7 @@ def _render_trajectory_video(
             # (unless we reserve enough space to overwrite with our uuid tag,
             # but we don't know how big the video file will be, so it's not certain!)
             media.write_video(output_filename, images, fps=fps)
-            if camera_type == "equirectangular":
+            if camera_type == CameraType.EQUIRECTANGULAR:
                 insert_spherical_metadata_into_file(output_filename)
     CONSOLE.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
     CONSOLE.print(f"[green]Saved video to {output_filename}", justify="center")
@@ -137,7 +138,7 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
     with open(output_filename, mode="r+b") as mp4file:
         try:
             # get file size
-            mp4file_size = os.stat(output_filename)
+            mp4file_size = os.stat(output_filename).st_size
 
             # find moov container (probably after ftyp, free, mdat)
             while True:
@@ -220,15 +221,22 @@ class RenderTrajectory:
             camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
-            camera_type = ""
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
-            camera_type = camera_path["camera_type"]
             camera_path = get_path_from_json(camera_path)
         else:
             assert_never(self.traj)
+
+        if "camera_type" not in camera_path:
+            camera_type = CameraType.PERSPECTIVE
+        elif camera_path["camera_type"] == "fisheye":
+            camera_type = CameraType.FISHEYE
+        elif camera_path["camera_type"] == "equirectangular":
+            camera_type = CameraType.EQUIRECTANGULAR
+        else:
+            camera_type = CameraType.PERSPECTIVE
 
         _render_trajectory_video(
             pipeline,
