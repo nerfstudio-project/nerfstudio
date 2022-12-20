@@ -129,15 +129,12 @@ def _render_trajectory_video(
                     mp4file.seek(0, os.SEEK_END)
                     mp4file_size = mp4file.tell()
                     mp4file.seek(0)
-                    CONSOLE.print("[bold green]MP4 file " + str(output_filename) + " size " + str(mp4file_size))
 
                     # find moov container (probably after ftyp, free, mdat)
                     while True:
                         pos = mp4file.tell()
                         size_and_tag = mp4file.read(8)
-                        CONSOLE.print("[bold green]len(size_and_tag) = " + str(len(size_and_tag)))
                         size, tag = struct.unpack(">I4s", size_and_tag)
-                        CONSOLE.print("[bold green]read " + str(tag) + " size " + str(size) + " at " + str(pos))
                         if tag == b"moov":
                             break
                         mp4file.seek(pos + size)
@@ -155,7 +152,6 @@ def _render_trajectory_video(
                         pos = mp4file.tell()
                         size_and_tag = mp4file.read(8)
                         size, tag = struct.unpack(">I4s", size_and_tag)
-                        CONSOLE.print("[bold green]read " + str(tag) + " size " + str(size) + " at " + str(pos))
                         if tag == b"trak":
                             break
                         mp4file.seek(pos + size)
