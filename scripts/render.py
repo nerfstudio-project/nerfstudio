@@ -8,7 +8,6 @@ import json
 import os
 import struct
 import sys
-import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -106,73 +105,79 @@ def _render_trajectory_video(
             # but we don't know how big the video file will be, so it's not certain!)
             media.write_video(output_filename, images, fps=fps)
             if camera_type == "equirectangular":
-                # NOTE:
-                # because we didn't use faststart, the moov atom will be at the end;
-                # to insert our metadata, we need to find (skip atoms until we get to) moov.
-                # we should have 0x00000020 ftyp, then 0x00000008 free, then variable mdat.
-                spherical_uuid = b"\xff\xcc\x82\x63\xf8\x55\x4a\x93\x88\x14\x58\x7a\x02\x52\x1f\xdd"
-                spherical_metadata = bytes(
-                    """<rdf:SphericalVideo
- xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
- xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
-  <GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>
-  <GSpherical:Spherical>True</GSpherical:Spherical>
-  <GSpherical:Stitched>True</GSpherical:Stitched>
-  <GSpherical:StitchingSoftware>nerfstudio</GSpherical:StitchingSoftware>
-</rdf:SphericalVideo>""",
-                    "utf-8",
-                )
-                insert_size = len(spherical_metadata) + 8 + 16
-                mp4file = open(output_filename, mode="r+b")
-                try:
-                    # get file size
-                    mp4file.seek(0, os.SEEK_END)
-                    mp4file_size = mp4file.tell()
-                    mp4file.seek(0)
-
-                    # find moov container (probably after ftyp, free, mdat)
-                    while True:
-                        pos = mp4file.tell()
-                        size_and_tag = mp4file.read(8)
-                        size, tag = struct.unpack(">I4s", size_and_tag)
-                        if tag == b"moov":
-                            break
-                        mp4file.seek(pos + size)
-                    # if moov isn't at end, bail
-                    if pos + size != mp4file_size:
-                        # TODO: to support faststart, rewrite all stco offsets
-                        raise Exception("moov container not at end of file")
-                    # go back and write inserted size
-                    mp4file.seek(pos)
-                    mp4file.write(struct.pack(">I", size + insert_size))
-                    # go inside moov
-                    mp4file.seek(pos + 8)
-                    # find trak container (probably after mvhd)
-                    while True:
-                        pos = mp4file.tell()
-                        size_and_tag = mp4file.read(8)
-                        size, tag = struct.unpack(">I4s", size_and_tag)
-                        if tag == b"trak":
-                            break
-                        mp4file.seek(pos + size)
-                    # go back and write inserted size
-                    mp4file.seek(pos)
-                    mp4file.write(struct.pack(">I", size + insert_size))
-                    # we need to read everything from end of trak to end of file in order to insert
-                    # TODO: to support faststart, make more efficient (may load nearly all data)
-                    mp4file.seek(pos + size)
-                    rest_of_file = mp4file.read(mp4file_size - pos - size)
-                    # go to end of trak (again)
-                    mp4file.seek(pos + size)
-                    # insert our uuid atom with spherical metadata
-                    mp4file.write(struct.pack(">I4s16s", insert_size, b"uuid", spherical_uuid))
-                    mp4file.write(spherical_metadata)
-                    # write rest of file
-                    mp4file.write(rest_of_file)
-                finally:
-                    mp4file.close()
+                insert_spherical_metadata_into_file(output_filename)
     CONSOLE.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
     CONSOLE.print(f"[green]Saved video to {output_filename}", justify="center")
+
+
+def insert_spherical_metadata_into_file(
+    output_filename: Path,
+) -> None:
+    """Inserts spherical metadata into MP4 video file in-place.
+    Args:
+        output_filename: Name of the (input and) output file.
+    """
+    # NOTE:
+    # because we didn't use faststart, the moov atom will be at the end;
+    # to insert our metadata, we need to find (skip atoms until we get to) moov.
+    # we should have 0x00000020 ftyp, then 0x00000008 free, then variable mdat.
+    spherical_uuid = b"\xff\xcc\x82\x63\xf8\x55\x4a\x93\x88\x14\x58\x7a\x02\x52\x1f\xdd"
+    spherical_metadata = bytes(
+        """<rdf:SphericalVideo
+xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
+<GSpherical:ProjectionType>equirectangular</GSpherical:ProjectionType>
+<GSpherical:Spherical>True</GSpherical:Spherical>
+<GSpherical:Stitched>True</GSpherical:Stitched>
+<GSpherical:StitchingSoftware>nerfstudio</GSpherical:StitchingSoftware>
+</rdf:SphericalVideo>""",
+        "utf-8",
+    )
+    insert_size = len(spherical_metadata) + 8 + 16
+    with open(output_filename, mode="r+b") as mp4file:
+        try:
+            # get file size
+            mp4file_size = os.stat(output_filename)
+
+            # find moov container (probably after ftyp, free, mdat)
+            while True:
+                pos = mp4file.tell()
+                size, tag = struct.unpack(">I4s", mp4file.read(8))
+                if tag == b"moov":
+                    break
+                mp4file.seek(pos + size)
+            # if moov isn't at end, bail
+            if pos + size != mp4file_size:
+                # TODO: to support faststart, rewrite all stco offsets
+                raise Exception("moov container not at end of file")
+            # go back and write inserted size
+            mp4file.seek(pos)
+            mp4file.write(struct.pack(">I", size + insert_size))
+            # go inside moov
+            mp4file.seek(pos + 8)
+            # find trak container (probably after mvhd)
+            while True:
+                pos = mp4file.tell()
+                size, tag = struct.unpack(">I4s", mp4file.read(8))
+                if tag == b"trak":
+                    break
+                mp4file.seek(pos + size)
+            # go back and write inserted size
+            mp4file.seek(pos)
+            mp4file.write(struct.pack(">I", size + insert_size))
+            # we need to read everything from end of trak to end of file in order to insert
+            # TODO: to support faststart, make more efficient (may load nearly all data)
+            mp4file.seek(pos + size)
+            rest_of_file = mp4file.read(mp4file_size - pos - size)
+            # go to end of trak (again)
+            mp4file.seek(pos + size)
+            # insert our uuid atom with spherical metadata
+            mp4file.write(struct.pack(">I4s16s", insert_size, b"uuid", spherical_uuid))
+            mp4file.write(spherical_metadata)
+            # write rest of file
+            mp4file.write(rest_of_file)
+        finally:
+            mp4file.close()
 
 
 @dataclass
