@@ -8,6 +8,7 @@ import json
 import os
 import struct
 import sys
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
@@ -62,7 +63,7 @@ def _render_trajectory_video(
         render_width: Video width to render.
         render_height: Video height to render.
     """
-    CONSOLE.print("[bold green]Creating trajectory video")
+    CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
     cameras = cameras.to(pipeline.device)
 
@@ -87,9 +88,12 @@ def _render_trajectory_video(
         # (unless we reserve enough space to overwrite with our uuid tag,
         # but we don't know how big the video file will be, so it's not certain!)
 
-    with media.VideoWriter(
-        path=output_filename, shape=(render_height, render_width), fps=fps
-    ) if output_format == "video" else None as writer:
+    with ExitStack() as stack:
+        writer = (
+            stack.enter_context(media.VideoWriter(path=output_filename, shape=(render_height, render_width), fps=fps))
+            if output_format == "video"
+            else None
+        )
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
@@ -115,7 +119,6 @@ def _render_trajectory_video(
     if output_format == "video":
         if camera_type == CameraType.EQUIRECTANGULAR:
             insert_spherical_metadata_into_file(output_filename)
-        CONSOLE.print(f"[green]Saved video to {output_filename}", justify="center")
 
 
 def insert_spherical_metadata_into_file(
