@@ -41,6 +41,8 @@ def _render_trajectory_video(
     cameras: Cameras,
     output_filename: Path,
     rendered_output_names: List[str],
+    render_width: int,
+    render_height: int,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
@@ -57,9 +59,10 @@ def _render_trajectory_video(
         seconds: Length of output video.
         output_format: How to save output data.
         camera_type: Camera projection format type.
+        render_width: Video width to render.
+        render_height: Video height to render.
     """
     CONSOLE.print("[bold green]Creating trajectory video")
-    images = []
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
     cameras = cameras.to(pipeline.device)
 
@@ -70,45 +73,49 @@ def _render_trajectory_video(
         ItersPerSecColumn(suffix="fps"),
         TimeRemainingColumn(elapsed_when_finished=True, compact=True),
     )
-    output_image_dir = output_filename.parent / output_filename.stem
     if output_format == "images":
+        output_image_dir = output_filename.parent / output_filename.stem
         output_image_dir.mkdir(parents=True, exist_ok=True)
-    with progress:
-        for camera_idx in progress.track(range(cameras.size), description=""):
-            camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
-            with torch.no_grad():
-                outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-            render_image = []
-            for rendered_output_name in rendered_output_names:
-                if rendered_output_name not in outputs:
-                    CONSOLE.rule("Error", style="red")
-                    CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
-                    CONSOLE.print(f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center")
-                    sys.exit(1)
-                output_image = outputs[rendered_output_name].cpu().numpy()
-                render_image.append(output_image)
-            render_image = np.concatenate(render_image, axis=1)
-            if output_format == "images":
-                media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
-            else:
-                images.append(render_image)
-
     if output_format == "video":
-        fps = len(images) / seconds
+        fps = len(cameras) / seconds
         # make the folder if it doesn't exist
         output_filename.parent.mkdir(parents=True, exist_ok=True)
-        with CONSOLE.status("[yellow]Saving video", spinner="bouncingBall"):
-            # NOTE:
-            # we could use ffmpeg_args "-movflags faststart" for progressive download,
-            # which would force moov atom into known position before mdat,
-            # but then we would have to move all of mdat to insert metadata atom
-            # (unless we reserve enough space to overwrite with our uuid tag,
-            # but we don't know how big the video file will be, so it's not certain!)
-            media.write_video(output_filename, images, fps=fps)
-            if camera_type == CameraType.EQUIRECTANGULAR:
-                insert_spherical_metadata_into_file(output_filename)
-    CONSOLE.rule("[green] :tada: :tada: :tada: Success :tada: :tada: :tada:")
-    CONSOLE.print(f"[green]Saved video to {output_filename}", justify="center")
+        # NOTE:
+        # we could use ffmpeg_args "-movflags faststart" for progressive download,
+        # which would force moov atom into known position before mdat,
+        # but then we would have to move all of mdat to insert metadata atom
+        # (unless we reserve enough space to overwrite with our uuid tag,
+        # but we don't know how big the video file will be, so it's not certain!)
+
+    with media.VideoWriter(
+        path=output_filename, shape=(render_height, render_width), fps=fps
+    ) if output_format == "video" else None as writer:
+        with progress:
+            for camera_idx in progress.track(range(cameras.size), description=""):
+                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
+                with torch.no_grad():
+                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                render_image = []
+                for rendered_output_name in rendered_output_names:
+                    if rendered_output_name not in outputs:
+                        CONSOLE.rule("Error", style="red")
+                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
+                        CONSOLE.print(
+                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
+                        )
+                        sys.exit(1)
+                    output_image = outputs[rendered_output_name].cpu().numpy()
+                    render_image.append(output_image)
+                render_image = np.concatenate(render_image, axis=1)
+                if output_format == "images":
+                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                if output_format == "video":
+                    writer.add_image(render_image)
+
+    if output_format == "video":
+        if camera_type == CameraType.EQUIRECTANGULAR:
+            insert_spherical_metadata_into_file(output_filename)
+        CONSOLE.print(f"[green]Saved video to {output_filename}", justify="center")
 
 
 def insert_spherical_metadata_into_file(
@@ -220,23 +227,27 @@ class RenderTrajectory:
         if self.traj == "spiral":
             camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
+            camera_type = CameraType.PERSPECTIVE
+            render_width = 952
+            render_height = 736
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
                 camera_path = json.load(f)
             seconds = camera_path["seconds"]
+            if "camera_type" not in camera_path:
+                camera_type = CameraType.PERSPECTIVE
+            elif camera_path["camera_type"] == "fisheye":
+                camera_type = CameraType.FISHEYE
+            elif camera_path["camera_type"] == "equirectangular":
+                camera_type = CameraType.EQUIRECTANGULAR
+            else:
+                camera_type = CameraType.PERSPECTIVE
+            render_width = camera_path["render_width"]
+            render_height = camera_path["render_height"]
             camera_path = get_path_from_json(camera_path)
         else:
             assert_never(self.traj)
-
-        if "camera_type" not in camera_path:
-            camera_type = CameraType.PERSPECTIVE
-        elif camera_path["camera_type"] == "fisheye":
-            camera_type = CameraType.FISHEYE
-        elif camera_path["camera_type"] == "equirectangular":
-            camera_type = CameraType.EQUIRECTANGULAR
-        else:
-            camera_type = CameraType.PERSPECTIVE
 
         _render_trajectory_video(
             pipeline,
@@ -247,6 +258,8 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
+            render_width=render_width,
+            render_height=render_height,
         )
 
 
