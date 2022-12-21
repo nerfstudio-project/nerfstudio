@@ -56,12 +56,12 @@ def _render_trajectory_video(
         cameras: Cameras to render.
         output_filename: Name of the output file.
         rendered_output_names: List of outputs to visualise.
+        render_width: Video width to render.
+        render_height: Video height to render.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         seconds: Length of output video.
         output_format: How to save output data.
         camera_type: Camera projection format type.
-        render_width: Video width to render.
-        render_height: Video height to render.
     """
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
