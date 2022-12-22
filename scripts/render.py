@@ -90,7 +90,11 @@ def _render_trajectory_video(
 
     with ExitStack() as stack:
         writer = (
-            stack.enter_context(media.VideoWriter(path=output_filename, shape=(render_height, render_width), fps=fps))
+            stack.enter_context(
+                media.VideoWriter(
+                    path=output_filename, shape=(render_height, render_width * len(rendered_output_names)), fps=fps
+                )
+            )
             if output_format == "video"
             else None
         )
@@ -109,6 +113,8 @@ def _render_trajectory_video(
                         )
                         sys.exit(1)
                     output_image = outputs[rendered_output_name].cpu().numpy()
+                    if output_image.shape[-1] == 1:
+                        output_image = np.concatenate((output_image,) * 3, axis=-1)
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
