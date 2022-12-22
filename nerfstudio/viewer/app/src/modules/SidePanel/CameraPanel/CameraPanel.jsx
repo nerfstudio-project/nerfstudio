@@ -112,12 +112,12 @@ function FovSelector(props) {
         camera.setFocalLength(val / camera.aspect);
       }
     } else if (fovLabel === FOV_LABELS.FOV) {
+      camera.fov = val;
       setGlobalFov(val);
     } else {
-      const old_fov = camera.fov;
       camera.setFocalLength(val / camera.aspect);
       const new_fov = camera.getEffectiveFOV();
-      camera.fov = old_fov;
+      camera.fov = new_fov;
       setGlobalFov(new_fov);
     }
 
@@ -215,6 +215,8 @@ function CameraList(props) {
   // eslint-disable-next-line no-unused-vars
   const [slider_value, set_slider_value] = React.useState(0);
   const [expanded, setExpanded] = React.useState(null);
+
+  const camera_type = useSelector((state) => state.renderingState.camera_type);
 
   const handleChange =
     (cameraUUID: string) =>
@@ -399,7 +401,7 @@ function CameraList(props) {
           </Stack>
         </AccordionSummary>
         <AccordionDetails>
-          {isAnimated('FOV') && (
+          {isAnimated('FOV') && camera_type !== 'equirectangular' && (
             <FovSelector
               fovLabel={fovLabel}
               setFovLabel={setFovLabel}
@@ -485,6 +487,7 @@ export default function CameraPanel(props) {
   const render_width = useSelector(
     (state) => state.renderingState.render_width,
   );
+  const camera_type = useSelector((state) => state.renderingState.camera_type);
 
   const setRenderHeight = (value) => {
     dispatch({
@@ -497,6 +500,22 @@ export default function CameraPanel(props) {
     dispatch({
       type: 'write',
       path: 'renderingState/render_width',
+      data: value,
+    });
+  };
+
+  const setCameraType = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/camera_type',
+      data: value,
+    });
+  };
+
+  const setFieldOfView = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/field_of_view',
       data: value,
     });
   };
@@ -516,7 +535,7 @@ export default function CameraPanel(props) {
     // set slider and render camera back to 0
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
-      camera_render.fov = new_camera_list[0].fov;
+      setFieldOfView(new_camera_list[0].fov);
       set_slider_value(slider_min);
     }
   };
@@ -718,7 +737,7 @@ export default function CameraPanel(props) {
 
     const mat = get_transform_matrix(position, lookat, up);
     set_camera_position(camera_render, mat);
-    camera_render.fov = fov;
+    setFieldOfView(fov);
   } else {
     sceneTree.delete(['Camera Path', 'Curve']);
   }
@@ -768,7 +787,7 @@ export default function CameraPanel(props) {
       fov = curve_object.curve_fovs.getPoint(point).z;
       const mat = get_transform_matrix(position, lookat, up);
       set_camera_position(camera_render, mat);
-      camera_render.fov = fov;
+      setFieldOfView(fov);
       setGlobalFov(fov);
     }
   }, [slider_value, render_height, render_width]);
@@ -828,6 +847,7 @@ export default function CameraPanel(props) {
     // const myData
     const camera_path_object = {
       keyframes,
+      camera_type,
       render_height,
       render_width,
       camera_path,
@@ -871,6 +891,7 @@ export default function CameraPanel(props) {
 
     setRenderHeight(camera_path_object.render_height);
     setRenderWidth(camera_path_object.render_width);
+    setCameraType(camera_path_object.camera_type);
 
     setFps(camera_path_object.fps);
     setSeconds(camera_path_object.seconds);
@@ -1024,52 +1045,54 @@ export default function CameraPanel(props) {
           />
         </LevaStoreProvider>
       </div>
-      <div className="CameraList-row-animation-properties">
-        <Tooltip title="Animate FOV for Each Camera">
-          <Button
-            value="animatefov"
-            selected={isAnimated('FOV')}
-            onClick={() => {
-              toggleAnimate('FOV');
-            }}
-            style={{
-              maxWidth: '20px',
-              maxHeight: '20px',
-              minWidth: '20px',
-              minHeight: '20px',
-              position: 'relative',
-              top: '22px',
-            }}
-            sx={{
-              mt: 1,
-            }}
-          >
-            <Animation
+      {camera_type !== 'equirectangular' && (
+        <div className="CameraList-row-animation-properties">
+          <Tooltip title="Animate FOV for Each Camera">
+            <Button
+              value="animatefov"
+              selected={isAnimated('FOV')}
+              onClick={() => {
+                toggleAnimate('FOV');
+              }}
               style={{
-                color: isAnimated('FOV') ? '#24B6FF' : '#EBEBEB',
                 maxWidth: '20px',
                 maxHeight: '20px',
                 minWidth: '20px',
                 minHeight: '20px',
+                position: 'relative',
+                top: '22px',
               }}
-            />
-          </Button>
-        </Tooltip>
-        <FovSelector
-          fovLabel={fovLabel}
-          setFovLabel={setFovLabel}
-          camera={camera_main}
-          cameras={cameras}
-          dispatch={dispatch}
-          disabled={isAnimated('FOV')}
-          applyAll={!isAnimated('FOV')}
-          isGlobal
-          globalFov={globalFov}
-          setGlobalFov={setGlobalFov}
-          setAllCameraFOV={setAllCameraFOV}
-          changeMain
-        />
-      </div>
+              sx={{
+                mt: 1,
+              }}
+            >
+              <Animation
+                style={{
+                  color: isAnimated('FOV') ? '#24B6FF' : '#EBEBEB',
+                  maxWidth: '20px',
+                  maxHeight: '20px',
+                  minWidth: '20px',
+                  minHeight: '20px',
+                }}
+              />
+            </Button>
+          </Tooltip>
+          <FovSelector
+            fovLabel={fovLabel}
+            setFovLabel={setFovLabel}
+            camera={camera_main}
+            cameras={cameras}
+            dispatch={dispatch}
+            disabled={isAnimated('FOV')}
+            applyAll={!isAnimated('FOV')}
+            isGlobal
+            globalFov={globalFov}
+            setGlobalFov={setGlobalFov}
+            setAllCameraFOV={setAllCameraFOV}
+            changeMain
+          />
+        </div>
+      )}
       <div>
         <div className="CameraPanel-row">
           <Button

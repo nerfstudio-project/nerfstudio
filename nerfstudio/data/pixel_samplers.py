@@ -160,7 +160,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             image_batch: batch of images to sample from
         """
         if isinstance(image_batch["image"], list):
-            image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
+            image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
             pixel_batch = collate_image_dataset_batch_list(
                 image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )

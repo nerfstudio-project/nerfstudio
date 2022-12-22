@@ -77,8 +77,19 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     image_width = aspect * image_height
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
-    focal_length = three_js_perspective_camera_focal_length(fov, image_height)
-    intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]]).float()
+    if (camera_object["camera_type"] == "perspective") | (camera_object["camera_type"] == "fisheye"):
+        focal_length = three_js_perspective_camera_focal_length(fov, image_height)
+        intrinsics_matrix = torch.tensor([[focal_length, 0, pp_w], [0, focal_length, pp_h], [0, 0, 1]]).float()
+    elif camera_object["camera_type"] == "equirectangular":
+        render_aspect = camera_object["render_aspect"]
+        if aspect < render_aspect:
+            intrinsics_matrix = torch.tensor(
+                [[pp_w, 0, pp_w], [0, image_width / render_aspect, pp_h], [0, 0, 1]]
+            ).float()
+        else:
+            intrinsics_matrix = torch.tensor(
+                [[image_height * render_aspect / 2, 0, pp_w], [0, pp_h * 2, pp_h], [0, 0, 1]]
+            ).float()
 
     # extrinsics
     camera_to_world_h = torch.tensor(get_chunks(camera_object["matrix"], size_of_chunk=4)).T.float()
