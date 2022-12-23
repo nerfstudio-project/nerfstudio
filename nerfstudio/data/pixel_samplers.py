@@ -44,6 +44,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         self.num_rays_per_batch = num_rays_per_batch
 
+    # pylint disable=no-self-use
     def sample_method(
         self,
         batch_size: int,
