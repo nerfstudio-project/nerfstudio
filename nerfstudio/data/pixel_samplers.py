@@ -255,7 +255,7 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
     """
 
     # overrides base method
-    def sample_method(
+    def sample_method(  # pylint disable=no-self-use
         self,
         batch_size: int,
         num_images: int,
