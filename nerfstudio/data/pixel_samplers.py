@@ -44,7 +44,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         """
         self.num_rays_per_batch = num_rays_per_batch
 
-    def sample_method(  # pylint disable=no-self-use
+    def sample_method(  # pylint: disable=no-self-use
         self,
         batch_size: int,
         num_images: int,
@@ -255,7 +255,7 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
     """
 
     # overrides base method
-    def sample_method(  # pylint disable=no-self-use
+    def sample_method(  # pylint: disable=no-self-use
         self,
         batch_size: int,
         num_images: int,
