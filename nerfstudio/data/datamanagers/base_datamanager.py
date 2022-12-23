@@ -18,6 +18,7 @@ Datamanager.
 
 from __future__ import annotations
 
+import copy
 import random
 from abc import abstractmethod
 from dataclasses import dataclass, field
@@ -382,7 +383,10 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
         self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
-        self.eval_camera_optimizer = self.config.camera_optimizer.setup(
+        # eval camera optimizer should always have pose opt on
+        eval_camera_optimizer = copy.deepcopy(self.config.camera_optimizer)
+        eval_camera_optimizer.mode = "SO3xR3"
+        self.eval_camera_optimizer = eval_camera_optimizer.setup(
             num_cameras=self.eval_dataset.cameras.size, device=self.device
         )
         self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device), self.eval_camera_optimizer)
@@ -450,11 +454,11 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         camera_opt_params_eval = list(self.eval_camera_optimizer.parameters())
         if self.config.camera_optimizer.mode != "off":
             assert len(camera_opt_params_train) > 0
-            assert len(camera_opt_params_eval) > 0
             param_groups[self.config.camera_optimizer.param_group + "_train"] = camera_opt_params_train
-            param_groups[self.config.camera_optimizer.param_group + "_eval"] = camera_opt_params_eval
         else:
             assert len(camera_opt_params_train) == 0
-            assert len(camera_opt_params_eval) == 0
+
+        assert len(camera_opt_params_eval) > 0
+        param_groups[self.config.camera_optimizer.param_group + "_eval"] = camera_opt_params_eval
 
         return param_groups

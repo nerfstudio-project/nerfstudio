@@ -20,6 +20,7 @@ dependencies = [
     "av==9.2.0",
     "tyro>=0.3.31",
     "gdown==4.5.1",
+    "GPUtil>=1.4.0",
     "ninja==1.10.2.3",
     "functorch==0.2.1",
     "h5py>=2.9.0",

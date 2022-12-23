@@ -203,7 +203,7 @@ class VanillaPipelineConfig(cfg.InstantiateConfig):
     """Whether to optimize the appearance during evaluation."""
     eval_num_appearance_iters: int = 10
     """Number of iterations to optimize the appearance."""
-    eval_image_scale_factor: float = 0.25
+    eval_image_scale_factor: float = 0.125
     """Scale factor to use for evaluation images so that they fit in memory."""
 
 
@@ -367,11 +367,11 @@ class VanillaPipeline(Pipeline):
                     param_groups = self.datamanager.get_param_groups()
                     optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=1e-3, eps=1e-15)
 
-                    # check that camera optimizer is on
-                    if self.config.datamanager.camera_optimizer.mode == "off":
-                        raise ValueError(
-                            "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
-                        )
+                    # # check that camera optimizer is on
+                    # if self.config.datamanager.camera_optimizer.mode == "off":
+                    #     raise ValueError(
+                    #         "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
+                    #     )
 
                     # CONSOLE.print("Optimizing camera poses...")
                     # rescale the image to 1/4 resolution

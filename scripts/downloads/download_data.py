@@ -97,6 +97,15 @@ nerfstudio_dataset = [
     "sculpture",
     "Giannini-Hall",
 ]
+mipnerf360_dataset = [
+    "mipnerf-360-bicycle",
+    "mipnerf-360-garden",
+    "mipnerf-360-stump",
+    "mipnerf-360-room",
+    "mipnerf-360-counter",
+    "mipnerf-360-kitchen",
+    "mipnerf-360-bonsai",
+]
 nerfstudio_file_ids = {
     "bww_entrance": grab_file_id("https://drive.google.com/file/d/1ylkRHtfB3n3IRLf2wplpfxzPTq7nES9I/view?usp=sharing"),
     "campanile": grab_file_id("https://drive.google.com/file/d/13aOfGJRRH05pOOk9ikYGTwqFc2L1xskU/view?usp=sharing"),
@@ -106,6 +115,7 @@ nerfstudio_file_ids = {
     "redwoods2": grab_file_id("https://drive.google.com/file/d/1rg-4NoXT8p6vkmbWxMOY6PSG4j3rfcJ8/view?usp=sharing"),
     "storefront": grab_file_id("https://drive.google.com/file/d/16b792AguPZWDA_YC4igKCwXJqW0Tb21o/view?usp=sharing"),
     "vegetation": grab_file_id("https://drive.google.com/file/d/1wBhLQ2odycrtU39y2akVurXEAt9SsVI3/view?usp=sharing"),
+    # Nerfstudio Dataset
     "Egypt": "https://data.nerf.studio/nerfstudio/Egypt.zip",
     "person": "https://data.nerf.studio/nerfstudio/person.zip",
     "kitchen": "https://data.nerf.studio/nerfstudio/kitchen.zip",
@@ -116,8 +126,17 @@ nerfstudio_file_ids = {
     "stump": "https://data.nerf.studio/nerfstudio/stump.zip",
     "sculpture": "https://data.nerf.studio/nerfstudio/sculpture.zip",
     "Giannini-Hall": "https://data.nerf.studio/nerfstudio/Giannini-Hall.zip",
+    # MipNeRF-360 Dataset. TODO: add these links
+    "mipnerf360-bicycle": "",
+    "mipnerf360-garden": "",
+    "mipnerf360-stump": "",
+    "mipnerf360-room": "",
+    "mipnerf360-counter": "",
+    "mipnerf360-kitchen": "",
+    "mipnerf360-bonsai": "",
     "all": None,
     "nerfstudio-dataset": nerfstudio_dataset,
+    "mipnerf360-dataset": mipnerf360_dataset,
 }
 
 NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())

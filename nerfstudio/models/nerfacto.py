@@ -67,7 +67,7 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    background_color: Literal["background", "last_sample"] = "last_sample"
+    background_color: Literal["random", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
@@ -116,6 +116,10 @@ class NerfactoModelConfig(ModelConfig):
     """Whether use single jitter or not for the proposal networks."""
     predict_normals: bool = False
     """Whether to predict normals or not."""
+    use_scene_contraction: bool = True
+    """Whether to use scene contraction or not."""
+    scene_contraction_norm: Literal["inf", "l2"] = "inf"
+    """Which norm to use for the scene contraction."""
 
 
 class NerfactoModel(Model):
@@ -131,7 +135,15 @@ class NerfactoModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
-        scene_contraction = SceneContraction(order=float("inf"))
+        # TODO(ethan): flag to enable scene contraction or not
+
+        if self.config.scene_contraction_norm == "inf":
+            order = float("inf")
+        elif self.config.scene_contraction_norm == "l2":
+            order = None
+        else:
+            raise ValueError("Invalid scene contraction norm")
+        scene_contraction = SceneContraction(order=order)
 
         # Fields
         self.field = TCNNNerfactoField(
@@ -152,8 +164,9 @@ class NerfactoModel(Model):
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
-            prop_net_args = self.config.proposal_net_args_list[0]
+            # assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
+            # using the last defined proposal network
+            prop_net_args = self.config.proposal_net_args_list[-1]
             network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args)
             self.proposal_networks.append(network)
             self.density_fns.extend([network.density_fn for _ in range(num_prop_nets)])

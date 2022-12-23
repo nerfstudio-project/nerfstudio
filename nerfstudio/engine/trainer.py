@@ -148,10 +148,6 @@ class Trainer:
                 "optimizer": camera_optimizer_config.optimizer,
                 "scheduler": camera_optimizer_config.scheduler,
             }
-            # optimizer_config[camera_optimizer_config.param_group + "_eval"] = {
-            #     "optimizer": camera_optimizer_config.optimizer,
-            #     "scheduler": camera_optimizer_config.scheduler,
-            # }
         return Optimizers(optimizer_config, param_groups)
 
     def train(self) -> None:
