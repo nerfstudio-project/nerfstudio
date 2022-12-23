@@ -55,6 +55,11 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
     ) -> TensorType["batch_size", 3]:
         """
         Naive pixel sampler, uniformly samples across all possible pixels of all possible images.
+
+        Args:
+            batch_size: number of samples in a batch
+            num_images: number of images to sample over
+            mask: mask of possible pixels in an image to sample from.
         """
         if mask:
             nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
@@ -184,7 +189,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             image_batch: batch of images to sample from
         """
         if isinstance(image_batch["image"], list):
-            image_batch = dict(image_batch.items())  # copy the dictioary so we don't modify the original
+            image_batch = dict(image_batch.items())  # copy the dictionary so we don't modify the original
             pixel_batch = self.collate_image_dataset_batch_list(
                 image_batch, self.num_rays_per_batch, keep_full_image=self.keep_full_image
             )
@@ -195,54 +200,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         else:
             raise ValueError("image_batch['image'] must be a list or torch.Tensor")
         return pixel_batch
-
-
-def collate_image_dataset_batch_equirectangular(batch: Dict, num_rays_per_batch: int, keep_full_image: bool = False):
-    """
-    Operates on a batch of equirectangular images and samples pixels to use for
-    generating rays. Rays will be generated uniformly on the sphere.
-    Returns a collated batch which is input to the Graph.
-    It will sample only within the valid 'mask' if it's specified.
-
-    Args:
-        batch: batch of images to sample from
-        num_rays_per_batch: number of rays to sample per batch
-        keep_full_image: whether or not to include a reference to the full image in returned batch
-    """
-    # TODO(kevinddchen): make more DRY
-    device = batch["image"].device
-    num_images, image_height, image_width, _ = batch["image"].shape
-
-    # only sample within the mask, if the mask is in the batch
-    if "mask" in batch:
-        # TODO(kevinddchen): implement this
-        raise NotImplementedError("Masking not implemented for equirectangular images.")
-
-    # We sample theta uniformly in [0, 2*pi]
-    # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
-    # This is done by inverse transform sampling.
-    # http://corysimon.github.io/articles/uniformdistn-on-sphere/
-    num_images_rand = torch.rand(num_rays_per_batch, device=device)
-    phi_rand = torch.acos(1 - 2 * torch.rand(num_rays_per_batch, device=device)) / torch.pi
-    theta_rand = torch.rand(num_rays_per_batch, device=device)
-    indices = torch.floor(
-        torch.stack((num_images_rand, phi_rand, theta_rand), dim=-1)
-        * torch.tensor([num_images, image_height, image_width], device=device)
-    ).long()
-
-    c, y, x = (i.flatten() for i in torch.split(indices, 1, dim=-1))
-    collated_batch = {key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None}
-
-    assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
-
-    # Needed to correct the random indices to their actual camera idx locations.
-    indices[:, 0] = batch["image_idx"][c]
-    collated_batch["indices"] = indices  # with the abs camera indices
-
-    if keep_full_image:
-        collated_batch["full_image"] = batch["image"]
-
-    return collated_batch
 
 
 class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
@@ -266,19 +223,23 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
     ) -> TensorType["batch_size", 3]:
 
         if mask:
-            # TODO(kevinddchen): implement this
-            raise NotImplementedError("Masking not implemented for equirectangular images.")
+            # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
+            # sampling weight to the poles of the image than the equators.
+            # TODO(kevinddchen): implement the correct mask-sampling method.
 
-        # We sample theta uniformly in [0, 2*pi]
-        # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
-        # This is done by inverse transform sampling.
-        # http://corysimon.github.io/articles/uniformdistn-on-sphere/
-        num_images_rand = torch.rand(batch_size, device=device)
-        phi_rand = torch.acos(1 - 2 * torch.rand(batch_size, device=device)) / torch.pi
-        theta_rand = torch.rand(batch_size, device=device)
-        indices = torch.floor(
-            torch.stack((num_images_rand, phi_rand, theta_rand), dim=-1)
-            * torch.tensor([num_images, image_height, image_width], device=device)
-        ).long()
+            indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
+        else:
+
+            # We sample theta uniformly in [0, 2*pi]
+            # We sample phi in [0, pi] according to the PDF f(phi) = sin(phi) / 2.
+            # This is done by inverse transform sampling.
+            # http://corysimon.github.io/articles/uniformdistn-on-sphere/
+            num_images_rand = torch.rand(batch_size, device=device)
+            phi_rand = torch.acos(1 - 2 * torch.rand(batch_size, device=device)) / torch.pi
+            theta_rand = torch.rand(batch_size, device=device)
+            indices = torch.floor(
+                torch.stack((num_images_rand, phi_rand, theta_rand), dim=-1)
+                * torch.tensor([num_images, image_height, image_width], device=device)
+            ).long()
 
         return indices
