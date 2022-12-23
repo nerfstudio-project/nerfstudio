@@ -46,8 +46,6 @@ class InstantNGPDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("data/ours/posterv2")
     """Directory or explicit json file path specifying location of data."""
-    scale_factor: float = 1.0
-    """How much to scale the camera origins by."""
     scene_scale: float = 0.3333
     """How much to scale the scene."""
 
