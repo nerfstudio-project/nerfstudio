@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-NeRF implementation that combines many recent advancements.
+Nerfacto augumented with depth supervision.
 """
 
 from __future__ import annotations
