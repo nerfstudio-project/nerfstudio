@@ -27,18 +27,6 @@ from typing_extensions import Literal
 _EPS = np.finfo(float).eps * 4.0
 
 
-def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Normalize tensor along axis and return normalized value with norms.
-
-    Args:
-        x: tensor to normalize
-        dim: axis along which to normalize
-    """
-
-    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True),
-                         torch.tensor([_EPS]).to(x.device))
-    return x / norm, norm
-
 
 def unit_vector(data, axis: Optional[int] = None) -> np.ndarray:
     """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
@@ -241,6 +229,19 @@ def get_interpolated_poses_many(
 def normalize(x) -> TensorType[...]:
     """Returns a normalized vector."""
     return x / torch.linalg.norm(x)
+
+
+def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Normalize tensor along axis and return normalized value with norms.
+
+    Args:
+        x: tensor to normalize
+        dim: axis along which to normalize
+    """
+
+    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True),
+                         torch.tensor([_EPS]).to(x))
+    return x / norm, norm
 
 
 def viewmatrix(lookat, up, pos) -> TensorType[...]:
