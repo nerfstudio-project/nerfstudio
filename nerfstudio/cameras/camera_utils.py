@@ -27,7 +27,6 @@ from typing_extensions import Literal
 _EPS = np.finfo(float).eps * 4.0
 
 
-
 def unit_vector(data, axis: Optional[int] = None) -> np.ndarray:
     """Return ndarray normalized by length, i.e. Euclidean norm, along axis.
 
@@ -239,8 +238,7 @@ def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.
         dim: axis along which to normalize
     """
 
-    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True),
-                         torch.tensor([_EPS]).to(x))
+    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True), torch.tensor([_EPS]).to(x))
     return x / norm, norm
 
 
