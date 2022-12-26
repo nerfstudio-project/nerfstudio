@@ -168,21 +168,7 @@ class Nerfstudio(DataParser):
         """
 
         # filter image_filenames and poses based on train/eval split percentage
-        num_images = len(image_filenames)
-        num_train_images = math.ceil(num_images * self.config.train_split_percentage)
-        num_eval_images = num_images - num_train_images
-        i_all = np.arange(num_images)
-        i_train = np.linspace(
-            0, num_images - 1, num_train_images, dtype=int
-        )  # equally spaced training images starting and ending at 0 and num_images-1
-        i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
-        assert len(i_eval) == num_eval_images
-        if split == "train":
-            indices = i_train
-        elif split in ["val", "test"]:
-            indices = i_eval
-        else:
-            raise ValueError(f"Unknown dataparser split {split}")
+        indices = get_indices_for_split(split, len(image_filenames))
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
@@ -298,3 +284,20 @@ class Nerfstudio(DataParser):
         if self.downscale_factor > 1:
             return data_dir / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
         return data_dir / filepath
+
+
+def get_indices_for_split(split: str, num_images: int) -> np.ndarray:
+    num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+    num_eval_images = num_images - num_train_images
+    i_all = np.arange(num_images)
+    i_train = np.linspace(
+        0, num_images - 1, num_train_images, dtype=int
+    )  # equally spaced training images starting and ending at 0 and num_images-1
+    i_eval = np.setdiff1d(i_all, i_train)  # eval images are the remaining images
+    assert len(i_eval) == num_eval_images
+    if split == "train":
+        return i_train
+    elif split in ["val", "test"]:
+        return i_eval
+    else:
+        raise ValueError(f"Unknown dataparser split {split}")

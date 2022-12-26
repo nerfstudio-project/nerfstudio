@@ -16,9 +16,12 @@
 from pathlib import Path
 from typing import List, Tuple, Union
 
+import cv2
 import numpy as np
 import torch
 from PIL import Image
+
+_MILLIMETER_TO_METER_SCALE_FACTOR = 1e-3
 
 
 def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
@@ -51,3 +54,18 @@ def get_semantics_and_mask_tensors_from_path(
     semantics = torch.from_numpy(np.array(pil_image, dtype="int64"))[..., None]
     mask = torch.sum(semantics == mask_indices, dim=-1, keepdim=True) == 0
     return semantics, mask
+
+
+def get_depth_image_from_path(
+    filepath: Path,
+    height: int,
+    width: int,
+    scene_scale_factor: float,
+    interpolation: int = cv2.INTER_NEAREST,
+) -> torch.Tensor:
+    """Loads, rescales and resizes depth images."""
+
+    image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
+    image = image.astype("float32") * _MILLIMETER_TO_METER_SCALE_FACTOR * scene_scale_factor
+    image = cv2.resize(image, (width, height), interpolation=interpolation)
+    return torch.from_numpy(image[:, :, np.newaxis])
