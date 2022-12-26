@@ -15,8 +15,6 @@
 """
 Collection of Losses.
 """
-from enum import Enum
-
 import torch
 from torch import nn
 from torchtyping import TensorType
