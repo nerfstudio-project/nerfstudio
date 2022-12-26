@@ -27,8 +27,8 @@ import yaml
 from rich.console import Console
 from typing_extensions import Literal
 
-from nerfstudio.configs.base_config import TrainerConfig
 from nerfstudio.configs.experiment_config import ExperimentConfig
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
 CONSOLE = Console(width=120)

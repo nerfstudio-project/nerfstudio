@@ -21,7 +21,7 @@ import dataclasses
 import functools
 import os
 import time
-from dataclasses import field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Type
 
