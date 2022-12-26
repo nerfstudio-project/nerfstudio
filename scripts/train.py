@@ -48,7 +48,6 @@ from rich.console import Console
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
-from nerfstudio.engine.trainer import Trainer
 from nerfstudio.utils import comms, profiler
 
 CONSOLE = Console(width=120)
@@ -83,7 +82,7 @@ def train_loop(local_rank: int, world_size: int, config: ExperimentConfig, globa
         config: config file specifying training regimen
     """
     _set_random_seed(config.machine.seed + global_rank)
-    trainer = Trainer(config, local_rank, world_size)
+    trainer = config.trainer.setup(config=config, local_rank=local_rank, world_size=world_size)
     trainer.setup()
     trainer.train()
 
