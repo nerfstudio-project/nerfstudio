@@ -12,8 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Depth data parser."""
+from dataclasses import dataclass, field
+from pathlib import PurePath
+from typing import Optional, Type
+
 
 from nerfstudio.data.dataparsers import nerfstudio_dataparser
+from nerfstudio.utils.io import load_from_json
 
 
 @dataclass
@@ -26,7 +31,7 @@ class DepthDataParserConfig(nerfstudio_dataparser.NerfstudioDataParserConfig):
 
 @dataclass
 class DepthDataParser(nerfstudio_dataparser.Nerfstudio):
-    """Nerfstudio-based depth data parser."""
+    """Nerfstudio-based depth data parser"""
 
     config: DepthDataParserConfig
 
@@ -34,10 +39,18 @@ class DepthDataParser(nerfstudio_dataparser.Nerfstudio):
         dataparser_outputs = super()._generate_dataparser_outputs(split)
         if self.config.data.suffix == ".json":
             meta = load_from_json(self.config.data)
+            data_dir = self.config.data.parent
         else:
             meta = load_from_json(self.config.data / "transforms.json")
-        depth_paths = [PurePath(frame["depth_file_path"]) for frame in meta["frames"]]
-        indices = nerfstudio_dataparser.get_indices_for_split(split, len(depth_paths))
+            data_dir = self.config.data
+
+        depth_paths = []
+        for frame in meta["frames"]:
+            depth_file = self._get_fname(PurePath(frame["depth_file_path"]), data_dir, downsample_folder_prefix='depths_')
+            depth_paths.append(depth_file)
+        indices = nerfstudio_dataparser.get_indices_for_split(split,
+                                                              len(depth_paths),
+                                                              self.config.train_split_percentage)
 
         if len(indices) != len(dataparser_outputs.image_filenames):
             raise ValueError("Invalid number of depth images provided.")

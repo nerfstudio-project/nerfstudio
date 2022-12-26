@@ -27,10 +27,7 @@ from typing_extensions import Literal
 _EPS = np.finfo(float).eps * 4.0
 
 
-def normalize(
-    x: torch.Tensor,
-    dim: int,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """Normalize tensor along axis and return normalized value with norms.
 
     Args:
@@ -38,8 +35,8 @@ def normalize(
         dim: axis along which to normalize
     """
 
-    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True), torch.tensor([_EPS]))
-
+    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True),
+                         torch.tensor([_EPS]).to(x.device))
     return x / norm, norm
 
 

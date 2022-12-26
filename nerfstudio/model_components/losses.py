@@ -202,7 +202,7 @@ def ds_nerf_depth_loss(
     termination_depth: TensorType[..., "num_samples", 1],
     steps: TensorType[..., "num_samples", 1],
     lengths: TensorType[..., "num_samples", 1],
-    sigma: Union[TensorType[0], TensorType[..., "num_samples", 1]],
+    sigma: TensorType[0],
 ) -> TensorType[..., 1]:
     """Depth loss from Depth-supervised NeRF (Deng et al., 2022)."""
     return -torch.log(weights + _EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
@@ -216,14 +216,15 @@ def depth_loss(
     directions_norm: TensorType[..., 1],
     is_euclidean: bool,
     loss_type: str,
-):
+) -> TensorType[0]:
     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
     lengths = (ray_samples.frustums.ends - ray_samples.frustums.starts) / 2
     if not is_euclidean:
         termination_depth /= directions_norm
 
     if loss_type == "ds_nerf":
-        return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
-
+        loss = ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
     else:
         raise NotImplementedError(f"Loss type {loss_type} not implemented.")
+
+    return torch.mean(loss)

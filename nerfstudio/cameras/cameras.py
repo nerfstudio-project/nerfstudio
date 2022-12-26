@@ -665,7 +665,7 @@ class Cameras(TensorDataclass):
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
         )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
-        directions_stack, directions_norm = camera_utils.normalize(directions_stack, dim=-1)
+        directions_stack, directions_norm = camera_utils.normalize_with_norm(directions_stack, -1)
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
         origins = c2w[..., :3, 3]  # (..., 3)

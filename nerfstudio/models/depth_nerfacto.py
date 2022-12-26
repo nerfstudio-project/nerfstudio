@@ -18,8 +18,8 @@ NeRF implementation that combines many recent advancements.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Tuple, Type
 
 import torch
 
@@ -36,13 +36,13 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     is_euclidean_depth: bool = False
     """Whether input depth maps are Euclidean distances."""
     depth_sigma: float = 0.05
-    """Uncertainty around depth values in meters."""
+    """Uncertainty around depth values in meters (defaults to 5cm)."""
     depth_loss_type: str = "ds_nerf"
     """Type of depth loss."""
 
 
 class DepthNerfactoModel(NerfactoModel):
-    """Nerfacto model
+    """Depth loss augumented nerfacto model.
 
     Args:
         config: Nerfacto configuration to instantiate model
@@ -52,17 +52,17 @@ class DepthNerfactoModel(NerfactoModel):
 
     def get_outputs(self, ray_bundle: RayBundle):
         outputs = super().get_outputs(ray_bundle)
-        outputs["direction_norms"] = ray_bundle.metadata["directions_norm"]
+        outputs["directions_norm"] = ray_bundle.metadata["directions_norm"]
         return outputs
 
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = super().get_metrics_dict(outputs, batch)
         if self.training:
-            metrics_dict["depth"] = depth_loss(
+            metrics_dict["depth_loss"] = depth_loss(
                 weights=outputs["weights_list"][-1],
                 ray_samples=outputs["ray_samples_list"][-1],
                 termination_depth=batch["depth_image"].to(self.device),
-                sigma=torch.tensor((self.config.depth_sigma), device=self.device),
+                sigma=torch.tensor([self.config.depth_sigma], device=self.device),
                 directions_norm=outputs["directions_norm"],
                 is_euclidean=self.config.is_euclidean_depth,
                 loss_type=self.config.depth_loss_type,
@@ -73,7 +73,7 @@ class DepthNerfactoModel(NerfactoModel):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = super().get_loss_dict(outputs, batch, metrics_dict)
         if self.training:
-            assert metrics_dict is not None and "depth" in metrics_dict
-            loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth"]
+            assert metrics_dict is not None and "depth_loss" in metrics_dict
+            loss_dict["depth_loss"] = self.config.depth_loss_mult * metrics_dict["depth_loss"]
 
         return loss_dict

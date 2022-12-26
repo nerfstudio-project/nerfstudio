@@ -168,7 +168,7 @@ class Nerfstudio(DataParser):
         """
 
         # filter image_filenames and poses based on train/eval split percentage
-        indices = get_indices_for_split(split, len(image_filenames))
+        indices = get_indices_for_split(split, len(image_filenames), self.config.train_split_percentage)
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
@@ -286,8 +286,8 @@ class Nerfstudio(DataParser):
         return data_dir / filepath
 
 
-def get_indices_for_split(split: str, num_images: int) -> np.ndarray:
-    num_train_images = math.ceil(num_images * self.config.train_split_percentage)
+def get_indices_for_split(split: str, num_images: int, train_split_percentage: float) -> np.ndarray:
+    num_train_images = math.ceil(num_images * train_split_percentage)
     num_eval_images = num_images - num_train_images
     i_all = np.arange(num_images)
     i_train = np.linspace(
