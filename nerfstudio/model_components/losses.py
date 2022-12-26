@@ -15,12 +15,12 @@
 """
 Collection of Losses.
 """
+from enum import Enum
 
 import torch
 from torch import nn
 from torchtyping import TensorType
 
-from nerfstudio.cameras.camera_utils import _EPS
 from nerfstudio.cameras.rays import RaySamples
 
 L1Loss = nn.L1Loss
@@ -199,13 +199,13 @@ def pred_normal_loss(
 
 def ds_nerf_depth_loss(
     weights: TensorType[..., "num_samples", 1],
-    termination_depth: TensorType[..., "num_samples", 1],
+    termination_depth: TensorType[..., 1],
     steps: TensorType[..., "num_samples", 1],
     lengths: TensorType[..., "num_samples", 1],
     sigma: TensorType[0],
 ) -> TensorType[..., 1]:
     """Depth loss from Depth-supervised NeRF (Deng et al., 2022)."""
-    return -torch.log(weights + _EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
+    return -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
 
 
 def depth_loss(
@@ -215,16 +215,11 @@ def depth_loss(
     sigma: TensorType[0],
     directions_norm: TensorType[..., 1],
     is_euclidean: bool,
-    loss_type: str,
 ) -> TensorType[0]:
-    steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
-    lengths = (ray_samples.frustums.ends - ray_samples.frustums.starts) / 2
     if not is_euclidean:
         termination_depth /= directions_norm
 
-    if loss_type == "ds_nerf":
-        loss = ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
-    else:
-        raise NotImplementedError(f"Loss type {loss_type} not implemented.")
-
+    steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+    lengths = (ray_samples.frustums.ends - ray_samples.frustums.starts) / 2
+    loss = ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
     return torch.mean(loss)

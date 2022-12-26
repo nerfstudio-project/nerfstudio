@@ -31,14 +31,12 @@ from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 @dataclass
 class DepthNerfactoModelConfig(NerfactoModelConfig):
     _target: Type = field(default_factory=lambda: DepthNerfactoModel)
-    depth_loss_mult: float = 0.1
+    depth_loss_mult: float = 10.
     """Lambda of the depth loss."""
     is_euclidean_depth: bool = False
-    """Whether input depth maps are Euclidean distances."""
+    """Whether input depth maps are Euclidean distances (or z-distances)."""
     depth_sigma: float = 0.05
     """Uncertainty around depth values in meters (defaults to 5cm)."""
-    depth_loss_type: str = "ds_nerf"
-    """Type of depth loss."""
 
 
 class DepthNerfactoModel(NerfactoModel):
@@ -65,7 +63,6 @@ class DepthNerfactoModel(NerfactoModel):
                 sigma=torch.tensor([self.config.depth_sigma], device=self.device),
                 directions_norm=outputs["directions_norm"],
                 is_euclidean=self.config.is_euclidean_depth,
-                loss_type=self.config.depth_loss_type,
             )
 
         return metrics_dict
