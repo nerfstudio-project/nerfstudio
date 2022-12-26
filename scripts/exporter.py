@@ -57,7 +57,7 @@ class ExportPointCloud(Exporter):
     bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
     """Minimum of the bounding box, used if use_bounding_box is True."""
     bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
-    """Minimum of the bounding box, used if use_bounding_box is True."""
+    """Maximum of the bounding box, used if use_bounding_box is True."""
     num_rays_per_batch: int = 32768
     """Number of rays to evaluate per batch. Decrease if you run out of memory."""
     std_ratio: float = 10.0
@@ -314,18 +314,20 @@ class ExportMarchingCubesMesh(Exporter):
         raise NotImplementedError("Marching cubes not implemented yet.")
 
 
-Commands = Union[
-    Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
-    Annotated[ExportTSDFMesh, tyro.conf.subcommand(name="tsdf")],
-    Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
-    Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
+Commands = tyro.conf.FlagConversionOff[
+    Union[
+        Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
+        Annotated[ExportTSDFMesh, tyro.conf.subcommand(name="tsdf")],
+        Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
+        Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
+    ]
 ]
 
 
 def entrypoint():
     """Entrypoint for use with pyproject scripts."""
     tyro.extras.set_accent_color("bright_yellow")
-    tyro.cli(tyro.conf.FlagConversionOff[Commands]).main()
+    tyro.cli(Commands).main()
 
 
 if __name__ == "__main__":
