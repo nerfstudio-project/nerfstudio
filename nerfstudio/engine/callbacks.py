@@ -21,7 +21,7 @@ from enum import Enum, auto
 from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
 
-from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.configs.base_config import TrainerConfig
 
 
 @dataclass

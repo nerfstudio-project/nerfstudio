@@ -27,12 +27,12 @@ from nerfstudio.configs.base_config import (
     LoggingConfig,
     MachineConfig,
     PrintableConfig,
+    TrainerConfig,
     ViewerConfig,
 )
 from nerfstudio.configs.config_utils import to_immutable_dict
 from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
 CONSOLE = Console(width=120)
