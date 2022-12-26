@@ -63,7 +63,7 @@ def get_depth_image_from_path(
     scene_scale_factor: float,
     interpolation: int = cv2.INTER_NEAREST,
 ) -> torch.Tensor:
-    """Loads, rescales and resizes depth images."""
+    """Loads, rescales and resizes depth images. Assumes Record3D depth format."""
     image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
     image = image.astype(np.float64) * _MILLIMETER_TO_METER_SCALE_FACTOR * scene_scale_factor
     image = cv2.resize(image, (width, height), interpolation=interpolation)
