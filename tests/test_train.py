@@ -21,7 +21,7 @@ BLACKLIST = ["base", "semantic-nerfw", "instant-ngp", "instant-ngp-bounded", "ne
 def set_reduced_config(config: TrainerConfig):
     """Reducing the config settings to speedup test"""
     config.machine.num_gpus = 0
-    config.trainer.max_num_iterations = 2
+    config.max_num_iterations = 2
     # reduce dataset factors; set dataset to test
     config.pipeline.datamanager.dataparser = BlenderDataParserConfig(data=Path("tests/data/lego_test"))
     config.pipeline.datamanager.train_num_images_to_sample_from = 1
