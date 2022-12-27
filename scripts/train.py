@@ -109,7 +109,7 @@ def _distributed_worker(
         dist_url: URL to connect to for distributed jobs, including protocol
             E.g., "tcp://127.0.0.1:8686".
             It can be set to "auto" to automatically select a free port on localhost.
-        config: ExperimentConfig specifying training regimen.
+        config: TrainerConfig specifying training regimen.
         timeout: Timeout of the distributed workers.
 
     Raises:
@@ -160,7 +160,7 @@ def launch(
         num_machines (int, optional): total number of machines
         machine_rank (int, optional): rank of this machine.
         dist_url (str, optional): url to connect to for distributed jobs.
-        config (ExperimentConfig, optional): config file specifying training regimen.
+        config (TrainerConfig, optional): config file specifying training regimen.
         timeout (timedelta, optional): timeout of the distributed workers.
     """
     assert config is not None
