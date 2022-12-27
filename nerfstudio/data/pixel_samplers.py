@@ -273,7 +273,7 @@ class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
                 device=device,
             )
 
-            indices = indices.view(sub_bs, 1, 1, 3).broadcast_to(sub_bs, self.patch_size, self.patch_size, 3)
+            indices = indices.view(sub_bs, 1, 1, 3).broadcast_to(sub_bs, self.patch_size, self.patch_size, 3).clone()
 
             yys, xxs = torch.meshgrid(
                 torch.arange(self.patch_size, device=device), torch.arange(self.patch_size, device=device)
