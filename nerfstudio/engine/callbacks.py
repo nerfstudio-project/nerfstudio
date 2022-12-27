@@ -15,13 +15,14 @@
 """
 Callback code used for training iterations
 """
+from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
 from enum import Enum, auto
 from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
 
-from nerfstudio.configs.base_config import TrainerConfig
+from nerfstudio.configs.trainer_config import TrainerConfig
 
 
 @dataclass
