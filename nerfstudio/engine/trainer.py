@@ -159,7 +159,7 @@ class Trainer:
         """Helper to set up the optimizers
 
         Returns:
-            The optimizers object given the experiment config.
+            The optimizers object given the trainer config.
         """
         optimizer_config = self.config.optimizers.copy()
         camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
