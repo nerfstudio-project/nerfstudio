@@ -28,7 +28,7 @@ from rich.console import Console
 from torch.cuda.amp.grad_scaler import GradScaler
 from typing_extensions import Literal
 
-from nerfstudio.configs.trainer_config import TrainerConfig
+from nerfstudio.configs import trainer_config
 from nerfstudio.engine.callbacks import (
     TrainingCallback,
     TrainingCallbackAttributes,
@@ -71,7 +71,7 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: trainer_config.TrainerConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size

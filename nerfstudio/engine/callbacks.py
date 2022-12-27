@@ -22,7 +22,7 @@ from enum import Enum, auto
 from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
 
-from nerfstudio.configs.trainer_config import TrainerConfig
+from nerfstudio.configs import trainer_config
 
 
 @dataclass
@@ -39,7 +39,7 @@ class TrainingCallbackAttributes:
     """gradient scalers"""
     pipeline: Optional[InitVar]
     """reference to training pipeline"""
-    config: TrainerConfig
+    config: trainer_config.TrainerConfig
     """the trainer config"""
 
 
