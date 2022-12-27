@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.configs.method_configs import method_configs
+from nerfstudio.configs.trainer_config import TrainerConfig
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
 from scripts.train import train_loop
@@ -18,7 +18,7 @@ from scripts.train import train_loop
 BLACKLIST = ["base", "semantic-nerfw", "instant-ngp", "instant-ngp-bounded", "nerfacto", "phototourism"]
 
 
-def set_reduced_config(config: ExperimentConfig):
+def set_reduced_config(config: TrainerConfig):
     """Reducing the config settings to speedup test"""
     config.machine.num_gpus = 0
     config.trainer.max_num_iterations = 2
