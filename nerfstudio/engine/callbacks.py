@@ -22,8 +22,6 @@ from enum import Enum, auto
 from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
 
-from nerfstudio.configs import trainer_config
-
 
 @dataclass
 class TrainingCallbackAttributes:
@@ -39,8 +37,6 @@ class TrainingCallbackAttributes:
     """gradient scalers"""
     pipeline: Optional[InitVar]
     """reference to training pipeline"""
-    config: trainer_config.TrainerConfig
-    """the trainer config"""
 
 
 class TrainingCallbackLocation(Enum):

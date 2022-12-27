@@ -47,7 +47,7 @@ from rich.console import Console
 
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
-from nerfstudio.configs.trainer_config import TrainerConfig
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils import comms, profiler
 
 CONSOLE = Console(width=120)
