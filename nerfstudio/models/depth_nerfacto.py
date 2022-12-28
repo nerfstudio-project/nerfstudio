@@ -31,7 +31,7 @@ from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 @dataclass
 class DepthNerfactoModelConfig(NerfactoModelConfig):
     _target: Type = field(default_factory=lambda: DepthNerfactoModel)
-    depth_loss_mult: float = 0.1
+    depth_loss_mult: float = 0.001
     """Lambda of the depth loss."""
     is_euclidean_depth: bool = False
     """Whether input depth maps are Euclidean distances (or z-distances)."""
@@ -39,8 +39,8 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     """Uncertainty around depth values in meters (defaults to 5cm)."""
     should_decay_sigma: bool = True
     """Whether to exponentially decay sigma."""
-    starting_depth_sigma: float = 1.0
-    """Starting uncertainty around depth values in meters (defaults to 1 m)."""
+    starting_depth_sigma: float = 0.1
+    """Starting uncertainty around depth values in meters (defaults to 0.5m)."""
     sigma_decay_rate: float = 0.99985
     """Sigma exponential decay rate."""
     depth_loss_type: DephtLossType = DephtLossType.URF
@@ -61,9 +61,9 @@ class DepthNerfactoModel(NerfactoModel):
         super().populate_modules()
 
         if self.config.should_decay_sigma:
-            self.depth_sigma = torch.tensor([self.config.starting_depth_sigma], device=self.device)
+            self.depth_sigma = torch.tensor([self.config.starting_depth_sigma])
         else:
-            self.depth_sigma = torch.tensor([self.config.depth_sigma], device=self.device)
+            self.depth_sigma = torch.tensor([self.config.depth_sigma])
 
     def get_outputs(self, ray_bundle: RayBundle):
         outputs = super().get_outputs(ray_bundle)
@@ -74,11 +74,11 @@ class DepthNerfactoModel(NerfactoModel):
         metrics_dict = super().get_metrics_dict(outputs, batch)
         if self.training:
             metrics_dict["depth_loss"] = depth_loss(
-                weights=outputs["weights_list"][-1],
-                ray_samples=outputs["ray_samples_list"][-1],
+                weights=outputs["weights_list"][0],
+                ray_samples=outputs["ray_samples_list"][0],
                 termination_depth=batch["depth_image"].to(self.device),
                 predicted_depth=outputs["depth"],
-                sigma=self._get_sigma(),
+                sigma=self._get_sigma().to(self.device),
                 directions_norm=outputs["directions_norm"],
                 is_euclidean=self.config.is_euclidean_depth,
                 depth_loss_type=self.config.depth_loss_type,
@@ -99,6 +99,6 @@ class DepthNerfactoModel(NerfactoModel):
             return self.depth_sigma
 
         self.depth_sigma = torch.maximum(
-            self.config.sigma_decay_rate * self.depth_sigma, torch.tensor([self.config.depth_sigma], device=self.device)
+            self.config.sigma_decay_rate * self.depth_sigma, torch.tensor([self.config.depth_sigma])
         )
         return self.depth_sigma

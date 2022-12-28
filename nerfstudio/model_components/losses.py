@@ -226,18 +226,18 @@ def urban_radiance_field_depth_loss(
 
     # Line-of-sight priors
     kernel = torch.distributions.normal.Normal(0.0, sigma / 3.0)
-    depth_differences = steps - termination_depth[:, None]
-    line_of_sight_loss_near_elems = torch.logical_and(
+    termination_depth = termination_depth[:, None]
+    depth_differences = steps - termination_depth
+    line_of_sight_loss_near_mask = torch.logical_and(
         steps <= termination_depth + sigma, steps >= termination_depth - sigma
     )
     line_of_sight_loss_near = (weights - torch.exp(kernel.log_prob(depth_differences))) ** 2
-    line_of_sight_loss_near = (line_of_sight_loss_near_elems.type(weights.dtype) * line_of_sight_loss_near).sum(-2)
-    line_of_sight_loss_empty_elems = steps < termination_depth - sigma
-    line_of_sight_loss_empty = weights**2
-    line_of_sight_loss_empty = (line_of_sight_loss_empty_elems.type(weights.dtype) * line_of_sight_loss_empty).sum(-2)
+    line_of_sight_loss_near = (line_of_sight_loss_near_mask * line_of_sight_loss_near).sum(-2)
+    line_of_sight_loss_empty_mask = steps < termination_depth - sigma
+    line_of_sight_loss_empty = (line_of_sight_loss_empty_mask * weights**2).sum(-2)
     line_of_sight_loss = line_of_sight_loss_near + line_of_sight_loss_empty
 
-    return expected_depth_loss + line_of_sight_loss
+    return line_of_sight_loss + expected_depth_loss
 
 
 def depth_loss(
