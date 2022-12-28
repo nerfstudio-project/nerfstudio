@@ -43,6 +43,7 @@ CONSOLE = Console(width=120)
 class TrivialDataset(InputDataset):
     """A trivial dataset with blank images for the viewer"""
 
+    # pylint: disable=super-init-not-called
     def __init__(self, cameras: Cameras):
         self.size = cameras.size
         self.cameras = cameras
@@ -176,6 +177,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
 
     config: DreamFusionDataManagerConfig
 
+    # pylint: disable=super-init-not-called
     def __init__(
         self,
         config: DreamFusionDataManagerConfig,
@@ -208,6 +210,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         self.train_dataset = TrivialDataset(self.eval_cameras)
         self.eval_dataset = TrivialDataset(self.eval_cameras)
 
+        # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -215,13 +218,15 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
 
         self.train_count += 1
 
-        # TODO Reimplement when cameras are fully working
+        # # TODO Reimplement when cameras are fully working
         # if step > 2000:
         #     cameras, _, _ = random_train_pose(
         #         self.config.train_images_per_batch, self.config.train_resolution, device=self.device
         #     )
 
-        #     ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
+        #     ray_bundle = cameras.generate_rays(
+        #         torch.tensor(list(range(self.config.train_images_per_batch)))
+        #     ).flatten()
         #     return ray_bundle, {"initialization": False}
 
         # TODO below
@@ -235,10 +240,10 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             # vertical_rotation_range=[-180, 180],
             # jitter_std=0,
         )
-        # ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
+        ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 
-        camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
-        ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
+        # camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
+        # ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation, "initialization": True}
 

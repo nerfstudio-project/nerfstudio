@@ -1,18 +1,32 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Dreamfusion Pipeline and trainer"""
+
 from dataclasses import dataclass, field
-from typing import Type
+from typing import Optional, Type
 
 import matplotlib.pyplot as plt
 import numpy as np
-from torch.cuda.amp.grad_scaler import GradScaler
+import torch
 from typing_extensions import Literal
 
 from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
     DreamFusionDataManagerConfig,
 )
-from nerfstudio.engine.optimizers import Optimizers
 from nerfstudio.generative.stable_diffusion import StableDiffusion
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline, VanillaPipelineConfig
-from nerfstudio.utils import profiler
 
 
 @dataclass
@@ -43,8 +57,14 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     guidance_scale: float = 100
     """guidance scale for sds loss"""
 
+    stablediffusion_device: Optional[str] = None
+
 
 class DreamfusionPipeline(VanillaPipeline):
+    """Dreamfusion pipeline"""
+
+    config: DreamfusionPipelineConfig
+
     def __init__(
         self,
         config: DreamfusionPipelineConfig,
@@ -55,7 +75,12 @@ class DreamfusionPipeline(VanillaPipeline):
     ):
         super().__init__(config, device, test_mode, world_size, local_rank)
         self.generative = True
-        self.sd = StableDiffusion(device)
+        self.sd_device = (
+            torch.device(device)
+            if self.config.stablediffusion_device is None
+            else torch.device(self.config.stablediffusion_device)
+        )
+        self.sd = StableDiffusion(self.sd_device)
         if config.location_based_prompting:
             self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.front_prompt}", "")
             self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.side_prompt}", "")
@@ -63,20 +88,15 @@ class DreamfusionPipeline(VanillaPipeline):
         else:
             self.base_text_embedding = self.sd.get_text_embeds(config.prompt, "")
 
-    @profiler.time_function
-    def custom_step(self, step: int, grad_scaler: GradScaler, optimizers: Optimizers):
-        """This function gets your training loss dict. This will be responsible for
-        getting the next batch of data from the DataManager and interfacing with the
-        Model class, feeding the data to the model's forward function.
+    def get_train_loss_dict(self, step: int):
 
-        Args:
-            step: current iteration step to update sampler if using DDP (distributed)
-        """
         if self.world_size > 1 and step:
             assert self.datamanager.train_sampler is not None
             self.datamanager.train_sampler.set_epoch(step)
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)
+        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
+        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
         train_output = model_outputs["train_output"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
 
@@ -99,33 +119,27 @@ class DreamfusionPipeline(VanillaPipeline):
                 text_embedding = self.side_text_embedding
             elif batch["central"] > 135 and batch["central"] <= 225:
                 text_embedding = self.back_text_embedding
-            elif batch["central"] > 225 and batch["central"] <= 315:
+            else:  # batch["central"] > 225 and batch["central"] <= 315:
                 text_embedding = self.side_text_embedding
         else:
             text_embedding = self.base_text_embedding
 
         sds_loss, latents, grad = self.sd.sds_loss(
-            text_embedding, train_output, guidance_scale=self.config.guidance_scale
+            text_embedding.to(self.sd_device),
+            train_output.to(self.sd_device),
+            guidance_scale=int(self.config.guidance_scale),
         )
+        loss_dict["sds_loss"] = sds_loss.to(self.device)
         # TODO: opacity penalty using transmittance, not accumultation
         if self.config.opacity_penalty:
             accum_mean = np.mean(1.0 - accumulation)
             sds_loss *= np.min((0.5, accum_mean))
 
-        grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
-        # optimizers.scheduler_step_all(step)
-        # optimizers.optimizer_scaler_step_all(grad_scaler)
-        # grad_scaler.update()
-
-        metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
-        loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
-        loss_dict["sds_loss"] = sds_loss
-
-        normals_loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
-        grad_scaler.scale(normals_loss).backward()  # type: ignore
-        optimizers.optimizer_scaler_step_all(grad_scaler)
-
-        grad_scaler.update()
-        optimizers.scheduler_step_all(step)
+        model_outputs["latents"] = latents
+        model_outputs["grad"] = grad
 
         return model_outputs, loss_dict, metrics_dict
+
+    def forward(self):
+        """Not implemented since we only want the parameter saving of the nn module, but not forward()"""
+        raise NotImplementedError

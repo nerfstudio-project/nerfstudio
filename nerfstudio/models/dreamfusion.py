@@ -43,7 +43,7 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
 )
-from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
+from nerfstudio.model_components.ray_samplers import UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,

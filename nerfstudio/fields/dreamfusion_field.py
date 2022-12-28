@@ -17,31 +17,18 @@ Field for dreamfusion model
 """
 
 
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import torch
-from torch import nn
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
 
 from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
-from nerfstudio.field_components.embedding import Embedding
-from nerfstudio.field_components.encodings import Encoding, HashEncoding, SHEncoding
-from nerfstudio.field_components.field_heads import (
-    DensityFieldHead,
-    FieldHead,
-    FieldHeadNames,
-    PredNormalsFieldHead,
-    RGBFieldHead,
-)
-from nerfstudio.field_components.mlp import MLP
-from nerfstudio.field_components.spatial_distortions import (
-    SceneContraction,
-    SpatialDistortion,
-)
+from nerfstudio.field_components.field_heads import FieldHeadNames, PredNormalsFieldHead
+from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
 from nerfstudio.utils import math
 
