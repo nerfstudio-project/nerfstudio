@@ -24,8 +24,7 @@ import tyro
 from nerfacc import ContractionType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import TrainerConfig, ViewerConfig
-from nerfstudio.configs.experiment_config import ExperimentConfig
+from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.datamanagers.variable_res_datamanager import (
@@ -43,6 +42,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
 )
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
@@ -53,7 +53,7 @@ from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
 
-method_configs: Dict[str, ExperimentConfig] = {}
+method_configs: Dict[str, TrainerConfig] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "instant-ngp": "Implementation of Instant-NGP. Recommended real-time model for unbounded scenes.",
@@ -66,11 +66,12 @@ descriptions = {
     "phototourism": "Uses the Phototourism data.",
 }
 
-method_configs["nerfacto"] = ExperimentConfig(
+method_configs["nerfacto"] = TrainerConfig(
     method_name="nerfacto",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
-    ),
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
@@ -96,11 +97,12 @@ method_configs["nerfacto"] = ExperimentConfig(
     vis="viewer",
 )
 
-method_configs["instant-ngp"] = ExperimentConfig(
+method_configs["instant-ngp"] = TrainerConfig(
     method_name="instant-ngp",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
-    ),
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
@@ -116,11 +118,12 @@ method_configs["instant-ngp"] = ExperimentConfig(
 )
 
 
-method_configs["instant-ngp-bounded"] = ExperimentConfig(
+method_configs["instant-ngp-bounded"] = TrainerConfig(
     method_name="instant-ngp-bounded",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
-    ),
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
         model=InstantNGPModelConfig(
@@ -143,7 +146,7 @@ method_configs["instant-ngp-bounded"] = ExperimentConfig(
 )
 
 
-method_configs["mipnerf"] = ExperimentConfig(
+method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
@@ -163,11 +166,12 @@ method_configs["mipnerf"] = ExperimentConfig(
     },
 )
 
-method_configs["semantic-nerfw"] = ExperimentConfig(
+method_configs["semantic-nerfw"] = TrainerConfig(
     method_name="semantic-nerfw",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
-    ),
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
             dataparser=FriendsDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
@@ -188,7 +192,7 @@ method_configs["semantic-nerfw"] = ExperimentConfig(
     vis="viewer",
 )
 
-method_configs["vanilla-nerf"] = ExperimentConfig(
+method_configs["vanilla-nerf"] = TrainerConfig(
     method_name="vanilla-nerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -208,9 +212,9 @@ method_configs["vanilla-nerf"] = ExperimentConfig(
     },
 )
 
-method_configs["tensorf"] = ExperimentConfig(
+method_configs["tensorf"] = TrainerConfig(
     method_name="tensorf",
-    trainer=TrainerConfig(mixed_precision=False),
+    mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=BlenderDataParserConfig(),
@@ -229,7 +233,7 @@ method_configs["tensorf"] = ExperimentConfig(
     },
 )
 
-method_configs["dnerf"] = ExperimentConfig(
+method_configs["dnerf"] = TrainerConfig(
     method_name="dnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
@@ -251,11 +255,12 @@ method_configs["dnerf"] = ExperimentConfig(
     },
 )
 
-method_configs["phototourism"] = ExperimentConfig(
+method_configs["phototourism"] = TrainerConfig(
     method_name="phototourism",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
-    ),
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=VariableResDataManagerConfig(  # NOTE: one of the only differences with nerfacto
             dataparser=PhototourismDataParserConfig(),  # NOTE: one of the only differences with nerfacto
