@@ -29,14 +29,14 @@ from torchtyping import TensorType
 from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.lie_groups import exp_map_SE3, exp_map_SO3xR3
-from nerfstudio.configs import base_config as cfg
+from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.utils import poses as pose_utils
 
 
 @dataclass
-class CameraOptimizerConfig(cfg.InstantiateConfig):
+class CameraOptimizerConfig(InstantiateConfig):
     """Configuration of optimization for camera poses."""
 
     _target: Type = field(default_factory=lambda: CameraOptimizer)

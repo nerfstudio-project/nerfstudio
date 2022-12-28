@@ -79,9 +79,9 @@ for dataset in "${DATASETS[@]}"; do
     ns-train "${method_name}" "${method_opts[@]}" \
              --data="data/blender/${dataset}${trans_file}" \
              --experiment-name="blender_${dataset}_${tag}" \
-             --trainer.relative-model-dir=nerfstudio_models/ \
-             --trainer.steps-per-save=1000 \
-             --trainer.max-num-iterations=16500 \
+             --relative-model-dir=nerfstudio_models/ \
+             --steps-per-save=1000 \
+             --max-num-iterations=16500 \
              --logging.local-writer.enable=False  \
              --logging.enable-profiler=False \
              --vis "${vis}" \

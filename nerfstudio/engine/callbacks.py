@@ -15,13 +15,12 @@
 """
 Callback code used for training iterations
 """
+from __future__ import annotations
 
 from dataclasses import InitVar, dataclass
 from enum import Enum, auto
 from inspect import signature
 from typing import Callable, Dict, List, Optional, Tuple
-
-from nerfstudio.configs.base_config import TrainerConfig
 
 
 @dataclass
@@ -38,8 +37,6 @@ class TrainingCallbackAttributes:
     """gradient scalers"""
     pipeline: Optional[InitVar]
     """reference to training pipeline"""
-    config: TrainerConfig
-    """the trainer config"""
 
 
 class TrainingCallbackLocation(Enum):

@@ -64,7 +64,9 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
-        image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
+        image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
+        if len(image.shape) == 2:
+            image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
         assert image.dtype == np.uint8
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."

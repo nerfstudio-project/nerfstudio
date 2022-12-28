@@ -46,9 +46,8 @@ import yaml
 from rich.console import Console
 
 from nerfstudio.configs.config_utils import convert_markup_to_ansi
-from nerfstudio.configs.experiment_config import ExperimentConfig
 from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
-from nerfstudio.engine.trainer import Trainer
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.utils import comms, profiler
 
 CONSOLE = Console(width=120)
@@ -74,7 +73,7 @@ def _set_random_seed(seed) -> None:
     torch.manual_seed(seed)
 
 
-def train_loop(local_rank: int, world_size: int, config: ExperimentConfig, global_rank: int = 0):
+def train_loop(local_rank: int, world_size: int, config: TrainerConfig, global_rank: int = 0):
     """Main training function that sets up and runs the trainer per process
 
     Args:
@@ -83,7 +82,7 @@ def train_loop(local_rank: int, world_size: int, config: ExperimentConfig, globa
         config: config file specifying training regimen
     """
     _set_random_seed(config.machine.seed + global_rank)
-    trainer = Trainer(config, local_rank, world_size)
+    trainer = config.setup(local_rank=local_rank, world_size=world_size)
     trainer.setup()
     trainer.train()
 
@@ -95,7 +94,7 @@ def _distributed_worker(
     num_gpus_per_machine: int,
     machine_rank: int,
     dist_url: str,
-    config: ExperimentConfig,
+    config: TrainerConfig,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> Any:
     """Spawned distributed worker that handles the initialization of process group and handles the
@@ -110,7 +109,7 @@ def _distributed_worker(
         dist_url: URL to connect to for distributed jobs, including protocol
             E.g., "tcp://127.0.0.1:8686".
             It can be set to "auto" to automatically select a free port on localhost.
-        config: ExperimentConfig specifying training regimen.
+        config: TrainerConfig specifying training regimen.
         timeout: Timeout of the distributed workers.
 
     Raises:
@@ -150,7 +149,7 @@ def launch(
     num_machines: int = 1,
     machine_rank: int = 0,
     dist_url: str = "auto",
-    config: Optional[ExperimentConfig] = None,
+    config: Optional[TrainerConfig] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
     """Function that spawns muliple processes to call on main_func
@@ -161,7 +160,7 @@ def launch(
         num_machines (int, optional): total number of machines
         machine_rank (int, optional): rank of this machine.
         dist_url (str, optional): url to connect to for distributed jobs.
-        config (ExperimentConfig, optional): config file specifying training regimen.
+        config (TrainerConfig, optional): config file specifying training regimen.
         timeout (timedelta, optional): timeout of the distributed workers.
     """
     assert config is not None
@@ -215,7 +214,7 @@ def launch(
             profiler.flush_profiler(config.logging)
 
 
-def main(config: ExperimentConfig) -> None:
+def main(config: TrainerConfig) -> None:
     """Main function."""
 
     config.set_timestamp()
@@ -223,9 +222,9 @@ def main(config: ExperimentConfig) -> None:
         CONSOLE.log("Using --data alias for --data.pipeline.datamanager.dataparser.data")
         config.pipeline.datamanager.dataparser.data = config.data
 
-    if config.trainer.load_config:
-        CONSOLE.log(f"Loading pre-set config from: {config.trainer.load_config}")
-        config = yaml.load(config.trainer.load_config.read_text(), Loader=yaml.Loader)
+    if config.load_config:
+        CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
+        config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
 
     # print and save config
     config.print_to_terminal()
