@@ -31,7 +31,7 @@ from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 @dataclass
 class DepthNerfactoModelConfig(NerfactoModelConfig):
     _target: Type = field(default_factory=lambda: DepthNerfactoModel)
-    depth_loss_mult: float = 0.001
+    depth_loss_mult: float = 0.00001
     """Lambda of the depth loss."""
     is_euclidean_depth: bool = False
     """Whether input depth maps are Euclidean distances (or z-distances)."""
