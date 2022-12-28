@@ -248,7 +248,7 @@ def depth_loss(
     sigma: TensorType[0],
     directions_norm: TensorType[..., 1],
     is_euclidean: bool,
-    depth_loss_type: DephtLossType = DephtLossType.URF,
+    depth_loss_type: DephtLossType,
 ) -> TensorType[0]:
     if not is_euclidean:
         termination_depth /= directions_norm
