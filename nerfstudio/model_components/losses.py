@@ -15,6 +15,8 @@
 """
 Collection of Losses.
 """
+from enum import Enum
+
 import torch
 from torch import nn
 from torchtyping import TensorType
@@ -27,6 +29,11 @@ MSELoss = nn.MSELoss
 LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 
 EPS = 1.0e-7
+
+
+class DephtLossType(Enum):
+    DS_NERF = 1
+    URF = 2
 
 
 def outer(
@@ -206,18 +213,52 @@ def ds_nerf_depth_loss(
     return -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
 
 
+def urban_radiance_field_depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    predicted_depth: TensorType[..., 1],
+    termination_depth: TensorType[..., 1],
+    steps: TensorType[..., "num_samples", 1],
+    sigma: TensorType[0],
+) -> TensorType[..., 1]:
+    """Lidar losses from Urban Radiance Fields (Rematas et al., 2022)."""
+    # Expected depth
+    expected_depth_loss = (predicted_depth - termination_depth) ** 2
+
+    # Line-of-sight priors
+    kernel = torch.distributions.normal.Normal(0.0, sigma / 3.0)
+    depth_differences = steps - termination_depth[:, None]
+    line_of_sight_loss_near_elems = torch.logical_and(
+        steps <= termination_depth + sigma, steps >= termination_depth - sigma
+    )
+    line_of_sight_loss_near = (weights - torch.exp(kernel.log_prob(depth_differences))) ** 2
+    line_of_sight_loss_near = (line_of_sight_loss_near_elems.type(weights.dtype) * line_of_sight_loss_near).sum(-2)
+    line_of_sight_loss_empty_elems = steps < termination_depth - sigma
+    line_of_sight_loss_empty = weights**2
+    line_of_sight_loss_empty = (line_of_sight_loss_empty_elems.type(weights.dtype) * line_of_sight_loss_empty).sum(-2)
+    line_of_sight_loss = line_of_sight_loss_near + line_of_sight_loss_empty
+
+    return expected_depth_loss + line_of_sight_loss
+
+
 def depth_loss(
     weights: TensorType[..., "num_samples", 1],
     ray_samples: RaySamples,
     termination_depth: TensorType[..., 1],
+    predicted_depth: TensorType[..., 1],
     sigma: TensorType[0],
     directions_norm: TensorType[..., 1],
     is_euclidean: bool,
+    depth_loss_type: DephtLossType = DephtLossType.URF,
 ) -> TensorType[0]:
     if not is_euclidean:
         termination_depth /= directions_norm
-
     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
-    lengths = (ray_samples.frustums.ends - ray_samples.frustums.starts) / 2
-    loss = ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
+
+    if depth_loss_type == DephtLossType.DS_NERF:
+        lengths = (ray_samples.frustums.ends - ray_samples.frustums.starts) / 2
+        loss = ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
+    elif depth_loss_type == DephtLossType.URF:
+        loss = urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
+    else:
+        raise NotImplementedError("Provided depth loss type not implemented.")
     return torch.mean(loss)
