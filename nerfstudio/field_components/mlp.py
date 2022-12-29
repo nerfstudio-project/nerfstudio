@@ -31,7 +31,7 @@ class MLP(FieldComponent):
         in_dim: Input layer dimension
         num_layers: Number of network layers
         layer_width: Width of each MLP layer
-        out_dim: Ouput layer dimension. Uses layer_width if None.
+        out_dim: Output layer dimension. Uses layer_width if None.
         activation: intermediate layer activation function.
         out_activation: output activation function.
     """
