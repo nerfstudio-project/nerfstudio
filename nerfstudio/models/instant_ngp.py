@@ -170,7 +170,7 @@ class NGPModel(Model):
         num_rays = len(ray_bundle)
 
         with torch.no_grad():
-            ray_samples, packed_info, ray_indices = self.sampler(
+            ray_samples, ray_indices = self.sampler(
                 ray_bundle=ray_bundle,
                 near_plane=self.config.near_plane,
                 far_plane=self.config.far_plane,
@@ -181,6 +181,7 @@ class NGPModel(Model):
         field_outputs = self.field(ray_samples)
 
         # accumulation
+        packed_info = nerfacc.pack_info(ray_indices, num_rays)
         weights = nerfacc.render_weight_from_density(
             packed_info=packed_info,
             sigmas=field_outputs[FieldHeadNames.DENSITY],
