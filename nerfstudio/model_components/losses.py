@@ -210,7 +210,8 @@ def ds_nerf_depth_loss(
     sigma: TensorType[0],
 ) -> TensorType[..., 1]:
     """Depth loss from Depth-supervised NeRF (Deng et al., 2022)."""
-    return -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
+    loss = -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
+    return torch.sum(loss, dim=-2)
 
 
 def urban_radiance_field_depth_loss(
@@ -220,11 +221,8 @@ def urban_radiance_field_depth_loss(
     steps: TensorType[..., "num_samples", 1],
     sigma: TensorType[0],
 ) -> TensorType[..., 1]:
-    """Lidar losses from Urban Radiance Fields (Rematas et al., 2022)."""
-    # Expected depth
-    expected_depth_loss = (predicted_depth - termination_depth) ** 2
+    """Line-of-sight priors from Urban Radiance Fields (Rematas et al., 2022)."""
 
-    # Line-of-sight priors
     kernel = torch.distributions.normal.Normal(0.0, sigma / 3.0)
     termination_depth = termination_depth[:, None]
     depth_differences = steps - termination_depth
@@ -237,7 +235,7 @@ def urban_radiance_field_depth_loss(
     line_of_sight_loss_empty = (line_of_sight_loss_empty_mask * weights**2).sum(-2)
     line_of_sight_loss = line_of_sight_loss_near + line_of_sight_loss_empty
 
-    return line_of_sight_loss + expected_depth_loss
+    return line_of_sight_loss
 
 
 def depth_loss(
@@ -251,7 +249,7 @@ def depth_loss(
     depth_loss_type: DephtLossType,
 ) -> TensorType[0]:
     if not is_euclidean:
-        termination_depth /= directions_norm
+        termination_depth = termination_depth / directions_norm
     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
     if depth_loss_type == DephtLossType.DS_NERF:
