@@ -330,11 +330,6 @@ class ExportCameraPoses(Exporter):
             self.output_dir.mkdir(parents=True)
 
         _, pipeline, _ = eval_setup(self.load_config)
-
-        train_dataset = pipeline.datamanager.train_dataset
-        if train_dataset is None:
-            return
-
         assert isinstance(pipeline, VanillaPipeline)
         train_frames, eval_frames = collect_camera_poses(pipeline)
 
