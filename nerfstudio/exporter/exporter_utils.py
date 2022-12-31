@@ -272,7 +272,7 @@ def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Di
         return []
 
     cameras = dataset.cameras
-    image_filenames = dataset.get_image_filenames()
+    image_filenames = dataset.image_filenames
 
     frames: List[Dict[str, Any]] = []
 

@@ -117,13 +117,11 @@ class InputDataset(Dataset):
         data = self.get_data(image_idx)
         return data
 
-    def get_image_filenames(self) -> List[Path]:
-        """Returns image filenames for this dataset.
+    @property
+    def image_filenames(self) -> List[Path]:
+        """
+        Returns image filenames for this dataset.
         The order of filenames is the same as in the Cameras object for easy mapping.
-
-        Args: None
-        Returns:
-            List of image filenames.
         """
 
         return self._dataparser_outputs.image_filenames
