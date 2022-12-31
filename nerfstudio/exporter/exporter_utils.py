@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
@@ -40,7 +40,7 @@ from torchtyping import TensorType
 
 from nerfstudio.cameras.cameras import Cameras
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
 CONSOLE = Console(width=120)
@@ -257,12 +257,13 @@ def render_trajectory(
             depths.append(outputs[depth_output_name].cpu().numpy())
     return images, depths
 
+
 def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Dict[str, Any]]:
     if dataset is None:
         return []
 
     cameras = dataset.cameras
-    image_filenames = dataset._dataparser_outputs.image_filenames
+    image_filenames = dataset.get_image_filenames()
 
     frames: List[Dict[str, Any]] = []
 
@@ -270,12 +271,15 @@ def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Di
     for idx in range(len(cameras)):
         image_filename = image_filenames[idx]
         transform = cameras.camera_to_worlds[idx].tolist()
-        frames.append({
-            "file_path": str(image_filename),
-            "transform": transform,
-        })
+        frames.append(
+            {
+                "file_path": str(image_filename),
+                "transform": transform,
+            }
+        )
 
     return frames
+
 
 def collect_camera_poses(pipeline: VanillaPipeline) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Collects camera poses for train and eval datasets.

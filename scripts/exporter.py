@@ -19,7 +19,6 @@ from rich.console import Console
 from typing_extensions import Annotated, Literal
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
     collect_camera_poses,
@@ -340,7 +339,7 @@ class ExportCameraPoses(Exporter):
 
             output_file_path = os.path.join(self.output_dir, file_name)
 
-            with open(output_file_path, "w") as f:
+            with open(output_file_path, "w", encoding="UTF-8") as f:
                 json.dump(frames, f, indent=4)
 
             CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")

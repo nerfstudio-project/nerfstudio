@@ -115,3 +115,6 @@ class InputDataset(Dataset):
     def __getitem__(self, image_idx: int) -> Dict:
         data = self.get_data(image_idx)
         return data
+
+    def get_image_filenames(self) -> List[Path]:
+        return self._dataparser_outputs.image_filenames
