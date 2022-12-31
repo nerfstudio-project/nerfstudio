@@ -18,7 +18,8 @@ Dataset.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Dict
+from pathlib import Path
+from typing import Dict, List
 
 import numpy as np
 import numpy.typing as npt
@@ -117,4 +118,12 @@ class InputDataset(Dataset):
         return data
 
     def get_image_filenames(self) -> List[Path]:
+        """Returns image filenames for this dataset.
+        The order of filenames is the same as in the Cameras object for easy mapping.
+
+        Args: None
+        Returns:
+            List of image filenames.
+        """
+
         return self._dataparser_outputs.image_filenames
