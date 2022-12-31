@@ -105,8 +105,7 @@ class StableDiffusion(nn.Module):
         return text_embeddings
 
     def sds_loss(self, text_embeddings, nerf_output, guidance_scale=100):
-
-        nerf_output_np = nerf_output.view(3, 64, 64).permute(1, 2, 0).detach().cpu().numpy()
+        nerf_output_np = nerf_output.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()
         nerf_output_np = np.clip(nerf_output_np, 0.0, 1.0)
         plt.imsave("nerf_output.png", nerf_output_np)
         nerf_output = F.interpolate(nerf_output, (IMG_DIM, IMG_DIM), mode="bilinear")
@@ -215,7 +214,7 @@ class StableDiffusion(nn.Module):
             latents=latents,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
-        )  # [1, 4, 64, 64]
+        )  # [1, 4, resolution, resolution]
 
         diffused_img = self.latents_to_img(latents)
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()

@@ -98,17 +98,27 @@ class DreamfusionPipeline(VanillaPipeline):
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
         loss_dict = self.model.get_loss_dict(model_outputs, batch, metrics_dict)
 
-        train_output = model_outputs["train_output"].view(1, 64, 64, 3).permute(0, 3, 1, 2)
+        train_output = (
+            model_outputs["train_output"]
+            .view(1, self.config.datamanager.train_resolution, self.config.datamanager.train_resolution, 3)
+            .permute(0, 3, 1, 2)
+        )
 
-        accumulation = model_outputs["accumulation"].view(64, 64).detach().cpu().numpy()
+        accumulation = (
+            model_outputs["accumulation"]
+            .view(self.config.datamanager.train_resolution, self.config.datamanager.train_resolution)
+            .detach()
+            .cpu()
+            .numpy()
+        )
         accumulation = np.clip(accumulation, 0.0, 1.0)
         plt.imsave("nerf_accumulation.jpg", accumulation)
 
-        # background = model_outputs["background"].view(64, 64, 3).detach().cpu().numpy()
+        # background = model_outputs["background"].view(res, res, 3).detach().cpu().numpy()
         # background = np.clip(background, 0.0, 1.0)
         # plt.imsave("nerf_background.jpg", background)
 
-        # shaded = model_outputs["shaded"].view(64, 64, 3).detach().cpu().numpy()
+        # shaded = model_outputs["shaded"].view(res, res, 3).detach().cpu().numpy()
         # shaded = np.clip(shaded, 0.0, 1.0)
         # plt.imsave("nerf_textureless.jpg", shaded)
 
