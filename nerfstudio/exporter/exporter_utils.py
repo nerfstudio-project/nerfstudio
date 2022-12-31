@@ -276,7 +276,7 @@ def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Di
 
     frames: List[Dict[str, Any]] = []
 
-    # new cameras are in cameras, whereas image paths are in dataparser_outputs
+    # new cameras are in cameras, whereas image paths are stored in a private member of the dataset
     for idx in range(len(cameras)):
         image_filename = image_filenames[idx]
         transform = cameras.camera_to_worlds[idx].tolist()
