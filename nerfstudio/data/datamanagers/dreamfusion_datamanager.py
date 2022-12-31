@@ -206,7 +206,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser = self.config.dataparser.setup()
 
-        cameras, vertical_rotation, central_rotation = random_train_pose(
+        cameras, _, _ = random_train_pose(
             self.config.num_eval_angles,
             self.config.eval_resolution,
             device=self.device,
