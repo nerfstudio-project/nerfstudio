@@ -259,6 +259,15 @@ def render_trajectory(
 
 
 def collect_camera_poses_for_dataset(dataset: Optional[InputDataset]) -> List[Dict[str, Any]]:
+    """Collects rescaled, translated and optimised camera poses for a dataset.
+
+    Args:
+        dataset: Dataset to collect camera poses for.
+
+    Returns:
+        List of dicts containing camera poses.
+    """
+
     if dataset is None:
         return []
 
