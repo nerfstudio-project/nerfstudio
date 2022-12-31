@@ -256,7 +256,12 @@ class Nerfstudio(DataParser):
         )
 
         assert self.downscale_factor is not None
-        cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
+        #cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
+
+        # TODO: set the image filenames manually
+        # call the downscale function manually. 3.75 might be wrong
+        custom_downscale_factor = 3.75
+        cameras.rescale_output_resolution(scaling_factor=1.0 / custom_downscale_factor)
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
