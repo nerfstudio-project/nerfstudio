@@ -211,9 +211,10 @@ function CameraList(props) {
   const setCameraProperties = props.setCameraProperties;
   const isAnimated = props.isAnimated;
   const dispatch = props.dispatch;
-
   // eslint-disable-next-line no-unused-vars
-  const [slider_value, set_slider_value] = React.useState(0);
+  const slider_value = props.slider_value;
+  const set_slider_value = props.set_slider_value;
+
   const [expanded, setExpanded] = React.useState(null);
 
   const camera_type = useSelector((state) => state.renderingState.camera_type);
@@ -391,6 +392,7 @@ function CameraList(props) {
                 e.stopPropagation();
                 set_camera_position(camera_main, camera.matrix);
                 camera_main.fov = camera.fov;
+                set_slider_value(camera.properties.get('TIME'));
               }}
             >
               <Visibility />
@@ -1312,6 +1314,8 @@ export default function CameraPanel(props) {
           setFovLabel={setFovLabel}
           isAnimated={isAnimated}
           dispatch={dispatch}
+          slider_value={slider_value}
+          set_slider_value={set_slider_value}
         />
       </div>
     </div>
