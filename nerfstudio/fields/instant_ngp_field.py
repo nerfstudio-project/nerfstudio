@@ -61,6 +61,8 @@ class TCNNInstantNGPField(Field):
         num_images: number of images, requried if use_appearance_embedding is True
         appearance_embedding_dim: dimension of appearance embedding
         contraction_type: type of contraction
+        num_levels: number of levels of the hashmap for the base mlp
+        log2_hashmap_size: size of the hashmap for the base mlp
     """
 
     def __init__(
@@ -75,6 +77,8 @@ class TCNNInstantNGPField(Field):
         num_images: Optional[int] = None,
         appearance_embedding_dim: int = 32,
         contraction_type: ContractionType = ContractionType.UN_BOUNDED_SPHERE,
+        num_levels: int = 16,
+        log2_hashmap_size: int = 19,
     ) -> None:
         super().__init__()
 
@@ -104,9 +108,9 @@ class TCNNInstantNGPField(Field):
             n_output_dims=1 + self.geo_feat_dim,
             encoding_config={
                 "otype": "HashGrid",
-                "n_levels": 16,
+                "n_levels": num_levels,
                 "n_features_per_level": 2,
-                "log2_hashmap_size": 19,
+                "log2_hashmap_size": log2_hashmap_size,
                 "base_resolution": 16,
                 "per_level_scale": per_level_scale,
             },
