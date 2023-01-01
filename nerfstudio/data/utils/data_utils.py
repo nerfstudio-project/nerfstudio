@@ -21,8 +21,6 @@ import numpy as np
 import torch
 from PIL import Image
 
-_MILLIMETER_TO_METER_SCALE_FACTOR = 1e-3
-
 
 def get_image_mask_tensor_from_path(filepath: Path, scale_factor: float = 1.0) -> torch.Tensor:
     """
@@ -60,11 +58,22 @@ def get_depth_image_from_path(
     filepath: Path,
     height: int,
     width: int,
-    scene_scale_factor: float,
+    scale_factor: float,
     interpolation: int = cv2.INTER_NEAREST,
 ) -> torch.Tensor:
-    """Loads, rescales and resizes depth images. Assumes Record3D depth format."""
+    """Loads, rescales and resizes depth images.
+    
+    Args:
+        filepath: Path to depth image.
+        height: Target depth image height.
+        width: Target depth image width.
+        scale_factor: Factor by which to scale depth image.
+        interpolation: Depth value interpolation for resizing.
+
+    Returns:
+        Depth image torch tensor with shape [width, height, 1].
+    """
     image = cv2.imread(str(filepath.absolute()), cv2.IMREAD_ANYDEPTH)
-    image = image.astype(np.float64) * _MILLIMETER_TO_METER_SCALE_FACTOR * scene_scale_factor
+    image = image.astype(np.float64) * scale_factor
     image = cv2.resize(image, (width, height), interpolation=interpolation)
     return torch.from_numpy(image[:, :, np.newaxis])

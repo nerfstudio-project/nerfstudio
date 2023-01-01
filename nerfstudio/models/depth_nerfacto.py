@@ -36,15 +36,15 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     """Lambda of the depth loss."""
     is_euclidean_depth: bool = False
     """Whether input depth maps are Euclidean distances (or z-distances)."""
-    depth_sigma: float = 0.05
-    """Uncertainty around depth values in meters (defaults to 5cm)."""
-    should_decay_sigma: bool = True
+    depth_sigma: float = 0.01
+    """Uncertainty around depth values in meters (defaults to 1cm)."""
+    should_decay_sigma: bool = False
     """Whether to exponentially decay sigma."""
-    starting_depth_sigma: float = 0.3
-    """Starting uncertainty around depth values in meters (defaults to 0.3m)."""
+    starting_depth_sigma: float = 0.2
+    """Starting uncertainty around depth values in meters (defaults to 0.2m)."""
     sigma_decay_rate: float = 0.99985
-    """Sigma exponential decay rate."""
-    depth_loss_type: DephtLossType = DephtLossType.URF
+    """Rate of exponetial decay."""
+    depth_loss_type: DephtLossType = DephtLossType.DS_NERF
     """Depth loss type."""
 
 
@@ -76,11 +76,12 @@ class DepthNerfactoModel(NerfactoModel):
         if self.training:
             metrics_dict["depth_loss"] = 0.
             sigma = self._get_sigma().to(self.device)
+            termination_depth = batch["depth_image"].to(self.device)
             for i in range(len(outputs["weights_list"])):
                 metrics_dict["depth_loss"] += depth_loss(
                     weights=outputs["weights_list"][i],
                     ray_samples=outputs["ray_samples_list"][i],
-                    termination_depth=batch["depth_image"].to(self.device),
+                    termination_depth=termination_depth,
                     predicted_depth=outputs["depth"],
                     sigma=sigma,
                     directions_norm=outputs["directions_norm"],
@@ -118,6 +119,8 @@ class DepthNerfactoModel(NerfactoModel):
         )
         images["depth"] = torch.cat([ground_truth_depth_colormap,
                                      predicted_depth_colormap], dim=1)
+        metrics['depth_mse'] = torch.nn.functional.mse_loss(outputs["depth"],
+                                                            ground_truth_depth)
         return metrics, images
 
     def _get_sigma(self):

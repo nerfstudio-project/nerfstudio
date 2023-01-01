@@ -33,7 +33,6 @@ from nerfstudio.data.datamanagers.variable_res_datamanager import (
     VariableResDataManagerConfig,
 )
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
-from nerfstudio.data.dataparsers.depth_dataparser import DepthDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
@@ -107,7 +106,7 @@ method_configs["depth-nerfacto"] = ExperimentConfig(
     ),
     pipeline=VanillaPipelineConfig(
         datamanager=DepthDataManagerConfig(
-            dataparser=DepthDataParserConfig(),
+            dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
