@@ -472,7 +472,7 @@ class VolumetricSampler(Sampler):
         if num_samples == 0:
             # create a single fake sample and update packed_info accordingly
             # this says the last ray in packed_info has 1 sample, which starts and ends at 1
-            ray_indices = torch.zeros((1,), dtype=starts.dtype, device=rays_o.device)
+            ray_indices = torch.zeros((1,), dtype=torch.long, device=rays_o.device)
             starts = torch.ones((1, 1), dtype=starts.dtype, device=rays_o.device)
             ends = torch.ones((1, 1), dtype=ends.dtype, device=rays_o.device)
 
