@@ -62,7 +62,8 @@ def get_depth_image_from_path(
     interpolation: int = cv2.INTER_NEAREST,
 ) -> torch.Tensor:
     """Loads, rescales and resizes depth images.
-    
+
+    Assumes filepath points to a 16-bit or 32-bit depth image.
     Args:
         filepath: Path to depth image.
         height: Target depth image height.

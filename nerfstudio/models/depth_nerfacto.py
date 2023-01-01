@@ -74,7 +74,7 @@ class DepthNerfactoModel(NerfactoModel):
     def get_metrics_dict(self, outputs, batch):
         metrics_dict = super().get_metrics_dict(outputs, batch)
         if self.training:
-            metrics_dict["depth_loss"] = 0.
+            metrics_dict["depth_loss"] = 0.0
             sigma = self._get_sigma().to(self.device)
             termination_depth = batch["depth_image"].to(self.device)
             for i in range(len(outputs["weights_list"])):
@@ -107,20 +107,16 @@ class DepthNerfactoModel(NerfactoModel):
         ground_truth_depth = batch["depth_image"]
         if not self.config.is_euclidean_depth:
             ground_truth_depth = ground_truth_depth / outputs["directions_norm"]
-        
-        ground_truth_depth_colormap = colormaps.apply_depth_colormap(
-            ground_truth_depth
-        )
+
+        ground_truth_depth_colormap = colormaps.apply_depth_colormap(ground_truth_depth)
         predicted_depth_colormap = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
             near_plane=torch.min(ground_truth_depth),
-            far_plane=torch.max(ground_truth_depth)
+            far_plane=torch.max(ground_truth_depth),
         )
-        images["depth"] = torch.cat([ground_truth_depth_colormap,
-                                     predicted_depth_colormap], dim=1)
-        metrics['depth_mse'] = torch.nn.functional.mse_loss(outputs["depth"],
-                                                            ground_truth_depth)
+        images["depth"] = torch.cat([ground_truth_depth_colormap, predicted_depth_colormap], dim=1)
+        metrics["depth_mse"] = torch.nn.functional.mse_loss(outputs["depth"], ground_truth_depth)
         return metrics, images
 
     def _get_sigma(self):

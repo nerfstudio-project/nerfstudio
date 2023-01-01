@@ -31,7 +31,8 @@ LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 EPS = 1.0e-7
 
 # Sigma scale factor from Urban Radiance Fields (Rematas et al., 2022)
-URF_SIGMA_SCALE_FACTOR = 3.
+URF_SIGMA_SCALE_FACTOR = 3.0
+
 
 class DephtLossType(Enum):
     DS_NERF = 1
@@ -272,8 +273,8 @@ def depth_loss(
     is_euclidean: bool,
     depth_loss_type: DephtLossType,
 ) -> TensorType[0]:
-    """"Implementation of depth losses.
-    
+    """Implementation of depth losses.
+
     Args:
         weights: Weights predicted for each sample.
         ray_samples: Samples along rays corresponding to weights.
@@ -292,10 +293,9 @@ def depth_loss(
     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
     if depth_loss_type == DephtLossType.DS_NERF:
-        lengths = (ray_samples.frustums.ends - ray_samples.frustums.starts)
+        lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
         return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
     elif depth_loss_type == DephtLossType.URF:
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
     else:
         raise NotImplementedError("Provided depth loss type not implemented.")
- 

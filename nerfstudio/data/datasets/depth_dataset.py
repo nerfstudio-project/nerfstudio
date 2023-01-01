@@ -33,7 +33,10 @@ class DepthDataset(InputDataset):
 
     def __init__(self, dataparser_outputs: DataparserOutputs, scale_factor: float = 1.0):
         super().__init__(dataparser_outputs, scale_factor)
-        assert "depth_filenames" in dataparser_outputs.metadata.keys() and dataparser_outputs.metadata["depth_filenames"] is not None
+        assert (
+            "depth_filenames" in dataparser_outputs.metadata.keys()
+            and dataparser_outputs.metadata["depth_filenames"] is not None
+        )
         self.depth_filenames = self.metadata["depth_filenames"]
         self.depth_unit_scale_factor = self.metadata["depth_unit_scale_factor"]
 
