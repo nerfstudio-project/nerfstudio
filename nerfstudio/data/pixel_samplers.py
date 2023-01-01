@@ -61,7 +61,7 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
             num_images: number of images to sample over
             mask: mask of possible pixels in an image to sample from.
         """
-        if mask:
+        if isinstance(mask, torch.Tensor):
             nonzero_indices = torch.nonzero(mask[..., 0], as_tuple=False)
             chosen_indices = random.sample(range(len(nonzero_indices)), k=batch_size)
             indices = nonzero_indices[chosen_indices]
@@ -222,7 +222,7 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
         device: Union[torch.device, str] = "cpu",
     ) -> TensorType["batch_size", 3]:
 
-        if mask:
+        if isinstance(mask, torch.Tensor):
             # Note: if there is a mask, sampling reduces back to uniform sampling, which gives more
             # sampling weight to the poles of the image than the equators.
             # TODO(kevinddchen): implement the correct mask-sampling method.
