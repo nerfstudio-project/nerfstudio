@@ -19,7 +19,7 @@ Nerfacto augumented with depth supervision.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Type
+from typing import Dict, Tuple, Type
 
 import torch
 
@@ -31,6 +31,8 @@ from nerfstudio.utils import colormaps
 
 @dataclass
 class DepthNerfactoModelConfig(NerfactoModelConfig):
+    """Additional parameters for depth supervision."""
+
     _target: Type = field(default_factory=lambda: DepthNerfactoModel)
     depth_loss_mult: float = 1e-3
     """Lambda of the depth loss."""
@@ -123,7 +125,7 @@ class DepthNerfactoModel(NerfactoModel):
         if not self.config.should_decay_sigma:
             return self.depth_sigma
 
-        self.depth_sigma = torch.maximum(
+        self.depth_sigma = torch.maximum(  # pylint: disable=attribute-defined-outside-init
             self.config.sigma_decay_rate * self.depth_sigma, torch.tensor([self.config.depth_sigma])
         )
         return self.depth_sigma

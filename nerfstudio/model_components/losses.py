@@ -35,6 +35,8 @@ URF_SIGMA_SCALE_FACTOR = 3.0
 
 
 class DephtLossType(Enum):
+    """Types of depth losses for depth supervision."""
+
     DS_NERF = 1
     URF = 2
 
@@ -295,7 +297,8 @@ def depth_loss(
     if depth_loss_type == DephtLossType.DS_NERF:
         lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
         return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
-    elif depth_loss_type == DephtLossType.URF:
+
+    if depth_loss_type == DephtLossType.URF:
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
-    else:
-        raise NotImplementedError("Provided depth loss type not implemented.")
+
+    raise NotImplementedError("Provided depth loss type not implemented.")
