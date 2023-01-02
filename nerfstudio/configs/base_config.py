@@ -120,35 +120,6 @@ class LoggingConfig(PrintableConfig):
     profiler logs run times of functions and prints at end of training"""
 
 
-# Trainer related configs
-@dataclass
-class TrainerConfig(PrintableConfig):
-    """Configuration for training regimen"""
-
-    steps_per_save: int = 1000
-    """Number of steps between saves."""
-    steps_per_eval_batch: int = 500
-    """Number of steps between randomly sampled batches of rays."""
-    steps_per_eval_image: int = 500
-    """Number of steps between single eval images."""
-    steps_per_eval_all_images: int = 25000
-    """Number of steps between eval all images."""
-    max_num_iterations: int = 1000000
-    """Maximum number of iterations to run."""
-    mixed_precision: bool = False
-    """Whether or not to use mixed precision for training."""
-    relative_model_dir: Path = Path("nerfstudio_models/")
-    """Relative path to save all checkpoints."""
-    save_only_latest_checkpoint: bool = True
-    """Whether to only save the latest checkpoint or all checkpoints."""
-    # optional parameters if we want to resume training
-    load_dir: Optional[Path] = None
-    """Optionally specify a pre-trained model directory to load from."""
-    load_step: Optional[int] = None
-    """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
-    load_config: Optional[Path] = None
-
-
 # Viewer related configs
 @dataclass
 class ViewerConfig(PrintableConfig):

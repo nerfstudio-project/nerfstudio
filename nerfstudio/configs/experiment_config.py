@@ -14,6 +14,8 @@
 
 """Config used for running an experiment"""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -24,10 +26,9 @@ from rich.console import Console
 from typing_extensions import Literal
 
 from nerfstudio.configs.base_config import (
+    InstantiateConfig,
     LoggingConfig,
     MachineConfig,
-    PrintableConfig,
-    TrainerConfig,
     ViewerConfig,
 )
 from nerfstudio.configs.config_utils import to_immutable_dict
@@ -39,8 +40,9 @@ CONSOLE = Console(width=120)
 
 
 @dataclass
-class ExperimentConfig(PrintableConfig):
-    """Full config contents"""
+class ExperimentConfig(InstantiateConfig):
+    """Full config contents for running an experiment. Any experiment types (like training) will be
+    subclassed from this, and must have their _target field defined accordingly."""
 
     output_dir: Path = Path("outputs")
     """relative or absolute output directory to save all checkpoints and logging"""
@@ -56,8 +58,6 @@ class ExperimentConfig(PrintableConfig):
     """Logging configuration"""
     viewer: ViewerConfig = ViewerConfig()
     """Viewer configuration"""
-    trainer: TrainerConfig = TrainerConfig()
-    """Trainer configuration"""
     pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
     """Pipeline configuration"""
     optimizers: Dict[str, Any] = to_immutable_dict(
@@ -73,6 +73,8 @@ class ExperimentConfig(PrintableConfig):
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.dataparser.data"""
+    relative_model_dir: Path = Path("nerfstudio_models/")
+    """Relative path to save all checkpoints."""
 
     def is_viewer_enabled(self) -> bool:
         """Checks if a viewer is enabled."""
@@ -105,7 +107,7 @@ class ExperimentConfig(PrintableConfig):
 
     def get_checkpoint_dir(self) -> Path:
         """Retrieve the checkpoint directory"""
-        return Path(self.get_base_dir() / self.trainer.relative_model_dir)
+        return Path(self.get_base_dir() / self.relative_model_dir)
 
     def print_to_terminal(self) -> None:
         """Helper to pretty print config to terminal"""
