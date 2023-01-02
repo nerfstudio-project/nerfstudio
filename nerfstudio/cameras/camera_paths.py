@@ -109,7 +109,7 @@ def get_spiral_path(
     )
 
 
-def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
+def get_path_from_json(camera_path: Dict[str, Any], use_render_times: bool = False) -> Cameras:
     """Takes a camera path dictionary and returns a trajectory as a Camera instance.
 
     Args:
@@ -152,6 +152,12 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
             fxs.append(focal_length)
             fys.append(focal_length)
 
+    # Iff ALL cameras in the path have a "time" value, construct Cameras with times
+    if use_render_times and all("render_time" in camera for camera in camera_path["camera_path"]):
+        times = torch.tensor([camera["render_time"] for camera in camera_path["camera_path"]])
+    else:
+        times = None
+
     camera_to_worlds = torch.stack(c2ws, dim=0)
     fx = torch.tensor(fxs)
     fy = torch.tensor(fys)
@@ -162,4 +168,5 @@ def get_path_from_json(camera_path: Dict[str, Any]) -> Cameras:
         cy=image_height / 2,
         camera_to_worlds=camera_to_worlds,
         camera_type=camera_type,
+        times=times,
     )

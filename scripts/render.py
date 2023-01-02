@@ -224,6 +224,8 @@ class RenderTrajectory:
     output_format: Literal["images", "video"] = "video"
     # Specifies number of rays per chunk during eval.
     eval_num_rays_per_chunk: Optional[int] = None
+    # Is this a dynamic NeRF? If so use render_times specified in the camera_path.json
+    dynamic: bool = False
 
     def main(self) -> None:
         """Main function."""
@@ -259,7 +261,7 @@ class RenderTrajectory:
                 camera_type = CameraType.PERSPECTIVE
             render_width = camera_path["render_width"]
             render_height = camera_path["render_height"]
-            camera_path = get_path_from_json(camera_path)
+            camera_path = get_path_from_json(camera_path, self.dynamic)
         else:
             assert_never(self.traj)
 
