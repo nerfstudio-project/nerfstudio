@@ -158,9 +158,7 @@ class Nerfstudio(DataParser):
 
             if "depth_file_path" in frame:
                 depth_filepath = PurePath(frame["depth_file_path"])
-                depth_fname = self._get_fname(depth_filepath,
-                                              data_dir,
-                                              downsample_folder_prefix='depths_')
+                depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
 
         if num_skipped_image_filenames >= 0:
@@ -284,9 +282,9 @@ class Nerfstudio(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
-                'depth_filenames': depth_filenames if len(depth_filenames) > 0 else None,
-                'depth_unit_scale_factor': self.config.depth_unit_scale_factor
-            }
+                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+            },
         )
         return dataparser_outputs
 
