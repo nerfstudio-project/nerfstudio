@@ -2,8 +2,9 @@
 Test colormaps
 """
 import torch
+import plotly.graph_objects as go
 
-from nerfstudio.utils import colormaps
+from nerfstudio.utils import colormaps, plotly_utils
 
 
 def test_apply_colormap():
@@ -37,3 +38,23 @@ def test_apply_boolean_colormap():
     assert colored_data.shape == (10, 20, 3)
     assert torch.min(colored_data) >= 0
     assert torch.max(colored_data) <= 1
+
+
+def test_apply_boolean_colormap():
+    """Test adding a colormap to boolean data"""
+    data = torch.rand((10, 20, 1))
+    data = data > 0.5
+    colored_data = colormaps.apply_boolean_colormap(data)
+
+    assert colored_data.shape == (10, 20, 3)
+    assert torch.min(colored_data) >= 0
+    assert torch.max(colored_data) <= 1
+
+def test_cube_center():
+    """Test adding a cube"""
+    cube : go.Mesh3d = plotly_utils.get_cube(1., 
+                       torch.Tensor([2., 3., 4.])
+                        )
+    assert cube.x[0] == 1.5
+    assert cube.y[0] == 3.5
+    assert cube.z[-1] == 4.5
