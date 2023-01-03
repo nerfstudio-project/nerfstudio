@@ -126,7 +126,7 @@ function RenderTimeSelector(props) {
       if (valueFloat === 0.0) {
         valueStr = '0.0';
       }
-      setUIRenderTime(valueStr);
+      setUIRenderTime(parseFloat(valueStr));
       setRndrTime(parseFloat(valueStr));
     } else {
       setValid(false);
@@ -561,7 +561,7 @@ export default function CameraPanel(props) {
   );
   const websocket = useContext(WebSocketContext).socket;
   const DEFAULT_FOV = 50;
-  const DEFAULT_TIME = '0.0';
+  const DEFAULT_TIME = 0.0;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
