@@ -173,7 +173,6 @@ function FovSelector(props) {
   const isGlobal = props.isGlobal;
   const globalFov = props.globalFov;
   const setGlobalFov = props.setGlobalFov;
-  const isAnimated = props.isAnimated;
 
   const getFovLabel = () => {
     if (!isGlobal) {
@@ -492,7 +491,6 @@ function CameraList(props) {
                 e.stopPropagation();
                 set_camera_position(camera_main, camera.matrix);
                 camera_main.fov = camera.fov;
-                camera_main.renderTime = camera.renderTime;
                 camera_main.renderTime = camera.renderTime;
                 set_slider_value(camera.properties.get('TIME'));
               }}
@@ -956,7 +954,7 @@ export default function CameraPanel(props) {
         camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
         fov,
         aspect: camera_render.aspect,
-        render_time: renderTime,
+        render_time: Math.max(Math.min(renderTime, 1.0), 0.0), // clamp time values to [0, 1]
       });
     }
 
@@ -1160,7 +1158,7 @@ export default function CameraPanel(props) {
           </Button>
         </div>
         <br />
-        <RenderModal open={render_modal_open} setOpen={setRenderModalOpen} />
+        <RenderModal open={render_modal_open} setOpen={setRenderModalOpen} isDynamic={display_render_time}/>
         <Button
           className="CameraPanel-render-button"
           variant="outlined"
