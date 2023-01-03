@@ -259,6 +259,9 @@ class DreamFusionModel(Model):
             field_outputs[FieldHeadNames.PRED_NORMALS],
         )
 
+        assert weights.shape[-1] == 1
+        outputs["alphas_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01).mean()
+
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -276,6 +279,9 @@ class DreamFusionModel(Model):
         loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
             outputs["rendered_pred_normal_loss"]
         )
+
+        loss_dict["alphas_loss"] = outputs["alphas_loss"]
+
         return loss_dict
 
     def get_image_metrics_and_images(

@@ -48,10 +48,11 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """appended to prompt for front view"""
     back_prompt: str = ", back view"
     """appended to prompt for back view"""
-
+    alphas_penalty: bool = True
+    """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
     opacity_penalty: bool = True
-    """enables penalty to encourage transparent scenes"""
-    target_transmittance: float = 0.5
+    """enables penalty to encourage transparent scenes, as in "dreamfields" paper"""
+    target_transmittance: float = 0.8
     """target transmittance for opacity penalty"""
 
     guidance_scale: float = 100
@@ -144,6 +145,9 @@ class DreamfusionPipeline(VanillaPipeline):
         if self.config.opacity_penalty:
             accum_mean = np.mean(1.0 - accumulation)
             sds_loss *= np.min((0.5, accum_mean))
+            loss_dict["opacity_loss"] = -torch.minimum(
+                (1 - model_outputs["accumulation"]).mean(), torch.tensor(self.config.target_transmittance)
+            )
 
         model_outputs["latents"] = latents
         model_outputs["grad"] = grad

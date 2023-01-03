@@ -60,6 +60,10 @@ class DreamfusionTrainer(Trainer):
         grad = model_outputs["grad"]
         self.grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
         normals_loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
+        if self.pipeline.config.alphas_penalty:
+            normals_loss += loss_dict["alphas_loss"]
+        if self.pipeline.config.opacity_penalty:
+            normals_loss += loss_dict["opacity_loss"]
         self.grad_scaler.scale(normals_loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
