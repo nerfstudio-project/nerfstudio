@@ -561,7 +561,7 @@ export default function CameraPanel(props) {
   );
   const websocket = useContext(WebSocketContext).socket;
   const DEFAULT_FOV = 50;
-  const DEFAULT_TIME = 0.0;
+  const DEFAULT_RENDER_TIME = 0.0;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
@@ -576,7 +576,7 @@ export default function CameraPanel(props) {
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
   const [animate, setAnimate] = React.useState(new Set());
   const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
-  const [globalRenderTime, setGlobalRenderTime] = React.useState(DEFAULT_TIME);
+  const [globalRenderTime, setGlobalRenderTime] = React.useState(DEFAULT_RENDER_TIME);
 
   // leva store
   const cameraPropsStore = useCreateStore();
