@@ -8,14 +8,11 @@ import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 interface RenderModalProps {
   open: object;
   setOpen: object;
-  // isDynamic means this is a dynamic nerf and the cmd should include the --dynamic flag
-  isDynamic: Boolean;
 }
 
 export default function RenderModal(props: RenderModalProps) {
   const open = props.open;
   const setOpen = props.setOpen;
-  const isDynamic = props.isDynamic;
 
   // redux store state
   const config_base_dir = useSelector(
@@ -30,8 +27,7 @@ export default function RenderModal(props: RenderModalProps) {
   // Copy the text inside the text field
   const config_filename = `${config_base_dir}/config.yml`;
   const camera_path_filename = `${config_base_dir}/camera_path.json`;
-  const maybe_dynamic_str = isDynamic ? '--dynamic ' : ''
-  const cmd = `ns-render ${maybe_dynamic_str}--load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/${filename}.mp4`;
+  const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/${filename}.mp4`;
 
   const text_intro = `To render a full resolution video, run the following command in a terminal.`;
 
