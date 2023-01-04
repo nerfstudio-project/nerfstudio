@@ -79,6 +79,7 @@ class ProcessImages:
     """If True, use GPU."""
     verbose: bool = False
     """If True, print extra logging."""
+    colmap_feature_extractor_kwargs: str = ""
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
@@ -116,6 +117,7 @@ class ProcessImages:
                     verbose=self.verbose,
                     matching_method=self.matching_method,
                     colmap_cmd=self.colmap_cmd,
+                    feature_extractor_kwargs=self.colmap_feature_extractor_kwargs
                 )
             elif sfm_tool == "hloc":
                 hloc_utils.run_hloc(
@@ -205,6 +207,7 @@ class ProcessVideo:
     """If True, use GPU."""
     verbose: bool = False
     """If True, print extra logging."""
+    colmap_feature_extractor_kwargs: str = ""
 
     def main(self) -> None:
         """Process video into a nerfstudio dataset."""
@@ -241,6 +244,7 @@ class ProcessVideo:
                     verbose=self.verbose,
                     matching_method=self.matching_method,
                     colmap_cmd=self.colmap_cmd,
+                    feature_extractor_kwargs=self.colmap_feature_extractor_kwargs
                 )
             elif sfm_tool == "hloc":
                 hloc_utils.run_hloc(
