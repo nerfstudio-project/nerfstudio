@@ -40,16 +40,6 @@ def test_apply_boolean_colormap():
     assert torch.max(colored_data) <= 1
 
 
-def test_apply_boolean_colormap():
-    """Test adding a colormap to boolean data"""
-    data = torch.rand((10, 20, 1))
-    data = data > 0.5
-    colored_data = colormaps.apply_boolean_colormap(data)
-
-    assert colored_data.shape == (10, 20, 3)
-    assert torch.min(colored_data) >= 0
-    assert torch.max(colored_data) <= 1
-
 def test_cube_center():
     """Test adding a cube"""
     cube : go.Mesh3d = plotly_utils.get_cube(1., 
