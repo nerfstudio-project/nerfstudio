@@ -43,8 +43,7 @@ const initialState = {
     clipping_box_scale: [2.0, 2.0, 2.0],
 
     // Crop Box Options
-    cropbox_options: ['Enable','Disable'], // populated by the possible Graph outputs
-
+    crop_enabled: false,
   },
   // the scene state
   sceneState: {

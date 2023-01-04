@@ -27,11 +27,9 @@ export function RenderControls() {
   const target_train_util = useSelector(
     (state) => state.renderingState.targetTrainUtil,
   );
-  const render_time = useSelector(
-    (state) => state.renderingState.renderTime,
-  );
-  const cropOptions = useSelector(
-      (state) => state.renderingState.cropbox_options,
+  const render_time = useSelector((state) => state.renderingState.renderTime);
+  const crop_enabled = useSelector(
+    (state) => state.renderingState.crop_enabled,
   );
 
   const dispatch = useDispatch();
@@ -114,13 +112,13 @@ export function RenderControls() {
 
   const [display_render_time, set_display_render_time] = useState(false);
 
-  const receive_temporal_dist = e => {
-      const msg = msgpack.decode(new Uint8Array(e.data));
-      if (msg.path === "/model/has_temporal_distortion") {
-        set_display_render_time(msg.data === "true");
-        websocket.removeEventListener("message", receive_temporal_dist);
-      }
-  }
+  const receive_temporal_dist = (e) => {
+    const msg = msgpack.decode(new Uint8Array(e.data));
+    if (msg.path === '/model/has_temporal_distortion') {
+      set_display_render_time(msg.data === 'true');
+      websocket.removeEventListener('message', receive_temporal_dist);
+    }
+  };
   websocket.addEventListener('message', receive_temporal_dist);
 
   const set_render_time = (value) => {
@@ -142,15 +140,15 @@ export function RenderControls() {
     }
   };
 
-  const set_crop_choice = (value) => {
+  const set_crop_enabled = (value) => {
     if (websocket.readyState === WebSocket.OPEN) {
       dispatch({
         type: 'write',
-        path: 'renderingState/crop_choice',
+        path: 'renderingState/crop_enabled',
         data: value,
       });
       const cmd = 'write';
-      const path = 'renderingState/crop_choice';
+      const path = 'renderingState/crop_enabled';
       const data = {
         type: cmd,
         path,
@@ -162,11 +160,10 @@ export function RenderControls() {
   };
 
   const set_target_box_size = (value) => {
-
     if (websocket.readyState === WebSocket.OPEN) {
       dispatch({
         type: 'write',
-        path: 'renderingState/box_size' ,
+        path: 'renderingState/box_size',
         data: value,
       });
       const cmd = 'write';
@@ -182,11 +179,10 @@ export function RenderControls() {
   };
 
   const set_target_box_side = (value, target_path) => {
-
     if (websocket.readyState === WebSocket.OPEN) {
       dispatch({
         type: 'write',
-        path: target_path ,
+        path: target_path,
         data: value,
       });
       const cmd = 'write';
@@ -200,7 +196,6 @@ export function RenderControls() {
       websocket.send(message);
     }
   };
-
 
   const [, setControls] = useControls(
     () => ({
@@ -259,14 +254,13 @@ export function RenderControls() {
         '512px': () => setControls({ max_resolution: 512 }),
         '1024px': () => setControls({ max_resolution: 1024 }),
         '2048px': () => setControls({ max_resolution: 2048 }),
-      },),
+      }),
       // Enable Crop
       crop_options: {
-        label: 'Enable Crop Box',
-        options: [...new Set(cropOptions)],
-        value: 'Disable',
-        onChange: (v) => {
-          set_crop_choice(v);
+        label: 'Crop Viewport',
+        value: crop_enabled,
+        onChange: (value) => {
+          set_crop_enabled(value);
         },
       },
       target_box_size: {
@@ -275,6 +269,7 @@ export function RenderControls() {
         min: 0,
         max: 100,
         step: 0.1,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_size(v);
         },
@@ -285,6 +280,7 @@ export function RenderControls() {
         min: -1,
         max: 1,
         step: 0.01,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_side(v, 'renderingState/XMin');
         },
@@ -295,6 +291,7 @@ export function RenderControls() {
         min: -1,
         max: 1,
         step: 0.01,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_side(v, 'renderingState/YMin');
         },
@@ -305,6 +302,7 @@ export function RenderControls() {
         min: -1,
         max: 1,
         step: 0.01,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_side(v, 'renderingState/ZMin');
         },
@@ -315,6 +313,7 @@ export function RenderControls() {
         min: -1,
         max: 1,
         step: 0.01,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_side(v, 'renderingState/XMax');
         },
@@ -325,6 +324,7 @@ export function RenderControls() {
         min: -1,
         max: 1,
         step: 0.01,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_side(v, 'renderingState/YMax');
         },
@@ -335,21 +335,26 @@ export function RenderControls() {
         min: -1,
         max: 1,
         step: 0.01,
+        render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_side(v, 'renderingState/ZMax');
         },
       },
       // Dynamic NeRF rendering time
-      ...(display_render_time ? {render_time: {
-        label: 'Render Timestep',
-        value: render_time,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        onChange: (v) => {
-          set_render_time(v);
-        },
-      }} : {}),
+      ...(display_render_time
+        ? {
+            render_time: {
+              label: 'Render Timestep',
+              value: render_time,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              onChange: (v) => {
+                set_render_time(v);
+              },
+            },
+          }
+        : {}),
     }),
     [
       outputOptions,
@@ -357,7 +362,7 @@ export function RenderControls() {
       colormapOptions,
       colormapChoice,
       max_resolution,
-      cropOptions,
+      crop_enabled,
       target_train_util,
       render_time,
       display_render_time,

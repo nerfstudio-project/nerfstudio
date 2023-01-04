@@ -378,16 +378,16 @@ class ViewerState:
         """
         # self.
         # Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
-        crop_aabb = self.vis["renderingState/crop_choice"].read()
-        if crop_aabb=="Enable":
-            box_size =  self.vis["renderingState/box_size"].read()
-            x_min = self.vis["renderingState/XMin"].read()*box_size
-            y_min = self.vis["renderingState/YMin"].read()*box_size
-            z_min = self.vis["renderingState/ZMin"].read()*box_size
+        crop_aabb = self.vis["renderingState/crop_enabled"].read()
+        if crop_aabb:
+            box_size = self.vis["renderingState/box_size"].read()
+            x_min = self.vis["renderingState/XMin"].read() * box_size
+            y_min = self.vis["renderingState/YMin"].read() * box_size
+            z_min = self.vis["renderingState/ZMin"].read() * box_size
 
-            x_max = self.vis["renderingState/XMax"].read()*box_size
-            y_max = self.vis["renderingState/YMax"].read()*box_size
-            z_max = self.vis["renderingState/ZMax"].read()*box_size
+            x_max = self.vis["renderingState/XMax"].read() * box_size
+            y_max = self.vis["renderingState/YMax"].read() * box_size
+            z_max = self.vis["renderingState/ZMax"].read() * box_size
             aabb = graph.scene_box.aabb
 
             # cliping render_aabb with scene box
@@ -409,7 +409,6 @@ class ViewerState:
             z_min = min(z_min, z_max)
             z_max = max(z_min, z_max)
 
-
             if isinstance(graph.render_aabb, SceneBox):
                 graph.render_aabb.aabb[0][0] = x_min
                 graph.render_aabb.aabb[0][1] = y_min
@@ -419,18 +418,15 @@ class ViewerState:
                 graph.render_aabb.aabb[1][1] = y_max
                 graph.render_aabb.aabb[1][2] = z_max
             else:
-                graph.render_aabb =SceneBox(
-                    aabb=torch.tensor(
-                        [[x_min, y_min, z_min], [x_max, y_max, z_max]],
-                        dtype=torch.float32
-                    )
+                graph.render_aabb = SceneBox(
+                    aabb=torch.tensor([[x_min, y_min, z_min], [x_max, y_max, z_max]], dtype=torch.float32)
                 )
 
-            #maybe should update only if true change ?
+            # maybe should update only if true change ?
             json_ = graph.render_aabb.to_json()
             self.vis["sceneState/sceneBox"].write(json_)
         else:
-            graph.render_aabb =  None
+            graph.render_aabb = None
 
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
@@ -495,10 +491,6 @@ class ViewerState:
                 self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
-
-
-
-
 
     def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
         """Raises interrupt when flag has been set and not already on lowest resolution.
@@ -907,9 +899,7 @@ class ViewerState:
         try:
             self._update_render_aabb(graph)
         except RuntimeError as e:
-            self.vis["renderingState/log_errors"].write(
-                "Got an Error while trying to update aabb crop"
-            )
+            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
             print(f"Error: {e}")
 
             time.sleep(0.5)  # sleep to allow buffer to reset
