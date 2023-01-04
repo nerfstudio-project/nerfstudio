@@ -281,7 +281,14 @@ def check_generate_rays_shape():
 def _check_dataclass_allclose(ipt, other):
     for field in dataclasses.fields(ipt):
         if getattr(ipt, field.name) is not None:
-            assert torch.allclose(getattr(ipt, field.name), getattr(other, field.name))
+            if isinstance(getattr(ipt, field.name), dict):
+                ipt_dict = getattr(ipt, field.name)
+                other_dict = getattr(other, field.name)
+                for k, v in ipt_dict.items():
+                    assert k in other_dict
+                    assert torch.allclose(v, other_dict[k])
+            else:
+                assert torch.allclose(getattr(ipt, field.name), getattr(other, field.name))
     return True
 
 
