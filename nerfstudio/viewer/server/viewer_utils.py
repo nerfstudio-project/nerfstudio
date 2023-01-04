@@ -28,6 +28,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
+
 from aiortc import (
     RTCConfiguration,
     RTCIceServer,
@@ -41,6 +42,7 @@ from nerfstudio.cameras.cameras import Cameras, CameraType
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
@@ -367,6 +369,69 @@ class ViewerState:
             # remove the offer from the state tree
             self.vis["webrtc/offer"].delete()
 
+    def _update_render_aabb(self, graph):
+        """
+        update the render aabb box for the viewer:
+
+        :param graph:
+        :return:
+        """
+        # self.
+        # Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
+        crop_aabb = self.vis["renderingState/crop_choice"].read()
+        if crop_aabb=="Enable":
+            box_size =  self.vis["renderingState/box_size"].read()
+            x_min = self.vis["renderingState/XMin"].read()*box_size
+            y_min = self.vis["renderingState/YMin"].read()*box_size
+            z_min = self.vis["renderingState/ZMin"].read()*box_size
+
+            x_max = self.vis["renderingState/XMax"].read()*box_size
+            y_max = self.vis["renderingState/YMax"].read()*box_size
+            z_max = self.vis["renderingState/ZMax"].read()*box_size
+            aabb = graph.scene_box.aabb
+
+            # cliping render_aabb with scene box
+            x_min = max(x_min, aabb[0][0])
+            y_min = max(y_min, aabb[0][1])
+            z_min = max(z_min, aabb[0][2])
+
+            x_max = min(x_max, aabb[1][0])
+            y_max = min(y_max, aabb[1][1])
+            z_max = min(z_max, aabb[1][2])
+
+            # protection against unvalid boundary
+            x_min = min(x_min, x_max)
+            x_max = max(x_min, x_max)
+
+            y_min = min(y_min, y_max)
+            y_max = max(y_min, y_max)
+
+            z_min = min(z_min, z_max)
+            z_max = max(z_min, z_max)
+
+
+            if isinstance(graph.render_aabb, SceneBox):
+                graph.render_aabb.aabb[0][0] = x_min
+                graph.render_aabb.aabb[0][1] = y_min
+                graph.render_aabb.aabb[0][2] = z_min
+
+                graph.render_aabb.aabb[1][0] = x_max
+                graph.render_aabb.aabb[1][1] = y_max
+                graph.render_aabb.aabb[1][2] = z_max
+            else:
+                graph.render_aabb =SceneBox(
+                    aabb=torch.tensor(
+                        [[x_min, y_min, z_min], [x_max, y_max, z_max]],
+                        dtype=torch.float32
+                    )
+                )
+
+            #maybe should update only if true change ?
+            json_ = graph.render_aabb.to_json()
+            self.vis["sceneState/sceneBox"].write(json_)
+        else:
+            graph.render_aabb =  None
+
     def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
         """updates the scene based on the graph weights
 
@@ -430,6 +495,19 @@ class ViewerState:
                 self._check_webrtc_offer()
                 run_loop = not is_training
                 local_step += 1
+
+        # update render aabb
+        try:
+            self._update_render_aabb(graph)
+        except RuntimeError as e:
+            self.vis["renderingState/log_errors"].write(
+                "Got an Error while trying to update aabb crop"
+            )
+            print(f"Error: {e}")
+
+            time.sleep(0.5)  # sleep to allow buffer to reset
+
+
 
     def check_interrupt(self, frame, event, arg):  # pylint: disable=unused-argument
         """Raises interrupt when flag has been set and not already on lowest resolution.
@@ -797,7 +875,8 @@ class ViewerState:
         )
         camera = camera.to(graph.device)
 
-        camera_ray_bundle = camera.generate_rays(camera_indices=0)
+
+        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box = graph.render_aabb)
 
         graph.eval()
 

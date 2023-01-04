@@ -30,6 +30,9 @@ export function RenderControls() {
   const render_time = useSelector(
     (state) => state.renderingState.renderTime,
   );
+  const cropOptions = useSelector(
+      (state) => state.renderingState.cropbox_options,
+  );
 
   const dispatch = useDispatch();
 
@@ -139,6 +142,66 @@ export function RenderControls() {
     }
   };
 
+  const set_crop_choice = (value) => {
+    if (websocket.readyState === WebSocket.OPEN) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/crop_choice',
+        data: value,
+      });
+      const cmd = 'write';
+      const path = 'renderingState/crop_choice';
+      const data = {
+        type: cmd,
+        path,
+        data: value,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  const set_target_box_size = (value) => {
+
+    if (websocket.readyState === WebSocket.OPEN) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/box_size' ,
+        data: value,
+      });
+      const cmd = 'write';
+      const path = 'renderingState/box_size';
+      const data = {
+        type: cmd,
+        path,
+        data: value,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  const set_target_box_side = (value, target_path) => {
+
+    if (websocket.readyState === WebSocket.OPEN) {
+      dispatch({
+        type: 'write',
+        path: target_path ,
+        data: value,
+      });
+      const cmd = 'write';
+      const path = target_path;
+      const data = {
+        type: cmd,
+        path,
+        data: value,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+
   const [, setControls] = useControls(
     () => ({
       // training speed
@@ -196,7 +259,86 @@ export function RenderControls() {
         '512px': () => setControls({ max_resolution: 512 }),
         '1024px': () => setControls({ max_resolution: 1024 }),
         '2048px': () => setControls({ max_resolution: 2048 }),
-      }),
+      },),
+      // Enable Crop
+      crop_options: {
+        label: 'Enable Crop Box',
+        options: [...new Set(cropOptions)],
+        value: 'Disable',
+        onChange: (v) => {
+          set_crop_choice(v);
+        },
+      },
+      target_box_size: {
+        label: 'Box Size',
+        value: 1,
+        min: 0,
+        max: 100,
+        step: 0.1,
+        onChange: (v) => {
+          set_target_box_size(v);
+        },
+      },
+      target_x_min: {
+        label: 'x min',
+        value: -1,
+        min: -1,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => {
+          set_target_box_side(v, 'renderingState/XMin');
+        },
+      },
+      target_y_min: {
+        label: 'y min',
+        value: -1,
+        min: -1,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => {
+          set_target_box_side(v, 'renderingState/YMin');
+        },
+      },
+      target_z_min: {
+        label: 'z min',
+        value: -1,
+        min: -1,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => {
+          set_target_box_side(v, 'renderingState/ZMin');
+        },
+      },
+      target_x_max: {
+        label: 'x max',
+        value: 1,
+        min: -1,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => {
+          set_target_box_side(v, 'renderingState/XMax');
+        },
+      },
+      target_y_max: {
+        label: 'y max',
+        value: 1,
+        min: -1,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => {
+          set_target_box_side(v, 'renderingState/YMax');
+        },
+      },
+      target_z_max: {
+        label: 'z max',
+        value: 1,
+        min: -1,
+        max: 1,
+        step: 0.01,
+        onChange: (v) => {
+          set_target_box_side(v, 'renderingState/ZMax');
+        },
+      },
       // Dynamic NeRF rendering time
       ...(display_render_time ? {render_time: {
         label: 'Render Timestep',
@@ -215,6 +357,7 @@ export function RenderControls() {
       colormapOptions,
       colormapChoice,
       max_resolution,
+      cropOptions,
       target_train_util,
       render_time,
       display_render_time,

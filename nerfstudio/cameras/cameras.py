@@ -308,6 +308,7 @@ class Cameras(TensorDataclass):
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
+        aabb_box: SceneBox = None
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -350,6 +351,7 @@ class Cameras(TensorDataclass):
                 keeping dimensions. If False, we flatten at the end. If True, then we keep the shape of the
                 camera_indices and coords tensors (if we can).
             disable_distortion: If True, disables distortion.
+            aabb_box: if not None will calculate nears and fars of the ray according to aabb box intesection
 
         Returns:
             Rays for the given camera indices and coords.
@@ -448,6 +450,27 @@ class Cameras(TensorDataclass):
         # If we have mandated that we don't keep the shape, then we flatten
         if keep_shape is False:
             raybundle = raybundle.flatten()
+
+
+        if aabb_box:
+            with torch.no_grad():
+                tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
+
+                rays_o = raybundle.origins.contiguous()
+                rays_d = raybundle.directions.contiguous()
+
+                tensor_aabb = tensor_aabb.to(rays_o.device)
+                shape = rays_o.shape
+
+                rays_o = rays_o.reshape((-1,3))
+                rays_d = rays_d.reshape((-1,3))
+
+                t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
+                t_min = t_min.reshape([shape[0],shape[1],1])
+                t_max = t_max.reshape([shape[0],shape[1],1])
+
+                raybundle.nears = t_min
+                raybundle.fars = t_max
 
         # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
         # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
