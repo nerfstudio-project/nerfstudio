@@ -496,16 +496,7 @@ class ViewerState:
                 run_loop = not is_training
                 local_step += 1
 
-        # update render aabb
-        try:
-            self._update_render_aabb(graph)
-        except RuntimeError as e:
-            self.vis["renderingState/log_errors"].write(
-                "Got an Error while trying to update aabb crop"
-            )
-            print(f"Error: {e}")
 
-            time.sleep(0.5)  # sleep to allow buffer to reset
 
 
 
@@ -875,8 +866,7 @@ class ViewerState:
         )
         camera = camera.to(graph.device)
 
-
-        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box = graph.render_aabb)
+        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
 
         graph.eval()
 
@@ -912,3 +902,14 @@ class ViewerState:
             self._update_viewer_stats(
                 vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
             )
+
+        # update render aabb
+        try:
+            self._update_render_aabb(graph)
+        except RuntimeError as e:
+            self.vis["renderingState/log_errors"].write(
+                "Got an Error while trying to update aabb crop"
+            )
+            print(f"Error: {e}")
+
+            time.sleep(0.5)  # sleep to allow buffer to reset
