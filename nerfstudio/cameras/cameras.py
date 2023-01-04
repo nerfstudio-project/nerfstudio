@@ -23,6 +23,8 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
 import torch
+import nerfacc
+from torch.nn import Parameter
 import torchvision
 from torchtyping import TensorType
 
@@ -30,7 +32,7 @@ import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
-
+from nerfstudio.data.scene_box import SceneBox
 
 class CameraType(Enum):
     """Supported camera types."""
