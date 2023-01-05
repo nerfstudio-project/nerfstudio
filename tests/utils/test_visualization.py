@@ -2,7 +2,6 @@
 Test colormaps
 """
 import torch
-import plotly.graph_objects as go
 
 from nerfstudio.utils import colormaps, plotly_utils
 
@@ -42,7 +41,7 @@ def test_apply_boolean_colormap():
 
 def test_cube_center():
     """Test adding a cube"""
-    cube : go.Mesh3d = plotly_utils.get_cube(1., 
+    cube = plotly_utils.get_cube(1., 
                        torch.Tensor([2., 3., 4.])
                         )
     assert cube.x[0] == 1.5
