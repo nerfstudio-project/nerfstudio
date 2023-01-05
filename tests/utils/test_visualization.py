@@ -47,3 +47,12 @@ def test_cube_center():
     assert cube.x[0] == 1.5
     assert cube.y[0] == 3.5
     assert cube.z[-1] == 4.5
+
+def test_aabb_center():
+    """Test adding a cube with different dsid length"""
+    cube = plotly_utils.get_cube(torch.Tensor([2., 1., 3.]))
+    assert cube.x[0] == -1
+    assert cube.y[0] == -0.5
+    assert cube.z[-1] == 1.5
+
+test_aabb_center()
