@@ -44,6 +44,15 @@ const initialState = {
 
     // Crop Box Options
     crop_enabled: false,
+    box_size: 1,
+    max_box_size: 100,
+    XMin: 0.5,
+    YMin: 0.5,
+    ZMin: 0.5,
+    XMax: 0.5,
+    YMax: 0.5,
+    ZMax: 0.5,
+
   },
   // the scene state
   sceneState: {

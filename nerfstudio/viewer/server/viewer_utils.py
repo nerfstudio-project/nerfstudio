@@ -28,7 +28,6 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import torch
-
 from aiortc import (
     RTCConfiguration,
     RTCIceServer,
@@ -326,6 +325,9 @@ class ViewerState:
 
         # set the initial state whether to train or not
         self.vis["renderingState/isTraining"].write(start_train)
+
+        max_scene_box = torch.max(dataset.scene_box.aabb[1] - dataset.scene_box.aabb[0]).item()
+        self.vis["renderingState/max_box_size"].write(max_scene_box)
 
         # self.vis["renderingState/render_time"].write(str(0))
 

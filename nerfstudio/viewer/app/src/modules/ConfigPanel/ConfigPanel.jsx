@@ -32,6 +32,16 @@ export function RenderControls() {
     (state) => state.renderingState.crop_enabled,
   );
 
+  const box_size = useSelector(
+      (state) => state.renderingState.box_size,
+  );
+
+  const half_box_size = 0.5*box_size;
+
+  const max_box_size = useSelector(
+      (state) => state.renderingState.max_box_size,
+  );
+
   const dispatch = useDispatch();
 
   const set_max_resolution = (value) => {
@@ -267,18 +277,20 @@ export function RenderControls() {
         label: 'Box Size',
         value: 1,
         min: 0,
-        max: 100,
+        max: max_box_size,
         step: 0.1,
         render: (get) => get('crop_options'),
         onChange: (v) => {
           set_target_box_size(v);
-        },
+          setControls({target_x_min : -half_box_size, target_y_min: -half_box_size, target_z_min: -half_box_size,
+                            target_x_max : half_box_size, target_y_max: half_box_size, target_z_max: half_box_size} )
+        }
       },
       target_x_min: {
         label: 'x min',
-        value: -1,
-        min: -1,
-        max: 1,
+        value: -0.5,
+        min: -half_box_size,
+        max: half_box_size,
         step: 0.01,
         render: (get) => get('crop_options'),
         onChange: (v) => {
@@ -287,9 +299,9 @@ export function RenderControls() {
       },
       target_y_min: {
         label: 'y min',
-        value: -1,
-        min: -1,
-        max: 1,
+        value: -0.5,
+        min: -half_box_size,
+        max: half_box_size,
         step: 0.01,
         render: (get) => get('crop_options'),
         onChange: (v) => {
@@ -298,9 +310,9 @@ export function RenderControls() {
       },
       target_z_min: {
         label: 'z min',
-        value: -1,
-        min: -1,
-        max: 1,
+        value: -0.5,
+        min: -half_box_size,
+        max: half_box_size,
         step: 0.01,
         render: (get) => get('crop_options'),
         onChange: (v) => {
@@ -309,9 +321,9 @@ export function RenderControls() {
       },
       target_x_max: {
         label: 'x max',
-        value: 1,
-        min: -1,
-        max: 1,
+        value: 0.5,
+        min: -half_box_size,
+        max: half_box_size,
         step: 0.01,
         render: (get) => get('crop_options'),
         onChange: (v) => {
@@ -320,9 +332,9 @@ export function RenderControls() {
       },
       target_y_max: {
         label: 'y max',
-        value: 1,
-        min: -1,
-        max: 1,
+        value: 0.5,
+        min: -half_box_size,
+        max: half_box_size,
         step: 0.01,
         render: (get) => get('crop_options'),
         onChange: (v) => {
@@ -331,9 +343,9 @@ export function RenderControls() {
       },
       target_z_max: {
         label: 'z max',
-        value: 1,
-        min: -1,
-        max: 1,
+        value: 0.5,
+        min: -half_box_size,
+        max: half_box_size,
         step: 0.01,
         render: (get) => get('crop_options'),
         onChange: (v) => {
@@ -363,6 +375,7 @@ export function RenderControls() {
       colormapChoice,
       max_resolution,
       crop_enabled,
+      box_size,
       target_train_util,
       render_time,
       display_render_time,

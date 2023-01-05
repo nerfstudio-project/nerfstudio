@@ -466,8 +466,8 @@ class VolumetricSampler(Sampler):
         ray_indices, starts, ends = nerfacc.ray_marching(
             rays_o=rays_o,
             rays_d=rays_d,
-            t_min= t_min,
-            t_max= t_max,
+            t_min=t_min,
+            t_max=t_max,
             scene_aabb=self.scene_aabb,
             grid=self.occupancy_grid,
             # this is a workaround - using density causes crash and damage quality. should be fixed
