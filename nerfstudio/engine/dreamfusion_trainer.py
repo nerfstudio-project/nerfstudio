@@ -34,12 +34,16 @@ class DreamfusionTrainerConfig(TrainerConfig):
     _target: Type = field(default_factory=lambda: DreamfusionTrainer)
     """target class to instantiate"""
     pipeline: DreamfusionPipelineConfig = DreamfusionPipelineConfig()
+    """specifies the pipeline config"""
+    gradient_accumulation_steps: int = 4
+    """number of gradient accumulation steps before optimizer step"""
 
 
 class DreamfusionTrainer(Trainer):
     """Dreamfusion trainer"""
 
     pipeline: DreamfusionPipeline
+    config: DreamfusionTrainerConfig
 
     def __init__(self, config: DreamfusionTrainerConfig, local_rank: int = 0, world_size: int = 1):
         assert isinstance(config, DreamfusionTrainerConfig)
@@ -54,17 +58,26 @@ class DreamfusionTrainer(Trainer):
         Args:
             step: current iteration step to update sampler if using DDP (distributed)
         """
-        self.optimizers.zero_grad_all()
-        model_outputs, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step)
-        latents = model_outputs["latents"]
-        grad = model_outputs["grad"]
-        self.grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
-        normals_loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
-        if self.pipeline.config.alphas_penalty:
-            normals_loss += loss_dict["alphas_loss"]
-        if self.pipeline.config.opacity_penalty:
-            normals_loss += loss_dict["opacity_loss"]
-        self.grad_scaler.scale(normals_loss).backward()  # type: ignore
+        for i in range(self.config.gradient_accumulation_steps):
+            self.optimizers.zero_grad_all()
+            model_outputs, loss_dict, metrics_dict = self.pipeline.get_train_loss_dict(step)
+            latents = model_outputs["latents"]
+            grad = model_outputs["grad"]
+            self.grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
+            normals_loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
+            if self.pipeline.config.alphas_penalty:
+                normals_loss += loss_dict["alphas_loss"] * self.config.pipeline.alphas_scale
+            if self.pipeline.config.opacity_penalty:
+                normals_loss += loss_dict["opacity_loss"] * self.config.pipeline.opacity_scale
+            self.grad_scaler.scale(normals_loss).backward()  # type: ignore
+            # I noticed that without these del statements and the empty cache, I was getting OOM errors on the device
+            # running stable diffusion, since these variables aren't deleted (normally they would be freed when we
+            # exit the frame since they no longer are being referenced, but now we loop back instead of exiting the
+            # frame)
+            if i != self.config.gradient_accumulation_steps - 1:
+                del normals_loss, latents, grad, model_outputs, loss_dict, metrics_dict
+            torch.cuda.empty_cache()
+
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
 
         self.grad_scaler.update()
