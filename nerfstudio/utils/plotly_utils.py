@@ -237,7 +237,7 @@ def get_cube(
 
     if center is not None:
         pts[0] = np.add(pts[0], center[0])
-        pts[1] = np.add(pts[1], center[2])
+        pts[1] = np.add(pts[1], center[1])
         pts[2] = np.add(pts[2], center[2])
 
     return go.Mesh3d(
