@@ -131,9 +131,10 @@ class DreamFusionModel(Model):
         def update_target_transmittance(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            self.target_transmittance -= (1 / self.config.transmittance_end_schedule) * (
-                self.config.target_transmittance_start - self.config.target_transmittance_end
-            )
+            if step < self.config.transmittance_end_schedule:
+                self.target_transmittance -= (1 / self.config.transmittance_end_schedule) * (
+                    self.config.target_transmittance_start - self.config.target_transmittance_end
+                )
 
         callbacks = [
             TrainingCallback(
@@ -156,7 +157,7 @@ class DreamFusionModel(Model):
             ),
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(self.config.transmittance_end_schedule,),
+                update_every_num_iters=1,
                 func=update_target_transmittance,
                 args=[self, training_callback_attributes],
             ),
