@@ -43,7 +43,7 @@ def test_cube_center():
     """Test adding a cube"""
     cube = plotly_utils.get_cube(1.0, torch.Tensor([2.0, 3.0, 4.0]))
     assert cube.x[0] == 1.5
-    assert cube.y[0] == 3.5
+    assert cube.y[0] == 2.5
     assert cube.z[-1] == 4.5
 
 
