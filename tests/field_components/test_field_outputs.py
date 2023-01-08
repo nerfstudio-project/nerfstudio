@@ -5,13 +5,9 @@ import pytest
 import torch
 from torch import nn
 
-from nerfstudio.field_components.field_heads import (
-    DensityFieldHead,
-    FieldHead,
-    FieldHeadNames,
-    RGBFieldHead,
-    SHFieldHead,
-)
+from nerfstudio.field_components.field_heads import (DensityFieldHead,
+                                                     FieldHead, FieldHeadNames,
+                                                     RGBFieldHead, SHFieldHead)
 
 
 def test_field_output():

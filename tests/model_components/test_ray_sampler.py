@@ -5,13 +5,10 @@ Test samplers
 import torch
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.model_components.ray_samplers import (
-    LinearDisparitySampler,
-    LogSampler,
-    PDFSampler,
-    SqrtSampler,
-    UniformSampler,
-)
+from nerfstudio.model_components.ray_samplers import (LinearDisparitySampler,
+                                                      LogSampler, PDFSampler,
+                                                      SqrtSampler,
+                                                      UniformSampler)
 from nerfstudio.model_components.scene_colliders import NearFarCollider
 
 

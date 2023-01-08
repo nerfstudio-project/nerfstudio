@@ -19,8 +19,8 @@ import base64
 import importlib
 import math
 import os
-from distutils.util import strtobool
 from dataclasses import dataclass
+from distutils.util import strtobool
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
 

@@ -6,6 +6,7 @@ import math
 import os
 import random
 from distutils.util import strtobool
+
 import torch
 
 from nerfstudio.utils.math import intersect_aabb
