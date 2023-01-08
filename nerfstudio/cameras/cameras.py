@@ -19,6 +19,7 @@ import base64
 import importlib
 import math
 import os
+from distutils.util import strtobool
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
@@ -469,7 +470,7 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                if os.environ.get("INTERSECT_WITH_NERFACC", 1):
+                if strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE")):
                     nerfacc = importlib.import_module("nerfacc")
                     t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
                 else:

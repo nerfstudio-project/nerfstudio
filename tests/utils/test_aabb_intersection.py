@@ -5,7 +5,7 @@ import importlib
 import math
 import os
 import random
-
+from distutils.util import strtobool
 import torch
 
 from nerfstudio.utils.math import intersect_aabb
@@ -150,7 +150,7 @@ def test_equall_nerfacc():
     test that the output of intersect_aabb is close to nerfacc.intersect_aabb
     :return:
     """
-    check_nerf_acc = os.environ.get("INTERSECT_WITH_NERFACC", 0)
+    check_nerf_acc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "FALSE"))
     if check_nerf_acc:
         nerfacc = importlib.import_module("nerfacc")
         random.seed(8128)
