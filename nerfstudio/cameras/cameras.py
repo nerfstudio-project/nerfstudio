@@ -16,18 +16,20 @@
 Camera Models
 """
 import base64
+import importlib
 import math
+import os
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
-import nerfacc
 import torch
 import torchvision
 from torch.nn import Parameter
 from torchtyping import TensorType
 
+import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
@@ -467,7 +469,12 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
+                if os.environ.get("INTERSECT_WITH_NERFACC", 1):
+                    nerfacc = importlib.import_module("nerfacc")
+                    t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
+                else:
+                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])
 
