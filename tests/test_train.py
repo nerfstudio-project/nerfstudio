@@ -10,10 +10,8 @@ from pathlib import Path
 import pytest
 
 from nerfstudio.configs.method_configs import method_configs
-from nerfstudio.data.dataparsers.blender_dataparser import \
-    BlenderDataParserConfig
-from nerfstudio.data.dataparsers.minimal_dataparser import \
-    MinimalDataParserConfig
+from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
+from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from scripts.train import train_loop
 
