@@ -53,9 +53,9 @@ from nerfstudio.model_components.renderers import (
     NormalsRenderer,
     RGBRenderer,
 )
-from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.model_components.scene_colliders import NearFarCollider, AABBBoxCollider
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps
+from nerfstudio.utils import colormaps, colors
 
 
 @dataclass
@@ -67,6 +67,8 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
+    use_bounded: bool = False
+    """Whether the sampling should be bounded inside the cube. Overrides near and far planes."""
     background_color: Literal["random", "last_sample"] = "last_sample"
     """Whether to randomize the background color."""
     num_levels: int = 16
@@ -137,13 +139,16 @@ class NerfactoModel(Model):
 
         # TODO(ethan): flag to enable scene contraction or not
 
-        if self.config.scene_contraction_norm == "inf":
-            order = float("inf")
-        elif self.config.scene_contraction_norm == "l2":
-            order = None
+        if self.config.use_scene_contraction:
+            if self.config.scene_contraction_norm == "inf":
+                order = float("inf")
+            elif self.config.scene_contraction_norm == "l2":
+                order = None
+            else:
+                raise ValueError("Invalid scene contraction norm")
+            scene_contraction = SceneContraction(order=order)
         else:
-            raise ValueError("Invalid scene contraction norm")
-        scene_contraction = SceneContraction(order=order)
+            scene_contraction = None
 
         # Fields
         self.field = TCNNNerfactoField(
@@ -196,7 +201,11 @@ class NerfactoModel(Model):
         )
 
         # Collider
-        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+        if not self.config.use_bounded:
+            self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+        else:
+            # this will only sample inside the the bounding box
+            self.collider = AABBBoxCollider(scene_box=self.scene_box)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
