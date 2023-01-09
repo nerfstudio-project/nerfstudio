@@ -13,18 +13,19 @@ import time
 import threading
 
 mipnerf360_capture_names = ["bicycle", "garden", "stump", "room", "counter", "kitchen", "bonsai"]  # 7 splits
+# 1/8 of input images used in the paper = 0.125 -> 1 - this = 0.875
 mipnerf360_table_rows = [
     # nerfacto method
     (
         "nerfacto-w/o-pose-app",
         "nerfacto",
-        "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4",
+        "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
     ),
     # TODO: instant-ngp method
     # (
     #     "instant-ngp-w/o-pose-app",
     #     "instant-ngp",
-    #     "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4",
+    #     "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
     # ),
 ]
 
