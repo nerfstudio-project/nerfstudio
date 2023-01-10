@@ -52,6 +52,7 @@ quickstart/custom_dataset
 quickstart/viewer_quickstart
 quickstart/export_geometry
 quickstart/data_conventions
+quickstart/blender_addon
 Contributing<reference/contributing>
 ```
 
