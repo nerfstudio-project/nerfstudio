@@ -8,7 +8,7 @@ bl_info = {
 }
 
 import json
-from math import degrees, radians
+from math import atan, degrees, radians, tan
 
 import bpy
 from mathutils import Matrix
@@ -34,10 +34,34 @@ class CreateJSONCameraPath(bpy.types.Operator):
         nerf_mesh_mat_list = []  # list of world matrix of the NeRF mesh at each frame
 
         curr_frame = bpy.context.scene.frame_start
+
         while curr_frame <= bpy.context.scene.frame_end:
             bpy.context.scene.frame_set(curr_frame)
             org_cameraPath_mat += [self.cam_obj.matrix_world.copy()]
-            self.fov_list += [degrees(self.cam_obj.data.angle_y)]
+
+            if bpy.context.scene.render.resolution_y >= bpy.context.scene.render.resolution_x:
+                # portrait orientation
+
+                if self.cam_obj.data.sensor_fit == "HORIZONTAL":
+                    # convert horizontal fov to vertical fov with aspect ratio
+                    cam_aspect_ratio = bpy.context.scene.render.resolution_y / bpy.context.scene.render.resolution_x
+                    nerfstudio_fov = 2 * atan(tan(self.cam_obj.data.angle / 2.0) * cam_aspect_ratio)
+                else:
+                    # sensor fit is either vertical or auto
+                    nerfstudio_fov = self.cam_obj.data.angle
+
+            else:
+                # landscape orientation
+
+                if self.cam_obj.data.sensor_fit == "VERTICAL":
+                    nerfstudio_fov = self.cam_obj.data.angle
+                else:
+                    # sensor fit is either horizontal or auto
+                    # convert horizontal fov to vertical fov with aspect ratio
+                    cam_aspect_ratio = bpy.context.scene.render.resolution_y / bpy.context.scene.render.resolution_x
+                    nerfstudio_fov = 2 * atan(tan(self.cam_obj.data.angle / 2.0) * cam_aspect_ratio)
+
+            self.fov_list += [degrees(nerfstudio_fov)]
             curr_frame += bpy.context.scene.frame_step
             nerf_mesh_mat_list += [self.nerf_bg_mesh.matrix_world.copy()]
 
@@ -208,7 +232,10 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
             nerfstudio_camera_object.scale = (1, 1, 1)
 
             # animate fov
-            nerfstudio_camera_object.data.angle_y = radians(self.fov_list[curr_frame])
+            nerfstudio_camera_object.data.sensor_fit = "VERTICAL"
+            nerfstudio_camera_object.data.lens_unit = "FOV"
+            nerfstudio_camera_object.data.angle = radians(self.fov_list[curr_frame])
+
             # set keyframe for focal length
             nerfstudio_camera_object.data.keyframe_insert(data_path="lens", frame=actual_frame)
 
