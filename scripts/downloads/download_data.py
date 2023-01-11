@@ -145,17 +145,8 @@ nerfstudio_file_ids = {
     "stump": "https://data.nerf.studio/nerfstudio/stump.zip",
     "sculpture": "https://data.nerf.studio/nerfstudio/sculpture.zip",
     "Giannini-Hall": "https://data.nerf.studio/nerfstudio/Giannini-Hall.zip",
-    # MipNeRF-360 Dataset. TODO: add these links
-    "mipnerf360-bicycle": "",
-    "mipnerf360-garden": "",
-    "mipnerf360-stump": "",
-    "mipnerf360-room": "",
-    "mipnerf360-counter": "",
-    "mipnerf360-kitchen": "",
-    "mipnerf360-bonsai": "",
     "all": None,
     "nerfstudio-dataset": nerfstudio_dataset,
-    "mipnerf360-dataset": mipnerf360_dataset,
 }
 
 NerfstudioCaptureName = tyro.extras.literal_type_from_choices(nerfstudio_file_ids.keys())
