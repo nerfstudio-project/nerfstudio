@@ -496,7 +496,7 @@ def run_colmap(
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     colmap_cmd: str = "colmap",
-    feature_extractor_kwargs = "",
+    feature_extractor_kwargs="",
 ) -> None:
     """Runs COLMAP on the images.
 
@@ -523,10 +523,9 @@ def run_colmap(
         "--ImageReader.single_camera 1",
         f"--ImageReader.camera_model {camera_model.value}",
         f"--SiftExtraction.use_gpu {int(gpu)}",
-        feature_extractor_kwargs
+        f"--{feature_extractor_kwargs}",
     ]
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
-    print(feature_extractor_cmd)
     with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
         run_command(feature_extractor_cmd, verbose=verbose)
 

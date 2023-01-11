@@ -27,6 +27,7 @@ ENTRYPOINTS = [
     "ns-process-data",
     "ns-download-data",
     "ns-train",
+    "ns-train-wrap",
     "ns-eval",
     "ns-render",
     "ns-dev-test",
@@ -69,7 +70,9 @@ def _check_tyro_cli(script_path: pathlib.Path) -> bool:
 
 
 def _generate_completion(
-    path_or_entrypoint: Union[pathlib.Path, str], shell: ShellType, completions_dir: pathlib.Path
+    path_or_entrypoint: Union[pathlib.Path, str],
+    shell: ShellType,
+    completions_dir: pathlib.Path,
 ) -> pathlib.Path:
     """Given a path to a tyro CLI, write a completion script to a target directory.
 
@@ -84,7 +87,12 @@ def _generate_completion(
     if isinstance(path_or_entrypoint, pathlib.Path):
         # Scripts.
         target_name = "_" + path_or_entrypoint.name.replace(".", "_")
-        args = [sys.executable, str(path_or_entrypoint), "--tyro-print-completion", shell]
+        args = [
+            sys.executable,
+            str(path_or_entrypoint),
+            "--tyro-print-completion",
+            shell,
+        ]
     elif isinstance(path_or_entrypoint, str):
         # Entry points.
         target_name = "_" + path_or_entrypoint
@@ -124,7 +132,10 @@ def _generate_completion(
 
 
 def _exclamation() -> str:
-    return random.choice(["Cool", "Nice", "Neat", "Great", "Exciting", "Excellent", "Ok"]) + "!"
+    return (
+        random.choice(["Cool", "Nice", "Neat", "Great", "Exciting", "Excellent", "Ok"])
+        + "!"
+    )
 
 
 def _update_rc(
@@ -171,7 +182,9 @@ def _update_rc(
     rc_source = rc_path.read_text()
     while header_line in rc_source:
         before_install, _, after_install = rc_source.partition(header_line)
-        source_file, _, after_install = after_install.partition("\nsource ")[2].partition("\n")
+        source_file, _, after_install = after_install.partition("\nsource ")[
+            2
+        ].partition("\n")
         assert source_file.endswith(f"/completions/setup.{shell}")
         rc_source = before_install + after_install
         rc_path.write_text(rc_source)
@@ -226,15 +239,23 @@ def main(mode: ConfigureMode = "install") -> None:
             if target_dir.exists():
                 assert target_dir.is_dir()
                 shutil.rmtree(target_dir, ignore_errors=True)
-                CONSOLE.log(f":broom: Deleted existing completion directory: {target_dir}.")
+                CONSOLE.log(
+                    f":broom: Deleted existing completion directory: {target_dir}."
+                )
             else:
-                CONSOLE.log(f":heavy_check_mark: No existing completions at: {target_dir}.")
+                CONSOLE.log(
+                    f":heavy_check_mark: No existing completions at: {target_dir}."
+                )
     elif mode == "install":
         # Set to True to install completions for scripts as well.
         include_scripts = False
 
         # Find tyro CLIs.
-        script_paths = list(filter(_check_tyro_cli, scripts_dir.glob("**/*.py"))) if include_scripts else []
+        script_paths = (
+            list(filter(_check_tyro_cli, scripts_dir.glob("**/*.py")))
+            if include_scripts
+            else []
+        )
         script_names = tuple(p.name for p in script_paths)
         assert len(set(script_names)) == len(script_names)
 
@@ -247,11 +268,15 @@ def main(mode: ConfigureMode = "install") -> None:
 
         # Run generation jobs.
         concurrent_executor = concurrent.futures.ThreadPoolExecutor()
-        with CONSOLE.status("[bold]:writing_hand:  Generating completions...", spinner="bouncingBall"):
+        with CONSOLE.status(
+            "[bold]:writing_hand:  Generating completions...", spinner="bouncingBall"
+        ):
             completion_paths = list(
                 concurrent_executor.map(
                     lambda path_or_entrypoint_and_shell: _generate_completion(
-                        path_or_entrypoint_and_shell[0], path_or_entrypoint_and_shell[1], completions_dir
+                        path_or_entrypoint_and_shell[0],
+                        path_or_entrypoint_and_shell[1],
+                        completions_dir,
                     ),
                     itertools.product(script_paths + ENTRYPOINTS, shells_found),
                 )

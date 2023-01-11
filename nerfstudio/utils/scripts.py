@@ -31,6 +31,7 @@ def run_command(cmd: str, verbose=False) -> Optional[str]:
     Returns:
         The output of the command if return_output is True, otherwise None.
     """
+    print("RUNNING COMMAND\n\n", cmd, "\n\n")
     out = subprocess.run(cmd, capture_output=not verbose, shell=True, check=False)
     if out.returncode != 0:
         CONSOLE.rule("[bold red] :skull: :skull: :skull: ERROR :skull: :skull: :skull: ", style="red")

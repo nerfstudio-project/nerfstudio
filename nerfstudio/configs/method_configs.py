@@ -81,7 +81,8 @@ method_configs["nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -112,7 +113,8 @@ method_configs["depth-nerfacto"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
             ),
         ),
         model=DepthNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -138,7 +140,9 @@ method_configs["instant-ngp"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=8192
+        ),
         model=InstantNGPModelConfig(eval_num_rays_per_chunk=8192),
     ),
     optimizers={
@@ -159,7 +163,9 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
     max_num_iterations=30000,
     mixed_precision=True,
     pipeline=DynamicBatchPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192),
+        datamanager=VanillaDataManagerConfig(
+            dataparser=InstantNGPDataParserConfig(), train_num_rays_per_batch=8192
+        ),
         model=InstantNGPModelConfig(
             eval_num_rays_per_chunk=8192,
             contraction_type=ContractionType.AABB,
@@ -183,7 +189,9 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
 method_configs["mipnerf"] = TrainerConfig(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024),
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(), train_num_rays_per_batch=1024
+        ),
         model=VanillaModelConfig(
             _target=MipNerfModel,
             loss_coefficients={"rgb_loss_coarse": 0.1, "rgb_loss_fine": 1.0},
@@ -208,7 +216,9 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     mixed_precision=True,
     pipeline=VanillaPipelineConfig(
         datamanager=SemanticDataManagerConfig(
-            dataparser=FriendsDataParserConfig(), train_num_rays_per_batch=4096, eval_num_rays_per_batch=8192
+            dataparser=FriendsDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=8192,
         ),
         model=SemanticNerfWModelConfig(eval_num_rays_per_chunk=1 << 16),
     ),
@@ -301,7 +311,8 @@ method_configs["phototourism"] = TrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
             ),
         ),
         model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
@@ -320,11 +331,15 @@ method_configs["phototourism"] = TrainerConfig(
     vis="viewer",
 )
 
-AnnotatedBaseConfigUnion = tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
-    tyro.conf.FlagConversionOff[
-        tyro.extras.subcommand_type_from_defaults(defaults=method_configs, descriptions=descriptions)
+AnnotatedBaseConfigUnion = (
+    tyro.conf.SuppressFixed[  # Don't show unparseable (fixed) arguments in helptext.
+        tyro.conf.FlagConversionOff[
+            tyro.extras.subcommand_type_from_defaults(
+                defaults=method_configs, descriptions=descriptions
+            )
+        ]
     ]
-]
+)
 """Union[] type over config types, annotated with default instances for use with
 tyro.cli(). Allows the user to pick between one of several base configurations, and
 then override values in it."""
