@@ -30,7 +30,7 @@ from typing_extensions import Literal
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
@@ -47,13 +47,18 @@ def eval_load_checkpoint(config: TrainerConfig, pipeline: Pipeline) -> Path:
         # NOTE: this is specific to the checkpoint name format
         if not os.path.exists(config.load_dir):
             CONSOLE.rule("Error", style="red")
-            CONSOLE.print(f"No checkpoint directory found at {config.load_dir}, ", justify="center")
+            CONSOLE.print(
+                f"No checkpoint directory found at {config.load_dir}, ",
+                justify="center",
+            )
             CONSOLE.print(
                 "Please make sure the checkpoint exists, they should be generated periodically during training",
                 justify="center",
             )
             sys.exit(1)
-        load_step = sorted(int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir))[-1]
+        load_step = sorted(
+            int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(config.load_dir)
+        )[-1]
     else:
         load_step = config.load_step
     load_path = config.load_dir / f"step-{load_step:09d}.ckpt"

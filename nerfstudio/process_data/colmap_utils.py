@@ -54,7 +54,7 @@ from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -136,8 +136,12 @@ COLMAP_CAMERA_MODELS = [
     ColmapCameraModel(model_id=9, model_name="RADIAL_FISHEYE", num_params=5),
     ColmapCameraModel(model_id=10, model_name="THIN_PRISM_FISHEYE", num_params=12),
 ]
-COLMAP_CAMERA_MODEL_IDS = {camera_model.model_id: camera_model for camera_model in COLMAP_CAMERA_MODELS}
-COLMAP_CAMERA_MODEL_NAMES = {camera_model.model_name: camera_model for camera_model in COLMAP_CAMERA_MODELS}
+COLMAP_CAMERA_MODEL_IDS = {
+    camera_model.model_id: camera_model for camera_model in COLMAP_CAMERA_MODELS
+}
+COLMAP_CAMERA_MODEL_NAMES = {
+    camera_model.model_name: camera_model for camera_model in COLMAP_CAMERA_MODELS
+}
 
 
 def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
@@ -155,11 +159,18 @@ def get_colmap_version(colmap_cmd: str, default_version=3.8) -> float:
     for line in output.split("\n"):
         if line.startswith("COLMAP"):
             return float(line.split(" ")[1])
-    CONSOLE.print(f"[bold red]Could not find COLMAP version. Using default {default_version}")
+    CONSOLE.print(
+        f"[bold red]Could not find COLMAP version. Using default {default_version}"
+    )
     return default_version
 
 
-def read_next_bytes(fid: BufferedReader, num_bytes: int, format_char_sequence, endian_character: str = "<"):
+def read_next_bytes(
+    fid: BufferedReader,
+    num_bytes: int,
+    format_char_sequence,
+    endian_character: str = "<",
+):
     """Read and unpack the next bytes from a binary file.
 
     Args:
@@ -195,7 +206,9 @@ def read_cameras_text(path: Path) -> Dict[int, Camera]:
                 width = int(elems[2])
                 height = int(elems[3])
                 params = np.array(tuple(map(float, elems[4:])))
-                cameras[camera_id] = Camera(id=camera_id, model=model, width=width, height=height, params=params)
+                cameras[camera_id] = Camera(
+                    id=camera_id, model=model, width=width, height=height, params=params
+                )
     return cameras
 
 
@@ -211,16 +224,24 @@ def read_cameras_binary(path_to_model_file: Path) -> Dict[int, Camera]:
     with open(path_to_model_file, "rb") as fid:
         num_cameras = read_next_bytes(fid, 8, "Q")[0]
         for _ in range(num_cameras):
-            camera_properties = read_next_bytes(fid, num_bytes=24, format_char_sequence="iiQQ")
+            camera_properties = read_next_bytes(
+                fid, num_bytes=24, format_char_sequence="iiQQ"
+            )
             camera_id = camera_properties[0]
             model_id = camera_properties[1]
             model_name = COLMAP_CAMERA_MODEL_IDS[camera_properties[1]].model_name
             width = camera_properties[2]
             height = camera_properties[3]
             num_params = COLMAP_CAMERA_MODEL_IDS[model_id].num_params
-            params = read_next_bytes(fid, num_bytes=8 * num_params, format_char_sequence="d" * num_params)
+            params = read_next_bytes(
+                fid, num_bytes=8 * num_params, format_char_sequence="d" * num_params
+            )
             cameras[camera_id] = Camera(
-                id=camera_id, model=model_name, width=width, height=height, params=np.array(params)
+                id=camera_id,
+                model=model_name,
+                width=width,
+                height=height,
+                params=np.array(params),
             )
         assert len(cameras) == num_cameras
     return cameras
@@ -249,7 +270,9 @@ def read_images_text(path: Path) -> Dict[int, Image]:
                 camera_id = int(elems[8])
                 image_name = elems[9]
                 elems = fid.readline().split()
-                xys = np.column_stack([tuple(map(float, elems[0::3])), tuple(map(float, elems[1::3]))])
+                xys = np.column_stack(
+                    [tuple(map(float, elems[0::3])), tuple(map(float, elems[1::3]))]
+                )
                 point3d_ids = np.array(tuple(map(int, elems[2::3])))
                 images[image_id] = Image(
                     id=image_id,
@@ -275,7 +298,9 @@ def read_images_binary(path_to_model_file: Path) -> Dict[int, Image]:
     with open(path_to_model_file, "rb") as fid:
         num_reg_images = read_next_bytes(fid, 8, "Q")[0]
         for _ in range(num_reg_images):
-            binary_image_properties = read_next_bytes(fid, num_bytes=64, format_char_sequence="idddddddi")
+            binary_image_properties = read_next_bytes(
+                fid, num_bytes=64, format_char_sequence="idddddddi"
+            )
             image_id = binary_image_properties[0]
             qvec = np.array(binary_image_properties[1:5])
             tvec = np.array(binary_image_properties[5:8])
@@ -285,9 +310,17 @@ def read_images_binary(path_to_model_file: Path) -> Dict[int, Image]:
             while current_char != b"\x00":  # look for the ASCII 0 entry
                 image_name += current_char.decode("utf-8")
                 current_char = read_next_bytes(fid, 1, "c")[0]
-            num_points2d = read_next_bytes(fid, num_bytes=8, format_char_sequence="Q")[0]
-            x_y_id_s = read_next_bytes(fid, num_bytes=24 * num_points2d, format_char_sequence="ddq" * num_points2d)
-            xys = np.column_stack([tuple(map(float, x_y_id_s[0::3])), tuple(map(float, x_y_id_s[1::3]))])
+            num_points2d = read_next_bytes(fid, num_bytes=8, format_char_sequence="Q")[
+                0
+            ]
+            x_y_id_s = read_next_bytes(
+                fid,
+                num_bytes=24 * num_points2d,
+                format_char_sequence="ddq" * num_points2d,
+            )
+            xys = np.column_stack(
+                [tuple(map(float, x_y_id_s[0::3])), tuple(map(float, x_y_id_s[1::3]))]
+            )
             point3d_ids = np.array(tuple(map(int, x_y_id_s[2::3])))
             images[image_id] = Image(
                 id=image_id,
@@ -325,7 +358,12 @@ def read_points3d_text(path) -> Dict[int, Point3D]:
                 image_ids = np.array(tuple(map(int, elems[8::2])))
                 point2d_idxs = np.array(tuple(map(int, elems[9::2])))
                 points3d[point3d_id] = Point3D(
-                    id=point3d_id, xyz=xyz, rgb=rgb, error=error, image_ids=image_ids, point2d_idxs=point2d_idxs
+                    id=point3d_id,
+                    xyz=xyz,
+                    rgb=rgb,
+                    error=error,
+                    image_ids=image_ids,
+                    point2d_idxs=point2d_idxs,
                 )
     return points3d
 
@@ -342,17 +380,30 @@ def read_points3d_binary(path_to_model_file: Path) -> Dict[int, Point3D]:
     with open(path_to_model_file, "rb") as fid:
         num_points = read_next_bytes(fid, 8, "Q")[0]
         for _ in range(num_points):
-            binary_point_line_properties = read_next_bytes(fid, num_bytes=43, format_char_sequence="QdddBBBd")
+            binary_point_line_properties = read_next_bytes(
+                fid, num_bytes=43, format_char_sequence="QdddBBBd"
+            )
             point3d_id = binary_point_line_properties[0]
             xyz = np.array(binary_point_line_properties[1:4])
             rgb = np.array(binary_point_line_properties[4:7])
             error = np.array(binary_point_line_properties[7])
-            track_length = read_next_bytes(fid, num_bytes=8, format_char_sequence="Q")[0]
-            track_elems = read_next_bytes(fid, num_bytes=8 * track_length, format_char_sequence="ii" * track_length)
+            track_length = read_next_bytes(fid, num_bytes=8, format_char_sequence="Q")[
+                0
+            ]
+            track_elems = read_next_bytes(
+                fid,
+                num_bytes=8 * track_length,
+                format_char_sequence="ii" * track_length,
+            )
             image_ids = np.array(tuple(map(int, track_elems[0::2])))
             point2d_idxs = np.array(tuple(map(int, track_elems[1::2])))
             points3d[point3d_id] = Point3D(
-                id=point3d_id, xyz=xyz, rgb=rgb, error=float(error), image_ids=image_ids, point2d_idxs=point2d_idxs
+                id=point3d_id,
+                xyz=xyz,
+                rgb=rgb,
+                error=float(error),
+                image_ids=image_ids,
+                point2d_idxs=point2d_idxs,
             )
     return points3d
 
@@ -378,7 +429,9 @@ def detect_model_format(path: Path, ext: str) -> bool:
     return False
 
 
-def read_model(path: Path, ext: Optional[str] = None) -> Tuple[Dict[int, Camera], Dict[int, Image], Dict[int, Point3D]]:
+def read_model(
+    path: Path, ext: Optional[str] = None
+) -> Tuple[Dict[int, Camera], Dict[int, Image], Dict[int, Point3D]]:
     """Read a COLMAP model from a directory.
 
     Args:
@@ -472,7 +525,9 @@ def get_vocab_tree() -> Path:
     vocab_tree_filename = Path(appdirs.user_data_dir("nerfstudio")) / "vocab_tree.fbow"
 
     if not vocab_tree_filename.exists():
-        r = requests.get("https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True)
+        r = requests.get(
+            "https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin", stream=True
+        )
         vocab_tree_filename.parent.mkdir(parents=True, exist_ok=True)
         with open(vocab_tree_filename, "wb") as f:
             total_length = r.headers.get("content-length")
@@ -526,7 +581,11 @@ def run_colmap(
         f"--{feature_extractor_kwargs}",
     ]
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
-    with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
+    with status(
+        msg="[bold yellow]Running COLMAP feature extractor...",
+        spinner="moon",
+        verbose=verbose,
+    ):
         run_command(feature_extractor_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done extracting COLMAP features.")
@@ -539,9 +598,15 @@ def run_colmap(
     ]
     if matching_method == "vocab_tree":
         vocab_tree_filename = get_vocab_tree()
-        feature_matcher_cmd.append(f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}")
+        feature_matcher_cmd.append(
+            f"--VocabTreeMatching.vocab_tree_path {vocab_tree_filename}"
+        )
     feature_matcher_cmd = " ".join(feature_matcher_cmd)
-    with status(msg="[bold yellow]Running COLMAP feature matcher...", spinner="runner", verbose=verbose):
+    with status(
+        msg="[bold yellow]Running COLMAP feature matcher...",
+        spinner="runner",
+        verbose=verbose,
+    ):
         run_command(feature_matcher_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done matching COLMAP features.")
 
@@ -566,7 +631,9 @@ def run_colmap(
     ):
         run_command(mapper_cmd, verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done COLMAP bundle adjustment.")
-    with status(msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose):
+    with status(
+        msg="[bold yellow]Refine intrinsics...", spinner="dqpb", verbose=verbose
+    ):
         bundle_adjuster_cmd = [
             f"{colmap_cmd} bundle_adjuster",
             f"--input_path {sparse_dir}/0",
@@ -577,7 +644,9 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
-def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel) -> int:
+def colmap_to_json(
+    cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel
+) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
     Args:
@@ -668,7 +737,9 @@ def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str
         return "[bold green]COLAMP found poses for all images, CONGRATS!"
     if match_ratio < 0.4:
         result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
-        result += " of the images. This is low.\nThis can be caused by a variety of reasons,"
+        result += (
+            " of the images. This is low.\nThis can be caused by a variety of reasons,"
+        )
         result += " such poor scene coverage, blurry images, or large exposure changes."
         return result
     if match_ratio < 0.8:

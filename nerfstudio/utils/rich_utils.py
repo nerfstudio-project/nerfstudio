@@ -28,7 +28,7 @@ from rich.progress import (
 )
 from rich.text import Text
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 class ItersPerSecColumn(ProgressColumn):
@@ -61,7 +61,11 @@ def status(msg: str, spinner: str = "bouncingBall", verbose: bool = False):
 
 def get_progress(description: str, suffix: Optional[str] = None):
     """Helper function to return a rich Progress object."""
-    progress_list = [TextColumn(description), BarColumn(), TaskProgressColumn(show_speed=True)]
+    progress_list = [
+        TextColumn(description),
+        BarColumn(),
+        TaskProgressColumn(show_speed=True),
+    ]
     progress_list += [ItersPerSecColumn(suffix=suffix)] if suffix else []
     progress_list += [TimeRemainingColumn(elapsed_when_finished=True, compact=True)]
     progress = Progress(*progress_list)

@@ -35,7 +35,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -82,13 +82,17 @@ class InstantNGP(DataParser):
                     meta["w"] = w
                     if "h" in meta:
                         meta_h = meta["h"]
-                        assert meta_h == h, f"height of image dont not correspond metadata {h} != {meta_h}"
+                        assert (
+                            meta_h == h
+                        ), f"height of image dont not correspond metadata {h} != {meta_h}"
                     else:
                         meta["h"] = h
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
         if num_skipped_image_filenames >= 0:
-            CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
+            CONSOLE.print(
+                f"Skipping {num_skipped_image_filenames} files in dataset split {split}."
+            )
         assert (
             len(image_filenames) != 0
         ), """
@@ -115,7 +119,11 @@ class InstantNGP(DataParser):
 
         scene_box = SceneBox(
             aabb=torch.tensor(
-                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+                [
+                    [-aabb_scale, -aabb_scale, -aabb_scale],
+                    [aabb_scale, aabb_scale, aabb_scale],
+                ],
+                dtype=torch.float32,
             )
         )
 
@@ -176,6 +184,8 @@ class InstantNGP(DataParser):
                 fl_y = fov_to_focal_length(meta["camera_angle_y"], meta["h"])
 
         if fl_x == 0 or fl_y == 0:
-            raise AttributeError("Focal length cannot be calculated from transforms.json (missing fields).")
+            raise AttributeError(
+                "Focal length cannot be calculated from transforms.json (missing fields)."
+            )
 
         return (fl_x, fl_y)

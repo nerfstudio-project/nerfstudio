@@ -34,7 +34,7 @@ from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.utils.rich_utils import ItersPerSecColumn
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def _render_trajectory_video(
@@ -95,7 +95,8 @@ def _render_trajectory_video(
                     path=output_filename,
                     shape=(
                         int(render_height * rendered_resolution_scaling_factor),
-                        int(render_width * rendered_resolution_scaling_factor) * len(rendered_output_names),
+                        int(render_width * rendered_resolution_scaling_factor)
+                        * len(rendered_output_names),
                     ),
                     fps=fps,
                 )
@@ -107,14 +108,20 @@ def _render_trajectory_video(
             for camera_idx in progress.track(range(cameras.size), description=""):
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
                 with torch.no_grad():
-                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(
+                        camera_ray_bundle
+                    )
                 render_image = []
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
                         CONSOLE.rule("Error", style="red")
-                        CONSOLE.print(f"Could not find {rendered_output_name} in the model outputs", justify="center")
                         CONSOLE.print(
-                            f"Please set --rendered_output_name to one of: {outputs.keys()}", justify="center"
+                            f"Could not find {rendered_output_name} in the model outputs",
+                            justify="center",
+                        )
+                        CONSOLE.print(
+                            f"Please set --rendered_output_name to one of: {outputs.keys()}",
+                            justify="center",
                         )
                         sys.exit(1)
                     output_image = outputs[rendered_output_name].cpu().numpy()
@@ -123,7 +130,9 @@ def _render_trajectory_video(
                     render_image.append(output_image)
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
-                    media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
+                    media.write_image(
+                        output_image_dir / f"{camera_idx:05d}.png", render_image
+                    )
                 if output_format == "video" and writer is not None:
                     writer.add_image(render_image)
 
@@ -239,7 +248,9 @@ class RenderTrajectory:
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
+            camera_start = pipeline.datamanager.eval_dataloader.get_camera(
+                image_idx=0
+            ).flatten()
             # TODO(ethan): pass in the up direction of the camera
             camera_type = CameraType.PERSPECTIVE
             render_width = 952

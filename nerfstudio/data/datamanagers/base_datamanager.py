@@ -60,23 +60,26 @@ from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttrib
 from nerfstudio.model_components.ray_generators import RayGenerator
 from nerfstudio.utils.misc import IterableWrapper
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
-AnnotatedDataParserUnion = tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
-    tyro.extras.subcommand_type_from_defaults(
-        {
-            "nerfstudio-data": NerfstudioDataParserConfig(),
-            "minimal-parser": MinimalDataParserConfig(),
-            "blender-data": BlenderDataParserConfig(),
-            "friends-data": FriendsDataParserConfig(),
-            "instant-ngp-data": InstantNGPDataParserConfig(),
-            "nuscenes-data": NuScenesDataParserConfig(),
-            "dnerf-data": DNeRFDataParserConfig(),
-            "phototourism-data": PhototourismDataParserConfig(),
-        },
-        prefix_names=False,  # Omit prefixes in subcommands themselves.
-    )
-]
+
+AnnotatedDataParserUnion = (
+    tyro.conf.OmitSubcommandPrefixes[  # Omit prefixes of flags in subcommands.
+        tyro.extras.subcommand_type_from_defaults(
+            {
+                "nerfstudio-data": NerfstudioDataParserConfig(),
+                "minimal-parser": MinimalDataParserConfig(),
+                "blender-data": BlenderDataParserConfig(),
+                "friends-data": FriendsDataParserConfig(),
+                "instant-ngp-data": InstantNGPDataParserConfig(),
+                "nuscenes-data": NuScenesDataParserConfig(),
+                "dnerf-data": DNeRFDataParserConfig(),
+                "phototourism-data": PhototourismDataParserConfig(),
+            },
+            prefix_names=False,  # Omit prefixes in subcommands themselves.
+        )
+    ]
+)
 """Union over possible dataparser types, annotated with metadata for tyro. This is the
 same as the vanilla union, but results in shorter subcommand names."""
 
@@ -228,13 +231,16 @@ class DataManager(nn.Module):
         raise NotImplementedError
 
     def get_training_callbacks(  # pylint:disable=no-self-use
-        self, training_callback_attributes: TrainingCallbackAttributes  # pylint: disable=unused-argument
+        self,
+        training_callback_attributes: TrainingCallbackAttributes,  # pylint: disable=unused-argument
     ) -> List[TrainingCallback]:
         """Returns a list of callbacks to be used during training."""
         return []
 
     @abstractmethod
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(
+        self,
+    ) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.
 
         Returns:
@@ -318,7 +324,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         self.test_mode = test_mode
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser = self.config.dataparser.setup()
-        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(split="train")
+        self.train_dataparser_outputs = self.dataparser.get_dataparser_outputs(
+            split="train"
+        )
 
         self.train_dataset = self.create_train_dataset()
         self.eval_dataset = self.create_eval_dataset()
@@ -334,7 +342,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     def create_eval_dataset(self) -> InputDataset:
         """Sets up the data loaders for evaluation"""
         return InputDataset(
-            dataparser_outputs=self.dataparser.get_dataparser_outputs(split=self.test_split),
+            dataparser_outputs=self.dataparser.get_dataparser_outputs(
+                split=self.test_split
+            ),
             scale_factor=self.config.camera_res_scale_factor,
         )
 
@@ -343,12 +353,16 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
     ) -> PixelSampler:
         """Infer pixel sampler to use."""
         # If all images are equirectangular, use equirectangular pixel sampler
-        is_equirectangular = dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        is_equirectangular = (
+            dataset.cameras.camera_type == CameraType.EQUIRECTANGULAR.value
+        )
         if is_equirectangular.all():
             return EquirectangularPixelSampler(*args, **kwargs)
         # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
-            CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
+            CONSOLE.print(
+                "[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler."
+            )
         return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
@@ -365,7 +379,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             collate_fn=self.config.collate_fn,
         )
         self.iter_train_image_dataloader = iter(self.train_image_dataloader)
-        self.train_pixel_sampler = self._get_pixel_sampler(self.train_dataset, self.config.train_num_rays_per_batch)
+        self.train_pixel_sampler = self._get_pixel_sampler(
+            self.train_dataset, self.config.train_num_rays_per_batch
+        )
         self.train_camera_optimizer = self.config.camera_optimizer.setup(
             num_cameras=self.train_dataset.cameras.size, device=self.device
         )
@@ -388,7 +404,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             collate_fn=self.config.collate_fn,
         )
         self.iter_eval_image_dataloader = iter(self.eval_image_dataloader)
-        self.eval_pixel_sampler = self._get_pixel_sampler(self.eval_dataset, self.config.eval_num_rays_per_batch)
+        self.eval_pixel_sampler = self._get_pixel_sampler(
+            self.eval_dataset, self.config.eval_num_rays_per_batch
+        )
         self.eval_ray_generator = RayGenerator(
             self.eval_dataset.cameras.to(self.device),
             self.train_camera_optimizer,  # should be shared between train and eval.
@@ -433,7 +451,9 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             return image_idx, camera_ray_bundle, batch
         raise ValueError("No more eval images")
 
-    def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
+    def get_param_groups(
+        self,
+    ) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.
         Returns:
             A list of dictionaries containing the data manager's param groups.

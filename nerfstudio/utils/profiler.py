@@ -30,7 +30,8 @@ from nerfstudio.utils.decorators import (
     decorate_all,
 )
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
+
 
 PROFILER = []
 
@@ -81,11 +82,16 @@ class Profiler:
         func_dict = self.profiler_dict.get(func_name, {"val": 0, "step": 0})
         prev_val = func_dict["val"]
         prev_step = func_dict["step"]
-        self.profiler_dict[func_name] = {"val": (prev_val * prev_step + val) / (prev_step + 1), "step": prev_step + 1}
+        self.profiler_dict[func_name] = {
+            "val": (prev_val * prev_step + val) / (prev_step + 1),
+            "step": prev_step + 1,
+        }
 
     def print_profile(self):
         """helper to print out the profiler stats"""
-        CONSOLE.print("Printing profiling stats, from longest to shortest duration in seconds")
+        CONSOLE.print(
+            "Printing profiling stats, from longest to shortest duration in seconds"
+        )
         sorted_keys = sorted(
             self.profiler_dict.keys(),
             key=lambda k: self.profiler_dict[k]["val"],

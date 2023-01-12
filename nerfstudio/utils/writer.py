@@ -33,7 +33,8 @@ from nerfstudio.configs import base_config as cfg
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.printing import human_format
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
+
 to8b = lambda x: (255 * torch.clamp(x, min=0, max=1)).to(torch.uint8)
 EVENT_WRITERS = []
 EVENT_STORAGE = []
@@ -74,7 +75,14 @@ def put_image(name, image: TensorType["H", "W", "C"], step: int):
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.IMAGE, "event": image.detach().cpu(), "step": step})
+    EVENT_STORAGE.append(
+        {
+            "name": name,
+            "write_type": EventType.IMAGE,
+            "event": image.detach().cpu(),
+            "step": step,
+        }
+    )
 
 
 @check_main_thread
@@ -89,7 +97,9 @@ def put_scalar(name: str, scalar: Any, step: int):
     if isinstance(name, EventName):
         name = name.value
 
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.SCALAR, "event": scalar, "step": step})
+    EVENT_STORAGE.append(
+        {"name": name, "write_type": EventType.SCALAR, "event": scalar, "step": step}
+    )
 
 
 @check_main_thread
@@ -101,7 +111,9 @@ def put_dict(name: str, scalar_dict: Dict[str, Any], step: int):
         scalar_dict: values to write out
         step: step associated with dict
     """
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.DICT, "event": scalar_dict, "step": step})
+    EVENT_STORAGE.append(
+        {"name": name, "write_type": EventType.DICT, "event": scalar_dict, "step": step}
+    )
 
 
 @check_main_thread
@@ -113,11 +125,24 @@ def put_config(name: str, config_dict: Dict[str, Any], step: int):
         scalar_dict: values to write out
         step: step associated with dict
     """
-    EVENT_STORAGE.append({"name": name, "write_type": EventType.CONFIG, "event": config_dict, "step": step})
+    EVENT_STORAGE.append(
+        {
+            "name": name,
+            "write_type": EventType.CONFIG,
+            "event": config_dict,
+            "step": step,
+        }
+    )
 
 
 @check_main_thread
-def put_time(name: str, duration: float, step: int, avg_over_steps: bool = True, update_eta: bool = False):
+def put_time(
+    name: str,
+    duration: float,
+    step: int,
+    avg_over_steps: bool = True,
+    update_eta: bool = False,
+):
     """Setter function to place a time element into the queue to be written out.
     Processes the time info according to the options.
 
@@ -166,7 +191,11 @@ def write_out_storage():
     EVENT_STORAGE.clear()
 
 
-def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages: Optional[List[str]] = None) -> None:
+def setup_local_writer(
+    config: cfg.LoggingConfig,
+    max_iter: int,
+    banner_messages: Optional[List[str]] = None,
+) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -188,7 +217,9 @@ def setup_local_writer(config: cfg.LoggingConfig, max_iter: int, banner_messages
 
 
 @check_main_thread
-def setup_event_writer(is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path) -> None:
+def setup_event_writer(
+    is_wandb_enabled: bool, is_tensorboard_enabled: bool, log_dir: Path
+) -> None:
     """Initialization of all event writers specified in config
 
     Args:
@@ -216,7 +247,9 @@ class Writer:
     """Writer class"""
 
     @abstractmethod
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+    def write_image(
+        self, name: str, image: TensorType["H", "W", "C"], step: int
+    ) -> None:
         """method to write out image
 
         Args:
@@ -227,7 +260,9 @@ class Writer:
         raise NotImplementedError
 
     @abstractmethod
-    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
+    def write_scalar(
+        self, name: str, scalar: Union[float, torch.Tensor], step: int
+    ) -> None:
         """Required method to write a single scalar value to the logger
 
         Args:
@@ -238,7 +273,9 @@ class Writer:
         raise NotImplementedError
 
     @check_main_thread
-    def write_scalar_dict(self, name: str, scalar_dict: Dict[str, Any], step: int) -> None:
+    def write_scalar_dict(
+        self, name: str, scalar_dict: Dict[str, Any], step: int
+    ) -> None:
         """Function that writes out all scalars from a given dictionary to the logger
 
         Args:
@@ -285,11 +322,15 @@ class WandbWriter(Writer):
     def __init__(self, log_dir: Path):
         wandb.init(project="nerfstudio-project", dir=str(log_dir), reinit=True)
 
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+    def write_image(
+        self, name: str, image: TensorType["H", "W", "C"], step: int
+    ) -> None:
         image = torch.permute(image, (2, 0, 1))
         wandb.log({name: wandb.Image(image)}, step=step)
 
-    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
+    def write_scalar(
+        self, name: str, scalar: Union[float, torch.Tensor], step: int
+    ) -> None:
         wandb.log({name: scalar}, step=step)
 
     def write_config(self, name: str, config_dict: Dict[str, Any], step: int):
@@ -310,14 +351,20 @@ class TensorboardWriter(Writer):
     def __init__(self, log_dir: Path):
         self.tb_writer = SummaryWriter(log_dir=log_dir)
 
-    def write_image(self, name: str, image: TensorType["H", "W", "C"], step: int) -> None:
+    def write_image(
+        self, name: str, image: TensorType["H", "W", "C"], step: int
+    ) -> None:
         image = to8b(image)
         self.tb_writer.add_image(name, image, step, dataformats="HWC")
 
-    def write_scalar(self, name: str, scalar: Union[float, torch.Tensor], step: int) -> None:
+    def write_scalar(
+        self, name: str, scalar: Union[float, torch.Tensor], step: int
+    ) -> None:
         self.tb_writer.add_scalar(name, scalar, step)
 
-    def write_config(self, name: str, config_dict: Dict[str, Any], step: int):  # pylint: disable=unused-argument
+    def write_config(
+        self, name: str, config_dict: Dict[str, Any], step: int
+    ):  # pylint: disable=unused-argument
         """Function that writes out the config to tensorboard
 
         Args:
@@ -365,7 +412,9 @@ class LocalWriter:
         banner_messages: list of messages to always display at bottom of screen
     """
 
-    def __init__(self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None):
+    def __init__(
+        self, config: cfg.LocalWriterConfig, banner_messages: Optional[List[str]] = None
+    ):
         self.config = config
         self.stats_to_track = [name.value for name in config.stats_to_track]
         self.keys = set()
@@ -420,8 +469,13 @@ class LocalWriter:
             latest_map: the most recent dictionary of stats that have been recorded
             new_key: indicator whether or not there is a new key added to logger
         """
-        full_log_cond = not self.config.max_log_size and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
-        capped_log_cond = self.config.max_log_size and (len(self.past_mssgs) - self.banner_len <= 2 or new_key)
+        full_log_cond = (
+            not self.config.max_log_size
+            and GLOBAL_BUFFER["step"] <= GLOBAL_BUFFER["steps_per_log"]
+        )
+        capped_log_cond = self.config.max_log_size and (
+            len(self.past_mssgs) - self.banner_len <= 2 or new_key
+        )
         if full_log_cond or capped_log_cond:
             mssg = f"{'Step (% Done)':<20}"
             for name, _ in latest_map.items():
@@ -468,7 +522,12 @@ class LocalWriter:
 
             for i, mssg in enumerate(self.past_mssgs):
                 pad_len = len(max(self.past_mssgs, key=len))
-                style = "\x1b[6;30;42m" if self.banner_len and i >= len(self.past_mssgs) - self.banner_len + 1 else ""
+                style = (
+                    "\x1b[6;30;42m"
+                    if self.banner_len
+                    and i >= len(self.past_mssgs) - self.banner_len + 1
+                    else ""
+                )
                 print(f"{style}{mssg:{padding}<{pad_len}} \x1b[0m")
         else:
             print(curr_mssg)

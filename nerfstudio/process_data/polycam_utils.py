@@ -24,7 +24,7 @@ from rich.console import Console
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def polycam_to_json(
@@ -69,9 +69,24 @@ def polycam_to_json(
         frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         frame["transform_matrix"] = [
-            [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],
-            [frame_json["t_00"], frame_json["t_01"], frame_json["t_02"], frame_json["t_03"]],
-            [frame_json["t_10"], frame_json["t_11"], frame_json["t_12"], frame_json["t_13"]],
+            [
+                frame_json["t_20"],
+                frame_json["t_21"],
+                frame_json["t_22"],
+                frame_json["t_23"],
+            ],
+            [
+                frame_json["t_00"],
+                frame_json["t_01"],
+                frame_json["t_02"],
+                frame_json["t_03"],
+            ],
+            [
+                frame_json["t_10"],
+                frame_json["t_11"],
+                frame_json["t_12"],
+                frame_json["t_13"],
+            ],
             [0.0, 0.0, 0.0, 1.0],
         ]
         frames.append(frame)

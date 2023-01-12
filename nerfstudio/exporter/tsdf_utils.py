@@ -35,7 +35,7 @@ from torchtyping import TensorType
 from nerfstudio.exporter.exporter_utils import Mesh, render_trajectory
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -120,10 +120,14 @@ class TSDF:
 
         # run marching cubes on CPU
         tsdf_values_np = self.values.clamp(-1, 1).cpu().numpy()
-        vertices, faces, normals, _ = measure.marching_cubes(tsdf_values_np, level=0, allow_degenerate=False)
+        vertices, faces, normals, _ = measure.marching_cubes(
+            tsdf_values_np, level=0, allow_degenerate=False
+        )
 
         vertices_indices = np.round(vertices).astype(int)
-        colors = self.colors[vertices_indices[:, 0], vertices_indices[:, 1], vertices_indices[:, 2]]
+        colors = self.colors[
+            vertices_indices[:, 0], vertices_indices[:, 1], vertices_indices[:, 2]
+        ]
 
         # move back to original device
         vertices = torch.from_numpy(vertices.copy()).to(device)
@@ -149,7 +153,9 @@ class TSDF:
         v_normals_matrix = mesh.normals.cpu().numpy().astype("float64")
         v_color_matrix = mesh.colors.cpu().numpy().astype("float64")
         # colors need an alpha channel
-        v_color_matrix = np.concatenate([v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1)
+        v_color_matrix = np.concatenate(
+            [v_color_matrix, np.ones((v_color_matrix.shape[0], 1))], axis=-1
+        )
 
         # create a new Mesh
         m = pymeshlab.Mesh(
@@ -198,12 +204,20 @@ class TSDF:
         # make voxel_coords homogeneous
         voxel_world_coords = self.voxel_coords.view(3, -1)
         voxel_world_coords = torch.cat(
-            [voxel_world_coords, torch.ones(1, voxel_world_coords.shape[1], device=self.device)], dim=0
+            [
+                voxel_world_coords,
+                torch.ones(1, voxel_world_coords.shape[1], device=self.device),
+            ],
+            dim=0,
         )
         voxel_world_coords = voxel_world_coords.unsqueeze(0)  # [1, 4, N]
-        voxel_world_coords = voxel_world_coords.expand(batch_size, *voxel_world_coords.shape[1:])  # [batch, 4, N]
+        voxel_world_coords = voxel_world_coords.expand(
+            batch_size, *voxel_world_coords.shape[1:]
+        )  # [batch, 4, N]
 
-        voxel_cam_coords = torch.bmm(torch.inverse(c2w), voxel_world_coords)  # [batch, 4, N]
+        voxel_cam_coords = torch.bmm(
+            torch.inverse(c2w), voxel_world_coords
+        )  # [batch, 4, N]
 
         # flip the z axis
         voxel_cam_coords[:, 2, :] = -voxel_cam_coords[:, 2, :]
@@ -211,10 +225,14 @@ class TSDF:
         voxel_cam_coords[:, 1, :] = -voxel_cam_coords[:, 1, :]
 
         # we need the distance of the point to the camera, not the z coordinate
-        voxel_depth = torch.sqrt(torch.sum(voxel_cam_coords[:, :3, :] ** 2, dim=-2, keepdim=True))  # [batch, 1, N]
+        voxel_depth = torch.sqrt(
+            torch.sum(voxel_cam_coords[:, :3, :] ** 2, dim=-2, keepdim=True)
+        )  # [batch, 1, N]
 
         voxel_cam_coords_z = voxel_cam_coords[:, 2:3, :]
-        voxel_cam_points = torch.bmm(K, voxel_cam_coords[:, 0:3, :] / voxel_cam_coords_z)  # [batch, 3, N]
+        voxel_cam_points = torch.bmm(
+            K, voxel_cam_coords[:, 0:3, :] / voxel_cam_coords_z
+        )  # [batch, 3, N]
         voxel_pixel_coords = voxel_cam_points[:, :2, :]  # [batch, 2, N]
 
         # Sample the depth images with grid sample...
@@ -225,19 +243,31 @@ class TSDF:
         grid = grid[:, None]  # [batch, 1, N, 2]
         # depth
         sampled_depth = F.grid_sample(
-            input=depth_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
+            input=depth_images,
+            grid=grid,
+            mode="nearest",
+            padding_mode="zeros",
+            align_corners=False,
         )  # [batch, N, 1]
         sampled_depth = sampled_depth.squeeze(2)  # [batch, 1, N]
         # colors
         if color_images is not None:
             sampled_colors = F.grid_sample(
-                input=color_images, grid=grid, mode="nearest", padding_mode="zeros", align_corners=False
+                input=color_images,
+                grid=grid,
+                mode="nearest",
+                padding_mode="zeros",
+                align_corners=False,
             )  # [batch, N, 3]
             sampled_colors = sampled_colors.squeeze(2)  # [batch, 3, N]
 
         dist = sampled_depth - voxel_depth  # [batch, 1, N]
-        tsdf_values = torch.clamp(dist / self.truncation, min=-1.0, max=1.0)  # [batch, 1, N]
-        valid_points = (voxel_depth > 0) & (sampled_depth > 0) & (dist > -self.truncation)  # [batch, 1, N]
+        tsdf_values = torch.clamp(
+            dist / self.truncation, min=-1.0, max=1.0
+        )  # [batch, 1, N]
+        valid_points = (
+            (voxel_depth > 0) & (sampled_depth > 0) & (dist > -self.truncation)
+        )  # [batch, 1, N]
 
         # Sequentially update the TSDF...
 
@@ -264,7 +294,9 @@ class TSDF:
 
             if color_images is not None:
                 old_colors_i = self.colors[valid_points_i_shape]  # [M, 3]
-                new_colors_i = sampled_colors[i][:, valid_points_i.squeeze(0)].permute(1, 0)  # [M, 3]
+                new_colors_i = sampled_colors[i][:, valid_points_i.squeeze(0)].permute(
+                    1, 0
+                )  # [M, 3]
                 self.colors[valid_points_i_shape] = (
                     old_colors_i * old_weights_i[:, None] + new_colors_i * new_weights_i
                 ) / total_weights[:, None]
@@ -299,7 +331,9 @@ def export_tsdf_mesh(
 
     device = pipeline.device
 
-    dataparser_outputs = pipeline.datamanager.train_dataset._dataparser_outputs  # pylint: disable=protected-access
+    dataparser_outputs = (
+        pipeline.datamanager.train_dataset._dataparser_outputs
+    )  # pylint: disable=protected-access
 
     # initialize the TSDF volume
     if not use_bounding_box:
@@ -333,8 +367,12 @@ def export_tsdf_mesh(
     c2w = torch.cat([c2w, torch.zeros(c2w.shape[0], 1, 4, device=device)], dim=1)
     c2w[:, 3, 3] = 1
     K: TensorType["N", 3, 3] = cameras.get_intrinsics_matrices().to(device)
-    color_images = torch.tensor(np.array(color_images), device=device).permute(0, 3, 1, 2)  # shape (N, 3, H, W)
-    depth_images = torch.tensor(np.array(depth_images), device=device).permute(0, 3, 1, 2)  # shape (N, 1, H, W)
+    color_images = torch.tensor(np.array(color_images), device=device).permute(
+        0, 3, 1, 2
+    )  # shape (N, 3, H, W)
+    depth_images = torch.tensor(np.array(depth_images), device=device).permute(
+        0, 3, 1, 2
+    )  # shape (N, 1, H, W)
 
     CONSOLE.print("Integrating the TSDF")
     for i in range(0, len(c2w), batch_size):

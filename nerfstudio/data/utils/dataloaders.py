@@ -34,7 +34,7 @@ from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.utils.nerfstudio_collate import nerfstudio_collate
 from nerfstudio.utils.misc import get_dict_to_torch
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 class CacheDataloader(DataLoader):
@@ -61,8 +61,12 @@ class CacheDataloader(DataLoader):
         self.dataset = dataset
         super().__init__(dataset=dataset, **kwargs)  # This will set self.dataset
         self.num_times_to_repeat_images = num_times_to_repeat_images
-        self.cache_all_images = (num_images_to_sample_from == -1) or (num_images_to_sample_from >= len(self.dataset))
-        self.num_images_to_sample_from = len(self.dataset) if self.cache_all_images else num_images_to_sample_from
+        self.cache_all_images = (num_images_to_sample_from == -1) or (
+            num_images_to_sample_from >= len(self.dataset)
+        )
+        self.num_images_to_sample_from = (
+            len(self.dataset) if self.cache_all_images else num_images_to_sample_from
+        )
         self.device = device
         self.collate_fn = collate_fn
         self.num_workers = kwargs.get("num_workers", 0)
@@ -94,7 +98,9 @@ class CacheDataloader(DataLoader):
     def _get_batch_list(self):
         """Returns a list of batches from the dataset attribute."""
 
-        indices = random.sample(range(len(self.dataset)), k=self.num_images_to_sample_from)
+        indices = random.sample(
+            range(len(self.dataset)), k=self.num_images_to_sample_from
+        )
         batch_list = []
         results = []
 
@@ -116,7 +122,9 @@ class CacheDataloader(DataLoader):
         """Returns a collated batch."""
         batch_list = self._get_batch_list()
         collated_batch = self.collate_fn(batch_list)
-        collated_batch = get_dict_to_torch(collated_batch, device=self.device, exclude=["image"])
+        collated_batch = get_dict_to_torch(
+            collated_batch, device=self.device, exclude=["image"]
+        )
         return collated_batch
 
     def __iter__(self):
@@ -124,13 +132,16 @@ class CacheDataloader(DataLoader):
             if self.cache_all_images:
                 collated_batch = self.cached_collated_batch
             elif self.first_time or (
-                self.num_times_to_repeat_images != -1 and self.num_repeated >= self.num_times_to_repeat_images
+                self.num_times_to_repeat_images != -1
+                and self.num_repeated >= self.num_times_to_repeat_images
             ):
                 # trigger a reset
                 self.num_repeated = 0
                 collated_batch = self._get_collated_batch()
                 # possibly save a cached item
-                self.cached_collated_batch = collated_batch if self.num_times_to_repeat_images != 0 else None
+                self.cached_collated_batch = (
+                    collated_batch if self.num_times_to_repeat_images != 0 else None
+                )
                 self.first_time = False
             else:
                 collated_batch = self.cached_collated_batch
@@ -181,7 +192,9 @@ class EvalDataloader(DataLoader):
         Args:
             image_idx: Camera image index
         """
-        ray_bundle = self.cameras.generate_rays(camera_indices=image_idx, keep_shape=True)
+        ray_bundle = self.cameras.generate_rays(
+            camera_indices=image_idx, keep_shape=True
+        )
         batch = self.input_dataset[image_idx]
         batch = get_dict_to_torch(batch, device=self.device, exclude=["image"])
         return ray_bundle, batch

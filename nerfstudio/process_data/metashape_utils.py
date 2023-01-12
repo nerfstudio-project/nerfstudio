@@ -24,7 +24,7 @@ from rich.console import Console
 
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def _find_distortion_param(calib_xml: ET.Element, param_name: str):
@@ -100,7 +100,9 @@ def metashape_to_json(  # pylint: disable=too-many-statements
         frame["file_path"] = image_filename_map[camera_label].as_posix()
         if camera.find("transform") is None:
             if verbose:
-                CONSOLE.print(f"Missing transforms data for {camera.get('label')}, Skipping")
+                CONSOLE.print(
+                    f"Missing transforms data for {camera.get('label')}, Skipping"
+                )
             num_skipped += 1
             continue
         t = [float(x) for x in camera.find("transform").text.split()]  # type: ignore
@@ -122,9 +124,13 @@ def metashape_to_json(  # pylint: disable=too-many-statements
 
     summary = []
     if num_skipped == 1:
-        summary.append(f"{num_skipped} image skipped because it was missing its camera pose.")
+        summary.append(
+            f"{num_skipped} image skipped because it was missing its camera pose."
+        )
     if num_skipped > 1:
-        summary.append(f"{num_skipped} images were skipped because they were missing camera poses.")
+        summary.append(
+            f"{num_skipped} images were skipped because they were missing camera poses."
+        )
 
     summary.append(f"Final dataset is {len(data['frames'])} frames.")
 

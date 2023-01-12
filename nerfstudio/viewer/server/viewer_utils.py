@@ -57,7 +57,7 @@ from nerfstudio.viewer.server.visualizer import Viewer
 
 warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def get_viewer_version() -> str:
@@ -127,7 +127,9 @@ class RenderThread(threading.Thread):
         camera_ray_bundle: input rays to pass through the graph to render out
     """
 
-    def __init__(self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle):
+    def __init__(
+        self, state: "ViewerState", graph: Model, camera_ray_bundle: RayBundle
+    ):
         threading.Thread.__init__(self)
         self.state = state
         self.graph = graph
@@ -144,7 +146,9 @@ class RenderThread(threading.Thread):
         try:
             with SetTrace(self.state.check_interrupt):
                 with torch.no_grad():
-                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                    outputs = self.graph.get_outputs_for_camera_ray_bundle(
+                        self.camera_ray_bundle
+                    )
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
@@ -185,7 +189,9 @@ class CheckThread(threading.Thread):
             if data is not None:
                 camera_object = data["object"]
                 if self.state.prev_camera_matrix is None or (
-                    not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                    not np.allclose(
+                        camera_object["matrix"], self.state.prev_camera_matrix
+                    )
                     and not self.state.prev_moving
                 ):
                     self.state.check_interrupt_vis = True
@@ -250,11 +256,17 @@ class ViewerState:
             CONSOLE.rule(characters="=")
             CONSOLE.line()
             self.vis = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(zmq_port=zmq_port, ip_address=self.config.ip_address)
+            self.vis_webrtc_thread = Viewer(
+                zmq_port=zmq_port, ip_address=self.config.ip_address
+            )
         else:
             assert self.config.zmq_port is not None
-            self.vis = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
-            self.vis_webrtc_thread = Viewer(zmq_port=self.config.zmq_port, ip_address=self.config.ip_address)
+            self.vis = Viewer(
+                zmq_port=self.config.zmq_port, ip_address=self.config.ip_address
+            )
+            self.vis_webrtc_thread = Viewer(
+                zmq_port=self.config.zmq_port, ip_address=self.config.ip_address
+            )
 
         # viewer specific variables
         self.prev_camera_matrix = None
@@ -293,7 +305,9 @@ class ViewerState:
         else:
             num_display_images = min(self.config.max_num_display_images, total_num)
         # draw indices, roughly evenly spaced
-        return np.linspace(0, total_num - 1, num_display_images, dtype=np.int32).tolist()
+        return np.linspace(
+            0, total_num - 1, num_display_images, dtype=np.int32
+        ).tolist()
 
     def init_scene(self, dataset: InputDataset, start_train=True) -> None:
         """Draw some images and the scene aabb in the viewer.
@@ -304,7 +318,9 @@ class ViewerState:
                 if False, only displays dataset until resume train is toggled
         """
         # set the config base dir
-        self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
+        self.vis["renderingState/config_base_dir"].write(
+            str(self.log_filename.parents[0])
+        )
 
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
@@ -315,7 +331,9 @@ class ViewerState:
         for idx in image_indices:
             image = dataset[idx]["image"]
             bgr = image[..., [2, 1, 0]]
-            camera_json = dataset.cameras.to_json(camera_idx=idx, image=bgr, max_size=100)
+            camera_json = dataset.cameras.to_json(
+                camera_idx=idx, image=bgr, max_size=100
+            )
             self.vis[f"sceneState/cameras/{idx:06d}"].write(camera_json)
 
         # draw the scene box (i.e., the bounding box)
@@ -367,7 +385,9 @@ class ViewerState:
             # remove the offer from the state tree
             self.vis["webrtc/offer"].delete()
 
-    def update_scene(self, trainer, step: int, graph: Model, num_rays_per_batch: int) -> None:
+    def update_scene(
+        self, trainer, step: int, graph: Model, num_rays_per_batch: int
+    ) -> None:
         """updates the scene based on the graph weights
 
         Args:
@@ -375,8 +395,12 @@ class ViewerState:
             graph: the current checkpoint of the model
         """
 
-        has_temporal_distortion = getattr(graph, "temporal_distortion", None) is not None
-        self.vis["model/has_temporal_distortion"].write(str(has_temporal_distortion).lower())
+        has_temporal_distortion = (
+            getattr(graph, "temporal_distortion", None) is not None
+        )
+        self.vis["model/has_temporal_distortion"].write(
+            str(has_temporal_distortion).lower()
+        )
 
         is_training = self.vis["renderingState/isTraining"].read()
         self.step = step
@@ -402,8 +426,12 @@ class ViewerState:
                 # to render at a FPS defined by self.static_fps.
 
                 if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-                    train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
-                    target_train_util = self.vis["renderingState/targetTrainUtil"].read()
+                    train_rays_per_sec = GLOBAL_BUFFER["events"][
+                        EventName.TRAIN_RAYS_PER_SEC.value
+                    ]["avg"]
+                    target_train_util = self.vis[
+                        "renderingState/targetTrainUtil"
+                    ].read()
                     if target_train_util is None:
                         target_train_util = 0.9
 
@@ -449,7 +477,9 @@ class ViewerState:
 
         camera_object = data["object"]
 
-        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+        if self.prev_camera_matrix is not None and np.allclose(
+            camera_object["matrix"], self.prev_camera_matrix
+        ):
             self.camera_moving = False
         else:
             self.prev_camera_matrix = camera_object["matrix"]
@@ -469,7 +499,9 @@ class ViewerState:
 
         return camera_object
 
-    def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+    def _apply_colormap(
+        self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6
+    ):
         """Determines which colormap to use based on set colormap type
 
         Args:
@@ -481,31 +513,39 @@ class ViewerState:
             reformatted_output = self._process_invalid_output(self.prev_output_type)
 
         # default for rgb images
-        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
+        if (
+            self.prev_colormap_type == ColormapTypes.DEFAULT
+            and outputs[reformatted_output].shape[-1] == 3
+        ):
             return outputs[reformatted_output]
 
         # rendering depth outputs
         if self.prev_colormap_type == ColormapTypes.DEPTH or (
             self.prev_colormap_type == ColormapTypes.DEFAULT
             and outputs[reformatted_output].dtype == torch.float
-            and (torch.max(outputs[reformatted_output]) - 1.0) > eps  # handle floating point arithmetic
+            and (torch.max(outputs[reformatted_output]) - 1.0)
+            > eps  # handle floating point arithmetic
         ):
             accumulation_str = (
                 OutputTypes.ACCUMULATION
                 if OutputTypes.ACCUMULATION in self.output_list
                 else OutputTypes.ACCUMULATION_FINE
             )
-            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
+            return colormaps.apply_depth_colormap(
+                outputs[reformatted_output], accumulation=outputs[accumulation_str]
+            )
 
         # rendering accumulation outputs
         if self.prev_colormap_type == ColormapTypes.TURBO or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
+            self.prev_colormap_type == ColormapTypes.DEFAULT
+            and outputs[reformatted_output].dtype == torch.float
         ):
             return colormaps.apply_colormap(outputs[reformatted_output])
 
         # rendering semantic outputs
         if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.int
+            self.prev_colormap_type == ColormapTypes.DEFAULT
+            and outputs[reformatted_output].dtype == torch.int
         ):
             logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
@@ -514,7 +554,8 @@ class ViewerState:
 
         # rendering boolean outputs
         if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
+            self.prev_colormap_type == ColormapTypes.DEFAULT
+            and outputs[reformatted_output].dtype == torch.bool
         ):
             return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
@@ -535,10 +576,14 @@ class ViewerState:
                 RTCIceServer(urls="stun:stun.l.google.com:19302"),
                 RTCIceServer(urls="stun:openrelay.metered.ca:80"),
                 RTCIceServer(
-                    urls="turn:openrelay.metered.ca:80", username="openrelayproject", credential="openrelayproject"
+                    urls="turn:openrelay.metered.ca:80",
+                    username="openrelayproject",
+                    credential="openrelayproject",
                 ),
                 RTCIceServer(
-                    urls="turn:openrelay.metered.ca:443", username="openrelayproject", credential="openrelayproject"
+                    urls="turn:openrelay.metered.ca:443",
+                    username="openrelayproject",
+                    credential="openrelayproject",
                 ),
                 RTCIceServer(
                     urls="turn:openrelay.metered.ca:443?transport=tcp",
@@ -576,7 +621,9 @@ class ViewerState:
         for video_track in self.video_tracks:
             video_track.put_frame(image)
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+    def _send_output_to_viewer(
+        self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6
+    ):
         """Chooses the correct output and sends it to the viewer
 
         Args:
@@ -601,18 +648,23 @@ class ViewerState:
             if (
                 outputs[reformatted_output].shape[-1] != 3
                 and outputs[reformatted_output].dtype == torch.float
-                and (torch.max(outputs[reformatted_output]) - 1.0) <= eps  # handle floating point arithmetic
+                and (torch.max(outputs[reformatted_output]) - 1.0)
+                <= eps  # handle floating point arithmetic
             ):
                 # accumulation can also include depth
                 colormap_options.extend(["depth"])
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
-        selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
+        selected_output = (self._apply_colormap(outputs, colors) * 255).type(
+            torch.uint8
+        )
         image = selected_output.cpu().numpy()
         self.set_image(image)
 
-    def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
+    def _update_viewer_stats(
+        self, render_time: float, num_rays: int, image_height: int, image_width: int
+    ) -> None:
         """Function that calculates and populates all the rendering statistics accordingly
 
         Args:
@@ -622,20 +674,27 @@ class ViewerState:
             image_width: resolution of the current view
         """
         writer.put_time(
-            name=EventName.VIS_RAYS_PER_SEC, duration=num_rays / render_time, step=self.step, avg_over_steps=True
+            name=EventName.VIS_RAYS_PER_SEC,
+            duration=num_rays / render_time,
+            step=self.step,
+            avg_over_steps=True,
         )
         is_training = self.vis["renderingState/isTraining"].read()
         self.vis["renderingState/eval_res"].write(f"{image_height}x{image_width}px")
         if is_training is None or is_training:
             # process remaining training ETA
-            self.vis["renderingState/train_eta"].write(GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting"))
+            self.vis["renderingState/train_eta"].write(
+                GLOBAL_BUFFER["events"].get(EventName.ETA.value, "Starting")
+            )
             # process ratio time spent on vis vs train
             if (
                 EventName.ITER_VIS_TIME.value in GLOBAL_BUFFER["events"]
                 and EventName.ITER_TRAIN_TIME.value in GLOBAL_BUFFER["events"]
             ):
                 vis_time = GLOBAL_BUFFER["events"][EventName.ITER_VIS_TIME.value]["avg"]
-                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value]["avg"]
+                train_time = GLOBAL_BUFFER["events"][EventName.ITER_TRAIN_TIME.value][
+                    "avg"
+                ]
                 vis_train_ratio = f"{int(vis_time / train_time * 100)}% spent on viewer"
                 self.vis["renderingState/vis_train_ratio"].write(vis_train_ratio)
             else:
@@ -644,7 +703,9 @@ class ViewerState:
             self.vis["renderingState/train_eta"].write("Paused")
             self.vis["renderingState/vis_train_ratio"].write("100% spent on viewer")
 
-    def _calculate_image_res(self, camera_object, is_training: bool) -> Optional[Tuple[int, int]]:
+    def _calculate_image_res(
+        self, camera_object, is_training: bool
+    ) -> Optional[Tuple[int, int]]:
         """Calculate the maximum image height that can be rendered in the time budget
 
         Args:
@@ -666,15 +727,17 @@ class ViewerState:
                 target_train_util = 0.9
 
         if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-            train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
+            train_rays_per_sec = GLOBAL_BUFFER["events"][
+                EventName.TRAIN_RAYS_PER_SEC.value
+            ]["avg"]
         elif not is_training:
-            train_rays_per_sec = (
-                80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
-            )
+            train_rays_per_sec = 80000  # TODO(eventually find a way to not hardcode. case where there are no prior training steps)
         else:
             return None, None
         if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
-            vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
+            vis_rays_per_sec = GLOBAL_BUFFER["events"][
+                EventName.VIS_RAYS_PER_SEC.value
+            ]["avg"]
         else:
             vis_rays_per_sec = train_rays_per_sec
 
@@ -720,7 +783,9 @@ class ViewerState:
         return output_type
 
     @profiler.time_function
-    def _render_image_in_viewer(self, camera_object, graph: Model, is_training: bool) -> None:
+    def _render_image_in_viewer(
+        self, camera_object, graph: Model, is_training: bool
+    ) -> None:
         # pylint: disable=too-many-statements
         """
         Draw an image using the current camera pose from the viewer.
@@ -748,9 +813,13 @@ class ViewerState:
 
         # Calculate camera pose and intrinsics
         try:
-            image_height, image_width = self._calculate_image_res(camera_object, is_training)
+            image_height, image_width = self._calculate_image_res(
+                camera_object, is_training
+            )
         except ZeroDivisionError as e:
-            self.vis["renderingState/log_errors"].write("Error: Screen too small; no rays intersecting scene.")
+            self.vis["renderingState/log_errors"].write(
+                "Error: Screen too small; no rays intersecting scene."
+            )
             time.sleep(0.03)  # sleep to allow buffer to reset
             print(f"Error: {e}")
             return
@@ -758,7 +827,10 @@ class ViewerState:
         if image_height is None:
             return
 
-        intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
+        (
+            intrinsics_matrix,
+            camera_to_world_h,
+        ) = get_intrinsics_matrix_and_camera_to_world_h(
             camera_object, image_height=image_height
         )
 
@@ -802,7 +874,9 @@ class ViewerState:
         graph.eval()
 
         check_thread = CheckThread(state=self)
-        render_thread = RenderThread(state=self, graph=graph, camera_ray_bundle=camera_ray_bundle)
+        render_thread = RenderThread(
+            state=self, graph=graph, camera_ray_bundle=camera_ray_bundle
+        )
 
         check_thread.daemon = True
         render_thread.daemon = True
@@ -831,5 +905,8 @@ class ViewerState:
             colors = graph.colors if hasattr(graph, "colors") else None
             self._send_output_to_viewer(outputs, colors=colors)
             self._update_viewer_stats(
-                vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
+                vis_t.duration,
+                num_rays=len(camera_ray_bundle),
+                image_height=image_height,
+                image_width=image_width,
             )

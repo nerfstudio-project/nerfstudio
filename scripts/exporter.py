@@ -28,7 +28,7 @@ from nerfstudio.exporter.exporter_utils import (
 from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -75,7 +75,9 @@ class ExportPointCloud(Exporter):
         _, pipeline, _ = eval_setup(self.load_config)
 
         # Increase the batchsize to speed up the evaluation.
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
+        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
+            self.num_rays_per_batch
+        )
 
         pcd = generate_point_cloud(
             pipeline=pipeline,
@@ -159,14 +161,17 @@ class ExportTSDFMesh(Exporter):
         if self.texture_method == "nerf":
             # load the mesh from the tsdf export
             mesh = get_mesh_from_filename(
-                str(self.output_dir / "tsdf_mesh.ply"), target_num_faces=self.target_num_faces
+                str(self.output_dir / "tsdf_mesh.ply"),
+                target_num_faces=self.target_num_faces,
             )
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+                px_per_uv_triangle=self.px_per_uv_triangle
+                if self.unwrap_method == "custom"
+                else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -222,7 +227,10 @@ class ExportPoissonMesh(Exporter):
             pixel_area = torch.ones_like(origins[..., :1])
             camera_indices = torch.zeros_like(origins[..., :1])
             ray_bundle = RayBundle(
-                origins=origins, directions=directions, pixel_area=pixel_area, camera_indices=camera_indices
+                origins=origins,
+                directions=directions,
+                pixel_area=pixel_area,
+                camera_indices=camera_indices,
             )
             outputs = pipeline.model(ray_bundle)
             if self.normal_output_name not in outputs:
@@ -248,7 +256,9 @@ class ExportPoissonMesh(Exporter):
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
-        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = self.num_rays_per_batch
+        pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
+            self.num_rays_per_batch
+        )
 
         # Whether the normals should be estimated based on the point cloud.
         estimate_normals = self.normal_method == "open3d"
@@ -260,7 +270,9 @@ class ExportPoissonMesh(Exporter):
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
+            normal_output_name=self.normal_output_name
+            if self.normal_method == "model_output"
+            else None,
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
@@ -276,7 +288,9 @@ class ExportPoissonMesh(Exporter):
             CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
         CONSOLE.print("Computing Mesh... this may take a while.")
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
+            pcd, depth=9
+        )
         vertices_to_remove = densities < np.quantile(densities, 0.1)
         mesh.remove_vertices_by_mask(vertices_to_remove)
         print("\033[A\033[A")
@@ -292,14 +306,17 @@ class ExportPoissonMesh(Exporter):
         if self.texture_method == "nerf":
             # load the mesh from the poisson reconstruction
             mesh = get_mesh_from_filename(
-                str(self.output_dir / "poisson_mesh.ply"), target_num_faces=self.target_num_faces
+                str(self.output_dir / "poisson_mesh.ply"),
+                target_num_faces=self.target_num_faces,
             )
             CONSOLE.print("Texturing mesh with NeRF")
             texture_utils.export_textured_mesh(
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
+                px_per_uv_triangle=self.px_per_uv_triangle
+                if self.unwrap_method == "custom"
+                else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -332,9 +349,14 @@ class ExportCameraPoses(Exporter):
         assert isinstance(pipeline, VanillaPipeline)
         train_frames, eval_frames = collect_camera_poses(pipeline)
 
-        for file_name, frames in [("transforms_train.json", train_frames), ("transforms_eval.json", eval_frames)]:
+        for file_name, frames in [
+            ("transforms_train.json", train_frames),
+            ("transforms_eval.json", eval_frames),
+        ]:
             if len(frames) == 0:
-                CONSOLE.print(f"[bold yellow]No frames found for {file_name}. Skipping.")
+                CONSOLE.print(
+                    f"[bold yellow]No frames found for {file_name}. Skipping."
+                )
                 continue
 
             output_file_path = os.path.join(self.output_dir, file_name)
@@ -342,7 +364,9 @@ class ExportCameraPoses(Exporter):
             with open(output_file_path, "w", encoding="UTF-8") as f:
                 json.dump(frames, f, indent=4)
 
-            CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
+            CONSOLE.print(
+                f"[bold green]:white_check_mark: Saved poses to {output_file_path}"
+            )
 
 
 Commands = tyro.conf.FlagConversionOff[

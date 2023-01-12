@@ -8,9 +8,16 @@ import yaml
 from rich.console import Console
 from rich.style import Style
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
-LOCAL_TESTS = ["Run license checks", "Run isort", "Run Black", "Python Pylint", "Test with pytest"]
+
+LOCAL_TESTS = [
+    "Run license checks",
+    "Run isort",
+    "Run Black",
+    "Python Pylint",
+    "Test with pytest",
+]
 
 
 def run_command(command: str, continue_on_fail: bool = False) -> bool:
@@ -49,7 +56,9 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
 
             CONSOLE.line()
             CONSOLE.rule(f"[bold green]Running: {curr_command}")
-            success = success and run_command(curr_command, continue_on_fail=continue_on_fail)
+            success = success and run_command(
+                curr_command, continue_on_fail=continue_on_fail
+            )
         else:
             skip_name = step["name"] if "name" in step else step["uses"]
             CONSOLE.print(f"Skipping {skip_name}")
@@ -57,20 +66,30 @@ def run_github_actions_file(filename: str, continue_on_fail: bool = False):
     # Add checks for building documentation
     CONSOLE.line()
     CONSOLE.rule("[bold green]Adding notebook documentation metadata")
-    success = success and run_command("python scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail)
+    success = success and run_command(
+        "python scripts/docs/add_nb_tags.py", continue_on_fail=continue_on_fail
+    )
     CONSOLE.line()
     CONSOLE.rule("[bold green]Building Documentation")
-    success = success and run_command("cd docs/; make html SPHINXOPTS='-W;'", continue_on_fail=continue_on_fail)
+    success = success and run_command(
+        "cd docs/; make html SPHINXOPTS='-W;'", continue_on_fail=continue_on_fail
+    )
 
     if success:
         CONSOLE.line()
         CONSOLE.rule(characters="=")
-        CONSOLE.print("[bold green]:TADA: :TADA: :TADA: ALL CHECKS PASSED :TADA: :TADA: :TADA:", justify="center")
+        CONSOLE.print(
+            "[bold green]:TADA: :TADA: :TADA: ALL CHECKS PASSED :TADA: :TADA: :TADA:",
+            justify="center",
+        )
         CONSOLE.rule(characters="=")
     else:
         CONSOLE.line()
         CONSOLE.rule(characters="=", style=Style(color="red"))
-        CONSOLE.print("[bold red]:skull: :skull: :skull: ERRORS FOUND :skull: :skull: :skull:", justify="center")
+        CONSOLE.print(
+            "[bold red]:skull: :skull: :skull: ERRORS FOUND :skull: :skull: :skull:",
+            justify="center",
+        )
         CONSOLE.rule(characters="=", style=Style(color="red"))
 
 
@@ -81,7 +100,10 @@ def run_code_checks(continue_on_fail: bool = False):
         continue_on_fail: Whether or not to continue running actions commands if the current one fails
     """
     # core code checks
-    run_github_actions_file(filename=".github/workflows/core_code_checks.yml", continue_on_fail=continue_on_fail)
+    run_github_actions_file(
+        filename=".github/workflows/core_code_checks.yml",
+        continue_on_fail=continue_on_fail,
+    )
     # viewer build and deployment
     # run_github_actions_file(filename=".github/workflows/viewer_build_deploy.yml", continue_on_fail=continue_on_fail)
 

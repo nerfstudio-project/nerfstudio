@@ -25,7 +25,7 @@ from rich.console import Console
 
 from nerfstudio.viewer.server.path import Path
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 class ViewerWindow:
@@ -73,7 +73,11 @@ class ViewerWindow:
     def timeout_ping(self, timeout_in_sec: int = 15):
         """Timeout if ping fails to complete in timeout_in_secs seconds"""
 
-        res = [Exception(f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting.")]
+        res = [
+            Exception(
+                f"Couldn't connect to the viewer Bridge Server in {timeout_in_sec} seconds. Exiting."
+            )
+        ]
 
         def wrapper_func():
             res[0] = self.send_ping()
@@ -117,7 +121,10 @@ class Viewer:
     """
 
     def __init__(
-        self, zmq_port: Optional[int] = None, window: Optional[ViewerWindow] = None, ip_address: str = "127.0.0.1"
+        self,
+        zmq_port: Optional[int] = None,
+        window: Optional[ViewerWindow] = None,
+        ip_address: str = "127.0.0.1",
     ):
         if zmq_port is None and window is None:
             raise ValueError("Must specify either zmq_port or window.")

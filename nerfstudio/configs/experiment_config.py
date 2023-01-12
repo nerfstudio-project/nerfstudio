@@ -36,7 +36,7 @@ from nerfstudio.engine.optimizers import OptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -96,14 +96,22 @@ class ExperimentConfig(InstantiateConfig):
     def set_experiment_name(self) -> None:
         """Dynamically set the experiment name"""
         if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
+            self.experiment_name = (
+                str(self.pipeline.datamanager.dataparser.data)
+                .replace("../", "")
+                .replace("/", "-")
+            )
 
     def get_base_dir(self) -> Path:
         """Retrieve the base directory to set relative paths"""
         # check the experiment and method names
-        assert self.method_name is not None, "Please set method name in config or via the cli"
+        assert (
+            self.method_name is not None
+        ), "Please set method name in config or via the cli"
         self.set_experiment_name()
-        return Path(f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}")
+        return Path(
+            f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}"
+        )
 
     def get_checkpoint_dir(self) -> Path:
         """Retrieve the checkpoint directory"""

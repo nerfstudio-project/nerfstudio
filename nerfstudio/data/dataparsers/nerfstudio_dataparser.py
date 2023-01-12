@@ -36,7 +36,8 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
+
 MAX_AUTO_RESOLUTION = 1600
 
 
@@ -158,11 +159,15 @@ class Nerfstudio(DataParser):
 
             if "depth_file_path" in frame:
                 depth_filepath = PurePath(frame["depth_file_path"])
-                depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
+                depth_fname = self._get_fname(
+                    depth_filepath, data_dir, downsample_folder_prefix="depths_"
+                )
                 depth_filenames.append(depth_fname)
 
         if num_skipped_image_filenames >= 0:
-            CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
+            CONSOLE.log(
+                f"Skipping {num_skipped_image_filenames} files in dataset split {split}."
+            )
         assert (
             len(image_filenames) != 0
         ), """
@@ -201,7 +206,9 @@ class Nerfstudio(DataParser):
 
         if "orientation_override" in meta:
             orientation_method = meta["orientation_override"]
-            CONSOLE.log(f"[yellow] Dataset is overriding orientation method to {orientation_method}")
+            CONSOLE.log(
+                f"[yellow] Dataset is overriding orientation method to {orientation_method}"
+            )
         else:
             orientation_method = self.config.orientation_method
 
@@ -222,8 +229,12 @@ class Nerfstudio(DataParser):
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
-        mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
-        depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
+        mask_filenames = (
+            [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
+        )
+        depth_filenames = (
+            [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
+        )
         poses = poses[indices]
 
         # in x,y,z order
@@ -231,7 +242,11 @@ class Nerfstudio(DataParser):
         aabb_scale = self.config.scene_scale
         scene_box = SceneBox(
             aabb=torch.tensor(
-                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+                [
+                    [-aabb_scale, -aabb_scale, -aabb_scale],
+                    [aabb_scale, aabb_scale, aabb_scale],
+                ],
+                dtype=torch.float32,
             )
         )
 
@@ -241,12 +256,36 @@ class Nerfstudio(DataParser):
             camera_type = CameraType.PERSPECTIVE
 
         idx_tensor = torch.tensor(indices, dtype=torch.long)
-        fx = float(meta["fl_x"]) if fx_fixed else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
-        fy = float(meta["fl_y"]) if fy_fixed else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
-        cx = float(meta["cx"]) if cx_fixed else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
-        cy = float(meta["cy"]) if cy_fixed else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
-        height = int(meta["h"]) if height_fixed else torch.tensor(height, dtype=torch.int32)[idx_tensor]
-        width = int(meta["w"]) if width_fixed else torch.tensor(width, dtype=torch.int32)[idx_tensor]
+        fx = (
+            float(meta["fl_x"])
+            if fx_fixed
+            else torch.tensor(fx, dtype=torch.float32)[idx_tensor]
+        )
+        fy = (
+            float(meta["fl_y"])
+            if fy_fixed
+            else torch.tensor(fy, dtype=torch.float32)[idx_tensor]
+        )
+        cx = (
+            float(meta["cx"])
+            if cx_fixed
+            else torch.tensor(cx, dtype=torch.float32)[idx_tensor]
+        )
+        cy = (
+            float(meta["cy"])
+            if cy_fixed
+            else torch.tensor(cy, dtype=torch.float32)[idx_tensor]
+        )
+        height = (
+            int(meta["h"])
+            if height_fixed
+            else torch.tensor(height, dtype=torch.int32)[idx_tensor]
+        )
+        width = (
+            int(meta["w"])
+            if width_fixed
+            else torch.tensor(width, dtype=torch.int32)[idx_tensor]
+        )
         if distort_fixed:
             distortion_params = camera_utils.get_distortion_params(
                 k1=float(meta["k1"]) if "k1" in meta else 0.0,
@@ -282,13 +321,17 @@ class Nerfstudio(DataParser):
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
             metadata={
-                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "depth_filenames": depth_filenames
+                if len(depth_filenames) > 0
+                else None,
                 "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
             },
         )
         return dataparser_outputs
 
-    def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
+    def _get_fname(
+        self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_"
+    ) -> Path:
         """Get the filename of the image file.
         downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
 
@@ -306,7 +349,11 @@ class Nerfstudio(DataParser):
                 while True:
                     if (max_res / 2 ** (df)) < MAX_AUTO_RESOLUTION:
                         break
-                    if not (data_dir / f"{downsample_folder_prefix}{2**(df+1)}" / filepath.name).exists():
+                    if not (
+                        data_dir
+                        / f"{downsample_folder_prefix}{2**(df+1)}"
+                        / filepath.name
+                    ).exists():
                         break
                     df += 1
 
@@ -316,5 +363,9 @@ class Nerfstudio(DataParser):
                 self.downscale_factor = self.config.downscale_factor
 
         if self.downscale_factor > 1:
-            return data_dir / f"{downsample_folder_prefix}{self.downscale_factor}" / filepath.name
+            return (
+                data_dir
+                / f"{downsample_folder_prefix}{self.downscale_factor}"
+                / filepath.name
+            )
         return data_dir / filepath

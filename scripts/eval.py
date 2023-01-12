@@ -13,7 +13,7 @@ from rich.console import Console
 
 from nerfstudio.utils.eval_utils import eval_setup
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass

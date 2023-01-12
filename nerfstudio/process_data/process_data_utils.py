@@ -26,7 +26,7 @@ from typing_extensions import Literal
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 class CameraModel(Enum):
@@ -73,7 +73,9 @@ def convert_video_to_images(
         A tuple containing summary of the conversion and the number of extracted frames.
     """
 
-    with status(msg="Converting video to images...", spinner="bouncingBall", verbose=verbose):
+    with status(
+        msg="Converting video to images...", spinner="bouncingBall", verbose=verbose
+    ):
         # delete existing images in folder
         for img in image_dir.glob("*.png"):
             if verbose:
@@ -93,7 +95,9 @@ def convert_video_to_images(
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
         else:
-            CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
+            CONSOLE.print(
+                "[bold red]Can't satify requested number of frames. Extracting all frames."
+            )
             ffmpeg_cmd += " -pix_fmt bgr8"
 
         ffmpeg_cmd += f" {out_filename}"
@@ -110,7 +114,10 @@ def convert_video_to_images(
 
 
 def copy_images_list(
-    image_paths: List[Path], image_dir: Path, crop_border_pixels: Optional[int] = None, verbose: bool = False
+    image_paths: List[Path],
+    image_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    verbose: bool = False,
 ) -> List[Path]:
     """Copy all images in a list of Paths. Useful for filtering from a directory.
     Args:
@@ -164,9 +171,13 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     Returns:
         The number of images copied.
     """
-    with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
+    with status(
+        msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose
+    ):
         allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-        image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+        image_paths = sorted(
+            [p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts]
+        )
 
         if len(image_paths) == 0:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
@@ -177,7 +188,9 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     return num_frames
 
 
-def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> str:
+def downscale_images(
+    image_dir: Path, num_downscales: int, verbose: bool = False
+) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
@@ -194,7 +207,11 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
     if num_downscales == 0:
         return "No downscaling performed."
 
-    with status(msg="[bold yellow]Downscaling images...", spinner="growVertical", verbose=verbose):
+    with status(
+        msg="[bold yellow]Downscaling images...",
+        spinner="growVertical",
+        verbose=verbose,
+    ):
         downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
@@ -212,7 +229,9 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
             run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
-    downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
+    downscale_text = [
+        f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)
+    ]
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
 
@@ -232,7 +251,14 @@ def find_tool_feature_matcher_combination(
         "disk",
     ],
     matcher_type: Literal[
-        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+        "any",
+        "NN",
+        "superglue",
+        "superglue-fast",
+        "NN-superpoint",
+        "NN-ratio",
+        "NN-mutual",
+        "adalam",
     ],
 ):
     """Find a valid combination of sfm tool, feature type, and matcher type.

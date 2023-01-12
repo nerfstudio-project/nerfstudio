@@ -35,7 +35,7 @@ from nerfstudio.data.dataparsers.base_dataparser import (
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.data.utils.colmap_utils import read_cameras_binary, read_images_binary
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 @dataclass
@@ -80,7 +80,9 @@ class Phototourism(DataParser):
         image_filenames = []
         poses = []
 
-        with CONSOLE.status(f"[bold green]Reading phototourism images and poses for {split} split...") as _:
+        with CONSOLE.status(
+            f"[bold green]Reading phototourism images and poses for {split} split..."
+        ) as _:
             cams = read_cameras_binary(self.data / "dense/sparse/cameras.bin")
             imgs = read_images_binary(self.data / "dense/sparse/images.bin")
 
@@ -98,9 +100,14 @@ class Phototourism(DataParser):
         for _id, cam in cams.items():
             img = imgs[_id]
 
-            assert cam.model == "PINHOLE", "Only pinhole (perspective) camera model is supported at the moment"
+            assert (
+                cam.model == "PINHOLE"
+            ), "Only pinhole (perspective) camera model is supported at the moment"
 
-            pose = torch.cat([torch.tensor(img.qvec2rotmat()), torch.tensor(img.tvec.reshape(3, 1))], dim=1)
+            pose = torch.cat(
+                [torch.tensor(img.qvec2rotmat()), torch.tensor(img.tvec.reshape(3, 1))],
+                dim=1,
+            )
             pose = torch.cat([pose, torch.tensor([[0.0, 0.0, 0.0, 1.0]])], dim=0)
             poses.append(torch.linalg.inv(pose))
             fxs.append(torch.tensor(cam.params[0]))
@@ -138,7 +145,9 @@ class Phototourism(DataParser):
             raise ValueError(f"Unknown dataparser split {split}")
 
         poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
-            poses, method=self.config.orientation_method, center_poses=self.config.center_poses
+            poses,
+            method=self.config.orientation_method,
+            center_poses=self.config.center_poses,
         )
 
         # Scale poses
@@ -154,7 +163,11 @@ class Phototourism(DataParser):
         aabb_scale = self.config.scene_scale
         scene_box = SceneBox(
             aabb=torch.tensor(
-                [[-aabb_scale, -aabb_scale, -aabb_scale], [aabb_scale, aabb_scale, aabb_scale]], dtype=torch.float32
+                [
+                    [-aabb_scale, -aabb_scale, -aabb_scale],
+                    [aabb_scale, aabb_scale, aabb_scale],
+                ],
+                dtype=torch.float32,
             )
         )
 

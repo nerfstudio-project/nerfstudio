@@ -41,7 +41,7 @@ except ImportError:
 else:
     _HAS_HLOC = True
 
-CONSOLE = Console(width=120)
+CONSOLE = Console(width=120, no_color=True)
 
 
 def run_hloc(
@@ -51,10 +51,22 @@ def run_hloc(
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
     feature_type: Literal[
-        "sift", "superpoint_aachen", "superpoint_max", "superpoint_inloc", "r2d2", "d2net-ss", "sosnet", "disk"
+        "sift",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
     ] = "superpoint_aachen",
     matcher_type: Literal[
-        "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+        "superglue",
+        "superglue-fast",
+        "NN-superpoint",
+        "NN-ratio",
+        "NN-mutual",
+        "adalam",
     ] = "superglue",
     num_matched: int = 50,
 ) -> None:
@@ -85,7 +97,9 @@ def run_hloc(
     matcher_conf = match_features.confs[matcher_type]
 
     references = [p.relative_to(image_dir).as_posix() for p in image_dir.iterdir()]
-    extract_features.main(feature_conf, image_dir, image_list=references, feature_path=features)
+    extract_features.main(
+        feature_conf, image_dir, image_list=references, feature_path=features
+    )
     if matching_method == "exhaustive":
         pairs_from_exhaustive.main(sfm_pairs, image_list=references)
     else:
