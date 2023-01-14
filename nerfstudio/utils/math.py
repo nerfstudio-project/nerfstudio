@@ -26,7 +26,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
 
     Args:
         levels: Number of spherical harmonic levels to compute.
-        directions: Spherical hamonic coefficients
+        directions: Spherical harmonic coefficients
     """
     num_components = levels**2
     components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)

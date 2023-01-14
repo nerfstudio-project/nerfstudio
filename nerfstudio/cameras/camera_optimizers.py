@@ -104,7 +104,7 @@ class CameraOptimizer(nn.Module):
         Args:
             indices: indices of Cameras to optimize.
         Returns:
-            Tranformation matrices from optimized camera coordinates coordinates
+            Transformation matrices from optimized camera coordinates
             to given camera coordinates.
         """
         outputs = []

@@ -364,7 +364,7 @@ def detect_model_format(path: Path, ext: str) -> bool:
         path: Path to the model file.
         ext: Extension to test.
     Returns:
-        True if the model file is the tested extenstion, False otherwise.
+        True if the model file is the tested extension, False otherwise.
     """
 
     if (
