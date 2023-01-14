@@ -54,6 +54,12 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 7. Now the scene can be rendered and composited over the camera aligned Nerfstudio render.  
 <img width="800" alt="image" src="https://user-images.githubusercontent.com/9502341/211245025-2ef5adbe-9306-4eab-b761-c78e3ec187bd.png">
 
+### Examples
+
+<p align="center">
+    <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/212463397-ba34d60f-a744-47a1-95ce-da6945a7fc00.gif">
+    <img width="300" alt="image" src="https://user-images.githubusercontent.com/9502341/212461881-e2096710-4732-4f20-9ba7-1aeb0d0d653b.gif">
+</p>
 
 ### Additional details
 
