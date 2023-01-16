@@ -98,7 +98,7 @@ class ZMQWebSocketBridge:
         websocket_port: websocket port to connect to. Defaults to None.
     """
 
-    context = zmq.Context()
+    context = zmq.Context()  # pylint: disable=abstract-class-instantiated
 
     def __init__(self, zmq_port: int, websocket_port: int, ip_address: str):
         self.zmq_port = zmq_port
