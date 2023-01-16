@@ -18,7 +18,8 @@ Dataset.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Dict
+from pathlib import Path
+from typing import Dict, List
 
 import numpy as np
 import numpy.typing as npt
@@ -64,7 +65,9 @@ class InputDataset(Dataset):
             width, height = pil_image.size
             newsize = (int(width * self.scale_factor), int(height * self.scale_factor))
             pil_image = pil_image.resize(newsize, resample=Image.BILINEAR)
-        image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
+        image = np.array(pil_image, dtype="uint8")  # shape is (h, w) or (h, w, 3 or 4)
+        if len(image.shape) == 2:
+            image = image[:, :, None].repeat(3, axis=2)
         assert len(image.shape) == 3
         assert image.dtype == np.uint8
         assert image.shape[2] in [3, 4], f"Image shape of {image.shape} is in correct."
@@ -113,3 +116,12 @@ class InputDataset(Dataset):
     def __getitem__(self, image_idx: int) -> Dict:
         data = self.get_data(image_idx)
         return data
+
+    @property
+    def image_filenames(self) -> List[Path]:
+        """
+        Returns image filenames for this dataset.
+        The order of filenames is the same as in the Cameras object for easy mapping.
+        """
+
+        return self._dataparser_outputs.image_filenames

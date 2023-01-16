@@ -62,6 +62,8 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
+    depth_unit_scale_factor: float = 1e-3
+    """Scales the depth values to meters. Default value is 0.001 for a millimiter to meter conversion."""
 
 
 @dataclass
@@ -83,6 +85,7 @@ class Nerfstudio(DataParser):
 
         image_filenames = []
         mask_filenames = []
+        depth_filenames = []
         poses = []
         num_skipped_image_filenames = 0
 
@@ -152,6 +155,12 @@ class Nerfstudio(DataParser):
                     downsample_folder_prefix="masks_",
                 )
                 mask_filenames.append(mask_fname)
+
+            if "depth_file_path" in frame:
+                depth_filepath = PurePath(frame["depth_file_path"])
+                depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
+                depth_filenames.append(depth_fname)
+
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -165,6 +174,12 @@ class Nerfstudio(DataParser):
         ), """
         Different number of image and mask filenames.
         You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
+        """
+        assert len(depth_filenames) == 0 or (
+            len(depth_filenames) == len(image_filenames)
+        ), """
+        Different number of image and depth filenames.
+        You should check that depth_file_path is specified for every frame (or zero frames) in transforms.json.
         """
 
         # filter image_filenames and poses based on train/eval split percentage
@@ -208,6 +223,7 @@ class Nerfstudio(DataParser):
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
         image_filenames = [image_filenames[i] for i in indices]
         mask_filenames = [mask_filenames[i] for i in indices] if len(mask_filenames) > 0 else []
+        depth_filenames = [depth_filenames[i] for i in indices] if len(depth_filenames) > 0 else []
         poses = poses[indices]
 
         # in x,y,z order
@@ -265,6 +281,10 @@ class Nerfstudio(DataParser):
             mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=scale_factor,
             dataparser_transform=transform_matrix,
+            metadata={
+                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "depth_unit_scale_factor": self.config.depth_unit_scale_factor,
+            },
         )
         return dataparser_outputs
 

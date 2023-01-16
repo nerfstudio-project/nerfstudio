@@ -24,7 +24,6 @@ from typing import Dict, List, Optional, Tuple, Union
 import cv2
 import torch
 import torchvision
-from torch.nn.functional import normalize
 from torchtyping import TensorType
 
 import nerfstudio.utils.poses as pose_utils
@@ -634,7 +633,7 @@ class Cameras(TensorDataclass):
 
             directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask).float()
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
-            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
+            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
 
         if CameraType.EQUIRECTANGULAR.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
@@ -666,7 +665,7 @@ class Cameras(TensorDataclass):
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
         )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
-        directions_stack = normalize(directions_stack, dim=-1)
+        directions_stack, directions_norm = camera_utils.normalize_with_norm(directions_stack, -1)
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
         origins = c2w[..., :3, 3]  # (..., 3)
@@ -691,6 +690,7 @@ class Cameras(TensorDataclass):
             pixel_area=pixel_area,
             camera_indices=camera_indices,
             times=times,
+            metadata={"directions_norm": directions_norm[0].detach()},
         )
 
     def to_json(

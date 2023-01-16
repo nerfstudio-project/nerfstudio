@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nerfstudio"
-version = "0.1.13"
+version = "0.1.14"
 description = "All-in-one repository for state-of-the-art NeRFs"
 readme = "README.md"
 license = { text="Apache 2.0"}
@@ -19,7 +19,7 @@ dependencies = [
     "appdirs>=1.4",
     "av==9.2.0",
     "tyro>=0.3.31",
-    "gdown==4.5.1",
+    "gdown==4.6.0",
     "ninja==1.10.2.3",
     "functorch==0.2.1",
     "h5py>=2.9.0",
@@ -30,7 +30,7 @@ dependencies = [
     "mediapy==1.1.0",
     "msgpack==1.0.4",
     "msgpack_numpy==0.4.8",
-    "nerfacc==0.2.1",
+    "nerfacc==0.3.2",
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",

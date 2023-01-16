@@ -27,8 +27,7 @@ import yaml
 from rich.console import Console
 from typing_extensions import Literal
 
-from nerfstudio.configs.base_config import TrainerConfig
-from nerfstudio.configs.experiment_config import ExperimentConfig
+from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 
 CONSOLE = Console(width=120)
@@ -69,7 +68,7 @@ def eval_setup(
     config_path: Path,
     eval_num_rays_per_chunk: Optional[int] = None,
     test_mode: Literal["test", "val", "inference"] = "test",
-) -> Tuple[ExperimentConfig, Pipeline, Path]:
+) -> Tuple[TrainerConfig, Pipeline, Path]:
     """Shared setup for loading a saved pipeline for evaluation.
 
     Args:
@@ -86,14 +85,14 @@ def eval_setup(
     """
     # load save config
     config = yaml.load(config_path.read_text(), Loader=yaml.Loader)
-    assert isinstance(config, ExperimentConfig)
+    assert isinstance(config, TrainerConfig)
 
     if eval_num_rays_per_chunk:
         config.pipeline.model.eval_num_rays_per_chunk = eval_num_rays_per_chunk
 
     # load checkpoints from wherever they were saved
     # TODO: expose the ability to choose an arbitrary checkpoint
-    config.trainer.load_dir = config.get_checkpoint_dir()
+    config.load_dir = config.get_checkpoint_dir()
     config.pipeline.datamanager.eval_image_indices = None
 
     # setup pipeline (which includes the DataManager)
@@ -103,6 +102,6 @@ def eval_setup(
     pipeline.eval()
 
     # load checkpointed information
-    checkpoint_path = eval_load_checkpoint(config.trainer, pipeline)
+    checkpoint_path = eval_load_checkpoint(config, pipeline)
 
     return config, pipeline, checkpoint_path
