@@ -34,7 +34,7 @@ dependencies = [
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "plotly==5.7.0",
-    "protobuf==3.20.0",
+    "protobuf==3.20.2",
     "pymeshlab==2022.2.post2",
     "pyngrok==5.1.0",
     "python-socketio==5.7.1",
