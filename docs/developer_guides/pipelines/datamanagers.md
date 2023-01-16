@@ -34,7 +34,7 @@ class DataManager(nn.Module):
         """Returns the next eval image.
 
         Returns:
-            The image index from the eval datset, the CameraRayBundle, and the RayGT dictionary.
+            The image index from the eval dataset, the CameraRayBundle, and the RayGT dictionary.
         """
 ```
 
