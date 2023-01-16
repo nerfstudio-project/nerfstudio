@@ -137,7 +137,7 @@ class Trainer:
         Args:
             test_mode:
                 'val': loads train/val datasets into memory
-                'test': loads train/test datset into memory
+                'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
         self.pipeline = self.config.pipeline.setup(

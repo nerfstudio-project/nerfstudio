@@ -364,7 +364,7 @@ def detect_model_format(path: Path, ext: str) -> bool:
         path: Path to the model file.
         ext: Extension to test.
     Returns:
-        True if the model file is the tested extenstion, False otherwise.
+        True if the model file is the tested extension, False otherwise.
     """
 
     if (
@@ -663,7 +663,7 @@ def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str
     """
     match_ratio = num_matched_frames / num_intial_frames
     if match_ratio == 1:
-        return "[bold green]COLAMP found poses for all images, CONGRATS!"
+        return "[bold green]COLMAP found poses for all images, CONGRATS!"
     if match_ratio < 0.4:
         result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
         result += " of the images. This is low.\nThis can be caused by a variety of reasons,"

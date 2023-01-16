@@ -29,7 +29,7 @@ class RayGenerator(nn.Module):
 
     Args:
         cameras: Camera objects containing camera info.
-        pose_optimizer: pose optimization module, for optimizing noisy camera intrisics/extrinsics.
+        pose_optimizer: pose optimization module, for optimizing noisy camera intrinsics/extrinsics.
     """
 
     def __init__(self, cameras: Cameras, pose_optimizer: CameraOptimizer) -> None:
@@ -42,7 +42,7 @@ class RayGenerator(nn.Module):
         """Index into the cameras to generate the rays.
 
         Args:
-            ray_indices: Contains camera, row, and col indicies for target rays.
+            ray_indices: Contains camera, row, and col indices for target rays.
         """
         c = ray_indices[:, 0]  # camera indices
         y = ray_indices[:, 1]  # row indices

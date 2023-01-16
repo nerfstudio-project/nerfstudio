@@ -84,7 +84,7 @@ class FieldHead(FieldComponent):
             Render head output
         """
         if not self.net:
-            raise SystemError("in_dim not set. Must be provided to construtor, or set_in_dim() should be called.")
+            raise SystemError("in_dim not set. Must be provided to constructor, or set_in_dim() should be called.")
         out_tensor = self.net(in_tensor)
         if self.activation:
             out_tensor = self.activation(out_tensor)
