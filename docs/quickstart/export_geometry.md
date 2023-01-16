@@ -42,7 +42,7 @@ ns-export pointcloud --help
 
 ## Other exporting methods
 
-Run the folowing command to see other export methods that may exist.
+Run the following command to see other export methods that may exist.
 
 ```python
 ns-export --help

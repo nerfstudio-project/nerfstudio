@@ -76,7 +76,7 @@ def eval_setup(
         eval_num_rays_per_chunk: Number of rays per forward pass
         test_mode:
             'val': loads train/val datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
 
 

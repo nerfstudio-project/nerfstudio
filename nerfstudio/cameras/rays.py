@@ -186,7 +186,7 @@ class RayBundle(TensorDataclass):
         return self[indices]
 
     def get_row_major_sliced_ray_bundle(self, start_idx: int, end_idx: int) -> "RayBundle":
-        """Flattens RayBundle and extracts chunk given start and end indicies.
+        """Flattens RayBundle and extracts chunk given start and end indices.
 
         Args:
             start_idx: Start index of RayBundle chunk.
