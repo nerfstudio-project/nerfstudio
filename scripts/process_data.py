@@ -5,7 +5,7 @@
 import json
 import sys
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Union
 
@@ -87,6 +87,8 @@ class ProcessImages:
     verbose: bool = False
     """If True, print extra logging."""
     colmap_feature_extractor_kwargs: str = ""
+    seg_masks: list[Path] = field(default_factory=lambda: [])
+    """Directories of segmentation masks"""
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
@@ -103,6 +105,19 @@ class ProcessImages:
         num_frames = process_data_utils.copy_images(
             self.data, image_dir=image_dir, verbose=self.verbose
         )
+
+        # Copy images segmentation masks
+        seg_new_dirs = []
+        for seg_source_sequence in self.seg_masks:
+            seg_name = Path(seg_source_sequence).name
+            seg_dir = Path(self.output_dir, seg_name + "_seg_mask")
+            seg_new_dirs.append(seg_dir)
+            seg_image_dir = Path(seg_dir, "images")
+            seg_image_dir.mkdir(parents=True, exist_ok=True)
+            process_data_utils.copy_images(
+                seg_source_sequence, image_dir=seg_image_dir, verbose=self.verbose
+            )
+
         summary_log.append(f"Starting with {num_frames} images")
 
         # Downscale images
@@ -153,6 +168,8 @@ class ProcessImages:
                 sys.exit(1)
 
         # Save transforms.json
+
+        save_transforms_to = [self.output_dir, *seg_new_dirs]
         if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
             with CONSOLE.status(
                 "[bold yellow]Saving results to transforms.json", spinner="balloon"
@@ -160,7 +177,7 @@ class ProcessImages:
                 num_matched_frames = colmap_utils.colmap_to_json(
                     cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
                     images_path=colmap_dir / "sparse" / "0" / "images.bin",
-                    output_dir=self.output_dir,
+                    output_dir=save_transforms_to,
                     camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")

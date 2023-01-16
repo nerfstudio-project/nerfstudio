@@ -645,7 +645,10 @@ def run_colmap(
 
 
 def colmap_to_json(
-    cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel
+    cameras_path: Path,
+    images_path: Path,
+    output_dir: list[Path] | Path,
+    camera_model: CameraModel,
 ) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
@@ -716,8 +719,16 @@ def colmap_to_json(
 
     out["frames"] = frames
 
-    with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
-        json.dump(out, f, indent=4)
+    if type(output_dir) is Path:
+        output_dirs = [output_dir]
+    elif type(output_dir) is list:
+        output_dirs = output_dir
+    else:
+        raise Exception(f"Wrong type {type(output_dir)}")
+
+    for o in output_dirs:
+        with open(o / "transforms.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=4)
 
     return len(frames)
 

@@ -2,135 +2,19 @@ from __future__ import annotations
 import os
 
 os.environ["TERM"] = "dumb"
-from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion, method_configs
-from nerfstudio.nerfstudio.data.dataparsers.blender_dataparser import (
-    BlenderDataParserConfig,
-)
-from nerfstudio.nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.nerfstudio.configs.base_config import (
-    LoggingConfig,
-    ViewerConfig,
-    LocalWriterConfig,
-)
+from nerfstudio.configs.method_configs import AnnotatedBaseConfigUnion
 import scripts.train as train
 import tyro
-from typing import Literal, Optional
 from pathlib import Path
 from scripts.my_utils import *
 import tyro
-
-from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import ViewerConfig
-from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
-from nerfstudio.engine.optimizers import AdamOptimizerConfig, Optimizers
-from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.models.nerfacto import NerfactoModelConfig
-from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-from nerfstudio.engine.optimizers import AdamOptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.engine.trainer import TrainerConfig
-from nerfstudio.models.nerfacto import NerfactoModelConfig
-from nerfstudio.models.tensorf import TensoRFModelConfig
-from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-from typing import TypedDict
+from copy import deepcopy
 import argparse
-from datetime import datetime
-
-
-from pydantic import ValidationError, Field
-import pydantic.dataclasses
-import dataclasses
+import json
+import glob
 
 OUTPUT_DIRECTORY = "outputs"
-
-
-@dataclasses.dataclass()
-class InnerArgs:
-    pass
-    # models: list[Literal["nerfacto", "tensorf"]]
-    # datasets: list[str]
-
-
-@dataclasses.dataclass()
-class InnerArgsOpt:
-    seg_masks: Optional[list[str]] = None
-
-
-"""SUPER IMPORTANT: ALL DATACLASS' ATTRIBUTES MUST HAVE TYPE ASSIGNED, OTHERWISE THEY ARE GETTING IGNORED"""
-
-
-@dataclasses.dataclass()
-class MyTrainerConf(InnerArgsOpt, TrainerConfig, InnerArgs):
-    logging: LoggingConfig = LoggingConfig(
-        steps_per_log=200,
-        max_buffer_size=200,
-        local_writer=LocalWriterConfig(enable=True, max_log_size=0),
-    )
-    viewer: ViewerConfig = ViewerConfig(
-        quit_on_train_completion=True, num_rays_per_chunk=1 << 15
-    )
-    save_only_latest_checkpoint: bool = False
-    max_num_iterations: int = 30000
-    vis: str = "viewer"
-
-
-@dataclasses.dataclass()
-class NerfactoConfig(MyTrainerConf):
-    method_name: str = "nerfacto"
-    steps_per_eval_batch: int = 500
-    mixed_precision: bool = True
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
-            train_num_rays_per_batch=4096,
-            eval_num_rays_per_batch=4096,
-            camera_optimizer=CameraOptimizerConfig(
-                mode="SO3xR3",
-                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
-            ),
-        ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
-    )
-    optimizers: dict = Field(
-        default_factory=lambda: {
-            "proposal_networks": {
-                "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-                "scheduler": None,
-            },
-            "fields": {
-                "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
-                "scheduler": None,
-            },
-        },
-    )
-
-
-@dataclasses.dataclass()
-class TensorfConfig(MyTrainerConf):
-    method_name: str = "tensorf"
-    mixed_precision: bool = False
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig(
-        datamanager=VanillaDataManagerConfig(
-            dataparser=NerfstudioDataParserConfig(),
-        ),
-        model=TensoRFModelConfig(),
-    )
-    optimizers: dict = Field(
-        default_factory=lambda: {
-            "fields": {
-                "optimizer": AdamOptimizerConfig(lr=0.001),
-                "scheduler": SchedulerConfig(lr_final=0.0001, max_steps=30000),
-            },
-            "encodings": {
-                "optimizer": AdamOptimizerConfig(lr=0.02),
-                "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
-            },
-        }
-    )
-
-
-model_confs = {"nerfacto": NerfactoConfig, "tensorf": TensorfConfig}
+SEGMENTATION_DIRECTORY_DELIMITER = ":"
 
 
 def dynamically_override_config(config):
@@ -142,26 +26,110 @@ def dynamically_override_config(config):
     return config
 
 
-def entrypoint():
+def parse_args():
+    args = argparse.ArgumentParser()
+    args.add_argument("--models", nargs="+")
+    args.add_argument("--datasets", nargs="+")
+    args.add_argument("--seg_iter", nargs="+", default=30_000)
+    args.add_argument("--seg_auto", default=False)
 
-    pre_parser = argparse.ArgumentParser()
-    pre_parser.add_argument("--models", nargs="+", required=True)
-    pre_parser.add_argument("--datasets", nargs="+", required=True)
-    pre_conf, nerfstudio_args = pre_parser.parse_known_args()
+    return args.parse_known_args()
 
-    for model in pre_conf.models:
-        for dataset in pre_conf.datasets:
-            nerfstudio_args.insert(0, model)
-            nerfstudio_args.extend(["--data", dataset])
-            config = tyro.cli(AnnotatedBaseConfigUnion, args=nerfstudio_args)
-            config = dynamically_override_config(config)
 
-            out_dir = Path(config.output_dir, config.experiment_name)  # type: ignore
-            out_dir.mkdir(parents=True, exist_ok=True)
-            stdout_to_file(Path(out_dir, "log.txt"))
-            train.main(config)
+def split_to_model_and_data(
+    nerfstudio_args, num_models, num_datasets, dataset_at_index
+) -> tuple[list[str], list[str]]:
+    left = dataset_at_index - 1 - 1 - num_models
+    right = left + num_datasets - 1
+
+    return nerfstudio_args[:left], nerfstudio_args[right:]
+
+
+def train_and_time(config):
+    time_start = datetime.now()
+    train.main(config)
+    time_end = datetime.now()
+    time_total_in_minutes = (time_end - time_start).total_seconds() / 60.0
+    return time_total_in_minutes
+
+
+def main():
+
+    script_args, nerfstudio_args = parse_args()
+
+    model_args, data_args = split_to_model_and_data(
+        nerfstudio_args,
+        len(script_args.models),
+        len(script_args.datasets),
+        sys.argv.index("--datasets"),
+    )
+
+    for model in script_args.models:
+        for dataset_and_segmentations in script_args.datasets:
+
+            dataset_and_segmentations = dataset_and_segmentations.split(
+                SEGMENTATION_DIRECTORY_DELIMITER
+            )
+            dataset = dataset_and_segmentations[0]
+            segmentation_sequences = dataset_and_segmentations[1:]
+
+            timestamp = get_timestamp()
+            data_name = Path(dataset).name
+            experiment_name = get_experiment_name(timestamp=timestamp)
+
+            # Build args
+            prepare_args = []
+            prepare_args.insert(0, model)
+            prepare_args.extend(model_args)
+            prepare_args.extend(["--data", dataset])
+            prepare_args.extend(data_args)
+
+            # Parse and adjust
+            config = tyro.cli(
+                deepcopy(AnnotatedBaseConfigUnion),
+                args=prepare_args,
+            )
+            config.experiment_name = (
+                f"{experiment_name}-{data_name}-{config.method_name}"
+            )
+            config.relative_model_dir = "."  # don't save to nerfstudio_models
+
+            # Log to file
+            rgb_out_dir = Path(config.output_dir, config.experiment_name)  # type: ignore
+            rgb_out_dir.mkdir(parents=True, exist_ok=True)
+            stdout_to_file(Path(rgb_out_dir, "log.txt"))
+
+            time_total_in_minutes = train_and_time(config)
+
+            stats = {"train_time_total_in_minutes": time_total_in_minutes}
+            with open(Path(rgb_out_dir, "stats.json"), "w") as fp:
+                json.dump(stats, fp)
+
+            if script_args.seg_auto:
+                # TODO: finish this
+                for seg_mask in dataset.glob("*mask*"):
+                    print(seg_mask)
+                    segmentation_sequences.append(seg_mask)
+
+            # Train segmentations
+            for seg_path in segmentation_sequences:
+                reset_sockets()
+
+                config.data = Path(seg_path)
+                data_name = Path(seg_path).name
+                config.experiment_name += f"_{data_name}"  # append segmnetation name
+                config.load_dir = rgb_out_dir
+                config.max_num_iterations = script_args.seg_iter
+                out_dir = Path(rgb_out_dir, data_name)
+                out_dir.mkdir(parents=True, exist_ok=True)
+                stdout_to_file(Path(out_dir, "log.txt"))
+
+                time_total_in_minutes = train_and_time(config)
+
+                stats = {"train_time_total_in_minutes": time_total_in_minutes}
+                with open(Path(rgb_out_dir, "stats.json"), "w") as fp:
+                    json.dump(stats, fp)
 
 
 if __name__ == "__main__":
-    tyro.extras.set_accent_color(None)
-    entrypoint()
+    main()

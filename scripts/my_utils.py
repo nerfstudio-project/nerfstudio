@@ -44,3 +44,8 @@ def stdout_to_file(file: Path):
     f = open(Path(file), "w")
     sys.stdout = SocketConcatenator(sys.stdout, f)
     sys.stderr = SocketConcatenator(sys.stderr, f)
+
+
+def reset_sockets():
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__

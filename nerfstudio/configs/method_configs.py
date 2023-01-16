@@ -24,7 +24,11 @@ import tyro
 from nerfacc import ContractionType
 
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
-from nerfstudio.configs.base_config import ViewerConfig
+from nerfstudio.configs.base_config import (
+    LocalWriterConfig,
+    LoggingConfig,
+    ViewerConfig,
+)
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
@@ -54,8 +58,27 @@ from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
 from nerfstudio.pipelines.dynamic_batch import DynamicBatchPipelineConfig
+import dataclasses
 
-method_configs: Dict[str, TrainerConfig] = {}
+
+@dataclasses.dataclass()
+class MyTrainerConf(TrainerConfig):
+    """SUPER IMPORTANT: ALL DATACLASS' ATTRIBUTES MUST HAVE TYPE ASSIGNED, OTHERWISE THEY ARE GETTING IGNORED"""
+
+    logging: LoggingConfig = LoggingConfig(
+        steps_per_log=200,
+        max_buffer_size=200,
+        local_writer=LocalWriterConfig(enable=True, max_log_size=0),
+    )
+    viewer: ViewerConfig = ViewerConfig(
+        quit_on_train_completion=True, num_rays_per_chunk=1 << 15
+    )
+    save_only_latest_checkpoint: bool = False
+    max_num_iterations: int = 30000
+    vis: str = "viewer"
+
+
+method_configs: Dict[str, MyTrainerConf] = {}
 descriptions = {
     "nerfacto": "Recommended real-time model tuned for real captures. This model will be continually updated.",
     "depth-nerfacto": "Nerfacto with depth supervision.",
@@ -69,8 +92,36 @@ descriptions = {
     "phototourism": "Uses the Phototourism data.",
 }
 
-method_configs["nerfacto"] = TrainerConfig(
+method_configs["nerfacto"] = MyTrainerConf(
     method_name="nerfacto",
+    steps_per_eval_batch=500,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+            ),
+        ),
+        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+)
+
+method_configs["nerfacto_org"] = MyTrainerConf(
+    method_name="nerfacto_org",
     steps_per_eval_batch=500,
     steps_per_save=2000,
     max_num_iterations=30000,
@@ -101,7 +152,7 @@ method_configs["nerfacto"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["depth-nerfacto"] = TrainerConfig(
+method_configs["depth-nerfacto"] = MyTrainerConf(
     method_name="depth-nerfacto",
     steps_per_eval_batch=500,
     steps_per_save=2000,
@@ -133,7 +184,7 @@ method_configs["depth-nerfacto"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["instant-ngp"] = TrainerConfig(
+method_configs["instant-ngp"] = MyTrainerConf(
     method_name="instant-ngp",
     steps_per_eval_batch=500,
     steps_per_save=2000,
@@ -156,7 +207,7 @@ method_configs["instant-ngp"] = TrainerConfig(
 )
 
 
-method_configs["instant-ngp-bounded"] = TrainerConfig(
+method_configs["instant-ngp-bounded"] = MyTrainerConf(
     method_name="instant-ngp-bounded",
     steps_per_eval_batch=500,
     steps_per_save=2000,
@@ -186,7 +237,7 @@ method_configs["instant-ngp-bounded"] = TrainerConfig(
 )
 
 
-method_configs["mipnerf"] = TrainerConfig(
+method_configs["mipnerf"] = MyTrainerConf(
     method_name="mipnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -208,7 +259,7 @@ method_configs["mipnerf"] = TrainerConfig(
     },
 )
 
-method_configs["semantic-nerfw"] = TrainerConfig(
+method_configs["semantic-nerfw"] = MyTrainerConf(
     method_name="semantic-nerfw",
     steps_per_eval_batch=500,
     steps_per_save=2000,
@@ -236,7 +287,7 @@ method_configs["semantic-nerfw"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["vanilla-nerf"] = TrainerConfig(
+method_configs["vanilla-nerf"] = MyTrainerConf(
     method_name="vanilla-nerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -256,7 +307,55 @@ method_configs["vanilla-nerf"] = TrainerConfig(
     },
 )
 
-method_configs["tensorf"] = TrainerConfig(
+method_configs["tensorf_defaults"] = MyTrainerConf(
+    method_name="tensorf",
+    mixed_precision=False,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+        ),
+        model=TensoRFModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.0001, max_steps=30000),
+        },
+        "encodings": {
+            "optimizer": AdamOptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
+        },
+    },
+)
+
+method_configs["tensorf_nerfacto"] = MyTrainerConf(
+    method_name="tensorf_nerfacto",
+    mixed_precision=False,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3",
+                optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
+            ),
+        ),
+        model=TensoRFModelConfig(),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=0.001),
+            "scheduler": SchedulerConfig(lr_final=0.0001, max_steps=30000),
+        },
+        "encodings": {
+            "optimizer": AdamOptimizerConfig(lr=0.02),
+            "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
+        },
+    },
+)
+
+method_configs["tensorf_org"] = MyTrainerConf(
     method_name="tensorf",
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
@@ -277,7 +376,7 @@ method_configs["tensorf"] = TrainerConfig(
     },
 )
 
-method_configs["dnerf"] = TrainerConfig(
+method_configs["dnerf"] = MyTrainerConf(
     method_name="dnerf",
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(dataparser=DNeRFDataParserConfig()),
@@ -299,7 +398,7 @@ method_configs["dnerf"] = TrainerConfig(
     },
 )
 
-method_configs["phototourism"] = TrainerConfig(
+method_configs["phototourism"] = MyTrainerConf(
     method_name="phototourism",
     steps_per_eval_batch=500,
     steps_per_save=2000,
