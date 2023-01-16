@@ -107,6 +107,7 @@ class AABBBoxCollider(SceneCollider):
         ray_bundle.fars = fars[..., None]
         return ray_bundle
 
+
 class SphereCollider(SceneCollider):
     """Module for colliding rays with the scene box to compute near and far values.
 
@@ -121,9 +122,7 @@ class SphereCollider(SceneCollider):
         self.radius = radius
         self.near_plane = near_plane
 
-    def _intersect_with_sphere(
-        self, rays_o: TensorType["num_rays":..., 3], rays_d: TensorType["num_rays":..., 3]
-    ):
+    def _intersect_with_sphere(self, rays_o: TensorType["num_rays":..., 3], rays_d: TensorType["num_rays":..., 3]):
         """Returns collection of valid rays within a specified near/far bounding box along with a mask
         specifying which rays are valid
 
@@ -132,12 +131,12 @@ class SphereCollider(SceneCollider):
             rays_d: (num_rays, 3) ray directions
         """
 
-        a = (rays_d * rays_d).sum(dim = -1, keepdim = True)
+        a = (rays_d * rays_d).sum(dim=-1, keepdim=True)
         self.center = self.center.to(rays_o)
         b = 2 * (rays_o - self.center) * rays_d
-        b = b.sum(dim = -1, keepdim = True)
+        b = b.sum(dim=-1, keepdim=True)
         c = (rays_o - self.center) * (rays_o - self.center)
-        c = c.sum(dim = -1, keepdim = True) - self.radius ** 2
+        c = c.sum(dim=-1, keepdim=True) - self.radius**2
 
         # clamp to near plane
         near_plane = self.near_plane if self.training else 0

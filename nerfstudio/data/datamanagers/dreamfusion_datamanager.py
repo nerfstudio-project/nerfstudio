@@ -43,6 +43,7 @@ CONSOLE = Console(width=120)
 class TrivialDataset(InputDataset):
     """A trivial dataset with blank images for the viewer"""
 
+    # pylint: disable=super-init-not-called
     def __init__(self, cameras: Cameras):
         self.size = cameras.size
         self.cameras = cameras
@@ -159,6 +160,16 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     """Number of images per batch for training"""
     eval_images_per_batch: int = 1
     """Number of images per batch for evaluation"""
+    radius_mean: float = 1.6
+    """Mean radius of camera orbit"""
+    radius_std: float = 0.2
+    """Std of radius of camera orbit"""
+    focal_range: Tuple[float, float] = (0.75, 1.35)
+    """Range of focal length"""
+    vertical_rotation_range: Tuple[float, float] = (-90, 30)
+    """Range of vertical rotation"""
+    jitter_std: float = 0.05
+    """Std of camera direction jitter, so we don't just point the cameras towards the center every time"""
 
 
 class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-method
@@ -176,6 +187,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
 
     config: DreamFusionDataManagerConfig
 
+    # pylint: disable=super-init-not-called
     def __init__(
         self,
         config: DreamFusionDataManagerConfig,
@@ -194,20 +206,21 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         self.test_split = "test" if test_mode in ["test", "inference"] else "val"
         self.dataparser = self.config.dataparser.setup()
 
-        self.eval_cameras, _, _ = random_train_pose(
+        cameras, _, _ = random_train_pose(
             self.config.num_eval_angles,
             self.config.eval_resolution,
             device=self.device,
-            radius_mean=1.5,
-            radius_std=0,
-            focal_range=[1, 1],
-            vertical_rotation_range=[-30, 30],
-            # jitter_std=0,
+            radius_mean=self.config.radius_mean,
+            radius_std=self.config.radius_std,
+            focal_range=self.config.focal_range,
+            vertical_rotation_range=self.config.vertical_rotation_range,
+            jitter_std=self.config.jitter_std,
         )
 
-        self.train_dataset = TrivialDataset(self.eval_cameras)
-        self.eval_dataset = TrivialDataset(self.eval_cameras)
+        self.train_dataset = TrivialDataset(cameras)
+        self.eval_dataset = TrivialDataset(cameras)
 
+        # pylint: disable=non-parent-init-called
         DataManager.__init__(self)
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
@@ -215,13 +228,15 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
 
         self.train_count += 1
 
-        # TODO Reimplement when cameras are fully working
+        # # TODO Reimplement when cameras are fully working
         # if step > 2000:
         #     cameras, _, _ = random_train_pose(
         #         self.config.train_images_per_batch, self.config.train_resolution, device=self.device
         #     )
 
-        #     ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
+        #     ray_bundle = cameras.generate_rays(
+        #         torch.tensor(list(range(self.config.train_images_per_batch)))
+        #     ).flatten()
         #     return ray_bundle, {"initialization": False}
 
         # TODO below
@@ -229,16 +244,16 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             self.config.train_images_per_batch,
             self.config.train_resolution,
             device=self.device,
-            radius_mean=1.5,
-            radius_std=0,
-            focal_range=[1, 1],
-            # vertical_rotation_range=[-180, 180],
-            # jitter_std=0,
+            radius_mean=self.config.radius_mean,
+            radius_std=self.config.radius_std,
+            focal_range=self.config.focal_range,
+            vertical_rotation_range=self.config.vertical_rotation_range,
+            jitter_std=self.config.jitter_std,
         )
-        # ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
+        ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 
-        camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
-        ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
+        # camera_idx = torch.randint(0, self.eval_cameras.shape[0], [1], dtype=torch.long, device=self.device)
+        # ray_bundle = self.eval_cameras.generate_rays(camera_idx).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation, "initialization": True}
 
@@ -258,11 +273,11 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             self.config.eval_images_per_batch,
             self.config.eval_resolution,
             device=self.device,
-            radius_mean=1.5,
-            radius_std=0,
-            focal_range=[1, 1],
-            vertical_rotation_range=[-180, 180],
-            jitter_std=0,
+            radius_mean=self.config.radius_mean,
+            radius_std=self.config.radius_std,
+            focal_range=self.config.focal_range,
+            vertical_rotation_range=self.config.vertical_rotation_range,
+            jitter_std=self.config.jitter_std,
         )
         ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(self.config.train_images_per_batch)]))
 

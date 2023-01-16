@@ -47,6 +47,7 @@ from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataPars
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
+from nerfstudio.engine.dreamfusion_trainer import DreamfusionTrainerConfig
 from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConfig
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
@@ -332,11 +333,12 @@ method_configs["phototourism"] = TrainerConfig(
     vis="viewer",
 )
 
-method_configs["dreamfusion"] = ExperimentConfig(
+method_configs["dreamfusion"] = DreamfusionTrainerConfig(
     method_name="dreamfusion",
-    trainer=TrainerConfig(
-        steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
-    ),
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
     pipeline=DreamfusionPipelineConfig(
         datamanager=DreamFusionDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),

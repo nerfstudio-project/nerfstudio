@@ -43,7 +43,7 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
 )
-from nerfstudio.model_components.ray_samplers import PDFSampler, UniformSampler
+from nerfstudio.model_components.ray_samplers import UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -76,6 +76,14 @@ class DreamFusionModelConfig(ModelConfig):
     """Initial strength of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
+    target_transmittance_start: float = 0.8
+    """target transmittance for opacity penalty. This is the percent of the scene that is 
+    background when rendered at the start of training"""
+    target_transmittance_end: float = 0.4
+    """target transmittance for opacity penalty. This is the percent of the scene that is
+    background when rendered at the end of training"""
+    transmittance_end_schedule: int = 1000
+    """number of iterations to reach target_transmittance_end"""
 
 
 class DreamFusionModel(Model):
@@ -97,6 +105,7 @@ class DreamFusionModel(Model):
         self.train_normals = False
         self.train_shaded = False
         self.density_strength = 1.0
+        self.target_transmittance = config.target_transmittance_start
         super().__init__(config=config, **kwargs)
 
     def get_training_callbacks(
@@ -119,6 +128,14 @@ class DreamFusionModel(Model):
         ):
             self.train_shaded = True
 
+        def update_target_transmittance(
+            self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
+        ):
+            if step < self.config.transmittance_end_schedule:
+                self.target_transmittance -= (1 / self.config.transmittance_end_schedule) * (
+                    self.config.target_transmittance_start - self.config.target_transmittance_end
+                )
+
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
@@ -136,6 +153,12 @@ class DreamFusionModel(Model):
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
                 iters=(1000,),
                 func=start_shaded_training,
+                args=[self, training_callback_attributes],
+            ),
+            TrainingCallback(
+                where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
+                update_every_num_iters=1,
+                func=update_target_transmittance,
                 args=[self, training_callback_attributes],
             ),
         ]
@@ -259,6 +282,9 @@ class DreamFusionModel(Model):
             field_outputs[FieldHeadNames.PRED_NORMALS],
         )
 
+        assert weights.shape[-1] == 1
+        outputs["alphas_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
+
         return outputs
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None) -> Dict[str, torch.Tensor]:
@@ -276,6 +302,17 @@ class DreamFusionModel(Model):
         loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
             outputs["rendered_pred_normal_loss"]
         )
+
+        loss_dict["alphas_loss"] = outputs["alphas_loss"].mean()
+
+        assert (
+            self.target_transmittance >= self.config.target_transmittance_end
+            and self.target_transmittance <= self.config.target_transmittance_start
+        )
+        loss_dict["opacity_loss"] = -torch.minimum(
+            (1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance)
+        )
+
         return loss_dict
 
     def get_image_metrics_and_images(

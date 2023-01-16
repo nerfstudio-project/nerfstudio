@@ -1,3 +1,17 @@
+# Copyright 2022 The Nerfstudio Team. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # From https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import matplotlib.pyplot as plt
@@ -91,8 +105,7 @@ class StableDiffusion(nn.Module):
         return text_embeddings
 
     def sds_loss(self, text_embeddings, nerf_output, guidance_scale=100):
-
-        nerf_output_np = nerf_output.view(3, 64, 64).permute(1, 2, 0).detach().cpu().numpy()
+        nerf_output_np = nerf_output.squeeze(0).permute(1, 2, 0).detach().cpu().numpy()
         nerf_output_np = np.clip(nerf_output_np, 0.0, 1.0)
         plt.imsave("nerf_output.png", nerf_output_np)
         nerf_output = F.interpolate(nerf_output, (IMG_DIM, IMG_DIM), mode="bilinear")
@@ -201,7 +214,7 @@ class StableDiffusion(nn.Module):
             latents=latents,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
-        )  # [1, 4, 64, 64]
+        )  # [1, 4, resolution, resolution]
 
         diffused_img = self.latents_to_img(latents)
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
