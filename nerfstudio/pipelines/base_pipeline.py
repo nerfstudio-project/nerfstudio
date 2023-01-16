@@ -80,7 +80,7 @@ class Pipeline(nn.Module):
         device: location to place model and data
         test_mode:
             'train': loads train/eval datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
@@ -197,7 +197,7 @@ class VanillaPipeline(Pipeline):
         device: location to place model and data
         test_mode:
             'val': loads train/val datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine

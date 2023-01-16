@@ -338,7 +338,7 @@ class Cameras(TensorDataclass):
         When coords == None (ie: when we render out the whole image associated with this camera), we run into problems
         since there's no way to stack each coordinate map as all coordinate maps are all different shapes. In this case,
         we will need to flatten each individual coordinate map and concatenate them, giving us only one batch dimension,
-        regaurdless of the number of prepended extra batch dimensions in the camera_indices tensor.
+        regardless of the number of prepended extra batch dimensions in the camera_indices tensor.
 
 
         Args:

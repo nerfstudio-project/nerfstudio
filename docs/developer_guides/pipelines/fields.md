@@ -56,7 +56,7 @@ class Field(nn.Module):
 
 The forward function is the main function you'll use, which takes in RaySamples returns quantities for each sample. You'll notice that the get_density function is called for every field, followed by the get_outputs function.
 
-The get_outputs function is what you need to implement to return custom data. For example, check out of SemanticNerfField where we rely on different FieldHeads to produce correct dimensional outputs for typical quantiites. Our implemented FieldHeads have the following FieldHeadNames names.
+The get_outputs function is what you need to implement to return custom data. For example, check out of SemanticNerfField where we rely on different FieldHeads to produce correct dimensional outputs for typical quantities. Our implemented FieldHeads have the following FieldHeadNames names.
 
 ```python
 class FieldHeadNames(Enum):
