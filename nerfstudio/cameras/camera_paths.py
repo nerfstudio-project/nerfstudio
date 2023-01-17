@@ -54,7 +54,7 @@ def get_spiral_path(
     zrate: float = 0.5,
 ) -> Cameras:
     """
-    Returns a list of camera in a sprial trajectory.
+    Returns a list of camera in a spiral trajectory.
 
     Args:
         camera: The camera to start the spiral from.

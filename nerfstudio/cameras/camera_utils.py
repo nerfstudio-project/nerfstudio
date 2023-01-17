@@ -361,7 +361,7 @@ def radial_and_tangential_undistort(
     max_iterations: int = 10,
 ) -> torch.Tensor:
     """Computes undistorted coords given opencv distortion parameters.
-    Addapted from MultiNeRF
+    Adapted from MultiNeRF
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
 
     Args:

@@ -266,7 +266,7 @@ def get_gaussian_ellipsiod(
     Args:
         mean: mean of the Gaussian.
         cov: covariance of the Gaussian.
-        n_std: Standard devation to visualize. Defaults to 2 (95% confidence).
+        n_std: Standard deviation to visualize. Defaults to 2 (95% confidence).
         color: Color of the ellipsoid. Defaults to None.
         opacity: Opacity of the ellipsoid. Defaults to 0.5.
         resolution: Resolution of the ellipsoid. Defaults to 20.
@@ -437,7 +437,7 @@ def get_frustum_points(
     Args:
         frustum: Frustums to visualize.
         opacity: Opacity of the points. Defaults to 0.3.
-        color: Color of the poinst. Defaults to "forestgreen".
+        color: Color of the points. Defaults to "forestgreen".
         size: Size of points. Defaults to 10.
 
     Returns:

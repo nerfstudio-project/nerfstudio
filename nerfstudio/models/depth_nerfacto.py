@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Nerfacto augumented with depth supervision.
+Nerfacto augmented with depth supervision.
 """
 
 from __future__ import annotations
@@ -45,13 +45,13 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     starting_depth_sigma: float = 0.2
     """Starting uncertainty around depth values in meters (defaults to 0.2m)."""
     sigma_decay_rate: float = 0.99985
-    """Rate of exponetial decay."""
+    """Rate of exponential decay."""
     depth_loss_type: DephtLossType = DephtLossType.DS_NERF
     """Depth loss type."""
 
 
 class DepthNerfactoModel(NerfactoModel):
-    """Depth loss augumented nerfacto model.
+    """Depth loss augmented nerfacto model.
 
     Args:
         config: Nerfacto configuration to instantiate model

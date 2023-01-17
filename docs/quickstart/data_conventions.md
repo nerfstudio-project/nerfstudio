@@ -18,7 +18,7 @@ Our world space is oriented such that the up vector is +Z. The XY plane is paral
 
 Our explanation here is for the nerfstudio data format. The `transforms.json` has a similar format to [Instant NGP](https://github.com/NVlabs/instant-ngp).
 
-**Camera intrinsics**
+### Camera intrinsics
 
 At the top of the file, we specify the camera intrinsics. We assume that all the intrinsics parameters are the same for every camera in the dataset. The following is an example
 
@@ -43,7 +43,7 @@ At the top of the file, we specify the camera intrinsics. We assume that all the
 
 The valid `camera_model` strings are currently "OPENCV" and "OPENCV_FISHEYE". "OPENCV" (i.e., perspective) uses k1-2 and p1-2. "OPENCV_FISHEYE" uses k1-4.
 
-**Camera extrinsics**
+### Camera extrinsics
 
 For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the camera orientation, and the X, Y, Z values define the origin. The last row is to be compatible with homogeneous coordinates.
 
@@ -63,11 +63,47 @@ For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the 
         [0.0, 0.0, 1.0, 0.0],
         [0.0, 0.0, 0.0, 1.0]
       ]
+      // Additional per-frame info
     }
   ]
 }
 ```
 
-**Depth images**
+### Depth images
 
 To train with depth supervision, you can also provide a `depth_file_path` for each frame in your `transforms.json` and use one of the methods that support additional depth losses (e.g., depth-nerfacto). The depths are assumed to be 16-bit or 32-bit and to be in millimeters to remain consistent with [Polyform](https://github.com/PolyCam/polyform). You can adjust this scaling factor using the `depth_unit_scale_factor` parameter in `NerfstudioDataParserConfig`. Note that by default, we resize the depth images to match the shape of the RGB images.
+
+```json
+{
+  "frames": {
+    // ...
+    "depth_file_path": "depth/0001.png"
+  }
+}
+```
+
+### Masks
+
+:::{admonition} Warning
+:class: Warning
+
+The current implementation of masking is inefficient and will cause large memory allocations.
+:::
+
+There may be parts of the training image that should not be used during training (ie. moving objects such as people). These images can be masked out using an additional mask image that is specified in the `frame` data.
+
+```json
+{
+  "frames": {
+    // ...
+    "mask_path": "masks/mask.jpeg"
+  }
+}
+```
+
+The following mask requirements must be met:
+
+- Must be 1 channel with only black and white pixels
+- Must be the same resolution as the training image
+- Black corresponds to regions to ignore
+- If used, all images must have a mask

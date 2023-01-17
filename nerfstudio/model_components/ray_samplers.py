@@ -58,7 +58,7 @@ class SpacedSampler(Sampler):
         num_samples: Number of samples per ray
         spacing_fn: Function that dictates sample spacing (ie `lambda x : x` is uniform).
         spacing_fn_inv: The inverse of spacing_fn.
-        train_stratified: Use stratified sampling during training. Defults to True
+        train_stratified: Use stratified sampling during training. Defaults to True
         single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
@@ -81,7 +81,7 @@ class SpacedSampler(Sampler):
         ray_bundle: Optional[RayBundle] = None,
         num_samples: Optional[int] = None,
     ) -> RaySamples:
-        """Generates position samples accoring to spacing function.
+        """Generates position samples according to spacing function.
 
         Args:
             ray_bundle: Rays to generate samples for
@@ -131,7 +131,7 @@ class UniformSampler(SpacedSampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Use stratified sampling during training. Defults to True
+        train_stratified: Use stratified sampling during training. Defaults to True
         single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
@@ -155,7 +155,7 @@ class LinearDisparitySampler(SpacedSampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Use stratified sampling during training. Defults to True
+        train_stratified: Use stratified sampling during training. Defaults to True
         single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 
@@ -179,7 +179,7 @@ class SqrtSampler(SpacedSampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Use stratified sampling during training. Defults to True
+        train_stratified: Use stratified sampling during training. Defaults to True
     """
 
     def __init__(
@@ -202,7 +202,7 @@ class LogSampler(SpacedSampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Use stratified sampling during training. Defults to True
+        train_stratified: Use stratified sampling during training. Defaults to True
     """
 
     def __init__(
@@ -227,7 +227,7 @@ class UniformLinDispPiecewiseSampler(SpacedSampler):
 
     Args:
         num_samples: Number of samples per ray
-        train_stratified: Use stratified sampling during training. Defults to True
+        train_stratified: Use stratified sampling during training. Defaults to True
         single_jitter: Use a same random jitter for all samples along a ray. Defaults to False
     """
 

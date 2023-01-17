@@ -7,7 +7,7 @@ import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Tuple, Union
 
 import numpy as np
 import tyro
@@ -201,6 +201,10 @@ class ProcessVideo:
     """If True, skips COLMAP and generates transforms.json if possible."""
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
+    percent_radius_crop: float = 1.0
+    """Create circle crop mask. The radius is the percent of the image diagonal."""
+    percent_crop: Tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    """Percent of the image to crop. (top, bottom, left, right)"""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -215,12 +219,23 @@ class ProcessVideo:
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
+        summary_log = []
         # Convert video to images
         summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
             self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
         )
 
-        # Downscale images
+        # Create mask
+        mask_path = process_data_utils.save_mask(
+            image_dir=image_dir,
+            num_downscales=self.num_downscales,
+            percent_crop=self.percent_crop,
+            percent_radius=self.percent_radius_crop,
+        )
+        if mask_path is not None:
+            summary_log.append(f"Saved mask to {mask_path}")
+
+        # # Downscale images
         summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
 
         # Run Colmap
@@ -237,12 +252,18 @@ class ProcessVideo:
                     image_dir=image_dir,
                     colmap_dir=colmap_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
+                    camera_mask_path=mask_path,
                     gpu=self.gpu,
                     verbose=self.verbose,
                     matching_method=self.matching_method,
                     colmap_cmd=self.colmap_cmd,
                 )
             elif sfm_tool == "hloc":
+                if mask_path is not None:
+                    CONSOLE.log(
+                        "[bold red]Cannot use a mask with hloc. Please remove the cropping options and try again."
+                    )
+                    sys.exit(1)
                 hloc_utils.run_hloc(
                     image_dir=image_dir,
                     colmap_dir=colmap_dir,
@@ -264,6 +285,7 @@ class ProcessVideo:
                     images_path=colmap_dir / "sparse" / "0" / "images.bin",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
+                    camera_mask_path=mask_path,
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_extracted_frames, num_matched_frames))
