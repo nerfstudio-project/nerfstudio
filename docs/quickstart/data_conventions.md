@@ -20,28 +20,39 @@ Our explanation here is for the nerfstudio data format. The `transforms.json` ha
 
 ### Camera intrinsics
 
-At the top of the file, we specify the camera intrinsics. We assume that all the intrinsics parameters are the same for every camera in the dataset. The following is an example
+If all of the images share the same camera intrinsics, the values can be placed at the top of the file.
 
 ```json
 {
-  "fl_x": 1072.281897246229, // focal length x
-  "fl_y": 1068.6906965388932, // focal length y
+  "camera_model": "OPENCV_FISHEYE", // camera model type [OPENCV, OPENCV_FISHEYE]
+  "fl_x": 1072.0, // focal length x
+  "fl_y": 1068.0, // focal length y
   "cx": 1504.0, // principal point x
   "cy": 1000.0, // principal point y
   "w": 3008, // image width
   "h": 2000, // image height
-  "camera_model": "OPENCV_FISHEYE", // camera model type
-  "k1": 0.03126218448029553, // first radial distorial parameter
-  "k2": 0.005177020067511987, // second radial distorial parameter
-  "k3": 0.0006640977794272005, // third radial distorial parameter
-  "k4": 0.00010067035656515042, // fourth radial distorial parameter
-  "p1": -6.472477652140879e-5, // first tangential distortion parameter
-  "p2": -1.374647851912992e-7, // second tangential distortion parameter
-  "frames": // ... extrinsics parameters explained below
+  "k1": 0.0312, // first radial distorial parameter, used by [OPENCV, OPENCV_FISHEYE]
+  "k2": 0.0051, // second radial distorial parameter, used by [OPENCV, OPENCV_FISHEYE]
+  "k3": 0.0006, // third radial distorial parameter, used by [OPENCV_FISHEYE]
+  "k4": 0.0001, // fourth radial distorial parameter, used by [OPENCV_FISHEYE]
+  "p1": -6.47e-5, // first tangential distortion parameter, used by [OPENCV]
+  "p2": -1.37e-7, // second tangential distortion parameter, used by [OPENCV]
+  "frames": // ... per-frame intrinsics and extrinsics parameters
 }
 ```
 
-The valid `camera_model` strings are currently "OPENCV" and "OPENCV_FISHEYE". "OPENCV" (i.e., perspective) uses k1-2 and p1-2. "OPENCV_FISHEYE" uses k1-4.
+Per-frame intrinsics can also be defined in the `frames` field. If defined for a field (ie. `fl_x`), all images must have per-image intrinsics defined for that field. Per-frame `camera_model` is not supported.
+
+```json
+{
+  // ...
+  "frames": [
+    {
+      "fl_x": 1234
+    }
+  ]
+}
+```
 
 ### Camera extrinsics
 
@@ -49,7 +60,7 @@ For a transform matrix, the first 3 columns are the +X, +Y, and +Z defining the 
 
 ```json
 {
-  // ... intrinsics parameters
+  // ...
   "frames": [
     {
       "file_path": "images/frame_00001.jpeg",
@@ -75,10 +86,12 @@ To train with depth supervision, you can also provide a `depth_file_path` for ea
 
 ```json
 {
-  "frames": {
-    // ...
-    "depth_file_path": "depth/0001.png"
-  }
+  "frames": [
+    {
+      // ...
+      "depth_file_path": "depth/0001.png"
+    }
+  ]
 }
 ```
 
@@ -94,10 +107,12 @@ There may be parts of the training image that should not be used during training
 
 ```json
 {
-  "frames": {
-    // ...
-    "mask_path": "masks/mask.jpeg"
-  }
+  "frames": [
+    {
+      // ...
+      "mask_path": "masks/mask.jpeg"
+    }
+  ]
 }
 ```
 
