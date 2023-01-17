@@ -72,7 +72,7 @@ python scripts/docs/build_docs.py
 :class: info
 
 - Rerun `make html` when documentation changes are made
-- make clean` is necessary if the documentation structure changes.
+- `make clean` is necessary if the documentation structure changes.
   :::
 
 ### Auto build
