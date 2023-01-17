@@ -110,15 +110,12 @@ def _render_trajectory_video(
                     media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
                 if output_format == "video":
                     if writer is None:
-                        render_width = render_image.shape[1]
-                        render_height = render_image.shape[0]
+                        render_width = int(render_image.shape[1] * rendered_resolution_scaling_factor)
+                        render_height = int(render_image.shape[0] * rendered_resolution_scaling_factor)
                         writer = stack.enter_context(
                             media.VideoWriter(
                                 path=output_filename,
-                                shape=(
-                                    int(render_height * rendered_resolution_scaling_factor),
-                                    int(render_width * rendered_resolution_scaling_factor) * len(rendered_output_names),
-                                ),
+                                shape=(render_height, render_width),
                                 fps=fps,
                             )
                         )
