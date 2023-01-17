@@ -93,7 +93,7 @@ sphinx-autobuild docs docs/_build/html
 
 ### Adding notebooks
 
-We support jupyter notbooks in our documentation. To improve the readability, the following custom tags can be added to the top of each code cell to hide or collapse the code.
+We support jupyter notebooks in our documentation. To improve the readability, the following custom tags can be added to the top of each code cell to hide or collapse the code.
 
 | Tag           | Effect                                               |
 | ------------- | ---------------------------------------------------- |

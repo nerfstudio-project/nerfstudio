@@ -66,7 +66,7 @@ def convert_insta360_to_images(
         video_back: Path to the back video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
-        crop_percentage: Percentage used to calculate the cropped dimentions of extracted frames. Currently used to crop
+        crop_percentage: Percentage used to calculate the cropped dimensions of extracted frames. Currently used to crop
          out the curved portions of the fish-eye lens.
         verbose: If True, logs the output of the command.
     Returns:
@@ -94,7 +94,7 @@ def convert_insta360_to_images(
         if spacing > 1:
             vf_cmds = [f"thumbnail={spacing}", "setpts=N/TB"]
         else:
-            CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
+            CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
 
         vf_cmds.append(f"crop=iw*{crop_percentage}:ih*{crop_percentage}")
 
@@ -135,7 +135,7 @@ def convert_insta360_single_file_to_images(
         video: Path to the video.
         output_dir: Path to the output directory.
         num_frames_target: Number of frames to extract.
-        crop_percentage: Percentage used to calculate the cropped dimentions of extracted frames. Currently used to crop
+        crop_percentage: Percentage used to calculate the cropped dimensions of extracted frames. Currently used to crop
          out the curved portions of the fish-eye lens.
         verbose: If True, logs the output of the command.
     Returns:
@@ -159,7 +159,7 @@ def convert_insta360_single_file_to_images(
         if spacing > 1:
             vf_cmds = [f"thumbnail={spacing}", "setpts=N/TB"]
         else:
-            CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
+            CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
 
         vf_cmds_back = vf_cmds.copy()
         vf_cmds_front = vf_cmds.copy()

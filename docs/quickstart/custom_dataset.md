@@ -145,7 +145,7 @@ A LiDAR enabled iPhone or iPad is necessary.
 :alt: polycam settings
 ```
 
-Devoloper settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
+Developer settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
 
 ### Process data
 

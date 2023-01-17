@@ -55,7 +55,7 @@ def multiply(pose_a: TensorType[..., 3, 4], pose_b: TensorType[..., 3, 4]) -> Te
 
     Args:
         pose_a: Left pose matrix, usually a transformation applied to the right.
-        pose_b: Right pose matrix, usually a camera pose that will be tranformed by pose_a.
+        pose_b: Right pose matrix, usually a camera pose that will be transformed by pose_a.
 
     Returns:
         Camera pose matrix where pose_a was applied to pose_b.
