@@ -217,6 +217,13 @@ class CheckThread(threading.Thread):
                     self.state.check_interrupt_vis = True
                     return
 
+            # check crop changes
+            crop_enabled = self.state.vis["renderingState/crop_enabled"].read()
+            if crop_enabled is not None:
+                if self.state.prev_crop_enabled != crop_enabled:
+                    self.state.check_interrupt_vis = True
+                    return
+
 
 @decorate_all([check_main_thread])
 class ViewerState:
@@ -271,6 +278,9 @@ class ViewerState:
         self.moving_fps = 24
         self.camera_moving = False
         self.prev_camera_timestamp = 0
+        self.prev_crop_enabled = False
+        self.prev_crop_scale = None
+        self.prev_crop_center = None
 
         self.output_list = None
 
@@ -380,53 +390,35 @@ class ViewerState:
         """
         # self.
         # Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
-        crop_aabb = self.vis["renderingState/crop_enabled"].read()
-        if crop_aabb:
-            box_size = self.vis["renderingState/box_size"].read()
-            x_min = self.vis["renderingState/XMin"].read() * box_size
-            y_min = self.vis["renderingState/YMin"].read() * box_size
-            z_min = self.vis["renderingState/ZMin"].read() * box_size
+        crop_enabled = self.vis["renderingState/crop_enabled"].read()
+        if crop_enabled != self.prev_crop_enabled:
+            self.camera_moving = True
+            self.prev_crop_enabled = crop_enabled
 
-            x_max = self.vis["renderingState/XMax"].read() * box_size
-            y_max = self.vis["renderingState/YMax"].read() * box_size
-            z_max = self.vis["renderingState/ZMax"].read() * box_size
-            aabb = graph.scene_box.aabb
+        if crop_enabled:
+            crop_scale = self.vis["renderingState/crop_scale"].read()
+            crop_center = self.vis["renderingState/crop_center"].read()
 
-            # cliping render_aabb with scene box
-            x_min = max(x_min, aabb[0][0])
-            y_min = max(y_min, aabb[0][1])
-            z_min = max(z_min, aabb[0][2])
+            if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
+                self.camera_moving = True
+                self.prev_crop_scale = crop_scale
+                self.prev_crop_center = crop_center
 
-            x_max = min(x_max, aabb[1][0])
-            y_max = min(y_max, aabb[1][1])
-            z_max = min(z_max, aabb[1][2])
+                crop_scale = torch.tensor(crop_scale)
+                crop_center = torch.tensor(crop_center)
 
-            # protection against unvalid boundary
-            x_min = min(x_min, x_max)
-            x_max = max(x_min, x_max)
+                box_min = crop_center - crop_scale / 2.0
+                box_max = crop_center + crop_scale / 2.0
 
-            y_min = min(y_min, y_max)
-            y_max = max(y_min, y_max)
+                if isinstance(graph.render_aabb, SceneBox):
+                    graph.render_aabb.aabb[0] = box_min
+                    graph.render_aabb.aabb[1] = box_max
+                else:
+                    graph.render_aabb = SceneBox(aabb=torch.stack([box_min, box_max], dim=0))
 
-            z_min = min(z_min, z_max)
-            z_max = max(z_min, z_max)
-
-            if isinstance(graph.render_aabb, SceneBox):
-                graph.render_aabb.aabb[0][0] = x_min
-                graph.render_aabb.aabb[0][1] = y_min
-                graph.render_aabb.aabb[0][2] = z_min
-
-                graph.render_aabb.aabb[1][0] = x_max
-                graph.render_aabb.aabb[1][1] = y_max
-                graph.render_aabb.aabb[1][2] = z_max
-            else:
-                graph.render_aabb = SceneBox(
-                    aabb=torch.tensor([[x_min, y_min, z_min], [x_max, y_max, z_max]], dtype=torch.float32)
-                )
-
-            # maybe should update only if true change ?
-            json_ = graph.render_aabb.to_json()
-            self.vis["sceneState/sceneBox"].write(json_)
+                # maybe should update only if true change ?
+                json_ = graph.render_aabb.to_json()
+                self.vis["sceneState/sceneBox"].write(json_)
         else:
             graph.render_aabb = None
 
@@ -529,6 +521,16 @@ class ViewerState:
             colormap_type = ColormapTypes.INIT
         if self.prev_colormap_type != colormap_type:
             self.camera_moving = True
+
+        crop_scale = self.vis["renderingState/crop_scale"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_scale != crop_scale:
+                self.camera_moving = True
+
+        crop_center = self.vis["renderingState/crop_center"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_center != crop_center:
+                self.camera_moving = True
 
         return camera_object
 
@@ -809,6 +811,15 @@ class ViewerState:
         colormap_type = ColormapTypes.INIT if colormap_type is None else colormap_type
         self.prev_colormap_type = colormap_type
 
+        # update render aabb
+        try:
+            self._update_render_aabb(graph)
+        except RuntimeError as e:
+            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
+            print(f"Error: {e}")
+
+            time.sleep(0.5)  # sleep to allow buffer to reset
+
         # Calculate camera pose and intrinsics
         try:
             image_height, image_width = self._calculate_image_res(camera_object, is_training)
@@ -896,12 +907,3 @@ class ViewerState:
             self._update_viewer_stats(
                 vis_t.duration, num_rays=len(camera_ray_bundle), image_height=image_height, image_width=image_width
             )
-
-        # update render aabb
-        try:
-            self._update_render_aabb(graph)
-        except RuntimeError as e:
-            self.vis["renderingState/log_errors"].write("Got an Error while trying to update aabb crop")
-            print(f"Error: {e}")
-
-            time.sleep(0.5)  # sleep to allow buffer to reset

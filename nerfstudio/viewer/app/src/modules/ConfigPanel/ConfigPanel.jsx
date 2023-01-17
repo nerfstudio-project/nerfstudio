@@ -32,15 +32,11 @@ export function RenderControls() {
     (state) => state.renderingState.crop_enabled,
   );
 
-  const box_size = useSelector(
-      (state) => state.renderingState.box_size,
-  );
+  const box_size = useSelector((state) => state.renderingState.box_size);
 
-  const half_box_size = 0.5*box_size;
+  const crop_scale = useSelector((state) => state.renderingState.crop_scale);
 
-  const max_box_size = useSelector(
-      (state) => state.renderingState.max_box_size,
-  );
+  const crop_center = useSelector((state) => state.renderingState.crop_center);
 
   const dispatch = useDispatch();
 
@@ -169,15 +165,15 @@ export function RenderControls() {
     }
   };
 
-  const set_target_box_size = (value) => {
+  const set_crop_scale = (value) => {
     if (websocket.readyState === WebSocket.OPEN) {
       dispatch({
         type: 'write',
-        path: 'renderingState/box_size',
+        path: 'renderingState/crop_scale',
         data: value,
       });
       const cmd = 'write';
-      const path = 'renderingState/box_size';
+      const path = 'renderingState/crop_scale';
       const data = {
         type: cmd,
         path,
@@ -188,15 +184,15 @@ export function RenderControls() {
     }
   };
 
-  const set_target_box_side = (value, target_path) => {
+  const set_crop_center = (value) => {
     if (websocket.readyState === WebSocket.OPEN) {
       dispatch({
         type: 'write',
-        path: target_path,
+        path: 'renderingState/crop_center',
         data: value,
       });
       const cmd = 'write';
-      const path = target_path;
+      const path = 'renderingState/crop_center';
       const data = {
         type: cmd,
         path,
@@ -273,83 +269,26 @@ export function RenderControls() {
           set_crop_enabled(value);
         },
       },
-      target_box_size: {
-        label: 'Box Size',
-        value: 1,
+      crop_scale: {
+        label: '|  Scale',
+        value: crop_scale,
         min: 0,
-        max: max_box_size,
-        step: 0.1,
+        max: 10,
+        step: 0.05,
         render: (get) => get('crop_options'),
         onChange: (v) => {
-          set_target_box_size(v);
-          setControls({target_x_min : -half_box_size, target_y_min: -half_box_size, target_z_min: -half_box_size,
-                            target_x_max : half_box_size, target_y_max: half_box_size, target_z_max: half_box_size} )
-        }
-      },
-      target_x_min: {
-        label: 'x min',
-        value: -0.5,
-        min: -half_box_size,
-        max: half_box_size,
-        step: 0.01,
-        render: (get) => get('crop_options'),
-        onChange: (v) => {
-          set_target_box_side(v, 'renderingState/XMin');
+          set_crop_scale(v);
         },
       },
-      target_y_min: {
-        label: 'y min',
-        value: -0.5,
-        min: -half_box_size,
-        max: half_box_size,
-        step: 0.01,
+      crop_center: {
+        label: '|  Center',
+        value: crop_center,
+        min: -10,
+        max: 10,
+        step: 0.05,
         render: (get) => get('crop_options'),
         onChange: (v) => {
-          set_target_box_side(v, 'renderingState/YMin');
-        },
-      },
-      target_z_min: {
-        label: 'z min',
-        value: -0.5,
-        min: -half_box_size,
-        max: half_box_size,
-        step: 0.01,
-        render: (get) => get('crop_options'),
-        onChange: (v) => {
-          set_target_box_side(v, 'renderingState/ZMin');
-        },
-      },
-      target_x_max: {
-        label: 'x max',
-        value: 0.5,
-        min: -half_box_size,
-        max: half_box_size,
-        step: 0.01,
-        render: (get) => get('crop_options'),
-        onChange: (v) => {
-          set_target_box_side(v, 'renderingState/XMax');
-        },
-      },
-      target_y_max: {
-        label: 'y max',
-        value: 0.5,
-        min: -half_box_size,
-        max: half_box_size,
-        step: 0.01,
-        render: (get) => get('crop_options'),
-        onChange: (v) => {
-          set_target_box_side(v, 'renderingState/YMax');
-        },
-      },
-      target_z_max: {
-        label: 'z max',
-        value: 0.5,
-        min: -half_box_size,
-        max: half_box_size,
-        step: 0.01,
-        render: (get) => get('crop_options'),
-        onChange: (v) => {
-          set_target_box_side(v, 'renderingState/ZMax');
+          set_crop_center(v);
         },
       },
       // Dynamic NeRF rendering time
