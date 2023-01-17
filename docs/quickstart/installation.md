@@ -6,7 +6,7 @@ CUDA must be installed on the system. This library has been tested with version 
 
 ## Create environment
 
-Nerfstudio requires `python >= 3.7`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before preceding.
+Nerfstudio requires `python >= 3.7`. We recommend using conda to manage dependencies. Make sure to install [Conda](https://docs.conda.io/en/latest/miniconda.html) before proceeding.
 
 ```bash
 conda create --name nerfstudio -y python=3.8
@@ -64,7 +64,7 @@ pip install -e .[docs]
 ```
 
 ## Use docker image
-Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided. \
+Instead of installing and compiling prerequisites, setting up the environment and installing dependencies, a ready to use docker image is provided.
 ### Prerequisites
 Docker ([get docker](https://docs.docker.com/get-docker/)) and nvidia GPU drivers ([get nvidia drivers](https://www.nvidia.de/Download/index.aspx?lang=de)), capable of working with CUDA 11.7, must be installed.
 The docker image can then either be pulled from [here](https://hub.docker.com/r/dromni/nerfstudio/tags) (replace <version> with the actual version, e.g. 0.1.10)
@@ -95,7 +95,7 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 ```
 ### Note
 - The container works on Linux and Windows, depending on your OS some additional setup steps might be required to provide access to your GPU inside containers.
-- Paths on Windows use backslash '\\' while unix based systems use a frontslash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Ensure to use the correct paths when mounting folders or providing paths as parameters.
+- Paths on Windows use backslash '\\\\' while unix based systems use a frontslash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Ensure to use the correct paths when mounting folders or providing paths as parameters.
 - Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
 - The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).
 - The container currently is based on nvidia/cuda:11.7.1-devel-ubuntu22.04, consequently it comes with CUDA 11.7 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
