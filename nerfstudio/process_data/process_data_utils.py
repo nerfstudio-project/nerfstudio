@@ -29,6 +29,7 @@ from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
+POLYCAM_UPSCALING_TIMES = 2
 
 
 class CameraModel(Enum):
@@ -227,7 +228,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     return num_frames
 
 
-def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> str:
+def downscale_images(image_dir: Path, num_downscales: int, folder_name: int = "images", verbose: bool = False) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
@@ -235,6 +236,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
     Args:
         image_dir: Path to the directory containing the images.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
+        folder_name: Name of the output folder
         verbose: If True, logs the output of the command.
 
     Returns:
@@ -249,7 +251,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
-            downscale_dir = image_dir.parent / f"images_{downscale_factor}"
+            downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
             file_type = image_dir.glob("frame_*").__next__().suffix
             filename = f"frame_%05d{file_type}"

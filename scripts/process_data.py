@@ -7,7 +7,7 @@ import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import numpy as np
 import tyro
