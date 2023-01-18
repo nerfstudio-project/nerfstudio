@@ -86,7 +86,6 @@ def realitycapture_to_json(
         transform = np.eye(4)
         transform[:3, :3] = rot
         transform[:3, 3] = np.array([float(cameras["x"][i]), float(cameras["y"][i]), float(cameras["alt"][i])])
-        transform = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]) @ transform
 
         frame["transform_matrix"] = transform.tolist()
         frames.append(frame)
