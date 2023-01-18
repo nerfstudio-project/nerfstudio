@@ -24,6 +24,8 @@ const initialState = {
     field_of_view: 50,
     camera_type: 'perspective',
 
+    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
+
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
     output_choice: 'rgb', // the selected output

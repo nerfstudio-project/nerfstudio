@@ -559,6 +559,19 @@ export default function CameraPanel(props) {
   const config_base_dir = useSelector(
     (state) => state.renderingState.config_base_dir,
   );
+
+  const timestamp_regex = /[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}/g;
+  const test_time = config_base_dir.match(timestamp_regex);
+  let run_timestamp = ""
+  if(test_time){
+    run_timestamp = test_time.pop();
+  }
+
+  // data base directory
+  const data_base_dir = useSelector(
+    (state) => state.renderingState.data_base_dir,
+  );
+
   const websocket = useContext(WebSocketContext).socket;
   const DEFAULT_FOV = 50;
   const DEFAULT_RENDER_TIME = 0.0;
@@ -1083,7 +1096,7 @@ export default function CameraPanel(props) {
     setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-    const camera_path_filename = `${config_base_dir}/camera_path.json`;
+    const camera_path_filename = `${data_base_dir}/camera_path_${run_timestamp}.json`;
 
     const camera_path_payload = {
       camera_path_filename,

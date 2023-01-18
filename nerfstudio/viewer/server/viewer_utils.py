@@ -68,13 +68,13 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
     """
-    viewer_state = ViewerState(config, log_filename=log_filename)
+    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
     return viewer_state, banner_messages
 
@@ -225,11 +225,12 @@ class ViewerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: str):
         self.config = config
         self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
+        self.datapath = datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             assert self.config.websocket_port is not None
@@ -305,6 +306,9 @@ class ViewerState:
         """
         # set the config base dir
         self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
+
+        # set the data base dir
+        self.vis["renderingState/data_base_dir"].write(str(self.datapath))
 
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
