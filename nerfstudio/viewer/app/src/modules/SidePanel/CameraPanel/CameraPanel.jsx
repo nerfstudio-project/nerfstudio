@@ -63,6 +63,104 @@ function set_camera_position(camera, matrix) {
   mat.decompose(camera.position, camera.quaternion, camera.scale);
 }
 
+
+function RenderTimeSelector(props) {
+  const disabled = props.disabled;
+  const isGlobal = props.isGlobal;
+  const camera = props.camera;
+  const dispatch = props.dispatch;
+  const globalRenderTime = props.globalRenderTime;
+  const setGlobalRenderTime = props.setGlobalRenderTime;
+  const applyAll = props.applyAll;
+  const changeMain = props.changeMain;
+  const setAllCameraRenderTime = props.setAllCameraRenderTime;
+
+  const getRenderTimeLabel = () => {
+    if (!isGlobal) {
+      return camera.renderTime;
+    }
+    camera.renderTime = globalRenderTime
+    return globalRenderTime;
+  };
+
+  const [UIRenderTime, setUIRenderTime] = React.useState(
+    isGlobal ? globalRenderTime : getRenderTimeLabel(),
+  );
+
+  const [valid, setValid] = React.useState(true);
+
+  useEffect(
+    () => setUIRenderTime(getRenderTimeLabel()),
+    [camera, globalRenderTime],
+  );
+
+  const setRndrTime = (val) => {
+    if (!isGlobal) {
+      camera.renderTime = val;
+    } else {
+      camera.renderTime = val;
+      setGlobalRenderTime(val);
+    }
+
+    if (applyAll) {
+      setAllCameraRenderTime(val);
+    }
+
+    if (changeMain) {
+      dispatch({
+        type: 'write',
+        path: 'renderingState/render_time',
+        data: camera.renderTime,
+      });
+    }
+  };
+
+  const handleValidation = (e) => {
+    const valueFloat = parseFloat(e.target.value);
+    let valueStr = String(valueFloat);
+    if (e.target.value >= 0 && e.target.value <= 1){ 
+      setValid(true);
+      if (valueFloat === 1.0) {
+        valueStr = '1.0';
+      }
+      if (valueFloat === 0.0) {
+        valueStr = '0.0';
+      }
+      setUIRenderTime(parseFloat(valueStr));
+      setRndrTime(parseFloat(valueStr));
+    } else {
+      setValid(false);
+    }
+  };
+
+  return (
+    <TextField
+      label='Render Time'
+      InputLabelProps={{
+        style: { color: '#8E8E8E' },
+      }}
+      inputProps={{
+        inputMode: 'numeric',
+      }}
+      onChange={(e) => setUIRenderTime(e.target.value)}
+      onBlur={(e) => handleValidation(e)}
+      disabled={disabled}
+      sx={{
+        input: {
+          '-webkit-text-fill-color': `${
+            disabled ? '#24B6FF' : '#EBEBEB'
+          } !important`,
+          color: `${disabled ? '#24B6FF' : '#EBEBEB'} !important`,
+        },
+      }}
+      value={UIRenderTime}
+      error={!valid}
+      helperText={!valid ? 'RenderTime should be between 0.0 and 1.0' : ''}
+      variant="standard"
+    />
+  );
+}
+
 function FovSelector(props) {
   const fovLabel = props.fovLabel;
   const setFovLabel = props.setFovLabel;
@@ -279,6 +377,7 @@ function CameraList(props) {
       set_camera_position(camera_render, first_camera.matrix);
       camera_render_helper.set_visibility(true);
       camera_render.fov = first_camera.fov;
+      camera_render.renderTime = first_camera.renderTime;
     }
     set_slider_value(slider_min);
   };
@@ -392,6 +491,7 @@ function CameraList(props) {
                 e.stopPropagation();
                 set_camera_position(camera_main, camera.matrix);
                 camera_main.fov = camera.fov;
+                camera_main.renderTime = camera.renderTime;
                 set_slider_value(camera.properties.get('TIME'));
               }}
             >
@@ -414,7 +514,16 @@ function CameraList(props) {
               changeMain={false}
             />
           )}
-          {!isAnimated('FOV') && (
+          {isAnimated('RenderTime') && (
+            <RenderTimeSelector
+              camera={camera}
+              dispatch={dispatch}
+              disabled={!isAnimated('RenderTime')}
+              isGlobal={false}
+              changeMain={false}
+            />
+          )}
+          {!isAnimated('FOV') && !isAnimated('RenderTime') && (
             <p style={{ fontSize: 'smaller', color: '#999999' }}>
               Animated camera properties will show up here!
             </p>
@@ -452,6 +561,7 @@ export default function CameraPanel(props) {
   );
   const websocket = useContext(WebSocketContext).socket;
   const DEFAULT_FOV = 50;
+  const DEFAULT_RENDER_TIME = 0.0;
 
   // react state
   const [cameras, setCameras] = React.useState([]);
@@ -466,6 +576,7 @@ export default function CameraPanel(props) {
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
   const [animate, setAnimate] = React.useState(new Set());
   const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
+  const [globalRenderTime, setGlobalRenderTime] = React.useState(DEFAULT_RENDER_TIME);
 
   // leva store
   const cameraPropsStore = useCreateStore();
@@ -490,6 +601,17 @@ export default function CameraPanel(props) {
     (state) => state.renderingState.render_width,
   );
   const camera_type = useSelector((state) => state.renderingState.camera_type);
+
+  const [display_render_time, set_display_render_time] = React.useState(false);
+
+  const receive_temporal_dist = e => {
+    const msg = msgpack.decode(new Uint8Array(e.data));
+    if (msg.path === "/model/has_temporal_distortion") {
+      set_display_render_time(msg.data === "true");
+      websocket.removeEventListener("message", receive_temporal_dist);
+    }
+  }
+  websocket.addEventListener('message', receive_temporal_dist);
 
   const setRenderHeight = (value) => {
     dispatch({
@@ -522,6 +644,14 @@ export default function CameraPanel(props) {
     });
   };
 
+  const setRenderTime = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/render_time',
+      data: parseFloat(value),
+    });
+  };
+
   // ui state
   const [fovLabel, setFovLabel] = React.useState(FOV_LABELS.FOV);
 
@@ -538,6 +668,7 @@ export default function CameraPanel(props) {
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
       setFieldOfView(new_camera_list[0].fov);
+      setRenderTime(new_camera_list[0].renderTime)
       set_slider_value(slider_min);
     }
   };
@@ -546,6 +677,7 @@ export default function CameraPanel(props) {
     const camera_main_copy = camera_main.clone();
     camera_main_copy.aspect = 1.0;
     camera_main_copy.fov = globalFov;
+    camera_main_copy.renderTime = globalRenderTime;
     const new_camera_properties = new Map();
     camera_main_copy.properties = new_camera_properties;
     new_camera_properties.set('FOV', globalFov);
@@ -828,11 +960,21 @@ export default function CameraPanel(props) {
 
       const mat = get_transform_matrix(position, lookat, up);
 
-      camera_path.push({
-        camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
-        fov,
-        aspect: camera_render.aspect,
-      });
+      if (display_render_time) {
+        const renderTime = curve_object.curve_render_times.getPoint(pt).z;
+        camera_path.push({
+          camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
+          fov,
+          aspect: camera_render.aspect,
+          render_time: Math.max(Math.min(renderTime, 1.0), 0.0), // clamp time values to [0, 1]
+        });
+      } else {
+        camera_path.push({
+          camera_to_world: mat.transpose().elements, // convert from col-major to row-major matrix
+          fov,
+          aspect: camera_render.aspect,
+        });
+      }
     }
 
     const keyframes = [];
@@ -985,6 +1127,12 @@ export default function CameraPanel(props) {
     }
   };
 
+  const setAllCameraRenderTime = (val) => {
+    for (let i = 0; i < cameras.length; i += 1) {
+      cameras[i].renderTime = val;
+    }
+  };
+
   return (
     <div className="CameraPanel">
       <div>
@@ -1047,6 +1195,51 @@ export default function CameraPanel(props) {
           />
         </LevaStoreProvider>
       </div>
+      {display_render_time && (
+        <div className="CameraList-row-animation-properties">
+          <Tooltip title="Animate Render Time for Each Camera">
+            <Button
+              value="animateRenderTime"
+              selected={isAnimated('RenderTime')}
+              onClick={() => {
+                toggleAnimate('RenderTime');
+              }}
+              style={{
+                maxWidth: '20px',
+                maxHeight: '20px',
+                minWidth: '20px',
+                minHeight: '20px',
+                position: 'relative',
+                top: '22px',
+              }}
+              sx={{
+                mt: 1,
+              }}
+            >
+              <Animation
+                style={{
+                  color: isAnimated('RenderTime') ? '#24B6FF' : '#EBEBEB',
+                  maxWidth: '20px',
+                  maxHeight: '20px',
+                  minWidth: '20px',
+                  minHeight: '20px',
+                }}
+              />
+            </Button>
+          </Tooltip>
+          <RenderTimeSelector
+            disabled={false}
+            isGlobal
+            camera={camera_main}
+            dispatch={dispatch}
+            globalRenderTime={globalRenderTime}
+            setGlobalRenderTime={setGlobalRenderTime}
+            applyAll={!isAnimated('RenderTime')}
+            setAllCameraRenderTime={setAllCameraRenderTime}
+            changeMain
+          />
+        </div>
+      )}
       {camera_type !== 'equirectangular' && (
         <div className="CameraList-row-animation-properties">
           <Tooltip title="Animate FOV for Each Camera">

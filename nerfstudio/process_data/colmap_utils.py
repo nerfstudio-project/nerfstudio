@@ -364,7 +364,7 @@ def detect_model_format(path: Path, ext: str) -> bool:
         path: Path to the model file.
         ext: Extension to test.
     Returns:
-        True if the model file is the tested extenstion, False otherwise.
+        True if the model file is the tested extension, False otherwise.
     """
 
     if (
@@ -492,6 +492,7 @@ def run_colmap(
     image_dir: Path,
     colmap_dir: Path,
     camera_model: CameraModel,
+    camera_mask_path: Optional[Path] = None,
     gpu: bool = True,
     verbose: bool = False,
     matching_method: Literal["vocab_tree", "exhaustive", "sequential"] = "vocab_tree",
@@ -503,8 +504,11 @@ def run_colmap(
         image_dir: Path to the directory containing the images.
         colmap_dir: Path to the output directory.
         camera_model: Camera model to use.
+        camera_mask_path: Path to the camera mask.
         gpu: If True, use GPU.
         verbose: If True, logs the output of the command.
+        matching_method: Matching method to use.
+        colmap_cmd: Path to the COLMAP executable.
     """
 
     colmap_version = get_colmap_version(colmap_cmd)
@@ -523,6 +527,8 @@ def run_colmap(
         f"--ImageReader.camera_model {camera_model.value}",
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
+    if camera_mask_path is not None:
+        feature_extractor_cmd.append(f"--ImageReader.camera_mask_path {camera_mask_path}")
     feature_extractor_cmd = " ".join(feature_extractor_cmd)
     with status(msg="[bold yellow]Running COLMAP feature extractor...", spinner="moon", verbose=verbose):
         run_command(feature_extractor_cmd, verbose=verbose)
@@ -575,13 +581,20 @@ def run_colmap(
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
 
 
-def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, camera_model: CameraModel) -> int:
+def colmap_to_json(
+    cameras_path: Path,
+    images_path: Path,
+    output_dir: Path,
+    camera_model: CameraModel,
+    camera_mask_path: Optional[Path] = None,
+) -> int:
     """Converts COLMAP's cameras.bin and images.bin to a JSON file.
 
     Args:
         cameras_path: Path to the cameras.bin file.
         images_path: Path to the images.bin file.
         output_dir: Path to the output directory.
+        camera_mask_path: Path to the camera mask.
         camera_model: Camera model used.
 
     Returns:
@@ -612,6 +625,8 @@ def colmap_to_json(cameras_path: Path, images_path: Path, output_dir: Path, came
             "file_path": name.as_posix(),
             "transform_matrix": c2w.tolist(),
         }
+        if camera_mask_path is not None:
+            frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         frames.append(frame)
 
     out = {
@@ -663,7 +678,7 @@ def get_matching_summary(num_intial_frames: int, num_matched_frames: int) -> str
     """
     match_ratio = num_matched_frames / num_intial_frames
     if match_ratio == 1:
-        return "[bold green]COLAMP found poses for all images, CONGRATS!"
+        return "[bold green]COLMAP found poses for all images, CONGRATS!"
     if match_ratio < 0.4:
         result = f"[bold red]COLMAP only found poses for {num_matched_frames / num_intial_frames * 100:.2f}%"
         result += " of the images. This is low.\nThis can be caused by a variety of reasons,"

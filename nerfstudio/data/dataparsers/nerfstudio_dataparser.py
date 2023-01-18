@@ -63,7 +63,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
-    """Scales the depth values to meters. Default value is 0.001 for a millimiter to meter conversion."""
+    """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
 
 
 @dataclass
@@ -290,7 +290,7 @@ class Nerfstudio(DataParser):
 
     def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
-        downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
+        downsample_folder_prefix can be used to point to auxiliary image data, e.g. masks
 
         filepath: the base file name of the transformations.
         data_dir: the directory of the data that contains the transform file

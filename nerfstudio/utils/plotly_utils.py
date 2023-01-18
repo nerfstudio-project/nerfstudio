@@ -205,7 +205,7 @@ def get_sphere(
 
 
 def get_cube(
-    side_length: float,
+    side_length: Union[float, torch.Tensor],
     center: TensorType[3] = None,
     color: str = "black",
     opacity: float = 1.0,
@@ -228,9 +228,17 @@ def get_cube(
 
     pts = np.stack((x, y, z), axis=0)
 
-    pts *= side_length / 2.0
+    if isinstance(side_length, float):
+        pts *= side_length / 2.0
+    else:
+        pts[0] *= side_length[0].item() / 2.0
+        pts[1] *= side_length[1].item() / 2.0
+        pts[2] *= side_length[2].item() / 2.0
+
     if center is not None:
-        pts += center
+        pts[0] = np.add(pts[0], center[0])
+        pts[1] = np.add(pts[1], center[1])
+        pts[2] = np.add(pts[2], center[2])
 
     return go.Mesh3d(
         {
@@ -258,7 +266,7 @@ def get_gaussian_ellipsiod(
     Args:
         mean: mean of the Gaussian.
         cov: covariance of the Gaussian.
-        n_std: Standard devation to visualize. Defaults to 2 (95% confidence).
+        n_std: Standard deviation to visualize. Defaults to 2 (95% confidence).
         color: Color of the ellipsoid. Defaults to None.
         opacity: Opacity of the ellipsoid. Defaults to 0.5.
         resolution: Resolution of the ellipsoid. Defaults to 20.
@@ -429,7 +437,7 @@ def get_frustum_points(
     Args:
         frustum: Frustums to visualize.
         opacity: Opacity of the points. Defaults to 0.3.
-        color: Color of the poinst. Defaults to "forestgreen".
+        color: Color of the points. Defaults to "forestgreen".
         size: Size of points. Defaults to 10.
 
     Returns:
