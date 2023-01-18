@@ -29,15 +29,17 @@ CONSOLE = Console(width=120)
 
 def polycam_to_json(
     image_filenames: List[Path],
+    depth_filenames: List[Path],
     cameras_dir: Path,
     output_dir: Path,
     min_blur_score: float = 0.0,
-    crop_border_pixels: int = 0,
+    crop_border_pixels: int = 0
 ) -> List[str]:
     """Convert Polycam data into a nerfstudio dataset.
 
     Args:
         image_filenames: List of paths to the original images.
+        depth_filenames: List of paths to the original depth maps.
         cameras_dir: Path to the polycam cameras directory.
         output_dir: Path to the output directory.
         min_blur_score: Minimum blur score to use an image. Images below this value will be skipped.
@@ -46,6 +48,7 @@ def polycam_to_json(
     Returns:
         Summary of the conversion.
     """
+    use_depth = True if len(image_filenames) == len(depth_filenames) else False
     data = {}
     data["camera_model"] = CAMERA_MODELS["perspective"].value
     # Needs to be a string for camera_utils.auto_orient_and_center_poses
@@ -67,6 +70,8 @@ def polycam_to_json(
         frame["w"] = frame_json["width"] - crop_border_pixels * 2
         frame["h"] = frame_json["height"] - crop_border_pixels * 2
         frame["file_path"] = f"./images/frame_{i+1:05d}{image_filename.suffix}"
+        if use_depth:
+            frame["depth_map_path"] = f"./depth/frame_{i+1:05d}{depth_filenames[i].suffix}"
         # Transform matrix to nerfstudio format. Please refer to the documentation for coordinate system conventions.
         frame["transform_matrix"] = [
             [frame_json["t_20"], frame_json["t_21"], frame_json["t_22"], frame_json["t_23"]],

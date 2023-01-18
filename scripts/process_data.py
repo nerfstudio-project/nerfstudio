@@ -525,7 +525,8 @@ class ProcessPolycam:
     """Minimum blur score to use an image. If the blur score is below this value, the image will be skipped."""
     crop_border_pixels: int = 15
     """Number of pixels to crop from each border of the image. Useful as borders may be black due to undistortion."""
-
+    use_depth: bool = False
+    """If True, processes the generated depth maps from Polycam"""
     verbose: bool = False
     """If True, print extra logging."""
 
@@ -550,13 +551,59 @@ class ProcessPolycam:
         else:
             polycam_image_dir = self.data / "keyframes" / "images"
             polycam_cameras_dir = self.data / "keyframes" / "cameras"
-            self.crop_border_pixels = 0
             if not self.use_uncorrected_images:
                 CONSOLE.print("[bold yellow]Corrected images not found, using raw images.")
 
         if not polycam_image_dir.exists():
             raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
 
+        if not (self.data / "keyframes" / "depth").exists():
+            depth_dir = self.data / "keyframes" / "depth"
+            raise ValueError(f"Depth map directory {depth_dir} doesn't exist")
+
+        image_processing_log, polycam_image_filenames = self.process_images(polycam_image_dir, image_dir)
+        summary_log.extend(image_processing_log)
+
+        polycam_depth_filenames = []
+        if self.use_depth:
+            polycam_depth_image_dir = self.data / "keyframes" / "depth"
+            depth_dir = self.output_dir / "depth"
+            depth_dir.mkdir(parents=True, exist_ok=True)
+            depth_processing_log, polycam_depth_filenames = self.process_depth_maps(polycam_depth_image_dir,
+                                                                        depth_dir,len(polycam_image_filenames))
+            summary_log.extend(depth_processing_log)
+
+        summary_log.extend(
+            polycam_utils.polycam_to_json(
+                image_filenames=polycam_image_filenames,
+                depth_filenames=polycam_depth_filenames,
+                cameras_dir=polycam_cameras_dir,
+                output_dir=self.output_dir,
+                min_blur_score=self.min_blur_score,
+                crop_border_pixels=self.crop_border_pixels
+            )
+        )
+
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+    def process_images(self, polycam_image_dir: Path, image_dir: Path) -> Tuple[List[str], List[Path]]:
+        """
+        Process RGB images only
+
+        Args:
+            polycam_image_dir: Path to the directory containing RGB Images
+            polycam_cameras_dir: Path to the directory of cameras used for processing.
+            image_dir: Output directory for processed images
+        Returns:
+            summary_log: Summary of the processing.
+            polycam_image_filenames: List of processed images paths
+        """
+        summary_log = []
         # Copy images to output directory
 
         polycam_image_filenames = []
@@ -570,6 +617,7 @@ class ProcessPolycam:
             idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
 
         polycam_image_filenames = list(np.array(polycam_image_filenames)[idx])
+
         # Copy images to output directory
         copied_image_paths = process_data_utils.copy_images_list(
             polycam_image_filenames,
@@ -597,21 +645,57 @@ class ProcessPolycam:
         if num_frames == 0:
             CONSOLE.print("[bold red]No images found, exiting")
             sys.exit(1)
-        summary_log.extend(
-            polycam_utils.polycam_to_json(
-                image_filenames=polycam_image_filenames,
-                cameras_dir=polycam_cameras_dir,
-                output_dir=self.output_dir,
-                min_blur_score=self.min_blur_score,
-                crop_border_pixels=self.crop_border_pixels,
-            )
+
+        return summary_log, polycam_image_filenames
+
+
+    def process_depth_maps(self, polycam_depth_dir: Path, depth_dir: Path, num_processed_images: int) -> List[str]:
+        summary_log = []
+        polycam_depth_maps_filenames = []
+        for depth_file in polycam_depth_dir.iterdir():
+            if depth_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
+                polycam_depth_maps_filenames.append(depth_file)
+
+        # depth maps and images have the same name
+        polycam_depth_maps_filenames = sorted(polycam_depth_maps_filenames, key=lambda fn: int(fn.stem))
+
+        num_depth_maps = len(polycam_depth_maps_filenames)
+
+        idx = np.arange(num_depth_maps)
+        if self.max_dataset_size != -1 and num_depth_maps > self.max_dataset_size:
+            idx = np.round(np.linspace(0, num_depth_maps - 1, self.max_dataset_size)).astype(int)
+
+        polycam_depth_maps_filenames = list(np.array(polycam_depth_maps_filenames)[idx])
+
+        # Copy depth images to output directory
+        copied_depth_maps_paths = process_data_utils.copy_and_upscale_polycam_depth_maps_list(
+            polycam_depth_maps_filenames,
+            depth_dir=depth_dir,
+            crop_border_pixels=self.crop_border_pixels,
+            verbose=self.verbose
         )
 
-        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+        num_processed_depth_maps = len(copied_depth_maps_paths)
 
-        for summary in summary_log:
-            CONSOLE.print(summary, justify="center")
-        CONSOLE.rule()
+        # assert same number of images as depth maps
+        if num_processed_images != num_processed_depth_maps:
+            raise ValueError(f"Expected same amount of depth maps as images. "
+                             f"Instead got {num_processed_images} images and {num_processed_depth_maps} depth maps")
+
+        if self.max_dataset_size > 0 and num_processed_depth_maps != num_depth_maps:
+            summary_log.append(f"Started with {num_processed_depth_maps} images out of {num_depth_maps} total")
+            summary_log.append(
+                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
+                f"current value ({self.max_dataset_size}), or -1 to use all images."
+            )
+        else:
+            summary_log.append(f"Started with {num_processed_depth_maps} images")
+
+        # Downscale depth maps
+        summary_log.append(process_data_utils.downscale_images(depth_dir, self.num_downscales, folder_name="depth",
+                                                                    verbose=self.verbose))
+
+        return summary_log, polycam_depth_maps_filenames
 
 
 @dataclass

@@ -156,6 +156,54 @@ def copy_images_list(
     return copied_image_paths
 
 
+def copy_and_upscale_polycam_depth_maps_list(polycam_depth_image_filenames: List[Path],
+                                             depth_dir: Path,
+                                             crop_border_pixels: Optional[int] = None,
+                                             verbose: bool = False) -> str:
+    """
+    Copy depth maps to working location and upscale them to match the RGB images dimensions and finally crop them
+    equally as RGB Images.
+    Args:
+        polycam_depth_image_filenames: List of Paths of images to copy to a new directory.
+        depth_dir: Path to the output directory.
+        crop_border_pixels: If not None, crops each edge by the specified number of pixels.
+        verbose: If True, print extra logging.
+    Returns:
+        A list of the copied depth maps paths.
+    """
+    copied_depth_map_paths = []
+
+    # Images should be 1-indexed for the rest of the pipeline.
+    for idx, depth_map_path in enumerate(polycam_depth_image_filenames):
+        copied_depth_map_path = depth_dir / f"frame_{idx + 1:05d}{depth_map_path.suffix}"
+        shutil.copy(depth_map_path, copied_depth_map_path)
+        copied_depth_map_paths.append(copied_depth_map_path)
+
+    # upscale them in place
+    with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
+        upscale_factor = 2 ** POLYCAM_UPSCALING_TIMES
+        assert upscale_factor > 1
+        assert isinstance(upscale_factor, int)
+        depth_dir.mkdir(parents=True, exist_ok=True)
+        file_type = depth_dir.glob("frame_*").__next__().suffix
+        filename = f"frame_%05d{file_type}"
+        ffmpeg_cmd = [
+            f"ffmpeg -i {depth_dir / filename} ",
+            f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
+            f"{depth_dir / filename}",
+        ]
+        ffmpeg_cmd = " ".join(ffmpeg_cmd)
+        run_command(ffmpeg_cmd, verbose=verbose)
+
+    if crop_border_pixels is not None:
+        crop = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}"
+        ffmpeg_cmd = f"ffmpeg -y -i {depth_dir / filename} -q:v 2 -vf {crop} {depth_dir / filename}"
+        run_command(ffmpeg_cmd, verbose=verbose)
+
+    CONSOLE.log("[bold green]:tada: Done upscaling depth maps.")
+    return copied_depth_map_paths
+
+
 def copy_images(data: Path, image_dir: Path, verbose) -> int:
     """Copy images from a directory to a new directory.
 
