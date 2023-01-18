@@ -41,7 +41,7 @@ class Field(nn.Module):
         Args:
             positions: the origin of the samples/frustums
         """
-        # Need to figure out a better way to descibe positions with a ray.
+        # Need to figure out a better way to describe positions with a ray.
         ray_samples = RaySamples(
             frustums=Frustums(
                 origins=positions,

@@ -52,7 +52,7 @@ class TrainingCallback:
     including at iteration 0. The function is called after the training iteration.
 
     Args:
-        where_to_run: List of locations for when to run callbak (before/after iteration)
+        where_to_run: List of locations for when to run callback (before/after iteration)
         func: The function that will be called.
         update_every_num_iters: How often to call the function `func`.
         iters: Tuple of iteration steps to perform callback
