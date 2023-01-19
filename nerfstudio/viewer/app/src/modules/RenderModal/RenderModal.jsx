@@ -1,7 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import * as React from 'react';
 
-import { Box, Button, Modal, TextField, Typography } from '@mui/material';
+import { Box, Button, Modal, Typography } from '@mui/material';
 import { useSelector } from 'react-redux';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 
@@ -19,26 +19,23 @@ export default function RenderModal(props: RenderModalProps) {
     (state) => state.renderingState.config_base_dir,
   );
 
-  const timestamp_regex = /[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}/g;
-  const test_time = config_base_dir.match(timestamp_regex);
-  let run_timestamp = ""
-  if(test_time){
-    run_timestamp = test_time.pop();
-  }
+  const export_path = useSelector(
+    (state) => state.renderingState.export_path,
+  );
 
   const data_base_dir = useSelector(
     (state) => state.renderingState.data_base_dir,
   );
 
   // react state
-  const [filename, setFilename] = React.useState('render_output');
+  // const [filename, setFilename] = React.useState('render_output');
 
   const handleClose = () => setOpen(false);
 
   // Copy the text inside the text field
   const config_filename = `${config_base_dir}/config.yml`;
-  const camera_path_filename = `${data_base_dir}/camera_path_${run_timestamp}.json`;
-  const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${camera_path_filename} --output-path renders/${filename}.mp4`;
+  const camera_path_filename = `${export_path}.json`;
+  const cmd = `ns-render --load-config ${config_filename} --traj filename --camera-path-filename ${data_base_dir}/camera_paths/${camera_path_filename} --output-path renders/${data_base_dir}/${export_path}.mp4`;
 
   const text_intro = `To render a full resolution video, run the following command in a terminal.`;
 
@@ -67,22 +64,11 @@ export default function RenderModal(props: RenderModalProps) {
                 <br />
                 The video will be saved to{' '}
                 <code className="RenderModal-inline-code">
-                  ./renders/{filename}.mp4
+                  ./renders/{data_base_dir}/{export_path}.mp4
                 </code>
                 .
               </p>
-              <TextField
-                label="Output Name"
-                inputProps={{
-                  inputMode: 'numeric',
-                  pattern: '[+-]?([0-9]*[.])?[0-9]+',
-                }}
-                onChange={(e) => {
-                  setFilename(e.target.value);
-                }}
-                value={filename}
-                variant="standard"
-              />
+              
               <div className="RenderModal-code">{cmd}</div>
               <div style={{ textAlign: 'center' }}>
                 <Button
