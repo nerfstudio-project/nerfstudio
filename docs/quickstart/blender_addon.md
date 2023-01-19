@@ -74,8 +74,10 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 - The generated JSON file can be imported into Nerfstudio. Each keyframe of the camera transform in the frame sequence in Blender will be a keyframe in Nerfstudio. The exported JSON camera path is baked, where each frame in the sequence is a keyframe. This is to ensure that frame interpolation across Nerfstudio and Blender do not differ.
     <img width="800" alt="image" src="https://user-images.githubusercontent.com/9502341/211245108-587a97f7-d48d-4515-b09a-5644fd966298.png">
 - It is recommended to run the camera path in the Nerfstudio web interface with the NeRF to ensure that the NeRF is visible throughout the camera path.
+- The fps and keyframe timestamps are based on the "Frame Rate" setting in the Output Properties in Blender.
 - The NeRF representation can also be transformed (position, rotation, and scale) as well as animated.
 - It is recommended to export a high fidelity mesh as the NeRF representation from Nerfstudio. However if that is not possible or the scene is too large, a point cloud representation also works.
+- For compositing, it is recommended to convert the video render into image frames to ensure the Blender and NeRF renders are in sync.
 - Currently, dynamic camera focus is not supported.
 - Fisheye and orthographic cameras are not supported.
 
@@ -104,9 +106,9 @@ This Blender add-on allows for compositing with a Nerfstudio render as a backgro
 
 ## Implementation Details
 
-For generating the JSON camera path, we iterate over the scene frame sequence (from the start to the end with step intervals) and getting the camera 4x4 world matrix at each frame. The world transformation matrix gives the position, rotation, and scale of the camera. We then obtain the world matrix of the NeRF representation at each frame and transform the camera coordinates with this to get the final camera world matrix. This allows us to re-position, rotate, and scale the NeRF representation in Blender and generate the right camera path to render the NeRF accordingly in Nerfstudio. Additionally, we calculate the FOV of the camera at each frame based on the sensor fit (horizontal or vertical), angle of view, and aspect ratio. 
+For generating the JSON camera path, we iterate over the scene frame sequence (from the start to the end with step intervals) and get the camera 4x4 world matrix at each frame. The world transformation matrix gives the position, rotation, and scale of the camera. We then obtain the world matrix of the NeRF representation at each frame and transform the camera coordinates with this to get the final camera world matrix. This allows us to re-position, rotate, and scale the NeRF representation in Blender and generate the right camera path to render the NeRF accordingly in Nerfstudio. Additionally, we calculate the FOV of the camera at each frame based on the sensor fit (horizontal or vertical), angle of view, and aspect ratio. 
 Next, we construct the list of keyframes which is very similar to the world matrices of the transformed camera matrix.
-Camera properties in the JSON file are based on user specified fields such as resolution (user specified in Output Properties in Blender), camera type (Perspective or Equirectangular). In the JSON file, `aspect` is specified as 1.0, `smoothness_value` is set to 0, and `is_cycle` is set to false. The Nerfstudio render is 1 fps where the duration is the total number of frames.
+Camera properties in the JSON file are based on user specified fields such as resolution (user specified in Output Properties in Blender), camera type (Perspective or Equirectangular). In the JSON file, `aspect` is specified as 1.0, `smoothness_value` is set to 0, and `is_cycle` is set to false. The Nerfstudio render is the fps specified in Blender where the duration is the total number of frames divided by the fps.
 Finally, we construct the full JSON object and write it to the file path specified by the user.
 
 For generating the camera from the JSON file, we create a new Blender camera based on the input file and iterate through the `camera_path` field in the JSON to get the world matrix of the object from the `matrix_to_world` and similarly get the FOV from the `fov` fields. At each iteration, we set the camera to these parameters and insert a keyframe based on the position, rotation, and scale of the camera as well as the focal length of the camera based on the vertical FOV input. 

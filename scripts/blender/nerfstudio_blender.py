@@ -1,21 +1,28 @@
+"""
+nerfstudio_blender.py
+"""
+
 bl_info = {
     "name": "Nerfstudio Add-On",
-    "description": "Create a Nerfstudio JSON camera path from the Blender camera path or import a Nerfstudio camera path as a Blender camera to composite Blender renders over a NeRF background render",
+    "description": "Create a Nerfstudio JSON camera path from the Blender camera path \
+    or import a Nerfstudio camera path as a Blender camera to composite Blender renders \
+    over a NeRF background render for VFX",
     "author": "Cyrus Vachha",
     "version": (1, 0),
-    "blender": (3, 0, 1),
+    "blender": (3, 0, 0),
     "category": "Nerfstudio",
 }
 
-import json
-from math import atan, degrees, radians, tan
+import json  # pylint: disable=wrong-import-position
+from math import atan, degrees, radians, tan  # pylint: disable=wrong-import-position
 
-import bpy
-from mathutils import Matrix
+import bpy  # pylint: disable=wrong-import-position,import-error
+from mathutils import Matrix  # pylint: disable=wrong-import-position,import-error
 
 
-# create a JSON camera path from the Blender camera animation
 class CreateJSONCameraPath(bpy.types.Operator):
+    """Create a JSON camera path from the Blender camera animation."""
+
     bl_idname = "opr.create_json_camera_path"
     bl_label = "Nerfstudio Camera Path Generator"
 
@@ -23,21 +30,23 @@ class CreateJSONCameraPath(bpy.types.Operator):
     nerf_bg_mesh = None  # the background NeRF as a mesh
 
     fov_list = []  # list of FOV at each frame
-    transformed_cameraPath_mat = []  # final transformed world matrix of the camera at each frame
+    transformed_camera_path_mat = []  # final transformed world matrix of the camera at each frame
 
     complete_json_obj = {}  # full Nerfstudio input json object
 
     file_path_json = ""  # file path input
 
-    def getCameraCoodinates(self):
-        org_cameraPath_mat = []  # list of world matrix of the active camera at each frame
+    def get_camera_coordinates(self):
+        """Create a list of transformed Blender camera coordinates and converted FOV."""
+
+        org_camera_path_mat = []  # list of world matrix of the active camera at each frame
         nerf_mesh_mat_list = []  # list of world matrix of the NeRF mesh at each frame
 
         curr_frame = bpy.context.scene.frame_start
 
         while curr_frame <= bpy.context.scene.frame_end:
             bpy.context.scene.frame_set(curr_frame)
-            org_cameraPath_mat += [self.cam_obj.matrix_world.copy()]
+            org_camera_path_mat += [self.cam_obj.matrix_world.copy()]
 
             if bpy.context.scene.render.resolution_y >= bpy.context.scene.render.resolution_x:
                 # portrait orientation
@@ -66,27 +75,30 @@ class CreateJSONCameraPath(bpy.types.Operator):
             nerf_mesh_mat_list += [self.nerf_bg_mesh.matrix_world.copy()]
 
         # transform the camera world matrix based on the NeRF mesh transformation
-        for i in range(len(org_cameraPath_mat)):
-            self.transformed_cameraPath_mat += [nerf_mesh_mat_list[i].inverted() @ org_cameraPath_mat[i]]
+        for i, org_cam_path_mat_val in enumerate(org_camera_path_mat):
+            self.transformed_camera_path_mat += [nerf_mesh_mat_list[i].inverted() @ org_cam_path_mat_val]
 
-    def getListFromMatrixPath(self, inputMat):
-        # flatten matrix to list for camera path
-        fullArr = list(inputMat.row[0]) + list(inputMat.row[1]) + list(inputMat.row[2]) + list(inputMat.row[3])
-        return fullArr
+    def get_list_from_matrix_path(self, input_mat):  # pylint: disable=no-self-use
+        """Flatten matrix to list for camera path."""
+        full_arr = list(input_mat.row[0]) + list(input_mat.row[1]) + list(input_mat.row[2]) + list(input_mat.row[3])
+        return full_arr
 
-    def getListFromMatrixKeyframe(self, inputMat):
-        # flatten matrix to list for keyframes
-        fullArr = list(inputMat.col[0]) + list(inputMat.col[1]) + list(inputMat.col[2]) + list(inputMat.col[3])
-        return fullArr
+    def get_list_from_matrix_keyframe(self, input_mat):  # pylint: disable=no-self-use
+        """Flatten matrix to list for keyframes."""
+        full_arr = list(input_mat.col[0]) + list(input_mat.col[1]) + list(input_mat.col[2]) + list(input_mat.col[3])
+        return full_arr
 
-    def constructJsonObj(self):
-        # get camera parameters
+    def construct_json_obj(self):
+        """Get fields for JSON camera path."""
         cam_type = self.cam_obj.data.type
         if cam_type == "PERSP":
             cam_type = "perspective"
         elif cam_type == "PANO" and self.cam_obj.data.cycles.panorama_type == "EQUIRECTANGULAR":
             cam_type = "equirectangular"
         else:
+            self.report(
+                {"WARNING"}, "Nerfstudio Add-on Warning: Only perspective and equirectangular cameras are supported"
+            )
             cam_type = "perspective"
 
         render_height = int(
@@ -95,17 +107,19 @@ class CreateJSONCameraPath(bpy.types.Operator):
         render_width = int(
             bpy.context.scene.render.resolution_x * (bpy.context.scene.render.resolution_percentage * 0.01)
         )
-        render_fps = 1
-        render_seconds = len(self.transformed_cameraPath_mat)
+        render_fps = bpy.context.scene.render.fps
+        render_seconds = (
+            (bpy.context.scene.frame_end - bpy.context.scene.frame_start + 1) // (bpy.context.scene.frame_step)
+        ) / render_fps
         smoothness_value = 0
         is_cycle = False
 
         # construct camera path
         final_camera_path = []
 
-        for i in range(len(self.transformed_cameraPath_mat)):
+        for i, transformed_camera_path_mat_val in enumerate(self.transformed_camera_path_mat):
             camera_path_elem = {
-                "camera_to_world": self.getListFromMatrixPath(self.transformed_cameraPath_mat[i]),
+                "camera_to_world": self.get_list_from_matrix_path(transformed_camera_path_mat_val),
                 "fov": self.fov_list[i],
                 "aspect": 1,
             }
@@ -113,20 +127,28 @@ class CreateJSONCameraPath(bpy.types.Operator):
 
         # construct keyframes
         keyframe_list = []
-        for i in range(len(self.transformed_cameraPath_mat)):
+
+        for i, transformed_camera_path_mat_val in enumerate(self.transformed_camera_path_mat):
+
             curr_properties = (
-                '[["FOV",' + str(self.fov_list[i]) + '],["NAME","Camera ' + str(i) + '"],["TIME",' + str(i) + "]]"
+                '[["FOV",'
+                + str(self.fov_list[i])
+                + '],["NAME","Camera '
+                + str(i)
+                + '"],["TIME",'
+                + str(i / render_fps)
+                + "]]"
             )
 
             keyframe_elem = {
-                "matrix": str(self.getListFromMatrixKeyframe(self.transformed_cameraPath_mat[i])),
+                "matrix": str(self.get_list_from_matrix_keyframe(self.transformed_camera_path_mat[i])),
                 "fov": self.fov_list[i],
                 "aspect": 1,
                 "properties": curr_properties,
             }
             keyframe_list += [keyframe_elem]
 
-        overallJSON = {
+        overall_json = {
             "keyframes": keyframe_list,
             "camera_type": cam_type,
             "render_height": render_height,
@@ -138,20 +160,22 @@ class CreateJSONCameraPath(bpy.types.Operator):
             "is_cycle": is_cycle,
         }
 
-        self.complete_json_obj = json.dumps(overallJSON, indent=2)
+        self.complete_json_obj = json.dumps(overall_json, indent=2)
 
-    def writeJSONToFile(self):
+    def write_json_to_file(self):
+        """Write the JSON object to a new file."""
+
         full_abs_file_path = bpy.path.abspath(self.file_path_json + "camera_path_blender.json")
-        with open(full_abs_file_path, "w") as outputJSONCameraPath:
-            outputJSONCameraPath.truncate(0)
-            outputJSONCameraPath.write(self.complete_json_obj)
+        with open(full_abs_file_path, "w", encoding="utf8") as output_json_camera_path:
+            output_json_camera_path.truncate(0)
+            output_json_camera_path.write(self.complete_json_obj)
 
         self.complete_json_obj = {}
         print("\nFinished creating camera path json file at " + full_abs_file_path + "\n")
 
     def execute(self, context):
+        """Execute the camera path creation process."""
         # get user specified values from UI
-        params = (context.scene.NeRF, context.scene.JSONInputFilePath)
 
         self.cam_obj = bpy.context.scene.camera
         self.nerf_bg_mesh = context.scene.NeRF
@@ -159,24 +183,31 @@ class CreateJSONCameraPath(bpy.types.Operator):
 
         # check input
         if self.nerf_bg_mesh is None:
-            print("Nerfstudio add-on Error! - Please input NeRF representation (as mesh or point cloud)")
+            self.report(
+                {"ERROR"}, "Nerfstudio add-on Error! - Please input NeRF representation (as mesh or point cloud)"
+            )
+            return {"FINISHED"}
+
+        if self.file_path_json == "":
+            self.report({"ERROR"}, "Nerfstudio add-on Error! - Please input a file path for the output JSON")
             return {"FINISHED"}
 
         # reset lists before running
         self.fov_list = []
-        self.transformed_cameraPath_mat = []
+        self.transformed_camera_path_mat = []
         self.complete_json_obj = {}
 
         # create the path
-        self.getCameraCoodinates()
-        self.constructJsonObj()
-        self.writeJSONToFile()
+        self.get_camera_coordinates()
+        self.construct_json_obj()
+        self.write_json_to_file()
 
         return {"FINISHED"}
 
 
-# create a camera with an animation path based on an input Nerfstudio JSON
 class ReadJSONinputCameraPath(bpy.types.Operator):
+    """Create a camera with an animation path based on an input Nerfstudio JSON."""
+
     bl_idname = "opr.read_json_camera_path"
     bl_label = "Blender Camera Generator from JSON"
 
@@ -184,16 +215,15 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
     nerf_bg_mesh = None  # the background NeRF as a mesh
 
     fov_list = []  # list of FOV at each frame
-    transformed_cameraPath_mat = []  # final transformed world matrix of the camera at each frame
-    inputJson = None
+    transformed_camera_path_mat = []  # final transformed world matrix of the camera at each frame
+    input_json = None
 
-    def readCameraCoodinates(self):
-        # read the camera coordinates (world matrix and fov) from the json camera path
+    def read_camera_coodinates(self):
+        """Read the camera coordinates (world matrix and fov) from the json camera path."""
 
-        json_cam_path = self.inputJson["camera_path"]
-        nerf_mesh_mat_list = []
+        json_cam_path = self.input_json["camera_path"]
         self.fov_list = []
-        self.transformed_cameraPath_mat = []
+        self.transformed_camera_path_mat = []
 
         keyframe_counter = 0
         for cam_keyframe in json_cam_path:
@@ -203,19 +233,19 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
             orig_cam_mat = Matrix([cam_to_world[0:4], cam_to_world[4:8], cam_to_world[8:12], cam_to_world[12:]])
 
             # matrix transformation based on the nerf mesh to find relative camera positions
-            self.transformed_cameraPath_mat += [self.nerf_bg_mesh.matrix_world.copy() @ orig_cam_mat]
+            self.transformed_camera_path_mat += [self.nerf_bg_mesh.matrix_world.copy() @ orig_cam_mat]
 
             # record fov
             self.fov_list += [cam_keyframe["fov"]]
 
             keyframe_counter += 1
 
-    def generateCamera(self):
-        # create a new camera with the animation (position and fov) and the corresponding type
+    def generate_camera(self):
+        """Create a new camera with the animation (position and fov) and the corresponding type."""
 
-        json_cam_path = self.inputJson["camera_path"]
+        json_cam_path = self.input_json["camera_path"]
 
-        newCamera = camera_data = bpy.data.cameras.new(name="NerfstudioCamera")
+        camera_data = bpy.data.cameras.new(name="NerfstudioCamera")
         camera_data = bpy.data.cameras.new(name="NerfstudioCamera")
         nerfstudio_camera_object = bpy.data.objects.new("NerfstudioCamera", camera_data)
         bpy.context.scene.collection.objects.link(nerfstudio_camera_object)
@@ -224,7 +254,7 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
         while curr_frame < len(json_cam_path):
             actual_frame = curr_frame + 1
             # animate camera transform
-            nerfstudio_camera_object.matrix_world = self.transformed_cameraPath_mat[curr_frame]
+            nerfstudio_camera_object.matrix_world = self.transformed_camera_path_mat[curr_frame]
             nerfstudio_camera_object.keyframe_insert("location", frame=actual_frame)
             nerfstudio_camera_object.keyframe_insert("rotation_euler", frame=actual_frame)
 
@@ -242,42 +272,43 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
             curr_frame += 1
 
         # set camera attributes
-        inputCamType = self.inputJson["camera_type"]
-        if inputCamType == "perspective":
+        input_cam_type = self.input_json["camera_type"]
+        if input_cam_type == "perspective":
             nerfstudio_camera_object.data.type = "PERSP"
-        if inputCamType == "equirectangular":
+        if input_cam_type == "equirectangular":
             nerfstudio_camera_object.data.type = "PANO"
             bpy.context.scene.render.engine = "CYCLES"
             nerfstudio_camera_object.data.cycles.panorama_type = "EQUIRECTANGULAR"
-        if inputCamType == "fisheye":
+        if input_cam_type == "fisheye":
             nerfstudio_camera_object.data.type = "PERSP"
-            print("Nerfstudio Add-on Warning: Fisheye cameras are not supported")
+            self.report({"WARNING"}, "Nerfstudio Add-on Warning: Fisheye cameras are not supported")
 
     def execute(self, context):
+        """Execute Blender camera creation process."""
 
         # initializat variables
-        params = (context.scene.NeRF, context.scene.NS_InputJSONFilePath)
-
         self.nerf_bg_mesh = context.scene.NeRF
-        file_path_ns_json = context.scene.NS_InputJSONFilePath  # input file path for the input json file
+        file_path_ns_json = context.scene.NS_input_jsonFilePath  # input file path for the input json file
 
         # check input
         if self.nerf_bg_mesh is None:
-            print("Nerfstudio add-on Error! - Please input NeRF representation (as mesh or point cloud)")
+            self.report(
+                {"ERROR"}, "Nerfstudio add-on Error! - Please input NeRF representation (as mesh or point cloud)"
+            )
             return {"FINISHED"}
 
         if file_path_ns_json == "":
-            print("Nerfstudio add-on Error! - Please input a Nerfstudio JSON camera path")
+            self.report({"ERROR"}, "Nerfstudio add-on Error! - Please input a Nerfstudio JSON camera path")
             return {"FINISHED"}
 
         # open the json file
         full_abs_file_path = bpy.path.abspath(file_path_ns_json)
-        json_ns_file = open(full_abs_file_path)
-        self.inputJson = json.load(json_ns_file)
+        with open(full_abs_file_path, encoding="utf8") as json_ns_file:
+            self.input_json = json.load(json_ns_file)
 
         # call methods to read cam path and create camera
-        self.readCameraCoodinates()
-        self.generateCamera()
+        self.read_camera_coodinates()
+        self.generate_camera()
 
         return {"FINISHED"}
 
@@ -285,7 +316,8 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
 # --- Blender UI Panel --- #
 
 
-class NerfstudioMainPanel(bpy.types.Panel):
+class NerfstudioMainPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
+    """Blener UI main panel for the add-on."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioMainPanel"
     bl_label = "Nerfstudio Add-on"
@@ -294,14 +326,15 @@ class NerfstudioMainPanel(bpy.types.Panel):
     bl_context = "render"
 
     def draw(self, context):
-
+        """Main panel UI components."""
         # NeRF representation object input box
         self.layout.label(text="NeRF Representation (mesh or point cloud)")
         self.layout.prop_search(context.scene, "NeRF", context.scene, "objects")
-        col = self.layout.column()
+        _ = self.layout.column()
 
 
-class NerfstudioBgPanel(bpy.types.Panel):
+class NerfstudioBgPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
+    """Blener UI sub-panel for the camera path creation."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioBgPanel"
     bl_label = "Nerfstudio Path Generator"
@@ -311,6 +344,7 @@ class NerfstudioBgPanel(bpy.types.Panel):
     bl_context = "render"
 
     def draw(self, context):
+        """Sub-panel UI components."""
 
         self.layout.label(text="Camera path for Nerfstudio")
 
@@ -322,7 +356,8 @@ class NerfstudioBgPanel(bpy.types.Panel):
         col.operator("opr.create_json_camera_path", text="Generate JSON File")
 
 
-class NerfstudioInputPanel(bpy.types.Panel):
+class NerfstudioInputPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
+    """Blener UI sub-panel for the Blender camera creation."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioInputPanel"
     bl_label = "Nerfstudio Camera Generator"
@@ -332,6 +367,7 @@ class NerfstudioInputPanel(bpy.types.Panel):
     bl_context = "render"
 
     def draw(self, context):
+        """Sub-panel UI components."""
 
         col = self.layout.column()
         self.layout.label(text="Create Blender Camera From Nerfstudio JSON")
@@ -361,10 +397,10 @@ INPUT_PROPERTIES = [
 
 INPUT_PROPERTIES_NS_CAMERA = [
     (
-        "NS_InputJSONFilePath",
+        "NS_input_jsonFilePath",
         bpy.props.StringProperty(
-            name="JSON Nerfstudio path",
-            default="//",
+            name="JSON Nerfstudio File",
+            default="",
             description="Path for JSON from Nerfstudio editor",
             subtype="FILE_PATH",
         ),
@@ -375,6 +411,8 @@ OBJ_PROPERTIES = ["NeRF", "RenderCamera"]
 
 
 def register():
+    """Register classes for UI panel."""
+
     for (prop_name, prop_value) in INPUT_PROPERTIES:
         setattr(bpy.types.Scene, prop_name, prop_value)
 
@@ -388,6 +426,8 @@ def register():
 
 
 def unregister():
+    """Unregister classes for UI panel."""
+
     for (prop_name, _) in INPUT_PROPERTIES:
         delattr(bpy.types.Scene, prop_name)
 
