@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Implements the temporal grid used by NeRFPlayer.
+"""Implements the temporal grid used by NeRFPlayer (https://arxiv.org/abs/2210.15947).
 A time conditioned sliding window is applied on the feature channels, so
 that the feature vectors become time-aware.
 (A large) Part of the code are adapted from (@ashawkey) https://github.com/ashawkey/torch-ngp/
@@ -159,6 +159,9 @@ class TemporalGridEncodeFunc(Function):
 
 class TemporalGridEncoder(nn.Module):
     """Class for temporal grid encoding.
+    This class extends the grid encoding (from InstantNGP) by allowing the output time-dependent feature channels.
+    For example, for time 0 the interpolation uses channels [0,1], then for time 1 channels [2,1] are used.
+    This operation can be viewed as applying a time-dependent sliding window on the feature channels.
 
     Args:
         temporal_dim: the dimension of temporal modeling; a higher dim indicates a higher freq on the time axis
@@ -224,7 +227,7 @@ class TemporalGridEncoder(nn.Module):
         self.embeddings = nn.Parameter(torch.empty(offset, level_dim + temporal_dim))
         self.init_parameters()
 
-    def init_parameters(self):
+    def init_parameters(self) -> None:
         """Initialize the parameters:
         1. Uniform initialization of the embeddings
         2. Temporal interpolation index initialization:
@@ -302,7 +305,7 @@ class TemporalGridEncoder(nn.Module):
         self.register_buffer("index_a_mask", torch.stack(index_a_mask))
         self.register_buffer("index_b_mask", torch.stack(index_b_mask))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """For debug and logging purpose."""
         return (
             f"GridEncoder: input_dim={self.input_dim} num_levels={self.num_levels} "
@@ -344,7 +347,7 @@ class TemporalGridEncoder(nn.Module):
         )
         return outputs
 
-    def get_temporal_tv_loss(self):
+    def get_temporal_tv_loss(self) -> TensorType[()]:
         """Apply TV loss on the temporal channels.
         Sample a random channel combination (i.e., row for the combination table),
         and then compute loss on it.
