@@ -28,7 +28,6 @@ export default function RenderModal(props: RenderModalProps) {
   );
 
   // react state
-  // const [filename, setFilename] = React.useState('render_output');
 
   const handleClose = () => setOpen(false);
 
