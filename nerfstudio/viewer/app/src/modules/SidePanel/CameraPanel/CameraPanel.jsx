@@ -1135,7 +1135,7 @@ export default function CameraPanel(props) {
   return (
     <div className="CameraPanel">
       <div>
-        <div className="CameraPanel-path-row">  
+        <div className="CameraPanel-path-row">
           <Button
             size="small"
             className="CameraPanel-top-button"

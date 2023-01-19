@@ -8,10 +8,6 @@ export default function CameraPropPanel(props) {
   const set_fps = props.set_fps;
 
   // redux store state
-  // const config_base_dir = useSelector(
-  //   (state) => state.renderingState.config_base_dir,
-  // );
-
   const store = useStoreContext();
 
   const dispatch = useDispatch();

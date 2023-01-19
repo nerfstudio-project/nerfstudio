@@ -359,7 +359,6 @@ class ViewerState:
                 os.mkdir(camera_paths_directory)
 
             write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
-            print("wrote to json")
             self.vis["camera_path_payload"].delete()
 
     def _check_webrtc_offer(self):
