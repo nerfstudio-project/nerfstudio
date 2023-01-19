@@ -14,6 +14,7 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import os
 import shutil
 import sys
 from enum import Enum
@@ -203,15 +204,17 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"images_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            file_type = image_dir.glob("frame_*").__next__().suffix
-            filename = f"frame_%05d{file_type}"
-            ffmpeg_cmd = [
-                f"ffmpeg -i {image_dir / filename} ",
-                f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-                f"{downscale_dir / filename}",
-            ]
-            ffmpeg_cmd = " ".join(ffmpeg_cmd)
-            run_command(ffmpeg_cmd, verbose=verbose)
+            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
+            files = os.scandir(image_dir)
+            for f in files:
+                filename = f.name
+                ffmpeg_cmd = [
+                    f"ffmpeg -y -i {image_dir / filename} ",
+                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                    f"{downscale_dir / filename}",
+                ]
+                ffmpeg_cmd = " ".join(ffmpeg_cmd)
+                run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
     downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
