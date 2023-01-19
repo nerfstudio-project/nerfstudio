@@ -58,9 +58,9 @@ export default function CameraPropPanel(props) {
         label: 'Export Name',
         value: export_path,
         onChange: (v) => {
-          const valid_filename_reg = /^([a-z]|[A-Z]|[0-9]|-|_|\(|\))+$/g;
+          const valid_filename_reg = /^([a-z]|[A-Z]|[0-9]|-|_)+$/g;
           if(!valid_filename_reg.test(v)){
-            alert("Please only use letters, numbers, parentheses, hyphens, and underscores in path name (no spaces either)");
+            alert("Please only use letters, numbers, and hyphens");
           }
           else {
             setExportPath(v);
