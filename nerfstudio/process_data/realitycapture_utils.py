@@ -67,8 +67,8 @@ def realitycapture_to_json(
     for i, name in enumerate(cameras["#name"]):
         frame = {}
         frame["file_path"] = image_filename_map[name.split(".")[0]].as_posix()
-        frame["fl_x"] = float(cameras["f"][i]) * width / 36
-        frame["fl_y"] = float(cameras["f"][i]) * width / 36
+        frame["fl_x"] = float(cameras["f"][i]) * max(width, height) / 36
+        frame["fl_y"] = float(cameras["f"][i]) * max(width, height) / 36
         # TODO: Unclear how to get the principal point from RealityCapture, here a guess...
         frame["cx"] = float(cameras["px"][i]) / 36.0 + width / 2.0
         frame["cy"] = float(cameras["py"][i]) / 36.0 + height / 2.0
