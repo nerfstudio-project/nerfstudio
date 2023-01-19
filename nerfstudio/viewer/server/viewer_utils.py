@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import enum
 import os
+import re
 import sys
 import threading
 import time
@@ -68,13 +69,13 @@ def get_viewer_version() -> str:
 
 
 @check_main_thread
-def setup_viewer(config: cfg.ViewerConfig, log_filename: Path):
+def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
     """Sets up the viewer if enabled
 
     Args:
         config: the configuration to instantiate viewer
     """
-    viewer_state = ViewerState(config, log_filename=log_filename)
+    viewer_state = ViewerState(config, log_filename=log_filename, datapath=datapath)
     banner_messages = [f"Viewer at: {viewer_state.viewer_url}"]
     return viewer_state, banner_messages
 
@@ -225,11 +226,12 @@ class ViewerState:
         config: viewer setup configuration
     """
 
-    def __init__(self, config: cfg.ViewerConfig, log_filename: Path):
+    def __init__(self, config: cfg.ViewerConfig, log_filename: Path, datapath: str):
         self.config = config
         self.vis = None
         self.viewer_url = None
         self.log_filename = log_filename
+        self.datapath = datapath
         if self.config.launch_bridge_server:
             # start the viewer bridge server
             assert self.config.websocket_port is not None
@@ -306,6 +308,14 @@ class ViewerState:
         # set the config base dir
         self.vis["renderingState/config_base_dir"].write(str(self.log_filename.parents[0]))
 
+        # set the data base dir
+        self.vis["renderingState/data_base_dir"].write(str(self.datapath))
+
+        # get the timestamp of the train run to set default export path name
+        timestamp_reg = re.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{6}")
+        timestamp_match = timestamp_reg.findall(str(self.log_filename.parents[0]))
+        self.vis["renderingState/export_path"].write(timestamp_match[-1])
+
         # clear the current scene
         self.vis["sceneState/sceneBox"].delete()
         self.vis["sceneState/cameras"].delete()
@@ -341,10 +351,14 @@ class ViewerState:
         if camera_path_payload:
             # save a model checkpoint
             trainer.save_checkpoint(step)
-            # write to json file
-            camera_path_filename = camera_path_payload["camera_path_filename"]
+            # write to json file in datapath directory
+            camera_path_filename = camera_path_payload["camera_path_filename"] + ".json"
             camera_path = camera_path_payload["camera_path"]
-            write_to_json(Path(camera_path_filename), camera_path)
+            camera_paths_directory = os.path.join(self.datapath, "camera_paths")
+            if not os.path.exists(camera_paths_directory):
+                os.mkdir(camera_paths_directory)
+
+            write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
             self.vis["camera_path_payload"].delete()
 
     def _check_webrtc_offer(self):
