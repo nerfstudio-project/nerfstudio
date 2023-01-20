@@ -144,7 +144,7 @@ def copy_images_list(
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        ffmpeg_cmd = f"ffmpeg -y -noautorotate -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -209,7 +209,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
             for f in files:
                 filename = f.name
                 ffmpeg_cmd = [
-                    f"ffmpeg -y -i {image_dir / filename} ",
+                    f"ffmpeg -y -noautorotate -i {image_dir / filename} ",
                     f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
                     f"{downscale_dir / filename}",
                 ]
