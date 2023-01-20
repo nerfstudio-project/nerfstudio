@@ -45,6 +45,29 @@ CAMERA_MODELS = {
 }
 
 
+def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
+    """Returns a list of image filenames in a directory.
+
+    Args:
+        dir: Path to the directory.
+        max_num_images: The maximum number of images to return. -1 means no limit.
+    Returns:
+        A tuple of A list of image filenames, number of original image paths.
+    """
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in directory.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    num_orig_images = len(image_paths)
+
+    if max_num_images != -1 and num_orig_images > max_num_images:
+        idx = np.round(np.linspace(0, num_orig_images - 1, max_num_images)).astype(int)
+    else:
+        idx = np.arange(num_orig_images)
+
+    image_filenames = list(np.array(image_paths)[idx])
+
+    return image_filenames, num_orig_images
+
+
 def get_num_frames_in_video(video: Path) -> int:
     """Returns the number of frames in a video.
 
