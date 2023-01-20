@@ -376,7 +376,6 @@ class ViewerState:
                     all_path_dict[i[:-5]] = load_from_json(os.path.join(camera_path_dir, i))
             self.vis["renderingState/all_camera_paths"].write(all_path_dict)
             self.vis["populate_paths_payload"].delete()
-            # print text in red
 
     def _check_webrtc_offer(self):
         """Check if there is a webrtc offer to respond to."""
