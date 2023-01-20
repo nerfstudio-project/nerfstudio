@@ -136,12 +136,12 @@ class Nerfstudio(DataParser):
             if not distort_fixed:
                 distort.append(
                     camera_utils.get_distortion_params(
-                        k1=float(meta["k1"]) if "k1" in meta else 0.0,
-                        k2=float(meta["k2"]) if "k2" in meta else 0.0,
-                        k3=float(meta["k3"]) if "k3" in meta else 0.0,
-                        k4=float(meta["k4"]) if "k4" in meta else 0.0,
-                        p1=float(meta["p1"]) if "p1" in meta else 0.0,
-                        p2=float(meta["p2"]) if "p2" in meta else 0.0,
+                        k1=float(frame["k1"]) if "k1" in frame else 0.0,
+                        k2=float(frame["k2"]) if "k2" in frame else 0.0,
+                        k3=float(frame["k3"]) if "k3" in frame else 0.0,
+                        k4=float(frame["k4"]) if "k4" in frame else 0.0,
+                        p1=float(frame["p1"]) if "p1" in frame else 0.0,
+                        p2=float(frame["p2"]) if "p2" in frame else 0.0,
                     )
                 )
 
