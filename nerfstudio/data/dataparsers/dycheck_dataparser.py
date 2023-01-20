@@ -151,6 +151,34 @@ def _load_metadata_info(data_dir: Path) -> Tuple[np.ndarray, np.ndarray, np.ndar
     return frame_names_map, time_ids, camera_ids
 
 
+def _rescale_depth(depth_raw: np.ndarray, cam: Dict) -> np.ndarray:
+    """Depth rescale function from DyCheck.
+
+    Args:
+        depth: A numpy ndarray of the raw depth
+        cam: Dict of the camera
+
+    Returns:
+        A numpy ndarray of the processed depth
+    """
+    xx, yy = np.meshgrid(np.arange(cam["width"], dtype=np.float32), np.arange(cam["height"], dtype=np.float32))
+    pixels = np.stack([xx, yy], axis=-1)
+    batch_shape = pixels.shape[:-1]
+    pixels = np.reshape(pixels, (-1, 2))
+    y = (pixels[..., 1] - cam["cy"]) / cam["fy"]
+    x = (pixels[..., 0] - cam["cx"]) / cam["fx"]
+    # x = (pixels[..., 0] - self.principal_point_x - y * self.skew) / self.scale_factor_x
+    # assume skew = 0
+    viewdirs = np.stack([x, y, np.ones_like(x)], axis=-1)
+    local_viewdirs = viewdirs / np.linalg.norm(viewdirs, axis=-1, keepdims=True)
+    viewdirs = (cam["camera_to_worlds"][:3, :3] @ local_viewdirs[..., None])[..., 0]
+    viewdirs /= np.linalg.norm(viewdirs, axis=-1, keepdims=True)
+    viewdirs = viewdirs.reshape((*batch_shape, 3))
+    cosa = viewdirs @ (cam["camera_to_worlds"][:, 2])
+    depth = depth_raw / cosa[..., None]
+    return depth
+
+
 @dataclass
 class DycheckDataParserConfig(DataParserConfig):
     """Dycheck (https://arxiv.org/abs/2210.13445) dataset parser config"""
@@ -307,35 +335,8 @@ class Dycheck(DataParser):
                 mask = rescale((depth != 0).astype(np.uint8) * 255, 1 / d, cv2.INTER_AREA)
                 depth = rescale(depth, 1 / d, cv2.INTER_AREA)
                 depth[mask != 255] = 0
-                depth = self.rescale_depth(depth, cams[idx])
+                depth = _rescale_depth(depth, cams[idx])
                 np.save(str(self.data / f"processed_depth/{d}x/{frame}.npy"), depth)
             CONSOLE.print("finished")
 
         return image_filenames, depth_filenames, cams
-
-    def rescale_depth(self, depth_raw: np.ndarray, cam: Dict) -> np.ndarray:
-        """Depth rescale function from DyCheck.
-
-        Args:
-            depth: A numpy ndarray of the raw depth
-            cam: Dict of the camera
-
-        Returns:
-            A numpy ndarray of the processed depth
-        """
-        xx, yy = np.meshgrid(np.arange(cam["width"], dtype=np.float32), np.arange(cam["height"], dtype=np.float32))
-        pixels = np.stack([xx, yy], axis=-1)
-        batch_shape = pixels.shape[:-1]
-        pixels = np.reshape(pixels, (-1, 2))
-        y = (pixels[..., 1] - cam["cy"]) / cam["fy"]
-        x = (pixels[..., 0] - cam["cx"]) / cam["fx"]
-        # x = (pixels[..., 0] - self.principal_point_x - y * self.skew) / self.scale_factor_x
-        # assume skew = 0
-        viewdirs = np.stack([x, y, np.ones_like(x)], axis=-1)
-        local_viewdirs = viewdirs / np.linalg.norm(viewdirs, axis=-1, keepdims=True)
-        viewdirs = (cam["camera_to_worlds"][:3, :3] @ local_viewdirs[..., None])[..., 0]
-        viewdirs /= np.linalg.norm(viewdirs, axis=-1, keepdims=True)
-        viewdirs = viewdirs.reshape((*batch_shape, 3))
-        cosa = viewdirs @ (cam["camera_to_worlds"][:, 2])
-        depth = depth_raw / cosa[..., None]
-        return depth
