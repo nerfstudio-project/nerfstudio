@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Server bridge to faciliate interactions between python backend and javascript front end"""
+"""Server bridge to facilitate interactions between python backend and javascript front end"""
 
 import sys
 from typing import List, Optional, Tuple

@@ -99,6 +99,9 @@ class InputDataset(Dataset):
         if self.has_masks:
             mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
             data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)
+            assert (
+                data["mask"].shape[:2] == data["image"].shape[:2]
+            ), f"Mask and image have different shapes. Got {data['mask'].shape[:2]} and {data['image'].shape[:2]}"
         metadata = self.get_metadata(data)
         data.update(metadata)
         return data

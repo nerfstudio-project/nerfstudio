@@ -42,8 +42,6 @@ def _render_trajectory_video(
     cameras: Cameras,
     output_filename: Path,
     rendered_output_names: List[str],
-    render_width: int,
-    render_height: int,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
@@ -56,8 +54,6 @@ def _render_trajectory_video(
         cameras: Cameras to render.
         output_filename: Name of the output file.
         rendered_output_names: List of outputs to visualise.
-        render_width: Video width to render.
-        render_height: Video height to render.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         seconds: Length of output video.
         output_format: How to save output data.
@@ -89,20 +85,8 @@ def _render_trajectory_video(
         # but we don't know how big the video file will be, so it's not certain!)
 
     with ExitStack() as stack:
-        writer = (
-            stack.enter_context(
-                media.VideoWriter(
-                    path=output_filename,
-                    shape=(
-                        int(render_height * rendered_resolution_scaling_factor),
-                        int(render_width * rendered_resolution_scaling_factor) * len(rendered_output_names),
-                    ),
-                    fps=fps,
-                )
-            )
-            if output_format == "video"
-            else None
-        )
+        writer = None
+
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
                 camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
@@ -124,7 +108,17 @@ def _render_trajectory_video(
                 render_image = np.concatenate(render_image, axis=1)
                 if output_format == "images":
                     media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
-                if output_format == "video" and writer is not None:
+                if output_format == "video":
+                    if writer is None:
+                        render_width = int(render_image.shape[1] * rendered_resolution_scaling_factor)
+                        render_height = int(render_image.shape[0] * rendered_resolution_scaling_factor)
+                        writer = stack.enter_context(
+                            media.VideoWriter(
+                                path=output_filename,
+                                shape=(render_height, render_width),
+                                fps=fps,
+                            )
+                        )
                     writer.add_image(render_image)
 
     if output_format == "video":
@@ -242,8 +236,6 @@ class RenderTrajectory:
             camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
             # TODO(ethan): pass in the up direction of the camera
             camera_type = CameraType.PERSPECTIVE
-            render_width = 952
-            render_height = 736
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "filename":
             with open(self.camera_path_filename, "r", encoding="utf-8") as f:
@@ -257,8 +249,6 @@ class RenderTrajectory:
                 camera_type = CameraType.EQUIRECTANGULAR
             else:
                 camera_type = CameraType.PERSPECTIVE
-            render_width = camera_path["render_width"]
-            render_height = camera_path["render_height"]
             camera_path = get_path_from_json(camera_path)
         else:
             assert_never(self.traj)
@@ -272,8 +262,6 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
-            render_width=render_width,
-            render_height=render_height,
         )
 
 

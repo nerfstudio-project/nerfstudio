@@ -94,7 +94,7 @@ class DataManager(nn.Module):
     This data manager's next_train and next_eval methods will return 2 things:
         1. A Raybundle: This will contain the rays we are sampling, with latents and
             conditionals attached (everything needed at inference)
-        2. A "batch" of auxilury information: This will contain the mask, the ground truth
+        2. A "batch" of auxiliary information: This will contain the mask, the ground truth
             pixels, etc needed to actually train, score, etc the model
 
     Rationale:
@@ -172,7 +172,7 @@ class DataManager(nn.Module):
 
     def get_train_iterable(self, length=-1) -> IterableWrapper:
         """Gets a trivial pythonic iterator that will use the iter_train and next_train functions
-        as __iter__ and __next__ methods respectivley.
+        as __iter__ and __next__ methods respectively.
 
         This basically is just a little utility if you want to do something like:
         |    for ray_bundle, batch in datamanager.get_train_iterable():
@@ -184,7 +184,7 @@ class DataManager(nn.Module):
 
     def get_eval_iterable(self, length=-1) -> IterableWrapper:
         """Gets a trivial pythonic iterator that will use the iter_eval and next_eval functions
-        as __iter__ and __next__ methods respectivley.
+        as __iter__ and __next__ methods respectively.
 
         This basically is just a little utility if you want to do something like:
         |    for ray_bundle, batch in datamanager.get_eval_iterable():

@@ -130,7 +130,7 @@ cd vcpkg
 
 Nerfstudio can also be trained directly from captures from the [Polycam app](https://poly.cam//). This avoids the need to use COLMAP. Polycam's poses are globally optimized which make them more robust to drift (an issue with ARKit or SLAM methods).
 
-To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoinrts as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.
+To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoints as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.
 
 :::{admonition} Note
 :class: info
@@ -145,7 +145,7 @@ A LiDAR enabled iPhone or iPad is necessary.
 :alt: polycam settings
 ```
 
-Devoloper settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
+Developer settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
 
 ### Process data
 
@@ -210,7 +210,7 @@ After downloading the app, `Developer Mode` needs to be enabled. A toggle can be
 
 3. Tap the `+` button to create a new capture.
 
-4. Choose `Camera pose` as the capture option
+4. Choose `Camera pose` as the capture option.
 
 5. Capture the scene and provide a name.
 
@@ -218,7 +218,7 @@ After downloading the app, `Developer Mode` needs to be enabled. A toggle can be
 
 7. Unzip the file and run the training script (`ns-process-data` is not necessary).
 
-```
+```bash
 ns-train nerfacto --data {kiri output directory}
 ```
 
@@ -249,7 +249,7 @@ ns-process-data record3d --data {data directory} --output-dir {output directory}
 
 4. Train with nerfstudio!
 
-```
+```bash
 ns-train nerfacto --data {output directory}
 ```
 
@@ -281,6 +281,6 @@ ns-process-data metashape --data {data directory} --xml {xml file} --output-dir 
 
 4. Train with nerfstudio!
 
-```
+```bash
 ns-train nerfacto --data {output directory}
 ```
