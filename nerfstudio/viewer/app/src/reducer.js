@@ -44,6 +44,11 @@ const initialState = {
     clipping_enabled: true,
     clipping_center: [0.0, 0.0, 0.0],
     clipping_box_scale: [2.0, 2.0, 2.0],
+
+    // Crop Box Options
+    crop_enabled: false,
+    crop_scale: [2.0, 2.0, 2.0],
+    crop_center: [0.0, 0.0, 0.0],
   },
   // the scene state
   sceneState: {
