@@ -14,6 +14,7 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import os
 import shutil
 import sys
 from enum import Enum
@@ -42,6 +43,29 @@ CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
 }
+
+
+def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
+    """Returns a list of image filenames in a directory.
+
+    Args:
+        dir: Path to the directory.
+        max_num_images: The maximum number of images to return. -1 means no limit.
+    Returns:
+        A tuple of A list of image filenames, number of original image paths.
+    """
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in directory.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    num_orig_images = len(image_paths)
+
+    if max_num_images != -1 and num_orig_images > max_num_images:
+        idx = np.round(np.linspace(0, num_orig_images - 1, max_num_images)).astype(int)
+    else:
+        idx = np.arange(num_orig_images)
+
+    image_filenames = list(np.array(image_paths)[idx])
+
+    return image_filenames, num_orig_images
 
 
 def get_num_frames_in_video(video: Path) -> int:
@@ -143,7 +167,7 @@ def copy_images_list(
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        ffmpeg_cmd = f"ffmpeg -y -noautorotate -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -203,15 +227,17 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"images_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            file_type = image_dir.glob("frame_*").__next__().suffix
-            filename = f"frame_%05d{file_type}"
-            ffmpeg_cmd = [
-                f"ffmpeg -i {image_dir / filename} ",
-                f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-                f"{downscale_dir / filename}",
-            ]
-            ffmpeg_cmd = " ".join(ffmpeg_cmd)
-            run_command(ffmpeg_cmd, verbose=verbose)
+            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
+            files = os.scandir(image_dir)
+            for f in files:
+                filename = f.name
+                ffmpeg_cmd = [
+                    f"ffmpeg -y -noautorotate -i {image_dir / filename} ",
+                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                    f"{downscale_dir / filename}",
+                ]
+                ffmpeg_cmd = " ".join(ffmpeg_cmd)
+                run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
     downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]

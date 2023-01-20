@@ -122,7 +122,9 @@ class Trainer:
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled() and local_rank == 0:
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
+            )
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir

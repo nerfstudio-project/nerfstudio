@@ -21,6 +21,7 @@ from nerfstudio.process_data import (
     metashape_utils,
     polycam_utils,
     process_data_utils,
+    realitycapture_utils,
     record3d_utils,
 )
 from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
@@ -479,8 +480,8 @@ class ProcessRecord3D:
         summary_log.append(f"Used {num_frames} images out of {num_images} total")
         if self.max_dataset_size > 0:
             summary_log.append(
-                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
-                f"current value ({self.max_dataset_size}), or -1 to use all images."
+                "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
+                f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
             )
 
         # Downscale images
@@ -558,19 +559,10 @@ class ProcessPolycam:
             raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
 
         # Copy images to output directory
+        polycam_image_filenames, num_orig_images = process_data_utils.get_image_filenames(
+            polycam_image_dir, self.max_dataset_size
+        )
 
-        polycam_image_filenames = []
-        for f in polycam_image_dir.iterdir():
-            if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
-                polycam_image_filenames.append(f)
-        polycam_image_filenames = sorted(polycam_image_filenames, key=lambda fn: int(fn.stem))
-        num_images = len(polycam_image_filenames)
-        idx = np.arange(num_images)
-        if self.max_dataset_size != -1 and num_images > self.max_dataset_size:
-            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
-
-        polycam_image_filenames = list(np.array(polycam_image_filenames)[idx])
-        # Copy images to output directory
         copied_image_paths = process_data_utils.copy_images_list(
             polycam_image_filenames,
             image_dir=image_dir,
@@ -581,11 +573,11 @@ class ProcessPolycam:
 
         copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
 
-        if self.max_dataset_size > 0 and num_frames != num_images:
-            summary_log.append(f"Started with {num_frames} images out of {num_images} total")
+        if self.max_dataset_size > 0 and num_frames != num_orig_images:
+            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
             summary_log.append(
-                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
-                f"current value ({self.max_dataset_size}), or -1 to use all images."
+                "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
+                f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
             )
         else:
             summary_log.append(f"Started with {num_frames} images")
@@ -657,18 +649,7 @@ class ProcessMetashape:
         summary_log = []
 
         # Copy images to output directory
-        image_filenames = []
-        for f in self.data.iterdir():
-            if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
-                image_filenames.append(f)
-        image_filenames = sorted(image_filenames, key=lambda fn: fn.stem)
-        num_images = len(image_filenames)
-        idx = np.arange(num_images)
-        if self.max_dataset_size != -1 and num_images > self.max_dataset_size:
-            idx = np.round(np.linspace(0, num_images - 1, self.max_dataset_size)).astype(int)
-
-        image_filenames = list(np.array(image_filenames)[idx])
-        # Copy images to output directory
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
         copied_image_paths = process_data_utils.copy_images_list(
             image_filenames,
             image_dir=image_dir,
@@ -680,11 +661,11 @@ class ProcessMetashape:
         original_names = [image_path.stem for image_path in image_filenames]
         image_filename_map = dict(zip(original_names, copied_image_paths))
 
-        if self.max_dataset_size > 0 and num_frames != num_images:
-            summary_log.append(f"Started with {num_frames} images out of {num_images} total")
+        if self.max_dataset_size > 0 and num_frames != num_orig_images:
+            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
             summary_log.append(
-                "To change the size of the dataset add the argument --max_dataset_size to larger than the "
-                f"current value ({self.max_dataset_size}), or -1 to use all images."
+                "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
+                f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
             )
         else:
             summary_log.append(f"Started with {num_frames} images")
@@ -712,11 +693,98 @@ class ProcessMetashape:
         CONSOLE.rule()
 
 
+@dataclass
+class ProcessRealityCapture:
+    """Process RealityCapture data into a nerfstudio dataset.
+
+    This script assumes that cameras have been aligned using RealityCapture. After alignment, it is necessary to
+    export the camera poses as a `.csv` file.
+
+    This script does the following:
+
+    1. Scales images to a specified size.
+    2. Converts RealityCapture poses into the nerfstudio format.
+    """
+
+    data: Path
+    """Path to a folder of images."""
+    csv: Path
+    """Path to the RealityCapture cameras CSV file."""
+    output_dir: Path
+    """Path to the output directory."""
+    num_downscales: int = 3
+    """Number of times to downscale the images. Downscales by 2 each time. For example a value of 3
+        will downscale the images by 2x, 4x, and 8x."""
+    max_dataset_size: int = 600
+    """Max number of images to train on. If the dataset has more, images will be sampled approximately evenly. If -1,
+    use all images."""
+    verbose: bool = False
+    """If True, print extra logging."""
+
+    def main(self) -> None:
+        """Process images into a nerfstudio dataset."""
+
+        if self.csv.suffix != ".csv":
+            raise ValueError(f"CSV file {self.csv} must have a .csv extension")
+        if not self.csv.exists:
+            raise ValueError(f"CSV file {self.csv} doesn't exist")
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        image_dir = self.output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        summary_log = []
+
+        # Copy images to output directory
+        image_filenames, num_orig_images = process_data_utils.get_image_filenames(self.data, self.max_dataset_size)
+        copied_image_paths = process_data_utils.copy_images_list(
+            image_filenames,
+            image_dir=image_dir,
+            verbose=self.verbose,
+        )
+        num_frames = len(copied_image_paths)
+
+        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+        original_names = [image_path.stem for image_path in image_filenames]
+        image_filename_map = dict(zip(original_names, copied_image_paths))
+
+        if self.max_dataset_size > 0 and num_frames != num_orig_images:
+            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
+            summary_log.append(
+                "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
+                f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
+            )
+        else:
+            summary_log.append(f"Started with {num_frames} images")
+
+        # Downscale images
+        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+
+        # Save json
+        if num_frames == 0:
+            CONSOLE.print("[bold red]No images found, exiting")
+            sys.exit(1)
+        summary_log.extend(
+            realitycapture_utils.realitycapture_to_json(
+                image_filename_map=image_filename_map,
+                csv_filename=self.csv,
+                output_dir=self.output_dir,
+            )
+        )
+
+        CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
+
+        for summary in summary_log:
+            CONSOLE.print(summary, justify="center")
+        CONSOLE.rule()
+
+
 Commands = Union[
     Annotated[ProcessImages, tyro.conf.subcommand(name="images")],
     Annotated[ProcessVideo, tyro.conf.subcommand(name="video")],
     Annotated[ProcessPolycam, tyro.conf.subcommand(name="polycam")],
     Annotated[ProcessMetashape, tyro.conf.subcommand(name="metashape")],
+    Annotated[ProcessRealityCapture, tyro.conf.subcommand(name="realitycapture")],
     Annotated[ProcessInsta360, tyro.conf.subcommand(name="insta360")],
     Annotated[ProcessRecord3D, tyro.conf.subcommand(name="record3d")],
 ]
