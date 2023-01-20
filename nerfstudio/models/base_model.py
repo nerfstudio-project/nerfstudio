@@ -210,3 +210,11 @@ class Model(nn.Module):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
+
+    def update_to_step(self, step: int) -> None:
+        """Called when loading a model from a checkpoint. Sets any model parameters that change over
+        training to the correct value, based on the training step of the checkpoint.
+
+        Args:
+            step: training step of the loaded checkpoint
+        """
