@@ -26,8 +26,9 @@ Example:
     rgb = rgb_renderer(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
 
 """
+import contextlib
 import math
-from typing import Optional, Union
+from typing import Generator, Optional, Union
 
 import nerfacc
 import torch
@@ -37,6 +38,20 @@ from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils.math import components_from_spherical_harmonics
+
+BACKGROUND_MODE_OVERRIDE: Optional[Literal["last_sample", "black", "random"]] = None
+
+
+@contextlib.contextmanager
+def background_mode_override_context(mode: Literal["last_sample", "black"]) -> Generator[None, None, None]:
+    """Context manager for setting background mode."""
+    global BACKGROUND_MODE_OVERRIDE  # pylint: disable=global-statement
+    old_background_mode = BACKGROUND_MODE_OVERRIDE
+    try:
+        BACKGROUND_MODE_OVERRIDE = mode
+        yield
+    finally:
+        BACKGROUND_MODE_OVERRIDE = old_background_mode
 
 
 class RGBRenderer(nn.Module):
@@ -55,7 +70,7 @@ class RGBRenderer(nn.Module):
         cls,
         rgb: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
-        background_color: Union[Literal["random", "last_sample"], TensorType[3]] = "random",
+        background_color: Union[Literal["random", "black", "last_sample"], TensorType[3]] = "random",
         ray_indices: Optional[TensorType["num_samples"]] = None,
         num_rays: Optional[int] = None,
     ) -> TensorType["bs":..., 3]:
@@ -81,10 +96,14 @@ class RGBRenderer(nn.Module):
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
 
+        if BACKGROUND_MODE_OVERRIDE is not None:
+            background_color = BACKGROUND_MODE_OVERRIDE
         if background_color == "last_sample":
             background_color = rgb[..., -1, :]
         if background_color == "random":
             background_color = torch.rand_like(comp_rgb).to(rgb.device)
+        if background_color == "black":
+            background_color = torch.zeros_like(comp_rgb).to(rgb.device)
 
         assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)

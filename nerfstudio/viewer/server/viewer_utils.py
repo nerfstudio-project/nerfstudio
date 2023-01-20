@@ -42,6 +42,7 @@ from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datasets.base_dataset import InputDataset
 from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.model_components import renderers
 from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
@@ -144,8 +145,12 @@ class RenderThread(threading.Thread):
         outputs = None
         try:
             with SetTrace(self.state.check_interrupt):
-                with torch.no_grad():
-                    outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                if self.state.prev_crop_enabled:
+                    with renderers.background_mode_override_context("black"), torch.no_grad():
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
+                else:
+                    with torch.no_grad():
+                        outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
         except Exception as e:  # pylint: disable=broad-except
             self.exc = e
 
@@ -388,12 +393,13 @@ class ViewerState:
         :param graph:
         :return:
         """
-        # self.
-        # Parameter(self.scene_box.aabb.flatten(), requires_grad=False)
+
         crop_enabled = self.vis["renderingState/crop_enabled"].read()
         if crop_enabled != self.prev_crop_enabled:
             self.camera_moving = True
             self.prev_crop_enabled = crop_enabled
+            self.prev_crop_scale = None
+            self.prev_crop_center = None
 
         if crop_enabled:
             crop_scale = self.vis["renderingState/crop_scale"].read()
