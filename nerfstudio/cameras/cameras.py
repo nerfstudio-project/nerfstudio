@@ -16,20 +16,25 @@
 Camera Models
 """
 import base64
+import importlib
 import math
+import os
 from dataclasses import dataclass
+from distutils.util import strtobool
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple, Union
 
 import cv2
 import torch
 import torchvision
-from torch.nn.functional import normalize
+from torch.nn import Parameter
 from torchtyping import TensorType
 
+import nerfstudio.utils.math
 import nerfstudio.utils.poses as pose_utils
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.rays import RayBundle
+from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.tensor_dataclass import TensorDataclass
 
 
@@ -308,6 +313,8 @@ class Cameras(TensorDataclass):
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
         keep_shape: Optional[bool] = None,
+        disable_distortion: bool = False,
+        aabb_box: SceneBox = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
@@ -338,7 +345,7 @@ class Cameras(TensorDataclass):
         When coords == None (ie: when we render out the whole image associated with this camera), we run into problems
         since there's no way to stack each coordinate map as all coordinate maps are all different shapes. In this case,
         we will need to flatten each individual coordinate map and concatenate them, giving us only one batch dimension,
-        regaurdless of the number of prepended extra batch dimensions in the camera_indices tensor.
+        regardless of the number of prepended extra batch dimensions in the camera_indices tensor.
 
 
         Args:
@@ -349,6 +356,8 @@ class Cameras(TensorDataclass):
             keep_shape: If None, then we default to the regular behavior of flattening if cameras is jagged, otherwise
                 keeping dimensions. If False, we flatten at the end. If True, then we keep the shape of the
                 camera_indices and coords tensors (if we can).
+            disable_distortion: If True, disables distortion.
+            aabb_box: if not None will calculate nears and fars of the ray according to aabb box intesection
 
         Returns:
             Rays for the given camera indices and coords.
@@ -441,12 +450,37 @@ class Cameras(TensorDataclass):
         # raybundle.shape == (num_rays) when done
         # pylint: disable=protected-access
         raybundle = cameras._generate_rays_from_coords(
-            camera_indices, coords, camera_opt_to_camera, distortion_params_delta
+            camera_indices, coords, camera_opt_to_camera, distortion_params_delta, disable_distortion=disable_distortion
         )
 
         # If we have mandated that we don't keep the shape, then we flatten
         if keep_shape is False:
             raybundle = raybundle.flatten()
+
+        if aabb_box:
+            with torch.no_grad():
+                tensor_aabb = Parameter(aabb_box.aabb.flatten(), requires_grad=False)
+
+                rays_o = raybundle.origins.contiguous()
+                rays_d = raybundle.directions.contiguous()
+
+                tensor_aabb = tensor_aabb.to(rays_o.device)
+                shape = rays_o.shape
+
+                rays_o = rays_o.reshape((-1, 3))
+                rays_d = rays_d.reshape((-1, 3))
+
+                if strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE")):
+                    nerfacc = importlib.import_module("nerfacc")
+                    t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
+                else:
+                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+
+                t_min = t_min.reshape([shape[0], shape[1], 1])
+                t_max = t_max.reshape([shape[0], shape[1], 1])
+
+                raybundle.nears = t_min
+                raybundle.fars = t_max
 
         # TODO: We should have to squeeze the last dimension here if we started with zero batch dims, but never have to,
         # so there might be a rogue squeeze happening somewhere, and this may cause some unintended behaviour
@@ -460,6 +494,7 @@ class Cameras(TensorDataclass):
         coords: TensorType["num_rays":..., 2],
         camera_opt_to_camera: Optional[TensorType["num_rays":..., 3, 4]] = None,
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
+        disable_distortion: bool = False,
     ) -> RayBundle:
         """Generates rays for the given camera indices and coords where self isn't jagged
 
@@ -525,6 +560,8 @@ class Cameras(TensorDataclass):
                 In terms of shape, it follows the same rules as coords, but indexing into it with [i:...] gets you
                 the 1D tensor with the 6 distortion parameters for the camera optimization at RayBundle[i:...].
 
+            disable_distortion: If True, disables distortion.
+
         Returns:
             Rays for the given camera indices and coords. RayBundle.shape == num_rays
         """
@@ -582,23 +619,24 @@ class Cameras(TensorDataclass):
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
 
         # Undistorts our images according to our distortion parameters
-        distortion_params = None
-        if self.distortion_params is not None:
-            distortion_params = self.distortion_params[true_indices]
-            if distortion_params_delta is not None:
-                distortion_params = distortion_params + distortion_params_delta
-        elif distortion_params_delta is not None:
-            distortion_params = distortion_params_delta
+        if not disable_distortion:
+            distortion_params = None
+            if self.distortion_params is not None:
+                distortion_params = self.distortion_params[true_indices]
+                if distortion_params_delta is not None:
+                    distortion_params = distortion_params + distortion_params_delta
+            elif distortion_params_delta is not None:
+                distortion_params = distortion_params_delta
 
-        # Do not apply distortion for equirectangular images
-        if distortion_params is not None:
-            mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
-            coord_mask = torch.stack([mask, mask, mask], dim=0)
-            if mask.any():
-                coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
-                    coord_stack[coord_mask, :].reshape(3, -1, 2),
-                    distortion_params[mask, :],
-                ).reshape(-1, 2)
+            # Do not apply distortion for equirectangular images
+            if distortion_params is not None:
+                mask = (self.camera_type[true_indices] != CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
+                coord_mask = torch.stack([mask, mask, mask], dim=0)
+                if mask.any():
+                    coord_stack[coord_mask, :] = camera_utils.radial_and_tangential_undistort(
+                        coord_stack[coord_mask, :].reshape(3, -1, 2),
+                        distortion_params[mask, :],
+                    ).reshape(-1, 2)
 
         # Make sure after we have undistorted our images, the shapes are still correct
         assert coord_stack.shape == (3,) + num_rays_shape + (2,)
@@ -628,7 +666,7 @@ class Cameras(TensorDataclass):
 
             directions_stack[..., 0][mask] = torch.masked_select(coord_stack[..., 0] * sin_theta / theta, mask).float()
             directions_stack[..., 1][mask] = torch.masked_select(coord_stack[..., 1] * sin_theta / theta, mask).float()
-            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask)
+            directions_stack[..., 2][mask] = -torch.masked_select(torch.cos(theta), mask).float()
 
         if CameraType.EQUIRECTANGULAR.value in cam_types:
             mask = (self.camera_type[true_indices] == CameraType.EQUIRECTANGULAR.value).squeeze(-1)  # (num_rays)
@@ -660,7 +698,7 @@ class Cameras(TensorDataclass):
         directions_stack = torch.sum(
             directions_stack[..., None, :] * rotation, dim=-1
         )  # (..., 1, 3) * (..., 3, 3) -> (..., 3)
-        directions_stack = normalize(directions_stack, dim=-1)
+        directions_stack, directions_norm = camera_utils.normalize_with_norm(directions_stack, -1)
         assert directions_stack.shape == (3,) + num_rays_shape + (3,)
 
         origins = c2w[..., :3, 3]  # (..., 3)
@@ -677,7 +715,7 @@ class Cameras(TensorDataclass):
         pixel_area = (dx * dy)[..., None]  # ("num_rays":..., 1)
         assert pixel_area.shape == num_rays_shape + (1,)
 
-        times = self.times[camera_indices, None] if self.times is not None else None
+        times = self.times[camera_indices, 0] if self.times is not None else None
 
         return RayBundle(
             origins=origins,
@@ -685,6 +723,7 @@ class Cameras(TensorDataclass):
             pixel_area=pixel_area,
             camera_indices=camera_indices,
             times=times,
+            metadata={"directions_norm": directions_norm[0].detach()},
         )
 
     def to_json(

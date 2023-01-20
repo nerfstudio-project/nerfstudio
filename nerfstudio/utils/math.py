@@ -26,7 +26,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
 
     Args:
         levels: Number of spherical harmonic levels to compute.
-        directions: Spherical hamonic coefficients
+        directions: Spherical harmonic coefficients
     """
     num_components = levels**2
     components = torch.zeros((*directions.shape[:-1], num_components), device=directions.device)
@@ -55,7 +55,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
     if levels > 2:
         components[..., 4] = 1.0925484305920792 * x * y
         components[..., 5] = 1.0925484305920792 * y * z
-        components[..., 6] = 0.9461746957575601 * zz
+        components[..., 6] = 0.9461746957575601 * zz - 0.31539156525251999
         components[..., 7] = 1.0925484305920792 * x * z
         components[..., 8] = 0.5462742152960396 * (xx - yy)
 
@@ -74,7 +74,7 @@ def components_from_spherical_harmonics(levels: int, directions: TensorType[...,
         components[..., 16] = 2.5033429417967046 * x * y * (xx - yy)
         components[..., 17] = 1.7701307697799304 * y * z * (3 * xx - yy)
         components[..., 18] = 0.9461746957575601 * x * y * (7 * zz - 1)
-        components[..., 19] = 0.6690465435572892 * y * (7 * zz - 3 * z)
+        components[..., 19] = 0.6690465435572892 * y * (7 * zz - 3)
         components[..., 20] = 0.10578554691520431 * (35 * zz * zz - 30 * zz + 3)
         components[..., 21] = 0.6690465435572892 * x * z * (7 * zz - 3)
         components[..., 22] = 0.47308734787878004 * (xx - yy) * (7 * zz - 1)
@@ -191,3 +191,49 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     """
 
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
+
+
+def intersect_aabb(origins, directions, aabb):
+    """
+    pytorch implementation of ray intersection with AABB box
+    :param origin: N,3 tensor of 3d positions
+    :param direction: N,3 tensor of normalized directions
+    :param aabb: 6,1 array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
+    :return: t_min, t_max - two tensors of shapes N,1 representing the intersection signed distance from
+    the origin. t_min is clipped to 0 in case it is negative, in case of no intersection t_min is 1e10.
+    """
+
+    max_bound = 1e10
+
+    tx_min = (aabb[0] - origins[:, 0]) / directions[:, 0]
+    tx_max = (aabb[3] - origins[:, 0]) / directions[:, 0]
+    t_min = torch.min(tx_min, tx_max)
+    t_max = torch.max(tx_min, tx_max)
+
+    ty_min_temp = (aabb[1] - origins[:, 1]) / directions[:, 1]
+    ty_max_temp = (aabb[4] - origins[:, 1]) / directions[:, 1]
+    ty_min = torch.min(ty_min_temp, ty_max_temp)
+    ty_max = torch.max(ty_min_temp, ty_max_temp)
+
+    cond = torch.logical_or((t_min > ty_max), (ty_min > t_max))
+    t_min = torch.where(cond, max_bound, t_min)
+    t_max = torch.where(cond, max_bound, t_max)
+
+    t_min = torch.max(t_min, ty_min)
+    t_max = torch.min(t_max, ty_max)
+
+    tz_min_temp = (aabb[2] - origins[:, 2]) / directions[:, 2]
+    tz_max_temp = (aabb[5] - origins[:, 2]) / directions[:, 2]
+    tz_min = torch.min(tz_min_temp, tz_max_temp)
+    tz_max = torch.max(tz_min_temp, tz_max_temp)
+
+    cond = torch.logical_or((t_min > tz_max), tz_min > t_max)
+    t_min = torch.where(cond, max_bound, t_min)
+    t_max = torch.where(cond, max_bound, t_max)
+
+    t_min = torch.max(t_min, tz_min)
+    t_max = torch.min(t_max, tz_max)
+    t_min = torch.where(t_min > 0, t_min, 0)
+    t_max = torch.where(t_min == max_bound, max_bound, t_max)
+
+    return t_min, t_max

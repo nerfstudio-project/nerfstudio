@@ -20,22 +20,13 @@ from __future__ import annotations
 
 import warnings
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Type
-
-import yaml
-from rich.console import Console
-from typing_extensions import Literal
-
-from nerfstudio.configs.config_utils import to_immutable_dict
+from typing import Any, List, Optional, Tuple, Type
 
 # model instances
 from nerfstudio.utils import writer
 
 warnings.filterwarnings("ignore", module="torchvision")
-
-CONSOLE = Console(width=120)
 
 # Pretty printing class
 class PrintableConfig:  # pylint: disable=too-few-public-methods
@@ -72,7 +63,7 @@ class MachineConfig(PrintableConfig):
     """Configuration of machine setup"""
 
     seed: int = 42
-    """random seed initilization"""
+    """random seed initialization"""
     num_gpus: int = 1
     """total number of gpus available for train/eval"""
     num_machines: int = 1
@@ -97,6 +88,7 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.CURR_TEST_PSNR,
         writer.EventName.VIS_RAYS_PER_SEC,
         writer.EventName.TEST_RAYS_PER_SEC,
+        writer.EventName.ETA,
     )
     """specifies which stats will be logged/printed to terminal"""
     max_log_size: int = 10
@@ -121,41 +113,12 @@ class LoggingConfig(PrintableConfig):
     """number of steps between logging stats"""
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
-     e.g. if 20, averages will be computed over past 20 occurances."""
+     e.g. if 20, averages will be computed over past 20 occurrences."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True
     """whether to enable profiling code; prints speed of functions at the end of a program.
     profiler logs run times of functions and prints at end of training"""
-
-
-# Trainer related configs
-@dataclass
-class TrainerConfig(PrintableConfig):
-    """Configuration for training regimen"""
-
-    steps_per_save: int = 1000
-    """Number of steps between saves."""
-    steps_per_eval_batch: int = 500
-    """Number of steps between randomly sampled batches of rays."""
-    steps_per_eval_image: int = 500
-    """Number of steps between single eval images."""
-    steps_per_eval_all_images: int = 25000
-    """Number of steps between eval all images."""
-    max_num_iterations: int = 1000000
-    """Maximum number of iterations to run."""
-    mixed_precision: bool = False
-    """Whether or not to use mixed precision for training."""
-    relative_model_dir: Path = Path("nerfstudio_models/")
-    """Relative path to save all checkpoints."""
-    save_only_latest_checkpoint: bool = True
-    """Whether to only save the latest checkpoint or all checkpoints."""
-    # optional parameters if we want to resume training
-    load_dir: Optional[Path] = None
-    """Optionally specify a pre-trained model directory to load from."""
-    load_step: Optional[int] = None
-    """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
-    load_config: Optional[Path] = None
 
 
 # Viewer related configs
@@ -186,93 +149,3 @@ class ViewerConfig(PrintableConfig):
     skip_openrelay: bool = False
     """Avoid using openrelay to communicate with the viewer. Try disabling if you have trouble
     connecting to the viewer"""
-
-
-from nerfstudio.engine.optimizers import OptimizerConfig
-from nerfstudio.engine.schedulers import SchedulerConfig
-from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
-
-
-@dataclass
-class Config(PrintableConfig):
-    """Full config contents"""
-
-    output_dir: Path = Path("outputs")
-    """relative or absolute output directory to save all checkpoints and logging"""
-    method_name: Optional[str] = None
-    """Method name. Required to set in python or via cli"""
-    experiment_name: Optional[str] = None
-    """Experiment name. If None, will automatically be set to dataset name"""
-    timestamp: str = "{timestamp}"
-    """Experiment timestamp."""
-    machine: MachineConfig = MachineConfig()
-    """Machine configuration"""
-    logging: LoggingConfig = LoggingConfig()
-    """Logging configuration"""
-    viewer: ViewerConfig = ViewerConfig()
-    """Viewer configuration"""
-    trainer: TrainerConfig = TrainerConfig()
-    """Trainer configuration"""
-    pipeline: VanillaPipelineConfig = VanillaPipelineConfig()
-    """Pipeline configuration"""
-    optimizers: Dict[str, Any] = to_immutable_dict(
-        {
-            "fields": {
-                "optimizer": OptimizerConfig(),
-                "scheduler": SchedulerConfig(),
-            }
-        }
-    )
-    """Dictionary of optimizer groups and their schedulers"""
-    vis: Literal["viewer", "wandb", "tensorboard"] = "wandb"
-    """Which visualizer to use."""
-    data: Optional[Path] = None
-    """Alias for --pipeline.datamanager.dataparser.data"""
-
-    def is_viewer_enabled(self) -> bool:
-        """Checks if a viewer is enabled."""
-        return "viewer" == self.vis
-
-    def is_wandb_enabled(self) -> bool:
-        """Checks if wandb is enabled."""
-        return "wandb" == self.vis
-
-    def is_tensorboard_enabled(self) -> bool:
-        """Checks if tensorboard is enabled."""
-        return "tensorboard" == self.vis
-
-    def set_timestamp(self) -> None:
-        """Dynamically set the experiment timestamp"""
-        if self.timestamp == "{timestamp}":
-            self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-
-    def set_experiment_name(self) -> None:
-        """Dynamically set the experiment name"""
-        if self.experiment_name is None:
-            self.experiment_name = str(self.pipeline.datamanager.dataparser.data).replace("../", "").replace("/", "-")
-
-    def get_base_dir(self) -> Path:
-        """Retrieve the base directory to set relative paths"""
-        # check the experiment and method names
-        assert self.method_name is not None, "Please set method name in config or via the cli"
-        self.set_experiment_name()
-        return Path(f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}")
-
-    def get_checkpoint_dir(self) -> Path:
-        """Retrieve the checkpoint directory"""
-        return Path(self.get_base_dir() / self.trainer.relative_model_dir)
-
-    def print_to_terminal(self) -> None:
-        """Helper to pretty print config to terminal"""
-        CONSOLE.rule("Config")
-        CONSOLE.print(self)
-        CONSOLE.rule("")
-
-    def save_config(self) -> None:
-        """Save config to base directory"""
-        base_dir = self.get_base_dir()
-        assert base_dir is not None
-        base_dir.mkdir(parents=True, exist_ok=True)
-        config_yaml_path = base_dir / "config.yml"
-        CONSOLE.log(f"Saving config to: {config_yaml_path}")
-        config_yaml_path.write_text(yaml.dump(self), "utf8")

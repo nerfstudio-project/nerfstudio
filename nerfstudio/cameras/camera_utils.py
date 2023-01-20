@@ -230,6 +230,21 @@ def normalize(x) -> TensorType[...]:
     return x / torch.linalg.norm(x)
 
 
+def normalize_with_norm(x: torch.Tensor, dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Normalize tensor along axis and return normalized value with norms.
+
+    Args:
+        x: tensor to normalize.
+        dim: axis along which to normalize.
+
+    Returns:
+        Tuple of normalized tensor and corresponding norm.
+    """
+
+    norm = torch.maximum(torch.linalg.vector_norm(x, dim=dim, keepdims=True), torch.tensor([_EPS]).to(x))
+    return x / norm, norm
+
+
 def viewmatrix(lookat, up, pos) -> TensorType[...]:
     """Returns a camera transformation matrix.
 
@@ -346,7 +361,7 @@ def radial_and_tangential_undistort(
     max_iterations: int = 10,
 ) -> torch.Tensor:
     """Computes undistorted coords given opencv distortion parameters.
-    Addapted from MultiNeRF
+    Adapted from MultiNeRF
     https://github.com/google-research/multinerf/blob/b02228160d3179300c7d499dca28cb9ca3677f32/internal/camera_utils.py#L477-L509
 
     Args:
@@ -409,7 +424,7 @@ def rotation_matrix(a: TensorType[3], b: TensorType[3]) -> TensorType[3, 3]:
 
 def auto_orient_and_center_poses(
     poses: TensorType["num_poses":..., 4, 4], method: Literal["pca", "up", "none"] = "up", center_poses: bool = True
-) -> TensorType["num_poses":..., 3, 4]:
+) -> Tuple[TensorType["num_poses":..., 3, 4], TensorType[4, 4]]:
     """Orients and centers the poses. We provide two methods for orientation: pca and up.
 
     pca: Orient the poses so that the principal component of the points is aligned with the axes.
@@ -424,7 +439,7 @@ def auto_orient_and_center_poses(
         center_poses: If True, the poses are centered around the origin.
 
     Returns:
-        The oriented poses.
+        Tuple of the oriented poses and the transform matrix.
     """
 
     translation = poses[..., :3, 3]
@@ -457,7 +472,9 @@ def auto_orient_and_center_poses(
         transform = torch.cat([rotation, rotation @ -translation[..., None]], dim=-1)
         oriented_poses = transform @ poses
     elif method == "none":
-        oriented_poses = poses
-        poses[:, :3, 3] -= translation
+        transform = torch.eye(4)
+        transform[:3, 3] = -translation
+        transform = transform[:3, :]
+        oriented_poses = transform @ poses
 
-    return oriented_poses
+    return oriented_poses, transform

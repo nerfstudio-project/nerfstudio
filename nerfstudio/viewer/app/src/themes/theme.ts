@@ -126,10 +126,13 @@ export const appTheme = createTheme({
       styleOverrides: {
         root: {
           color: '#eeeeee',
-          backgroundColor: '#393e46',
+          backgroundColor: 'FFD369',
           '&.Mui-selected': {
-            color: '#FFD369',
-            backgroundColor: '#555555',
+            color: '#222831',
+            backgroundColor: '#FFD369',
+            ':hover': {
+              backgroundColor: '#FFD369',
+            },
           },
           '&.Mui-disabled': {
             color: '#999999',

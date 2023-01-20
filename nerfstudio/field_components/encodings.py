@@ -73,7 +73,7 @@ class Identity(Encoding):
 
 
 class ScalingAndOffset(Encoding):
-    """Simple scaling and offet to input
+    """Simple scaling and offset to input
 
     Args:
         in_dim: Input dimension of tensor
@@ -97,7 +97,7 @@ class ScalingAndOffset(Encoding):
 
 
 class NeRFEncoding(Encoding):
-    """Multi-scale sinousoidal encodings. Support ``integrated positional encodings`` if covariances are provided.
+    """Multi-scale sinusoidal encodings. Support ``integrated positional encodings`` if covariances are provided.
     Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.
 
     Args:
@@ -228,6 +228,7 @@ class HashEncoding(Encoding):
         features_per_level: Number of features per level.
         hash_init_scale: Value to initialize hash grid.
         implementation: Implementation of hash encoding. Fallback to torch if tcnn not available.
+        interpolation: Interpolation override for tcnn hashgrid. Not supported for torch unless linear.
     """
 
     def __init__(
@@ -239,6 +240,7 @@ class HashEncoding(Encoding):
         features_per_level: int = 2,
         hash_init_scale: float = 0.001,
         implementation: Literal["tcnn", "torch"] = "tcnn",
+        interpolation: Optional[Literal["Nearest", "Linear", "Smoothstep"]] = None,
     ) -> None:
 
         super().__init__(in_dim=3)
@@ -260,17 +262,26 @@ class HashEncoding(Encoding):
         if not TCNN_EXISTS and implementation == "tcnn":
             print_tcnn_speed_warning("HashEncoding")
         elif implementation == "tcnn":
+            encoding_config = {
+                "otype": "HashGrid",
+                "n_levels": self.num_levels,
+                "n_features_per_level": self.features_per_level,
+                "log2_hashmap_size": self.log2_hashmap_size,
+                "base_resolution": min_res,
+                "per_level_scale": growth_factor,
+            }
+            if interpolation is not None:
+                encoding_config["interpolation"] = interpolation
+
             self.tcnn_encoding = tcnn.Encoding(
                 n_input_dims=3,
-                encoding_config={
-                    "otype": "HashGrid",
-                    "n_levels": self.num_levels,
-                    "n_features_per_level": self.features_per_level,
-                    "log2_hashmap_size": self.log2_hashmap_size,
-                    "base_resolution": min_res,
-                    "per_level_scale": growth_factor,
-                },
+                encoding_config=encoding_config,
             )
+
+        if not TCNN_EXISTS or self.tcnn_encoding is None:
+            assert (
+                interpolation is None or interpolation == "Linear"
+            ), f"interpolation '{interpolation}' is not supported for torch encoding backend"
 
     def get_out_dim(self) -> int:
         return self.num_levels * self.features_per_level
@@ -448,7 +459,7 @@ class TensorVMEncoding(Encoding):
 
     @torch.no_grad()
     def upsample_grid(self, resolution: int) -> None:
-        """Upsamples underyling feature grid
+        """Upsamples underlying feature grid
 
         Args:
             resolution: Target resolution.
@@ -467,14 +478,14 @@ class SHEncoding(Encoding):
     """Spherical harmonic encoding
 
     Args:
-        levels: Number of spherical hamonic levels to encode.
+        levels: Number of spherical harmonic levels to encode.
     """
 
     def __init__(self, levels: int = 4) -> None:
         super().__init__(in_dim=3)
 
         if levels <= 0 or levels > 4:
-            raise ValueError(f"Spherical harmonic encoding only suports 1 to 4 levels, requested {levels}")
+            raise ValueError(f"Spherical harmonic encoding only supports 1 to 4 levels, requested {levels}")
 
         self.levels = levels
 

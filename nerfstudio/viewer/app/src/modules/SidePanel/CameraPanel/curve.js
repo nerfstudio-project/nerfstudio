@@ -30,6 +30,7 @@ export function get_curve_object_from_cameras(
   const lookats = [];
   const ups = [];
   const fovs = [];
+  const render_times = [];
 
   for (let i = 0; i < cameras.length; i += 1) {
     const camera = cameras[i];
@@ -45,23 +46,27 @@ export function get_curve_object_from_cameras(
     lookats.push(lookat);
     // Reuse catmullromcurve3 for 1d values. TODO fix this
     fovs.push(new THREE.Vector3(0, 0, camera.fov));
+    render_times.push(new THREE.Vector3(0, 0, camera.renderTime));
   }
 
   let curve_positions = null;
   let curve_lookats = null;
   let curve_ups = null;
   let curve_fovs = null;
+  let curve_render_times = null;
 
   curve_positions = get_catmull_rom_curve(positions, is_cycle, smoothness_value);
   curve_lookats = get_catmull_rom_curve(lookats, is_cycle, smoothness_value);
   curve_ups = get_catmull_rom_curve(ups, is_cycle, smoothness_value);
   curve_fovs = get_catmull_rom_curve(fovs, is_cycle, smoothness_value / 10);
+  curve_render_times = get_catmull_rom_curve(render_times, is_cycle, smoothness_value);
 
   const curve_object = {
     curve_positions,
     curve_lookats,
     curve_ups,
     curve_fovs,
+    curve_render_times,
   };
   return curve_object;
 }

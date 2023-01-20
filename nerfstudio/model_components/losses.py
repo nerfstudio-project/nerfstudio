@@ -15,6 +15,7 @@
 """
 Collection of Losses.
 """
+from enum import Enum
 
 import torch
 from torch import nn
@@ -28,6 +29,16 @@ MSELoss = nn.MSELoss
 LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 
 EPS = 1.0e-7
+
+# Sigma scale factor from Urban Radiance Fields (Rematas et al., 2022)
+URF_SIGMA_SCALE_FACTOR = 3.0
+
+
+class DephtLossType(Enum):
+    """Types of depth losses for depth supervision."""
+
+    DS_NERF = 1
+    URF = 2
 
 
 def outer(
@@ -75,7 +86,7 @@ def lossfun_outer(
     Args:
         t: interval edges
         w: weights
-        t_env: interval edges of the upper bound enveloping historgram
+        t_env: interval edges of the upper bound enveloping histogram
         w_env: weights that should upper bound the inner (t,w) histogram
     """
     w_outer = outer(t[..., :-1], t[..., 1:], t_env[..., :-1], t_env[..., 1:], w_env)
@@ -194,3 +205,100 @@ def pred_normal_loss(
 ):
     """Loss between normals calculated from density and normals from prediction network."""
     return (weights[..., 0] * (1.0 - torch.sum(normals * pred_normals, dim=-1))).sum(dim=-1)
+
+
+def ds_nerf_depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    termination_depth: TensorType[..., 1],
+    steps: TensorType[..., "num_samples", 1],
+    lengths: TensorType[..., "num_samples", 1],
+    sigma: TensorType[0],
+) -> TensorType[..., 1]:
+    """Depth loss from Depth-supervised NeRF (Deng et al., 2022).
+
+    Args:
+        weights: Weights predicted for each sample.
+        termination_depth: Ground truth depth of rays.
+        steps: Sampling distances along rays.
+        lengths: Distances between steps.
+        sigma: Uncertainty around depth values.
+    Returns:
+        Depth loss scalar.
+    """
+    loss = -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
+    return torch.mean(loss.sum(-2))
+
+
+def urban_radiance_field_depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    termination_depth: TensorType[..., 1],
+    predicted_depth: TensorType[..., 1],
+    steps: TensorType[..., "num_samples", 1],
+    sigma: TensorType[0],
+) -> TensorType[..., 1]:
+    """Lidar losses from Urban Radiance Fields (Rematas et al., 2022).
+
+    Args:
+        weights: Weights predicted for each sample.
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Depth prediction from the network.
+        steps: Sampling distances along rays.
+        sigma: Uncertainty around depth values.
+    Returns:
+        Depth loss scalar.
+    """
+    # Expected depth loss
+    expected_depth_loss = (termination_depth - predicted_depth) ** 2
+
+    # Line of sight losses
+    target_distribution = torch.distributions.normal.Normal(0.0, sigma / URF_SIGMA_SCALE_FACTOR)
+    termination_depth = termination_depth[:, None]
+    line_of_sight_loss_near_mask = torch.logical_and(
+        steps <= termination_depth + sigma, steps >= termination_depth - sigma
+    )
+    line_of_sight_loss_near = (weights - torch.exp(target_distribution.log_prob(steps - termination_depth))) ** 2
+    line_of_sight_loss_near = (line_of_sight_loss_near_mask * line_of_sight_loss_near).sum(-2)
+    line_of_sight_loss_empty_mask = steps < termination_depth - sigma
+    line_of_sight_loss_empty = (line_of_sight_loss_empty_mask * weights**2).sum(-2)
+    line_of_sight_loss = line_of_sight_loss_near + line_of_sight_loss_empty
+
+    return torch.mean(expected_depth_loss + line_of_sight_loss)
+
+
+def depth_loss(
+    weights: TensorType[..., "num_samples", 1],
+    ray_samples: RaySamples,
+    termination_depth: TensorType[..., 1],
+    predicted_depth: TensorType[..., 1],
+    sigma: TensorType[0],
+    directions_norm: TensorType[..., 1],
+    is_euclidean: bool,
+    depth_loss_type: DephtLossType,
+) -> TensorType[0]:
+    """Implementation of depth losses.
+
+    Args:
+        weights: Weights predicted for each sample.
+        ray_samples: Samples along rays corresponding to weights.
+        termination_depth: Ground truth depth of rays.
+        predicted_depth: Depth prediction from the network.
+        sigma: Uncertainty around depth value.
+        directions_norm: Norms of ray direction vectors in the camera frame.
+        is_euclidean: Whether ground truth depths corresponds to normalized direction vectors.
+        depth_loss_type: Type of depth loss to apply.
+
+    Returns:
+        Depth loss scalar.
+    """
+    if not is_euclidean:
+        termination_depth = termination_depth / directions_norm
+    steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
+
+    if depth_loss_type == DephtLossType.DS_NERF:
+        lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
+        return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
+
+    if depth_loss_type == DephtLossType.URF:
+        return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
+
+    raise NotImplementedError("Provided depth loss type not implemented.")

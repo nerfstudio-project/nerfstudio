@@ -14,14 +14,18 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import os
 import shutil
 import sys
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+
+import cv2
 import numpy as np
 from rich.console import Console
+from typing_extensions import Literal
 
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -116,7 +120,8 @@ def convert_video_to_images(
         if spacing > 1:
             ffmpeg_cmd += f" -vf thumbnail={spacing},setpts=N/TB -r 1"
         else:
-            CONSOLE.print("[bold red]Can't satify requested number of frames. Extracting all frames.")
+            CONSOLE.print("[bold red]Can't satisfy requested number of frames. Extracting all frames.")
+            ffmpeg_cmd += " -pix_fmt bgr8"
 
         ffmpeg_cmd += f" {out_filename}"
 
@@ -163,7 +168,7 @@ def copy_images_list(
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        ffmpeg_cmd = f"ffmpeg -y -noautorotate -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -189,6 +194,10 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
         allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
         image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+
+        if len(image_paths) == 0:
+            CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+            sys.exit(1)
 
         num_frames = len(copy_images_list(image_paths, image_dir, verbose))
 
@@ -219,17 +228,184 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
             assert isinstance(downscale_factor, int)
             downscale_dir = image_dir.parent / f"images_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            file_type = image_dir.glob("frame_*").__next__().suffix
-            filename = f"frame_%05d{file_type}"
-            ffmpeg_cmd = [
-                f"ffmpeg -i {image_dir / filename} ",
-                f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-                f"{downscale_dir / filename}",
-            ]
-            ffmpeg_cmd = " ".join(ffmpeg_cmd)
-            run_command(ffmpeg_cmd, verbose=verbose)
+            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
+            files = os.scandir(image_dir)
+            for f in files:
+                filename = f.name
+                ffmpeg_cmd = [
+                    f"ffmpeg -y -noautorotate -i {image_dir / filename} ",
+                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                    f"{downscale_dir / filename}",
+                ]
+                ffmpeg_cmd = " ".join(ffmpeg_cmd)
+                run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
     downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
     downscale_text = ", ".join(downscale_text[:-1]) + " and " + downscale_text[-1]
     return f"We downsampled the images by {downscale_text}"
+
+
+def find_tool_feature_matcher_combination(
+    sfm_tool: Literal["any", "colmap", "hloc"],
+    feature_type: Literal[
+        "any",
+        "sift",
+        "superpoint",
+        "superpoint_aachen",
+        "superpoint_max",
+        "superpoint_inloc",
+        "r2d2",
+        "d2net-ss",
+        "sosnet",
+        "disk",
+    ],
+    matcher_type: Literal[
+        "any", "NN", "superglue", "superglue-fast", "NN-superpoint", "NN-ratio", "NN-mutual", "adalam"
+    ],
+):
+    """Find a valid combination of sfm tool, feature type, and matcher type.
+    Basically, replace the default parameters 'any' by usable value
+
+    Args:
+        sfm_tool: Sfm tool name (any, colmap, hloc)
+        feature_type: Type of image features (any, sift, superpoint, ...)
+        matcher_type: Type of matching algorithm (any, NN, superglue,...)
+
+    Returns:
+        Tuple of sfm tool, feature type, and matcher type.
+        Returns (None,None,None) if no valid combination can be found
+    """
+    if sfm_tool == "any":
+        if (feature_type in ("any", "sift")) and (matcher_type in ("any", "NN")):
+            sfm_tool = "colmap"
+        else:
+            sfm_tool = "hloc"
+
+    if sfm_tool == "colmap":
+        if (feature_type not in ("any", "sift")) or (matcher_type not in ("any", "NN")):
+            return (None, None, None)
+        return ("colmap", "sift", "NN")
+    if sfm_tool == "hloc":
+        if feature_type in ("any", "superpoint"):
+            feature_type = "superpoint_aachen"
+
+        if matcher_type == "any":
+            matcher_type = "superglue"
+        elif matcher_type == "NN":
+            matcher_type = "NN-mutual"
+
+        return (sfm_tool, feature_type, matcher_type)
+    return (None, None, None)
+
+
+def generate_circle_mask(height: int, width: int, percent_radius) -> Optional[np.ndarray]:
+    """generate a circle mask of the given size.
+
+    Args:
+        height: The height of the mask.
+        width: The width of the mask.
+        percent_radius: The radius of the circle as a percentage of the image diagonal size.
+
+    Returns:
+        The mask or None if the radius is too large.
+    """
+    if percent_radius <= 0.0:
+        CONSOLE.log("[bold red]:skull: The radius of the circle mask must be positive.")
+        sys.exit(1)
+    if percent_radius >= 1.0:
+        return None
+    mask = np.zeros((height, width), dtype=np.uint8)
+    center = (width // 2, height // 2)
+    radius = int(percent_radius * np.sqrt(width**2 + height**2) / 2.0)
+    cv2.circle(mask, center, radius, 1, -1)
+    return mask
+
+
+def generate_crop_mask(
+    height: int, width: int, percent_crop: Tuple[float, float, float, float]
+) -> Optional[np.ndarray]:
+    """generate a crop mask of the given size.
+
+    Args:
+        height: The height of the mask.
+        width: The width of the mask.
+        percent_crop: The percent of the image to crop in each direction [top, bottom, left, right].
+
+    Returns:
+        The mask or None if no cropping is performed.
+    """
+    if np.all(np.array(percent_crop) == 0.0):
+        return None
+    if np.any(np.array(percent_crop) < 0.0) or np.any(np.array(percent_crop) > 1.0):
+        CONSOLE.log("[bold red]Invalid crop percentage, must be between 0 and 1.")
+        sys.exit(1)
+    top, bottom, left, right = percent_crop
+    mask = np.zeros((height, width), dtype=np.uint8)
+    top = int(top * height)
+    bottom = int(bottom * height)
+    left = int(left * width)
+    right = int(right * width)
+    mask[top : height - bottom, left : width - right] = 1.0
+    return mask
+
+
+def generate_mask(
+    height: int, width: int, percent_crop: Tuple[float, float, float, float], percent_radius: float
+) -> Optional[np.ndarray]:
+    """generate a mask of the given size.
+
+    Args:
+        height: The height of the mask.
+        width: The width of the mask.
+        percent_crop: The percent of the image to crop in each direction [top, bottom, left, right].
+        percent_radius: The radius of the circle as a percentage of the image diagonal size.
+
+    Returns:
+        The mask or None if no mask is needed.
+    """
+    crop_mask = generate_crop_mask(height, width, percent_crop)
+    circle_mask = generate_circle_mask(height, width, percent_radius)
+    if crop_mask is None:
+        return circle_mask
+    if circle_mask is None:
+        return crop_mask
+    return crop_mask * circle_mask
+
+
+def save_mask(
+    image_dir: Path,
+    num_downscales: int,
+    percent_crop: Tuple[float, float, float, float] = (0, 0, 0, 0),
+    percent_radius: float = 1.0,
+) -> Optional[Path]:
+    """Save a mask for each image in the image directory.
+
+    Args:
+        image_dir: The directory containing the images.
+        num_downscales: The number of downscaling levels.
+        percent_crop: The percent of the image to crop in each direction [top, bottom, left, right].
+        percent_radius: The radius of the circle as a percentage of the image diagonal size.
+
+    Returns:
+        The path to the mask file or None if no mask is needed.
+    """
+    image_path = next(image_dir.glob("frame_*"))
+    image = cv2.imread(str(image_path))
+    height, width = image.shape[:2]
+    mask = generate_mask(height, width, percent_crop, percent_radius)
+    if mask is None:
+        return None
+    mask *= 255
+    mask_path = image_dir.parent / "masks"
+    mask_path.mkdir(exist_ok=True)
+    cv2.imwrite(str(mask_path / "mask.png"), mask)
+    downscale_factors = [2**i for i in range(num_downscales + 1)[1:]]
+    for downscale in downscale_factors:
+        mask_path_i = image_dir.parent / f"masks_{downscale}"
+        mask_path_i.mkdir(exist_ok=True)
+        mask_path_i = mask_path_i / "mask.png"
+        mask_i = cv2.resize(mask, (width // downscale, height // downscale), interpolation=cv2.INTER_NEAREST)
+        cv2.imwrite(str(mask_path_i), mask_i)
+    CONSOLE.log(":tada: Generated and saved masks.")
+    return mask_path / "mask.png"

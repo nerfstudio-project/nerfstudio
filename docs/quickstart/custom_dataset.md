@@ -11,14 +11,14 @@ ns-process-data {video,images,polycam,insta360,record3d} --data {DATA_PATH} --ou
 A full set of arguments can be found {doc}`here</reference/cli/ns_process_data>`.
 
 We Currently support the following custom data types:
-| Data | Requirements | Preprocessing Speed |
-| -------- | ----------------------- | ------------------- |
-| 📷 [Images](images_and_video) | COLMAP | 🐢 |
-| 📹 [Video](images_and_video) | COLMAP | 🐢 |
-| 📱 [Polycam](polycam) | LiDAR iOS Device | 🐇 |
-| 📱 [Record3D](record3d) | LiDAR iOS Device | 🐇 |
-| 🖥 [Metashape](metashape) | | 🐢 |
-| 📷 Insta360 | 2 Sensor camera, COLMAP | 🐢 |
+| Data | Capture Device | Requirements | `ns-process-data` Speed |
+| ----------------------------- | -------------- | ----------------------------------------------- | ----------------------- |
+| 📷 [Images](images_and_video) | Any | [COLMAP](https://colmap.github.io/install.html) | 🐢 |
+| 📹 [Video](images_and_video) | Any | [COLMAP](https://colmap.github.io/install.html) | 🐢 |
+| 📱 [Polycam](polycam) | IOS with LiDAR | [Polycam App](https://poly.cam/) | 🐇 |
+| 📱 [KIRI Engine](kiri) | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/) | 🐇 |
+| 📱 [Record3D](record3d) | IOS with LiDAR | [Record3D app](https://record3d.app/) | 🐇 |
+| 🖥 [Metashape](metashape) | Any | [Metashape](https://www.agisoft.com/) | 🐇 |
 
 (images_and_video)=
 
@@ -130,7 +130,7 @@ cd vcpkg
 
 Nerfstudio can also be trained directly from captures from the [Polycam app](https://poly.cam//). This avoids the need to use COLMAP. Polycam's poses are globally optimized which make them more robust to drift (an issue with ARKit or SLAM methods).
 
-To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoinrts as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.
+To get the best results, try to reduce motion blur as much as possible and try to view the target from as many viewpoints as possible. Polycam recommends having good lighting and moving the camera slowly if using auto mode. Or, even better, use the manual shutter mode to capture less blurry images.
 
 :::{admonition} Note
 :class: info
@@ -145,7 +145,7 @@ A LiDAR enabled iPhone or iPad is necessary.
 :alt: polycam settings
 ```
 
-Devoloper settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
+Developer settings must be enabled in Polycam. To do this, navigate to the settings screen and select `Developer mode`. Note that this will only apply for future captures, you will not be able to process existing captures with nerfstudio.
 
 ### Process data
 
@@ -175,11 +175,58 @@ ns-process-data polycam --data {OUTPUT_FILE.zip} --output-dir {output directory}
 ns-train nerfacto --data {output directory}
 ```
 
+(kiri)=
+
+## KIRI Engine Capture
+
+Nerfstudio can trained from data processed by the [KIRI Engine app](https://www.kiriengine.com/). This works for both Android and iPhone and does not require a LiDAR supported device.
+
+:::{admonition} Note
+:class: info
+`ns-process-data` does not need to be run when using KIRI Engine.
+:::
+
+### Setting up KIRI Engine
+
+```{image} imgs/kiri_setup.png
+:width: 400
+:align: center
+:alt: KIRI Engine setup
+```
+
+After downloading the app, `Developer Mode` needs to be enabled. A toggle can be found in the settings menu.
+
+### Process data
+
+```{image} imgs/kiri_capture.png
+:width: 400
+:align: center
+:alt: KIRI Engine setup
+```
+
+1. Navigate to captures window.
+
+2. Select `Dev.` tab.
+
+3. Tap the `+` button to create a new capture.
+
+4. Choose `Camera pose` as the capture option.
+
+5. Capture the scene and provide a name.
+
+6. After processing is complete, export the scene. It will be sent to your email.
+
+7. Unzip the file and run the training script (`ns-process-data` is not necessary).
+
+```bash
+ns-train nerfacto --data {kiri output directory}
+```
+
 (record3d)=
 
 ## Record3D Capture
 
-Nerfstudio can also be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
+Nerfstudio can be trained directly from >=iPhone 12 Pro captures from the [Record3D app](https://record3d.app/). This uses the iPhone's LiDAR sensors to calculate camera poses, so COLMAP is not needed.
 
 Click on the image down below 👇 for a 1-minute tutorial on how to run nerfstudio with Record3D from start to finish.
 
@@ -202,7 +249,7 @@ ns-process-data record3d --data {data directory} --output-dir {output directory}
 
 4. Train with nerfstudio!
 
-```
+```bash
 ns-train nerfacto --data {output directory}
 ```
 
@@ -234,6 +281,6 @@ ns-process-data metashape --data {data directory} --xml {xml file} --output-dir 
 
 4. Train with nerfstudio!
 
-```
+```bash
 ns-train nerfacto --data {output directory}
 ```
