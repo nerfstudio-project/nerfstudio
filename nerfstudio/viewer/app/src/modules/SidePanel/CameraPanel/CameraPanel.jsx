@@ -47,6 +47,7 @@ import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 import RenderModal from '../../RenderModal';
+import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
 
@@ -575,6 +576,7 @@ export default function CameraPanel(props) {
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
+  const [load_path_modal_open, setLoadPathModalOpen] = React.useState(false);
   const [animate, setAnimate] = React.useState(new Set());
   const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
   const [globalRenderTime, setGlobalRenderTime] = React.useState(DEFAULT_RENDER_TIME);
@@ -1069,6 +1071,7 @@ export default function CameraPanel(props) {
   };
 
   const uploadCameraPath = (e) => {
+    console.log("upload started");
     const fileUpload = e.target.files[0];
 
     const fr = new FileReader();
@@ -1090,7 +1093,11 @@ export default function CameraPanel(props) {
     };
 
     // send a command of the websocket to save the trajectory somewhere!
+    while (websocket.readyState !== WebSocket.OPEN){
+      
+    }
     if (websocket.readyState === WebSocket.OPEN) {
+      console.log("sent a socket")
       const data = {
         type: 'write',
         path: 'camera_path_payload',
@@ -1100,6 +1107,20 @@ export default function CameraPanel(props) {
       websocket.send(message);
     }
   };
+
+  const open_load_path_modal = () => {
+    console.log("opened load path modal");
+    if (websocket.readyState === WebSocket.OPEN) {
+      const data = {
+        type: 'write',
+        path: 'populate_paths_payload',
+        data: true
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+    setLoadPathModalOpen(true);
+  }
 
   const isAnimated = (property) => animate.has(property);
 
@@ -1136,21 +1157,24 @@ export default function CameraPanel(props) {
     <div className="CameraPanel">
       <div>
         <div className="CameraPanel-path-row">
+          <LoadPathModal open={load_path_modal_open} setOpen={setLoadPathModalOpen} pathUploadFunction={uploadCameraPath} loadCameraPathFunction={load_camera_path} />
           <Button
             size="small"
             className="CameraPanel-top-button"
             component="label"
             variant="outlined"
             startIcon={<FileUploadOutlinedIcon />}
+            onClick={open_load_path_modal}
           >
             Load Path
-            <input
+            {/* <input
               type="file"
               accept=".json"
               name="Camera Path"
               onChange={uploadCameraPath}
               hidden
-            />
+            /> */}
+            
           </Button>
         </div>
         <div className="CameraPanel-path-row">

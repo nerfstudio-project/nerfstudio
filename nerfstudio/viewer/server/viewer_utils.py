@@ -361,6 +361,23 @@ class ViewerState:
             write_to_json(Path(os.path.join(camera_paths_directory, camera_path_filename)), camera_path)
             self.vis["camera_path_payload"].delete()
 
+    def _check_populate_paths_payload(self, trainer, step: int):
+        populate_paths_payload = self.vis["populate_paths_payload"].read()
+        if populate_paths_payload:
+            print(populate_paths_payload)
+            # save a model checkpoint
+            trainer.save_checkpoint(step)
+            # get all camera paths
+            camera_path_dir = os.path.join(self.datapath, "camera_paths")
+            camera_path_files = os.listdir(camera_path_dir)
+            all_path_dict = {}
+            for i in camera_path_files:
+                if i[-4:] == "json":
+                    all_path_dict[i[:-5]] = load_from_json(os.path.join(camera_path_dir, i))
+            self.vis["renderingState/all_camera_paths"].write(all_path_dict)
+            self.vis["populate_paths_payload"].delete()
+            # print text in red
+
     def _check_webrtc_offer(self):
         """Check if there is a webrtc offer to respond to."""
         data = self.vis["webrtc/offer"].read()
@@ -397,6 +414,7 @@ class ViewerState:
 
         self._check_camera_path_payload(trainer, step)
         self._check_webrtc_offer()
+        self._check_populate_paths_payload(trainer, step)
 
         camera_object = self._get_camera_object()
         if camera_object is None:
