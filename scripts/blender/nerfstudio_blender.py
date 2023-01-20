@@ -13,11 +13,13 @@ bl_info = {
     "category": "Nerfstudio",
 }
 
-import json  # pylint: disable=wrong-import-position
-from math import atan, degrees, radians, tan  # pylint: disable=wrong-import-position
+# pylint: disable=wrong-import-position
+import json
+from math import atan, degrees, radians, tan
 
-import bpy  # pylint: disable=wrong-import-position,import-error
-from mathutils import Matrix  # pylint: disable=wrong-import-position,import-error
+# pylint: disable=import-error
+import bpy
+from mathutils import Matrix
 
 
 class CreateJSONCameraPath(bpy.types.Operator):
@@ -317,7 +319,7 @@ class ReadJSONinputCameraPath(bpy.types.Operator):
 
 
 class NerfstudioMainPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
-    """Blener UI main panel for the add-on."""
+    """Blender UI main panel for the add-on."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioMainPanel"
     bl_label = "Nerfstudio Add-on"
@@ -334,7 +336,7 @@ class NerfstudioMainPanel(bpy.types.Panel):  # pylint: disable=too-few-public-me
 
 
 class NerfstudioBgPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
-    """Blener UI sub-panel for the camera path creation."""
+    """Blender UI sub-panel for the camera path creation."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioBgPanel"
     bl_label = "Nerfstudio Path Generator"
@@ -357,7 +359,7 @@ class NerfstudioBgPanel(bpy.types.Panel):  # pylint: disable=too-few-public-meth
 
 
 class NerfstudioInputPanel(bpy.types.Panel):  # pylint: disable=too-few-public-methods
-    """Blener UI sub-panel for the Blender camera creation."""
+    """Blender UI sub-panel for the Blender camera creation."""
 
     bl_idname = "NERFSTUDIO_PT_NerfstudioInputPanel"
     bl_label = "Nerfstudio Camera Generator"
