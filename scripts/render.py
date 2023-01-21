@@ -11,7 +11,7 @@ import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import mediapy as media
 import numpy as np
@@ -29,6 +29,8 @@ from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
@@ -46,6 +48,9 @@ def _render_trajectory_video(
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
     camera_type: CameraType = CameraType.PERSPECTIVE,
+    use_bounding_box: bool = False,
+    bounding_box_min: Tuple[float, float, float] = (-1, -1, -1),
+    bounding_box_max: Tuple[float, float, float] = (1, 1, 1),
 ) -> None:
     """Helper function to create a video of the spiral trajectory.
 
@@ -58,6 +63,9 @@ def _render_trajectory_video(
         seconds: Length of output video.
         output_format: How to save output data.
         camera_type: Camera projection format type.
+        use_bounding_box: if True only render within bounding box
+        bounding_box_min:  x min, y min, z min of the bounding box
+        bounding_box_min:  x max, y max, z max of the bounding box
     """
     CONSOLE.print("[bold green]Creating trajectory " + output_format)
     cameras.rescale_output_resolution(rendered_resolution_scaling_factor)
@@ -89,9 +97,18 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
-                with torch.no_grad():
-                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                aabb_box = None
+                if use_bounding_box:
+                    aabb_box = SceneBox(torch.tensor([bounding_box_min, bounding_box_max], dtype=torch.float32))
+                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+
+                if use_bounding_box:
+                    with renderers.background_mode_override_context("black"), torch.no_grad():
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                else:
+                    with torch.no_grad():
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
                 render_image = []
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
@@ -218,6 +235,12 @@ class RenderTrajectory:
     output_format: Literal["images", "video"] = "video"
     # Specifies number of rays per chunk during eval.
     eval_num_rays_per_chunk: Optional[int] = None
+    # Only render withing the bounding box
+    use_bounding_box: bool = False
+    # Minimum of the bounding box, used if use_bounding_box is True
+    bounding_box_min: Tuple[float, float, float] = (-1, -1, -1)
+    # Maximum of the bounding box, used if use_bounding_box is True
+    bounding_box_max: Tuple[float, float, float] = (1, 1, 1)
 
     def main(self) -> None:
         """Main function."""
@@ -262,6 +285,9 @@ class RenderTrajectory:
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,
+            use_bounding_box=self.use_bounding_box,
+            bounding_box_min=self.bounding_box_min,
+            bounding_box_max=self.bounding_box_max,
         )
 
 
