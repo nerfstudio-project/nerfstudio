@@ -315,7 +315,7 @@ class Trainer:
             loaded_state = torch.load(load_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
-            self.pipeline.load_pipeline(loaded_state["pipeline"])
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"done loading checkpoint from {load_path}")
