@@ -18,7 +18,7 @@ import json
 import sys
 import numpy as np
 from pathlib import Path
-from typing import List, Tuple, Any
+from typing import List, Tuple
 
 from rich.console import Console
 
@@ -50,7 +50,7 @@ def polycam_to_json(
     Returns:
         Summary of the conversion.
     """
-    use_depth = True if len(image_filenames) == len(depth_filenames) else False
+    use_depth = bool(len(image_filenames) == len(depth_filenames))
     data = {}
     data["camera_model"] = CAMERA_MODELS["perspective"].value
     # Needs to be a string for camera_utils.auto_orient_and_center_poses
