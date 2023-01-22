@@ -217,6 +217,7 @@ class RenderTrajectory:
 
     # Path to config YAML file.
     load_config: Path
+    load_ckpt: Path
     # Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
     #  Trajectory to render.
@@ -240,6 +241,7 @@ class RenderTrajectory:
             self.load_config,
             eval_num_rays_per_chunk=self.eval_num_rays_per_chunk,
             test_mode="test" if self.traj == "spiral" else "inference",
+            load_ckpt=self.load_ckpt,
         )
 
         install_checks.check_ffmpeg_installed()

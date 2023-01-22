@@ -37,6 +37,7 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackLocation,
 )
 from nerfstudio.engine.optimizers import Optimizers
+from nerfstudio.nerfstudio.utils.checkpoint_loader import find_checkpoint
 from nerfstudio.pipelines.base_pipeline import VanillaPipeline
 from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.decorators import (
@@ -72,10 +73,8 @@ class TrainerConfig(ExperimentConfig):
     save_only_latest_checkpoint: bool = True
     """Whether to only save the latest checkpoint or all checkpoints."""
     # optional parameters if we want to resume training
-    load_dir: Optional[Path] = None
-    """Optionally specify a pre-trained model directory to load from."""
-    load_step: Optional[int] = None
-    """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
+    load_ckpt: Optional[Path] = None
+    """Continue training from a model checkpoint"""
     load_config: Optional[Path] = None
 
 
@@ -340,24 +339,15 @@ class Trainer:
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        load_dir = self.config.load_dir
-        if load_dir is not None:
-            load_step = self.config.load_step
-            if load_step is None:
-                print("Loading latest checkpoint from load_dir")
-                # NOTE: this is specific to the checkpoint name format
-                load_step = sorted(
-                    int(x[x.find("-") + 1 : x.find(".")]) for x in os.listdir(load_dir)
-                )[-1]
-            load_path = load_dir / f"step-{load_step:09d}.ckpt"
-            assert load_path.exists(), f"Checkpoint {load_path} does not exist"
-            loaded_state = torch.load(load_path, map_location="cpu")
+        checkpoint_path = find_checkpoint(self.config.load_ckpt)
+        if checkpoint_path is not None:
+            loaded_state = torch.load(checkpoint_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
             self.pipeline.load_pipeline(loaded_state["pipeline"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
-            CONSOLE.print(f"done loading checkpoint from {load_path}")
+            CONSOLE.print(f"done loading checkpoint from {checkpoint_path}")
         else:
             CONSOLE.print("No checkpoints to load, training from scratch")
 

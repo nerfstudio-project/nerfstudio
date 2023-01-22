@@ -22,12 +22,16 @@ class ComputePSNR:
 
     # Path to config YAML file.
     load_config: Path
+    # Checkpoint path
+    load_ckpt: Path
     # Name of the output file.
     output_path: Path = Path("output.json")
 
     def main(self) -> None:
         """Main function."""
-        config, pipeline, checkpoint_path = eval_setup(self.load_config)
+        config, pipeline, checkpoint_path = eval_setup(
+            self.load_config, load_ckpt=self.load_ckpt
+        )
         assert self.output_path.suffix == ".json"
         metrics_dict = pipeline.get_average_eval_image_metrics()
         self.output_path.parent.mkdir(parents=True, exist_ok=True)

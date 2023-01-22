@@ -75,7 +75,7 @@ class MyTrainerConf(TrainerConfig):
     )
     save_only_latest_checkpoint: bool = False
     max_num_iterations: int = 30000
-    vis: str = "viewer"
+    vis: str | None = None  # vis: str = "viewer"
 
 
 method_configs: Dict[str, MyTrainerConf] = {}
@@ -106,7 +106,10 @@ method_configs["nerfacto"] = MyTrainerConf(
                 optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2),
             ),
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        # CHANGED: predict_normals=True missing
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15, predict_normals=True
+        ),
     ),
     optimizers={
         "proposal_networks": {

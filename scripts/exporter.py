@@ -39,6 +39,10 @@ class Exporter:
     """Path to the config YAML file."""
     output_dir: Path
     """Path to the output directory."""
+    load_ckpt: Path
+    """"Path to a checkpoint"""
+    use_subdir: bool = True
+    """Creates and saves files in the subdirectory named after the experiment."""
 
 
 @dataclass
@@ -72,7 +76,7 @@ class ExportPointCloud(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
 
         # Increase the batchsize to speed up the evaluation.
         pipeline.datamanager.train_pixel_sampler.num_rays_per_batch = (
@@ -140,7 +144,7 @@ class ExportTSDFMesh(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
 
         tsdf_utils.export_tsdf_mesh(
             pipeline,
@@ -249,10 +253,21 @@ class ExportPoissonMesh(Exporter):
     def main(self) -> None:
         """Export mesh"""
 
+
+
+        config, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
+        
+        if self.use_subdir:
+            experiment_name = config.experiment_name
+            if experiment_name is None:
+                CONSOLE.rule("Error", style="red")
+                CONSOLE.print(f"Could not find experiment_name in config {self.load_config}",justify="center",)
+                sys.exit(1) 
+            self.output_dir = Path(self.output_dir, experiment_name)
+        
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
-
-        _, pipeline, _ = eval_setup(self.load_config)
+            
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
@@ -345,7 +360,7 @@ class ExportCameraPoses(Exporter):
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
 
-        _, pipeline, _ = eval_setup(self.load_config)
+        _, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
         assert isinstance(pipeline, VanillaPipeline)
         train_frames, eval_frames = collect_camera_poses(pipeline)
 

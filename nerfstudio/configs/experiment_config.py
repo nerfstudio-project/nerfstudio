@@ -44,7 +44,7 @@ class ExperimentConfig(InstantiateConfig):
     """Full config contents for running an experiment. Any experiment types (like training) will be
     subclassed from this, and must have their _target field defined accordingly."""
 
-    output_dir: Path = Path("outputs")
+    output_dir: Path = Path("models")
     """relative or absolute output directory to save all checkpoints and logging"""
     method_name: Optional[str] = None
     """Method name. Required to set in python or via cli"""
@@ -73,7 +73,9 @@ class ExperimentConfig(InstantiateConfig):
     """Which visualizer to use."""
     data: Optional[Path] = None
     """Alias for --pipeline.datamanager.dataparser.data"""
-    relative_model_dir: Path = Path("nerfstudio_models/")
+    # CHANGED:
+    # relative_model_dir: Path = Path("nerfstudio_models/")
+    relative_model_dir: Path = Path(".")
     """Relative path to save all checkpoints."""
 
     def is_viewer_enabled(self) -> bool:
@@ -109,7 +111,10 @@ class ExperimentConfig(InstantiateConfig):
             self.method_name is not None
         ), "Please set method name in config or via the cli"
         self.set_experiment_name()
-        return Path(f"{self.output_dir}/{self.experiment_name}")
+        assert (
+            self.experiment_name is not None
+        ), "This shouldn't happen. Experiment name should be set."
+        return Path(self.output_dir, self.experiment_name)
         # CHANGED:
         # return Path(
         #     f"{self.output_dir}/{self.experiment_name}/{self.method_name}/{self.timestamp}"

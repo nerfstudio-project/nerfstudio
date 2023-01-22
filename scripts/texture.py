@@ -27,6 +27,8 @@ class TextureMesh:
 
     load_config: Path
     """Path to the config YAML file."""
+    load_ckpt: Path
+    """Checkpoint path"""
     output_dir: Path
     """Path to the output directory."""
     input_mesh_filename: Path
