@@ -261,6 +261,9 @@ method_configs["vanilla-nerf"] = TrainerConfig(
 
 method_configs["tensorf"] = TrainerConfig(
     method_name="tensorf",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
     mixed_precision=False,
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
@@ -278,6 +281,8 @@ method_configs["tensorf"] = TrainerConfig(
             "scheduler": SchedulerConfig(lr_final=0.002, max_steps=30000),
         },
     },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
 )
 
 method_configs["dnerf"] = TrainerConfig(

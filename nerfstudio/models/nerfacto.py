@@ -98,9 +98,9 @@ class NerfactoModelConfig(ModelConfig):
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
-    orientation_loss_mult: float = 0.01
-    """Orientation loss multipier on computed normals."""
-    pred_normal_loss_mult: float = 0.0003
+    orientation_loss_mult: float = 0.0001
+    """Orientation loss multiplier on computed normals."""
+    pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True
     """Whether to use proposal weight annealing."""

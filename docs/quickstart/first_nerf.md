@@ -46,9 +46,9 @@ Once you have a NeRF model you can either render out a video or export a point c
 
 ### Render Video
 
-First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the command to generate the video.
+First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and run the command to generate the video.
 
-Other video export options are available, learn more by running,
+Other video export options are available, learn more by running
 
 ```bash
 ns-render --help
@@ -58,7 +58,7 @@ ns-render --help
 
 While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab in the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
 
-Alternatively you can use the CLI without the viewer. Learn about the export options by running,
+Alternatively you can use the CLI without the viewer. Learn about the export options by running
 
 ```bash
 ns-export pointcloud --help
@@ -70,7 +70,7 @@ Nerfstudio allows customization of training and eval configs from the CLI in a p
 
 The most demonstrative and helpful example of the CLI structure is the difference in output between the following commands:
 
-The following will list the supported models,
+The following will list the supported models
 
 ```bash
 ns-train --help
@@ -82,7 +82,7 @@ Applying `--help` after the model specification will provide the model and train
 ns-train nerfacto --help
 ```
 
-At the end of the command you can specify the dataparser used. By default we use the _nerfstudio-data_ dataparser. We include other dataparsers such as _Blender_, _NuScenes_, ect. For a list of dataparse specific arguments, add `--help` to the end of the command,
+At the end of the command you can specify the dataparser used. By default we use the _nerfstudio-data_ dataparser. We include other dataparsers such as _Blender_, _NuScenes_, ect. For a list of dataparse specific arguments, add `--help` to the end of the command
 
 ```bash
 ns-train nerfacto <nerfacto optional args> nerfstudio-data --help

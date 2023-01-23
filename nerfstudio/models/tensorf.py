@@ -114,7 +114,8 @@ class TensoRFModel(Model):
         def reinitialize_optimizer(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            resolution = self.upsampling_steps.pop(0)
+            index = self.upsampling_iters.index(step)
+            resolution = self.upsampling_steps[index]
 
             # upsample the position and direction grids
             self.field.density_encoding.upsample_grid(resolution)
@@ -142,6 +143,19 @@ class TensoRFModel(Model):
             )
         ]
         return callbacks
+
+    def update_to_step(self, step: int) -> None:
+        if step < self.upsampling_iters[0]:
+            return
+
+        new_iters = list(self.upsampling_iters) + [step + 1]
+        new_iters.sort()
+
+        index = new_iters.index(step + 1)
+        new_grid_resolution = self.upsampling_steps[index - 1]
+
+        self.field.density_encoding.upsample_grid(new_grid_resolution)  # type: ignore
+        self.field.color_encoding.upsample_grid(new_grid_resolution)  # type: ignore
 
     def populate_modules(self):
         """Set the fields and modules"""
