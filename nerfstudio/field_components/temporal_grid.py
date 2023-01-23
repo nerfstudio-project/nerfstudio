@@ -182,7 +182,7 @@ class TemporalGridEncoder(nn.Module):
         input_dim: int = 3,
         num_levels: int = 16,
         level_dim: int = 2,
-        per_level_scale: int = 2,
+        per_level_scale: float = 2.0,
         base_resolution: int = 16,
         log2_hashmap_size: int = 19,
         desired_resolution: Optional[int] = None,
