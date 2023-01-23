@@ -103,7 +103,7 @@ dataparser_outputs = dataparser.get_dataparser_outputs(split="train")
 input_dataset = InputDataset(dataparser_outputs)
 ```
 
-You can also pull out information from the DataParserOutputs for other DataMangager componenets, such as the RayGenerator. The RayGenerator generates RayBundle objects from camera and pixel indices.
+You can also pull out information from the DataParserOutputs for other DataMangager components, such as the RayGenerator. The RayGenerator generates RayBundle objects from camera and pixel indices.
 
 ```python
 ray_generator = RayGenerator(dataparser_outputs.cameras)

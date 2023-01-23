@@ -27,7 +27,7 @@ class FieldComponent(nn.Module):
 
     Args:
         in_dim: Input dimension to module.
-        out_dim: Ouput dimension to module.
+        out_dim: Output dimension to module.
     """
 
     def __init__(self, in_dim: Optional[int] = None, out_dim: Optional[int] = None) -> None:

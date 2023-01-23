@@ -146,5 +146,6 @@ class Friends(DataParser):
             cameras=cameras,
             scene_box=scene_box,
             metadata={"semantics": semantics} if self.config.include_semantics else {},
+            dataparser_scale=scale,
         )
         return dataparser_outputs

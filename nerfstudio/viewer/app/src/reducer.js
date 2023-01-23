@@ -22,6 +22,10 @@ const initialState = {
     render_height: 1080,
     render_width: 1920,
     field_of_view: 50,
+    camera_type: 'perspective',
+
+    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
+    export_path: 'export_path',
 
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
@@ -40,6 +44,11 @@ const initialState = {
     clipping_enabled: true,
     clipping_center: [0.0, 0.0, 0.0],
     clipping_box_scale: [2.0, 2.0, 2.0],
+
+    // Crop Box Options
+    crop_enabled: false,
+    crop_scale: [2.0, 2.0, 2.0],
+    crop_center: [0.0, 0.0, 0.0],
   },
   // the scene state
   sceneState: {

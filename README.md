@@ -151,7 +151,7 @@ Navigating to the link at the end of the terminal will load the webviewer. If yo
 It is possible to load a pretrained model by running
 
 ```bash
-ns-train nerfacto --data data/nerfstudio/poster --trainer.load-dir {outputs/.../nerfstudio_models}
+ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstudio_models}
 ```
 
 This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
@@ -162,9 +162,9 @@ Once you have a NeRF model you can either render out a video or export a point c
 
 ### Render Video
 
-First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the command to generate the video.
+First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and run the command to generate the video.
 
-Other video export options are available, learn more by running,
+Other video export options are available, learn more by running
 
 ```bash
 ns-render --help
@@ -174,7 +174,7 @@ ns-render --help
 
 While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab in the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
 
-Alternatively you can use the CLI without the viewer. Learn about the export options by running,
+Alternatively you can use the CLI without the viewer. Learn about the export options by running
 
 ```bash
 ns-export pointcloud --help
@@ -184,20 +184,21 @@ ns-export pointcloud --help
 
 Using an existing dataset is great, but likely you want to use your own data! We support various methods for using your own data. Before it can be used in nerfstudio, the camera location and orientations must be determined and then converted into our format using `ns-process-data`. We rely on external tools for this, instructions and information can be found in the documentation.
 
-| Data                                                                                              | Requirements     | Preprocessing Speed |
-| ------------------------------------------------------------------------------------------------- | ---------------- | ------------------- |
-| 📷 [Images](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-or-video)    | COLMAP           | 🐢                  |
-| 📹 [Video](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-or-video)     | COLMAP           | 🐢                  |
-| 📱 [Polycam](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#polycam-capture)   | LiDAR iOS Device | 🐇                  |
-| 📱 [Record3D](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#record3d-capture) | LiDAR iOS Device | 🐇                  |
-| 🖥 [Metashape](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#metashape)        |                  | 🐢                  |
-| 🛠 [Custom](https://docs.nerf.studio/en/latest/quickstart/data_conventions.html)                   | Poses            | 🐇                  |
+| Data                                                                                              | Capture Device | Requirements                                    | `ns-process-data` Speed |
+| ------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------- | ----------------------- |
+| 📷 [Images](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-and-video)   | Any            | [COLMAP](https://colmap.github.io/install.html) | 🐢                      |
+| 📹 [Video](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#images-and-video)    | Any            | [COLMAP](https://colmap.github.io/install.html) | 🐢                      |
+| 📱 [Polycam](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#polycam-capture)   | IOS with LiDAR | [Polycam App](https://poly.cam/)                | 🐇                      |
+| 📱 [KIRI Engine](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#kiri-capture)  | IOS or Android | [KIRI Engine App](https://www.kiriengine.com/)  | 🐇                      |
+| 📱 [Record3D](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#record3d-capture) | IOS with LiDAR | [Record3D app](https://record3d.app/)           | 🐇                      |
+| 🖥 [Metashape](https://docs.nerf.studio/en/latest/quickstart/custom_dataset.html#metashape)        | Any            | [Metashape](https://www.agisoft.com/)           | 🐇                      |
+| 🛠 [Custom](https://docs.nerf.studio/en/latest/quickstart/data_conventions.html)                   | Any            | Camera Poses                                    | 🐇                      |
 
 ## 5. Advanced Options
 
 ### Training models other than nerfacto
 
-We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command,
+We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command
 
 ```bash
 ns-train vanilla-nerf --data DATA_PATH
@@ -244,7 +245,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 
 # Supported Features
 
-We provide the following support structures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
+We provide the following support structures to make life easier for getting started with NeRFs.
 
 **If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerfstudio Team on [Discord](https://discord.gg/uMbNqcraFc)!**
 

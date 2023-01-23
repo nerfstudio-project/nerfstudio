@@ -6,6 +6,22 @@ import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const msgpack = require('msgpack-lite');
 
+function dispatch_and_send(websocket, dispatch, path, data) {
+  dispatch({
+    type: 'write',
+    path,
+    data,
+  });
+  if (websocket.readyState === WebSocket.OPEN) {
+    const message = msgpack.encode({
+      type: 'write',
+      path,
+      data,
+    });
+    websocket.send(message);
+  }
+}
+
 export function RenderControls() {
   // connection status indicators
   const websocket = useContext(WebSocketContext).socket;
@@ -27,136 +43,58 @@ export function RenderControls() {
   const target_train_util = useSelector(
     (state) => state.renderingState.targetTrainUtil,
   );
-  const render_time = useSelector(
-    (state) => state.renderingState.renderTime,
+  const render_time = useSelector((state) => state.renderingState.renderTime);
+  const crop_enabled = useSelector(
+    (state) => state.renderingState.crop_enabled,
   );
+
+  const box_size = useSelector((state) => state.renderingState.box_size);
+
+  const crop_scale = useSelector((state) => state.renderingState.crop_scale);
+
+  const crop_center = useSelector((state) => state.renderingState.crop_center);
 
   const dispatch = useDispatch();
 
-  const set_max_resolution = (value) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/maxResolution',
-        data: value,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/maxResolution';
-      const data = {
-        type: cmd,
-        path,
-        data: value,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
-
-  const set_target_train_util = (value) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/targetTrainUtil',
-        data: value,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/targetTrainUtil';
-      const data = {
-        type: cmd,
-        path,
-        data: value,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
-
-  const set_output_choice = (value) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/output_choice',
-        data: value,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/output_choice';
-      const data = {
-        type: cmd,
-        path,
-        data: value,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
-
-  const set_colormap_choice = (value) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      dispatch({
-        type: 'write',
-        path: 'renderingState/colormap_choice',
-        data: value,
-      });
-      const cmd = 'write';
-      const path = 'renderingState/colormap_choice';
-      const data = {
-        type: cmd,
-        path,
-        data: value,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
-  };
-
   const [display_render_time, set_display_render_time] = useState(false);
 
-  const receive_temporal_dist = e => {
-      const msg = msgpack.decode(new Uint8Array(e.data));
-      if (msg.path === "/model/has_temporal_distortion") {
-        set_display_render_time(msg.data === "true");
-        websocket.removeEventListener("message", receive_temporal_dist);
-      }
-  }
-  websocket.addEventListener('message', receive_temporal_dist);
-
-  const set_render_time = (value) => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      const path = 'renderingState/render_time';
-      dispatch({
-        type: 'write',
-        path,
-        data: value,
-      });
-      const cmd = 'write';
-      const data = {
-        type: cmd,
-        path,
-        data: value,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
+  const receive_temporal_dist = (e) => {
+    const msg = msgpack.decode(new Uint8Array(e.data));
+    if (msg.path === '/model/has_temporal_distortion') {
+      set_display_render_time(msg.data === 'true');
+      websocket.removeEventListener('message', receive_temporal_dist);
     }
   };
+  websocket.addEventListener('message', receive_temporal_dist);
 
   const [, setControls] = useControls(
     () => ({
       // training speed
-      'Train Speed': buttonGroup({
-        Fast: () =>
-          setControls({ target_train_util: 0.9, max_resolution: 512 }),
-        Balanced: () =>
-          setControls({ target_train_util: 0.7, max_resolution: 1024 }),
-        Slow: () =>
-          setControls({ target_train_util: 0.1, max_resolution: 2048 }),
+      SpeedButtonGroup: buttonGroup({
+        label: `Train Speed`,
+        hint: 'Select the training speed, affects viewer render quality, not final render quality',
+        opts: {
+          Fast: () =>
+            setControls({ target_train_util: 0.9, max_resolution: 512 }),
+          Balanced: () =>
+            setControls({ target_train_util: 0.7, max_resolution: 1024 }),
+          Slow: () =>
+            setControls({ target_train_util: 0.1, max_resolution: 2048 }),
+        },
       }),
       // output_options
       output_options: {
         label: 'Output Render',
         options: [...new Set(outputOptions)],
         value: outputChoice,
+        hint: 'Select the output to render',
         onChange: (v) => {
-          set_output_choice(v);
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/output_choice',
+            v,
+          );
         },
       },
       // colormap_options
@@ -164,8 +102,14 @@ export function RenderControls() {
         label: 'Colormap',
         options: colormapOptions,
         value: colormapChoice,
+        hint: 'Select the colormap to use',
         onChange: (v) => {
-          set_colormap_choice(v);
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_choice',
+            v,
+          );
         },
         disabled: colormapOptions.length === 1,
       },
@@ -176,8 +120,14 @@ export function RenderControls() {
         min: 0,
         max: 1,
         step: 0.05,
+        hint: "Target training utilization, 0.0 is slow, 1.0 is fast, doesn't affect final render quality",
         onChange: (v) => {
-          set_target_train_util(v);
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/targetTrainUtil',
+            v,
+          );
         },
       },
       // resolution
@@ -187,8 +137,14 @@ export function RenderControls() {
         min: 256,
         max: 2048,
         step: 1,
+        hint: 'Maximum resolution to render in viewport',
         onChange: (v) => {
-          set_max_resolution(v);
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/maxResolution',
+            v,
+          );
         },
       },
       '  ': buttonGroup({
@@ -197,17 +153,72 @@ export function RenderControls() {
         '1024px': () => setControls({ max_resolution: 1024 }),
         '2048px': () => setControls({ max_resolution: 2048 }),
       }),
-      // Dynamic NeRF rendering time
-      ...(display_render_time ? {render_time: {
-        label: 'Render Timestep',
-        value: render_time,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        onChange: (v) => {
-          set_render_time(v);
+      // Enable Crop
+      crop_options: {
+        label: 'Crop Viewport',
+        value: crop_enabled,
+        hint: 'Crop the viewport to the selected box',
+        onChange: (value) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/crop_enabled',
+            value,
+          );
         },
-      }} : {}),
+      },
+      crop_scale: {
+        label: '|  Scale',
+        value: crop_scale,
+        min: 0,
+        max: 10,
+        step: 0.05,
+        render: (get) => get('crop_options'),
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/crop_scale',
+            v,
+          );
+        },
+      },
+      crop_center: {
+        label: '|  Center',
+        value: crop_center,
+        min: -10,
+        max: 10,
+        step: 0.05,
+        render: (get) => get('crop_options'),
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/crop_center',
+            v,
+          );
+        },
+      },
+      // Dynamic NeRF rendering time
+      ...(display_render_time
+        ? {
+            render_time: {
+              label: 'Render Timestep',
+              value: render_time,
+              min: 0,
+              max: 1,
+              step: 0.01,
+              onChange: (v) => {
+                dispatch_and_send(
+                  websocket,
+                  dispatch,
+                  'renderingState/render_time',
+                  v,
+                );
+              },
+            },
+          }
+        : {}),
     }),
     [
       outputOptions,
@@ -215,6 +226,8 @@ export function RenderControls() {
       colormapOptions,
       colormapChoice,
       max_resolution,
+      crop_enabled,
+      box_size,
       target_train_util,
       render_time,
       display_render_time,
