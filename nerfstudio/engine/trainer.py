@@ -227,14 +227,18 @@ class Trainer:
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
-            # save checkpoint at the end of training
-            self.save_checkpoint(step)
 
-            CONSOLE.rule()
-            CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
-            if not self.config.viewer.quit_on_train_completion:
-                CONSOLE.print("Use ctrl+c to quit", justify="center")
-                self._always_render(step)
+        # save checkpoint at the end of training
+        self.save_checkpoint(step)
+
+        # write out any remaining events (e.g., total train time)
+        writer.write_out_storage()
+
+        CONSOLE.rule()
+        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+        if not self.config.viewer.quit_on_train_completion:
+            CONSOLE.print("Use ctrl+c to quit", justify="center")
+            self._always_render(step)
 
     @check_main_thread
     def _always_render(self, step):
