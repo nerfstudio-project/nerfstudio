@@ -562,15 +562,14 @@ class ProcessPolycam:
             depth_dir = self.data / "keyframes" / "depth"
             raise ValueError(f"Depth map directory {depth_dir} doesn't exist")
 
-        (image_processing_log, polycam_image_filenames) = \
-            polycam_utils.process_images(
-                polycam_image_dir,
-                image_dir,
-                crop_border_pixels=self.crop_border_pixels,
-                max_dataset_size=self.max_dataset_size,
-                num_downscales=self.num_downscales,
-                verbose=self.verbose,
-            )
+        (image_processing_log, polycam_image_filenames) = polycam_utils.process_images(
+            polycam_image_dir,
+            image_dir,
+            crop_border_pixels=self.crop_border_pixels,
+            max_dataset_size=self.max_dataset_size,
+            num_downscales=self.num_downscales,
+            verbose=self.verbose,
+        )
 
         summary_log.extend(image_processing_log)
 
@@ -579,16 +578,15 @@ class ProcessPolycam:
             polycam_depth_image_dir = self.data / "keyframes" / "depth"
             depth_dir = self.output_dir / "depth"
             depth_dir.mkdir(parents=True, exist_ok=True)
-            (depth_processing_log, polycam_depth_filenames) = \
-                polycam_utils.process_depth_maps(
-                    polycam_depth_image_dir,
-                    depth_dir,
-                    num_processed_images=len(polycam_image_filenames),
-                    crop_border_pixels=self.crop_border_pixels,
-                    max_dataset_size=self.max_dataset_size,
-                    num_downscales=self.num_downscales,
-                    verbose=self.verbose,
-                )
+            (depth_processing_log, polycam_depth_filenames) = polycam_utils.process_depth_maps(
+                polycam_depth_image_dir,
+                depth_dir,
+                num_processed_images=len(polycam_image_filenames),
+                crop_border_pixels=self.crop_border_pixels,
+                max_dataset_size=self.max_dataset_size,
+                num_downscales=self.num_downscales,
+                verbose=self.verbose,
+            )
             summary_log.extend(depth_processing_log)
 
         summary_log.extend(
@@ -598,10 +596,9 @@ class ProcessPolycam:
                 cameras_dir=polycam_cameras_dir,
                 output_dir=self.output_dir,
                 min_blur_score=self.min_blur_score,
-                crop_border_pixels=self.crop_border_pixels
+                crop_border_pixels=self.crop_border_pixels,
             )
         )
-
 
         CONSOLE.rule("[bold green]:tada: :tada: :tada: All DONE :tada: :tada: :tada:")
 

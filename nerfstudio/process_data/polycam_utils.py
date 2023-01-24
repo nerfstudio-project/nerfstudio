@@ -34,7 +34,7 @@ def polycam_to_json(
     cameras_dir: Path,
     output_dir: Path,
     min_blur_score: float = 0.0,
-    crop_border_pixels: int = 0
+    crop_border_pixels: int = 0,
 ) -> List[str]:
     """Convert Polycam data into a nerfstudio dataset.
 
@@ -98,8 +98,14 @@ def polycam_to_json(
     return summary
 
 
-def process_images(polycam_image_dir: Path, image_dir: Path, crop_border_pixels: int = 15, max_dataset_size: int = 600,
-                   num_downscales: int = 3, verbose: bool = True) -> Tuple[List[str], List[Path]]:
+def process_images(
+    polycam_image_dir: Path,
+    image_dir: Path,
+    crop_border_pixels: int = 15,
+    max_dataset_size: int = 600,
+    num_downscales: int = 3,
+    verbose: bool = True,
+) -> Tuple[List[str], List[Path]]:
     """
     Process RGB images only
 
@@ -153,9 +159,15 @@ def process_images(polycam_image_dir: Path, image_dir: Path, crop_border_pixels:
     return summary_log, polycam_image_filenames
 
 
-def process_depth_maps(polycam_depth_dir: Path, depth_dir: Path,
-                       num_processed_images: int, crop_border_pixels: int = 15, max_dataset_size: int = 600,
-                        num_downscales: int = 3, verbose: bool = True) -> Tuple[List[str], List[Path]]:
+def process_depth_maps(
+    polycam_depth_dir: Path,
+    depth_dir: Path,
+    num_processed_images: int,
+    crop_border_pixels: int = 15,
+    max_dataset_size: int = 600,
+    num_downscales: int = 3,
+    verbose: bool = True,
+) -> Tuple[List[str], List[Path]]:
     """
     Process Depth maps from polycam only
 
@@ -181,18 +193,17 @@ def process_depth_maps(polycam_depth_dir: Path, depth_dir: Path,
 
     # Copy depth images to output directory
     copied_depth_maps_paths = process_data_utils.copy_and_upscale_polycam_depth_maps_list(
-        polycam_depth_maps_filenames,
-        depth_dir=depth_dir,
-        crop_border_pixels=crop_border_pixels,
-        verbose=verbose
+        polycam_depth_maps_filenames, depth_dir=depth_dir, crop_border_pixels=crop_border_pixels, verbose=verbose
     )
 
     num_processed_depth_maps = len(copied_depth_maps_paths)
 
     # assert same number of images as depth maps
     if num_processed_images != num_processed_depth_maps:
-        raise ValueError(f"Expected same amount of depth maps as images. "
-                         f"Instead got {num_processed_images} images and {num_processed_depth_maps} depth maps")
+        raise ValueError(
+            f"Expected same amount of depth maps as images. "
+            f"Instead got {num_processed_images} images and {num_processed_depth_maps} depth maps"
+        )
 
     if crop_border_pixels > 0 and num_processed_depth_maps != num_orig_depth_maps:
         summary_log.append(f"Started with {num_processed_depth_maps} images out of {num_orig_depth_maps} total")
@@ -204,7 +215,8 @@ def process_depth_maps(polycam_depth_dir: Path, depth_dir: Path,
         summary_log.append(f"Started with {num_processed_depth_maps} images")
 
     # Downscale depth maps
-    summary_log.append(process_data_utils.downscale_images(depth_dir, num_downscales, folder_name="depth",
-                                                                verbose=verbose))
+    summary_log.append(
+        process_data_utils.downscale_images(depth_dir, num_downscales, folder_name="depth", verbose=verbose)
+    )
 
     return summary_log, polycam_depth_maps_filenames

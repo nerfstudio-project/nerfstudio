@@ -181,10 +181,12 @@ def copy_images_list(
     return copied_image_paths
 
 
-def copy_and_upscale_polycam_depth_maps_list(polycam_depth_image_filenames: List[Path],
-                                             depth_dir: Path,
-                                             crop_border_pixels: Optional[int] = None,
-                                             verbose: bool = False) -> List[Path]:
+def copy_and_upscale_polycam_depth_maps_list(
+    polycam_depth_image_filenames: List[Path],
+    depth_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    verbose: bool = False,
+) -> List[Path]:
     """
     Copy depth maps to working location and upscale them to match the RGB images dimensions and finally crop them
     equally as RGB Images.
@@ -200,7 +202,7 @@ def copy_and_upscale_polycam_depth_maps_list(polycam_depth_image_filenames: List
 
     # copy and upscale them to new directory
     with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
-        upscale_factor = 2 ** POLYCAM_UPSCALING_TIMES
+        upscale_factor = 2**POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
 
