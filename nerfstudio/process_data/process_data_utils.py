@@ -172,29 +172,25 @@ def copy_and_upscale_polycam_depth_maps_list(polycam_depth_image_filenames: List
     Returns:
         A list of the copied depth maps paths.
     """
-    copied_depth_map_paths = []
-
-    # Images should be 1-indexed for the rest of the pipeline.
-    for idx, depth_map_path in enumerate(polycam_depth_image_filenames):
-        copied_depth_map_path = depth_dir / f"frame_{idx + 1:05d}{depth_map_path.suffix}"
-        shutil.copy(depth_map_path, copied_depth_map_path)
-        copied_depth_map_paths.append(copied_depth_map_path)
+    depth_dir.mkdir(parents=True, exist_ok=True)
 
     # upscale them in place
     with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
         upscale_factor = 2 ** POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
         assert isinstance(upscale_factor, int)
-        depth_dir.mkdir(parents=True, exist_ok=True)
 
-        for f in copied_depth_map_paths:
+        copied_depth_map_paths = []
+        for idx, depth_map in enumerate(polycam_depth_image_filenames):
+            destination = depth_dir / f"frame_{idx + 1:05d}{depth_map.suffix}"
             ffmpeg_cmd = [
-                f"ffmpeg -i {f} ",
+                f"ffmpeg -y -i {depth_map} ",
                 f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
-                f"{f}",
+                f"{destination}",
             ]
             ffmpeg_cmd = " ".join(ffmpeg_cmd)
             run_command(ffmpeg_cmd, verbose=verbose)
+            copied_depth_map_paths.append(destination)
 
     if crop_border_pixels is not None:
         file_type = depth_dir.glob("frame_*").__next__().suffix
