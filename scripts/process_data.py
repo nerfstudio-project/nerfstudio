@@ -526,7 +526,8 @@ class ProcessPolycam:
     """Minimum blur score to use an image. If the blur score is below this value, the image will be skipped."""
     crop_border_pixels: int = 15
     """Number of pixels to crop from each border of the image. Useful as borders may be black due to undistortion."""
-
+    use_depth: bool = False
+    """If True, processes the generated depth maps from Polycam"""
     verbose: bool = False
     """If True, print extra logging."""
 
@@ -551,47 +552,47 @@ class ProcessPolycam:
         else:
             polycam_image_dir = self.data / "keyframes" / "images"
             polycam_cameras_dir = self.data / "keyframes" / "cameras"
-            self.crop_border_pixels = 0
             if not self.use_uncorrected_images:
                 CONSOLE.print("[bold yellow]Corrected images not found, using raw images.")
 
         if not polycam_image_dir.exists():
             raise ValueError(f"Image directory {polycam_image_dir} doesn't exist")
 
-        # Copy images to output directory
-        polycam_image_filenames, num_orig_images = process_data_utils.get_image_filenames(
-            polycam_image_dir, self.max_dataset_size
-        )
+        if not (self.data / "keyframes" / "depth").exists():
+            depth_dir = self.data / "keyframes" / "depth"
+            raise ValueError(f"Depth map directory {depth_dir} doesn't exist")
 
-        copied_image_paths = process_data_utils.copy_images_list(
-            polycam_image_filenames,
-            image_dir=image_dir,
+        (image_processing_log, polycam_image_filenames) = polycam_utils.process_images(
+            polycam_image_dir,
+            image_dir,
             crop_border_pixels=self.crop_border_pixels,
+            max_dataset_size=self.max_dataset_size,
+            num_downscales=self.num_downscales,
             verbose=self.verbose,
         )
-        num_frames = len(copied_image_paths)
 
-        copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
+        summary_log.extend(image_processing_log)
 
-        if self.max_dataset_size > 0 and num_frames != num_orig_images:
-            summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
-            summary_log.append(
-                "To change the size of the dataset add the argument [yellow]--max_dataset_size[/yellow] to "
-                f"larger than the current value ({self.max_dataset_size}), or -1 to use all images."
+        polycam_depth_filenames = []
+        if self.use_depth:
+            polycam_depth_image_dir = self.data / "keyframes" / "depth"
+            depth_dir = self.output_dir / "depth"
+            depth_dir.mkdir(parents=True, exist_ok=True)
+            (depth_processing_log, polycam_depth_filenames) = polycam_utils.process_depth_maps(
+                polycam_depth_image_dir,
+                depth_dir,
+                num_processed_images=len(polycam_image_filenames),
+                crop_border_pixels=self.crop_border_pixels,
+                max_dataset_size=self.max_dataset_size,
+                num_downscales=self.num_downscales,
+                verbose=self.verbose,
             )
-        else:
-            summary_log.append(f"Started with {num_frames} images")
+            summary_log.extend(depth_processing_log)
 
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
-
-        # Save json
-        if num_frames == 0:
-            CONSOLE.print("[bold red]No images found, exiting")
-            sys.exit(1)
         summary_log.extend(
             polycam_utils.polycam_to_json(
                 image_filenames=polycam_image_filenames,
+                depth_filenames=polycam_depth_filenames,
                 cameras_dir=polycam_cameras_dir,
                 output_dir=self.output_dir,
                 min_blur_score=self.min_blur_score,
