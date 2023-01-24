@@ -137,7 +137,7 @@ class NGPModel(Model):
         # metrics
         self.psnr = PeakSignalNoiseRatio(data_range=1.0)
         self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type="vgg")
+        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type="vgg", normalize=True)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
