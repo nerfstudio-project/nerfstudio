@@ -102,6 +102,11 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
     # make a list of all the jobs that need to be fun
     jobs = []
     for capture_name in capture_names:
+
+        extra_string = ""
+        if str(data_path) == "data/nerfstudio-data-mipnerf360" and capture_name == "stump":
+            extra_string = "--pipeline.model.near_plane 0.15"
+        
         for table_row_name, method, table_row_command in table_rows:
             command = " ".join(
                 (
@@ -110,10 +115,11 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
                     f"--data { data_path / capture_name}",
                     "--output-dir outputs/nerfacto-ablations",
                     "--trainer.steps-per-eval-batch 0 --trainer.steps-per-eval-image 0",
-                    "--trainer.steps-per-eval-all-images 5000 --trainer.max-num-iterations 300001",
+                    "--trainer.steps-per-eval-all-images 5000 --trainer.max-num-iterations 30001",
                     f"--wandb-name {capture_name}_{table_row_name}",
                     f"--experiment-name {capture_name}_{table_row_name}",
-                    table_row_command,
+                    extra_string,
+                    table_row_command
                 )
             )
             jobs.append(command)
