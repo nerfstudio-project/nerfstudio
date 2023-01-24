@@ -190,7 +190,7 @@ def copy_and_upscale_polycam_depth_maps_list(polycam_depth_image_filenames: List
         for f in copied_depth_map_paths:
             ffmpeg_cmd = [
                 f"ffmpeg -i {f} ",
-                f"-q:v 2 -vf scale=iw/{upscale_factor}:ih/{upscale_factor}:flags=neighbor ",
+                f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
                 f"{f}",
             ]
             ffmpeg_cmd = " ".join(ffmpeg_cmd)
