@@ -16,14 +16,13 @@
 
 import json
 import sys
-import numpy as np
 from pathlib import Path
 from typing import List, Tuple
 
 from rich.console import Console
 
 from nerfstudio.process_data import process_data_utils
-from nerfstudio.process_data.process_data_utils import get_image_filenames, CAMERA_MODELS
+from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import io
 
 CONSOLE = Console(width=120)
