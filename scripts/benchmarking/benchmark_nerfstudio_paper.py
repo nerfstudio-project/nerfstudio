@@ -22,12 +22,6 @@ mipnerf360_table_rows = [
         "nerfacto",
         "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
     ),
-    # instant-ngp method
-    # (
-    #     "instant-ngp-w/o-pose-app",
-    #     "instant-ngp",
-    #     "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
-    # ),
 ]
 
 
@@ -103,9 +97,11 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
     jobs = []
     for capture_name in capture_names:
 
-        extra_string = ""
-        if str(data_path) == "data/nerfstudio-data-mipnerf360" and capture_name == "stump":
-            extra_string = "--pipeline.model.near_plane 0.15"
+        # extra_string = ""
+        # if str(data_path) == "data/nerfstudio-data-mipnerf360" and capture_name == "stump":
+        #     extra_string = "--pipeline.model.near_plane 0.15"
+
+        extra_string = "--pipeline.model.near_plane 0.15"
         
         for table_row_name, method, table_row_command in table_rows:
             command = " ".join(
