@@ -1,10 +1,14 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import * as React from 'react';
 
-import { Box, Button, Modal, Typography } from '@mui/material';
+import { Box, Button, Input, Modal, Typography } from '@mui/material';
 import { useSelector } from 'react-redux';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import { FileUpload, FileUploadOutlined } from '@mui/icons-material';
+import InputLabel from '@mui/material/InputLabel';
+import MenuItem from '@mui/material/MenuItem';
+import FormControl from '@mui/material/FormControl';
+import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 interface LoadPathModalProps {
   open: object;
@@ -36,8 +40,16 @@ export default function LoadPathModal(props: LoadPathModalProps) {
     (state) => state.renderingState.all_camera_paths,
   )
 
-  console.log(all_camera_paths)
+  var camera_paths_arr = []
+  if(typeof all_camera_paths === "object"){
+    camera_paths_arr = Object.keys(all_camera_paths).map((key) => {
+      return {
+        "name": key, 
+        "val": all_camera_paths[key]
+      }});
+  }
 
+  console.log(camera_paths_arr)
   const hiddenFileInput = React.useRef(null);
   const handleFileUploadClick = event => {
     hiddenFileInput.current.click();
@@ -64,6 +76,13 @@ export default function LoadPathModal(props: LoadPathModalProps) {
             <div className="RenderModel-content">
                 <h2>Load Camera Path</h2>
                 <p>Either upload a local file or select a saved camera path</p>
+                <Select label="Camera Path">
+                  <MenuItem value={"default"}>default</MenuItem>
+                  {camera_paths_arr.map((obj) => {
+                    console.log(camera_paths_arr);
+                    <MenuItem value={obj["val"]}>{obj["name"]}work please</MenuItem>
+                  })}
+                </Select>
                 <Button
                  size='small'
                  startIcon={<FileUpload/>}

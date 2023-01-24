@@ -318,6 +318,7 @@ function CameraList(props) {
 
   const camera_type = useSelector((state) => state.renderingState.camera_type);
 
+
   const handleChange =
     (cameraUUID: string) =>
     (event: React.SyntheticEvent, isExpanded: boolean) => {
@@ -1093,9 +1094,6 @@ export default function CameraPanel(props) {
     };
 
     // send a command of the websocket to save the trajectory somewhere!
-    while (websocket.readyState !== WebSocket.OPEN){
-      
-    }
     if (websocket.readyState === WebSocket.OPEN) {
       console.log("sent a socket")
       const data = {
@@ -1109,17 +1107,18 @@ export default function CameraPanel(props) {
   };
 
   const open_load_path_modal = () => {
-    console.log("opened load path modal");
     if (websocket.readyState === WebSocket.OPEN) {
       const data = {
         type: 'write',
         path: 'populate_paths_payload',
-        data: true
+        data: true,
       };
       const message = msgpack.encode(data);
       websocket.send(message);
     }
-    setLoadPathModalOpen(true);
+    setTimeout(() => {
+      setLoadPathModalOpen(true);
+    }, 1000)
   }
 
   const isAnimated = (property) => animate.has(property);
@@ -1152,12 +1151,14 @@ export default function CameraPanel(props) {
       cameras[i].renderTime = val;
     }
   };
+  
+  const all_camera_paths = useSelector((state) => state.renderingState.all_camera_paths);
 
   return (
     <div className="CameraPanel">
       <div>
         <div className="CameraPanel-path-row">
-          <LoadPathModal open={load_path_modal_open} setOpen={setLoadPathModalOpen} pathUploadFunction={uploadCameraPath} loadCameraPathFunction={load_camera_path} />
+          {all_camera_paths && <LoadPathModal open={load_path_modal_open} setOpen={setLoadPathModalOpen} pathUploadFunction={uploadCameraPath} loadCameraPathFunction={load_camera_path} />}
           <Button
             size="small"
             className="CameraPanel-top-button"
