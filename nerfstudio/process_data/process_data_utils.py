@@ -174,7 +174,7 @@ def copy_and_upscale_polycam_depth_maps_list(polycam_depth_image_filenames: List
     """
     depth_dir.mkdir(parents=True, exist_ok=True)
 
-    # upscale them in place
+    # copy and upscale them to new directory
     with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
         upscale_factor = 2 ** POLYCAM_UPSCALING_TIMES
         assert upscale_factor > 1
