@@ -50,7 +50,7 @@ def polycam_to_json(
     Returns:
         Summary of the conversion.
     """
-    use_depth = bool(len(image_filenames) == len(depth_filenames))
+    use_depth = len(image_filenames) == len(depth_filenames)
     data = {}
     data["camera_model"] = CAMERA_MODELS["perspective"].value
     # Needs to be a string for camera_utils.auto_orient_and_center_poses
