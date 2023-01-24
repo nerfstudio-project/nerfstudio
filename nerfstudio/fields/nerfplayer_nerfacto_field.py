@@ -60,10 +60,16 @@ class TemporalHashMLPDensityField(Field):
     """A lightweight temporal density field module.
 
     Args:
-        aabb: parameters of scene aabb bounds
-        num_layers: number of hidden layers
-        hidden_dim: dimension of hidden layers
-        spatial_distortion: spatial distortion module
+        aabb: Parameters of scene aabb bounds
+        temporal_dim: Hashing grid parameter. A higher temporal dim means a higher temporal frequency.
+        num_layers: Number of hidden layers
+        hidden_dim: Dimension of hidden layers
+        spatial_distortion: Spatial distortion module
+        num_levels: Hashing grid parameter. Used for initialize TemporalGridEncoder class.
+        max_res: Hashing grid parameter. Used for initialize TemporalGridEncoder class.
+        base_res: Hashing grid parameter. Used for initialize TemporalGridEncoder class.
+        log2_hashmap_size: Hashing grid parameter. Used for initialize TemporalGridEncoder class.
+        features_per_level: Hashing grid parameter. Used for initialize TemporalGridEncoder class.
     """
 
     def __init__(
