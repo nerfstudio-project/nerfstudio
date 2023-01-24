@@ -23,7 +23,7 @@ from typing import List, Tuple
 from rich.console import Console
 
 from nerfstudio.process_data import process_data_utils
-from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
+from nerfstudio.process_data.process_data_utils import get_image_filenames, CAMERA_MODELS
 from nerfstudio.utils import io
 
 CONSOLE = Console(width=120)
@@ -119,19 +119,9 @@ def process_images(polycam_image_dir: Path, image_dir: Path, crop_border_pixels:
         polycam_image_filenames: List of processed images paths
     """
     summary_log = []
-    # Copy images to output directory
-
-    polycam_image_filenames = []
-    for f in polycam_image_dir.iterdir():
-        if f.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
-            polycam_image_filenames.append(f)
-    polycam_image_filenames = sorted(polycam_image_filenames, key=lambda fn: int(fn.stem))
-    num_images = len(polycam_image_filenames)
-    idx = np.arange(num_images)
-    if max_dataset_size != -1 and num_images > max_dataset_size:
-        idx = np.round(np.linspace(0, num_images - 1, max_dataset_size)).astype(int)
-
-    polycam_image_filenames = list(np.array(polycam_image_filenames)[idx])
+    polycam_image_filenames, num_orig_images = process_data_utils.get_image_filenames(
+        polycam_image_dir, max_dataset_size
+    )
 
     # Copy images to output directory
     copied_image_paths = process_data_utils.copy_images_list(
@@ -144,8 +134,8 @@ def process_images(polycam_image_dir: Path, image_dir: Path, crop_border_pixels:
 
     copied_image_paths = [Path("images/" + copied_image_path.name) for copied_image_path in copied_image_paths]
 
-    if max_dataset_size > 0 and num_frames != num_images:
-        summary_log.append(f"Started with {num_frames} images out of {num_images} total")
+    if max_dataset_size > 0 and num_frames != num_orig_images:
+        summary_log.append(f"Started with {num_frames} images out of {num_orig_images} total")
         summary_log.append(
             "To change the size of the dataset add the argument --max_dataset_size to larger than the "
             f"current value ({max_dataset_size}), or -1 to use all images."
@@ -186,21 +176,9 @@ def process_depth_maps(polycam_depth_dir: Path, depth_dir: Path,
         polycam_depth_maps_filenames: List of processed depth maps paths
     """
     summary_log = []
-    polycam_depth_maps_filenames = []
-    for depth_file in polycam_depth_dir.iterdir():
-        if depth_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".tif", ".tiff"]:
-            polycam_depth_maps_filenames.append(depth_file)
-
-    # depth maps and images have the same name
-    polycam_depth_maps_filenames = sorted(polycam_depth_maps_filenames, key=lambda fn: int(fn.stem))
-
-    num_depth_maps = len(polycam_depth_maps_filenames)
-
-    idx = np.arange(num_depth_maps)
-    if max_dataset_size != -1 and num_depth_maps > max_dataset_size:
-        idx = np.round(np.linspace(0, num_depth_maps - 1, max_dataset_size)).astype(int)
-
-    polycam_depth_maps_filenames = list(np.array(polycam_depth_maps_filenames)[idx])
+    polycam_depth_maps_filenames, num_orig_depth_maps = process_data_utils.get_image_filenames(
+        polycam_depth_dir, max_dataset_size
+    )
 
     # Copy depth images to output directory
     copied_depth_maps_paths = process_data_utils.copy_and_upscale_polycam_depth_maps_list(
@@ -217,8 +195,8 @@ def process_depth_maps(polycam_depth_dir: Path, depth_dir: Path,
         raise ValueError(f"Expected same amount of depth maps as images. "
                          f"Instead got {num_processed_images} images and {num_processed_depth_maps} depth maps")
 
-    if crop_border_pixels > 0 and num_processed_depth_maps != num_depth_maps:
-        summary_log.append(f"Started with {num_processed_depth_maps} images out of {num_depth_maps} total")
+    if crop_border_pixels > 0 and num_processed_depth_maps != num_orig_depth_maps:
+        summary_log.append(f"Started with {num_processed_depth_maps} images out of {num_orig_depth_maps} total")
         summary_log.append(
             "To change the size of the dataset add the argument --max_dataset_size to larger than the "
             f"current value ({crop_border_pixels}), or -1 to use all images."

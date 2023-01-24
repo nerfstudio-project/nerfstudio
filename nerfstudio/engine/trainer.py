@@ -122,7 +122,9 @@ class Trainer:
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled() and local_rank == 0:
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
+            )
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
@@ -313,7 +315,7 @@ class Trainer:
             loaded_state = torch.load(load_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
-            self.pipeline.load_pipeline(loaded_state["pipeline"])
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"done loading checkpoint from {load_path}")
