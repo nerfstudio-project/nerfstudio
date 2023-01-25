@@ -27,9 +27,18 @@ BUILD_DIR = _get_build_directory(NAME, verbose=False)
 
 _C = None
 if cuda_toolkit_available():
-    try:
-        import nerfstudio_field_components_cuda as _C
-    except:
+    if os.listdir(BUILD_DIR) != []:
+        # If the build exists, we assume the extension has been built
+        # and we can load it.
+        print("nerfstudio field components: CUDA set up, loading (should be quick)")
+        _C = load(
+            name=NAME,
+            sources=glob.glob(os.path.join(PATH, "csrc/*.cu")),
+            extra_cflags=["-O3", "-std=c++14"],
+            extra_cuda_cflags=["-O3", "-std=c++14"],
+            extra_include_paths=[],
+        )
+    else:
         # Build from scratch. Remove the build directory just to be safe: pytorch jit might stuck
         # if the build directory exists.
         shutil.rmtree(BUILD_DIR)
