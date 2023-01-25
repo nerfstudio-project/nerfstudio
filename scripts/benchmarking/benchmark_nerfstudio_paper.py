@@ -96,12 +96,6 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
     # make a list of all the jobs that need to be fun
     jobs = []
     for capture_name in capture_names:
-
-        # extra_string = ""
-        # if str(data_path) == "data/nerfstudio-data-mipnerf360" and capture_name == "stump":
-        #     extra_string = "--pipeline.model.near_plane 0.15"
-
-        # extra_string = "--pipeline.model.near_plane 0.15"
         
         for table_row_name, method, table_row_command in table_rows:
             command = " ".join(
@@ -156,5 +150,5 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
 
 if __name__ == "__main__":
     # pass
-    main(mipnerf360_capture_names, mipnerf360_table_rows, data_path=Path("data/nerfstudio-data-mipnerf360"))
-    # main(ablations_capture_names, ablations_table_rows)
+    # main(mipnerf360_capture_names, mipnerf360_table_rows, data_path=Path("data/nerfstudio-data-mipnerf360"))
+    main(ablations_capture_names, ablations_table_rows)

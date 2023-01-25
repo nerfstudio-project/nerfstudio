@@ -285,7 +285,7 @@ class WandbWriter(Writer):
     """WandDB Writer Class"""
 
     def __init__(self, log_dir: Path, wandb_name: Optional[str] = None):
-        wandb.init(project="nerfstudio-project2", dir=str(log_dir), reinit=True)
+        wandb.init(project="nerfstudio-project-somali-jan24-610pm", dir=str(log_dir), reinit=True)
         if wandb_name:
             wandb.run.name = wandb_name
             wandb.run.save()
