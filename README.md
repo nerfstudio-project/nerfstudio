@@ -162,9 +162,9 @@ Once you have a NeRF model you can either render out a video or export a point c
 
 ### Render Video
 
-First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and the command to generate the video.
+First we must create a path for the camera to follow. This can be done in the viewer under the "RENDER" tab. Orient your 3D view to the location where you wish the video to start, then press "ADD CAMERA". This will set the first camera key frame. Continue to new viewpoints adding additional cameras to create the camera path. We provide other parameters to further refine your camera path. Once satisfied, press "RENDER" which will display a modal that contains the command needed to render the video. Kill the training job (or create a new terminal if you have lots of compute) and run the command to generate the video.
 
-Other video export options are available, learn more by running,
+Other video export options are available, learn more by running
 
 ```bash
 ns-render --help
@@ -174,7 +174,7 @@ ns-render --help
 
 While NeRF models are not designed to generate point clouds, it is still possible. Navigate to the "EXPORT" tab in the 3D viewer and select "POINT CLOUD". If the crop option is selected, everything in the yellow square will be exported into a point cloud. Modify the settings as desired then run the command at the bottom of the panel in your command line.
 
-Alternatively you can use the CLI without the viewer. Learn about the export options by running,
+Alternatively you can use the CLI without the viewer. Learn about the export options by running
 
 ```bash
 ns-export pointcloud --help
@@ -198,7 +198,7 @@ Using an existing dataset is great, but likely you want to use your own data! We
 
 ### Training models other than nerfacto
 
-We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command,
+We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command
 
 ```bash
 ns-train vanilla-nerf --data DATA_PATH
@@ -245,7 +245,7 @@ If you're interested in learning more on how to create your own pipelines, devel
 
 # Supported Features
 
-We provide the following support structures to make life easier for getting started with NeRFs. For a full description, please refer to our [features page](#).
+We provide the following support structures to make life easier for getting started with NeRFs.
 
 **If you are looking for a feature that is not currently supported, please do not hesitate to contact the Nerfstudio Team on [Discord](https://discord.gg/uMbNqcraFc)!**
 

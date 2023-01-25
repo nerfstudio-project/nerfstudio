@@ -63,7 +63,7 @@ class MachineConfig(PrintableConfig):
     """Configuration of machine setup"""
 
     seed: int = 42
-    """random seed initilization"""
+    """random seed initialization"""
     num_gpus: int = 1
     """total number of gpus available for train/eval"""
     num_machines: int = 1
@@ -88,6 +88,7 @@ class LocalWriterConfig(InstantiateConfig):
         writer.EventName.CURR_TEST_PSNR,
         writer.EventName.VIS_RAYS_PER_SEC,
         writer.EventName.TEST_RAYS_PER_SEC,
+        writer.EventName.ETA,
     )
     """specifies which stats will be logged/printed to terminal"""
     max_log_size: int = 10
@@ -112,7 +113,7 @@ class LoggingConfig(PrintableConfig):
     """number of steps between logging stats"""
     max_buffer_size: int = 20
     """maximum history size to keep for computing running averages of stats.
-     e.g. if 20, averages will be computed over past 20 occurances."""
+     e.g. if 20, averages will be computed over past 20 occurrences."""
     local_writer: LocalWriterConfig = LocalWriterConfig(enable=True)
     """if provided, will print stats locally. if None, will disable printing"""
     enable_profiler: bool = True

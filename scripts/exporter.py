@@ -4,6 +4,8 @@ Script for exporting NeRF into other formats.
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -19,10 +21,11 @@ from typing_extensions import Annotated, Literal
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.exporter import texture_utils, tsdf_utils
 from nerfstudio.exporter.exporter_utils import (
+    collect_camera_poses,
     generate_point_cloud,
     get_mesh_from_filename,
 )
-from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.pipelines.base_pipeline import Pipeline, VanillaPipeline
 from nerfstudio.utils.eval_utils import eval_setup
 
 CONSOLE = Console(width=120)
@@ -314,12 +317,41 @@ class ExportMarchingCubesMesh(Exporter):
         raise NotImplementedError("Marching cubes not implemented yet.")
 
 
+@dataclass
+class ExportCameraPoses(Exporter):
+    """
+    Export camera poses to a .json file.
+    """
+
+    def main(self) -> None:
+        """Export camera poses"""
+        if not self.output_dir.exists():
+            self.output_dir.mkdir(parents=True)
+
+        _, pipeline, _ = eval_setup(self.load_config)
+        assert isinstance(pipeline, VanillaPipeline)
+        train_frames, eval_frames = collect_camera_poses(pipeline)
+
+        for file_name, frames in [("transforms_train.json", train_frames), ("transforms_eval.json", eval_frames)]:
+            if len(frames) == 0:
+                CONSOLE.print(f"[bold yellow]No frames found for {file_name}. Skipping.")
+                continue
+
+            output_file_path = os.path.join(self.output_dir, file_name)
+
+            with open(output_file_path, "w", encoding="UTF-8") as f:
+                json.dump(frames, f, indent=4)
+
+            CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
+
+
 Commands = tyro.conf.FlagConversionOff[
     Union[
         Annotated[ExportPointCloud, tyro.conf.subcommand(name="pointcloud")],
         Annotated[ExportTSDFMesh, tyro.conf.subcommand(name="tsdf")],
         Annotated[ExportPoissonMesh, tyro.conf.subcommand(name="poisson")],
         Annotated[ExportMarchingCubesMesh, tyro.conf.subcommand(name="marching-cubes")],
+        Annotated[ExportCameraPoses, tyro.conf.subcommand(name="cameras")],
     ]
 ]
 
