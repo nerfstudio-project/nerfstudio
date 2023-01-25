@@ -271,7 +271,7 @@ class Nerfstudio(DataParser):
     def _get_fname(self, filepath: PurePath, data_dir: PurePath, downsample_folder_prefix="images_") -> Path:
         """Get the filename of the image file.
         downsample_folder_prefix can be used to point to auxillary image data, e.g. masks
-        
+
         filepath: the base file name of the transformations.
         data_dir: the directory of the data that contains the transform file
         downsample_folder_prefix: prefix of the newly generated downsampled images
