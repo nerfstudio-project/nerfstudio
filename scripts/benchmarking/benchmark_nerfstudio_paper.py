@@ -20,7 +20,7 @@ mipnerf360_table_rows = [
     (
         "nerfacto-w/o-pose-app",
         "nerfacto",
-        "--pipeline.eval_optimize_cameras True --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
+        "--pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
     ),
 ]
 
@@ -111,7 +111,7 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
                     f"--data { data_path / capture_name}",
                     "--output-dir outputs/nerfacto-ablations",
                     "--trainer.steps-per-eval-batch 0 --trainer.steps-per-eval-image 0",
-                    "--trainer.steps-per-eval-all-images 5000 --trainer.max-num-iterations 30001",
+                    "--trainer.steps-per-eval-all-images 5000 --trainer.max-num-iterations 300001",
                     f"--wandb-name {capture_name}_{table_row_name}",
                     f"--experiment-name {capture_name}_{table_row_name}",
                     extra_string,
