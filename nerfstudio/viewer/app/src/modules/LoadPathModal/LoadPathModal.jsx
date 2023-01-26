@@ -65,7 +65,7 @@ export default function LoadPathModal(props: LoadPathModalProps) {
                 <h2>Load Camera Path</h2>
                 <p>Either upload a local file or select a saved camera path</p>
                 <InputLabel id="ageInputLabel">Select Camera Path</InputLabel>
-                <Select labelId='ageInputLabel' label="Camera Path" value="Select Path" onChange={handlePathSelect}>
+                <Select labelId='ageInputLabel' label="Camera Path" value="" onChange={handlePathSelect}>
                   {camera_paths_arr.map((obj) => {
                     return <MenuItem value={obj.val}>{obj.name}</MenuItem>
                   })}
