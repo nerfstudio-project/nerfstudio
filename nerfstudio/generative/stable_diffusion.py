@@ -18,10 +18,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
-from diffusers import AutoencoderKL, PNDMScheduler, UNet2DConditionModel
+from diffusers import PNDMScheduler, StableDiffusionPipeline
 from rich.console import Console
 from torch import nn
-from transformers import CLIPTextModel, CLIPTokenizer, logging
+from transformers import logging
 
 CONSOLE = Console(width=120)
 logging.set_verbosity_error()
@@ -46,26 +46,12 @@ class StableDiffusion(nn.Module):
                 f"Cannot read hugging face token, make sure to save your Hugging Face token at `./HF_TOKEN`"
             )
 
-        SD_SOURCE = "runwayml/stable-diffusion-v1-5"
+        SD_SOURCE = "stabilityai/stable-diffusion-2-1"
         CLIP_SOURCE = "openai/clip-vit-large-patch14"
 
         self.num_train_timesteps = 1000
         self.min_step = int(self.num_train_timesteps * 0.02)
         self.max_step = int(self.num_train_timesteps * 0.98)
-
-        CONSOLE.print(f"Loading Stable Diffusion model from {SD_SOURCE}.")
-
-        self.auto_encoder = AutoencoderKL.from_pretrained(SD_SOURCE, subfolder="vae", use_auth_token=self.token).to(
-            self.device
-        )
-        self.unet = UNet2DConditionModel.from_pretrained(
-            "runwayml/stable-diffusion-v1-5", subfolder="unet", use_auth_token=self.token
-        ).to(self.device)
-
-        CONSOLE.print(f"Loading CLIP model from {CLIP_SOURCE}.")
-
-        self.tokenizer = CLIPTokenizer.from_pretrained(CLIP_SOURCE)
-        self.text_encoder = CLIPTextModel.from_pretrained(CLIP_SOURCE).to(self.device)
 
         self.scheduler = PNDMScheduler(
             beta_start=0.00085,
@@ -74,6 +60,25 @@ class StableDiffusion(nn.Module):
             num_train_timesteps=self.num_train_timesteps,
         )
         self.alphas = self.scheduler.alphas_cumprod.to(self.device)
+
+        pipe = StableDiffusionPipeline.from_pretrained(SD_SOURCE, torch_dtype=torch.float16)
+        pipe = pipe.to(self.device)
+
+        # MEMORY IMPROVEMENTS
+        pipe.enable_attention_slicing()
+
+        # Needs xformers package (installation is from source https://github.com/facebookresearch/xformers)
+        # pipe.enable_xformers_memory_efficient_attention()
+
+        # More memory savings for 1/3rd performance
+        # pipe.enable_sequential_cpu_offload()
+
+        self.tokenizer = pipe.tokenizer
+        self.unet = pipe.unet
+        self.text_encoder = pipe.text_encoder
+        self.auto_encoder = pipe.vae
+
+        self.unet.to(memory_format=torch.channels_last)
 
         CONSOLE.print(f"Stable Diffusion loaded!")
 
@@ -109,9 +114,6 @@ class StableDiffusion(nn.Module):
         nerf_output_np = np.clip(nerf_output_np, 0.0, 1.0)
         plt.imsave("nerf_output.png", nerf_output_np)
         nerf_output = F.interpolate(nerf_output, (IMG_DIM, IMG_DIM), mode="bilinear")
-
-        # print(torch.max(nerf_output), torch.min(nerf_output))
-
         t = torch.randint(self.min_step, self.max_step + 1, [1], dtype=torch.long, device=self.device)
         latents = self.imgs_to_latent(nerf_output)
         # predict the noise residual with unet, NO grad!
@@ -243,8 +245,10 @@ if __name__ == "__main__":
 
     device = torch.device("cuda")
 
-    sd = StableDiffusion(device)
+    with torch.no_grad():
 
-    imgs = sd.prompt_to_img(opt.prompt, opt.negative, opt.steps)
+        sd = StableDiffusion(device)
 
-    plt.imsave("test_sd.png", imgs[0])
+        imgs = sd.prompt_to_img(opt.prompt, opt.negative, opt.steps)
+
+        plt.imsave("test_sd.png", imgs[0])

@@ -26,13 +26,10 @@ from nerfacc import ContractionType
 from nerfstudio.cameras.camera_optimizers import CameraOptimizerConfig
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
-<<<<<<< HEAD
+from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
 from nerfstudio.data.datamanagers.dreamfusion_datamanager import (
     DreamFusionDataManagerConfig,
 )
-=======
-from nerfstudio.data.datamanagers.depth_datamanager import DepthDataManagerConfig
->>>>>>> 34b453a288df0ad4d5ce429d464b65199bcfea2b
 from nerfstudio.data.datamanagers.semantic_datamanager import SemanticDataManagerConfig
 from nerfstudio.data.datamanagers.variable_res_datamanager import (
     VariableResDataManagerConfig,
@@ -52,11 +49,8 @@ from nerfstudio.engine.optimizers import AdamOptimizerConfig, RAdamOptimizerConf
 from nerfstudio.engine.schedulers import SchedulerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.field_components.temporal_distortions import TemporalDistortionKind
-<<<<<<< HEAD
-from nerfstudio.models.dreamfusion import DreamFusionModelConfig
-=======
 from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
->>>>>>> 34b453a288df0ad4d5ce429d464b65199bcfea2b
+from nerfstudio.models.dreamfusion import DreamFusionModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig

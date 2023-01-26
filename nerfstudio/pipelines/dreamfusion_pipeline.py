@@ -95,6 +95,7 @@ class DreamfusionPipeline(VanillaPipeline):
         if self.world_size > 1 and step:
             assert self.datamanager.train_sampler is not None
             self.datamanager.train_sampler.set_epoch(step)
+
         ray_bundle, batch = self.datamanager.next_train(step)
         model_outputs = self.model(ray_bundle)
         metrics_dict = self.model.get_metrics_dict(model_outputs, batch)
@@ -136,12 +137,13 @@ class DreamfusionPipeline(VanillaPipeline):
         else:
             text_embedding = self.base_text_embedding
 
-        sds_loss, latents, grad = self.sd.sds_loss(
-            text_embedding.to(self.sd_device),
-            train_output.to(self.sd_device),
-            guidance_scale=int(self.config.guidance_scale),
-        )
-        loss_dict["sds_loss"] = sds_loss.to(self.device)
+        with torch.autocast(device_type='cuda', dtype=torch.float16):
+            sds_loss, latents, grad = self.sd.sds_loss(
+                text_embedding.to(self.sd_device),
+                train_output.to(self.sd_device),
+                guidance_scale=int(self.config.guidance_scale),
+            )
+            loss_dict["sds_loss"] = sds_loss.to(self.device)
         # TODO: opacity penalty using transmittance, not accumultation
         if self.config.opacity_penalty:
             accum_mean = np.mean(1.0 - accumulation)
