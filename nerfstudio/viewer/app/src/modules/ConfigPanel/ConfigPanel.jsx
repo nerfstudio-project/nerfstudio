@@ -48,7 +48,7 @@ export function RenderControls() {
     (state) => state.renderingState.crop_enabled,
   );
 
-  const box_size = useSelector((state) => state.renderingState.box_size);
+  const crop_bg_color = useSelector((state) => state.renderingState.crop_bg_color);
 
   const crop_scale = useSelector((state) => state.renderingState.crop_scale);
 
@@ -167,6 +167,19 @@ export function RenderControls() {
           );
         },
       },
+      crop_bg_color: {
+        label: '| Background Color',
+        value: crop_bg_color,
+        render: (get) => get('crop_options'),
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/crop_bg_color',
+            v,
+          );
+        },
+      },
       crop_scale: {
         label: '|  Scale',
         value: crop_scale,
@@ -227,7 +240,6 @@ export function RenderControls() {
       colormapChoice,
       max_resolution,
       crop_enabled,
-      box_size,
       target_train_util,
       render_time,
       display_render_time,

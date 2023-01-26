@@ -134,6 +134,7 @@ class RaySamples(TensorDataclass):
         transmittance = torch.exp(-transmittance)  # [..., "num_samples"]
 
         weights = alphas * transmittance  # [..., "num_samples"]
+        weights = torch.nan_to_num(weights)
 
         return weights
 
