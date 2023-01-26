@@ -147,7 +147,14 @@ class RenderThread(threading.Thread):
         try:
             with SetTrace(self.state.check_interrupt):
                 if self.state.prev_crop_enabled:
-                    with renderers.background_mode_override_context("black"), torch.no_grad():
+                    color = self.state.prev_crop_bg_color
+                    if color is None:
+                        background_color = torch.tensor([0.0, 0.0, 0.0], device=self.graph.device)
+                    else:
+                        background_color = torch.tensor(
+                            [color["r"] / 255.0, color["g"] / 255.0, color["b"] / 255.0], device=self.graph.device
+                        )
+                    with renderers.background_color_override_context(background_color), torch.no_grad():
                         outputs = self.graph.get_outputs_for_camera_ray_bundle(self.camera_ray_bundle)
                 else:
                     with torch.no_grad():
@@ -286,6 +293,7 @@ class ViewerState:
         self.camera_moving = False
         self.prev_camera_timestamp = 0
         self.prev_crop_enabled = False
+        self.prev_crop_bg_color = None
         self.prev_crop_scale = None
         self.prev_crop_center = None
 
@@ -412,12 +420,18 @@ class ViewerState:
         if crop_enabled != self.prev_crop_enabled:
             self.camera_moving = True
             self.prev_crop_enabled = crop_enabled
+            self.prev_crop_bg_color = None
             self.prev_crop_scale = None
             self.prev_crop_center = None
 
         if crop_enabled:
             crop_scale = self.vis["renderingState/crop_scale"].read()
             crop_center = self.vis["renderingState/crop_center"].read()
+            crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
+
+            if crop_bg_color != self.prev_crop_bg_color:
+                self.camera_moving = True
+                self.prev_crop_bg_color = crop_bg_color
 
             if crop_scale != self.prev_crop_scale or crop_center != self.prev_crop_center:
                 self.camera_moving = True
@@ -541,6 +555,11 @@ class ViewerState:
             colormap_type = ColormapTypes.INIT
         if self.prev_colormap_type != colormap_type:
             self.camera_moving = True
+
+        crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
+        if self.prev_crop_enabled:
+            if self.prev_crop_bg_color != crop_bg_color:
+                self.camera_moving = True
 
         crop_scale = self.vis["renderingState/crop_scale"].read()
         if self.prev_crop_enabled:
