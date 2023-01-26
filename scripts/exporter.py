@@ -256,18 +256,18 @@ class ExportPoissonMesh(Exporter):
 
 
         config, pipeline, _ = eval_setup(self.load_config, load_ckpt=self.load_ckpt)
-        
+
         if self.use_subdir:
             experiment_name = config.experiment_name
             if experiment_name is None:
                 CONSOLE.rule("Error", style="red")
                 CONSOLE.print(f"Could not find experiment_name in config {self.load_config}",justify="center",)
-                sys.exit(1) 
+                sys.exit(1)
             self.output_dir = Path(self.output_dir, experiment_name)
-        
+
         if not self.output_dir.exists():
             self.output_dir.mkdir(parents=True)
-            
+
         self.validate_pipeline(pipeline)
 
         # Increase the batchsize to speed up the evaluation.
@@ -285,9 +285,7 @@ class ExportPoissonMesh(Exporter):
             estimate_normals=estimate_normals,
             rgb_output_name=self.rgb_output_name,
             depth_output_name=self.depth_output_name,
-            normal_output_name=self.normal_output_name
-            if self.normal_method == "model_output"
-            else None,
+            normal_output_name=self.normal_output_name if self.normal_method == "model_output" else None,
             use_bounding_box=self.use_bounding_box,
             bounding_box_min=self.bounding_box_min,
             bounding_box_max=self.bounding_box_max,
@@ -303,9 +301,7 @@ class ExportPoissonMesh(Exporter):
             CONSOLE.print("[bold green]:white_check_mark: Saving Point Cloud")
 
         CONSOLE.print("Computing Mesh... this may take a while.")
-        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
-            pcd, depth=9
-        )
+        mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
         vertices_to_remove = densities < np.quantile(densities, 0.1)
         mesh.remove_vertices_by_mask(vertices_to_remove)
         print("\033[A\033[A")
@@ -329,9 +325,7 @@ class ExportPoissonMesh(Exporter):
                 mesh,
                 pipeline,
                 self.output_dir,
-                px_per_uv_triangle=self.px_per_uv_triangle
-                if self.unwrap_method == "custom"
-                else None,
+                px_per_uv_triangle=self.px_per_uv_triangle if self.unwrap_method == "custom" else None,
                 unwrap_method=self.unwrap_method,
                 num_pixels_per_side=self.num_pixels_per_side,
             )
@@ -369,9 +363,7 @@ class ExportCameraPoses(Exporter):
             ("transforms_eval.json", eval_frames),
         ]:
             if len(frames) == 0:
-                CONSOLE.print(
-                    f"[bold yellow]No frames found for {file_name}. Skipping."
-                )
+                CONSOLE.print(f"[bold yellow]No frames found for {file_name}. Skipping.")
                 continue
 
             output_file_path = os.path.join(self.output_dir, file_name)
@@ -379,9 +371,7 @@ class ExportCameraPoses(Exporter):
             with open(output_file_path, "w", encoding="UTF-8") as f:
                 json.dump(frames, f, indent=4)
 
-            CONSOLE.print(
-                f"[bold green]:white_check_mark: Saved poses to {output_file_path}"
-            )
+            CONSOLE.print(f"[bold green]:white_check_mark: Saved poses to {output_file_path}")
 
 
 Commands = tyro.conf.FlagConversionOff[

@@ -66,7 +66,7 @@ class TrainerConfig(ExperimentConfig):
     """Number of steps between single eval images."""
     steps_per_eval_all_images: int = 25000
     """Number of steps between eval all images."""
-    max_num_iterations: int = 1000000
+    max_num_iterations: int = 40_000
     """Maximum number of iterations to run."""
     mixed_precision: bool = False
     """Whether or not to use mixed precision for training."""

@@ -37,9 +37,7 @@ def parse_args():
     return args.parse_known_args()
 
 
-def split_to_model_and_data(
-    nerfstudio_args, num_models, num_datasets, dataset_at_index
-) -> tuple[list[str], list[str]]:
+def split_to_model_and_data(nerfstudio_args, num_models, num_datasets, dataset_at_index) -> tuple[list[str], list[str]]:
     left = dataset_at_index - 1 - 1 - num_models
     right = left + num_datasets - 1
 
@@ -74,9 +72,7 @@ def main():
     for model in script_args.models:
         for dataset_and_segmentations in script_args.datasets:
 
-            dataset_and_segmentations = dataset_and_segmentations.split(
-                SEGMENTATION_DIRECTORY_DELIMITER
-            )
+            dataset_and_segmentations = dataset_and_segmentations.split(SEGMENTATION_DIRECTORY_DELIMITER)
             dataset_path = dataset_and_segmentations[0]
             segmentation_sequences = dataset_and_segmentations[1:]
 
@@ -96,9 +92,7 @@ def main():
                 deepcopy(AnnotatedBaseConfigUnion),
                 args=prepare_args,
             )
-            config.experiment_name = (
-                f"{experiment_name}-{data_name}-{config.method_name}"
-            )
+            config.experiment_name = f"{experiment_name}-{data_name}-{config.method_name}"
             config.relative_model_dir = Path(".")  # don't save to nerfstudio_models
 
             # Log to file
@@ -114,10 +108,7 @@ def main():
                 json.dump(stats, fp)
 
             if script_args.seg_auto:
-                # TODO: finish this
-                segmentation_sequences = []
-                for seg_mask in dataset_path.glob("*mask*"):
-                    segmentation_sequences.append(seg_mask)
+                segmentation_sequences = list(dataset_path.glob("*mask*"))
 
             # Train segmentations
             for seg_path in segmentation_sequences:

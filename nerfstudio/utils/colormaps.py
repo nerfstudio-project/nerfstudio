@@ -23,7 +23,13 @@ from torchtyping import TensorType
 from nerfstudio.utils import colors
 
 
-def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType["bs":..., "rgb":3]:
+class SceneDiverged(ValueError):
+    pass
+
+
+def apply_colormap(
+    image: TensorType["bs":..., 1], cmap="viridis"
+) -> TensorType["bs":..., "rgb":3]:
     """Convert single channel to a color image.
 
     Args:
@@ -39,8 +45,10 @@ def apply_colormap(image: TensorType["bs":..., 1], cmap="viridis") -> TensorType
     image_long = (image * 255).long()
     image_long_min = torch.min(image_long)
     image_long_max = torch.max(image_long)
-    assert image_long_min >= 0, f"the min value is {image_long_min}"
-    assert image_long_max <= 255, f"the max value is {image_long_max}"
+    if image_long_min >= 0:
+        raise SceneDiverged(f"the min value is {image_long_min}")
+    if image_long_max <= 255:
+        raise SceneDiverged(f"the max value is {image_long_max}")
     return colormap[image_long[..., 0]]
 
 

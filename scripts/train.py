@@ -229,15 +229,16 @@ def main(config: TrainerConfig) -> None:
     """Main function."""
 
     config.set_timestamp()
-    
-    if config.load_ckpt and not config.load_config:
-        CONSOLE.rule("Error", style="red")
-        CONSOLE.print(
-            f"Please the config of the checkpointed model via the --load-config <CONFIG.YML> argument",
-            justify="center",
-        )
-        sys.exit(1)
-        
+    checkpoint = config.load_ckpt
+
+    # if checkpoint is not None and config.load_config is None:
+    #     CONSOLE.rule("Error", style="red")
+    #     CONSOLE.print(
+    #         f"Please the config of the checkpointed model via the --load-config <CONFIG.YML> argument",
+    #         justify="center",
+    #     )
+    #     sys.exit(1)
+
     if config.data:
         CONSOLE.log(
             "Using --data alias for --data.pipeline.datamanager.dataparser.data"
@@ -247,7 +248,8 @@ def main(config: TrainerConfig) -> None:
     if config.load_config:
         CONSOLE.log(f"Loading pre-set config from: {config.load_config}")
         config = yaml.load(config.load_config.read_text(), Loader=yaml.Loader)
-    
+        config.load_ckpt = checkpoint
+
     # print and save config
     config.print_to_terminal()
     config.save_config()

@@ -49,3 +49,14 @@ def stdout_to_file(file: Path):
 def reset_sockets():
     sys.stdout = sys.__stdout__
     sys.stderr = sys.__stderr__
+
+
+def get_step_from_ckpt_path(checkpoint_path: Path | str):
+    if type(checkpoint_path) is str:
+        checkpoint_path = Path(checkpoint_path)
+
+    return int(checkpoint_path.stem.split("step-")[1].split(".ckpt")[0])
+
+
+def get_sequence_size_from_experiment(experiment_name):
+    return int(experiment_name.split("_n_")[1].split("-")[0])

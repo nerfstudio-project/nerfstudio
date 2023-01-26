@@ -50,9 +50,7 @@ class TextureMesh:
             self.output_dir.mkdir(parents=True)
 
         # load the Mesh
-        mesh = get_mesh_from_filename(
-            str(self.input_mesh_filename), target_num_faces=self.target_num_faces
-        )
+        mesh = get_mesh_from_filename(str(self.input_mesh_filename), target_num_faces=self.target_num_faces)
 
         # load the Pipeline
         _, pipeline, _ = eval_setup(self.load_config, test_mode="inference")
