@@ -76,6 +76,10 @@ class CreateJSONCameraPath(bpy.types.Operator):
             curr_frame += bpy.context.scene.frame_step
             nerf_mesh_mat_list += [self.nerf_bg_mesh.matrix_world.copy()]
 
+            # case when step size is 0 there is only one frame
+            if bpy.context.scene.frame_step == 0:
+                break
+
         # transform the camera world matrix based on the NeRF mesh transformation
         for i, org_cam_path_mat_val in enumerate(org_camera_path_mat):
             self.transformed_camera_path_mat += [nerf_mesh_mat_list[i].inverted() @ org_cam_path_mat_val]
@@ -110,9 +114,15 @@ class CreateJSONCameraPath(bpy.types.Operator):
             bpy.context.scene.render.resolution_x * (bpy.context.scene.render.resolution_percentage * 0.01)
         )
         render_fps = bpy.context.scene.render.fps
-        render_seconds = (
-            (bpy.context.scene.frame_end - bpy.context.scene.frame_start + 1) // (bpy.context.scene.frame_step)
-        ) / render_fps
+
+        # case when step size is 0 there is only one frame
+        if bpy.context.scene.frame_step == 0:
+            render_seconds = 1 / render_fps
+        else:
+            render_seconds = (
+                ((bpy.context.scene.frame_end - bpy.context.scene.frame_start) // (bpy.context.scene.frame_step) + 1)
+            ) / render_fps
+
         smoothness_value = 0
         is_cycle = False
 
