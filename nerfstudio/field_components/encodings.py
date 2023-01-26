@@ -73,7 +73,7 @@ class Identity(Encoding):
 
 
 class ScalingAndOffset(Encoding):
-    """Simple scaling and offet to input
+    """Simple scaling and offset to input
 
     Args:
         in_dim: Input dimension of tensor
@@ -97,7 +97,7 @@ class ScalingAndOffset(Encoding):
 
 
 class NeRFEncoding(Encoding):
-    """Multi-scale sinousoidal encodings. Support ``integrated positional encodings`` if covariances are provided.
+    """Multi-scale sinusoidal encodings. Support ``integrated positional encodings`` if covariances are provided.
     Each axis is encoded with frequencies ranging from 2^min_freq_exp to 2^max_freq_exp.
 
     Args:
@@ -459,7 +459,7 @@ class TensorVMEncoding(Encoding):
 
     @torch.no_grad()
     def upsample_grid(self, resolution: int) -> None:
-        """Upsamples underyling feature grid
+        """Upsamples underlying feature grid
 
         Args:
             resolution: Target resolution.
@@ -478,14 +478,14 @@ class SHEncoding(Encoding):
     """Spherical harmonic encoding
 
     Args:
-        levels: Number of spherical hamonic levels to encode.
+        levels: Number of spherical harmonic levels to encode.
     """
 
     def __init__(self, levels: int = 4) -> None:
         super().__init__(in_dim=3)
 
         if levels <= 0 or levels > 4:
-            raise ValueError(f"Spherical harmonic encoding only suports 1 to 4 levels, requested {levels}")
+            raise ValueError(f"Spherical harmonic encoding only supports 1 to 4 levels, requested {levels}")
 
         self.levels = levels
 

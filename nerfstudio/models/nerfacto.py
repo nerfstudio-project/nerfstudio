@@ -89,13 +89,8 @@ class NerfactoModelConfig(ModelConfig):
     """Use the same proposal network. Otherwise use different ones."""
     proposal_net_args_list: List[Dict] = field(
         default_factory=lambda: [
-            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 64},
-            {
-                "hidden_dim": 16,
-                "log2_hashmap_size": 17,
-                "num_levels": 5,
-                "max_res": 256,
-            },
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 128},
+            {"hidden_dim": 16, "log2_hashmap_size": 17, "num_levels": 5, "max_res": 256},
         ]
     )
     """Arguments for the proposal density fields."""
@@ -104,7 +99,7 @@ class NerfactoModelConfig(ModelConfig):
     distortion_loss_mult: float = 0.002
     """Distortion loss multiplier."""
     orientation_loss_mult: float = 0.0001
-    """Orientation loss multipier on computed noramls."""
+    """Orientation loss multiplier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
     use_proposal_weight_anneal: bool = True

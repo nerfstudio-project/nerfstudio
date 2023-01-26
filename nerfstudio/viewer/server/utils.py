@@ -28,7 +28,7 @@ from aiortc.rtcrtpsender import RTCRtpSender
 def get_chunks(
     lst: List[float], num_chunks: Optional[int] = None, size_of_chunk: Optional[int] = None
 ) -> List[List[float]]:
-    """Returns list of n elements, constaining a sublist.
+    """Returns list of n elements, containing a sublist.
 
     Args:
         lst: List to be chunked up
@@ -129,7 +129,7 @@ def find_available_port(func: Callable, default_port: int, max_attempts: int = 1
 
 
 def force_codec(pc: RTCPeerConnection, sender: RTCRtpSender, forced_codec: str) -> None:
-    """Sets the codec preferences on a connection between sender and reciever
+    """Sets the codec preferences on a connection between sender and receiver
 
     Args:
         pc: peer connection point

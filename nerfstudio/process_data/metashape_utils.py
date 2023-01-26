@@ -44,7 +44,7 @@ def metashape_to_json(  # pylint: disable=too-many-statements
 
     Args:
         image_filename_map: Mapping of original image filenames to their saved locations.
-        xml_filename: Path to the metashap cameras xml file.
+        xml_filename: Path to the metashape cameras xml file.
         output_dir: Path to the output directory.
         verbose: Whether to print verbose output.
 

@@ -42,6 +42,7 @@ def apply_colormap(
 
     colormap = cm.get_cmap(cmap)
     colormap = torch.tensor(colormap.colors).to(image.device)  # type: ignore
+    image = torch.nan_to_num(image, 0)
     image_long = (image * 255).long()
     image_long_min = torch.min(image_long)
     image_long_max = torch.max(image_long)

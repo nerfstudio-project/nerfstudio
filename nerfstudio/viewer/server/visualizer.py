@@ -36,7 +36,7 @@ class ViewerWindow:
         ip_address: The ip address of the bridge server.
     """
 
-    context = zmq.Context()
+    context = zmq.Context()  # pylint: disable=abstract-class-instantiated
 
     def __init__(self, zmq_port, ip_address="127.0.0.1"):
         self.zmq_port = zmq_port

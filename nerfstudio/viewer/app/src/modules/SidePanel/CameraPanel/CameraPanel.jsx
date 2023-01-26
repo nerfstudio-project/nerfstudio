@@ -556,9 +556,10 @@ export default function CameraPanel(props) {
   ]);
 
   // redux store state
-  const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
+  const export_path = useSelector(
+    (state) => state.renderingState.export_path,
   );
+
   const websocket = useContext(WebSocketContext).socket;
   const DEFAULT_FOV = 50;
   const DEFAULT_RENDER_TIME = 0.0;
@@ -1083,10 +1084,8 @@ export default function CameraPanel(props) {
     setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-    const camera_path_filename = `${config_base_dir}/camera_path.json`;
-
     const camera_path_payload = {
-      camera_path_filename,
+      camera_path_filename: export_path,
       camera_path: camera_path_object,
     };
 
