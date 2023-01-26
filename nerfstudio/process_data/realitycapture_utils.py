@@ -32,6 +32,7 @@ def realitycapture_to_json(
     image_filename_map: List[Path],
     csv_filename: Path,
     output_dir: Path,
+    verbose: bool = False,
 ) -> List[str]:
     """Convert RealityCapture data into a nerfstudio dataset.
 
@@ -58,15 +59,28 @@ def realitycapture_to_json(
             for column, value in row.items():
                 cameras.setdefault(column, []).append(value)
 
-    img = np.array(Image.open(output_dir / image_filename_map[cameras["#name"][0].split(".")[0]]))
+    for name in cameras["#name"]:
+        camera_label = name.split(".")[0]
+        if camera_label in image_filename_map:
+            img = np.array(Image.open(output_dir / image_filename_map[camera_label]))
+            break
+
     height, width, _ = img.shape
 
     data["h"] = int(height)
     data["w"] = int(width)
 
+    missing_image_data = 0
+
     for i, name in enumerate(cameras["#name"]):
+        basename = name.split(".")[0]
+        if basename not in image_filename_map:
+            if verbose:
+                CONSOLE.print(f"Missing image for camera data {basename}, Skipping")
+            missing_image_data += 1
+            continue
         frame = {}
-        frame["file_path"] = image_filename_map[name.split(".")[0]].as_posix()
+        frame["file_path"] = image_filename_map[basename].as_posix()
         frame["fl_x"] = float(cameras["f"][i]) * max(width, height) / 36
         frame["fl_y"] = float(cameras["f"][i]) * max(width, height) / 36
         # TODO: Unclear how to get the principal point from RealityCapture, here a guess...
@@ -95,6 +109,8 @@ def realitycapture_to_json(
         json.dump(data, f, indent=4)
 
     summary = []
+    if missing_image_data > 0:
+        summary.append(f"Missing image data for {missing_image_data} cameras.")
     if len(frames) < len(image_filename_map):
         summary.append(f"Missing camera data for {len(image_filename_map) - len(frames)} frames.")
     summary.append(f"Final dataset is {len(frames)} frames.")
