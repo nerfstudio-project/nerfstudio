@@ -1116,9 +1116,7 @@ export default function CameraPanel(props) {
       const message = msgpack.encode(data);
       websocket.send(message);
     }
-    setTimeout(() => {
-      setLoadPathModalOpen(true);
-    }, 1000)
+    setLoadPathModalOpen(true);
   }
 
   const isAnimated = (property) => animate.has(property);
@@ -1152,13 +1150,12 @@ export default function CameraPanel(props) {
     }
   };
   
-  const all_camera_paths = useSelector((state) => state.renderingState.all_camera_paths);
 
   return (
     <div className="CameraPanel">
       <div>
         <div className="CameraPanel-path-row">
-          {all_camera_paths && <LoadPathModal open={load_path_modal_open} setOpen={setLoadPathModalOpen} pathUploadFunction={uploadCameraPath} loadCameraPathFunction={load_camera_path} />}
+          <LoadPathModal open={load_path_modal_open} setOpen={setLoadPathModalOpen} pathUploadFunction={uploadCameraPath} loadCameraPathFunction={load_camera_path} />
           <Button
             size="small"
             className="CameraPanel-top-button"

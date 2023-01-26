@@ -1,14 +1,12 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import * as React from 'react';
 
-import { Box, Button, Input, Modal, Typography } from '@mui/material';
-import { useSelector } from 'react-redux';
-import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
-import { FileUpload, FileUploadOutlined } from '@mui/icons-material';
+import { Box, Button, Modal, Typography } from '@mui/material';
 import InputLabel from '@mui/material/InputLabel';
+import { useSelector } from 'react-redux';
+import { FileUpload } from '@mui/icons-material';
 import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import Select from '@mui/material/Select';
 
 interface LoadPathModalProps {
   open: object;
@@ -24,24 +22,12 @@ export default function LoadPathModal(props: LoadPathModalProps) {
   const loadCameraPath = props.loadCameraPathFunction;
 
   // redux store state
-  const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
-  );
-
-  const export_path = useSelector(
-    (state) => state.renderingState.export_path,
-  );
-
-  const data_base_dir = useSelector(
-    (state) => state.renderingState.data_base_dir,
-  );
-
   const all_camera_paths = useSelector(
     (state) => state.renderingState.all_camera_paths,
-  )
+  );
 
-  var camera_paths_arr = []
-  if(typeof all_camera_paths === "object"){
+  let camera_paths_arr = []
+  if(typeof all_camera_paths === "object" && all_camera_paths !== null){
     camera_paths_arr = Object.keys(all_camera_paths).map((key) => {
       return {
         "name": key, 
@@ -49,15 +35,17 @@ export default function LoadPathModal(props: LoadPathModalProps) {
       }});
   }
 
-  console.log(camera_paths_arr)
   const hiddenFileInput = React.useRef(null);
-  const handleFileUploadClick = event => {
+  const handleFileUploadClick = () => {
     hiddenFileInput.current.click();
   };
 
   // react state
 
   const handleClose = () => setOpen(false);
+  const handlePathSelect = event => {
+    loadCameraPath(event.target.value);
+  };
 
   return (
     <div className="LoadPathModal">
@@ -76,11 +64,10 @@ export default function LoadPathModal(props: LoadPathModalProps) {
             <div className="RenderModel-content">
                 <h2>Load Camera Path</h2>
                 <p>Either upload a local file or select a saved camera path</p>
-                <Select label="Camera Path">
-                  <MenuItem value={"default"}>default</MenuItem>
+                <InputLabel id="ageInputLabel">Select Camera Path</InputLabel>
+                <Select labelId='ageInputLabel' label="Camera Path" value="Select Path" onChange={handlePathSelect}>
                   {camera_paths_arr.map((obj) => {
-                    console.log(camera_paths_arr);
-                    <MenuItem value={obj["val"]}>{obj["name"]}work please</MenuItem>
+                    return <MenuItem value={obj.val}>{obj.name}</MenuItem>
                   })}
                 </Select>
                 <Button

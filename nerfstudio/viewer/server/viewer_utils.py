@@ -383,7 +383,6 @@ class ViewerState:
     def _check_populate_paths_payload(self, trainer, step: int):
         populate_paths_payload = self.vis["populate_paths_payload"].read()
         if populate_paths_payload:
-            print(populate_paths_payload)
             # save a model checkpoint
             trainer.save_checkpoint(step)
             # get all camera paths
