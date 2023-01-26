@@ -20,7 +20,7 @@ mipnerf360_table_rows = [
     (
         "nerfacto-w/o-pose-app",
         "nerfacto",
-        "--pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875",
+        "--pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875 mipnerf360-data",
     ),
 ]
 
