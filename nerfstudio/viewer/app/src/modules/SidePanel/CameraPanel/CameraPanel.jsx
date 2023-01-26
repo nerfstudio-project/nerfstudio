@@ -1072,7 +1072,6 @@ export default function CameraPanel(props) {
   };
 
   const uploadCameraPath = (e) => {
-    console.log("upload started");
     const fileUpload = e.target.files[0];
 
     const fr = new FileReader();
@@ -1095,7 +1094,6 @@ export default function CameraPanel(props) {
 
     // send a command of the websocket to save the trajectory somewhere!
     if (websocket.readyState === WebSocket.OPEN) {
-      console.log("sent a socket")
       const data = {
         type: 'write',
         path: 'camera_path_payload',
@@ -1165,13 +1163,6 @@ export default function CameraPanel(props) {
             onClick={open_load_path_modal}
           >
             Load Path
-            {/* <input
-              type="file"
-              accept=".json"
-              name="Camera Path"
-              onChange={uploadCameraPath}
-              hidden
-            /> */}
             
           </Button>
         </div>
