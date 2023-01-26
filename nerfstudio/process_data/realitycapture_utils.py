@@ -59,9 +59,7 @@ def realitycapture_to_json(
             for column, value in row.items():
                 cameras.setdefault(column, []).append(value)
 
-    # check the first exist image with camera data
-    # in camera csv can be more records than source images
-    for i, name in enumerate(cameras["#name"]):
+    for name in cameras["#name"]:
         camera_label = name.split(".")[0]
         if camera_label in image_filename_map:
             img = np.array(Image.open(output_dir / image_filename_map[camera_label]))
