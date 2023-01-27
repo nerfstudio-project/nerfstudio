@@ -165,7 +165,7 @@ def convert_insta360_single_file_to_images(
         vf_cmds_front = vf_cmds.copy()
 
         vf_cmds_back.append(
-            f"crop=ih*{crop_percentage}:ih*{crop_percentage}:ih*({crop_percentage}/4):ih*({crop_percentage}/4)"
+            f"crop=ih*{crop_percentage}:ih*{crop_percentage}:ih*{crop_percentage}/4:ih*{crop_percentage}/4"
         )
         vf_cmds_front.append(
             f"crop=ih*{crop_percentage}:ih*{crop_percentage}:iw/2+ih*{crop_percentage/4}:ih*{crop_percentage/4}"
