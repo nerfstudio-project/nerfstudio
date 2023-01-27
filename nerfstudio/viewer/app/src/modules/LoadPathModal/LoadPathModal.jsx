@@ -29,12 +29,13 @@ export default function LoadPathModal(props: LoadPathModalProps) {
   );
 
   let camera_paths_arr = [];
-  if(typeof all_camera_paths === "object" && all_camera_paths !== null){
+  if (typeof all_camera_paths === 'object' && all_camera_paths !== null) {
     camera_paths_arr = Object.keys(all_camera_paths).map((key) => {
       return {
-        "name": key, 
-        "val": all_camera_paths[key]
-      }});
+        name: key,
+        val: all_camera_paths[key],
+      };
+    });
   }
 
   const hiddenFileInput = React.useRef(null);
@@ -45,21 +46,19 @@ export default function LoadPathModal(props: LoadPathModalProps) {
   // react state
 
   const handleClose = () => setOpen(false);
-  const handlePathSelect = event => {
+  const handlePathSelect = (event) => {
     setExistingPathSelect(event.target.value);
   };
 
   const handleExistingLoadClick = () => {
-    if(existingPathSelect !== ''){
-      loadCameraPath(existingPathSelect);
-      handleClose();
-    }
-  }
+    loadCameraPath(existingPathSelect);
+    handleClose();
+  };
 
   const handleFileInput = (event) => {
     uploadCameraPath(event);
     handleClose();
-  }
+  };
 
   return (
     <div className="LoadPathModal">
@@ -69,48 +68,78 @@ export default function LoadPathModal(props: LoadPathModalProps) {
         aria-labelledby="modal-modal-title"
         aria-describedby="modal-modal-description"
       >
-        <Box className="RenderModal-box">
+        <Box className="LoadPathModal-box">
           <Typography
             id="modal-modal-description"
             component="div"
             sx={{ mt: 2 }}
           >
-            <div className="RenderModel-content">
-                <h2>Load Camera Path</h2>
-                {
-                camera_paths_arr.length > 0 && 
+            <div>
+              <h2>Load Camera Path</h2>
+              {camera_paths_arr.length > 0 && (
                 <>
-                <p>Either upload a local file or select a saved camera path</p>
-                <FormControl sx={{minWidth: "100%"}} size="large">
-                <InputLabel id="ageInputLabel">Existing Path</InputLabel>
-                <Select labelId='ageInputLabel' label="Camera Path" value={existingPathSelect} onChange={handlePathSelect}>
-                  {camera_paths_arr.map((obj) => {
-                    return <MenuItem value={obj.val}>{obj.name}</MenuItem>
-                  })}
-                </Select>
-                <Button onClick={handleExistingLoadClick}>Load</Button>
-                </FormControl>
-                <br/>
-                <p>Or</p>
+                  <p>
+                    Either upload a local file or select a saved camera path
+                  </p>
+                  <FormControl
+                    sx={{ minWidth: '100%' }}
+                    variant="filled"
+                    size="small"
+                  >
+                    <InputLabel id="ageInputLabel">Existing Path</InputLabel>
+                    <Select
+                      labelId="ageInputLabel"
+                      label="Camera Path"
+                      value={existingPathSelect}
+                      onChange={handlePathSelect}
+                    >
+                      {camera_paths_arr.map((obj) => {
+                        return <MenuItem value={obj.val}>{obj.name}</MenuItem>;
+                      })}
+                    </Select>
+                    <Button
+                      sx={{
+                        marginTop: '10px',
+                        marginLeft: 'auto',
+                        marginRight: 'auto',
+                        width: '60%',
+                      }}
+                      variant="outlined"
+                      size="medium"
+                      disabled={existingPathSelect === ''}
+                      onClick={handleExistingLoadClick}
+                    >
+                      Load
+                    </Button>
+                  </FormControl>
+                  <br />
+                  <p>
+                    <center>OR</center>
+                  </p>
                 </>
-                }
-                {camera_paths_arr.length === 0 && <p>No existing saved paths found</p>}
+              )}
+              {camera_paths_arr.length === 0 && (
+                <p>No existing saved paths found</p>
+              )}
+              <div className="LoadPathModal-upload_button">
                 <Button
-                 size='small'
-                 startIcon={<FileUpload/>}
-                 onClick={handleFileUploadClick}
+                  sx={{ width: '60%' }}
+                  variant="outlined"
+                  size="medium"
+                  startIcon={<FileUpload />}
+                  onClick={handleFileUploadClick}
                 >
-                Load Local File
-                <input
-                  type="file"
-                  accept=".json"
-                  name="Camera Path"
-                  onChange={handleFileInput}
-                  hidden
-                  ref={hiddenFileInput}
-                />
+                  Upload Camera Path
+                  <input
+                    type="file"
+                    accept=".json"
+                    name="Camera Path"
+                    onChange={handleFileInput}
+                    hidden
+                    ref={hiddenFileInput}
+                  />
                 </Button>
-                
+              </div>
             </div>
           </Typography>
         </Box>

@@ -317,7 +317,6 @@ function CameraList(props) {
 
   const camera_type = useSelector((state) => state.renderingState.camera_type);
 
-
   const handleChange =
     (cameraUUID: string) =>
     (event: React.SyntheticEvent, isExpanded: boolean) => {
@@ -1174,7 +1173,7 @@ export default function CameraPanel(props) {
       websocket.send(message);
     }
     setLoadPathModalOpen(true);
-  }
+  };
 
   const isAnimated = (property) => animate.has(property);
 
@@ -1206,13 +1205,17 @@ export default function CameraPanel(props) {
       cameras[i].renderTime = val;
     }
   };
-  
 
   return (
     <div className="CameraPanel">
       <div>
         <div className="CameraPanel-path-row">
-          <LoadPathModal open={load_path_modal_open} setOpen={setLoadPathModalOpen} pathUploadFunction={uploadCameraPath} loadCameraPathFunction={load_camera_path} />
+          <LoadPathModal
+            open={load_path_modal_open}
+            setOpen={setLoadPathModalOpen}
+            pathUploadFunction={uploadCameraPath}
+            loadCameraPathFunction={load_camera_path}
+          />
           <Button
             size="small"
             className="CameraPanel-top-button"
@@ -1222,7 +1225,6 @@ export default function CameraPanel(props) {
             onClick={open_load_path_modal}
           >
             Load Path
-            
           </Button>
         </div>
         <div className="CameraPanel-path-row">
