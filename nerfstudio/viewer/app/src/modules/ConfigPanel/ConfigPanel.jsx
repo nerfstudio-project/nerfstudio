@@ -47,7 +47,6 @@ export function RenderControls() {
   const crop_enabled = useSelector(
     (state) => state.renderingState.crop_enabled,
   );
-  console.log('crop_enabled_config panel', crop_enabled);
 
   const crop_bg_color = useSelector(
     (state) => state.renderingState.crop_bg_color,
@@ -162,7 +161,6 @@ export function RenderControls() {
         value: crop_enabled,
         hint: 'Crop the viewport to the selected box',
         onChange: (value) => {
-          console.log('dispact value', value);
           dispatch_and_send(
             websocket,
             dispatch,

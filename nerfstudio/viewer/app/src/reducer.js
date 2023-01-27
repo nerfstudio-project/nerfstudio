@@ -12,6 +12,7 @@ const initialState = {
   },
   // for sending actual commands to the client
   camera_path_payload: null,
+  populate_paths_payload: false,
   // the rendering state
   renderingState: {
     // cameras
@@ -25,7 +26,10 @@ const initialState = {
     camera_type: 'perspective',
 
     data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
-    export_path: 'export_path',
+    export_path: 'export_path', // export name for render and camera_path
+
+    all_camera_paths: null, // object containing camera paths and names
+
 
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
