@@ -45,11 +45,8 @@ from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConf
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
-<<<<<<< HEAD
-from nerfstudio.data.dataparsers.mipnerf360_dataparser import Mipnerf360DataParserConfig
-=======
 from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConfig
->>>>>>> main
+from nerfstudio.data.dataparsers.mipnerf360_dataparser import Mipnerf360DataParserConfig
 from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
