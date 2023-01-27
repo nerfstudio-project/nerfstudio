@@ -108,6 +108,10 @@ RUN cd nerfstudio && \
     python3.10 -m pip install -e . && \
     cd ..
 
+# Temporarily role back cryptography package to 38 for temp bug fix see issue Scene is not rendering #765
+RUN pip uninstall -y cryptography && \
+    pip install cryptography==38
+
 # Change working directory
 WORKDIR /workspace
 
