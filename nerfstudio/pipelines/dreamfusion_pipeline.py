@@ -137,7 +137,7 @@ class DreamfusionPipeline(VanillaPipeline):
         else:
             text_embedding = self.base_text_embedding
 
-        with torch.autocast(device_type='cuda', dtype=torch.float16):
+        with torch.autocast(device_type="cuda", dtype=torch.float16):
             sds_loss, latents, grad = self.sd.sds_loss(
                 text_embedding.to(self.sd_device),
                 train_output.to(self.sd_device),

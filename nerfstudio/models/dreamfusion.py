@@ -77,7 +77,7 @@ class DreamFusionModelConfig(ModelConfig):
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
     target_transmittance_start: float = 0.8
-    """target transmittance for opacity penalty. This is the percent of the scene that is 
+    """target transmittance for opacity penalty. This is the percent of the scene that is
     background when rendered at the start of training"""
     target_transmittance_end: float = 0.4
     """target transmittance for opacity penalty. This is the percent of the scene that is
