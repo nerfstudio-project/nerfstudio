@@ -11,7 +11,7 @@ import sys
 from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import mediapy as media
 import numpy as np
@@ -25,10 +25,13 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
+from torchtyping import TensorType
 from typing_extensions import Literal, assert_never
 
 from nerfstudio.cameras.camera_paths import get_path_from_json, get_spiral_path
 from nerfstudio.cameras.cameras import Cameras, CameraType
+from nerfstudio.data.scene_box import SceneBox
+from nerfstudio.model_components import renderers
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import install_checks
 from nerfstudio.utils.eval_utils import eval_setup
@@ -42,6 +45,7 @@ def _render_trajectory_video(
     cameras: Cameras,
     output_filename: Path,
     rendered_output_names: List[str],
+    crop_data: Optional[CropData] = None,
     rendered_resolution_scaling_factor: float = 1.0,
     seconds: float = 5.0,
     output_format: Literal["images", "video"] = "video",
@@ -54,6 +58,7 @@ def _render_trajectory_video(
         cameras: Cameras to render.
         output_filename: Name of the output file.
         rendered_output_names: List of outputs to visualise.
+        crop_data: Crop data to apply to the rendered images.
         rendered_resolution_scaling_factor: Scaling factor to apply to the camera image resolution.
         seconds: Length of output video.
         output_format: How to save output data.
@@ -89,9 +94,23 @@ def _render_trajectory_video(
 
         with progress:
             for camera_idx in progress.track(range(cameras.size), description=""):
-                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx)
-                with torch.no_grad():
-                    outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+                aabb_box = None
+                if crop_data is not None:
+                    bounding_box_min = crop_data.center - crop_data.scale / 2.0
+                    bounding_box_max = crop_data.center + crop_data.scale / 2.0
+                    aabb_box = SceneBox(torch.stack([bounding_box_min, bounding_box_max]).to(pipeline.device))
+                camera_ray_bundle = cameras.generate_rays(camera_indices=camera_idx, aabb_box=aabb_box)
+
+                if crop_data is not None:
+                    with renderers.background_color_override_context(
+                        crop_data.background_color.to(pipeline.device)
+                    ), torch.no_grad():
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+                else:
+                    with torch.no_grad():
+                        outputs = pipeline.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
                 render_image = []
                 for rendered_output_name in rendered_output_names:
                     if rendered_output_name not in outputs:
@@ -110,8 +129,8 @@ def _render_trajectory_video(
                     media.write_image(output_image_dir / f"{camera_idx:05d}.png", render_image)
                 if output_format == "video":
                     if writer is None:
-                        render_width = int(render_image.shape[1] * rendered_resolution_scaling_factor)
-                        render_height = int(render_image.shape[0] * rendered_resolution_scaling_factor)
+                        render_width = int(render_image.shape[1])
+                        render_height = int(render_image.shape[0])
                         writer = stack.enter_context(
                             media.VideoWriter(
                                 path=output_filename,
@@ -197,27 +216,59 @@ xmlns:GSpherical='http://ns.google.com/videos/1.0/spherical/'>
 
 
 @dataclass
+class CropData:
+    """Data for cropping an image."""
+
+    background_color: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    """background color"""
+    center: TensorType[3] = torch.Tensor([0.0, 0.0, 0.0])
+    """center of the crop"""
+    scale: TensorType[3] = torch.Tensor([2.0, 2.0, 2.0])
+    """scale of the crop"""
+
+
+def get_crop_from_json(camera_json: Dict[str, Any]) -> Optional[CropData]:
+    """Load crop data from a camera path JSON
+
+    args:
+        camera_json: camera path data
+    returns:
+        Crop data
+    """
+    if "crop" not in camera_json or camera_json["crop"] is None:
+        return None
+
+    bg_color = camera_json["crop"]["crop_bg_color"]
+
+    return CropData(
+        background_color=torch.Tensor([bg_color["r"] / 255.0, bg_color["g"] / 255.0, bg_color["b"] / 255.0]),
+        center=torch.Tensor(camera_json["crop"]["crop_center"]),
+        scale=torch.Tensor(camera_json["crop"]["crop_scale"]),
+    )
+
+
+@dataclass
 class RenderTrajectory:
     """Load a checkpoint, render a trajectory, and save to a video file."""
 
-    # Path to config YAML file.
     load_config: Path
-    # Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis
+    """Path to config YAML file."""
     rendered_output_names: List[str] = field(default_factory=lambda: ["rgb"])
-    #  Trajectory to render.
+    """Name of the renderer outputs to use. rgb, depth, etc. concatenates them along y axis"""
     traj: Literal["spiral", "filename"] = "spiral"
-    # Scaling factor to apply to the camera image resolution.
+    """Trajectory to render."""
     downscale_factor: int = 1
-    # Filename of the camera path to render.
+    """Scaling factor to apply to the camera image resolution."""
     camera_path_filename: Path = Path("camera_path.json")
-    # Name of the output file.
+    """Filename of the camera path to render."""
     output_path: Path = Path("renders/output.mp4")
-    # How long the video should be.
+    """Name of the output file."""
     seconds: float = 5.0
-    # How to save output data.
+    """How long the video should be."""
     output_format: Literal["images", "video"] = "video"
-    # Specifies number of rays per chunk during eval.
+    """How to save output data."""
     eval_num_rays_per_chunk: Optional[int] = None
+    """Specifies number of rays per chunk during eval."""
 
     def main(self) -> None:
         """Main function."""
@@ -230,6 +281,7 @@ class RenderTrajectory:
         install_checks.check_ffmpeg_installed()
 
         seconds = self.seconds
+        crop_data = None
 
         # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
@@ -249,6 +301,7 @@ class RenderTrajectory:
                 camera_type = CameraType.EQUIRECTANGULAR
             else:
                 camera_type = CameraType.PERSPECTIVE
+            crop_data = get_crop_from_json(camera_path)
             camera_path = get_path_from_json(camera_path)
         else:
             assert_never(self.traj)
@@ -259,6 +312,7 @@ class RenderTrajectory:
             output_filename=self.output_path,
             rendered_output_names=self.rendered_output_names,
             rendered_resolution_scaling_factor=1.0 / self.downscale_factor,
+            crop_data=crop_data,
             seconds=seconds,
             output_format=self.output_format,
             camera_type=camera_type,

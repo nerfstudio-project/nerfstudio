@@ -314,7 +314,7 @@ class Cameras(TensorDataclass):
         distortion_params_delta: Optional[TensorType["num_rays":..., 6]] = None,
         keep_shape: Optional[bool] = None,
         disable_distortion: bool = False,
-        aabb_box: SceneBox = None,
+        aabb_box: Optional[SceneBox] = None,
     ) -> RayBundle:
         """Generates rays for the given camera indices.
 
