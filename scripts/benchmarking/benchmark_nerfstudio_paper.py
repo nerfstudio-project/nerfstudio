@@ -5,12 +5,13 @@ Benchmarking script for nerfstudio paper.
 - nerfacto ablations
 """
 
-from nerfstudio.utils.scripts import run_command
+import threading
+import time
+from pathlib import Path
 
 import GPUtil
-from pathlib import Path
-import time
-import threading
+
+from nerfstudio.utils.scripts import run_command
 
 # for the mipnerf360 experiments
 mipnerf360_capture_names = ["bicycle", "garden", "stump", "room", "counter", "kitchen", "bonsai"]  # 7 splits
@@ -94,7 +95,7 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
     # make a list of all the jobs that need to be fun
     jobs = []
     for capture_name in capture_names:
-        
+
         for table_row_name, method, table_row_command in table_rows:
             command = " ".join(
                 (
@@ -107,15 +108,13 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
                     f"--wandb-name {capture_name}_{table_row_name}",
                     f"--experiment-name {capture_name}_{table_row_name}",
                     # extra_string,
-                    table_row_command
+                    table_row_command,
                 )
             )
             jobs.append(command)
 
     while jobs:
-
-        # check which GPUs have capacity to run these jobs
-        """Returns the available GPUs."""
+        # get GPUs that capacity to run these jobs
         gpu_devices_available = GPUtil.getAvailable(order="first", limit=10, maxMemory=0.1)
 
         print("Available GPUs: ", gpu_devices_available)
@@ -129,14 +128,12 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
             def task():
                 print("Starting command: ", command)
                 out = run_command(command, verbose=False)
-                # time.sleep(5)
                 print("Finished command: ", command)
 
             threads.append(threading.Thread(target=task))
             threads[-1].start()
 
-            # NOTE(ethan): need a delay otherwise the wandb/tensorboard naming is messed up
-            # not sure why?
+            # NOTE(ethan): here we need a delay, otherwise the wandb/tensorboard naming is messed up... not sure why
             time.sleep(5)
 
         # wait for all threads to finish

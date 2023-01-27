@@ -44,8 +44,8 @@ from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConf
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
 )
-from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.mipnerf360_dataparser import Mipnerf360DataParserConfig
+from nerfstudio.data.dataparsers.nerfstudio_dataparser import NerfstudioDataParserConfig
 from nerfstudio.data.dataparsers.nuscenes_dataparser import NuScenesDataParserConfig
 from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
@@ -414,7 +414,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
 
     def get_eval_image(self, idx: int, scale_factor: float = 1.0) -> Tuple[RayBundle, Dict]:
         """Returns the full image at the given index.
-        
+
         Args:
             idx: index of the image to get
             scale_factor: scale factor to apply to the image

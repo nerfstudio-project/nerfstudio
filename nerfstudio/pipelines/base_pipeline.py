@@ -28,18 +28,18 @@ import torch
 import torch.distributed as dist
 from rich.progress import (
     BarColumn,
+    Console,
     MofNCompleteColumn,
     Progress,
     TextColumn,
     TimeElapsedColumn,
-    Console
+    track,
 )
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from typing_extensions import Literal
-from rich.progress import track
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
 from nerfstudio.data.datamanagers.base_datamanager import (
@@ -47,8 +47,8 @@ from nerfstudio.data.datamanagers.base_datamanager import (
     VanillaDataManager,
     VanillaDataManagerConfig,
 )
-from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.engine.callbacks import TrainingCallback, TrainingCallbackAttributes
+from nerfstudio.model_components.losses import MSELoss
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import profiler
 
@@ -441,7 +441,9 @@ class VanillaPipeline(Pipeline):
                         loss.backward()
                         optimizer.step()
 
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / self.config.eval_image_scale_factor)
+                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
+                        1.0 / self.config.eval_image_scale_factor
+                    )
                     # delete the appearance embedding
                     self.model.field.embedding_appearance_eval = None
                     self.eval()

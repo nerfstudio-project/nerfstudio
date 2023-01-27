@@ -178,10 +178,9 @@ class Mipnerf360(DataParser):
 
         # sort the filenames according to image_filenames
 
-
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
-        
+
         # mipnerf360 code...
         # TODO: add parameters for this...
         all_indices = np.arange(num_images)
@@ -189,7 +188,7 @@ class Mipnerf360(DataParser):
         eval_indices = all_indices[all_indices % 8 == 0]
         i_train = train_indices
         i_eval = eval_indices
-        
+
         if split == "train":
             indices = i_train
         elif split in ["val", "test"]:

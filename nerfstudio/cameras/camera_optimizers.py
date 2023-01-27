@@ -95,10 +95,11 @@ class CameraOptimizer(nn.Module):
             std_vector = torch.tensor(
                 [self.config.position_noise_std] * 3 + [self.config.orientation_noise_std] * 3, device=self.device
             )
-            self.pose_noise = exp_map_SE3(torch.normal(torch.zeros((self.num_cameras, 6), device=self.device), std_vector))
+            self.pose_noise = exp_map_SE3(
+                torch.normal(torch.zeros((self.num_cameras, 6), device=self.device), std_vector)
+            )
         else:
             self.pose_noise = None
-
 
     def forward(
         self,

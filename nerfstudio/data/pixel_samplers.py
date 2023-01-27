@@ -99,33 +99,33 @@ def collate_image_dataset_batch_list(batch: Dict, num_rays_per_batch: int, sampl
     if sample_all_pixels:
         # sample all the pixels
         raise NotImplementedError("sample_all_pixels is not implemented for collate_image_dataset_batch_list")
-    else:
-        # sample a subset of the pixels
-        if "mask" in batch:
-            num_rays_in_batch = num_rays_per_batch // num_images
-            for i in range(num_images):
-                if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
-                nonzero_indices = torch.nonzero(batch["mask"][i][..., 0], as_tuple=False)
-                chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_in_batch)
-                indices = nonzero_indices[chosen_indices]
-                indices = torch.cat([torch.full((num_rays_in_batch, 1), i, device=device), indices], dim=-1)
-                all_indices.append(indices)
-                all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
 
-        else:
-            num_rays_in_batch = num_rays_per_batch // num_images
-            for i in range(num_images):
-                image_height, image_width, _ = batch["image"][i].shape
-                if i == num_images - 1:
-                    num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
-                indices = torch.floor(
-                    torch.rand((num_rays_in_batch, 3), device=device)
-                    * torch.tensor([1, image_height, image_width], device=device)
-                ).long()
-                indices[:, 0] = i
-                all_indices.append(indices)
-                all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+    # sample a subset of the pixels
+    if "mask" in batch:
+        num_rays_in_batch = num_rays_per_batch // num_images
+        for i in range(num_images):
+            if i == num_images - 1:
+                num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+            nonzero_indices = torch.nonzero(batch["mask"][i][..., 0], as_tuple=False)
+            chosen_indices = random.sample(range(len(nonzero_indices)), k=num_rays_in_batch)
+            indices = nonzero_indices[chosen_indices]
+            indices = torch.cat([torch.full((num_rays_in_batch, 1), i, device=device), indices], dim=-1)
+            all_indices.append(indices)
+            all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
+
+    else:
+        num_rays_in_batch = num_rays_per_batch // num_images
+        for i in range(num_images):
+            image_height, image_width, _ = batch["image"][i].shape
+            if i == num_images - 1:
+                num_rays_in_batch = num_rays_per_batch - (num_images - 1) * num_rays_in_batch
+            indices = torch.floor(
+                torch.rand((num_rays_in_batch, 3), device=device)
+                * torch.tensor([1, image_height, image_width], device=device)
+            ).long()
+            indices[:, 0] = i
+            all_indices.append(indices)
+            all_images.append(batch["image"][i][indices[:, 1], indices[:, 2]])
 
     indices = torch.cat(all_indices, dim=0)
 
