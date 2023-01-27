@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Server bridge to faciliate interactions between python backend and javascript front end"""
+"""Server bridge to facilitate interactions between python backend and javascript front end"""
 
 import sys
 from typing import List, Optional, Tuple
@@ -98,7 +98,7 @@ class ZMQWebSocketBridge:
         websocket_port: websocket port to connect to. Defaults to None.
     """
 
-    context = zmq.Context()
+    context = zmq.Context()  # pylint: disable=abstract-class-instantiated
 
     def __init__(self, zmq_port: int, websocket_port: int, ip_address: str):
         self.zmq_port = zmq_port

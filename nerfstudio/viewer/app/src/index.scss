@@ -243,6 +243,25 @@ $sidebar-width: 100% !default;
 }
 
 // ------------------------------------
+// Load Path Modal styling
+
+.LoadPathModal-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px; // 400
+  background-color: $base-color2;
+  border: 2px solid #000;
+  padding: 32px;
+  margin-top: 20px;
+}
+
+.LoadPathModal-upload_button {
+  text-align: center;
+}
+
+// ------------------------------------
 // Camera Pane
 
 .CameraPanel-props {

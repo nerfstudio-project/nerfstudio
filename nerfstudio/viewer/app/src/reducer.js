@@ -12,6 +12,7 @@ const initialState = {
   },
   // for sending actual commands to the client
   camera_path_payload: null,
+  populate_paths_payload: false,
   // the rendering state
   renderingState: {
     // cameras
@@ -22,6 +23,13 @@ const initialState = {
     render_height: 1080,
     render_width: 1920,
     field_of_view: 50,
+    camera_type: 'perspective',
+
+    data_base_dir: 'data_base_dir', // the base directory of the images for saving camera path with the data
+    export_path: 'export_path', // export name for render and camera_path
+
+    all_camera_paths: null, // object containing camera paths and names
+
 
     isTraining: true,
     output_options: ['rgb'], // populated by the possible Graph outputs
@@ -40,6 +48,12 @@ const initialState = {
     clipping_enabled: true,
     clipping_center: [0.0, 0.0, 0.0],
     clipping_box_scale: [2.0, 2.0, 2.0],
+
+    // Crop Box Options
+    crop_enabled: false,
+    crop_bg_color: {r: 38, g:42, b:55},
+    crop_scale: [2.0, 2.0, 2.0],
+    crop_center: [0.0, 0.0, 0.0],
   },
   // the scene state
   sceneState: {

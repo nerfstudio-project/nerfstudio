@@ -69,6 +69,7 @@ class TCNNNerfactoField(Field):
 
     Args:
         aabb: parameters of scene aabb bounds
+        num_images: number of images in the dataset
         num_layers: number of hidden layers
         hidden_dim: dimension of hidden layers
         geo_feat_dim: output geo feat dimensions
@@ -76,9 +77,15 @@ class TCNNNerfactoField(Field):
         max_res: maximum resolution of the hashmap for the base mlp
         log2_hashmap_size: size of the hashmap for the base mlp
         num_layers_color: number of hidden layers for color network
+        num_layers_transient: number of hidden layers for transient network
         hidden_dim_color: dimension of hidden layers for color network
+        hidden_dim_transient: dimension of hidden layers for transient network
         appearance_embedding_dim: dimension of appearance embedding
         transient_embedding_dim: dimension of transient embedding
+        use_transient_embedding: whether to use transient embedding
+        use_semantics: whether to use semantic segmentation
+        num_semantic_classes: number of semantic classes
+        use_pred_normals: whether to use predicted normals
         use_average_appearance_embedding: whether to use average appearance embedding or zeros for inference
         spatial_distortion: spatial distortion to apply to the scene
     """

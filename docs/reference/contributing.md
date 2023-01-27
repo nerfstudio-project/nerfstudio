@@ -2,7 +2,7 @@
 
 **💝 We're excited to have you join the nerfstudio family 💝**
 
-Below, we document the contribution pipeline and good-to-knows for when you're ready to submit a PR. If you have any questions at all, please don't hesitate to reach out to us on [Discord](https://discord.com/invite/NHGtYRAW). We'd love to hear from you!
+Below, we document the contribution pipeline and good-to-knows for when you're ready to submit a PR. If you have any questions at all, please don't hesitate to reach out to us on [Discord](https://discord.gg/uMbNqcraFc). We'd love to hear from you!
 
 The project is set up for development in VSCode, we recommend using it if you plan to contribute.
 
@@ -35,8 +35,8 @@ conda install -c conda-forge pandoc
 
 ## Committing code
 
-1. Make your modifications ✏️ 
-2. Perform local checks ✅ 
+1. Make your modifications ✏️
+2. Perform local checks ✅
 
    To ensure that you will be passing all tests and checks on github, you will need to run the following command:
 
@@ -50,13 +50,13 @@ conda install -c conda-forge pandoc
    - Pytests: Runs pytests locally to make sure added code does not break existing logic.
    - Documentation build: Builds docs locally. Ensures changes do not result in warnings/errors.
    - Licensing: Automatically adds licensing headers to the correct files.
-   
+
    :::{admonition} Attention
    :class: attention
       In order to merge changes to the code base, all of these checks must be passing. If you pass these tests locally, you will likely pass on github servers as well (results in a green checkmark next to your commit).
       :::
 
-3. Open pull request! 💌 
+3. Open pull request! 💌
 
 ## Maintaining documentation
 
@@ -72,7 +72,7 @@ python scripts/docs/build_docs.py
 :class: info
 
 - Rerun `make html` when documentation changes are made
-- make clean` is necessary if the documentation structure changes.
+- `make clean` is necessary if the documentation structure changes.
   :::
 
 ### Auto build
@@ -93,7 +93,7 @@ sphinx-autobuild docs docs/_build/html
 
 ### Adding notebooks
 
-We support jupyter notbooks in our documentation. To improve the readability, the following custom tags can be added to the top of each code cell to hide or collapse the code.
+We support jupyter notebooks in our documentation. To improve the readability, the following custom tags can be added to the top of each code cell to hide or collapse the code.
 
 | Tag           | Effect                                               |
 | ------------- | ---------------------------------------------------- |

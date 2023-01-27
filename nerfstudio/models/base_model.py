@@ -75,6 +75,7 @@ class Model(nn.Module):
         super().__init__()
         self.config = config
         self.scene_box = scene_box
+        self.render_aabb = None  # the box that we want to render - should be a subset of scene_box
         self.num_train_data = num_train_data
         self.num_eval_data = num_eval_data
         self.kwargs = kwargs
@@ -210,3 +211,11 @@ class Model(nn.Module):
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state["model"].items()}
         self.load_state_dict(state)  # type: ignore
+
+    def update_to_step(self, step: int) -> None:
+        """Called when loading a model from a checkpoint. Sets any model parameters that change over
+        training to the correct value, based on the training step of the checkpoint.
+
+        Args:
+            step: training step of the loaded checkpoint
+        """

@@ -116,6 +116,7 @@ export default function ViewerWindow(props) {
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
   );
+  const camera_type = useSelector((state) => state.renderingState.camera_type);
 
   // listen to the viewport width
   const size = new THREE.Vector2();
@@ -148,21 +149,16 @@ export default function ViewerWindow(props) {
     labelRenderer.setSize(viewportWidth, viewportHeight);
   };
 
-  // update the camera information in the python server
-  const sendCamera = () => {
-    if (websocket.readyState === WebSocket.OPEN) {
-      const cmd = 'write';
-      const path = 'renderingState/camera';
-      const data_packet = sceneTree.metadata.camera.toJSON();
-      data_packet.object.timestamp = +new Date();
-      const data = {
-        type: cmd,
-        path,
-        data: data_packet,
-      };
-      const message = msgpack.encode(data);
-      websocket.send(message);
-    }
+  const render = () => {
+    const fps = 24;
+    const interval = 1000 / fps;
+    handleResize();
+    sceneTree.metadata.camera.updateProjectionMatrix();
+    sceneTree.metadata.moveCamera();
+    sceneTree.metadata.camera_controls.update(interval);
+    requestAnimationFrame(render);
+    renderer.render(scene, sceneTree.metadata.camera);
+    labelRenderer.render(scene, sceneTree.metadata.camera);
   };
 
   useEffect(() => {
@@ -180,34 +176,12 @@ export default function ViewerWindow(props) {
       height: get_window_height(),
       width: get_window_width(),
     });
+    render();
 
     return () => {
       window.removeEventListener('resize', update_dimensions);
     };
   }, []);
-
-  // keep sending the camera often
-  // rerun this when the websocket changes
-  useEffect(() => {
-    const fps = 24;
-    const interval = 1000 / fps;
-    const refreshIntervalId = setInterval(sendCamera, interval);
-    return () => {
-      clearInterval(refreshIntervalId);
-    };
-  }, [websocket]);
-
-  const render = () => {
-    const fps = 24;
-    const interval = 1000 / fps;
-    handleResize();
-    sceneTree.metadata.camera.updateProjectionMatrix();
-    sceneTree.metadata.moveCamera();
-    sceneTree.metadata.camera_controls.update(interval);
-    requestAnimationFrame(render);
-    renderer.render(scene, sceneTree.metadata.camera);
-    labelRenderer.render(scene, sceneTree.metadata.camera);
-  };
 
   // start the three.js rendering loop
   // when the DOM is ready
@@ -215,11 +189,6 @@ export default function ViewerWindow(props) {
     myRef.current.append(renderer.domElement);
     render();
   }, []);
-
-  // updates the current camera with the field of view
-  useEffect(() => {
-    sceneTree.metadata.camera.fov = field_of_view;
-  }, [field_of_view]);
 
   const render_height = useSelector(
     (state) => state.renderingState.render_height,
@@ -265,7 +234,43 @@ export default function ViewerWindow(props) {
     const fl_new = fl * render_viewport_apsect_ratio;
     const fov = Math.atan(1 / fl_new) / (Math.PI / 360);
     sceneTree.metadata.camera.fov = fov;
+  } else {
+    sceneTree.metadata.camera.fov = 50;
   }
+
+  // update the camera information in the python server
+  const sendCamera = () => {
+    if (websocket.readyState === WebSocket.OPEN) {
+      const cmd = 'write';
+      const path = 'renderingState/camera';
+      const data_packet = sceneTree.metadata.camera.toJSON();
+      data_packet.object.timestamp = +new Date();
+      if (camera_choice === 'Render Camera') {
+        data_packet.object.camera_type = camera_type;
+      } else {
+        data_packet.object.camera_type = 'perspective';
+      }
+      data_packet.object.render_aspect = render_aspect;
+      const data = {
+        type: cmd,
+        path,
+        data: data_packet,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+  };
+
+  // keep sending the camera often
+  // rerun this when the websocket changes
+  useEffect(() => {
+    const fps = 24;
+    const interval = 1000 / fps;
+    const refreshIntervalId = setInterval(sendCamera, interval);
+    return () => {
+      clearInterval(refreshIntervalId);
+    };
+  }, [websocket, camera_choice, camera_type, render_aspect]);
 
   return (
     <>

@@ -366,7 +366,7 @@ class LocalWriter:
     TODO: migrate to prettyprint
 
     Args:
-        config: configuration to instatiate class
+        config: configuration to instantiate class
         banner_messages: list of messages to always display at bottom of screen
     """
 

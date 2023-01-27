@@ -21,7 +21,9 @@ import dataclasses
 import functools
 import os
 import time
-from typing import Dict, List, Tuple
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Type
 
 import torch
 from rich.console import Console
@@ -49,6 +51,34 @@ from nerfstudio.viewer.server import viewer_utils
 CONSOLE = Console(width=120)
 
 
+@dataclass
+class TrainerConfig(ExperimentConfig):
+    """Configuration for training regimen"""
+
+    _target: Type = field(default_factory=lambda: Trainer)
+    """target class to instantiate"""
+    steps_per_save: int = 1000
+    """Number of steps between saves."""
+    steps_per_eval_batch: int = 500
+    """Number of steps between randomly sampled batches of rays."""
+    steps_per_eval_image: int = 500
+    """Number of steps between single eval images."""
+    steps_per_eval_all_images: int = 25000
+    """Number of steps between eval all images."""
+    max_num_iterations: int = 1000000
+    """Maximum number of iterations to run."""
+    mixed_precision: bool = False
+    """Whether or not to use mixed precision for training."""
+    save_only_latest_checkpoint: bool = True
+    """Whether to only save the latest checkpoint or all checkpoints."""
+    # optional parameters if we want to resume training
+    load_dir: Optional[Path] = None
+    """Optionally specify a pre-trained model directory to load from."""
+    load_step: Optional[int] = None
+    """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
+    load_config: Optional[Path] = None
+
+
 class Trainer:
     """Trainer class
 
@@ -71,12 +101,12 @@ class Trainer:
     optimizers: Optimizers
     callbacks: List[TrainingCallback]
 
-    def __init__(self, config: ExperimentConfig, local_rank: int = 0, world_size: int = 1):
+    def __init__(self, config: TrainerConfig, local_rank: int = 0, world_size: int = 1):
         self.config = config
         self.local_rank = local_rank
         self.world_size = world_size
         self.device = "cpu" if world_size == 0 else f"cuda:{local_rank}"
-        self.mixed_precision = self.config.trainer.mixed_precision
+        self.mixed_precision = self.config.mixed_precision
         if self.device == "cpu":
             self.mixed_precision = False
             CONSOLE.print("Mixed precision is disabled for CPU training.")
@@ -92,19 +122,14 @@ class Trainer:
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled() and local_rank == 0:
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
+            )
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
-        writer.setup_event_writer(
-            config.is_wandb_enabled(),
-            config.is_tensorboard_enabled(),
-            log_dir=writer_log_path,
-            wandb_name=config.wandb_name,
-        )
-        writer.setup_local_writer(
-            config.logging, max_iter=config.trainer.max_num_iterations, banner_messages=banner_messages
-        )
+        writer.setup_event_writer(config.is_wandb_enabled(), config.is_tensorboard_enabled(), log_dir=writer_log_path, wandb_name=config.wandb_name)
+        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
         writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
         profiler.setup_profiler(config.logging)
 
@@ -114,7 +139,7 @@ class Trainer:
         Args:
             test_mode:
                 'val': loads train/val datasets into memory
-                'test': loads train/test datset into memory
+                'test': loads train/test datasets into memory
                 'inference': does not load any dataset into memory
         """
         self.pipeline = self.config.pipeline.setup(
@@ -129,7 +154,6 @@ class Trainer:
                 optimizers=self.optimizers,  # type: ignore
                 grad_scaler=self.grad_scaler,  # type: ignore
                 pipeline=self.pipeline,  # type: ignore
-                config=self.config.trainer,  # type: ignore
             )
         )
 
@@ -137,7 +161,7 @@ class Trainer:
         """Helper to set up the optimizers
 
         Returns:
-            The optimizers object given the experiment config.
+            The optimizers object given the trainer config.
         """
         optimizer_config = self.config.optimizers.copy()
         camera_optimizer_config = self.config.pipeline.datamanager.camera_optimizer
@@ -160,7 +184,7 @@ class Trainer:
 
         self._init_viewer_state()
         with TimeWriter(writer, EventName.TOTAL_TRAIN_TIME):
-            num_iterations = self.config.trainer.max_num_iterations
+            num_iterations = self.config.max_num_iterations
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
@@ -199,18 +223,22 @@ class Trainer:
 
                 self.eval_iteration(step)
 
-                if step_check(step, self.config.trainer.steps_per_save):
+                if step_check(step, self.config.steps_per_save):
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
-            # save checkpoint at the end of training
-            self.save_checkpoint(step)
 
-            CONSOLE.rule()
-            CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
-            if not self.config.viewer.quit_on_train_completion:
-                CONSOLE.print("Use ctrl+c to quit", justify="center")
-                self._always_render(step)
+        # save checkpoint at the end of training
+        self.save_checkpoint(step)
+
+        # write out any remaining events (e.g., total train time)
+        writer.write_out_storage()
+
+        CONSOLE.rule()
+        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+        if not self.config.viewer.quit_on_train_completion:
+            CONSOLE.print("Use ctrl+c to quit", justify="center")
+            self._always_render(step)
 
     @check_main_thread
     def _always_render(self, step):
@@ -279,9 +307,9 @@ class Trainer:
 
     def _load_checkpoint(self) -> None:
         """Helper function to load pipeline and optimizer from prespecified checkpoint"""
-        load_dir = self.config.trainer.load_dir
+        load_dir = self.config.load_dir
         if load_dir is not None:
-            load_step = self.config.trainer.load_step
+            load_step = self.config.load_step
             if load_step is None:
                 print("Loading latest checkpoint from load_dir")
                 # NOTE: this is specific to the checkpoint name format
@@ -291,7 +319,7 @@ class Trainer:
             loaded_state = torch.load(load_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
-            self.pipeline.load_pipeline(loaded_state["pipeline"])
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"done loading checkpoint from {load_path}")
@@ -322,7 +350,7 @@ class Trainer:
             ckpt_path,
         )
         # possibly delete old checkpoints
-        if self.config.trainer.save_only_latest_checkpoint:
+        if self.config.save_only_latest_checkpoint:
             # delete everything else in the checkpoint folder
             for f in self.checkpoint_dir.glob("*"):
                 if f != ckpt_path:
@@ -357,7 +385,7 @@ class Trainer:
             step: Current training step.
         """
         # a batch of eval rays
-        if step_check(step, self.config.trainer.steps_per_eval_batch):
+        if step_check(step, self.config.steps_per_eval_batch):
             _, eval_loss_dict, eval_metrics_dict = self.pipeline.get_eval_loss_dict(step=step)
             eval_loss = functools.reduce(torch.add, eval_loss_dict.values())
             writer.put_scalar(name="Eval Loss", scalar=eval_loss, step=step)
@@ -365,7 +393,7 @@ class Trainer:
             writer.put_dict(name="Eval Metrics Dict", scalar_dict=eval_metrics_dict, step=step)
 
         # one eval image
-        if step_check(step, self.config.trainer.steps_per_eval_image):
+        if step_check(step, self.config.steps_per_eval_image):
             with TimeWriter(writer, EventName.TEST_RAYS_PER_SEC, write=False) as test_t:
                 metrics_dict, images_dict = self.pipeline.get_eval_image_metrics_and_images(step=step)
             writer.put_time(
@@ -380,6 +408,6 @@ class Trainer:
                 writer.put_image(name=group + "/" + image_name, image=image, step=step)
 
         # all eval images
-        if step_check(step, self.config.trainer.steps_per_eval_all_images):
+        if step_check(step, self.config.steps_per_eval_all_images):
             metrics_dict = self.pipeline.get_average_eval_image_metrics(step=step)
             writer.put_dict(name="Eval Images Metrics Dict (all images)", scalar_dict=metrics_dict, step=step)

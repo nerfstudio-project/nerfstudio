@@ -42,7 +42,7 @@ class SemanticNerfField(Field):
         direction_encoding: Direction encoder.
         base_mlp_num_layers: Number of layers for base MLP.
         base_mlp_layer_width: Width of base MLP layers.
-        head_mlp_num_layers: Number of layer for ourput head MLP.
+        head_mlp_num_layers: Number of layer for output head MLP.
         head_mlp_layer_width: Width of output head MLP layers.
         skip_connections: Where to add skip connection in base MLP.
     """

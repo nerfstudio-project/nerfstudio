@@ -87,7 +87,7 @@ class Pipeline(nn.Module):
         device: location to place model and data
         test_mode:
             'train': loads train/eval datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
@@ -165,11 +165,12 @@ class Pipeline(nn.Module):
     def get_average_eval_image_metrics(self, step: Optional[int] = None):
         """Iterate over all the images in the eval dataset and get the average."""
 
-    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+    def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
 
         Args:
             loaded_state: pre-trained model state dict
+            step: training step of the loaded checkpoint
         """
 
     def get_training_callbacks(
@@ -214,7 +215,7 @@ class VanillaPipeline(Pipeline):
         device: location to place model and data
         test_mode:
             'val': loads train/val datasets into memory
-            'test': loads train/test datset into memory
+            'test': loads train/test dataset into memory
             'inference': does not load any dataset into memory
         world_size: total number of machines available
         local_rank: rank of current machine
@@ -468,11 +469,12 @@ class VanillaPipeline(Pipeline):
         self.train()
         return metrics_dict
 
-    def load_pipeline(self, loaded_state: Dict[str, Any]) -> None:
+    def load_pipeline(self, loaded_state: Dict[str, Any], step: int) -> None:
         """Load the checkpoint from the given path
 
         Args:
             loaded_state: pre-trained model state dict
+            step: training step of the loaded checkpoint
         """
         state = {key.replace("module.", ""): value for key, value in loaded_state.items()}
         if self.test_mode == "inference":
@@ -482,7 +484,8 @@ class VanillaPipeline(Pipeline):
             state.pop("datamanager.eval_camera_optimizer.pose_adjustment", None)
             state.pop("datamanager.eval_ray_generator.image_coords", None)
             state.pop("datamanager.eval_ray_generator.pose_optimizer.pose_adjustment", None)
-        self.load_state_dict(state)  # type: ignore
+        self._model.update_to_step(step)
+        self.load_state_dict(state, strict=False)
 
     def get_training_callbacks(
         self, training_callback_attributes: TrainingCallbackAttributes
