@@ -48,7 +48,9 @@ export function RenderControls() {
     (state) => state.renderingState.crop_enabled,
   );
 
-  const box_size = useSelector((state) => state.renderingState.box_size);
+  const crop_bg_color = useSelector(
+    (state) => state.renderingState.crop_bg_color,
+  );
 
   const crop_scale = useSelector((state) => state.renderingState.crop_scale);
 
@@ -154,7 +156,7 @@ export function RenderControls() {
         '2048px': () => setControls({ max_resolution: 2048 }),
       }),
       // Enable Crop
-      crop_options: {
+      crop_enabled: {
         label: 'Crop Viewport',
         value: crop_enabled,
         hint: 'Crop the viewport to the selected box',
@@ -167,13 +169,26 @@ export function RenderControls() {
           );
         },
       },
+      crop_bg_color: {
+        label: '| Background Color',
+        value: crop_bg_color,
+        render: (get) => get('crop_enabled'),
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/crop_bg_color',
+            v,
+          );
+        },
+      },
       crop_scale: {
         label: '|  Scale',
         value: crop_scale,
         min: 0,
         max: 10,
         step: 0.05,
-        render: (get) => get('crop_options'),
+        render: (get) => get('crop_enabled'),
         onChange: (v) => {
           dispatch_and_send(
             websocket,
@@ -189,7 +204,7 @@ export function RenderControls() {
         min: -10,
         max: 10,
         step: 0.05,
-        render: (get) => get('crop_options'),
+        render: (get) => get('crop_enabled'),
         onChange: (v) => {
           dispatch_and_send(
             websocket,
@@ -227,7 +242,6 @@ export function RenderControls() {
       colormapChoice,
       max_resolution,
       crop_enabled,
-      box_size,
       target_train_util,
       render_time,
       display_render_time,
@@ -239,6 +253,10 @@ export function RenderControls() {
     setControls({ max_resolution });
     setControls({ output_options: outputChoice });
     setControls({ colormap_options: colormapChoice });
+    setControls({ crop_enabled });
+    setControls({ crop_bg_color });
+    setControls({ crop_scale });
+    setControls({ crop_center });
   }, [
     setControls,
     outputOptions,
@@ -248,6 +266,10 @@ export function RenderControls() {
     max_resolution,
     target_train_util,
     render_time,
+    crop_enabled,
+    crop_bg_color,
+    crop_scale,
+    crop_center,
     display_render_time,
   ]);
 

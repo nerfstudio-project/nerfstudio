@@ -18,12 +18,8 @@ const msgpack = require('msgpack-lite');
 
 function CameraToggle() {
   const dispatch = useDispatch();
-  const websocket = useContext(WebSocketContext).socket;
   const camera_choice = useSelector(
     (state) => state.renderingState.camera_choice,
-  );
-  const crop_enabled = useSelector(
-    (state) => state.renderingState.crop_enabled,
   );
   const set_camera_choice = (event: SelectChangeEvent, value: string[]) => {
     if (value != null) {
@@ -32,21 +28,6 @@ function CameraToggle() {
         path: 'renderingState/camera_choice',
         data: value,
       });
-      if (websocket.readyState === WebSocket.OPEN) {
-        const path = 'renderingState/crop_enabled';
-        const data = {
-          type: 'write',
-          path,
-          data: false,
-        };
-        if (value === 'Render Camera') {
-          data.data = false;
-        } else {
-          data.data = crop_enabled;
-        }
-        const message = msgpack.encode(data);
-        websocket.send(message);
-      }
     }
   };
 

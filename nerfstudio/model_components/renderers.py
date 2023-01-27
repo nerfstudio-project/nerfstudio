@@ -39,19 +39,19 @@ from typing_extensions import Literal
 from nerfstudio.cameras.rays import RaySamples
 from nerfstudio.utils.math import components_from_spherical_harmonics
 
-BACKGROUND_MODE_OVERRIDE: Optional[Literal["last_sample", "black", "random"]] = None
+BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
 
 
 @contextlib.contextmanager
-def background_mode_override_context(mode: Literal["last_sample", "black"]) -> Generator[None, None, None]:
+def background_color_override_context(mode: TensorType[3]) -> Generator[None, None, None]:
     """Context manager for setting background mode."""
-    global BACKGROUND_MODE_OVERRIDE  # pylint: disable=global-statement
-    old_background_mode = BACKGROUND_MODE_OVERRIDE
+    global BACKGROUND_COLOR_OVERRIDE  # pylint: disable=global-statement
+    old_background_color = BACKGROUND_COLOR_OVERRIDE
     try:
-        BACKGROUND_MODE_OVERRIDE = mode
+        BACKGROUND_COLOR_OVERRIDE = mode
         yield
     finally:
-        BACKGROUND_MODE_OVERRIDE = old_background_mode
+        BACKGROUND_COLOR_OVERRIDE = old_background_color
 
 
 class RGBRenderer(nn.Module):
@@ -96,8 +96,8 @@ class RGBRenderer(nn.Module):
             comp_rgb = torch.sum(weights * rgb, dim=-2)
             accumulated_weight = torch.sum(weights, dim=-2)
 
-        if BACKGROUND_MODE_OVERRIDE is not None:
-            background_color = BACKGROUND_MODE_OVERRIDE
+        if BACKGROUND_COLOR_OVERRIDE is not None:
+            background_color = BACKGROUND_COLOR_OVERRIDE
         if background_color == "last_sample":
             background_color = rgb[..., -1, :]
         if background_color == "random":
@@ -129,6 +129,8 @@ class RGBRenderer(nn.Module):
             Outputs of rgb values.
         """
 
+        if not self.training:
+            rgb = torch.nan_to_num(rgb)
         rgb = self.combine_rgb(
             rgb, weights, background_color=self.background_color, ray_indices=ray_indices, num_rays=num_rays
         )
@@ -182,7 +184,11 @@ class SHRenderer(nn.Module):
         if self.activation is not None:
             self.activation(rgb)
 
+        if not self.training:
+            rgb = torch.nan_to_num(rgb)
         rgb = RGBRenderer.combine_rgb(rgb, weights, background_color=self.background_color)
+        if not self.training:
+            torch.clamp_(rgb, min=0.0, max=1.0)
 
         return rgb
 
