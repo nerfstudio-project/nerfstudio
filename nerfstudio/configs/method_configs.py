@@ -47,6 +47,7 @@ from nerfstudio.field_components.temporal_distortions import TemporalDistortionK
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
+from nerfstudio.models.nerfacto_4k import Nerfacto4KModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
@@ -68,7 +69,7 @@ descriptions = {
 }
 
 method_configs["nerfacto-4k"] = ExperimentConfig(
-    method_name="nerfacto",
+    method_name="nerfacto-4k",
     trainer=TrainerConfig(
         steps_per_eval_batch=500, steps_per_save=2000, max_num_iterations=30000, mixed_precision=True
     ),
@@ -83,7 +84,7 @@ method_configs["nerfacto-4k"] = ExperimentConfig(
             pixel_sampling="patch",
             pixel_patch_size=8,
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=Nerfacto4KModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
         "proposal_networks": {

@@ -18,19 +18,12 @@ NeRF implementation that combines many recent advancements, optimized for hi-res
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Tuple
+from dataclasses import dataclass, field
+from typing import Dict, Tuple, Type
 
 import torch
 
-from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.field_components.field_heads import FieldHeadNames
-from nerfstudio.model_components.losses import (
-    distortion_loss,
-    interlevel_loss,
-    orientation_loss,
-    pred_normal_loss,
-)
+from nerfstudio.model_components.losses import L1Loss, PerceptualLoss, interlevel_loss
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 from nerfstudio.utils import colormaps
 
@@ -38,6 +31,12 @@ from nerfstudio.utils import colormaps
 @dataclass
 class Nerfacto4KModelConfig(NerfactoModelConfig):
     """Nerfacto-4K Model Config"""
+
+    _target: Type = field(default_factory=lambda: Nerfacto4KModel)
+    l1_loss_mult: float = 1.0
+    """Proposal loss multiplier."""
+    perceptual_loss_mult: float = 0.5
+    """Distortion loss multiplier."""
 
 
 class Nerfacto4KModel(NerfactoModel):
@@ -52,61 +51,18 @@ class Nerfacto4KModel(NerfactoModel):
     def populate_modules(self):
         """Set the fields and modules."""
         super().populate_modules()
-
-    def get_outputs(self, ray_bundle: RayBundle):
-        ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
-        field_outputs = self.field(ray_samples, compute_normals=self.config.predict_normals)
-        weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
-        weights_list.append(weights)
-        ray_samples_list.append(ray_samples)
-
-        rgb = self.renderer_rgb(rgb=field_outputs[FieldHeadNames.RGB], weights=weights)
-        depth = self.renderer_depth(weights=weights, ray_samples=ray_samples)
-        accumulation = self.renderer_accumulation(weights=weights)
-
-        outputs = {
-            "rgb": rgb,
-            "accumulation": accumulation,
-            "depth": depth,
-        }
-
-        if self.config.predict_normals:
-            outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-            outputs["pred_normals"] = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
-
-        # These use a lot of GPU memory, so we avoid storing them for eval.
-        if self.training:
-            outputs["weights_list"] = weights_list
-            outputs["ray_samples_list"] = ray_samples_list
-
-        if self.training and self.config.predict_normals:
-            outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
-            )
-
-            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-                weights.detach(),
-                field_outputs[FieldHeadNames.NORMALS].detach(),
-                field_outputs[FieldHeadNames.PRED_NORMALS],
-            )
-
-        for i in range(self.config.num_proposal_iterations):
-            outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
-
-        return outputs
-
-    def get_metrics_dict(self, outputs, batch):
-        metrics_dict = {}
-        image = batch["image"].to(self.device)
-        metrics_dict["psnr"] = self.psnr(outputs["rgb"], image)
-        if self.training:
-            metrics_dict["distortion"] = distortion_loss(outputs["weights_list"], outputs["ray_samples_list"])
-        return metrics_dict
+        self.l1_loss = L1Loss()
+        layer_weights = {"conv1_2": 0, "conv2_2": 0, "conv3_4": 1, "conv4_4": 1, "conv5_4": 1}
+        print("we got here.")
+        self.perceptual_loss = PerceptualLoss(layer_weights=layer_weights)
+        print("we got here 2.")
 
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
         loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        loss_dict["l1_loss"] = self.config.l1_loss_mult * self.l1_loss(image, outputs["rgb"])
+        # print(image.shape)
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]

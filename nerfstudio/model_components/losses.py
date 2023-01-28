@@ -17,6 +17,7 @@ Collection of Losses.
 """
 
 import torch
+from basicsr import losses as basicsr_losses
 from torch import nn
 from torchtyping import TensorType
 
@@ -24,6 +25,8 @@ from nerfstudio.cameras.rays import RaySamples
 
 L1Loss = nn.L1Loss
 MSELoss = nn.MSELoss
+PerceptualLoss = basicsr_losses.basic_loss.PerceptualLoss
+
 
 LOSSES = {"L1": L1Loss, "MSE": MSELoss}
 
