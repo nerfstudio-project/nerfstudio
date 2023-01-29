@@ -184,7 +184,8 @@ class NerfactoModel(Model):
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer()
+        self.renderer_depth = DepthRenderer(method='expected')
+        self.renderer_truncdepth = DepthRenderer(method='median')
         self.renderer_normals = NormalsRenderer()
 
         # losses
@@ -230,7 +231,17 @@ class NerfactoModel(Model):
                     func=self.proposal_sampler.step_cb,
                 )
             )
+            callbacks.append(
+                TrainingCallback(
+                    where_to_run=[TrainingCallbackLocation.BEFORE_TRAIN_ITERATION],
+                    update_every_num_iters=1,
+                    func=self.set_step
+                )
+            )
         return callbacks
+
+    def set_step(self,step):
+        self.step=step
 
     def get_outputs(self, ray_bundle: RayBundle):
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
@@ -248,6 +259,8 @@ class NerfactoModel(Model):
             "accumulation": accumulation,
             "depth": depth,
         }
+        with torch.no_grad():
+            outputs['depth_truncated']=self.renderer_truncdepth(weights=weights, ray_samples=ray_samples)
 
         if self.config.predict_normals:
             outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
@@ -302,6 +315,12 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
+            #depth regularity loss
+            if self.step>100:
+                p=3
+                patches = outputs['depth'].view(-1,p,p) #Bx3x3
+                loss_dict['depth_reg'] = .1*torch.mean(torch.sum((patches.view(-1,p*p) - patches[:,p//2,p//2][:,None])**2,dim=1))
+
         return loss_dict
 
     def get_image_metrics_and_images(

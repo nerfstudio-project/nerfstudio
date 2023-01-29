@@ -615,7 +615,8 @@ class ViewerState:
                 if OutputTypes.ACCUMULATION in self.output_list
                 else OutputTypes.ACCUMULATION_FINE
             )
-            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
+            return colormaps.apply_depth_colormap(outputs[reformatted_output], 
+                accumulation=outputs[accumulation_str],near_plane=.1,far_plane=2)
 
         # rendering accumulation outputs
         if self.prev_colormap_type == ColormapTypes.TURBO or (

@@ -99,7 +99,6 @@ class PixelSampler:  # pylint: disable=too-few-public-methods
         collated_batch = {
             key: value[c, y, x] for key, value in batch.items() if key != "image_idx" and value is not None
         }
-
         assert collated_batch["image"].shape == (num_rays_per_batch, 3), collated_batch["image"].shape
 
         # Needed to correct the random indices to their actual camera idx locations.
@@ -241,5 +240,47 @@ class EquirectangularPixelSampler(PixelSampler):  # pylint: disable=too-few-publ
                 torch.stack((num_images_rand, phi_rand, theta_rand), dim=-1)
                 * torch.tensor([num_images, image_height, image_width], device=device)
             ).long()
+
+        return indices
+
+class PatchPixelSampler(PixelSampler):  # pylint: disable=too-few-public-methods
+    """todo"""
+
+    def __init__(self, num_rays_per_batch: int, keep_full_image: bool = False, **kwargs) -> None:
+        self.patch_size = kwargs["patch_size"]
+        num_rays = (num_rays_per_batch//(self.patch_size**2))*(self.patch_size**2)
+        super().__init__(num_rays, keep_full_image, **kwargs)
+
+    # overrides base method
+    def sample_method(  # pylint: disable=no-self-use
+        self,
+        batch_size: int,
+        num_images: int,
+        image_height: int,
+        image_width: int,
+        mask: Optional[TensorType] = None,
+        device: Union[torch.device, str] = "cpu",
+    ) -> TensorType["batch_size", 3]:
+
+        if mask:
+            # Note: if there is a mask, sampling reduces back to uniform sampling
+            indices = super().sample_method(batch_size, num_images, image_height, image_width, mask=mask, device=device)
+        else:
+            sub_bs = batch_size // (self.patch_size**2)
+            indices = torch.rand((sub_bs, 3), device=device) * torch.tensor(
+                [num_images, image_height - self.patch_size, image_width - self.patch_size],
+                device=device,
+            )
+
+            indices = indices.view(sub_bs, 1, 1, 3).broadcast_to(sub_bs, self.patch_size, self.patch_size, 3).clone()
+
+            yys, xxs = torch.meshgrid(
+                torch.arange(self.patch_size, device=device), torch.arange(self.patch_size, device=device)
+            )
+            indices[:, ..., 1] += yys
+            indices[:, ..., 2] += xxs
+
+            indices = torch.floor(indices).long()
+            indices = indices.flatten(0, 2)
 
         return indices
