@@ -26,7 +26,7 @@ mipnerf360_table_rows = [
     (
         "nerfacto-w/o-pose-app",
         "nerfacto",
-        "--pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False nerfstudio-data --downscale-factor 4 --train-split-percentage 0.875 mipnerf360-data",
+        "--pipeline.eval_optimize_cameras False --pipeline.eval_optimize_appearance False --pipeline.datamanager.camera-optimizer.mode off --pipeline.model.use-appearance-embedding False mipnerf360-data",
     ),
 ]
 
@@ -131,10 +131,10 @@ def launch_experiments(capture_names, table_rows, data_path: Path = Path("data/n
             command = f"CUDA_VISIBLE_DEVICES={gpu} " + jobs.pop(0)
 
             def task():
-                print("Starting command: ", command)
+                print("Starting command:\n", command)
                 if not dry_run:
                     _ = run_command(command, verbose=False)
-                print("Finished command: ", command)
+                print("Finished command:\n", command)
 
             threads.append(threading.Thread(target=task))
             threads[-1].start()
@@ -156,7 +156,7 @@ class Benchmark(PrintableConfig):
 
     dry_run: bool = False
 
-    def main(self) -> None:
+    def main(self, dry_run: bool = False) -> None:
         """Run the code."""
         raise NotImplementedError
 
@@ -167,7 +167,10 @@ class BenchmarkMipNeRF360(Benchmark):
 
     def main(self, dry_run: bool = False):
         launch_experiments(
-            mipnerf360_capture_names, mipnerf360_table_rows, data_path=Path("data/nerfstudio-data-mipnerf360", dry_run=dry_run)
+            mipnerf360_capture_names,
+            mipnerf360_table_rows,
+            data_path=Path("data/nerfstudio-data-mipnerf360"),
+            dry_run=dry_run,
         )
 
 
@@ -195,7 +198,6 @@ def main(
     Args:
         benchmark: The benchmark to run.
     """
-
     benchmark.main(dry_run=benchmark.dry_run)
 
 
