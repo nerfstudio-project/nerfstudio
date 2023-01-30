@@ -65,8 +65,6 @@ class FriendsDownload(DatasetDownload):
     """Download the friends dataset."""
 
     def download(self, save_dir: Path):
-        """Download the friends dataset."""
-
         # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
         friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
 
@@ -81,13 +79,10 @@ class FriendsDownload(DatasetDownload):
 
 @dataclass
 class Mipnerf360Download(DatasetDownload):
-    """Download the friends dataset."""
+    """Download the MIP-NeRF 360 dataset."""
 
     def download(self, save_dir: Path):
-        """Download the friends dataset."""
-
-        # https://drive.google.com/file/d/1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5/view?usp=sharing
-        friends_file_id = "1sgKr0ZO7BQC0FYinAnRSxobIWNucAST5"
+        """Download the MIP-NeRF 360 dataset."""
 
         # Download the files
         url = "https://data.nerf.studio/nerfstudio-data-mipnerf360.zip"
@@ -275,13 +270,11 @@ PhototourismCaptureName = tyro.extras.literal_type_from_choices(phototourism_dow
 
 @dataclass
 class PhototourismDownload(DatasetDownload):
-    """Download the phototourism dataset."""
+    """Download the phototourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
 
     capture_name: PhototourismCaptureName = "brandenburg-gate"
 
     def download(self, save_dir: Path):
-        """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
-
         if self.capture_name == "all":
             for capture_name in phototourism_downloads:
                 if capture_name != "all":

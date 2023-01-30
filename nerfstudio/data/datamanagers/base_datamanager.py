@@ -398,7 +398,6 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
             num_cameras=self.eval_dataset.cameras.size, device=self.device
         )
         self.eval_ray_generator = RayGenerator(self.eval_dataset.cameras.to(self.device), self.eval_camera_optimizer)
-        # TODO(ethan): remove use of self.eval_dataloader from the spiral trajectory code
 
     def next_train(self, step: int) -> Tuple[RayBundle, Dict]:
         """Returns the next batch of data from the train dataloader."""

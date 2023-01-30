@@ -283,10 +283,11 @@ class RenderTrajectory:
         seconds = self.seconds
         crop_data = None
 
-        # TODO(ethan): use camera information from parsing args
         if self.traj == "spiral":
-            camera_start = pipeline.datamanager.eval_dataloader.get_camera(image_idx=0).flatten()
-            # TODO(ethan): pass in the up direction of the camera
+            # TODO(ethan): use camera information provided from arguments
+            # - camera index instead of defaulting to 0
+            # - up direction of the camera
+            camera_start = pipeline.datamanager.eval_dataset.cameras[0].flatten()
             camera_type = CameraType.PERSPECTIVE
             camera_path = get_spiral_path(camera_start, steps=30, radius=0.1)
         elif self.traj == "filename":

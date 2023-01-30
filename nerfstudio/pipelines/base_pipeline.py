@@ -33,12 +33,10 @@ from rich.progress import (
     Progress,
     TextColumn,
     TimeElapsedColumn,
-    track,
 )
 from torch import nn
 from torch.nn import Parameter
 from torch.nn.parallel import DistributedDataParallel as DDP
-from tqdm import tqdm
 from typing_extensions import Literal
 
 from nerfstudio.configs import base_config as cfg
@@ -331,8 +329,8 @@ class VanillaPipeline(Pipeline):
         self.train()
         return metrics_dict, images_dict
 
-    def get_eval_optimize_camera_camera_ray_bundle(self, idx):
-        # start optimizing camera pose
+    def eval_optimize_camera(self, idx):
+        """Optimize the camera pose."""
         # TODO: raise error if the method is not Nerfacto
 
         # get the eval camera optimizer's parameters
@@ -362,11 +360,11 @@ class VanillaPipeline(Pipeline):
         self.eval()
         # done optimizing camera pose
 
-        return camera_ray_bundle
-
-    def get_eval_optimize_appearance_camera_ray_bundle(self, idx):
-        # start optimizing appearance embedding
+    def get_eval_optimize_appearance(self, idx):
+        """Optimize the appearance embedding."""
         # TODO: raise error if the method is not Nerfacto
+
+        # start optimizing appearance embedding
         self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(self.config.eval_image_scale_factor)
         self.train()
 
@@ -376,7 +374,6 @@ class VanillaPipeline(Pipeline):
         optimizer = torch.optim.Adam(appearance_parameters, lr=1e-3, eps=1e-15)
 
         side = random.choice([0, 1])
-        half_width = width // 2
         rgb_loss = MSELoss()
 
         for _ in range(self.config.eval_num_appearance_iters):
@@ -386,6 +383,9 @@ class VanillaPipeline(Pipeline):
                 idx, scale_factor=self.config.eval_image_scale_factor
             )
             outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+            _, width = camera_ray_bundle.shape
+            half_width = width // 2
 
             # compute loss on half the image
             image = batch["image"].to(self.device)
@@ -422,17 +422,17 @@ class VanillaPipeline(Pipeline):
         ) as progress:
             task = progress.add_task("[green]Evaluating all eval images...", total=num_images)
             for idx in range(num_images):
-                camera_ray_bundle, batch = self.datamanager.get_eval_image(idx)
                 # time this the following line
                 inner_start = time()
-                height, width = camera_ray_bundle.shape
-                num_rays = height * width
 
                 if self.config.eval_optimize_cameras:
-                    camera_ray_bundle = self.get_eval_optimize_camera_camera_ray_bundle(idx)
+                    self.eval_optimize_camera(idx)
                 if self.config.eval_optimize_appearance:
-                    camera_ray_bundle = self.get_eval_optimize_appearance_camera_ray_bundle(idx)
-                # at this point, camera_ray_bundle might be optimized for pose and/or appearance embedding
+                    self.get_eval_optimize_appearance(idx)
+
+                camera_ray_bundle, batch = self.datamanager.get_eval_image(idx)
+                height, width = camera_ray_bundle.shape
+                num_rays = height * width
 
                 with torch.no_grad():
                     outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)

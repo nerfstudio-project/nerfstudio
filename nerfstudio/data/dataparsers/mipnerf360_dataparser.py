@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 from typing import Optional, Type
@@ -60,15 +59,15 @@ class Mipnerf360DataParserConfig(DataParserConfig):
     """Whether to center the poses."""
     auto_scale_poses: bool = True
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
-    train_split_percentage: float = 0.9
-    """The percent of images to use for training. The remaining images are for eval."""
+    eval_interval: int = 8
+    """The interval which eval images will be sampled."""
 
 
 @dataclass
 class Mipnerf360(DataParser):
     """Mipnerf360 DatasetParser"""
 
-    config: NerfstudioDataParserConfig
+    config: Mipnerf360DataParserConfig
     downscale_factor: Optional[int] = None
 
     def _generate_dataparser_outputs(self, split="train"):
@@ -106,6 +105,7 @@ class Mipnerf360(DataParser):
         distort = []
 
         # sort the frames by fname
+        # they do this in mipnerf360 code
         fnames = []
         for frame in meta["frames"]:
             filepath = PurePath(frame["file_path"])
@@ -181,11 +181,10 @@ class Mipnerf360(DataParser):
         # filter image_filenames and poses based on train/eval split percentage
         num_images = len(image_filenames)
 
-        # mipnerf360 code...
-        # TODO: add parameters for this...
+        # this chunk of code is very similar to the mipnerf360 code
         all_indices = np.arange(num_images)
-        train_indices = all_indices[all_indices % 8 != 0]
-        eval_indices = all_indices[all_indices % 8 == 0]
+        train_indices = all_indices[all_indices % self.config.eval_interval != 0]
+        eval_indices = all_indices[all_indices % self.config.eval_interval == 0]
         i_train = train_indices
         i_eval = eval_indices
 

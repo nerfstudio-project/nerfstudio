@@ -55,7 +55,7 @@ from nerfstudio.model_components.renderers import (
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider, NearFarCollider
 from nerfstudio.models.base_model import Model, ModelConfig
-from nerfstudio.utils import colormaps, colors
+from nerfstudio.utils import colormaps
 
 
 @dataclass

@@ -81,7 +81,7 @@ class CameraOptimizer(nn.Module):
         self.initialize_parameters()
 
     def initialize_parameters(self) -> None:
-        # Initialize learnable parameters.
+        """Initialize learnable parameters."""
         if self.config.mode == "off":
             pass
         elif self.config.mode in ("SO3xR3", "SE3"):

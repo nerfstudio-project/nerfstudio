@@ -79,7 +79,8 @@ class Optimizers:
         for param_group_name, params in param_groups.items():
             if param_group_name not in config:
                 CONSOLE.print(
-                    f"[bold yellow]Warning: Skipping param group '{param_group_name}' because optimizer and scheduler are not in the config."
+                    f"[bold yellow]Warning: Skipping param group '{param_group_name}'",
+                    "[bold yellow]because optimizer and scheduler aren't in config.",
                 )
                 continue
             lr_init = config[param_group_name]["optimizer"].lr
