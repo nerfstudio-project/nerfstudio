@@ -57,7 +57,7 @@ class AABBBoxCollider(SceneCollider):
         self.near_plane = near_plane
 
     def _intersect_with_aabb(
-        self, rays_o: TensorType["num_rays":..., 3], rays_d: TensorType["num_rays":..., 3], aabb: TensorType[2, 3]
+        self, rays_o: TensorType["num_rays", 3], rays_d: TensorType["num_rays", 3], aabb: TensorType[2, 3]
     ):
         """Returns collection of valid rays within a specified near/far bounding box along with a mask
         specifying which rays are valid
@@ -71,14 +71,14 @@ class AABBBoxCollider(SceneCollider):
         dir_fraction = 1.0 / (rays_d + 1e-6)
 
         # x
-        t1 = (aabb[0, 0] - rays_o[..., 0:1]) * dir_fraction[..., 0:1]
-        t2 = (aabb[1, 0] - rays_o[..., 0:1]) * dir_fraction[..., 0:1]
+        t1 = (aabb[0, 0] - rays_o[:, 0:1]) * dir_fraction[:, 0:1]
+        t2 = (aabb[1, 0] - rays_o[:, 0:1]) * dir_fraction[:, 0:1]
         # y
-        t3 = (aabb[0, 1] - rays_o[..., 1:2]) * dir_fraction[..., 1:2]
-        t4 = (aabb[1, 1] - rays_o[..., 1:2]) * dir_fraction[..., 1:2]
+        t3 = (aabb[0, 1] - rays_o[:, 1:2]) * dir_fraction[:, 1:2]
+        t4 = (aabb[1, 1] - rays_o[:, 1:2]) * dir_fraction[:, 1:2]
         # z
-        t5 = (aabb[0, 2] - rays_o[..., 2:3]) * dir_fraction[..., 2:3]
-        t6 = (aabb[1, 2] - rays_o[..., 2:3]) * dir_fraction[..., 2:3]
+        t5 = (aabb[0, 2] - rays_o[:, 2:3]) * dir_fraction[:, 2:3]
+        t6 = (aabb[1, 2] - rays_o[:, 2:3]) * dir_fraction[:, 2:3]
 
         nears = torch.max(
             torch.cat([torch.minimum(t1, t2), torch.minimum(t3, t4), torch.minimum(t5, t6)], dim=1), dim=1
