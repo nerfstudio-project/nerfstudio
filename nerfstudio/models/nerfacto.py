@@ -137,8 +137,7 @@ class NerfactoModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
-        # TODO(ethan): flag to enable scene contraction or not
-
+        # flag to enable scene contraction or not
         if self.config.use_scene_contraction:
             if self.config.scene_contraction_norm == "inf":
                 order = float("inf")
@@ -169,8 +168,7 @@ class NerfactoModel(Model):
         # Build the proposal network(s)
         self.proposal_networks = torch.nn.ModuleList()
         if self.config.use_same_proposal_network:
-            # assert len(self.config.proposal_net_args_list) == 1, "Only one proposal network is allowed."
-            # using the last defined proposal network
+            # use the last defined proposal network
             prop_net_args = self.config.proposal_net_args_list[-1]
             network = HashMLPDensityField(self.scene_box.aabb, spatial_distortion=scene_contraction, **prop_net_args)
             self.proposal_networks.append(network)

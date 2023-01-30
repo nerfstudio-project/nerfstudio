@@ -340,7 +340,6 @@ class VanillaPipeline(Pipeline):
         param_groups = self.datamanager.get_param_groups()
         optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=1e-3, eps=1e-15)
 
-        # CONSOLE.print("Optimizing camera poses...")
         # rescale the image to 1/4 resolution
         self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(self.config.eval_image_scale_factor)
         self.train()

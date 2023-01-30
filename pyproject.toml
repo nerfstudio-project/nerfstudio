@@ -105,7 +105,7 @@ dependency_links = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["nerfstudio*","scripts*"]
+include = ["nerfstudio*","scripts*","projects*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "py.typed", "setup.bash", "setup.zsh"]
