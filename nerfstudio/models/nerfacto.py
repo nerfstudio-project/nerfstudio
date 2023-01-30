@@ -316,10 +316,9 @@ class NerfactoModel(Model):
                     outputs["rendered_pred_normal_loss"]
                 )
             #depth regularity loss
-            if self.step>100:
-                p=3
-                patches = outputs['depth'].view(-1,p,p) #Bx3x3
-                loss_dict['depth_reg'] = .1*torch.mean(torch.sum((patches.view(-1,p*p) - patches[:,p//2,p//2][:,None])**2,dim=1))
+            p=3
+            patches = outputs['depth'].view(-1,p,p) #Bx3x3
+            loss_dict['depth_reg'] = np.interp(self.step,[0,500],[0,1])*torch.mean(torch.sum((patches.view(-1,p*p) - patches[:,p//2,p//2][:,None])**2,dim=1))
 
         return loss_dict
 
