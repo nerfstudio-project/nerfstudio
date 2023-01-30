@@ -127,8 +127,8 @@ def main(capture_names, table_rows, data_path: Path = Path("data/nerfstudio")):
 
             def task():
                 print("Starting command: ", command)
-                out = run_command(command, verbose=False)
-                print("Finished command: ", command)
+                # out = run_command(command, verbose=False)
+                # print("Finished command: ", command)
 
             threads.append(threading.Thread(target=task))
             threads[-1].start()

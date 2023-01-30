@@ -331,6 +331,78 @@ class VanillaPipeline(Pipeline):
         self.train()
         return metrics_dict, images_dict
 
+    def get_eval_optimize_camera_camera_ray_bundle(self, idx):
+        # start optimizing camera pose
+        # TODO: raise error if the method is not Nerfacto
+
+        # get the eval camera optimizer's parameters
+        camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_eval"
+        # reinitialize the parameters
+        self.datamanager.eval_camera_optimizer.initialize_parameters()
+        param_groups = self.datamanager.get_param_groups()
+        optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=1e-3, eps=1e-15)
+
+        # CONSOLE.print("Optimizing camera poses...")
+        # rescale the image to 1/4 resolution
+        self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(self.config.eval_image_scale_factor)
+        self.train()
+        for _ in range(self.config.eval_num_pose_iters):
+            # optimize the ray generator's camera optimizer
+            optimizer.zero_grad()
+            camera_ray_bundle, batch = self.datamanager.get_eval_image(
+                idx, scale_factor=self.config.eval_image_scale_factor
+            )
+            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+            metrics_dict = self.model.get_metrics_dict(outputs, batch)
+            loss_dict = self.model.get_loss_dict(outputs, batch, metrics_dict)
+
+            loss_dict["rgb_loss"].backward()
+            optimizer.step()
+        self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / self.config.eval_image_scale_factor)
+        self.eval()
+        # done optimizing camera pose
+
+        return camera_ray_bundle
+
+    def get_eval_optimize_appearance_camera_ray_bundle(self, idx):
+        # start optimizing appearance embedding
+        # TODO: raise error if the method is not Nerfacto
+        self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(self.config.eval_image_scale_factor)
+        self.train()
+
+        # initial the parameters as the mean appearance embedding
+        self.model.field.initialize_embedding_appearance_eval()
+        appearance_parameters = self.model.field.embedding_appearance_eval.parameters()
+        optimizer = torch.optim.Adam(appearance_parameters, lr=1e-3, eps=1e-15)
+
+        side = random.choice([0, 1])
+        half_width = width // 2
+        rgb_loss = MSELoss()
+
+        for _ in range(self.config.eval_num_appearance_iters):
+            # optimize the fields appearance embeddin's
+            optimizer.zero_grad()
+            camera_ray_bundle, batch = self.datamanager.get_eval_image(
+                idx, scale_factor=self.config.eval_image_scale_factor
+            )
+            outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
+
+            # compute loss on half the image
+            image = batch["image"].to(self.device)
+            if side == 0:
+                loss = rgb_loss(image[:, :half_width], outputs["rgb"][:, :half_width])
+            else:
+                loss = rgb_loss(image[:, half_width:], outputs["rgb"][:, half_width:])
+
+            loss.backward()
+            optimizer.step()
+
+        self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(1.0 / self.config.eval_image_scale_factor)
+        # delete the appearance embedding
+        self.model.field.embedding_appearance_eval = None
+        self.eval()
+        # done optimizing appearance embedding
+
     @profiler.time_function
     def get_average_eval_image_metrics(self, step: Optional[int] = None):
         """Iterate over all the images in the eval dataset and get the average.
@@ -356,99 +428,11 @@ class VanillaPipeline(Pipeline):
                 height, width = camera_ray_bundle.shape
                 num_rays = height * width
 
-                # optimize camera poses on full image
                 if self.config.eval_optimize_cameras:
-
-                    # raise error if the method not nerfacto
-
-                    # get the eval camera optimizer's parameters
-                    camera_opt_param_group = self.config.datamanager.camera_optimizer.param_group + "_eval"
-                    # reinitialize the parameters
-                    self.datamanager.eval_camera_optimizer.initialize_parameters()
-                    param_groups = self.datamanager.get_param_groups()
-                    optimizer = torch.optim.Adam(param_groups[camera_opt_param_group], lr=1e-3, eps=1e-15)
-
-                    # # check that camera optimizer is on
-                    # if self.config.datamanager.camera_optimizer.mode == "off":
-                    #     raise ValueError(
-                    #         "You must set datamanager.camera_optimizer.mode to optimize to optimize the camera poses."
-                    #     )
-
-                    # CONSOLE.print("Optimizing camera poses...")
-                    # rescale the image to 1/4 resolution
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
-                        self.config.eval_image_scale_factor
-                    )
-                    self.train()
-                    for _ in range(self.config.eval_num_pose_iters):
-                        # optimize the ray generator's camera optimizer
-                        optimizer.zero_grad()
-                        camera_ray_bundle, batch = self.datamanager.get_eval_image(
-                            idx, scale_factor=self.config.eval_image_scale_factor
-                        )
-                        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                        metrics_dict = self.model.get_metrics_dict(outputs, batch)
-                        loss_dict = self.model.get_loss_dict(outputs, batch, metrics_dict)
-
-                        # save the image
-                        # import mediapy as media
-                        # _, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-                        # media.write_image("camera_opt.png", images_dict["img"].detach().cpu().numpy())
-
-                        loss_dict["rgb_loss"].backward()
-                        optimizer.step()
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
-                        1.0 / self.config.eval_image_scale_factor
-                    )
-                    self.eval()
-                    # CONSOLE.print("Done optimizing camera poses.")
-
+                    camera_ray_bundle = self.get_eval_optimize_camera_camera_ray_bundle(idx)
                 if self.config.eval_optimize_appearance:
-                    # CONSOLE.print("Optimizing appearance...")
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
-                        self.config.eval_image_scale_factor
-                    )
-                    self.train()
-
-                    # initial the parameters as the mean appearance embedding
-                    self.model.field.initialize_embedding_appearance_eval()
-                    appearance_parameters = self.model.field.embedding_appearance_eval.parameters()
-                    optimizer = torch.optim.Adam(appearance_parameters, lr=1e-3, eps=1e-15)
-
-                    side = random.choice([0, 1])
-                    half_width = width // 2
-                    rgb_loss = MSELoss()
-
-                    for _ in range(self.config.eval_num_appearance_iters):
-                        optimizer.zero_grad()
-                        camera_ray_bundle, batch = self.datamanager.get_eval_image(
-                            idx, scale_factor=self.config.eval_image_scale_factor
-                        )
-                        outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
-                        metrics_dict = self.model.get_metrics_dict(outputs, batch)
-
-                        # compute loss on half the image
-                        image = batch["image"].to(self.device)
-                        if side == 0:
-                            loss = rgb_loss(image[:, :half_width], outputs["rgb"][:, :half_width])
-                        else:
-                            loss = rgb_loss(image[:, half_width:], outputs["rgb"][:, half_width:])
-
-                        # save the image
-                        # import mediapy as media
-                        # _, images_dict = self.model.get_image_metrics_and_images(outputs, batch)
-                        # media.write_image("appearance_opt.png", images_dict["img"].detach().cpu().numpy())
-
-                        loss.backward()
-                        optimizer.step()
-
-                    self.datamanager.eval_ray_generator.cameras.rescale_output_resolution(
-                        1.0 / self.config.eval_image_scale_factor
-                    )
-                    # delete the appearance embedding
-                    self.model.field.embedding_appearance_eval = None
-                    self.eval()
-                    # CONSOLE.print("Done optimizing appearance.")
+                    camera_ray_bundle = self.get_eval_optimize_appearance_camera_ray_bundle(idx)
+                # at this point, camera_ray_bundle might be optimized for pose and/or appearance embedding
 
                 with torch.no_grad():
                     outputs = self.model.get_outputs_for_camera_ray_bundle(camera_ray_bundle)
