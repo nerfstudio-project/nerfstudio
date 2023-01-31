@@ -81,7 +81,7 @@ For more complex changes (e.g., running with your own data/setting up a new NeRF
 
 ### Prerequisites
 
-CUDA must be installed on the system. This library has been tested with version 11.3. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
+You must have an NVIDIA video card with CUDA installed on the system. This library has been tested with version 11.3 of CUDA. You can find more information about installing CUDA [here](https://docs.nvidia.com/cuda/cuda-quick-start-guide/index.html)
 
 ### Create environment
 
