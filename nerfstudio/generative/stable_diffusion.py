@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# From https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
+"""Stable Diffusion helpers"""
+
+# https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py used as reference
 
 import sys
 from pathlib import Path
@@ -245,10 +247,10 @@ class StableDiffusion(nn.Module):
 
     def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", "2N", "H", "W"]:
         """Convert images to latents
-        
+
         Args:
             imgs: Images to convert
-        
+
         Returns:
             Latents
         """
