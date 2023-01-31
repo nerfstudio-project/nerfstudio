@@ -132,12 +132,16 @@ def copy_images_list(
     copied_image_paths = []
 
     # Images should be 1-indexed for the rest of the pipeline.
+    old2new = {}
     for idx, image_path in enumerate(image_paths):
         if verbose:
             CONSOLE.log(f"Copying image {idx + 1} of {len(image_paths)}...")
         copied_image_path = image_dir / f"frame_{idx + 1:05d}{image_path.suffix}"
         shutil.copy(image_path, copied_image_path)
+        old2new[image_path.name] = str(copied_image_path)
         copied_image_paths.append(copied_image_path)
+    import json
+    json.dump(old2new, open(image_dir / '../image_filename_map.json', 'w'))
 
     if crop_border_pixels is not None:
         file_type = image_paths[0].suffix

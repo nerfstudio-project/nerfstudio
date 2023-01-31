@@ -524,7 +524,8 @@ def run_colmap(
         f"--database_path {colmap_dir / 'database.db'}",
         f"--image_path {image_dir}",
         "--ImageReader.single_camera 1",
-        f"--ImageReader.camera_model {camera_model.value}",
+        # f"--ImageReader.camera_model {camera_model.value}",
+        f"--ImageReader.camera_model PINHOLE",
         f"--SiftExtraction.use_gpu {int(gpu)}",
     ]
     if camera_mask_path is not None:
@@ -538,6 +539,9 @@ def run_colmap(
     # Feature matching
     feature_matcher_cmd = [
         f"{colmap_cmd} {matching_method}_matcher",
+        f"--SiftMatching.min_num_inliers 25",
+        f"--SiftMatching.max_error 2",
+        f"--SiftMatching.min_inlier_ratio 0.7",
         f"--database_path {colmap_dir / 'database.db'}",
         f"--SiftMatching.use_gpu {int(gpu)}",
     ]
@@ -575,7 +579,7 @@ def run_colmap(
             f"{colmap_cmd} bundle_adjuster",
             f"--input_path {sparse_dir}/0",
             f"--output_path {sparse_dir}/0",
-            "--BundleAdjustment.refine_principal_point 1",
+            # "--BundleAdjustment.refine_principal_point 1",
         ]
         run_command(" ".join(bundle_adjuster_cmd), verbose=verbose)
     CONSOLE.log("[bold green]:tada: Done refining intrinsics.")
@@ -629,6 +633,10 @@ def colmap_to_json(
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         frames.append(frame)
 
+    # if len(camera_params) == 4:
+    #     f, cx, cy, k = camera_params
+    #     camera_params = [f, f, cx, cy, k, 0, 0, 0]
+
     out = {
         "fl_x": float(camera_params[0]),
         "fl_y": float(camera_params[1]),
@@ -638,6 +646,11 @@ def colmap_to_json(
         "h": cameras[1].height,
         "camera_model": camera_model.value,
     }
+
+    print(camera_params)
+    if len(camera_params) == 4:
+        camera_params = [*camera_params, 0, 0, 0, 0]
+    print(camera_params)
 
     if camera_model == CameraModel.OPENCV:
         out.update(
