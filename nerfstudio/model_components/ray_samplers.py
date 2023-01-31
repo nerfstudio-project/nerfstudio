@@ -503,6 +503,8 @@ class VolumetricSampler(Sampler):
             ),
             camera_indices=camera_indices,
         )
+        if ray_bundle.times is not None:
+            ray_samples.times = ray_bundle.times[ray_indices]
         return ray_samples, ray_indices
 
 
