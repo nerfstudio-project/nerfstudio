@@ -45,8 +45,6 @@ dependencies = [
     "scikit-image>=0.19.3",
     "tensorboard==2.9.0",
     "torch==1.12.1",
-    "diffusers==0.9.0",
-    "transformers==4.24.0",
     "torchmetrics[image]>=0.9.3",
     "torchtyping>=0.1.4",
     "torchvision>=0.13.0",
@@ -61,6 +59,14 @@ dependencies = [
 
 
 [project.optional-dependencies]
+
+# Generative related dependencies
+gen = [
+    "diffusers==0.9.0",
+    "transformers==4.24.0",
+]
+
+
 # Development packages
 dev = [
     "black[jupyter]==22.3.0",

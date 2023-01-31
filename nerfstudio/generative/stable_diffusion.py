@@ -14,19 +14,37 @@
 
 # From https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
+import sys
+from pathlib import Path
+from typing import List, Optional, Union
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
-from diffusers import PNDMScheduler, StableDiffusionPipeline
+import tyro
 from rich.console import Console
 from torch import nn
-from transformers import logging
+from torchtyping import TensorType
 
 CONSOLE = Console(width=120)
+
+try:
+    from diffusers import PNDMScheduler, StableDiffusionPipeline
+    from transformers import logging
+
+except ImportError:
+    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+    sys.exit(1)
+
 logging.set_verbosity_error()
 IMG_DIM = 512
-const_scale = 0.18215
+CONST_SCALE = 0.18215
+
+SD_SOURCE = "runwayml/stable-diffusion-v1-5"
+CLIP_SOURCE = "openai/clip-vit-large-patch14"
 
 
 class StableDiffusion(nn.Module):
@@ -36,18 +54,6 @@ class StableDiffusion(nn.Module):
         super().__init__()
 
         self.device = device
-
-        try:
-            with open("./HF_TOKEN", "r") as f:
-                self.token = f.read().replace("\n", "")
-                CONSOLE.print(f"Hugging face access token loaded.")
-        except FileNotFoundError as e:
-            raise AssertionError(
-                f"Cannot read hugging face token, make sure to save your Hugging Face token at `./HF_TOKEN`"
-            )
-
-        SD_SOURCE = "stabilityai/stable-diffusion-2-1"
-        CLIP_SOURCE = "openai/clip-vit-large-patch14"
 
         self.num_train_timesteps = 1000
         self.min_step = int(self.num_train_timesteps * 0.02)
@@ -62,6 +68,7 @@ class StableDiffusion(nn.Module):
         self.alphas = self.scheduler.alphas_cumprod.to(self.device)
 
         pipe = StableDiffusionPipeline.from_pretrained(SD_SOURCE, torch_dtype=torch.float16)
+        assert pipe is not None
         pipe = pipe.to(self.device)
 
         # MEMORY IMPROVEMENTS
@@ -80,10 +87,20 @@ class StableDiffusion(nn.Module):
 
         self.unet.to(memory_format=torch.channels_last)
 
-        CONSOLE.print(f"Stable Diffusion loaded!")
+        CONSOLE.print("Stable Diffusion loaded!")
 
-    def get_text_embeds(self, prompt, negative_prompt):
-        # prompt, negative_prompt: [str]
+    def get_text_embeds(
+        self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
+    ) -> TensorType[2, "max_length", "embed_dim"]:
+        """Get text embeddings for prompt and negative prompt
+
+        Args:
+            prompt: Prompt text
+            negative_prompt: Negative prompt text
+
+        Returns:
+            Text embeddings
+        """
 
         # Tokenize text and get embeddings
         text_input = self.tokenizer(
@@ -107,6 +124,7 @@ class StableDiffusion(nn.Module):
 
         # Cat for final embeddings
         text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
+
         return text_embeddings
 
     def sds_loss(self, text_embeddings, nerf_output, guidance_scale=100):
@@ -186,7 +204,7 @@ class StableDiffusion(nn.Module):
 
     def latents_to_img(self, latents):
 
-        latents = 1 / const_scale * latents
+        latents = 1 / CONST_SCALE * latents
 
         with torch.no_grad():
             imgs = self.auto_encoder.decode(latents).sample
@@ -200,11 +218,30 @@ class StableDiffusion(nn.Module):
         imgs = 2 * imgs - 1
 
         posterior = self.auto_encoder.encode(imgs).latent_dist
-        latents = posterior.sample() * const_scale
+        latents = posterior.sample() * CONST_SCALE
 
         return latents
 
-    def prompt_to_img(self, prompts, negative_prompts="", num_inference_steps=50, guidance_scale=7.5, latents=None):
+    def prompt_to_img(
+        self,
+        prompts: Union[str, List[str]],
+        negative_prompts: Union[str, List[str]] = "",
+        num_inference_steps: int = 50,
+        guidance_scale: float = 7.5,
+        latents=None,
+    ) -> np.ndarray:
+        """Generate an images from a prompts.
+
+        Args:
+            prompts: The prompt to generate an image from.
+            negative_prompts: The negative prompt to generate an image from.
+            num_inference_steps: The number of inference steps to perform.
+            guidance_scale: The scale of the guidance.
+            latents: The latents to start from, defaults to random.
+
+        Returns:
+            The generated image.
+        """
 
         prompts = [prompts] if isinstance(prompts, str) else prompts
         negative_prompts = [negative_prompts] if isinstance(negative_prompts, str) else negative_prompts
@@ -218,37 +255,50 @@ class StableDiffusion(nn.Module):
             guidance_scale=guidance_scale,
         )  # [1, 4, resolution, resolution]
 
-        diffused_img = self.latents_to_img(latents)
+        diffused_img = self.latents_to_img(latents.half())
         diffused_img = diffused_img.detach().cpu().permute(0, 2, 3, 1).numpy()
         diffused_img = (diffused_img * 255).round().astype("uint8")
 
         return diffused_img
 
+    def forward(
+        self, prompts, negative_prompts="", num_inference_steps=50, guidance_scale=7.5, latents=None
+    ) -> np.ndarray:
+        """Generate an image from a prompt.
 
-def seed_everything(seed):
+        Args:
+            prompts: The prompt to generate an image from.
+            negative_prompts: The negative prompt to generate an image from.
+            num_inference_steps: The number of inference steps to perform.
+            guidance_scale: The scale of the guidance.
+            latents: The latents to start from, defaults to random.
+
+        Returns:
+            The generated image.
+        """
+        return self.prompt_to_img(prompts, negative_prompts, num_inference_steps, guidance_scale, latents)
+
+
+def generate_image(
+    prompt: str, negative: str = "", seed: int = 0, steps: int = 50, save_path: Path = Path("test_sd.png")
+):
+    """Generate an image from a prompt using Stable Diffusion.
+
+    Args:
+        prompt: The prompt to use.
+        negative: The negative prompt to use.
+        seed: The random seed to use.
+        steps: The number of steps to use.
+        save_path: The path to save the image to.
+    """
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
+    cuda_device = torch.device("cuda")
+    with torch.no_grad():
+        sd = StableDiffusion(cuda_device)
+        imgs = sd.prompt_to_img(prompt, negative, steps)
+        plt.imsave(str(save_path), imgs[0])
 
 
 if __name__ == "__main__":
-
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("prompt", type=str)
-    parser.add_argument("--negative", default="", type=str)
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--steps", type=int, default=50)
-    opt = parser.parse_args()
-
-    seed_everything(opt.seed)
-
-    device = torch.device("cuda")
-
-    with torch.no_grad():
-
-        sd = StableDiffusion(device)
-
-        imgs = sd.prompt_to_img(opt.prompt, opt.negative, opt.steps)
-
-        plt.imsave("test_sd.png", imgs[0])
+    tyro.cli(generate_image)
