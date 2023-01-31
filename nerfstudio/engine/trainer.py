@@ -122,7 +122,9 @@ class Trainer:
         viewer_log_path = self.base_dir / config.viewer.relative_log_filename
         self.viewer_state, banner_messages = None, None
         if self.config.is_viewer_enabled() and local_rank == 0:
-            self.viewer_state, banner_messages = viewer_utils.setup_viewer(config.viewer, log_filename=viewer_log_path)
+            self.viewer_state, banner_messages = viewer_utils.setup_viewer(
+                config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
+            )
         self._check_viewer_warnings()
         # set up writers/profilers if enabled
         writer_log_path = self.base_dir / config.logging.relative_log_dir
@@ -225,14 +227,18 @@ class Trainer:
                     self.save_checkpoint(step)
 
                 writer.write_out_storage()
-            # save checkpoint at the end of training
-            self.save_checkpoint(step)
 
-            CONSOLE.rule()
-            CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
-            if not self.config.viewer.quit_on_train_completion:
-                CONSOLE.print("Use ctrl+c to quit", justify="center")
-                self._always_render(step)
+        # save checkpoint at the end of training
+        self.save_checkpoint(step)
+
+        # write out any remaining events (e.g., total train time)
+        writer.write_out_storage()
+
+        CONSOLE.rule()
+        CONSOLE.print("[bold green]:tada: :tada: :tada: Training Finished :tada: :tada: :tada:", justify="center")
+        if not self.config.viewer.quit_on_train_completion:
+            CONSOLE.print("Use ctrl+c to quit", justify="center")
+            self._always_render(step)
 
     @check_main_thread
     def _always_render(self, step):
@@ -313,7 +319,7 @@ class Trainer:
             loaded_state = torch.load(load_path, map_location="cpu")
             self._start_step = loaded_state["step"] + 1
             # load the checkpoints for pipeline, optimizers, and gradient scalar
-            self.pipeline.load_pipeline(loaded_state["pipeline"])
+            self.pipeline.load_pipeline(loaded_state["pipeline"], loaded_state["step"])
             self.optimizers.load_optimizers(loaded_state["optimizers"])
             self.grad_scaler.load_state_dict(loaded_state["scalers"])
             CONSOLE.print(f"done loading checkpoint from {load_path}")

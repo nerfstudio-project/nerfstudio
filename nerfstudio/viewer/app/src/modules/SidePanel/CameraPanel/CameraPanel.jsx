@@ -47,6 +47,7 @@ import { CameraHelper } from './CameraHelper';
 import { get_curve_object_from_cameras, get_transform_matrix } from './curve';
 import { WebSocketContext } from '../../WebSocket/WebSocket';
 import RenderModal from '../../RenderModal';
+import LoadPathModal from '../../LoadPathModal';
 import CameraPropPanel from './CameraPropPanel';
 import LevaTheme from '../../../themes/leva_theme.json';
 
@@ -63,7 +64,6 @@ function set_camera_position(camera, matrix) {
   mat.decompose(camera.position, camera.quaternion, camera.scale);
 }
 
-
 function RenderTimeSelector(props) {
   const disabled = props.disabled;
   const isGlobal = props.isGlobal;
@@ -79,7 +79,7 @@ function RenderTimeSelector(props) {
     if (!isGlobal) {
       return camera.renderTime;
     }
-    camera.renderTime = globalRenderTime
+    camera.renderTime = globalRenderTime;
     return globalRenderTime;
   };
 
@@ -118,7 +118,7 @@ function RenderTimeSelector(props) {
   const handleValidation = (e) => {
     const valueFloat = parseFloat(e.target.value);
     let valueStr = String(valueFloat);
-    if (e.target.value >= 0 && e.target.value <= 1){ 
+    if (e.target.value >= 0 && e.target.value <= 1) {
       setValid(true);
       if (valueFloat === 1.0) {
         valueStr = '1.0';
@@ -135,7 +135,7 @@ function RenderTimeSelector(props) {
 
   return (
     <TextField
-      label='Render Time'
+      label="Render Time"
       InputLabelProps={{
         style: { color: '#8E8E8E' },
       }}
@@ -556,9 +556,8 @@ export default function CameraPanel(props) {
   ]);
 
   // redux store state
-  const config_base_dir = useSelector(
-    (state) => state.renderingState.config_base_dir,
-  );
+  const export_path = useSelector((state) => state.renderingState.export_path);
+
   const websocket = useContext(WebSocketContext).socket;
   const DEFAULT_FOV = 50;
   const DEFAULT_RENDER_TIME = 0.0;
@@ -574,9 +573,11 @@ export default function CameraPanel(props) {
   const [seconds, setSeconds] = React.useState(4);
   const [fps, setFps] = React.useState(24);
   const [render_modal_open, setRenderModalOpen] = React.useState(false);
+  const [load_path_modal_open, setLoadPathModalOpen] = React.useState(false);
   const [animate, setAnimate] = React.useState(new Set());
   const [globalFov, setGlobalFov] = React.useState(DEFAULT_FOV);
-  const [globalRenderTime, setGlobalRenderTime] = React.useState(DEFAULT_RENDER_TIME);
+  const [globalRenderTime, setGlobalRenderTime] =
+    React.useState(DEFAULT_RENDER_TIME);
 
   // leva store
   const cameraPropsStore = useCreateStore();
@@ -602,15 +603,24 @@ export default function CameraPanel(props) {
   );
   const camera_type = useSelector((state) => state.renderingState.camera_type);
 
+  const crop_enabled = useSelector(
+    (state) => state.renderingState.crop_enabled,
+  );
+  const crop_bg_color = useSelector(
+    (state) => state.renderingState.crop_bg_color,
+  );
+  const crop_center = useSelector((state) => state.renderingState.crop_center);
+  const crop_scale = useSelector((state) => state.renderingState.crop_scale);
+
   const [display_render_time, set_display_render_time] = React.useState(false);
 
-  const receive_temporal_dist = e => {
+  const receive_temporal_dist = (e) => {
     const msg = msgpack.decode(new Uint8Array(e.data));
-    if (msg.path === "/model/has_temporal_distortion") {
-      set_display_render_time(msg.data === "true");
-      websocket.removeEventListener("message", receive_temporal_dist);
+    if (msg.path === '/model/has_temporal_distortion') {
+      set_display_render_time(msg.data === 'true');
+      websocket.removeEventListener('message', receive_temporal_dist);
     }
-  }
+  };
   websocket.addEventListener('message', receive_temporal_dist);
 
   const setRenderHeight = (value) => {
@@ -644,6 +654,40 @@ export default function CameraPanel(props) {
     });
   };
 
+  const setCropEnabled = (value) => {
+    console.log('setting the crop enabled value to: ', value);
+    dispatch({
+      type: 'write',
+      path: 'renderingState/crop_enabled',
+      data: value,
+    });
+    console.log('crop enabled value is now: ', crop_enabled);
+  };
+
+  const serCropBgColor = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/crop_bg_color',
+      data: value,
+    });
+  };
+
+  const setCropCenter = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/crop_center',
+      data: value,
+    });
+  };
+
+  const setCropScale = (value) => {
+    dispatch({
+      type: 'write',
+      path: 'renderingState/crop_scale',
+      data: value,
+    });
+  };
+
   const setRenderTime = (value) => {
     dispatch({
       type: 'write',
@@ -668,7 +712,7 @@ export default function CameraPanel(props) {
     if (new_camera_list.length >= 1) {
       set_camera_position(camera_render, new_camera_list[0].matrix);
       setFieldOfView(new_camera_list[0].fov);
-      setRenderTime(new_camera_list[0].renderTime)
+      setRenderTime(new_camera_list[0].renderTime);
       set_slider_value(slider_min);
     }
   };
@@ -988,6 +1032,15 @@ export default function CameraPanel(props) {
       });
     }
 
+    let crop = null;
+    if (crop_enabled) {
+      crop = {
+        crop_bg_color,
+        crop_center,
+        crop_scale,
+      };
+    }
+
     // const myData
     const camera_path_object = {
       keyframes,
@@ -999,6 +1052,7 @@ export default function CameraPanel(props) {
       seconds,
       smoothness_value,
       is_cycle,
+      crop,
     };
     return camera_path_object;
   };
@@ -1065,6 +1119,14 @@ export default function CameraPanel(props) {
     setCameraProperties(new_properties);
     setCameras(new_camera_list);
     reset_slider_render_on_add(new_camera_list);
+
+    if ('crop' in camera_path_object && camera_path_object.crop !== null) {
+      console.log('crop' in camera_path_object);
+      setCropEnabled(true);
+      serCropBgColor(camera_path_object.crop.crop_bg_color);
+      setCropCenter(camera_path_object.crop.crop_center);
+      setCropScale(camera_path_object.crop.crop_scale);
+    }
   };
 
   const uploadCameraPath = (e) => {
@@ -1083,10 +1145,8 @@ export default function CameraPanel(props) {
     setRenderModalOpen(true);
 
     const camera_path_object = get_camera_path();
-    const camera_path_filename = `${config_base_dir}/camera_path.json`;
-
     const camera_path_payload = {
-      camera_path_filename,
+      camera_path_filename: export_path,
       camera_path: camera_path_object,
     };
 
@@ -1100,6 +1160,19 @@ export default function CameraPanel(props) {
       const message = msgpack.encode(data);
       websocket.send(message);
     }
+  };
+
+  const open_load_path_modal = () => {
+    if (websocket.readyState === WebSocket.OPEN) {
+      const data = {
+        type: 'write',
+        path: 'populate_paths_payload',
+        data: true,
+      };
+      const message = msgpack.encode(data);
+      websocket.send(message);
+    }
+    setLoadPathModalOpen(true);
   };
 
   const isAnimated = (property) => animate.has(property);
@@ -1137,21 +1210,21 @@ export default function CameraPanel(props) {
     <div className="CameraPanel">
       <div>
         <div className="CameraPanel-path-row">
+          <LoadPathModal
+            open={load_path_modal_open}
+            setOpen={setLoadPathModalOpen}
+            pathUploadFunction={uploadCameraPath}
+            loadCameraPathFunction={load_camera_path}
+          />
           <Button
             size="small"
             className="CameraPanel-top-button"
             component="label"
             variant="outlined"
             startIcon={<FileUploadOutlinedIcon />}
+            onClick={open_load_path_modal}
           >
             Load Path
-            <input
-              type="file"
-              accept=".json"
-              name="Camera Path"
-              onChange={uploadCameraPath}
-              hidden
-            />
           </Button>
         </div>
         <div className="CameraPanel-path-row">
@@ -1161,6 +1234,7 @@ export default function CameraPanel(props) {
             variant="outlined"
             startIcon={<FileDownloadOutlinedIcon />}
             onClick={export_camera_path}
+            disabled={cameras.length === 0}
           >
             Export Path
           </Button>
@@ -1173,6 +1247,7 @@ export default function CameraPanel(props) {
           size="small"
           startIcon={<VideoCameraBackIcon />}
           onClick={open_render_modal}
+          disabled={cameras.length === 0}
         >
           Render
         </Button>

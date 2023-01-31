@@ -14,6 +14,7 @@
 
 """Helper utils for processing data into the nerfstudio format."""
 
+import os
 import shutil
 import sys
 from enum import Enum
@@ -29,6 +30,7 @@ from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
+POLYCAM_UPSCALING_TIMES = 2
 
 
 class CameraModel(Enum):
@@ -42,6 +44,29 @@ CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
 }
+
+
+def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
+    """Returns a list of image filenames in a directory.
+
+    Args:
+        dir: Path to the directory.
+        max_num_images: The maximum number of images to return. -1 means no limit.
+    Returns:
+        A tuple of A list of image filenames, number of original image paths.
+    """
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in directory.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    num_orig_images = len(image_paths)
+
+    if max_num_images != -1 and num_orig_images > max_num_images:
+        idx = np.round(np.linspace(0, num_orig_images - 1, max_num_images)).astype(int)
+    else:
+        idx = np.arange(num_orig_images)
+
+    image_filenames = list(np.array(image_paths)[idx])
+
+    return image_filenames, num_orig_images
 
 
 def get_num_frames_in_video(video: Path) -> int:
@@ -147,7 +172,7 @@ def copy_images_list(
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f"ffmpeg -y -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        ffmpeg_cmd = f"ffmpeg -y -noautorotate -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -158,6 +183,54 @@ def copy_images_list(
         CONSOLE.log("[bold green]:tada: Done copying images.")
 
     return copied_image_paths
+
+
+def copy_and_upscale_polycam_depth_maps_list(
+    polycam_depth_image_filenames: List[Path],
+    depth_dir: Path,
+    crop_border_pixels: Optional[int] = None,
+    verbose: bool = False,
+) -> List[Path]:
+    """
+    Copy depth maps to working location and upscale them to match the RGB images dimensions and finally crop them
+    equally as RGB Images.
+    Args:
+        polycam_depth_image_filenames: List of Paths of images to copy to a new directory.
+        depth_dir: Path to the output directory.
+        crop_border_pixels: If not None, crops each edge by the specified number of pixels.
+        verbose: If True, print extra logging.
+    Returns:
+        A list of the copied depth maps paths.
+    """
+    depth_dir.mkdir(parents=True, exist_ok=True)
+
+    # copy and upscale them to new directory
+    with status(msg="[bold yellow] Upscaling depth maps...", spinner="growVertical", verbose=verbose):
+        upscale_factor = 2**POLYCAM_UPSCALING_TIMES
+        assert upscale_factor > 1
+        assert isinstance(upscale_factor, int)
+
+        copied_depth_map_paths = []
+        for idx, depth_map in enumerate(polycam_depth_image_filenames):
+            destination = depth_dir / f"frame_{idx + 1:05d}{depth_map.suffix}"
+            ffmpeg_cmd = [
+                f"ffmpeg -y -i {depth_map} ",
+                f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
+                f"{destination}",
+            ]
+            ffmpeg_cmd = " ".join(ffmpeg_cmd)
+            run_command(ffmpeg_cmd, verbose=verbose)
+            copied_depth_map_paths.append(destination)
+
+    if crop_border_pixels is not None:
+        file_type = depth_dir.glob("frame_*").__next__().suffix
+        filename = f"frame_%05d{file_type}"
+        crop = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}"
+        ffmpeg_cmd = f"ffmpeg -y -i {depth_dir / filename} -q:v 2 -vf {crop} {depth_dir / filename}"
+        run_command(ffmpeg_cmd, verbose=verbose)
+
+    CONSOLE.log("[bold green]:tada: Done upscaling depth maps.")
+    return copied_depth_map_paths
 
 
 def copy_images(data: Path, image_dir: Path, verbose) -> int:
@@ -183,7 +256,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
     return num_frames
 
 
-def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False) -> str:
+def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "images", verbose: bool = False) -> str:
     """Downscales the images in the directory. Uses FFMPEG.
 
     Assumes images are named frame_00001.png, frame_00002.png, etc.
@@ -191,6 +264,7 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
     Args:
         image_dir: Path to the directory containing the images.
         num_downscales: Number of times to downscale the images. Downscales by 2 each time.
+        folder_name: Name of the output folder
         verbose: If True, logs the output of the command.
 
     Returns:
@@ -205,17 +279,19 @@ def downscale_images(image_dir: Path, num_downscales: int, verbose: bool = False
         for downscale_factor in downscale_factors:
             assert downscale_factor > 1
             assert isinstance(downscale_factor, int)
-            downscale_dir = image_dir.parent / f"images_{downscale_factor}"
+            downscale_dir = image_dir.parent / f"{folder_name}_{downscale_factor}"
             downscale_dir.mkdir(parents=True, exist_ok=True)
-            file_type = image_dir.glob("frame_*").__next__().suffix
-            filename = f"frame_%05d{file_type}"
-            ffmpeg_cmd = [
-                f"ffmpeg -i {image_dir / filename} ",
-                f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-                f"{downscale_dir / filename}",
-            ]
-            ffmpeg_cmd = " ".join(ffmpeg_cmd)
-            run_command(ffmpeg_cmd, verbose=verbose)
+            # Using %05d ffmpeg commands appears to be unreliable (skips images), so use scandir.
+            files = os.scandir(image_dir)
+            for f in files:
+                filename = f.name
+                ffmpeg_cmd = [
+                    f"ffmpeg -y -noautorotate -i {image_dir / filename} ",
+                    f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
+                    f"{downscale_dir / filename}",
+                ]
+                ffmpeg_cmd = " ".join(ffmpeg_cmd)
+                run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done downscaling images.")
     downscale_text = [f"[bold blue]{2**(i+1)}x[/bold blue]" for i in range(num_downscales)]
