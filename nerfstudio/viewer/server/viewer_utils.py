@@ -196,11 +196,16 @@ class CheckThread(threading.Thread):
         while not self.state.check_done_render:
             # check camera
             data = self.state.vis["renderingState/camera"].read()
+            render_time = self.state.vis["renderingState/render_time"].read()
             if data is not None:
                 camera_object = data["object"]
-                if self.state.prev_camera_matrix is None or (
-                    not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
-                    and not self.state.prev_moving
+                if (
+                    self.state.prev_camera_matrix is None
+                    or (
+                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                        and not self.state.prev_moving
+                    )
+                    or (render_time is not None and render_time != self.state.prev_render_time)
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -280,6 +285,7 @@ class ViewerState:
 
         # viewer specific variables
         self.prev_camera_matrix = None
+        self.prev_render_time = 0
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = ColormapTypes.INIT
         self.prev_moving = False
@@ -553,12 +559,23 @@ class ViewerState:
             return None
 
         camera_object = data["object"]
+        render_time = self.vis["renderingState/render_time"].read()
 
-        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-            self.camera_moving = False
+        if render_time is not None:
+            if (
+                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+            ) and (self.prev_render_time == render_time):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.prev_render_time = render_time
+                self.camera_moving = True
         else:
-            self.prev_camera_matrix = camera_object["matrix"]
-            self.camera_moving = True
+            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.camera_moving = True
 
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
@@ -901,10 +918,6 @@ class ViewerState:
             dim=0,
         )
 
-        times = self.vis["renderingState/render_time"].read()
-        if times is not None:
-            times = torch.tensor([float(times)])
-
         camera_type_msg = camera_object["camera_type"]
         if camera_type_msg == "perspective":
             camera_type = CameraType.PERSPECTIVE
@@ -922,11 +935,11 @@ class ViewerState:
             cy=intrinsics_matrix[1, 2],
             camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
-            times=times,
+            times=torch.tensor([float(self.prev_render_time)]),
         )
         camera = camera.to(graph.device)
 
-        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
+        camera_ray_bundle = camera.generate_rays(camera_indices=0)
 
         graph.eval()
 
