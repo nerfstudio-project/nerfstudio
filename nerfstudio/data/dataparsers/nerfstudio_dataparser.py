@@ -52,8 +52,14 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
-    scene_scale: float = 1.0
+    scene_scale: float = 0.2
     """How much to scale the region of interest by."""
+    manual_translation_x: float = 0.0
+    """How much to translate the region of interest by."""
+    manual_translation_y: float = 0.0
+    """How much to translate the region of interest by."""
+    manual_translation_z: float = 1.0
+    """How much to translate the region of interest by."""
     orientation_method: Literal["pca", "up", "none"] = "up"
     """The method to use for orientation."""
     center_poses: bool = True
@@ -218,6 +224,13 @@ class Nerfstudio(DataParser):
             scale_factor /= float(torch.max(torch.abs(poses[:, :3, 3])))
         scale_factor *= self.config.scale_factor
 
+        poses[:, :3, 3] += torch.Tensor(
+            [
+                self.config.manual_translation_x,
+                self.config.manual_translation_y,
+                self.config.manual_translation_z,
+            ]
+        )
         poses[:, :3, 3] *= scale_factor
 
         # Choose image_filenames and poses based on split, but after auto orient and scaling the poses.
