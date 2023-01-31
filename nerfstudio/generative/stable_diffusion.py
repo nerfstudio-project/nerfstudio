@@ -140,7 +140,7 @@ class StableDiffusion(nn.Module):
         text_embeddings: TensorType["N", "max_length", "embed_dim"],
         image: TensorType["BS", 3, "H", "W"],
         guidance_scale: float = 100.0,
-    ) -> Tuple[torch.Tensor, TensorType["BS", "2N", "H", "W"], TensorType["BS", "2N", "H", "W"]]:
+    ) -> Tuple[torch.Tensor, TensorType["BS", 4, "H", "W"], TensorType["BS", 4, "H", "W"]]:
         """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
 
         Args:
@@ -185,8 +185,8 @@ class StableDiffusion(nn.Module):
         width: int = IMG_DIM,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
-        latents: Optional[TensorType["BS", "2N", "H", "W"]] = None,
-    ) -> TensorType["BS", "2N", "H", "W"]:
+        latents: Optional[TensorType["BS", 4, "H", "W"]] = None,
+    ) -> TensorType["BS", 4, "H", "W"]:
         """Produce latents for a given text embedding
 
         Args:
@@ -226,7 +226,7 @@ class StableDiffusion(nn.Module):
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
         return latents
 
-    def latents_to_img(self, latents: TensorType["BS", "2N", "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
+    def latents_to_img(self, latents: TensorType["BS", 4, "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
         """Convert latents to images
 
         Args:
@@ -245,7 +245,7 @@ class StableDiffusion(nn.Module):
 
         return imgs
 
-    def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", "2N", "H", "W"]:
+    def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", 4, "H", "W"]:
         """Convert images to latents
 
         Args:
