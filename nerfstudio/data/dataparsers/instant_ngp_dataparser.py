@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Dict, Tuple, Type
 
 import imageio
@@ -46,7 +46,7 @@ class InstantNGPDataParserConfig(DataParserConfig):
     """target class to instantiate"""
     data: Path = Path("data/ours/posterv2")
     """Directory or explicit json file path specifying location of data."""
-    scene_scale: float = 0.3333
+    scene_scale: float = 1.5
     """How much to scale the scene."""
 
 
@@ -65,6 +65,7 @@ class InstantNGP(DataParser):
             data_dir = self.config.data
 
         image_filenames = []
+        mask_filenames = []
         poses = []
         num_skipped_image_filenames = 0
         for frame in meta["frames"]:
@@ -87,6 +88,12 @@ class InstantNGP(DataParser):
                         meta["h"] = h
                 image_filenames.append(fname)
                 poses.append(np.array(frame["transform_matrix"]))
+
+                if "mask_path" in frame:
+                    mask_filepath = PurePath(frame["mask_path"])
+                    mask_fname = data_dir / mask_filepath
+                    mask_filenames.append(mask_fname)
+
         if num_skipped_image_filenames >= 0:
             CONSOLE.print(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
         assert (
@@ -95,10 +102,27 @@ class InstantNGP(DataParser):
         No image files found. 
         You should check the file_paths in the transforms.json file to make sure they are correct.
         """
-        poses = np.array(poses).astype(np.float32)
-        poses[:, :3, 3] *= self.config.scene_scale
+        assert len(mask_filenames) == 0 or (
+            len(mask_filenames) == len(image_filenames)
+        ), """
+        Different number of image and mask filenames.
+        You should check that mask_path is specified for every frame (or zero frames) in transforms.json.
+        """
+        # poses = np.array(poses).astype(np.float32)
+        # poses[:, :3, 3] *= self.config.scene_scale
 
-        camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
+        poses = torch.from_numpy(np.array(poses).astype(np.float32))
+        poses, transform_matrix = camera_utils.auto_orient_and_center_poses(
+            poses,
+            method="up",
+            center_poses=True,
+        )
+
+        poses[:, :3, 3] *= self.config.scene_scale
+        poses[:, 2, 3] += 1.5
+
+        # camera_to_world = torch.from_numpy(poses[:, :3])  # camera to world transform
+        camera_to_world = poses[:, :3]  # camera to world transform
 
         distortion_params = camera_utils.get_distortion_params(
             k1=float(meta.get("k1", 0)),
@@ -140,7 +164,9 @@ class InstantNGP(DataParser):
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
+            # mask_filenames=mask_filenames if len(mask_filenames) > 0 else None,
             dataparser_scale=self.config.scene_scale,
+            dataparser_transform=transform_matrix,
         )
 
         return dataparser_outputs
