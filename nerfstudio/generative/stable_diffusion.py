@@ -14,7 +14,7 @@
 
 """Stable Diffusion helpers"""
 
-# https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py used as reference
+# Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import sys
 from pathlib import Path
