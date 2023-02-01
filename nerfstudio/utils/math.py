@@ -15,9 +15,12 @@
 """ Math Helper Functions """
 
 from dataclasses import dataclass
+from typing import Tuple
 
 import torch
 from torchtyping import TensorType
+
+_USE_NERFACC = True
 
 
 def components_from_spherical_harmonics(levels: int, directions: TensorType[..., 3]) -> TensorType[..., "components"]:
@@ -193,47 +196,76 @@ def expected_sin(x_means: torch.Tensor, x_vars: torch.Tensor) -> torch.Tensor:
     return torch.exp(-0.5 * x_vars) * torch.sin(x_means)
 
 
-def intersect_aabb(origins, directions, aabb):
+@torch.jit.script
+def _intersect_aabb(
+    origins: torch.Tensor,
+    directions: torch.Tensor,
+    aabb: torch.Tensor,
+    max_bound: float = 1e10,
+    invalid_value: float = 1e10,
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    pytorch implementation of ray intersection with AABB box
-    :param origin: N,3 tensor of 3d positions
-    :param direction: N,3 tensor of normalized directions
-    :param aabb: 6,1 array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
-    :return: t_min, t_max - two tensors of shapes N,1 representing the intersection signed distance from
-    the origin. t_min is clipped to 0 in case it is negative, in case of no intersection t_min is 1e10.
+    Implementation of ray intersection with AABB box
+
+    Args:
+        origins: [N,3] tensor of 3d positions
+        directions: [N,3] tensor of normalized directions
+        aabb: [6] array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
+        max_bound: Maximum value of t_max
+        invalid_value: Value to return in case of no intersection
+
+    Returns:
+        t_min, t_max - two tensors of shapes N representing distance of intersection from the origin.
     """
 
-    max_bound = 1e10
+    tx_min = (aabb[:3] - origins) / directions
+    tx_max = (aabb[3:] - origins) / directions
 
-    tx_min = (aabb[0] - origins[:, 0]) / directions[:, 0]
-    tx_max = (aabb[3] - origins[:, 0]) / directions[:, 0]
     t_min = torch.min(tx_min, tx_max)
     t_max = torch.max(tx_min, tx_max)
 
-    ty_min_temp = (aabb[1] - origins[:, 1]) / directions[:, 1]
-    ty_max_temp = (aabb[4] - origins[:, 1]) / directions[:, 1]
-    ty_min = torch.min(ty_min_temp, ty_max_temp)
-    ty_max = torch.max(ty_min_temp, ty_max_temp)
+    t_min = torch.max(t_min, dim=-1).values
+    t_max = torch.min(t_max, dim=-1).values
 
-    cond = torch.logical_or((t_min > ty_max), (ty_min > t_max))
-    t_min = torch.where(cond, max_bound, t_min)
-    t_max = torch.where(cond, max_bound, t_max)
+    t_min = torch.clamp(t_min, min=0, max=max_bound)
+    t_max = torch.clamp(t_max, min=0, max=max_bound)
 
-    t_min = torch.max(t_min, ty_min)
-    t_max = torch.min(t_max, ty_max)
+    cond = t_max <= t_min
+    t_min = torch.where(cond, invalid_value, t_min)
+    t_max = torch.where(cond, invalid_value, t_max)
 
-    tz_min_temp = (aabb[2] - origins[:, 2]) / directions[:, 2]
-    tz_max_temp = (aabb[5] - origins[:, 2]) / directions[:, 2]
-    tz_min = torch.min(tz_min_temp, tz_max_temp)
-    tz_max = torch.max(tz_min_temp, tz_max_temp)
+    return t_min, t_max
 
-    cond = torch.logical_or((t_min > tz_max), tz_min > t_max)
-    t_min = torch.where(cond, max_bound, t_min)
-    t_max = torch.where(cond, max_bound, t_max)
 
-    t_min = torch.max(t_min, tz_min)
-    t_max = torch.min(t_max, tz_max)
-    t_min = torch.where(t_min > 0, t_min, 0)
-    t_max = torch.where(t_min == max_bound, max_bound, t_max)
+def intersect_aabb(
+    origins: TensorType["N", 3],
+    directions: TensorType["N", 3],
+    aabb: TensorType[6],
+) -> Tuple[TensorType["N"], TensorType["N"]]:
+    """
+    Implementation of ray intersection with AABB box
+
+    Args:
+        origins: 3d positions
+        directions: Normalized directions
+        aabb: array of aabb box in the form of [x_min, y_min, z_min, x_max, y_max, z_max]
+        max_bound: Maximum value of t_max
+        invalid_value: Value to return in case of no intersection
+
+    Returns:
+        t_min, t_max - two tensors of shapes N representing distance of intersection from the origin.
+    """
+
+    global _USE_NERFACC  # pylint: disable=global-statement
+    if _USE_NERFACC:
+        try:
+            import nerfacc  # pylint: disable=import-outside-toplevel
+
+            t_min, t_max = nerfacc.ray_aabb_intersect(origins, directions, aabb)
+        except:  # pylint: disable=bare-except
+            t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
+            _USE_NERFACC = False
+    else:
+        t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
 
     return t_min, t_max

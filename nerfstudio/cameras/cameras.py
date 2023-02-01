@@ -16,7 +16,6 @@
 Camera Models
 """
 import base64
-import importlib
 import math
 import os
 from dataclasses import dataclass
@@ -472,15 +471,7 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                if self._use_nerfacc:
-                    try:
-                        nerfacc = importlib.import_module("nerfacc")
-                        t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
-                    except:  # pylint: disable=bare-except
-                        t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
-                        self._use_nerfacc = False
-                else:
-                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
 
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])
