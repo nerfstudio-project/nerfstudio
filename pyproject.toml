@@ -59,6 +59,14 @@ dependencies = [
 
 
 [project.optional-dependencies]
+
+# Generative related dependencies
+gen = [
+    "diffusers==0.9.0",
+    "transformers==4.24.0",
+]
+
+
 # Development packages
 dev = [
     "black[jupyter]==22.3.0",
