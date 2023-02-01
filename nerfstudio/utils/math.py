@@ -269,3 +269,19 @@ def intersect_aabb(
         t_min, t_max = _intersect_aabb(origins, directions, aabb, max_bound=1e10, invalid_value=1e10)
 
     return t_min, t_max
+
+
+def safe_normalize(
+    vectors: TensorType["batch_dim":..., "N"],
+    eps: float = 1e-10,
+) -> TensorType["batch_dim":..., "N"]:
+    """Normalizes vectors.
+
+    Args:
+        vectors: Vectors to normalize.
+        eps: Epsilon value to avoid division by zero.
+
+    Returns:
+        Normalized vectors.
+    """
+    return vectors / (torch.norm(vectors, dim=-1, keepdim=True) + eps)
