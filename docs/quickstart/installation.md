@@ -95,13 +95,28 @@ docker run --gpus all -v /folder/of/your/data:/workspace/ -v /home/<YOUR_USER>/.
 ```
 ### Note
 - The container works on Linux and Windows, depending on your OS some additional setup steps might be required to provide access to your GPU inside containers.
-- Paths on Windows use backslash '\\\\' while unix based systems use a frontslash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Ensure to use the correct paths when mounting folders or providing paths as parameters.
+- Paths on Windows use backslash '\\' while unix based systems use a frontslash '/' for paths, where backslashes might require an escape character depending on where they are used (e.g. C:\\\\folder1\\\\folder2...). Alternatively, mounts can be quoted (e.g. ```-v 'C:\local_folder:/docker_folder'```). Ensure to use the correct paths when mounting folders or providing paths as parameters.
+- Always use full paths, relative paths are known to create issues when being used in mounts into docker.
 - Everything inside the container, what is not in a mounted folder (workspace in the above example), will be permanently removed after destroying the container. Always do all your tasks and output folder in workdir!
 - The user inside the container is called 'user' and is mapped to the local user with ID 1000 (usually the first non-root user on Linux systems).
 - The container currently is based on nvidia/cuda:11.7.1-devel-ubuntu22.04, consequently it comes with CUDA 11.7 which must be supported by the nvidia driver. No local CUDA installation is required or will be affected by using the docker image.
 - The docker image (respectively Ubuntu 22.04) comes with Python3.10, no older version of Python is installed.
 - If you call the container with commands directly, you still might want to add the interactive terminal ('-it') flag to get live log outputs of the nerfstudio scripts. In case the container is used in an automated environment the flag should be discarded.
+- The current version of docker is built for multi-architecture (CUDA architectures) use. The target architecture must be defined at build time for tinyCUDNN to be able to compile properly. If your GPU architecture is not covered by the following table you need to replace the number in the line ```ENV TCNN_CUDA_ARCHITECTURES=90;89;86;80;75;70;61;52;37``` to you specific architecture. It also is a good idea to remove all architectures but yours (e.g. ```ENV TCNN_CUDA_ARCHITECTURES=86```) to speedup the docker build a lot.
 
+**Currently supported CUDA architectures in the docker image**
+
+GPU | CUDA arch
+-- | --
+H100 | 90
+40X0 | 89
+30X0 | 86
+A100 | 80
+20X0 | 75 
+TITAN V / V100 | 70
+10X0 / TITAN Xp | 61
+9X0 | 52
+K80 | 37
 
 ## Installation FAQ
 
