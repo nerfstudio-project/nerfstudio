@@ -34,9 +34,13 @@ class OptimizerConfig(base_config.PrintableConfig):
     """Basic optimizer config with RAdam"""
 
     _target: Type = torch.optim.Adam
+    """The optimizer class to use."""
     lr: float = 0.0005
+    """The learning rate to use."""
     eps: float = 1e-08
+    """The epsilon value to use."""
     max_norm: Optional[float] = None
+    """The max norm to use for gradient clipping."""
 
     # TODO: somehow make this more generic. i dont like the idea of overriding the setup function
     # but also not sure how to go about passing things into predefined torch objects.
@@ -54,6 +58,7 @@ class AdamOptimizerConfig(OptimizerConfig):
 
     _target: Type = torch.optim.Adam
     weight_decay: float = 0
+    """The weight decay to use."""
 
 
 @dataclass
