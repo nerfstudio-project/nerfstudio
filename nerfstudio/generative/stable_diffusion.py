@@ -79,14 +79,7 @@ class StableDiffusion(nn.Module):
         assert pipe is not None
         pipe = pipe.to(self.device)
 
-        # MEMORY IMPROVEMENTS
         pipe.enable_attention_slicing()
-
-        # Needs xformers package (installation is from source https://github.com/facebookresearch/xformers)
-        # pipe.enable_xformers_memory_efficient_attention()
-
-        # More memory savings for 1/3rd performance
-        # pipe.enable_sequential_cpu_offload()
 
         self.tokenizer = pipe.tokenizer
         self.unet = pipe.unet
@@ -174,9 +167,9 @@ class StableDiffusion(nn.Module):
         grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
 
-        noise_loss = torch.mean(torch.nan_to_num(torch.square(noise_pred - noise)))
+        sds_mse = torch.mean(torch.nan_to_num(torch.square(noise_pred - noise)))
 
-        return noise_loss, latents, grad
+        return sds_mse, latents, grad
 
     def produce_latents(
         self,
