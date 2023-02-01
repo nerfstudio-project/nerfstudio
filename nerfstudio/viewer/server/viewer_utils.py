@@ -940,7 +940,7 @@ class ViewerState:
         )
         camera = camera.to(graph.device)
 
-        camera_ray_bundle = camera.generate_rays(camera_indices=0)
+        camera_ray_bundle = camera.generate_rays(camera_indices=0, aabb_box=graph.render_aabb)
 
         graph.eval()
 

@@ -31,7 +31,7 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.3.3",
+    "nerfacc==0.3.4",
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
