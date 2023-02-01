@@ -147,6 +147,8 @@ class Cameras(TensorDataclass):
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
 
+        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
+
     def _init_get_fc_xy(self, fc_xy, name):
         """
         Parses the input focal length / principle point x or y and returns a tensor of the correct shape
@@ -470,9 +472,13 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                if strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE")):
-                    nerfacc = importlib.import_module("nerfacc")
-                    t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
+                if self._use_nerfacc:
+                    try:
+                        nerfacc = importlib.import_module("nerfacc")
+                        t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
+                    except:  # pylint: disable=bare-except
+                        t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                        self._use_nerfacc = False
                 else:
                     t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
 
