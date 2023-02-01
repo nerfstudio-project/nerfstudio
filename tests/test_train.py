@@ -15,7 +15,18 @@ from nerfstudio.data.dataparsers.minimal_dataparser import MinimalDataParserConf
 from nerfstudio.engine.trainer import TrainerConfig
 from scripts.train import train_loop
 
-BLACKLIST = ["base", "semantic-nerfw", "instant-ngp", "instant-ngp-bounded", "nerfacto", "phototourism", "dreamfusion"]
+BLACKLIST = [
+    "base",
+    "semantic-nerfw",
+    "instant-ngp",
+    "instant-ngp-bounded",
+    "nerfacto",
+    "phototourism",
+    "depth-nerfacto",
+    "nerfplayer-ngp",
+    "nerfplayer-nerfacto",
+    "dreamfusion",
+]
 
 
 def set_reduced_config(config: TrainerConfig):

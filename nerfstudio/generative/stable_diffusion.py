@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# From https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
+"""Stable Diffusion helpers"""
+
+# Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import sys
 from pathlib import Path
@@ -77,14 +79,7 @@ class StableDiffusion(nn.Module):
         assert pipe is not None
         pipe = pipe.to(self.device)
 
-        # MEMORY IMPROVEMENTS
         pipe.enable_attention_slicing()
-
-        # Needs xformers package (installation is from source https://github.com/facebookresearch/xformers)
-        # pipe.enable_xformers_memory_efficient_attention()
-
-        # More memory savings for 1/3rd performance
-        # pipe.enable_sequential_cpu_offload()
 
         self.tokenizer = pipe.tokenizer
         self.unet = pipe.unet
@@ -138,7 +133,7 @@ class StableDiffusion(nn.Module):
         text_embeddings: TensorType["N", "max_length", "embed_dim"],
         image: TensorType["BS", 3, "H", "W"],
         guidance_scale: float = 100.0,
-    ) -> Tuple[torch.Tensor, TensorType["BS", "2N", "H", "W"], TensorType["BS", "2N", "H", "W"]]:
+    ) -> Tuple[torch.Tensor, TensorType["BS", 4, "H", "W"], TensorType["BS", 4, "H", "W"]]:
         """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
 
         Args:
@@ -172,9 +167,9 @@ class StableDiffusion(nn.Module):
         grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
 
-        noise_loss = torch.mean(torch.nan_to_num(torch.square(noise_pred - noise)))
+        sds_mse = torch.mean(torch.nan_to_num(torch.square(noise_pred - noise)))
 
-        return noise_loss, latents, grad
+        return sds_mse, latents, grad
 
     def produce_latents(
         self,
@@ -183,8 +178,8 @@ class StableDiffusion(nn.Module):
         width: int = IMG_DIM,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
-        latents: Optional[TensorType["BS", "2N", "H", "W"]] = None,
-    ) -> TensorType["BS", "2N", "H", "W"]:
+        latents: Optional[TensorType["BS", 4, "H", "W"]] = None,
+    ) -> TensorType["BS", 4, "H", "W"]:
         """Produce latents for a given text embedding
 
         Args:
@@ -224,7 +219,7 @@ class StableDiffusion(nn.Module):
                 latents = self.scheduler.step(noise_pred, t, latents)["prev_sample"]  # type: ignore
         return latents
 
-    def latents_to_img(self, latents: TensorType["BS", "2N", "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
+    def latents_to_img(self, latents: TensorType["BS", 4, "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
         """Convert latents to images
 
         Args:
@@ -243,12 +238,12 @@ class StableDiffusion(nn.Module):
 
         return imgs
 
-    def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", "2N", "H", "W"]:
+    def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", 4, "H", "W"]:
         """Convert images to latents
-        
+
         Args:
             imgs: Images to convert
-        
+
         Returns:
             Latents
         """
