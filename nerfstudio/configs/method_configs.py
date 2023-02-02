@@ -93,11 +93,11 @@ method_configs["nerfacto"] = TrainerConfig(
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
             "scheduler": None,
         },
         "fields": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15, weight_decay=1e-6),
             "scheduler": None,
         },
     },
