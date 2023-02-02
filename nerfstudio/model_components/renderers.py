@@ -340,17 +340,24 @@ class LambertianShadingRenderer(nn.Module):
     @classmethod
     def forward(
         cls,
+        rgb: TensorType["bs":..., "num_samples", 3],
         normals: TensorType["bs":..., "num_samples", 3],
         light_direction: TensorType["bs", 3],
+        ratio: float = 1.0,
     ):
         """Calculate Lambertian shading.
 
         Args:
+            rgb: Accumulated rgb along a ray.
             normals: Accumulated normals along a ray.
             light_direction: Direction of light source.
+            ratio: ambient vs. shading ratio
 
         Returns:
-            Rendering of Lambertian shading.
+            Textureless Lambertian shading, Lambertian shading
         """
-        lambertian = (normals.detach() @ light_direction).clamp(min=0)
-        return lambertian
+        lambertian = ratio + (1 - ratio) * (normals.detach() @ light_direction).clamp(min=0)
+        shaded = lambertian.unsqueeze(-1).repeat(1, 3)
+        shaded_albedo = rgb * lambertian.unsqueeze(-1)
+
+        return shaded, shaded_albedo
