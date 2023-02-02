@@ -72,10 +72,10 @@ def center_roi(json_object):
 
     ts[:, 2] -= z_height
 
-    # Now we want to scale the image so that the subject is in the unit box
+    # Now we want to scale the image so that the subject is in the box [-1, 1] centered at origin
     radius = 1
     max_x, max_y = radius * cx / fx, radius * cy / fy
-    scale_factor = 0.5 / max(max_x, max_y)
+    scale_factor = 1 / max(max_x, max_y)
     ts *= scale_factor
 
     for frame, t in zip(json_object['frames'], ts):

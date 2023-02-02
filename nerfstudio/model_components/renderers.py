@@ -104,6 +104,8 @@ class RGBRenderer(nn.Module):
             background_color = torch.rand_like(comp_rgb).to(rgb.device)
         if background_color == "black":
             background_color = torch.zeros_like(comp_rgb).to(rgb.device)
+        if background_color == "white":
+            background_color = torch.ones_like(comp_rgb).to(rgb.device)
 
         assert isinstance(background_color, torch.Tensor)
         comp_rgb = comp_rgb + background_color.to(weights.device) * (1.0 - accumulated_weight)

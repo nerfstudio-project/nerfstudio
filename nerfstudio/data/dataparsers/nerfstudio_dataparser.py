@@ -52,19 +52,19 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """How much to scale the camera origins by."""
     downscale_factor: Optional[int] = None
     """How much to downscale images. If not set, images are chosen such that the max dimension is <1600px."""
-    scene_scale: float = 0.2
+    scene_scale: float = 1.0
     """How much to scale the region of interest by."""
     manual_translation_x: float = 0.0
     """How much to translate the region of interest by."""
     manual_translation_y: float = 0.0
     """How much to translate the region of interest by."""
-    manual_translation_z: float = 1.0
+    manual_translation_z: float = 0.0
     """How much to translate the region of interest by."""
-    orientation_method: Literal["pca", "up", "none"] = "up"
+    orientation_method: Literal["pca", "up", "none"] = "none"
     """The method to use for orientation."""
-    center_poses: bool = True
+    center_poses: bool = False
     """Whether to center the poses."""
-    auto_scale_poses: bool = True
+    auto_scale_poses: bool = False
     """Whether to automatically scale the poses to fit in +/- 1 bounding box."""
     train_split_percentage: float = 0.9
     """The percent of images to use for training. The remaining images are for eval."""

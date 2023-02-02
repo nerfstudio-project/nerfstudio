@@ -53,7 +53,7 @@ from nerfstudio.model_components.renderers import (
     NormalsRenderer,
     RGBRenderer,
 )
-from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.model_components.scene_colliders import AABBBoxCollider, NearFarCollider
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 
@@ -67,7 +67,7 @@ class NerfactoModelConfig(ModelConfig):
     """How far along the ray to start sampling."""
     far_plane: float = 1000.0
     """How far along the ray to stop sampling."""
-    background_color: Literal["random", "last_sample"] = "last_sample"
+    background_color: Literal["random", "last_sample"] = "white"
     """Whether to randomize the background color."""
     num_levels: int = 16
     """Number of levels of the hashmap for the base mlp."""
@@ -129,7 +129,7 @@ class NerfactoModel(Model):
         """Set the fields and modules."""
         super().populate_modules()
 
-        scene_contraction = SceneContraction(order=float("inf"))
+        scene_contraction = None
 
         # Fields
         self.field = TCNNNerfactoField(
@@ -179,7 +179,9 @@ class NerfactoModel(Model):
         )
 
         # Collider
-        self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+        # self.collider = NearFarCollider(near_plane=self.config.near_plane, far_plane=self.config.far_plane)
+        # self.collider = NearFarCollider(near_plane=4, far_plane=7)
+        self.collider = AABBBoxCollider(self.scene_box)
 
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
