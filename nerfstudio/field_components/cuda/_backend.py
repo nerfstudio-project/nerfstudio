@@ -27,9 +27,10 @@ BUILD_DIR = _get_build_directory(NAME, verbose=False)
 
 _C = None
 if cuda_toolkit_available():
-    if os.path.exists(os.path.join(BUILD_DIR, f"{NAME}.so")):
+    if os.listdir(BUILD_DIR) != []:
         # If the build exists, we assume the extension has been built
         # and we can load it.
+        print("nerfstudio field components: CUDA set up, loading (should be quick)")
         _C = load(
             name=NAME,
             sources=glob.glob(os.path.join(PATH, "csrc/*.cu")),

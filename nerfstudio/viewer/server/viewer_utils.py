@@ -48,7 +48,6 @@ from nerfstudio.models.base_model import Model
 from nerfstudio.utils import colormaps, profiler, writer
 from nerfstudio.utils.decorators import check_main_thread, decorate_all
 from nerfstudio.utils.io import load_from_json, write_to_json
-from nerfstudio.utils.misc import get_dict_to_torch
 from nerfstudio.utils.writer import GLOBAL_BUFFER, EventName, TimeWriter
 from nerfstudio.viewer.server.subprocess import run_viewer_bridge_server_as_subprocess
 from nerfstudio.viewer.server.utils import (
@@ -163,7 +162,6 @@ class RenderThread(threading.Thread):
             self.exc = e
 
         if outputs:
-            outputs = get_dict_to_torch(outputs)
             self.vis_outputs = outputs
 
         self.state.check_done_render = True
@@ -196,11 +194,16 @@ class CheckThread(threading.Thread):
         while not self.state.check_done_render:
             # check camera
             data = self.state.vis["renderingState/camera"].read()
+            render_time = self.state.vis["renderingState/render_time"].read()
             if data is not None:
                 camera_object = data["object"]
-                if self.state.prev_camera_matrix is None or (
-                    not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
-                    and not self.state.prev_moving
+                if (
+                    self.state.prev_camera_matrix is None
+                    or (
+                        not np.allclose(camera_object["matrix"], self.state.prev_camera_matrix)
+                        and not self.state.prev_moving
+                    )
+                    or (render_time is not None and render_time != self.state.prev_render_time)
                 ):
                     self.state.check_interrupt_vis = True
                     self.state.prev_moving = True
@@ -280,6 +283,7 @@ class ViewerState:
 
         # viewer specific variables
         self.prev_camera_matrix = None
+        self.prev_render_time = 0
         self.prev_output_type = OutputTypes.INIT
         self.prev_colormap_type = ColormapTypes.INIT
         self.prev_moving = False
@@ -395,13 +399,14 @@ class ViewerState:
             trainer.save_checkpoint(step)
             # get all camera paths
             camera_path_dir = os.path.join(self.datapath, "camera_paths")
-            camera_path_files = os.listdir(camera_path_dir)
-            all_path_dict = {}
-            for i in camera_path_files:
-                if i[-4:] == "json":
-                    all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
-            self.vis["renderingState/all_camera_paths"].write(all_path_dict)
-            self.vis["populate_paths_payload"].delete()
+            if os.path.exists(camera_path_dir):
+                camera_path_files = os.listdir(camera_path_dir)
+                all_path_dict = {}
+                for i in camera_path_files:
+                    if i[-4:] == "json":
+                        all_path_dict[i[:-5]] = load_from_json(Path(os.path.join(camera_path_dir, i)))
+                self.vis["renderingState/all_camera_paths"].write(all_path_dict)
+                self.vis["populate_paths_payload"].delete()
 
     def _check_webrtc_offer(self):
         """Check if there is a webrtc offer to respond to."""
@@ -553,12 +558,23 @@ class ViewerState:
             return None
 
         camera_object = data["object"]
+        render_time = self.vis["renderingState/render_time"].read()
 
-        if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
-            self.camera_moving = False
+        if render_time is not None:
+            if (
+                self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix)
+            ) and (self.prev_render_time == render_time):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.prev_render_time = render_time
+                self.camera_moving = True
         else:
-            self.prev_camera_matrix = camera_object["matrix"]
-            self.camera_moving = True
+            if self.prev_camera_matrix is not None and np.allclose(camera_object["matrix"], self.prev_camera_matrix):
+                self.camera_moving = False
+            else:
+                self.prev_camera_matrix = camera_object["matrix"]
+                self.camera_moving = True
 
         output_type = self.vis["renderingState/output_choice"].read()
         if output_type is None:
@@ -901,10 +917,6 @@ class ViewerState:
             dim=0,
         )
 
-        times = self.vis["renderingState/render_time"].read()
-        if times is not None:
-            times = torch.tensor([float(times)])
-
         camera_type_msg = camera_object["camera_type"]
         if camera_type_msg == "perspective":
             camera_type = CameraType.PERSPECTIVE
@@ -922,7 +934,7 @@ class ViewerState:
             cy=intrinsics_matrix[1, 2],
             camera_type=camera_type,
             camera_to_worlds=camera_to_world[None, ...],
-            times=times,
+            times=torch.tensor([float(self.prev_render_time)]),
         )
         camera = camera.to(graph.device)
 
