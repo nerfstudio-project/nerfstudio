@@ -50,6 +50,7 @@ from rich.console import Console
 from rich.progress import track
 from typing_extensions import Literal
 
+import nerfstudio.process_data.canonicalize_camera_poses as canonicalize_camera_poses
 from nerfstudio.process_data.process_data_utils import CameraModel
 from nerfstudio.utils.rich_utils import status
 from nerfstudio.utils.scripts import run_command
@@ -633,6 +634,8 @@ def colmap_to_json(
             frame["mask_path"] = camera_mask_path.relative_to(camera_mask_path.parent.parent).as_posix()
         frames.append(frame)
 
+    frames = canonicalize_camera_poses.canonicalize_camera_poses(frames)
+
     # if len(camera_params) == 4:
     #     f, cx, cy, k = camera_params
     #     camera_params = [f, f, cx, cy, k, 0, 0, 0]
@@ -672,6 +675,8 @@ def colmap_to_json(
         )
 
     out["frames"] = frames
+
+    out = canonicalize_camera_poses.center_roi(out)
 
     with open(output_dir / "transforms.json", "w", encoding="utf-8") as f:
         json.dump(out, f, indent=4)
