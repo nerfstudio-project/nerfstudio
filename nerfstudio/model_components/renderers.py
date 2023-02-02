@@ -332,3 +332,25 @@ class NormalsRenderer(nn.Module):
         """Calculate normals along the ray."""
         n = torch.sum(weights * normals, dim=-2)
         return n
+
+
+class LambertianShadingRenderer(nn.Module):
+    """Calculate Lambertian shading."""
+
+    @classmethod
+    def forward(
+        cls,
+        normals: TensorType["bs":..., "num_samples", 3],
+        light_direction: TensorType["bs", 3],
+    ):
+        """Calculate Lambertian shading.
+
+        Args:
+            normals: Accumulated normals along a ray.
+            light_direction: Direction of light source.
+
+        Returns:
+            Rendering of Lambertian shading.
+        """
+        lambertian = (normals.detach() @ light_direction).clamp(min=0)
+        return lambertian
