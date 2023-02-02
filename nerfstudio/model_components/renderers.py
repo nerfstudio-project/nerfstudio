@@ -351,7 +351,7 @@ class LambertianShadingRenderer(nn.Module):
             rgb: Accumulated rgb along a ray.
             normals: Accumulated normals along a ray.
             light_direction: Direction of light source.
-            ratio: ambient vs. shading ratio
+            ratio: ambient lighting (1.0) vs. Lambertian shading (0.0) ratio
 
         Returns:
             Textureless Lambertian shading, Lambertian shading
