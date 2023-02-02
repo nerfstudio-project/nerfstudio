@@ -110,26 +110,8 @@ class DreamfusionPipeline(VanillaPipeline):
             .permute(0, 3, 1, 2)
         )
 
-        accumulation = (
-            model_outputs["accumulation"]
-            .view(self.config.datamanager.train_resolution, self.config.datamanager.train_resolution)
-            .detach()
-            .cpu()
-            .numpy()
-        )
-        accumulation = np.clip(accumulation, 0.0, 1.0)
-        plt.imsave("nerf_accumulation.jpg", accumulation)
-
-        # background = model_outputs["background"].view(res, res, 3).detach().cpu().numpy()
-        # background = np.clip(background, 0.0, 1.0)
-        # plt.imsave("nerf_background.jpg", background)
-
-        # shaded = model_outputs["shaded"].view(res, res, 3).detach().cpu().numpy()
-        # shaded = np.clip(shaded, 0.0, 1.0)
-        # plt.imsave("nerf_textureless.jpg", shaded)
-
         if self.config.location_based_prompting:
-            if batch["vertical"] > 60:
+            if batch["vertical"] < 30:
                 text_embedding = self.top_text_embedding
             elif batch["central"] > 315 or batch["central"] <= 45:
                 text_embedding = self.front_text_embedding

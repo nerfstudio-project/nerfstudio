@@ -35,7 +35,7 @@ class DreamfusionTrainerConfig(TrainerConfig):
     """target class to instantiate"""
     pipeline: DreamfusionPipelineConfig = DreamfusionPipelineConfig()
     """specifies the pipeline config"""
-    gradient_accumulation_steps: int = 4
+    gradient_accumulation_steps: int = 1
     """number of gradient accumulation steps before optimizer step"""
 
 

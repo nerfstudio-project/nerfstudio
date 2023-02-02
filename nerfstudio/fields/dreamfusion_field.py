@@ -140,8 +140,8 @@ class DreamFusionField(Field):
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
                 "output_activation": "Sigmoid",
-                "n_neurons": 64,
-                "n_hidden_layers": 2,
+                "n_neurons": 32,
+                "n_hidden_layers": 1,
             },
         )
 
