@@ -42,6 +42,8 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
 
     location_based_prompting: bool = True
     """enables location based prompting"""
+    top_prompt: str = ", overhead view"
+    """appended to prompt for overhead view"""
     side_prompt: str = ", side view"
     """appended to prompt for side view"""
     front_prompt: str = ", front view"
@@ -84,6 +86,7 @@ class DreamfusionPipeline(VanillaPipeline):
         )
         self.sd = StableDiffusion(self.sd_device)
         if config.location_based_prompting:
+            self.top_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.top_prompt}", "")
             self.front_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.front_prompt}", "")
             self.side_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.side_prompt}", "")
             self.back_text_embedding = self.sd.get_text_embeds(f"{config.prompt}{config.back_prompt}", "")
@@ -126,7 +129,9 @@ class DreamfusionPipeline(VanillaPipeline):
         # plt.imsave("nerf_textureless.jpg", shaded)
 
         if self.config.location_based_prompting:
-            if batch["central"] > 315 or batch["central"] <= 45:
+            if batch["vertical"] > 60:
+                text_embedding = self.top_text_embedding
+            elif batch["central"] > 315 or batch["central"] <= 45:
                 text_embedding = self.front_text_embedding
             elif batch["central"] > 45 and batch["central"] <= 135:
                 text_embedding = self.side_text_embedding
