@@ -77,6 +77,8 @@ class TrainerConfig(ExperimentConfig):
     load_step: Optional[int] = None
     """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
     load_config: Optional[Path] = None
+    """Optionally log gradients during training"""
+    log_gradients: bool = False
 
 
 class Trainer:
@@ -188,7 +190,6 @@ class Trainer:
             step = 0
             for step in range(self._start_step, self._start_step + num_iterations):
                 with TimeWriter(writer, EventName.ITER_TRAIN_TIME, step=step) as train_t:
-
                     self.pipeline.train()
 
                     # training callbacks before the training iteration
@@ -370,6 +371,18 @@ class Trainer:
             loss = functools.reduce(torch.add, loss_dict.values())
         self.grad_scaler.scale(loss).backward()  # type: ignore
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
+
+        if self.config.log_gradients:
+            total_grad = 0
+            for tag, value in self.pipeline.model.named_parameters():
+                assert tag != "Total"
+                if value.grad is not None:
+                    grad = value.grad.norm()
+                    metrics_dict[f"Gradients/{tag}"] = grad
+                    total_grad += grad
+
+            metrics_dict["Gradients/Total"] = total_grad
+
         self.grad_scaler.update()
         self.optimizers.scheduler_step_all(step)
 
