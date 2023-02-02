@@ -47,6 +47,7 @@ from nerfstudio.model_components.ray_samplers import UniformSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
+    LambertianShadingRenderer,
     NormalsRenderer,
     RGBRenderer,
 )
@@ -180,6 +181,7 @@ class DreamFusionModel(Model):
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
+        self.renderer_lambertian = LambertianShadingRenderer()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -248,13 +250,13 @@ class DreamFusionModel(Model):
         light_d = math.safe_normalize(light_d)
 
         if self.train_shaded and np.random.random_sample() > 0.75:
-            ratio = 0.1
+            shading_weight = 0.9
         else:
-            ratio = 0.0
-        # with torch.no_grad():
-        lambertian = ratio + (1 - ratio) * (pred_normals.detach() @ light_d).clamp(min=0)
-        shaded = lambertian.unsqueeze(-1).repeat(1, 3)
-        shaded_albedo = rgb * lambertian.unsqueeze(-1)
+            shading_weight = 0.0
+
+        shaded, shaded_albedo = self.renderer_lambertian(
+            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
+        )
 
         outputs["normals"] = normals
         outputs["pred_normals"] = pred_normals
@@ -262,7 +264,7 @@ class DreamFusionModel(Model):
         outputs["shaded_albedo"] = shaded_albedo
         outputs["render"] = accum_mask * rgb + background
 
-        if ratio > 0:
+        if shading_weight < 0:
             if np.random.random_sample() > 0.5:
                 outputs["train_output"] = shaded
             else:
