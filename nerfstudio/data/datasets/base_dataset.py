@@ -96,6 +96,11 @@ class InputDataset(Dataset):
         image = self.get_image(image_idx)
         data = {"image_idx": image_idx}
         data["image"] = image
+        for _, data_func_dict in self._dataparser_outputs.additional_inputs.items():
+            assert "func" in data_func_dict, "Missing function to process data: specify `func` in `additional_inputs`"
+            func = data_func_dict["func"]
+            assert "kwargs" in data_func_dict, "No data to process: specify `kwargs` in `additional_inputs`"
+            data.update(func(image_idx, **data_func_dict["kwargs"]))
         if self.has_masks:
             mask_filepath = self._dataparser_outputs.mask_filenames[image_idx]
             data["mask"] = get_image_mask_tensor_from_path(filepath=mask_filepath, scale_factor=self.scale_factor)

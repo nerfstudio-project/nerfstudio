@@ -722,6 +722,7 @@ class Cameras(TensorDataclass):
             directions=directions,
             pixel_area=pixel_area,
             camera_indices=camera_indices,
+            directions_norm=directions_norm[0],
             times=times,
             metadata={"directions_norm": directions_norm[0].detach()},
         )
