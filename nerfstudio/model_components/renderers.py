@@ -332,3 +332,37 @@ class NormalsRenderer(nn.Module):
         """Calculate normals along the ray."""
         n = torch.sum(weights * normals, dim=-2)
         return n
+
+
+class LambertianShadingRenderer(nn.Module):
+    """Calculate Lambertian shading."""
+
+    @classmethod
+    def forward(
+        cls,
+        rgb: TensorType["bs":..., 3],
+        normals: TensorType["bs":..., 3],
+        light_direction: TensorType["bs":..., 3],
+        shading_weight: float = 1.0,
+        detach_normals=True,
+    ):
+        """Calculate Lambertian shading.
+
+        Args:
+            rgb: Accumulated rgb along a ray.
+            normals: Accumulated normals along a ray.
+            light_direction: Direction of light source.
+            shading_weight: Lambertian shading (1.0) vs. ambient lighting (0.0) ratio
+            detach_normals: Detach normals from the computation graph when computing shading.
+
+        Returns:
+            Textureless Lambertian shading, Lambertian shading
+        """
+        if detach_normals:
+            normals = normals.detach()
+
+        lambertian = (1 - shading_weight) + shading_weight * (normals @ light_direction).clamp(min=0)
+        shaded = lambertian.unsqueeze(-1).repeat(1, 3)
+        shaded_albedo = rgb * lambertian.unsqueeze(-1)
+
+        return shaded, shaded_albedo
