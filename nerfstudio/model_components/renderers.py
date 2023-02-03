@@ -37,7 +37,7 @@ from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.utils.math import components_from_spherical_harmonics
+from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
 BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
 
@@ -328,41 +328,16 @@ class NormalsRenderer(nn.Module):
         cls,
         normals: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
+        normalize: bool = True,
     ) -> TensorType["bs":..., 3]:
-        """Calculate normals along the ray."""
-        n = torch.sum(weights * normals, dim=-2)
-        return n
-
-
-class LambertianShadingRenderer(nn.Module):
-    """Calculate Lambertian shading."""
-
-    @classmethod
-    def forward(
-        cls,
-        rgb: TensorType["bs":..., 3],
-        normals: TensorType["bs":..., 3],
-        light_direction: TensorType["bs":..., 3],
-        shading_weight: float = 1.0,
-        detach_normals=True,
-    ):
-        """Calculate Lambertian shading.
+        """Calculate normals along the ray.
 
         Args:
-            rgb: Accumulated rgb along a ray.
-            normals: Accumulated normals along a ray.
-            light_direction: Direction of light source.
-            shading_weight: Lambertian shading (1.0) vs. ambient lighting (0.0) ratio
-            detach_normals: Detach normals from the computation graph when computing shading.
-
-        Returns:
-            Textureless Lambertian shading, Lambertian shading
+            normals: Normals for each sample.
+            weights: Weights of each sample.
+            normalize: Normalize normals.
         """
-        if detach_normals:
-            normals = normals.detach()
-
-        lambertian = (1 - shading_weight) + shading_weight * (normals @ light_direction).clamp(min=0)
-        shaded = lambertian.unsqueeze(-1).repeat(1, 3)
-        shaded_albedo = rgb * lambertian.unsqueeze(-1)
-
-        return shaded, shaded_albedo
+        n = torch.sum(weights * normals, dim=-2)
+        if normalize:
+            n = safe_normalize(n)
+        return n
