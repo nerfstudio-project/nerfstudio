@@ -37,7 +37,7 @@ from torchtyping import TensorType
 from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
-from nerfstudio.utils.math import components_from_spherical_harmonics
+from nerfstudio.utils.math import components_from_spherical_harmonics, safe_normalize
 
 BACKGROUND_COLOR_OVERRIDE: Optional[TensorType[3]] = None
 
@@ -328,9 +328,18 @@ class NormalsRenderer(nn.Module):
         cls,
         normals: TensorType["bs":..., "num_samples", 3],
         weights: TensorType["bs":..., "num_samples", 1],
+        normalize: bool = True,
     ) -> TensorType["bs":..., 3]:
-        """Calculate normals along the ray."""
+        """Calculate normals along the ray.
+
+        Args:
+            normals: Normals for each sample.
+            weights: Weights of each sample.
+            normalize: Normalize normals.
+        """
         n = torch.sum(weights * normals, dim=-2)
+        if normalize:
+            n = safe_normalize(n)
         return n
 
 
