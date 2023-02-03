@@ -132,9 +132,9 @@ class DreamfusionPipeline(VanillaPipeline):
             )
             loss_dict["sds_loss"] = sds_loss.to(self.device)
         # TODO: opacity penalty using transmittance, not accumultation
-        if self.config.opacity_penalty:
-            accum_mean = np.mean(1.0 - accumulation)
-            sds_loss *= np.min((0.5, accum_mean))
+        # if self.config.opacity_penalty:
+        #     accum_mean = np.mean(1.0 - accumulation)
+        #     sds_loss *= np.min((0.5, accum_mean))
 
         model_outputs["latents"] = latents
         model_outputs["grad"] = grad

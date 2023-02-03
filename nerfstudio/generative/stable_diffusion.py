@@ -17,9 +17,11 @@
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+import appdirs
 import mediapy
 import numpy as np
 import torch
@@ -47,6 +49,11 @@ CONST_SCALE = 0.18215
 
 SD_SOURCE = "runwayml/stable-diffusion-v1-5"
 CLIP_SOURCE = "openai/clip-vit-large-patch14"
+
+
+@dataclass
+class UNet2DConditionOutput:
+    sample: torch.FloatTensor
 
 
 class StableDiffusion(nn.Module):
@@ -81,12 +88,33 @@ class StableDiffusion(nn.Module):
 
         pipe.enable_attention_slicing()
 
+        # use jitted unet
+        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "unet_traced.pt"
+        if unet_traced_filename.exists():
+            CONSOLE.print("Loading traced UNet.")
+            unet_traced = torch.jit.load("unet_traced.pt")
+
+            class TracedUNet(torch.nn.Module):
+                """Jitted version of UNet"""
+
+                def __init__(self):
+                    super().__init__()
+                    self.in_channels = pipe.unet.in_channels
+                    self.device = pipe.unet.device
+
+                def forward(self, latent_model_input, t, encoder_hidden_states):
+                    sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
+                    return UNet2DConditionOutput(sample=sample)
+
+            self.unet = TracedUNet()
+            del pipe.unet
+        else:
+            self.unet = pipe.unet
+            self.unet.to(memory_format=torch.channels_last)
+
         self.tokenizer = pipe.tokenizer
-        self.unet = pipe.unet
         self.text_encoder = pipe.text_encoder
         self.auto_encoder = pipe.vae
-
-        self.unet.to(memory_format=torch.channels_last)
 
         CONSOLE.print("Stable Diffusion loaded!")
 
