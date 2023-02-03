@@ -689,7 +689,8 @@ class ViewerState:
         video = SingleFrameStreamTrack()
         self.video_tracks.add(video)
         video_sender = pc.addTrack(video)
-        force_codec(pc, video_sender, "video/VP8")
+        print(f"viewer using video/{self.config.codec}")
+        force_codec(pc, video_sender, f"video/{self.config.codec}")
 
         await pc.setRemoteDescription(offer)
         answer = await pc.createAnswer()
@@ -831,6 +832,11 @@ class ViewerState:
         if image_width > self.max_resolution:
             image_width = self.max_resolution
             image_height = int(image_width / aspect_ratio)
+        if self.config.codec != "VP8":
+            # force even values to allow hardware encoder usage
+            quantize = 2
+            image_width = int(image_width / quantize) * quantize
+            image_height = int(image_height / quantize) * quantize
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
@@ -904,7 +910,7 @@ class ViewerState:
             return
 
         intrinsics_matrix, camera_to_world_h = get_intrinsics_matrix_and_camera_to_world_h(
-            camera_object, image_height=image_height
+            camera_object, image_height=image_height, image_width=image_width
         )
 
         camera_to_world = camera_to_world_h[:3, :]
