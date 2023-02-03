@@ -31,12 +31,12 @@ dependencies = [
     "mediapy>=1.1.0",
     "msgpack>=1.0.4",
     "msgpack_numpy>=0.4.8",
-    "nerfacc==0.3.3",
+    "nerfacc==0.3.4",
     "open3d>=0.16.0",
     "opencv-python==4.6.0.66",
     "Pillow>=9.3.0",
     "plotly>=5.7.0",
-    "protobuf<=3.20.3.*,!=3.20.0",
+    "protobuf<=3.20.3,!=3.20.0",
     "pymeshlab>=2022.2.post2",
     "pyngrok>=5.1.0",
     "python-socketio>=5.7.1",
@@ -59,6 +59,14 @@ dependencies = [
 
 
 [project.optional-dependencies]
+
+# Generative related dependencies
+gen = [
+    "diffusers==0.9.0",
+    "transformers==4.24.0",
+]
+
+
 # Development packages
 dev = [
     "black[jupyter]==22.3.0",
