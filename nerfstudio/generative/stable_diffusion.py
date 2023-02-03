@@ -109,6 +109,9 @@ class StableDiffusion(nn.Module):
             self.unet = TracedUNet()
             del pipe.unet
         else:
+            CONSOLE.print(
+                "Warning: Loading UNet without JIT acceleration. Run trace_stablediff.py in the scripts folder for a speedup!"
+            )
             self.unet = pipe.unet
             self.unet.to(memory_format=torch.channels_last)
 
