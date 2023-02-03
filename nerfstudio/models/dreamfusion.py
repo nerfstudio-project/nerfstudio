@@ -257,8 +257,8 @@ class DreamFusionModel(Model):
             rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
         )
 
-        outputs["normals"] = normals
-        outputs["pred_normals"] = pred_normals
+        outputs["normals"] = ((normals + 1.0) / 2.0) * accum_mask
+        outputs["pred_normals"] = ((pred_normals + 1.0) / 2.0) * accum_mask
         outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
         outputs["shaded_albedo"] = shaded_albedo
         outputs["render"] = accum_mask * rgb + background
