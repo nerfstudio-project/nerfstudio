@@ -291,7 +291,7 @@ def depth_loss(
         Depth loss scalar.
     """
     if not is_euclidean:
-        termination_depth = termination_depth / directions_norm
+        termination_depth = termination_depth * directions_norm
     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
     if depth_loss_type == DephtLossType.DS_NERF:
