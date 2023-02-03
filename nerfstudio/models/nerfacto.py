@@ -250,8 +250,10 @@ class NerfactoModel(Model):
         }
 
         if self.config.predict_normals:
-            outputs["normals"] = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-            outputs["pred_normals"] = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
+            pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
+            outputs["normals"] = (normals + 1) / 2
+            outputs["pred_normals"] = (pred_normals + 1) / 2
 
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
