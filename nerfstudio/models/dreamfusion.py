@@ -24,9 +24,6 @@ from typing import Dict, List, Tuple, Type
 import numpy as np
 import torch
 from torch.nn import Parameter
-from torchmetrics import PeakSignalNoiseRatio
-from torchmetrics.functional import structural_similarity_index_measure
-from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
 
 from nerfstudio.cameras.rays import RayBundle
 from nerfstudio.engine.callbacks import (
@@ -34,8 +31,6 @@ from nerfstudio.engine.callbacks import (
     TrainingCallbackAttributes,
     TrainingCallbackLocation,
 )
-
-# from nerfstudio.field_components.encodings import NeRFEncoding,
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
@@ -190,11 +185,6 @@ class DreamFusionModel(Model):
 
         # losses
         self.rgb_loss = MSELoss()
-
-        # metrics
-        self.psnr = PeakSignalNoiseRatio(data_range=1.0)
-        self.ssim = structural_similarity_index_measure
-        self.lpips = LearnedPerceptualImagePatchSimilarity()
 
         # colliders
         if self.config.sphere_collider:
@@ -361,20 +351,19 @@ class DreamFusionModel(Model):
         else:
             outputs["train_output"] = outputs["render"]
 
-        # if self.train_normals:
+        if self.training:
+            outputs["rendered_orientation_loss"] = orientation_loss(
+                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+            )
 
-        outputs["rendered_orientation_loss"] = orientation_loss(
-            weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
-        )
+            outputs["rendered_pred_normal_loss"] = pred_normal_loss(
+                weights.detach(),
+                field_outputs[FieldHeadNames.NORMALS].detach(),
+                field_outputs[FieldHeadNames.PRED_NORMALS],
+            )
 
-        outputs["rendered_pred_normal_loss"] = pred_normal_loss(
-            weights.detach(),
-            field_outputs[FieldHeadNames.NORMALS].detach(),
-            field_outputs[FieldHeadNames.PRED_NORMALS],
-        )
-
-        assert weights.shape[-1] == 1
-        outputs["alphas_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
+            assert weights.shape[-1] == 1
+            outputs["alphas_loss"] = torch.sqrt(torch.sum(weights, dim=-2) ** 2 + 0.01)
 
         return outputs
 

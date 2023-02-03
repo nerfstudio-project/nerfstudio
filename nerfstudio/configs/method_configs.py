@@ -349,7 +349,7 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
         ),
-        model=DreamFusionModelConfig(),
+        model=DreamFusionModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
         "proposal_networks": {
@@ -388,7 +388,7 @@ method_configs["nerfplayer-nerfacto"] = TrainerConfig(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    viewer=ViewerConfig(),
     vis="viewer",
 )
 
