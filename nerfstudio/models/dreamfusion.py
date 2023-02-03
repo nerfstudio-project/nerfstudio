@@ -52,11 +52,11 @@ from nerfstudio.model_components.ray_samplers import (
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
-    LambertianShadingRenderer,
     NormalsRenderer,
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import AABBBoxCollider, SphereCollider
+from nerfstudio.model_components.shaders import LambertianShader, NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps, colors, math, misc
 
@@ -183,7 +183,10 @@ class DreamFusionModel(Model):
         self.renderer_accumulation = AccumulationRenderer()
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
-        self.renderer_lambertian = LambertianShadingRenderer()
+
+        # shaders
+        self.shader_lambertian = LambertianShader()
+        self.shader_normals = NormalsShader()
 
         # losses
         self.rgb_loss = MSELoss()
@@ -340,12 +343,12 @@ class DreamFusionModel(Model):
         else:
             shading_weight = 0.0
 
-        shaded, shaded_albedo = self.renderer_lambertian(
+        shaded, shaded_albedo = self.shader_lambertian(
             rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
         )
 
-        outputs["normals"] = ((normals + 1.0) / 2.0) * accum_mask
-        outputs["pred_normals"] = ((pred_normals + 1.0) / 2.0) * accum_mask
+        outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
+        outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
         outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
         outputs["shaded_albedo"] = shaded_albedo
         outputs["render"] = accum_mask * rgb + background
@@ -409,28 +412,12 @@ class DreamFusionModel(Model):
     def get_image_metrics_and_images(
         self, outputs: Dict[str, torch.Tensor], batch: Dict[str, torch.Tensor]
     ) -> Tuple[Dict[str, float], Dict[str, torch.Tensor]]:
-        image = batch["image"].to(outputs["rgb"].device)
-        rgb = outputs["rgb"]
         acc = colormaps.apply_colormap(outputs["accumulation"])
         depth = colormaps.apply_depth_colormap(
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
 
-        combined_rgb = torch.cat([image, rgb], dim=1)
-
-        # Switch images from [H, W, C] to [1, C, H, W] for metrics computations
-        image = torch.moveaxis(image, -1, 0)[None, ...]
-        rgb = torch.moveaxis(rgb, -1, 0)[None, ...]
-
-        psnr = self.psnr(image, rgb)
-        ssim = self.ssim(image, rgb)
-        lpips = self.lpips(image, rgb)
-
-        metrics_dict = {
-            "psnr": float(psnr.item()),
-            "ssim": float(ssim.item()),
-            "lpips": float(lpips.item()),
-        }
-        images_dict = {"img": combined_rgb, "accumulation": acc, "depth": depth}
+        metrics_dict = {}
+        images_dict = {"img": outputs["rgb"], "accumulation": acc, "depth": depth}
         return metrics_dict, images_dict

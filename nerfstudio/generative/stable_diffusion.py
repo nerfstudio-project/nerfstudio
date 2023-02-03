@@ -92,7 +92,7 @@ class StableDiffusion(nn.Module):
         unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "unet_traced.pt"
         if unet_traced_filename.exists():
             CONSOLE.print("Loading traced UNet.")
-            unet_traced = torch.jit.load("unet_traced.pt")
+            unet_traced = torch.jit.load(unet_traced_filename)
 
             class TracedUNet(torch.nn.Module):
                 """Jitted version of UNet"""
