@@ -1,7 +1,6 @@
 """Trace Stable Diffusion UNet for speed improvement"""
 
 import functools
-import time
 from pathlib import Path
 
 import appdirs
@@ -10,13 +9,8 @@ from diffusers import StableDiffusionPipeline
 
 
 def jit_unet():
-
     # torch disable grad
     torch.set_grad_enabled(False)
-
-    # set variables
-    n_experiments = 2
-    unet_runs_per_experiment = 50
 
     # load inputs
     def generate_inputs():
@@ -48,29 +42,6 @@ def jit_unet():
     unet_traced = torch.jit.trace(unet, inputs)
     unet_traced.eval()
     print("done tracing")
-
-    # warmup and optimize graph
-    for _ in range(5):
-        with torch.inference_mode():
-            inputs = generate_inputs()
-            orig_output = unet_traced(*inputs)
-
-    # benchmarking
-    with torch.inference_mode():
-        for _ in range(n_experiments):
-            torch.cuda.synchronize()
-            start_time = time.time()
-            for _ in range(unet_runs_per_experiment):
-                orig_output = unet_traced(*inputs)
-            torch.cuda.synchronize()
-            print(f"unet traced inference took {time.time() - start_time:.2f} seconds")
-        for _ in range(n_experiments):
-            torch.cuda.synchronize()
-            start_time = time.time()
-            for _ in range(unet_runs_per_experiment):
-                orig_output = unet(*inputs)
-            torch.cuda.synchronize()
-            print(f"unet inference took {time.time() - start_time:.2f} seconds")
 
     # save the traced model
     unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "unet_traced.pt"
