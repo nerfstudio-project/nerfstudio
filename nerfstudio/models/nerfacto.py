@@ -54,6 +54,7 @@ from nerfstudio.model_components.renderers import (
     RGBRenderer,
 )
 from nerfstudio.model_components.scene_colliders import NearFarCollider
+from nerfstudio.model_components.shaders import NormalsShader
 from nerfstudio.models.base_model import Model, ModelConfig
 from nerfstudio.utils import colormaps
 
@@ -187,6 +188,9 @@ class NerfactoModel(Model):
         self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
 
+        # shaders
+        self.normals_shader = NormalsShader()
+
         # losses
         self.rgb_loss = MSELoss()
 
@@ -252,9 +256,8 @@ class NerfactoModel(Model):
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
             pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
-            outputs["normals"] = (normals + 1) / 2
-            outputs["pred_normals"] = (pred_normals + 1) / 2
-
+            outputs["normals"] = self.normals_shader(normals)
+            outputs["pred_normals"] = self.normals_shader(pred_normals)
         # These use a lot of GPU memory, so we avoid storing them for eval.
         if self.training:
             outputs["weights_list"] = weights_list
@@ -335,12 +338,6 @@ class NerfactoModel(Model):
         metrics_dict["lpips"] = float(lpips)
 
         images_dict = {"img": combined_rgb, "accumulation": combined_acc, "depth": combined_depth}
-
-        # normals to RGB for visualization. TODO: use a colormap
-        if "normals" in outputs:
-            images_dict["normals"] = (outputs["normals"] + 1.0) / 2.0
-        if "pred_normals" in outputs:
-            images_dict["pred_normals"] = (outputs["pred_normals"] + 1.0) / 2.0
 
         for i in range(self.config.num_proposal_iterations):
             key = f"prop_depth_{i}"
