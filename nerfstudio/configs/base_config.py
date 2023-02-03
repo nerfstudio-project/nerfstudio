@@ -21,7 +21,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Optional, Tuple, Type
+from typing import Any, Literal, List, Optional, Tuple, Type
 
 # model instances
 from nerfstudio.utils import writer
@@ -149,5 +149,5 @@ class ViewerConfig(PrintableConfig):
     skip_openrelay: bool = False
     """Avoid using openrelay to communicate with the viewer. Try disabling if you have trouble
     connecting to the viewer"""
-    codec: str = "H264"
-    """Video codec that viewer will use; H264 or VP8."""
+    codec: Literal["H264", "VP8"] = "VP8"
+    """Video codec that viewer will use."""
