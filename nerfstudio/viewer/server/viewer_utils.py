@@ -834,8 +834,9 @@ class ViewerState:
             image_height = int(image_width / aspect_ratio)
         if self.config.codec != "VP8":
             # force even values to allow hardware encoder usage
-            image_width = int(image_width / 2) * 2
-            image_height = int(image_height / 2) * 2
+            quantize = 2
+            image_width = int(image_width / quantize) * quantize
+            image_height = int(image_height / quantize) * quantize
         return image_height, image_width
 
     def _process_invalid_output(self, output_type: str) -> str:
