@@ -302,3 +302,23 @@ def depth_loss(
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
 
     raise NotImplementedError("Provided depth loss type not implemented.")
+
+def robust_rgb_loss(rgb_outputs,rgb_gt,patch_size=16):
+    out_patches = rgb_outputs.view(-1,1,patch_size,patch_size)
+    gt_patches = rgb_gt.view(-1,1,patch_size,patch_size)
+    device = rgb_outputs.device
+    batch_size = out_patches.shape[0]
+    residuals = (out_patches - gt_patches)**2
+
+    with torch.no_grad():
+        med_residual = torch.median(residuals)
+        #equation 8
+        weight = (residuals<med_residual).float()
+        #equation 9
+        blurred_w = (torch.nn.functional.conv2d(weight,(1/9.)*torch.ones((1,1,3,3),device=device),padding='same')>0.5).float()
+        expected_w = torch.mean(torch.mean(blurred_w,dim=-1),dim=-1)
+        weight_r8 = (expected_w > 0.6).float()
+        w_8x8 = weight_r8[...,None] * torch.ones((batch_size,8,8),device=device)
+        final_w = torch.zeros((batch_size,16,16),device=device)
+        final_w[:,4:12,4:12] = w_8x8
+    return torch.mean(residuals*final_w)

@@ -351,7 +351,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return PatchPixelSampler(*args, **kwargs,patch_size=3)
+        return PatchPixelSampler(*args, **kwargs,patch_size=16)
 
     def setup_train(self):
         """Sets up the data loaders for training"""

@@ -45,6 +45,7 @@ from nerfstudio.model_components.losses import (
     interlevel_loss,
     orientation_loss,
     pred_normal_loss,
+    robust_rgb_loss
 )
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
@@ -303,7 +304,7 @@ class NerfactoModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-        loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
+        loss_dict["rgb_loss"] = robust_rgb_loss(image, outputs["rgb"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
@@ -320,10 +321,6 @@ class NerfactoModel(Model):
                 loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
                     outputs["rendered_pred_normal_loss"]
                 )
-            #depth regularity loss
-            p=3
-            patches = outputs['depth'].view(-1,p,p) #Bx3x3
-            loss_dict['depth_reg'] = np.interp(self.step,[0,500],[0,1])*torch.mean(torch.sum((patches.view(-1,p*p) - patches[:,p//2,p//2][:,None])**2,dim=1))
 
         return loss_dict
 
