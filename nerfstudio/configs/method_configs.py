@@ -352,6 +352,10 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
         model=DreamFusionModelConfig(),
     ),
     optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
         "fields": {
             "optimizer": AdamOptimizerConfig(lr=5e-3, eps=1e-15),
             "scheduler": None,
