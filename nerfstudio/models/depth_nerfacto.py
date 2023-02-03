@@ -108,7 +108,7 @@ class DepthNerfactoModel(NerfactoModel):
         metrics, images = super().get_image_metrics_and_images(outputs, batch)
         ground_truth_depth = batch["depth_image"]
         if not self.config.is_euclidean_depth:
-            ground_truth_depth = ground_truth_depth / outputs["directions_norm"]
+            ground_truth_depth = ground_truth_depth * outputs["directions_norm"]
 
         ground_truth_depth_colormap = colormaps.apply_depth_colormap(ground_truth_depth)
         predicted_depth_colormap = colormaps.apply_depth_colormap(
