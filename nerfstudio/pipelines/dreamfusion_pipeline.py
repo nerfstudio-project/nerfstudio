@@ -130,11 +130,13 @@ class DreamfusionPipeline(VanillaPipeline):
                 train_output.to(self.sd_device),
                 guidance_scale=int(self.config.guidance_scale),
             )
-            loss_dict["sds_loss"] = sds_loss.to(self.device)
+            sds_loss = sds_loss.to(self.device)
+
         # TODO: opacity penalty using transmittance, not accumultation
         if self.config.opacity_penalty:
-            accum_mean = np.mean(1.0 - accumulation)
-            sds_loss *= np.min((0.5, accum_mean))
+            accum_mean = torch.mean(1.0 - model_outputs["accumulation"])
+            sds_loss *= torch.clamp(accum_mean, min=0.5)
+        loss_dict["sds_loss"] = sds_loss.to(self.device)
 
         model_outputs["latents"] = latents
         model_outputs["grad"] = grad

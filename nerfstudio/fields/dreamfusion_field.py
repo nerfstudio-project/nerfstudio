@@ -28,7 +28,6 @@ from nerfstudio.cameras.rays import RayBundle, RaySamples
 from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.field_heads import FieldHeadNames, PredNormalsFieldHead
-from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
 from nerfstudio.utils import math
 
@@ -58,7 +57,6 @@ class DreamFusionField(Field):
         geo_feat_dim: output geo feat dimensions
         num_layers_color: number of hidden layers for color network
         hidden_dim_color: dimension of hidden layers for color network
-        spatial_distortion: spatial distortion to apply to the scene
     """
 
     def __init__(
@@ -69,15 +67,12 @@ class DreamFusionField(Field):
         geo_feat_dim: int = 15,
         num_layers_color: int = 3,
         hidden_dim_color: int = 64,
-        hidden_dim_transient: int = 64,
-        spatial_distortion: Optional[SpatialDistortion] = None,
+        hidden_dim_normal: int = 32,
     ) -> None:
         super().__init__()
 
         self.aabb = Parameter(aabb, requires_grad=False)
         self.geo_feat_dim = geo_feat_dim
-
-        self.spatial_distortion = spatial_distortion
 
         num_levels = 16
         max_res = 1024
@@ -122,7 +117,7 @@ class DreamFusionField(Field):
         # predicted normals
         self.mlp_pred_normals = tcnn.Network(
             n_input_dims=self.geo_feat_dim + self.position_encoding.n_output_dims,
-            n_output_dims=hidden_dim_transient,
+            n_output_dims=hidden_dim_normal,
             network_config={
                 "otype": "FullyFusedMLP",
                 "activation": "ReLU",
@@ -159,12 +154,7 @@ class DreamFusionField(Field):
 
     def get_density(self, ray_samples: RaySamples):
         """Computes and returns the densities."""
-        if self.spatial_distortion is not None:
-            positions = ray_samples.frustums.get_positions()
-            positions = self.spatial_distortion(positions)
-            positions = (positions + 2.0) / 4.0
-        else:
-            positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
+        positions = SceneBox.get_normalized_positions(ray_samples.frustums.get_positions(), self.aabb)
         self._sample_locations = positions
         if not self._sample_locations.requires_grad:
             self._sample_locations.requires_grad = True
