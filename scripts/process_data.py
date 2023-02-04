@@ -350,7 +350,7 @@ class ProcessInsta360:
         if not filename_back.exists():
             raise FileNotFoundError(f"Could not find {filename_back}")
 
-        ffprobe_cmd = f"ffprobe -v quiet -print_format json -show_streams -select_streams v:0 {filename_back}"
+        ffprobe_cmd = f'ffprobe -v quiet -print_format json -show_streams -select_streams v:0 "{filename_back}"'
 
         ffprobe_output = process_data_utils.run_command(ffprobe_cmd)
 
