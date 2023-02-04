@@ -82,7 +82,7 @@ def setup_viewer(config: cfg.ViewerConfig, log_filename: Path, datapath: str):
 
 
 class OutputTypes(str, enum.Enum):
-    """Noncomprehsnive list of output render types"""
+    """Noncomprehensive list of output render types"""
 
     INIT = "init"
     RGB = "rgb"
@@ -92,14 +92,14 @@ class OutputTypes(str, enum.Enum):
 
 
 class ColormapTypes(str, enum.Enum):
-    """Noncomprehsnive list of colormap render types"""
+    """List of colormap render types"""
 
-    INIT = "init"
     DEFAULT = "default"
     TURBO = "turbo"
-    DEPTH = "depth"
-    SEMANTIC = "semantic"
-    BOOLEAN = "boolean"
+    VIRIDIS = "viridis"
+    MAGMA = "magma"
+    INFERNO = "inferno"
+    CIVIDIS = "cividis"
 
 
 class IOChangeException(Exception):
@@ -220,9 +220,12 @@ class CheckThread(threading.Thread):
 
             # check colormap type
             colormap_type = self.state.vis["renderingState/colormap_choice"].read()
-            if colormap_type is None:
-                colormap_type = ColormapTypes.INIT
             if self.state.prev_colormap_type != colormap_type:
+                self.state.check_interrupt_vis = True
+                return
+
+            colormap_range = self.state.vis["renderingState/colormap_range"].read()
+            if self.state.prev_colormap_range != colormap_range:
                 self.state.check_interrupt_vis = True
                 return
 
@@ -285,7 +288,10 @@ class ViewerState:
         self.prev_camera_matrix = None
         self.prev_render_time = 0
         self.prev_output_type = OutputTypes.INIT
-        self.prev_colormap_type = ColormapTypes.INIT
+        self.prev_colormap_type = None
+        self.prev_colormap_invert = False
+        self.prev_colormap_normalize = False
+        self.prev_colormap_range = [0, 1]
         self.prev_moving = False
         self.output_type_changed = True
         self.max_resolution = 1000
@@ -583,9 +589,19 @@ class ViewerState:
             self.camera_moving = True
 
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        if colormap_type is None:
-            colormap_type = ColormapTypes.INIT
         if self.prev_colormap_type != colormap_type:
+            self.camera_moving = True
+
+        colormap_range = self.vis["renderingState/colormap_range"].read()
+        if self.prev_colormap_range != colormap_range:
+            self.camera_moving = True
+
+        colormap_invert = self.vis["renderingState/colormap_invert"].read()
+        if self.prev_colormap_invert != colormap_invert:
+            self.camera_moving = True
+
+        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
+        if self.prev_colormap_normalize != colormap_normalize:
             self.camera_moving = True
 
         crop_bg_color = self.vis["renderingState/crop_bg_color"].read()
@@ -621,37 +637,28 @@ class ViewerState:
             return outputs[reformatted_output]
 
         # rendering depth outputs
-        if self.prev_colormap_type == ColormapTypes.DEPTH or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT
-            and outputs[reformatted_output].dtype == torch.float
-            and (torch.max(outputs[reformatted_output]) - 1.0) > eps  # handle floating point arithmetic
-        ):
-            accumulation_str = (
-                OutputTypes.ACCUMULATION
-                if OutputTypes.ACCUMULATION in self.output_list
-                else OutputTypes.ACCUMULATION_FINE
-            )
-            return colormaps.apply_depth_colormap(outputs[reformatted_output], accumulation=outputs[accumulation_str])
-
-        # rendering accumulation outputs
-        if self.prev_colormap_type == ColormapTypes.TURBO or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.float
-        ):
-            return colormaps.apply_colormap(outputs[reformatted_output])
+        if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+            output = outputs[reformatted_output]
+            if self.prev_colormap_normalize:
+                output = output - torch.min(output)
+                output = output / (torch.max(output) + eps)
+            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
+            output = torch.clip(output, 0, 1)
+            if self.prev_colormap_invert:
+                output = 1 - output
+            if self.prev_colormap_type == ColormapTypes.DEFAULT:
+                return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
+            return colormaps.apply_colormap(output, cmap=self.prev_colormap_type)
 
         # rendering semantic outputs
-        if self.prev_colormap_type == ColormapTypes.SEMANTIC or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.int
-        ):
+        if outputs[reformatted_output].dtype == torch.int:
             logits = outputs[reformatted_output]
             labels = torch.argmax(torch.nn.functional.softmax(logits, dim=-1), dim=-1)  # type: ignore
             assert colors is not None
             return colors[labels]
 
         # rendering boolean outputs
-        if self.prev_colormap_type == ColormapTypes.BOOLEAN or (
-            self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].dtype == torch.bool
-        ):
+        if outputs[reformatted_output].dtype == torch.bool:
             return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
@@ -713,13 +720,12 @@ class ViewerState:
         for video_track in self.video_tracks:
             video_track.put_frame(image)
 
-    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+    def _send_output_to_viewer(self, outputs: Dict[str, Any], colors: torch.Tensor = None):
         """Chooses the correct output and sends it to the viewer
 
         Args:
             outputs: the dictionary of outputs to choose from, from the graph
             colors: is only set if colormap is for semantics. Defaults to None.
-            eps: epsilon to handle floating point comparisons
         """
         if self.output_list is None:
             self.output_list = list(outputs.keys())
@@ -732,16 +738,13 @@ class ViewerState:
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
         # re-register colormaps and send to viewer
-        if self.output_type_changed or self.prev_colormap_type == ColormapTypes.INIT:
+        if self.output_type_changed or self.prev_colormap_type is None:
             self.prev_colormap_type = ColormapTypes.DEFAULT
-            colormap_options = [ColormapTypes.DEFAULT]
-            if (
-                outputs[reformatted_output].shape[-1] != 3
-                and outputs[reformatted_output].dtype == torch.float
-                and (torch.max(outputs[reformatted_output]) - 1.0) <= eps  # handle floating point arithmetic
-            ):
-                # accumulation can also include depth
-                colormap_options.extend(["depth"])
+            colormap_options = []
+            if outputs[reformatted_output].shape[-1] == 3:
+                colormap_options = [ColormapTypes.DEFAULT]
+            if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
+                colormap_options = list(ColormapTypes)
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
@@ -885,8 +888,16 @@ class ViewerState:
 
         # check and perform colormap type updates
         colormap_type = self.vis["renderingState/colormap_choice"].read()
-        colormap_type = ColormapTypes.INIT if colormap_type is None else colormap_type
         self.prev_colormap_type = colormap_type
+
+        colormap_invert = self.vis["renderingState/colormap_invert"].read()
+        self.prev_colormap_invert = colormap_invert
+
+        colormap_normalize = self.vis["renderingState/colormap_normalize"].read()
+        self.prev_colormap_normalize = colormap_normalize
+
+        colormap_range = self.vis["renderingState/colormap_range"].read()
+        self.prev_colormap_range = colormap_range
 
         # update render aabb
         try:
