@@ -20,6 +20,7 @@ Proposal network field.
 from typing import Optional
 
 import numpy as np
+import tinycudann as tcnn
 import torch
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
@@ -29,12 +30,6 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.fields.base_field import Field
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 class HashMLPDensityField(Field):

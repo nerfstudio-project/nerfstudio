@@ -19,6 +19,7 @@ NeRFPlayer (https://arxiv.org/abs/2210.15947) field implementations with Instant
 
 from typing import Optional
 
+import tinycudann as tcnn
 import torch
 from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
@@ -32,12 +33,6 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.temporal_grid import TemporalGridEncoder
 from nerfstudio.fields.base_field import Field
 from nerfstudio.fields.instant_ngp_field import get_normalized_directions
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 class NerfplayerNGPField(Field):

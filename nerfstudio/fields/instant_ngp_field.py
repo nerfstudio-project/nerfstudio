@@ -19,6 +19,7 @@ Instant-NGP field implementations using tiny-cuda-nn, torch, ....
 
 from typing import Optional
 
+import tinycudann as tcnn
 import torch
 from nerfacc import ContractionType, contract
 from torch.nn.parameter import Parameter
@@ -30,12 +31,6 @@ from nerfstudio.field_components.activations import trunc_exp
 from nerfstudio.field_components.embedding import Embedding
 from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.fields.base_field import Field
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 def get_normalized_directions(directions: TensorType["bs":..., 3]):

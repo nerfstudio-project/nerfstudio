@@ -20,6 +20,7 @@ Field implementations for NeRFPlayer (https://arxiv.org/abs/2210.15947) implemen
 from typing import Optional
 
 import numpy as np
+import tinycudann as tcnn
 import torch
 from torch.nn.parameter import Parameter
 from torchtyping import TensorType
@@ -39,12 +40,6 @@ from nerfstudio.field_components.field_heads import (
 from nerfstudio.field_components.spatial_distortions import SpatialDistortion
 from nerfstudio.field_components.temporal_grid import TemporalGridEncoder
 from nerfstudio.fields.base_field import Field
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 def get_normalized_directions(directions: TensorType["bs":..., 3]):

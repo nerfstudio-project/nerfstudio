@@ -20,6 +20,7 @@ Field for compound nerf model, adds scene contraction and image embeddings to in
 from typing import Dict, Optional, Tuple
 
 import numpy as np
+import tinycudann as tcnn
 import torch
 from torch import nn
 from torch.nn.parameter import Parameter
@@ -47,12 +48,6 @@ from nerfstudio.field_components.spatial_distortions import (
     SpatialDistortion,
 )
 from nerfstudio.fields.base_field import Field
-
-try:
-    import tinycudann as tcnn
-except ImportError:
-    # tinycudann module doesn't exist
-    pass
 
 
 def get_normalized_directions(directions: TensorType["bs":..., 3]):
