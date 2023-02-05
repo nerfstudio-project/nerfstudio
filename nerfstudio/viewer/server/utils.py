@@ -63,7 +63,7 @@ def three_js_perspective_camera_focal_length(fov: float, image_height: int):
 
 
 def get_intrinsics_matrix_and_camera_to_world_h(
-    camera_object: Dict[str, Any], image_height: int
+    camera_object: Dict[str, Any], image_height: int, image_width: Optional[int] = None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Returns the camera intrinsics matrix and the camera to world homogeneous matrix.
 
@@ -74,7 +74,8 @@ def get_intrinsics_matrix_and_camera_to_world_h(
     # intrinsics
     fov = camera_object["fov"]
     aspect = camera_object["aspect"]
-    image_width = aspect * image_height
+    if image_width is None:
+        image_width = aspect * image_height
     pp_w = image_width / 2.0
     pp_h = image_height / 2.0
     if (camera_object["camera_type"] == "perspective") | (camera_object["camera_type"] == "fisheye"):

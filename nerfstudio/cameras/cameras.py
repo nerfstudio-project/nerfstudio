@@ -16,7 +16,6 @@
 Camera Models
 """
 import base64
-import importlib
 import math
 import os
 from dataclasses import dataclass
@@ -146,6 +145,8 @@ class Cameras(TensorDataclass):
         self.times = self._init_get_times(times)
 
         self.__post_init__()  # This will do the dataclass post_init and broadcast all the tensors
+
+        self._use_nerfacc = strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE"))
 
     def _init_get_fc_xy(self, fc_xy, name):
         """
@@ -470,11 +471,7 @@ class Cameras(TensorDataclass):
                 rays_o = rays_o.reshape((-1, 3))
                 rays_d = rays_d.reshape((-1, 3))
 
-                if strtobool(os.environ.get("INTERSECT_WITH_NERFACC", "TRUE")):
-                    nerfacc = importlib.import_module("nerfacc")
-                    t_min, t_max = nerfacc.ray_aabb_intersect(rays_o, rays_d, tensor_aabb)
-                else:
-                    t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
+                t_min, t_max = nerfstudio.utils.math.intersect_aabb(rays_o, rays_d, tensor_aabb)
 
                 t_min = t_min.reshape([shape[0], shape[1], 1])
                 t_max = t_max.reshape([shape[0], shape[1], 1])

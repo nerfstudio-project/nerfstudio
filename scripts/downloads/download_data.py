@@ -15,6 +15,7 @@ from rich.console import Console
 from typing_extensions import Annotated
 
 from nerfstudio.configs.base_config import PrintableConfig
+from nerfstudio.utils import install_checks
 from nerfstudio.utils.scripts import run_command
 
 CONSOLE = Console(width=120)
@@ -212,6 +213,7 @@ class DNerfDownload(DatasetDownload):
         """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
         # TODO: give this code the same structure as download_nerfstudio
 
+        install_checks.check_curl_installed()
         final_path = save_dir / Path("dnerf")
         if os.path.exists(final_path):
             shutil.rmtree(str(final_path))
@@ -253,6 +255,7 @@ class PhototourismDownload(DatasetDownload):
     def download(self, save_dir: Path):
         """Download a PhotoTourism dataset: https://www.cs.ubc.ca/~kmyi/imw2020/data.html"""
 
+        install_checks.check_curl_installed()
         if self.capture_name == "all":
             for capture_name in phototourism_downloads:
                 if capture_name != "all":

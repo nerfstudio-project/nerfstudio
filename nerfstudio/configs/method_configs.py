@@ -33,6 +33,7 @@ from nerfstudio.data.datamanagers.variable_res_datamanager import (
 )
 from nerfstudio.data.dataparsers.blender_dataparser import BlenderDataParserConfig
 from nerfstudio.data.dataparsers.dnerf_dataparser import DNeRFDataParserConfig
+from nerfstudio.data.dataparsers.dycheck_dataparser import DycheckDataParserConfig
 from nerfstudio.data.dataparsers.friends_dataparser import FriendsDataParserConfig
 from nerfstudio.data.dataparsers.instant_ngp_dataparser import (
     InstantNGPDataParserConfig,
@@ -49,6 +50,8 @@ from nerfstudio.models.depth_nerfacto import DepthNerfactoModelConfig
 from nerfstudio.models.instant_ngp import InstantNGPModelConfig
 from nerfstudio.models.mipnerf import MipNerfModel
 from nerfstudio.models.nerfacto import NerfactoModelConfig
+from nerfstudio.models.nerfplayer_nerfacto import NerfplayerNerfactoModelConfig
+from nerfstudio.models.nerfplayer_ngp import NerfplayerNGPModelConfig
 from nerfstudio.models.semantic_nerfw import SemanticNerfWModelConfig
 from nerfstudio.models.tensorf import TensoRFModelConfig
 from nerfstudio.models.vanilla_nerf import NeRFModel, VanillaModelConfig
@@ -67,6 +70,8 @@ descriptions = {
     "tensorf": "tensorf",
     "dnerf": "Dynamic-NeRF model. (slow)",
     "phototourism": "Uses the Phototourism data.",
+    "nerfplayer-nerfacto": "NeRFPlayer with nerfacto backbone.",
+    "nerfplayer-ngp": "NeRFPlayer with InstantNGP backbone.",
 }
 
 method_configs["nerfacto"] = TrainerConfig(
@@ -322,6 +327,63 @@ method_configs["phototourism"] = TrainerConfig(
         },
     },
     viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["nerfplayer-nerfacto"] = TrainerConfig(
+    method_name="nerfplayer-nerfacto",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=DepthDataManagerConfig(
+            dataparser=DycheckDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NerfplayerNerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["nerfplayer-ngp"] = TrainerConfig(
+    method_name="nerfplayer-ngp",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=DynamicBatchPipelineConfig(
+        datamanager=DepthDataManagerConfig(dataparser=DycheckDataParserConfig(), train_num_rays_per_batch=8192),
+        model=NerfplayerNGPModelConfig(
+            eval_num_rays_per_chunk=8192,
+            contraction_type=ContractionType.AABB,
+            render_step_size=0.001,
+            max_num_samples_per_ray=48,
+            near_plane=0.01,
+        ),
+    ),
+    optimizers={
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        }
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=64000),
     vis="viewer",
 )
 
