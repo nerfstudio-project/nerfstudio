@@ -621,9 +621,18 @@ class ViewerState:
 
         return camera_object
 
-    def _apply_colormap_with_params(self, outputs: Dict[str, Any], 
-        reformatted_output: str, output_type: OutputTypes, colormap_type: ColormapTypes, colormap_normalize: bool, colormap_invert: bool, colormap_range: Any, 
-        colors: torch.Tensor = None, eps=1e-6):
+    def _apply_colormap_with_params(
+        self,
+        outputs: Dict[str, Any],
+        reformatted_output: str,
+        output_type: OutputTypes,
+        colormap_type: ColormapTypes,
+        colormap_normalize: bool,
+        colormap_invert: bool,
+        colormap_range: Any,
+        colors: torch.Tensor = None,
+        eps=1e-6,
+    ):
         """Determines which colormap to use based on set colormap type
 
         Args:
@@ -684,37 +693,42 @@ class ViewerState:
 
         if "rgb depth" == self.prev_output_type:
             rgb_output = self._apply_colormap_with_params(
-                outputs=outputs, 
-                colors=colors, 
+                outputs=outputs,
+                colors=colors,
                 eps=eps,
                 reformatted_output="rgb",
-                output_type=self.prev_output_type, 
-                colormap_type=self.prev_colormap_type, 
-                colormap_normalize=self.prev_colormap_normalize, 
-                colormap_invert=self.prev_colormap_invert, 
-                colormap_range=self.prev_colormap_range)
+                output_type=self.prev_output_type,
+                colormap_type=self.prev_colormap_type,
+                colormap_normalize=self.prev_colormap_normalize,
+                colormap_invert=self.prev_colormap_invert,
+                colormap_range=self.prev_colormap_range,
+            )
             depth_output = self._apply_colormap_with_params(
-                outputs=outputs, 
-                colors=colors, 
+                outputs=outputs,
+                colors=colors,
                 eps=eps,
-                reformatted_output="depth", 
-                output_type=self.prev_output_type, 
-                colormap_type=self.prev_colormap_type, 
-                colormap_normalize=self.prev_colormap_normalize, 
-                colormap_invert=self.prev_colormap_invert, 
-                colormap_range=self.prev_colormap_range)
+                reformatted_output="depth",
+                output_type=self.prev_output_type,
+                colormap_type=self.prev_colormap_type,
+                colormap_normalize=self.prev_colormap_normalize,
+                colormap_invert=self.prev_colormap_invert,
+                colormap_range=self.prev_colormap_range,
+            )
             return [rgb_output, depth_output]
 
-        return [self._apply_colormap_with_params(
-            outputs=outputs, 
-            colors=colors, 
-            eps=eps,
-            output_type=self.prev_output_type, 
-            reformatted_output=reformatted_output, 
-            colormap_type=self.prev_colormap_type, 
-            colormap_normalize=self.prev_colormap_normalize, 
-            colormap_invert=self.prev_colormap_invert, 
-            colormap_range=self.prev_colormap_range)]
+        return [
+            self._apply_colormap_with_params(
+                outputs=outputs,
+                colors=colors,
+                eps=eps,
+                output_type=self.prev_output_type,
+                reformatted_output=reformatted_output,
+                colormap_type=self.prev_colormap_type,
+                colormap_normalize=self.prev_colormap_normalize,
+                colormap_invert=self.prev_colormap_invert,
+                colormap_range=self.prev_colormap_range,
+            )
+        ]
 
     async def send_webrtc_answer(self, data):
         """Setup the webrtc connection."""
@@ -808,9 +822,9 @@ class ViewerState:
             self.vis["renderingState/colormap_options"].write(colormap_options)
         selected_output = self._apply_colormap(outputs, colors)
         image = (selected_output[0] * 255).type(torch.uint8).cpu().numpy()
-        if (len(selected_output) > 1):
+        if len(selected_output) > 1:
             image_right = (selected_output[1] * 255).type(torch.uint8).cpu().numpy()
-            image = np.hstack([image, image_right]) # side by side
+            image = np.hstack([image, image_right])  # side by side
         self.set_image(image)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
