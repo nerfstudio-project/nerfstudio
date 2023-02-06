@@ -621,34 +621,41 @@ class ViewerState:
 
         return camera_object
 
-    def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+    def _apply_colormap_with_params(self, outputs: Dict[str, Any], 
+        reformatted_output: str, output_type: OutputTypes, colormap_type: ColormapTypes, colormap_normalize: bool, colormap_invert: bool, colormap_range: Any, 
+        colors: torch.Tensor = None, eps=1e-6):
         """Determines which colormap to use based on set colormap type
 
         Args:
             outputs: the output tensors for which to apply colormaps on
+            reformatted_output: which output tensor to use
+            output_type: which output type to use
+            colormap_type: which colormap type to use
+            colormap_normalize: whether to normalize the colormap
+            colormap_invert: whether to invert the colormap
+            colormap_range: colormap range to use, if any
             colors: is only set if colormap is for semantics. Defaults to None.
             eps: epsilon to handle floating point comparisons
         """
-        if self.output_list:
-            reformatted_output = self._process_invalid_output(self.prev_output_type)
 
         # default for rgb images
-        if self.prev_colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
+        if colormap_type == ColormapTypes.DEFAULT and outputs[reformatted_output].shape[-1] == 3:
             return outputs[reformatted_output]
 
         # rendering depth outputs
         if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
             output = outputs[reformatted_output]
-            if self.prev_colormap_normalize:
+            if colormap_normalize:
                 output = output - torch.min(output)
                 output = output / (torch.max(output) + eps)
-            output = output * (self.prev_colormap_range[1] - self.prev_colormap_range[0]) + self.prev_colormap_range[0]
+            if colormap_range is not None:
+                output = output * (colormap_range[1] - colormap_range[0]) + colormap_range[0]
             output = torch.clip(output, 0, 1)
-            if self.prev_colormap_invert:
+            if colormap_invert:
                 output = 1 - output
-            if self.prev_colormap_type == ColormapTypes.DEFAULT:
+            if colormap_type == ColormapTypes.DEFAULT:
                 return colormaps.apply_colormap(output, cmap=ColormapTypes.TURBO.value)
-            return colormaps.apply_colormap(output, cmap=self.prev_colormap_type)
+            return colormaps.apply_colormap(output, cmap=colormap_type)
 
         # rendering semantic outputs
         if outputs[reformatted_output].dtype == torch.int:
@@ -662,6 +669,52 @@ class ViewerState:
             return colormaps.apply_boolean_colormap(outputs[reformatted_output])
 
         raise NotImplementedError
+
+    def _apply_colormap(self, outputs: Dict[str, Any], colors: torch.Tensor = None, eps=1e-6):
+        """Determines which colormap to use based on set colormap type
+
+        Args:
+            outputs: the output tensors for which to apply colormaps on
+            colors: is only set if colormap is for semantics. Defaults to None.
+            eps: epsilon to handle floating point comparisons
+        """
+
+        if self.output_list:
+            reformatted_output = self._process_invalid_output(self.prev_output_type)
+
+        if "rgb depth" == self.prev_output_type:
+            rgb_output = self._apply_colormap_with_params(
+                outputs=outputs, 
+                colors=colors, 
+                eps=eps,
+                reformatted_output="rgb",
+                output_type=self.prev_output_type, 
+                colormap_type=self.prev_colormap_type, 
+                colormap_normalize=self.prev_colormap_normalize, 
+                colormap_invert=self.prev_colormap_invert, 
+                colormap_range=self.prev_colormap_range)
+            depth_output = self._apply_colormap_with_params(
+                outputs=outputs, 
+                colors=colors, 
+                eps=eps,
+                reformatted_output="depth", 
+                output_type=self.prev_output_type, 
+                colormap_type=self.prev_colormap_type, 
+                colormap_normalize=self.prev_colormap_normalize, 
+                colormap_invert=self.prev_colormap_invert, 
+                colormap_range=self.prev_colormap_range)
+            return [rgb_output, depth_output]
+
+        return [self._apply_colormap_with_params(
+            outputs=outputs, 
+            colors=colors, 
+            eps=eps,
+            output_type=self.prev_output_type, 
+            reformatted_output=reformatted_output, 
+            colormap_type=self.prev_colormap_type, 
+            colormap_normalize=self.prev_colormap_normalize, 
+            colormap_invert=self.prev_colormap_invert, 
+            colormap_range=self.prev_colormap_range)]
 
     async def send_webrtc_answer(self, data):
         """Setup the webrtc connection."""
@@ -737,6 +790,8 @@ class ViewerState:
             if OutputTypes.RGB_FINE in self.output_list:
                 viewer_output_list.remove(OutputTypes.RGB_FINE)
             viewer_output_list.insert(0, OutputTypes.RGB)
+            if OutputTypes.RGB in self.output_list and "depth" in self.output_list:
+                viewer_output_list.insert(1, "rgb depth")
             self.vis["renderingState/output_options"].write(viewer_output_list)
 
         reformatted_output = self._process_invalid_output(self.prev_output_type)
@@ -751,8 +806,11 @@ class ViewerState:
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
-        selected_output = (self._apply_colormap(outputs, colors) * 255).type(torch.uint8)
-        image = selected_output.cpu().numpy()
+        selected_output = self._apply_colormap(outputs, colors)
+        image = (selected_output[0] * 255).type(torch.uint8).cpu().numpy()
+        if (len(selected_output) > 1):
+            image_right = (selected_output[1] * 255).type(torch.uint8).cpu().numpy()
+            image = np.hstack([image, image_right]) # side by side
         self.set_image(image)
 
     def _update_viewer_stats(self, render_time: float, num_rays: int, image_height: int, image_width: int) -> None:
@@ -865,6 +923,11 @@ class ViewerState:
             assert (
                 NotImplementedError
             ), f"Output {attempted_output_type} not in list. Tried to reformat as {output_type} but still not found."
+
+        # "rgb depth" should use RGB
+        if "rgb depth" == output_type:
+            output_type = OutputTypes.RGB
+
         return output_type
 
     @profiler.time_function
