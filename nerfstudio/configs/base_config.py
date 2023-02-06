@@ -153,3 +153,5 @@ class ViewerConfig(PrintableConfig):
     connecting to the viewer"""
     codec: Literal["H264", "VP8"] = "VP8"
     """Video codec that viewer will use."""
+    local: bool = False
+    """If running local server instance, avoid using relays to communicate with the viewer."""
