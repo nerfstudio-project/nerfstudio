@@ -51,7 +51,8 @@ dependencies = [
     "u-msgpack-python>=2.4.1",
     "nuscenes-devkit>=1.1.1",
     "wandb>=0.13.3",
-    "xatlas"
+    "xatlas", 
+    "trimesh"
 ]
 
 [project.urls]

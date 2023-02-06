@@ -32,6 +32,8 @@ class SceneBox:
     """aabb: axis-aligned bounding box.
     aabb[0] is the minimum (x,y,z) point.
     aabb[1] is the maximum (x,y,z) point."""
+    coarse_binary_gird: Optional[torch.Tensor] = None
+    """coarse binary grid computed from sparse colmap point cloud, currently only used in neuralrecon in the wild"""
     near: Optional[float] = 0.1
     """near plane for each image"""
     far: Optional[float] = 6.0
