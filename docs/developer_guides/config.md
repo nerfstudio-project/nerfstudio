@@ -129,9 +129,15 @@ Here is an example:
 ```python
 """my_package/my_config.py"""
 
-MyConfig = TrainerConfig(
+from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.plugins.types import MethodSpecification
+
+MyMethod = MethodSpecification(
+  config=TrainerConfig(
     method_name="my-method",
     ...
+  ),
+  description="Custom description"
 )
 
 """pyproject.toml"""
@@ -140,5 +146,5 @@ name = "my_package"
 ...
 
 [project.entry-points.'nerfstudio.method_configs']
-my-method = 'my_package.my_config:MyConfig'
+my-method = 'my_package.my_config:MyMethod'
 ```

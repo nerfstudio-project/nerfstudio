@@ -17,10 +17,11 @@ Module that keeps all registered plugins and allows for plugin discovery.
 """
 
 import sys
+import typing as t
 
 from rich.progress import Console
 
-from nerfstudio.engine.trainer import TrainerConfig
+from nerfstudio.plugins.types import MethodSpecification
 
 if sys.version_info < (3, 10):
     from importlib_metadata import entry_points
@@ -37,10 +38,13 @@ def discover_methods():
     descriptions = {}
     discovered_entry_points = entry_points(group="nerfstudio.method_configs")
     for name in discovered_entry_points.names:
-        method = discovered_entry_points[name].load()
-        if not isinstance(method, TrainerConfig):
-            CONSOLE.print("[bold yellow]Warning: Could not entry point {n} as it is not an instance of TrainerConfig")
+        specification = discovered_entry_points[name].load()
+        if not isinstance(specification, MethodSpecification):
+            CONSOLE.print(
+                "[bold yellow]Warning: Could not entry point {n} as it is not an instance of MethodSpecification"
+            )
             continue
-        methods[method.method_name] = method
-        descriptions[method.method_name] = getattr(method, "description", method.method_name)
+        specification = t.cast(MethodSpecification, specification)
+        methods[specification.config.method_name] = specification.config
+        descriptions[specification.config.method_name] = specification.description
     return methods, descriptions

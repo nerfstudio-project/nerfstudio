@@ -1,8 +1,12 @@
+"""
+Tests for the nerfstudio.plugins.registry module.
+"""
 import sys
 
-import nerfstudio.plugins.registry as registry
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import VanillaPipelineConfig
+from nerfstudio.plugins import registry
+from nerfstudio.plugins.types import MethodSpecification
 
 if sys.version_info < (3, 10):
     import importlib_metadata
@@ -10,10 +14,13 @@ else:
     from importlib import metadata as importlib_metadata
 
 
-TestConfig = TrainerConfig(
-    method_name="test-method",
-    pipeline=VanillaPipelineConfig(),
-    optimizers={},
+TestConfig = MethodSpecification(
+    config=TrainerConfig(
+        method_name="test-method",
+        pipeline=VanillaPipelineConfig(),
+        optimizers={},
+    ),
+    description="Test description",
 )
 
 
