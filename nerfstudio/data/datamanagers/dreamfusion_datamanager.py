@@ -91,41 +91,35 @@ def random_train_pose(
         torch.rand(size) * (central_rotation_range[1] - central_rotation_range[0]) + central_rotation_range[0]
     )
 
+    c_cos = torch.cos(central_rotation)
+    c_sin = torch.sin(central_rotation)
+    v_cos = torch.cos(vertical_rotation)
+    v_sin = torch.sin(vertical_rotation)
+    zeros = torch.zeros_like(central_rotation)
+    ones = torch.ones_like(central_rotation)
+
     rot_z = torch.stack(
         [
-            torch.cos(central_rotation),
-            -torch.sin(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.sin(central_rotation),
-            torch.cos(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.ones_like(central_rotation),
+            torch.stack([c_cos, -c_sin, zeros], dim=-1),
+            torch.stack([c_sin, c_cos, zeros], dim=-1),
+            torch.stack([zeros, zeros, ones], dim=-1),
         ],
-        dim=-1,
-    ).reshape(size, 3, 3)
+        dim=-2,
+    )
 
     rot_x = torch.stack(
         [
-            torch.ones_like(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.cos(vertical_rotation),
-            -torch.sin(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.sin(vertical_rotation),
-            torch.cos(vertical_rotation),
+            torch.stack([ones, zeros, zeros], dim=-1),
+            torch.stack([zeros, v_cos, -v_sin], dim=-1),
+            torch.stack([zeros, v_sin, v_cos], dim=-1),
         ],
-        dim=-1,
-    ).reshape(size, 3, 3)
+        dim=-2,
+    )
 
     # Default directions are facing in the -z direction, so origins should face opposite way
     origins = torch.stack([torch.tensor([0, 0, 1])] * size, dim=0)
     origins = (origins * radius_mean) + (origins * (torch.randn((origins.shape)) * radius_std))
     R = torch.bmm(rot_z, rot_x)  # Want to have Rx @ Ry @ origin
-    # print(torch.bmm(R, origins.unsqueeze(-1)).shape, (torch.randn((size, 3, 1)) * jitter_std).shape)
     t = torch.bmm(R, origins.unsqueeze(-1)) + torch.randn((size, 3, 1)) * jitter_std
     camera_to_worlds = torch.cat([R, t], dim=-1)
 
