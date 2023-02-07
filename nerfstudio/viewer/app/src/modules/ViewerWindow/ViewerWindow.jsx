@@ -140,7 +140,8 @@ export default function ViewerWindow(props) {
   };
 
   const get_window_height = () => {
-    return myRef.current.clientHeight;
+    const choice = myRef.current.getAttribute('output_choice');
+    return myRef.current.clientHeight / (choice === "rgb depth" ? 2 : 1);
   };
 
   const handleResize = () => {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { WebSocketContext } from '../WebSocket/WebSocket';
 
 const WebRtcContext = createContext(null);
@@ -172,14 +172,20 @@ export default function WebRtcWindow() {
     };
   }, [websocket]); // dependency to call this whenever the websocket changes
 
+  const output_choice = useSelector((state) => state.renderingState.output_choice);
+
   return (
-    <div className="WebRTCVideo">
+    <div className="WebRTCVideo" style={{ 'background-color': 'black' }}>
       <video
-        className="WebRTCVideo-video"
         autoPlay
         playsInline
         muted
         ref={localVideoRef}
+        style={{
+          'object-fit': 'fill',
+          width: '100%',
+          height: (output_choice === 'rgb depth' ? '50%' : '100%')
+        }}
       />
     </div>
   );
