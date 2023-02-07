@@ -77,8 +77,9 @@ class TrainerConfig(ExperimentConfig):
     load_step: Optional[int] = None
     """Optionally specify model step to load from; if none, will find most recent model in load_dir."""
     load_config: Optional[Path] = None
-    """Optionally log gradients during training"""
+    """Path to config YAML file."""
     log_gradients: bool = False
+    """Optionally log gradients during training"""
 
 
 class Trainer:
