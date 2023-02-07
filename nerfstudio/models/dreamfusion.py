@@ -36,6 +36,7 @@ from nerfstudio.fields.density_fields import HashMLPDensityField
 from nerfstudio.fields.dreamfusion_field import DreamFusionField
 from nerfstudio.model_components.losses import (
     MSELoss,
+    distortion_loss,
     interlevel_loss,
     orientation_loss,
     pred_normal_loss,
@@ -106,12 +107,14 @@ class DreamFusionModelConfig(ModelConfig):
     """Arguments for the proposal density fields."""
     proposal_weights_anneal_slope: float = 10.0
     """Slope of the annealing function for the proposal weights."""
-    proposal_weights_anneal_max_num_iters: int = 1000
+    proposal_weights_anneal_max_num_iters: int = 500
     """Max num iterations for the annealing function."""
     use_single_jitter: bool = True
     """Whether use single jitter or not for the proposal networks."""
     interlevel_loss_mult: float = 1.0
     """Proposal loss multiplier."""
+    distortion_loss_mult: float = 1.0
+    """Distortion loss multiplier."""
 
 
 class DreamFusionModel(Model):
@@ -393,6 +396,9 @@ class DreamFusionModel(Model):
             (1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance)
         )
         if self.training:
+            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
             )

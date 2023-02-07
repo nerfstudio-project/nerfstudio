@@ -64,18 +64,20 @@ class DreamfusionTrainer(Trainer):
             latents = model_outputs["latents"]
             grad = model_outputs["grad"]
             self.grad_scaler.scale(latents).backward(gradient=grad, retain_graph=True)
-            normals_loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
+            loss = loss_dict["orientation_loss"] + loss_dict["pred_normal_loss"]
             if self.pipeline.config.alphas_penalty:
-                normals_loss += loss_dict["alphas_loss"] * self.config.pipeline.alphas_scale
+                loss += loss_dict["alphas_loss"] * self.config.pipeline.alphas_loss_mult
             if self.pipeline.config.opacity_penalty:
-                normals_loss += loss_dict["opacity_loss"] * self.config.pipeline.opacity_scale
-            self.grad_scaler.scale(normals_loss).backward()  # type: ignore
+                loss += loss_dict["opacity_loss"] * self.config.pipeline.opacity_loss_mult
+            loss += loss_dict["distortion_loss"]
+            loss += loss_dict["interlevel_loss"]
+            self.grad_scaler.scale(loss).backward()  # type: ignore
             # I noticed that without these del statements and the empty cache, I was getting OOM errors on the device
             # running stable diffusion, since these variables aren't deleted (normally they would be freed when we
             # exit the frame since they no longer are being referenced, but now we loop back instead of exiting the
             # frame)
             if i != self.config.gradient_accumulation_steps - 1:
-                del normals_loss, latents, grad, model_outputs, loss_dict, metrics_dict
+                del loss, latents, grad, model_outputs, loss_dict, metrics_dict
             torch.cuda.empty_cache()
 
         self.optimizers.optimizer_scaler_step_all(self.grad_scaler)
@@ -83,4 +85,4 @@ class DreamfusionTrainer(Trainer):
         self.grad_scaler.update()
         self.optimizers.scheduler_step_all(step)
 
-        return torch.tensor(0.0), loss_dict, metrics_dict
+        return loss, loss_dict, metrics_dict
