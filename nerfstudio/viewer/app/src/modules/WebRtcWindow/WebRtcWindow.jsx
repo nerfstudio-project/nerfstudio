@@ -175,14 +175,14 @@ export default function WebRtcWindow() {
   const output_choice = useSelector((state) => state.renderingState.output_choice);
 
   return (
-    <div className="WebRTCVideo" style={{ 'background-color': 'black' }}>
+    <div className="WebRTCVideo" style={{ backgroundColor: 'black' }}>
       <video
         autoPlay
         playsInline
         muted
         ref={localVideoRef}
         style={{
-          'object-fit': 'fill',
+          objectFit: 'fill',
           width: '100%',
           height: (output_choice === 'rgb depth' ? '50%' : '100%')
         }}
