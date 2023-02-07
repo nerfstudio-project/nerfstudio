@@ -131,8 +131,11 @@ export default function ViewerWindow(props) {
   // on change, update the camera and controls
   sceneTree.metadata.camera = sceneTree.find_object(['Cameras', camera_choice]);
 
+  const output_choice = useSelector((state) => state.renderingState.output_choice);
+
   const get_window_width = () => {
-    const width = myRef.current.clientWidth;
+    const choice = myRef.current.getAttribute('output_choice');
+    const width = myRef.current.clientWidth / (choice === "rgb depth" ? 2 : 1);
     return width - (width % 2);
   };
 
@@ -276,7 +279,7 @@ export default function ViewerWindow(props) {
     <>
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
-      <div className="canvas-container-main" ref={myRef}>
+      <div className="canvas-container-main" ref={myRef} output_choice={output_choice}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />
         </div>
