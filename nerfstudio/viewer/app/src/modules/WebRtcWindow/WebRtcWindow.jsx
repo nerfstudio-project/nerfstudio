@@ -13,10 +13,14 @@ export default function WebRtcWindow() {
   const pcRef = useRef(null);
   const localVideoRef = useRef(null);
 
+  const isLocalHost = () => !!(
+    window.location.hostname === 'localhost'
+    || window.location.hostname.startsWith('127.')
+    || window.location.hostname === ('::1'));
   const dispatch = useDispatch();
 
   const getRTCPeerConnection = () => {
-    const pc = new RTCPeerConnection({
+    const pc = new RTCPeerConnection(isLocalHost() ? {} : {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         {
