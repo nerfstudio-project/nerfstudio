@@ -360,6 +360,7 @@ $sidebar-width: 100% !default;
 
 .WebRTCVideo {
   z-index: 1;
+  background-color: $base-color1;
 }
 
 .ViewerWindow-render-crop-container {
@@ -373,10 +374,14 @@ $sidebar-width: 100% !default;
   z-index: 3;
 }
 
+.canvas-container-main canvas {
+  position: relative;
+}
+
 .WebRTCVideo-video {
   width: 100%;
-  height: 100%;
   object-fit: fill;
+  position: relative;
 }
 
 .ViewerWindow-render-crop {

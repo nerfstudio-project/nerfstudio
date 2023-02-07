@@ -134,14 +134,13 @@ export default function ViewerWindow(props) {
   const output_choice = useSelector((state) => state.renderingState.output_choice);
 
   const get_window_width = () => {
-    const choice = myRef.current.getAttribute('output_choice');
-    const width = myRef.current.clientWidth / (choice === "rgb depth" ? 2 : 1);
+    const splitview = myRef.current.getAttribute('splitview');
+    const width = myRef.current.clientWidth / (splitview ? 2 : 1);
     return width - (width % 2);
   };
 
   const get_window_height = () => {
-    const choice = myRef.current.getAttribute('output_choice');
-    return myRef.current.clientHeight / (choice === "rgb depth" ? 2 : 1);
+    return myRef.current.clientHeight;
   };
 
   const handleResize = () => {
@@ -276,11 +275,15 @@ export default function ViewerWindow(props) {
     };
   }, [websocket, camera_choice, camera_type, render_aspect]);
 
+  const splitview = (output_choice === "rgb depth");
   return (
     <>
       {/* the webrtc viewer needs to know the camera pose */}
       <WebRtcWindow />
-      <div className="canvas-container-main" ref={myRef} output_choice={output_choice}>
+      <div className="canvas-container-main" ref={myRef} splitview={splitview ? "true" : ""} style={{ 
+        top: splitview ? "25%" : "0",
+        height: splitview ? "50%" : "100%",
+      }}>
         <div className="ViewerWindow-camera-toggle">
           <CameraToggle />
         </div>

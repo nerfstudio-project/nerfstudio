@@ -177,18 +177,19 @@ export default function WebRtcWindow() {
   }, [websocket]); // dependency to call this whenever the websocket changes
 
   const output_choice = useSelector((state) => state.renderingState.output_choice);
+  const splitview = output_choice === "rgb depth";
 
   return (
-    <div className="WebRTCVideo" style={{ backgroundColor: 'black' }}>
+    <div className="WebRTCVideo">
       <video
+        className="WebRTCVideo-video"
         autoPlay
         playsInline
         muted
         ref={localVideoRef}
         style={{
-          objectFit: 'fill',
-          width: '100%',
-          height: (output_choice === 'rgb depth' ? '50%' : '100%')
+          height: (splitview ? '50%' : '100%'),
+          top: (splitview ? '25%' : '0'),
         }}
       />
     </div>
