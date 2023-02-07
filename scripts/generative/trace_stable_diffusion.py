@@ -1,12 +1,23 @@
 """Trace Stable Diffusion UNet for speed improvement"""
 
 import functools
+import sys
 from pathlib import Path
 
 import appdirs
 import torch
 import tyro
-from diffusers import StableDiffusionPipeline
+from rich.console import Console
+
+CONSOLE = Console(width=120)
+
+try:
+    from diffusers import StableDiffusionPipeline
+except ImportError:
+    CONSOLE.print("[bold red]Missing Stable Diffusion packages.")
+    CONSOLE.print(r"Install using [yellow]pip install nerfstudio\[gen][/yellow]")
+    CONSOLE.print(r"or [yellow]pip install -e .\[gen][/yellow] if installing from source.")
+    sys.exit(1)
 
 
 def jit_unet(save_dir: Path = Path(appdirs.user_data_dir("nerfstudio"))):
