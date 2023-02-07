@@ -17,9 +17,11 @@
 # Modified from https://github.com/ashawkey/stable-dreamfusion/blob/main/nerf/sd.py
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
+import appdirs
 import mediapy
 import numpy as np
 import torch
@@ -49,13 +51,18 @@ SD_SOURCE = "runwayml/stable-diffusion-v1-5"
 CLIP_SOURCE = "openai/clip-vit-large-patch14"
 
 
+@dataclass
+class UNet2DConditionOutput:
+    """Class to hold traced model"""
+
+    sample: torch.FloatTensor
+
+
 class StableDiffusion(nn.Module):
     """Stable Diffusion implementation
-
     Args:
         device: device to use
         num_train_timesteps: number of training timesteps
-
     """
 
     def __init__(self, device: Union[torch.device, str], num_train_timesteps: int = 1000) -> None:
@@ -81,12 +88,36 @@ class StableDiffusion(nn.Module):
 
         pipe.enable_attention_slicing()
 
+        # use jitted unet
+        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "sd_unet_traced.pt"
+        if unet_traced_filename.exists():
+            CONSOLE.print("Loading traced UNet.")
+            unet_traced = torch.jit.load(unet_traced_filename)
+
+            class TracedUNet(torch.nn.Module):
+                """Jitted version of UNet"""
+
+                def __init__(self):
+                    super().__init__()
+                    self.in_channels = pipe.unet.in_channels
+                    self.device = pipe.unet.device
+
+                def forward(self, latent_model_input, t, encoder_hidden_states):  # pylint: disable=no-self-use
+                    """Forward pass"""
+                    sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
+                    return UNet2DConditionOutput(sample=sample)
+
+            self.unet = TracedUNet()
+            del pipe.unet
+        else:
+            CONSOLE.print("[bold yellow] Warning: Loading UNet without JIT acceleration.")
+            CONSOLE.print(r"Run [yellow]python scripts/generative/trace_stable_diffusion.py[/yellow] for a speedup!")
+            self.unet = pipe.unet
+            self.unet.to(memory_format=torch.channels_last)
+
         self.tokenizer = pipe.tokenizer
-        self.unet = pipe.unet
         self.text_encoder = pipe.text_encoder
         self.auto_encoder = pipe.vae
-
-        self.unet.to(memory_format=torch.channels_last)
 
         CONSOLE.print("Stable Diffusion loaded!")
 
@@ -94,11 +125,9 @@ class StableDiffusion(nn.Module):
         self, prompt: Union[str, List[str]], negative_prompt: Union[str, List[str]]
     ) -> TensorType[2, "max_length", "embed_dim"]:
         """Get text embeddings for prompt and negative prompt
-
         Args:
             prompt: Prompt text
             negative_prompt: Negative prompt text
-
         Returns:
             Text embeddings
         """
@@ -135,12 +164,10 @@ class StableDiffusion(nn.Module):
         guidance_scale: float = 100.0,
     ) -> Tuple[torch.Tensor, TensorType["BS", 4, "H", "W"], TensorType["BS", 4, "H", "W"]]:
         """Score Distilation Sampling loss proposed in DreamFusion paper (https://dreamfusion3d.github.io/)
-
         Args:
             text_embeddings: Text embeddings
             image: Rendered image
             guidance_scale: How much to weigh the guidance
-
         Returns:
             A tuple of Loss, latent, and gradient
         """
@@ -181,7 +208,6 @@ class StableDiffusion(nn.Module):
         latents: Optional[TensorType["BS", 4, "H", "W"]] = None,
     ) -> TensorType["BS", 4, "H", "W"]:
         """Produce latents for a given text embedding
-
         Args:
             text_embeddings: Text embeddings
             height: Height of the image
@@ -189,7 +215,6 @@ class StableDiffusion(nn.Module):
             num_inference_steps: Number of inference steps
             guidance_scale: How much to weigh the guidance
             latents: Latents to start with
-
         Returns:
             Latents
         """
@@ -209,7 +234,9 @@ class StableDiffusion(nn.Module):
 
                 # predict the noise residual
                 with torch.no_grad():
-                    noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings)["sample"]
+                    noise_pred = self.unet(
+                        latent_model_input, t.to(self.device), encoder_hidden_states=text_embeddings
+                    ).sample
 
                 # perform guidance
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
@@ -221,10 +248,8 @@ class StableDiffusion(nn.Module):
 
     def latents_to_img(self, latents: TensorType["BS", 4, "H", "W"]) -> TensorType["BS", 3, "H", "W"]:
         """Convert latents to images
-
         Args:
             latents: Latents to convert
-
         Returns:
             Images
         """
@@ -240,10 +265,8 @@ class StableDiffusion(nn.Module):
 
     def imgs_to_latent(self, imgs: TensorType["BS", 3, "H", "W"]) -> TensorType["BS", 4, "H", "W"]:
         """Convert images to latents
-
         Args:
             imgs: Images to convert
-
         Returns:
             Latents
         """
@@ -263,14 +286,12 @@ class StableDiffusion(nn.Module):
         latents=None,
     ) -> np.ndarray:
         """Generate an images from a prompts.
-
         Args:
             prompts: The prompt to generate an image from.
             negative_prompts: The negative prompt to generate an image from.
             num_inference_steps: The number of inference steps to perform.
             guidance_scale: The scale of the guidance.
             latents: The latents to start from, defaults to random.
-
         Returns:
             The generated image.
         """
@@ -297,14 +318,12 @@ class StableDiffusion(nn.Module):
         self, prompts, negative_prompts="", num_inference_steps=50, guidance_scale=7.5, latents=None
     ) -> np.ndarray:
         """Generate an image from a prompt.
-
         Args:
             prompts: The prompt to generate an image from.
             negative_prompts: The negative prompt to generate an image from.
             num_inference_steps: The number of inference steps to perform.
             guidance_scale: The scale of the guidance.
             latents: The latents to start from, defaults to random.
-
         Returns:
             The generated image.
         """
@@ -315,7 +334,6 @@ def generate_image(
     prompt: str, negative: str = "", seed: int = 0, steps: int = 50, save_path: Path = Path("test_sd.png")
 ):
     """Generate an image from a prompt using Stable Diffusion.
-
     Args:
         prompt: The prompt to use.
         negative: The negative prompt to use.
