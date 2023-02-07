@@ -255,14 +255,6 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
 
-        if step > 2000:
-            cameras, _, _ = random_train_pose(
-                self.config.train_images_per_batch, self.config.train_resolution, device=self.device
-            )
-
-            ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(self.config.eval_images_per_batch)]))
-            return ray_bundle, {"initialization": False}
-
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.eval_images_per_batch,
             self.config.eval_resolution,
@@ -273,12 +265,11 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
         )
-        ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(self.config.train_images_per_batch)]))
+        ray_bundle = cameras.generate_rays(
+            torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
+        ).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
-
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        raise ValueError("No more eval images")
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.

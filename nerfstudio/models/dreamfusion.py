@@ -279,7 +279,6 @@ class DreamFusionModel(Model):
     def get_outputs(self, ray_bundle: RayBundle):
         # uniform sampling
         background_rgb = self.field.get_background_rgb(ray_bundle)
-
         ray_samples, weights_list, ray_samples_list = self.proposal_sampler(ray_bundle, density_fns=self.density_fns)
         field_outputs = self.field(ray_samples, compute_normals=True)
         weights = ray_samples.get_weights(field_outputs[FieldHeadNames.DENSITY])
@@ -354,7 +353,7 @@ class DreamFusionModel(Model):
         else:
             outputs["train_output"] = outputs["render"]
 
-        if self.training:
+        if self.training or True:
             outputs["rendered_orientation_loss"] = orientation_loss(
                 weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )

@@ -83,7 +83,7 @@ descriptions = {
 
 method_configs["nerfacto"] = TrainerConfig(
     method_name="nerfacto",
-    steps_per_eval_batch=500,
+    steps_per_eval_batch=20,
     steps_per_save=2000,
     max_num_iterations=30000,
     mixed_precision=True,
@@ -339,7 +339,8 @@ method_configs["phototourism"] = TrainerConfig(
 
 method_configs["dreamfusion"] = DreamfusionTrainerConfig(
     method_name="dreamfusion",
-    steps_per_eval_batch=500,
+    steps_per_eval_batch=50,
+    steps_per_eval_image=50,
     steps_per_save=2000,
     max_num_iterations=30000,
     mixed_precision=True,
