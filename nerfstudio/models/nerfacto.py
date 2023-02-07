@@ -186,8 +186,7 @@ class NerfactoModel(Model):
         # renderers
         self.renderer_rgb = RGBRenderer(background_color=self.config.background_color)
         self.renderer_accumulation = AccumulationRenderer()
-        self.renderer_depth = DepthRenderer(method='expected')
-        self.renderer_truncdepth = DepthRenderer(method='median')
+        self.renderer_depth = DepthRenderer()
         self.renderer_normals = NormalsRenderer()
 
         # shaders
@@ -264,8 +263,6 @@ class NerfactoModel(Model):
             "accumulation": accumulation,
             "depth": depth,
         }
-        with torch.no_grad():
-            outputs['depth_truncated']=self.renderer_truncdepth(weights=weights, ray_samples=ray_samples)
 
         if self.config.predict_normals:
             normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
