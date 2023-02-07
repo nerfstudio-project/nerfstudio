@@ -74,6 +74,10 @@ class ProcessImages:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    skip_images: bool = False
+    """If True, skips copying and downscaling of images and only runs COLMAP if possible and enabled"""
+    colmap_model_path: str = "colmap/sparse/0"
+    """Optionally sets the path of the colmap model. Used only when --skip-colmap is set to True."""
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
     gpu: bool = True
@@ -83,6 +87,9 @@ class ProcessImages:
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
+        if not self.skip_colmap and self.colmap_model_path != "colmap/sparse/0":
+            CONSOLE.log("[bold red]The --colmap-model-path can only be used when --skip-colmap is set.")
+            sys.exit(1)
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
 
@@ -92,12 +99,22 @@ class ProcessImages:
 
         summary_log = []
 
-        # Copy images to output directory
-        num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
-        summary_log.append(f"Starting with {num_frames} images")
+        # Copy and downscale images
+        if not self.skip_images:
+            # Copy images to output directory
+            num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
+            summary_log.append(f"Starting with {num_frames} images")
 
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+            # Downscale images
+            summary_log.append(
+                process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose)
+            )
+        else:
+            num_frames = len(process_data_utils.list_images(self.data))
+            if num_frames == 0:
+                CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+                sys.exit(1)
+            summary_log.append(f"Starting with {num_frames} images")
 
         # Run COLMAP
         colmap_dir = self.output_dir / "colmap"
@@ -133,11 +150,16 @@ class ProcessImages:
                 sys.exit(1)
 
         # Save transforms.json
-        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+        if self.skip_colmap:
+            colmap_model_path = Path(self.colmap_model_path)
+        else:
+            colmap_model_path = colmap_dir / "sparse" / "0"
+
+        if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    cameras_path=colmap_model_path / "cameras.bin",
+                    images_path=colmap_model_path / "images.bin",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
                 )
