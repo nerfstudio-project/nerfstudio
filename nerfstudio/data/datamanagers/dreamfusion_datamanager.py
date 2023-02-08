@@ -91,41 +91,35 @@ def random_train_pose(
         torch.rand(size) * (central_rotation_range[1] - central_rotation_range[0]) + central_rotation_range[0]
     )
 
+    c_cos = torch.cos(central_rotation)
+    c_sin = torch.sin(central_rotation)
+    v_cos = torch.cos(vertical_rotation)
+    v_sin = torch.sin(vertical_rotation)
+    zeros = torch.zeros_like(central_rotation)
+    ones = torch.ones_like(central_rotation)
+
     rot_z = torch.stack(
         [
-            torch.cos(central_rotation),
-            -torch.sin(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.sin(central_rotation),
-            torch.cos(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.zeros_like(central_rotation),
-            torch.ones_like(central_rotation),
+            torch.stack([c_cos, -c_sin, zeros], dim=-1),
+            torch.stack([c_sin, c_cos, zeros], dim=-1),
+            torch.stack([zeros, zeros, ones], dim=-1),
         ],
-        dim=-1,
-    ).reshape(size, 3, 3)
+        dim=-2,
+    )
 
     rot_x = torch.stack(
         [
-            torch.ones_like(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.cos(vertical_rotation),
-            -torch.sin(vertical_rotation),
-            torch.zeros_like(vertical_rotation),
-            torch.sin(vertical_rotation),
-            torch.cos(vertical_rotation),
+            torch.stack([ones, zeros, zeros], dim=-1),
+            torch.stack([zeros, v_cos, -v_sin], dim=-1),
+            torch.stack([zeros, v_sin, v_cos], dim=-1),
         ],
-        dim=-1,
-    ).reshape(size, 3, 3)
+        dim=-2,
+    )
 
     # Default directions are facing in the -z direction, so origins should face opposite way
     origins = torch.stack([torch.tensor([0, 0, 1])] * size, dim=0)
     origins = (origins * radius_mean) + (origins * (torch.randn((origins.shape)) * radius_std))
     R = torch.bmm(rot_z, rot_x)  # Want to have Rx @ Ry @ origin
-    # print(torch.bmm(R, origins.unsqueeze(-1)).shape, (torch.randn((size, 3, 1)) * jitter_std).shape)
     t = torch.bmm(R, origins.unsqueeze(-1)) + torch.randn((size, 3, 1)) * jitter_std
     camera_to_worlds = torch.cat([R, t], dim=-1)
 
@@ -261,14 +255,6 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
         """Returns the next batch of data from the eval dataloader."""
         self.eval_count += 1
 
-        if step > 2000:
-            cameras, _, _ = random_train_pose(
-                self.config.train_images_per_batch, self.config.train_resolution, device=self.device
-            )
-
-            ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(self.config.eval_images_per_batch)]))
-            return ray_bundle, {"initialization": False}
-
         cameras, vertical_rotation, central_rotation = random_train_pose(
             self.config.eval_images_per_batch,
             self.config.eval_resolution,
@@ -279,12 +265,11 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
         )
-        ray_bundle = cameras.generate_rays(torch.tensor([[i] for i in range(self.config.train_images_per_batch)]))
+        ray_bundle = cameras.generate_rays(
+            torch.tensor([[i] for i in range(self.config.train_images_per_batch)])
+        ).flatten()
 
         return ray_bundle, {"vertical": vertical_rotation, "central": central_rotation}
-
-    def next_eval_image(self, step: int) -> Tuple[int, RayBundle, Dict]:
-        raise ValueError("No more eval images")
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:  # pylint: disable=no-self-use
         """Get the param groups for the data manager.

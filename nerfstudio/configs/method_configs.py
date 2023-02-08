@@ -83,7 +83,7 @@ descriptions = {
 
 method_configs["nerfacto"] = TrainerConfig(
     method_name="nerfacto",
-    steps_per_eval_batch=500,
+    steps_per_eval_batch=20,
     steps_per_save=2000,
     max_num_iterations=30000,
     mixed_precision=True,
@@ -339,7 +339,8 @@ method_configs["phototourism"] = TrainerConfig(
 
 method_configs["dreamfusion"] = DreamfusionTrainerConfig(
     method_name="dreamfusion",
-    steps_per_eval_batch=500,
+    steps_per_eval_batch=50,
+    steps_per_eval_image=50,
     steps_per_save=2000,
     max_num_iterations=30000,
     mixed_precision=True,
@@ -349,7 +350,10 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
         ),
-        model=DreamFusionModelConfig(),
+        model=DreamFusionModelConfig(eval_num_rays_per_chunk=1 << 15, distortion_loss_mult=10),
+        alphas_loss_mult=1.0,
+        opacity_loss_mult=1.0,
+        guidance_scale=100,
     ),
     optimizers={
         "proposal_networks": {
@@ -388,7 +392,7 @@ method_configs["nerfplayer-nerfacto"] = TrainerConfig(
             "scheduler": None,
         },
     },
-    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    viewer=ViewerConfig(),
     vis="viewer",
 )
 

@@ -54,11 +54,11 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """appended to prompt for back view"""
     alphas_penalty: bool = True
     """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    alphas_scale: float = 1
+    alphas_loss_mult: float = 1
     """scale for alphas penalty"""
     opacity_penalty: bool = True
     """enables penalty to encourage transparent scenes, as in "dreamfields" paper"""
-    opacity_scale: float = 1
+    opacity_loss_mult: float = 1
     """scale for opacity penalty"""
     guidance_scale: float = 100
     """guidance scale for sds loss"""
