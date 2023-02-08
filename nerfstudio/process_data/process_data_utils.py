@@ -511,7 +511,7 @@ def generate_planar_projections_from_equirectangular(
                     v_rad = torch.pi * v_deg / 180.0
                     u_rad = torch.pi * u_deg / 180.0
                     pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
-                    pers_image = (pers_image.permute(1, 2, 0) * 255).type(torch.uint8).to("cpu").numpy()
+                    pers_image = (pers_image.permute(1, 2, 0)).type(torch.uint8).to("cpu").numpy()
                     cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.jpg", pers_image)
                     count += 1
         curr_im += 1

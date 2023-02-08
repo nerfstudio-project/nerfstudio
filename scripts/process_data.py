@@ -110,6 +110,7 @@ class ProcessImages:
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
+        # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
             self.data = process_data_utils.generate_planar_projections_from_equirectangular(
                 self.data, (1920, 1080), 60, 45, 113
@@ -268,6 +269,12 @@ class ProcessVideo:
         summary_log, num_extracted_frames = process_data_utils.convert_video_to_images(
             self.data, image_dir=image_dir, num_frames_target=self.num_frames_target, verbose=self.verbose
         )
+
+        # Generate planar projections
+        if self.camera_type == "equirectangular":
+            image_dir = process_data_utils.generate_planar_projections_from_equirectangular(
+                image_dir, (1920, 1080), 60, 45, 113
+            )
 
         # Create mask
         mask_path = process_data_utils.save_mask(
