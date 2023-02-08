@@ -45,7 +45,7 @@ class ProcessImages:
     """Path the data, either a video file or a directory of images."""
     output_dir: Path
     """Path to the output directory."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and
@@ -109,6 +109,11 @@ class ProcessImages:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         image_dir = self.output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
+
+        if self.camera_type == "equirectangular":
+            self.data = process_data_utils.generate_planar_projections_from_equirectangular(
+                self.data, (1920, 1080), 60, 45, 113
+            )
 
         summary_log = []
 
@@ -208,7 +213,7 @@ class ProcessVideo:
     """Path to the output directory."""
     num_frames_target: int = 300
     """Target number of frames to use for the dataset, results may not be exact."""
-    camera_type: Literal["perspective", "fisheye"] = "perspective"
+    camera_type: Literal["perspective", "fisheye", "equirectangular"] = "perspective"
     """Camera model to use."""
     matching_method: Literal["exhaustive", "sequential", "vocab_tree"] = "vocab_tree"
     """Feature matching method to use. Vocab tree is recommended for a balance of speed and

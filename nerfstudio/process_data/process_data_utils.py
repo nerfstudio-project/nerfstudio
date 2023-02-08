@@ -23,6 +23,8 @@ from typing import List, Optional, Tuple
 
 import cv2
 import numpy as np
+import torch
+from equilib import Equi2Pers
 from rich.console import Console
 from typing_extensions import Literal
 
@@ -43,6 +45,7 @@ class CameraModel(Enum):
 CAMERA_MODELS = {
     "perspective": CameraModel.OPENCV,
     "fisheye": CameraModel.OPENCV_FISHEYE,
+    "equirectangular": CameraModel.OPENCV,
 }
 
 
@@ -469,3 +472,48 @@ def save_mask(
         cv2.imwrite(str(mask_path_i), mask_i)
     CONSOLE.log(":tada: Generated and saved masks.")
     return mask_path / "mask.png"
+
+
+def generate_planar_projections_from_equirectangular(
+    image_dir: Path,
+    planar_image_size: Tuple[int, int],
+    horizontal_stride: int,
+    vertical_stride: int,
+    fov: float,
+) -> Path:
+    """Generate planar projections from an equirectangular image.
+
+    Args:
+        image_dir: The directory containing the equirectangular image.
+        planar_image_size: The size of the planar projections [width, height].
+        horizontal_stride: The horizontal stride between planar projections in degrees.
+        vertical_stride: The vertical stride between planar projections in degress.
+        fov: The horizontal field of view of the equirectangular image.
+
+    returns:
+        The path to the planar projections directory.
+    """
+    equi2pers = Equi2Pers(height=planar_image_size[1], width=planar_image_size[0], fov_x=fov, mode="bilinear")
+    device = torch.device("cuda")
+    frame_dir = image_dir
+    output_dir = image_dir / "planar_projections"
+    output_dir.mkdir(exist_ok=True)
+    num_ims = len(os.listdir(frame_dir))
+    curr_im = 0
+    for i in os.listdir(frame_dir):
+        if i.endswith(".jpg") or i.endswith(".png") or i.endswith(".jpeg"):
+            im = np.array(cv2.imread(os.path.join(frame_dir, i)))
+            im = torch.tensor(im, dtype=torch.float32, device=device)
+            im = torch.permute(im, (2, 0, 1)) / 255.0
+            count = 0
+            for v_deg in np.arange(-90, 91, 45):
+                for u_deg in np.arange(-180, 181, 60):
+                    v_rad = torch.pi * v_deg / 180.0
+                    u_rad = torch.pi * u_deg / 180.0
+                    pers_image = equi2pers(im, rots={"roll": 0, "pitch": v_rad, "yaw": u_rad}) * 255.0
+                    pers_image = (pers_image.permute(1, 2, 0) * 255).type(torch.uint8).to("cpu").numpy()
+                    cv2.imwrite(f"{output_dir}/{i[:-4]}_{count}.jpg", pers_image)
+                    count += 1
+        curr_im += 1
+
+    return output_dir
