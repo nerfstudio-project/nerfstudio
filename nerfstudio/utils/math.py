@@ -106,7 +106,7 @@ def compute_3d_gaussian(
     dir_variance: TensorType[..., 1],
     radius_variance: TensorType[..., 1],
 ) -> Gaussians:
-    """Compute guassian along ray.
+    """Compute gaussian along ray.
 
     Args:
         directions: Axis of Gaussian.
