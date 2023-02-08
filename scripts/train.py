@@ -152,7 +152,7 @@ def launch(
     config: Optional[TrainerConfig] = None,
     timeout: timedelta = DEFAULT_TIMEOUT,
 ) -> None:
-    """Function that spawns muliple processes to call on main_func
+    """Function that spawns multiple processes to call on main_func
 
     Args:
         main_func (Callable): function that will be called by the distributed workers
