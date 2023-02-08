@@ -41,10 +41,7 @@ from nerfstudio.model_components.losses import (
     orientation_loss,
     pred_normal_loss,
 )
-from nerfstudio.model_components.ray_samplers import (
-    ProposalNetworkSampler,
-    UniformSampler,
-)
+from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
     DepthRenderer,
@@ -115,6 +112,10 @@ class DreamFusionModelConfig(ModelConfig):
     """Proposal loss multiplier."""
     distortion_loss_mult: float = 1.0
     """Distortion loss multiplier."""
+    start_normals_training: int = 1000
+    """Start training normals after this many iterations"""
+    start_lambertian_training: int = 1000
+    """start training with lambertian shading after this many iterations"""
 
 
 class DreamFusionModel(Model):
@@ -226,11 +227,9 @@ class DreamFusionModel(Model):
                 )
 
         # anneal the weights of the proposal network before doing PDF sampling
-        N = self.config.proposal_weights_anneal_max_num_iters
-
         def set_anneal(step):
             # https://arxiv.org/pdf/2111.12077.pdf eq. 18
-            train_frac = np.clip(step / N, 0, 1)
+            train_frac = np.clip(step / self.config.proposal_weights_anneal_max_num_iters, 0, 1)
             bias = lambda x, b: (b * x) / ((b - 1) * x + 1)
             anneal = bias(train_frac, self.config.proposal_weights_anneal_slope)
             self.proposal_sampler.set_anneal(anneal)
@@ -244,13 +243,13 @@ class DreamFusionModel(Model):
             ),
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(600,),
+                iters=(self.config.start_normals_training,),
                 func=start_training_normals,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(600,),
+                iters=(self.config.start_lambertian_training,),
                 func=start_shaded_training,
                 args=[self, training_callback_attributes],
             ),
@@ -275,6 +274,7 @@ class DreamFusionModel(Model):
 
     def get_param_groups(self) -> Dict[str, List[Parameter]]:
         param_groups = {}
+        param_groups["proposal_networks"] = list(self.proposal_networks.parameters())
         param_groups["fields"] = list(self.field.parameters())
         return param_groups
 
@@ -307,7 +307,7 @@ class DreamFusionModel(Model):
         background = accum_mask_inv * background_rgb
 
         outputs = {
-            "rgb": rgb,
+            "rgb_only": rgb,
             "background_rgb": background_rgb,
             "background": background,
             "accumulation": accum_mask,
@@ -345,7 +345,7 @@ class DreamFusionModel(Model):
         outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
         outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
         outputs["shaded_albedo"] = shaded_albedo
-        outputs["render"] = accum_mask * rgb + background
+        outputs["rgb"] = accum_mask * rgb + background
 
         if shading_weight < 0:
             if np.random.random_sample() > 0.5:
@@ -353,7 +353,7 @@ class DreamFusionModel(Model):
             else:
                 outputs["train_output"] = accum_mask * shaded_albedo + background
         else:
-            outputs["train_output"] = outputs["render"]
+            outputs["train_output"] = outputs["rgb"]
 
         if self.training or True:
             outputs["rendered_orientation_loss"] = orientation_loss(
@@ -409,7 +409,21 @@ class DreamFusionModel(Model):
             outputs["depth"],
             accumulation=outputs["accumulation"],
         )
+        prop_depth_0 = colormaps.apply_depth_colormap(
+            outputs["prop_depth_0"],
+            accumulation=outputs["accumulation"],
+        )
+        prop_depth_1 = colormaps.apply_depth_colormap(
+            outputs["prop_depth_1"],
+            accumulation=outputs["accumulation"],
+        )
 
         metrics_dict = {}
-        images_dict = {"img": outputs["rgb"], "accumulation": acc, "depth": depth}
+        images_dict = {
+            "img": outputs["rgb"],
+            "accumulation": acc,
+            "depth": depth,
+            "prop_depth_0": prop_depth_0,
+            "prop_depth_1": prop_depth_1,
+        }
         return metrics_dict, images_dict
