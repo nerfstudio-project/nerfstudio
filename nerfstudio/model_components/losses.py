@@ -34,7 +34,7 @@ EPS = 1.0e-7
 URF_SIGMA_SCALE_FACTOR = 3.0
 
 
-class DephtLossType(Enum):
+class DepthLossType(Enum):
     """Types of depth losses for depth supervision."""
 
     DS_NERF = 1
@@ -225,8 +225,11 @@ def ds_nerf_depth_loss(
     Returns:
         Depth loss scalar.
     """
+    depth_mask = termination_depth > 0
+
     loss = -torch.log(weights + EPS) * torch.exp(-((steps - termination_depth[:, None]) ** 2) / (2 * sigma)) * lengths
-    return torch.mean(loss.sum(-2))
+    loss = loss.sum(-2) * depth_mask
+    return torch.mean(loss)
 
 
 def urban_radiance_field_depth_loss(
@@ -247,6 +250,8 @@ def urban_radiance_field_depth_loss(
     Returns:
         Depth loss scalar.
     """
+    depth_mask = termination_depth > 0
+
     # Expected depth loss
     expected_depth_loss = (termination_depth - predicted_depth) ** 2
 
@@ -262,7 +267,8 @@ def urban_radiance_field_depth_loss(
     line_of_sight_loss_empty = (line_of_sight_loss_empty_mask * weights**2).sum(-2)
     line_of_sight_loss = line_of_sight_loss_near + line_of_sight_loss_empty
 
-    return torch.mean(expected_depth_loss + line_of_sight_loss)
+    loss = (expected_depth_loss + line_of_sight_loss) * depth_mask
+    return torch.mean(loss)
 
 
 def depth_loss(
@@ -273,7 +279,7 @@ def depth_loss(
     sigma: TensorType[0],
     directions_norm: TensorType[..., 1],
     is_euclidean: bool,
-    depth_loss_type: DephtLossType,
+    depth_loss_type: DepthLossType,
 ) -> TensorType[0]:
     """Implementation of depth losses.
 
@@ -294,11 +300,11 @@ def depth_loss(
         termination_depth = termination_depth * directions_norm
     steps = (ray_samples.frustums.starts + ray_samples.frustums.ends) / 2
 
-    if depth_loss_type == DephtLossType.DS_NERF:
+    if depth_loss_type == DepthLossType.DS_NERF:
         lengths = ray_samples.frustums.ends - ray_samples.frustums.starts
         return ds_nerf_depth_loss(weights, termination_depth, steps, lengths, sigma)
 
-    if depth_loss_type == DephtLossType.URF:
+    if depth_loss_type == DepthLossType.URF:
         return urban_radiance_field_depth_loss(weights, termination_depth, predicted_depth, steps, sigma)
 
     raise NotImplementedError("Provided depth loss type not implemented.")
