@@ -60,23 +60,28 @@ class TrivialDataset(InputDataset):
 
 
 def random_train_pose(
-    size,
-    resolution,
-    device,
-    radius_mean=1.0,
-    radius_std=0.1,
-    central_rotation_range=(0, 360),
-    vertical_rotation_range=(-90, 10),
-    focal_range=(0.75, 1.35),
-    jitter_std=0.01,
+    size: int,
+    resolution: int,
+    device: Union[torch.device, str],
+    radius_mean: float = 1.0,
+    radius_std: float = 0.1,
+    central_rotation_range: Tuple[float, float] = (0, 360),
+    vertical_rotation_range: Tuple[float, float] = (-80, 20),
+    focal_range: Tuple[float, float] = (0.75, 1.35),
+    jitter_std: float = 0.01,
+    center: Tuple[float, float, float] = (0, 0, 0),
 ):
     """generate random poses from an orbit camera
     Args:
         size: batch size of generated poses.
         device: where to allocate the output.
-        radius: camera radius
+        radius_mean: mean radius of the orbit camera.
+        radius_std: standard deviation of the radius of the orbit camera.
         central_rotation_range: amount that we rotate around the center of the object
         vertical_rotation_range: amount that we allow the cameras to pan up and down from horizontal
+        focal_range: focal length range
+        jitter_std: standard deviation of the jitter added to the camera position
+        center: center of the object
     Return:
         poses: [size, 4, 4]
     """
@@ -120,7 +125,11 @@ def random_train_pose(
     origins = torch.stack([torch.tensor([0, 0, 1])] * size, dim=0)
     origins = (origins * radius_mean) + (origins * (torch.randn((origins.shape)) * radius_std))
     R = torch.bmm(rot_z, rot_x)  # Want to have Rx @ Ry @ origin
-    t = torch.bmm(R, origins.unsqueeze(-1)) + torch.randn((size, 3, 1)) * jitter_std
+    t = (
+        torch.bmm(R, origins.unsqueeze(-1))
+        + torch.randn((size, 3, 1)) * jitter_std
+        + torch.tensor(center)[None, :, None]
+    )
     camera_to_worlds = torch.cat([R, t], dim=-1)
 
     focals = torch.rand(size) * (focal_range[1] - focal_range[0]) + focal_range[0]
@@ -154,16 +163,17 @@ class DreamFusionDataManagerConfig(VanillaDataManagerConfig):
     """Number of images per batch for training"""
     eval_images_per_batch: int = 1
     """Number of images per batch for evaluation"""
-    radius_mean: float = 1.6
+    radius_mean: float = 2.2
     """Mean radius of camera orbit"""
-    radius_std: float = 0.2
+    radius_std: float = 0.1
     """Std of radius of camera orbit"""
-    focal_range: Tuple[float, float] = (0.75, 1.35)
+    focal_range: Tuple[float, float] = (0.6, 1.2)
     """Range of focal length"""
-    vertical_rotation_range: Tuple[float, float] = (-90, 30)
+    vertical_rotation_range: Tuple[float, float] = (-80, 30)
     """Range of vertical rotation"""
     jitter_std: float = 0.05
     """Std of camera direction jitter, so we don't just point the cameras towards the center every time"""
+    center: Tuple[float, float, float] = (0, 0, 0)
 
 
 class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-method
@@ -209,6 +219,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             focal_range=self.config.focal_range,
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
+            center=self.config.center,
         )
 
         self.train_dataset = TrivialDataset(cameras)
@@ -243,6 +254,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             focal_range=self.config.focal_range,
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
+            center=self.config.center,
         )
         ray_bundle = cameras.generate_rays(torch.tensor(list(range(self.config.train_images_per_batch)))).flatten()
 
@@ -264,6 +276,7 @@ class DreamFusionDataManager(VanillaDataManager):  # pylint: disable=abstract-me
             focal_range=self.config.focal_range,
             vertical_rotation_range=self.config.vertical_rotation_range,
             jitter_std=self.config.jitter_std,
+            center=self.config.center,
         )
         ray_bundle = cameras.generate_rays(
             torch.tensor([[i] for i in range(self.config.train_images_per_batch)])

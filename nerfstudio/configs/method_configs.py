@@ -350,14 +350,23 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
             train_num_rays_per_batch=4096,
             eval_num_rays_per_batch=4096,
         ),
-        model=DreamFusionModelConfig(eval_num_rays_per_chunk=1 << 15, distortion_loss_mult=10),
+        model=DreamFusionModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            distortion_loss_mult=10,
+            sphere_collider=True,
+            initialize_density=False,
+            interlevel_loss_mult=1.0,
+            proposal_warmup=500,
+            proposal_update_every=5,
+            proposal_weights_anneal_max_num_iters=100,
+        ),
         alphas_loss_mult=1.0,
         opacity_loss_mult=1.0,
         guidance_scale=100,
     ),
     optimizers={
         "proposal_networks": {
-            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "optimizer": AdamOptimizerConfig(lr=5e-2, eps=1e-15),
             "scheduler": None,
         },
         "fields": {
