@@ -5,7 +5,7 @@ Starts viewer in eval mode.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 import tyro
@@ -14,6 +14,7 @@ from rich.console import Console
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
+from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
 from nerfstudio.viewer.server import viewer_utils
 
@@ -32,13 +33,13 @@ class ViewerConfigWithoutNumRays(ViewerConfig):
         return ViewerConfig(**{x.name: getattr(self, x.name) for x in fields(self)})
 
 
-@dataclass(frozen=True)
+@dataclass
 class RunViewer:
     """Load a checkpoint and start the viewer."""
 
     load_config: Path
     """Path to config YAML file."""
-    viewer: ViewerConfigWithoutNumRays = ViewerConfigWithoutNumRays()
+    viewer: ViewerConfigWithoutNumRays = field(default_factory=ViewerConfigWithoutNumRays)
     """Viewer configuration"""
 
     def main(self) -> None:
@@ -59,10 +60,12 @@ class RunViewer:
     def _start_viewer(self, config: TrainerConfig, pipeline):
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
-        viewer_state = None
-        viewer_state, _ = viewer_utils.setup_viewer(
+        viewer_state, banner_messages = viewer_utils.setup_viewer(
             config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
         )
+
+        # setup logging
+        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
 
         assert viewer_state and pipeline.datamanager.train_dataset
         viewer_state.init_scene(
