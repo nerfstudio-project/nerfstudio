@@ -37,7 +37,7 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     """target class to instantiate"""
     datamanager: DreamFusionDataManagerConfig = DreamFusionDataManagerConfig()
     """specifies the datamanager config"""
-    prompt: str = "A zoomed out high-quality photo of Temple of Heaven"
+    prompt: str = "A high-quality photo of a tree frog on a stump"
     """prompt for stable dreamfusion"""
 
     location_based_prompting: bool = True
@@ -51,10 +51,10 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     front_prompt: str = ", front view"
     """appended to prompt for front view"""
     back_prompt: str = ", back view"
-    """appended to prompt for back view"""
+    """appended to prompt for back view"""  
     alphas_penalty: bool = True
     """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
-    alphas_loss_mult: float = 1
+    alphas_scale: float = 1
     """scale for alphas penalty"""
     opacity_penalty: bool = True
     """enables penalty to encourage transparent scenes, as in "dreamfields" paper"""
@@ -114,18 +114,27 @@ class DreamfusionPipeline(VanillaPipeline):
 
         if self.config.location_based_prompting:
             if self.config.interpolated_prompting:
-                horiz = batch["central"]
-                vert = batch["vertical"]
+                horiz = batch["central"].to(self.sd_device)
+                vert = max(batch["vertical"].to(self.sd_device), 0)
 
-                if batch["central"] > 315 or batch["central"] <= 45:
-                    text_embedding = self.front_text_embedding
-                elif batch["central"] > 45 and batch["central"] <= 135:
-                    text_embedding = self.side_text_embedding
-                elif batch["central"] > 135 and batch["central"] <= 225:
-                    text_embedding = self.back_text_embedding
-                else:  # batch["central"] > 225 and batch["central"] <= 315:
-                    text_embedding = self.side_text_embedding
+                if batch["central"] > 0 or batch["central"] <= 90:
+                    text_embedding = (
+                        (horiz) * self.side_text_embedding + (90 - horiz) * self.front_text_embedding
+                    ) / 90.0
+                elif batch["central"] > 90 and batch["central"] <= 180:
+                    text_embedding = (
+                        (horiz - 90) * self.back_text_embedding + (180 - horiz) * self.side_text_embedding
+                    ) / 90.0
+                elif batch["central"] > 180 and batch["central"] <= 270:
+                    text_embedding = (
+                        (horiz - 180) * self.side_text_embedding + (270 - horiz) * self.back_text_embedding
+                    ) / 90.0
+                else:  # batch["central"] > 270 and batch["central"] <= 360:
+                    text_embedding = (
+                        (horiz - 270) * self.front_text_embedding + (360 - horiz) * self.side_text_embedding
+                    ) / 90.0
 
+                text_embedding = (vert * text_embedding + (90 - vert) * self.top_text_embedding) / 90.0
 
             else:
                 if batch["vertical"] < 30:

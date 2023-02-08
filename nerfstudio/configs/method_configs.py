@@ -351,7 +351,7 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
             eval_num_rays_per_batch=4096,
         ),
         model=DreamFusionModelConfig(eval_num_rays_per_chunk=1 << 15, distortion_loss_mult=10),
-        alphas_loss_mult=1.0,
+        alphas_loss_mult=1.5,
         opacity_loss_mult=1.0,
         guidance_scale=100,
     ),

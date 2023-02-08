@@ -64,8 +64,8 @@ class DreamFusionModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
 
-    num_samples: int = 128
-    """Number of samples in field evaluation"""
+    # num_samples: int = 128
+    # """Number of samples in field evaluation"""
     orientation_loss_mult: float = 0.01
     """Orientation loss multipier on computed normals."""
     pred_normal_loss_mult: float = 0.001
@@ -74,17 +74,17 @@ class DreamFusionModelConfig(ModelConfig):
     """Randomizes light source per output."""
     initialize_density: bool = True
     """Initialize density in center of scene."""
-    init_density_strength: float = 50.0
+    init_density_strength: float = 0.1
     """Initial strength of center density"""
     sphere_collider: bool = True
     """Use spherical collider instead of box"""
-    target_transmittance_start: float = 0.8
+    target_transmittance_start: float = 0.4
     """target transmittance for opacity penalty. This is the percent of the scene that is
     background when rendered at the start of training"""
-    target_transmittance_end: float = 0.4
+    target_transmittance_end: float = 0.7
     """target transmittance for opacity penalty. This is the percent of the scene that is
     background when rendered at the end of training"""
-    transmittance_end_schedule: int = 1000
+    transmittance_end_schedule: int = 1500
     """number of iterations to reach target_transmittance_end"""
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for each proposal network."""
@@ -131,7 +131,6 @@ class DreamFusionModel(Model):
         config: DreamFusionModelConfig,
         **kwargs,
     ) -> None:
-        self.num_samples = config.num_samples
         self.initialize_density = config.initialize_density
         self.train_normals = False
         self.train_shaded = False
@@ -203,7 +202,7 @@ class DreamFusionModel(Model):
         def taper_density(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            self.density_strength -= 0.2
+            self.density_strength -= 0.25
 
         def start_training_normals(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
@@ -218,7 +217,10 @@ class DreamFusionModel(Model):
         def update_target_transmittance(
             self, training_callback_attributes: TrainingCallbackAttributes, step: int  # pylint: disable=unused-argument
         ):
-            if step < self.config.transmittance_end_schedule:
+            if (
+                step < self.config.transmittance_end_schedule
+                and self.target_transmittance > self.config.target_transmittance_end
+            ):
                 self.target_transmittance -= (1 / self.config.transmittance_end_schedule) * (
                     self.config.target_transmittance_start - self.config.target_transmittance_end
                 )
@@ -236,19 +238,19 @@ class DreamFusionModel(Model):
         callbacks = [
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(200, 400, 600, 800, 1000),
+                iters=(150, 300, 450, 600),
                 func=taper_density,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(1000,),
+                iters=(600,),
                 func=start_training_normals,
                 args=[self, training_callback_attributes],
             ),
             TrainingCallback(
                 where_to_run=[TrainingCallbackLocation.AFTER_TRAIN_ITERATION],
-                iters=(1000,),
+                iters=(600,),
                 func=start_shaded_training,
                 args=[self, training_callback_attributes],
             ),
@@ -387,10 +389,6 @@ class DreamFusionModel(Model):
 
         loss_dict["alphas_loss"] = outputs["alphas_loss"].mean()
 
-        assert (
-            self.target_transmittance >= self.config.target_transmittance_end
-            and self.target_transmittance <= self.config.target_transmittance_start
-        )
         loss_dict["opacity_loss"] = -torch.minimum(
             (1 - outputs["accumulation"]).mean(), torch.tensor(self.target_transmittance)
         )
