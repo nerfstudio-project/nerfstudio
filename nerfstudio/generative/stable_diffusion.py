@@ -53,11 +53,8 @@ CLIP_SOURCE = "openai/clip-vit-large-patch14"
 
 @dataclass
 class UNet2DConditionOutput:
-<<<<<<< HEAD
-=======
     """Class to hold traced model"""
 
->>>>>>> df784e96e7979aaa4320284c087d7036dce67c28
     sample: torch.FloatTensor
 
 
@@ -92,11 +89,7 @@ class StableDiffusion(nn.Module):
         pipe.enable_attention_slicing()
 
         # use jitted unet
-<<<<<<< HEAD
-        unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "unet_traced.pt"
-=======
         unet_traced_filename = Path(appdirs.user_data_dir("nerfstudio")) / "sd_unet_traced.pt"
->>>>>>> df784e96e7979aaa4320284c087d7036dce67c28
         if unet_traced_filename.exists():
             CONSOLE.print("Loading traced UNet.")
             unet_traced = torch.jit.load(unet_traced_filename)
@@ -109,26 +102,16 @@ class StableDiffusion(nn.Module):
                     self.in_channels = pipe.unet.in_channels
                     self.device = pipe.unet.device
 
-<<<<<<< HEAD
-                def forward(self, latent_model_input, t, encoder_hidden_states):
-=======
                 def forward(self, latent_model_input, t, encoder_hidden_states):  # pylint: disable=no-self-use
                     """Forward pass"""
->>>>>>> df784e96e7979aaa4320284c087d7036dce67c28
                     sample = unet_traced(latent_model_input, t, encoder_hidden_states)[0]
                     return UNet2DConditionOutput(sample=sample)
 
             self.unet = TracedUNet()
             del pipe.unet
         else:
-<<<<<<< HEAD
-            CONSOLE.print(
-                "Warning: Loading UNet without JIT acceleration. Run trace_stablediff.py in the scripts folder for a speedup!"
-            )
-=======
             CONSOLE.print("[bold yellow] Warning: Loading UNet without JIT acceleration.")
             CONSOLE.print(r"Run [yellow]python scripts/generative/trace_stable_diffusion.py[/yellow] for a speedup!")
->>>>>>> df784e96e7979aaa4320284c087d7036dce67c28
             self.unet = pipe.unet
             self.unet.to(memory_format=torch.channels_last)
 

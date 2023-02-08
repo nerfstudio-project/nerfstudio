@@ -61,8 +61,6 @@ class DreamFusionModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
 
-    # num_samples: int = 128
-    # """Number of samples in field evaluation"""
     orientation_loss_mult: float = 0.01
     """Orientation loss multipier on computed normals."""
     pred_normal_loss_mult: float = 0.001
