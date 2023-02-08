@@ -4,7 +4,6 @@ Starts viewer in eval mode.
 """
 from __future__ import annotations
 
-import dataclasses
 import time
 from dataclasses import dataclass, fields
 from pathlib import Path
@@ -15,9 +14,7 @@ from rich.console import Console
 from nerfstudio.configs.base_config import ViewerConfig
 from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
-from nerfstudio.utils import profiler, writer
 from nerfstudio.utils.eval_utils import eval_setup
-from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
 CONSOLE = Console(width=120)
@@ -62,15 +59,10 @@ class RunViewer:
     def _start_viewer(self, config: TrainerConfig, pipeline):
         base_dir = config.get_base_dir()
         viewer_log_path = base_dir / config.viewer.relative_log_filename
-        viewer_state, banner_messages = None, None
-        viewer_state, banner_messages = viewer_utils.setup_viewer(
+        viewer_state = None
+        viewer_state, _ = viewer_utils.setup_viewer(
             config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
         )
-
-        # setup logging
-        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
-        writer.put_config(name="config", config_dict=dataclasses.asdict(config), step=0)
-        profiler.setup_profiler(config.logging)
 
         assert viewer_state and pipeline.datamanager.train_dataset
         viewer_state.init_scene(
@@ -88,16 +80,15 @@ class RunViewer:
         """
         # NOTE: step must be > 0 otherwise the rendering would not happen
         step = 1
-        with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
-            num_rays_per_batch = config.pipeline.datamanager.train_num_rays_per_batch
-            try:
-                viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
-            except RuntimeError:
-                time.sleep(0.03)  # sleep to allow buffer to reset
-                assert viewer_state.vis is not None
-                viewer_state.vis["renderingState/log_errors"].write(
-                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-                )
+        num_rays_per_batch = config.pipeline.datamanager.train_num_rays_per_batch
+        try:
+            viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
+        except RuntimeError:
+            time.sleep(0.03)  # sleep to allow buffer to reset
+            assert viewer_state.vis is not None
+            viewer_state.vis["renderingState/log_errors"].write(
+                "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+            )
 
     def save_checkpoint(self, *args, **kwargs):
         """
