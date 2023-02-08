@@ -64,8 +64,11 @@ class RunViewer:
             config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
         )
 
-        # setup logging
-        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
+        # Mock writer.setup_local_writer
+        writer.GLOBAL_BUFFER["events"] = {}
+        writer.GLOBAL_BUFFER["max_buffer_size"] = 1
+        for message in banner_messages:
+            print(message)
 
         assert viewer_state and pipeline.datamanager.train_dataset
         viewer_state.init_scene(
