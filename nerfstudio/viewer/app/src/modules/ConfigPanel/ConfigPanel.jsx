@@ -37,6 +37,12 @@ export function RenderControls() {
   const colormapChoice = useSelector(
     (state) => state.renderingState.colormap_choice,
   );
+  const colormapInvert = useSelector(
+    (state) => state.renderingState.colormap_invert,
+  );
+  const colormapNormalize = useSelector(
+    (state) => state.renderingState.colormap_normalize,
+  );
   const max_resolution = useSelector(
     (state) => state.renderingState.maxResolution,
   );
@@ -114,6 +120,51 @@ export function RenderControls() {
           );
         },
         disabled: colormapOptions.length === 1,
+      },
+      colormap_invert: {
+        label: '| Invert',
+        value: colormapInvert,
+        hint: 'Invert the colormap',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_invert',
+            v,
+          );
+        },
+        render: (get) => get('colormap_options') !== 'default',
+      },
+      colormap_normalize: {
+        label: '| Normalize',
+        value: colormapNormalize,
+        hint: 'Whether to normalize output between 0 and 1',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_normalize',
+            v,
+          );
+        },
+        render: (get) => get('colormap_options') !== 'default',
+      },
+      colormap_range: {
+        label: '| Range',
+        value: [0, 1],
+        step: 0.01,
+        min: -2,
+        max: 5,
+        hint: 'Min and max values of the colormap',
+        onChange: (v) => {
+          dispatch_and_send(
+            websocket,
+            dispatch,
+            'renderingState/colormap_range',
+            v,
+          );
+        },
+        render: (get) => get('colormap_options') !== 'default',
       },
       // Dynamic Resolution
       target_train_util: {

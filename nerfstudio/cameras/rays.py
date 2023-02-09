@@ -44,7 +44,7 @@ class Frustums(TensorDataclass):
     """Offsets for each sample position"""
 
     def get_positions(self) -> TensorType[..., 3]:
-        """Calulates "center" position of frustum. Not weighted by mass.
+        """Calculates "center" position of frustum. Not weighted by mass.
 
         Returns:
             xyz positions.
@@ -61,7 +61,7 @@ class Frustums(TensorDataclass):
     def get_gaussian_blob(self) -> Gaussians:
         """Calculates guassian approximation of conical frustum.
 
-        Resturns:
+        Returns:
             Conical frustums approximated by gaussian distribution.
         """
         # Cone radius is set such that the square pixel_area matches the cone area.
@@ -109,7 +109,7 @@ class RaySamples(TensorDataclass):
     spacing_to_euclidean_fn: Optional[Callable] = None
     """Function to convert bins to euclidean distance."""
     metadata: Optional[Dict[str, TensorType["bs":..., "latent_dims"]]] = None
-    """addtional information relevant to generating ray samples"""
+    """additional information relevant to generating ray samples"""
 
     times: Optional[TensorType[..., 1]] = None
     """Times at which rays are sampled"""

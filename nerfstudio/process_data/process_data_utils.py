@@ -46,6 +46,19 @@ CAMERA_MODELS = {
 }
 
 
+def list_images(data: Path) -> List[Path]:
+    """Lists all supported images in a directory
+
+    Args:
+        data: Path to the directory of images.
+    Returns:
+        Paths to images contained in the directory
+    """
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    return image_paths
+
+
 def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
     """Returns a list of image filenames in a directory.
 
@@ -55,8 +68,7 @@ def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List
     Returns:
         A tuple of A list of image filenames, number of original image paths.
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-    image_paths = sorted([p for p in directory.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    image_paths = list_images(directory)
     num_orig_images = len(image_paths)
 
     if max_num_images != -1 and num_orig_images > max_num_images:
@@ -78,8 +90,8 @@ def get_num_frames_in_video(video: Path) -> int:
     Returns:
         The number of frames in a video.
     """
-    cmd = f"ffprobe -v error -select_streams v:0 -count_packets \
-            -show_entries stream=nb_read_packets -of csv=p=0 {video}"
+    cmd = f'ffprobe -v error -select_streams v:0 -count_packets \
+            -show_entries stream=nb_read_packets -of csv=p=0 "{video}"'
     output = run_command(cmd)
     assert output is not None
     output = output.strip(" ,\t\n\r")
@@ -114,7 +126,7 @@ def convert_video_to_images(
         print("Number of frames in video:", num_frames)
 
         out_filename = image_dir / "frame_%05d.png"
-        ffmpeg_cmd = f"ffmpeg -i {video_path}"
+        ffmpeg_cmd = f'ffmpeg -i "{video_path}"'
         spacing = num_frames // num_frames_target
 
         if spacing > 1:
@@ -168,7 +180,7 @@ def copy_images_list(
         file_type = image_paths[0].suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels*2}:ih-{crop_border_pixels*2}"
-        ffmpeg_cmd = f"ffmpeg -y -noautorotate -i {image_dir / filename} -q:v 2 -vf {crop} {image_dir / filename}"
+        ffmpeg_cmd = f'ffmpeg -y -noautorotate -i "{image_dir / filename}" -q:v 2 -vf {crop} "{image_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
 
     num_frames = len(image_paths)
@@ -210,9 +222,9 @@ def copy_and_upscale_polycam_depth_maps_list(
         for idx, depth_map in enumerate(polycam_depth_image_filenames):
             destination = depth_dir / f"frame_{idx + 1:05d}{depth_map.suffix}"
             ffmpeg_cmd = [
-                f"ffmpeg -y -i {depth_map} ",
+                f'ffmpeg -y -i "{depth_map}" ',
                 f"-q:v 2 -vf scale=iw*{upscale_factor}:ih*{upscale_factor}:flags=neighbor ",
-                f"{destination}",
+                f'"{destination}"',
             ]
             ffmpeg_cmd = " ".join(ffmpeg_cmd)
             run_command(ffmpeg_cmd, verbose=verbose)
@@ -222,7 +234,7 @@ def copy_and_upscale_polycam_depth_maps_list(
         file_type = depth_dir.glob("frame_*").__next__().suffix
         filename = f"frame_%05d{file_type}"
         crop = f"crop=iw-{crop_border_pixels * 2}:ih-{crop_border_pixels * 2}"
-        ffmpeg_cmd = f"ffmpeg -y -i {depth_dir / filename} -q:v 2 -vf {crop} {depth_dir / filename}"
+        ffmpeg_cmd = f'ffmpeg -y -i "{depth_dir / filename}" -q:v 2 -vf {crop} "{depth_dir / filename}"'
         run_command(ffmpeg_cmd, verbose=verbose)
 
     CONSOLE.log("[bold green]:tada: Done upscaling depth maps.")
@@ -240,8 +252,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
         The number of images copied.
     """
     with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
-        allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-        image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+        image_paths = list_images(data)
 
         if len(image_paths) == 0:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
@@ -282,9 +293,9 @@ def downscale_images(image_dir: Path, num_downscales: int, folder_name: str = "i
             for f in files:
                 filename = f.name
                 ffmpeg_cmd = [
-                    f"ffmpeg -y -noautorotate -i {image_dir / filename} ",
+                    f'ffmpeg -y -noautorotate -i "{image_dir / filename}" ',
                     f"-q:v 2 -vf scale=iw/{downscale_factor}:ih/{downscale_factor} ",
-                    f"{downscale_dir / filename}",
+                    f'"{downscale_dir / filename}"',
                 ]
                 ffmpeg_cmd = " ".join(ffmpeg_cmd)
                 run_command(ffmpeg_cmd, verbose=verbose)
