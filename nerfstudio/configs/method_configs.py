@@ -89,7 +89,11 @@ method_configs["nerfacto"] = TrainerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            robust=True,
+            patch_size=16,
+        ),
     ),
     optimizers={
         "proposal_networks": {

@@ -116,6 +116,10 @@ class NerfactoModelConfig(ModelConfig):
     """Whether use single jitter or not for the proposal networks."""
     predict_normals: bool = False
     """Whether to predict normals or not."""
+    robust: bool = True
+    """Whether to use robust RGB loss or not."""
+    patch_size: int = 16
+    """Patch size to use for robust RGB loss."""
 
 
 class NerfactoModel(Model):
@@ -301,7 +305,10 @@ class NerfactoModel(Model):
     def get_loss_dict(self, outputs, batch, metrics_dict=None):
         loss_dict = {}
         image = batch["image"].to(self.device)
-        loss_dict["rgb_loss"] = robust_rgb_loss(image, outputs["rgb"])
+        if self.config.robust:
+            loss_dict["rgb_loss"] = robust_rgb_loss(image, outputs["rgb"], self.config.patch_size)
+        else:
+            loss_dict["rgb_loss"] = self.rgb_loss(image, outputs["rgb"])
         if self.training:
             loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
                 outputs["weights_list"], outputs["ray_samples_list"]
