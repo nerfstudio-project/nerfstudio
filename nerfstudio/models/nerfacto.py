@@ -116,7 +116,7 @@ class NerfactoModelConfig(ModelConfig):
     """Whether use single jitter or not for the proposal networks."""
     predict_normals: bool = False
     """Whether to predict normals or not."""
-    robust: bool = True
+    robust: bool = False
     """Whether to use robust RGB loss or not."""
     patch_size: int = 16
     """Patch size to use for robust RGB loss."""
