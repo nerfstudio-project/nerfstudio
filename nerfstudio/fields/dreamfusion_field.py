@@ -194,7 +194,7 @@ class DreamFusionField(Field):
         pred_normals_inp = torch.cat([positions_flat, density_embedding.view(-1, self.geo_feat_dim)], dim=-1)
 
         x = self.mlp_pred_normals(pred_normals_inp).view(*outputs_shape, -1).to(directions)
-        outputs[FieldHeadNames.PRED_NORMALS] = math.safe_normalize(self.field_head_pred_normals(x))
+        outputs[FieldHeadNames.PRED_NORMALS] = self.field_head_pred_normals(x)
 
         h = density_embedding.view(-1, self.geo_feat_dim)
 

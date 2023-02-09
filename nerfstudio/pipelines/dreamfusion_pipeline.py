@@ -51,7 +51,7 @@ class DreamfusionPipelineConfig(VanillaPipelineConfig):
     front_prompt: str = ", front view"
     """appended to prompt for front view"""
     back_prompt: str = ", back view"
-    """appended to prompt for back view"""  
+    """appended to prompt for back view"""
     alphas_penalty: bool = True
     """enables penalty to encourage sparse weights (penalizing for uniform density along ray)"""
     alphas_loss_mult: float = 1
@@ -137,7 +137,7 @@ class DreamfusionPipeline(VanillaPipeline):
                 text_embedding = (vert * text_embedding + (90 - vert) * self.top_text_embedding) / 90.0
 
             else:
-                if batch["vertical"] < 30:
+                if batch["vertical"] < 40:
                     text_embedding = self.top_text_embedding
                 elif batch["central"] > 315 or batch["central"] <= 45:
                     text_embedding = self.front_text_embedding

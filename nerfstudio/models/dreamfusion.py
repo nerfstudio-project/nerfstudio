@@ -61,7 +61,7 @@ class DreamFusionModelConfig(ModelConfig):
     _target: Type = field(default_factory=lambda: DreamFusionModel)
     """target class to instantiate"""
 
-    orientation_loss_mult: float = 0.01
+    orientation_loss_mult: float = 0.0001
     """Orientation loss multipier on computed normals."""
     pred_normal_loss_mult: float = 0.001
     """Predicted normal loss multiplier."""
@@ -321,33 +321,34 @@ class DreamFusionModel(Model):
             outputs[f"prop_depth_{i}"] = self.renderer_depth(weights=weights_list[i], ray_samples=ray_samples_list[i])
 
         normals = self.renderer_normals(normals=field_outputs[FieldHeadNames.NORMALS], weights=weights)
-        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)  # .detach()
+        pred_normals = self.renderer_normals(field_outputs[FieldHeadNames.PRED_NORMALS], weights=weights)
 
         # lambertian shading
-        if self.config.random_light_source and self.training:  # and if training
+        if self.config.random_light_source:  # and self.training:
             light_d = ray_bundle.origins[0] + torch.randn(3, dtype=torch.float).to(normals)
         else:
             light_d = ray_bundle.origins[0]
         light_d = math.safe_normalize(light_d)
 
-        if self.train_shaded and np.random.random_sample() > 0.75:
+        if (self.train_shaded and np.random.random_sample() > 0.75) or not self.training:
             shading_weight = 0.9
         else:
             shading_weight = 0.0
 
         shaded, shaded_albedo = self.shader_lambertian(
-            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=True
+            rgb=rgb, normals=pred_normals, light_direction=light_d, shading_weight=shading_weight, detach_normals=False
         )
 
         outputs["normals"] = self.shader_normals(normals, weights=accum_mask)
         outputs["pred_normals"] = self.shader_normals(pred_normals, weights=accum_mask)
-        outputs["shaded"] = accum_mask * shaded + torch.ones_like(shaded) * accum_mask_inv
-        outputs["shaded_albedo"] = shaded_albedo
+        outputs["shaded"] = accum_mask * shaded
+        outputs["other_train_output"] = accum_mask * shaded_albedo + background
+        outputs["shaded_albedo"] = accum_mask * shaded_albedo
         outputs["rgb"] = accum_mask * rgb + background
 
-        if shading_weight < 0:
-            if np.random.random_sample() > 0.5:
-                outputs["train_output"] = shaded
+        if shading_weight > 0:
+            if np.random.random_sample() > 0.5 and not self.training:
+                outputs["train_output"] = outputs["shaded"]
             else:
                 outputs["train_output"] = accum_mask * shaded_albedo + background
         else:
@@ -355,7 +356,7 @@ class DreamFusionModel(Model):
 
         if self.training or True:
             outputs["rendered_orientation_loss"] = orientation_loss(
-                weights.detach(), field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
+                weights, field_outputs[FieldHeadNames.NORMALS], ray_bundle.directions
             )
 
             outputs["rendered_pred_normal_loss"] = pred_normal_loss(
@@ -374,16 +375,18 @@ class DreamFusionModel(Model):
 
         loss_dict = {}
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
-        # if self.train_normals:
-        # orientation loss for computed normals
-        loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
-            outputs["rendered_orientation_loss"]
-        )
-
-        # ground truth supervision for normals
-        loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
-            outputs["rendered_pred_normal_loss"]
-        )
+        if self.train_normals:
+            # orientation loss for computed normals
+            loss_dict["orientation_loss"] = self.config.orientation_loss_mult * torch.mean(
+                outputs["rendered_orientation_loss"]
+            )
+            # ground truth supervision for normals
+            loss_dict["pred_normal_loss"] = self.config.pred_normal_loss_mult * torch.mean(
+                outputs["rendered_pred_normal_loss"]
+            )
+        else:
+            loss_dict["orientation_loss"] = 0
+            loss_dict["pred_normal_loss"] = 0
 
         loss_dict["alphas_loss"] = outputs["alphas_loss"].mean()
 
@@ -423,5 +426,7 @@ class DreamFusionModel(Model):
             "depth": depth,
             "prop_depth_0": prop_depth_0,
             "prop_depth_1": prop_depth_1,
+            "normals": outputs["normals"],
+            "pred_normals": outputs["pred_normals"],
         }
         return metrics_dict, images_dict

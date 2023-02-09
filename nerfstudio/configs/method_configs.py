@@ -360,6 +360,8 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
             proposal_warmup=500,
             proposal_update_every=5,
             proposal_weights_anneal_max_num_iters=100,
+            start_lambertian_training=1000,
+            start_normals_training=500,
         ),
         alphas_loss_mult=1.0,
         opacity_loss_mult=1.0,
