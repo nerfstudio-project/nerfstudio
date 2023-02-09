@@ -50,7 +50,7 @@ from nerfstudio.data.dataparsers.phototourism_dataparser import (
     PhototourismDataParserConfig,
 )
 from nerfstudio.data.datasets.base_dataset import InputDataset
-from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler,PatchPixelSampler
+from nerfstudio.data.pixel_samplers import EquirectangularPixelSampler, PixelSampler
 from nerfstudio.data.utils.dataloaders import (
     CacheDataloader,
     FixedIndicesEvalDataloader,
@@ -351,7 +351,7 @@ class VanillaDataManager(DataManager):  # pylint: disable=abstract-method
         # Otherwise, use the default pixel sampler
         if is_equirectangular.any():
             CONSOLE.print("[bold yellow]Warning: Some cameras are equirectangular, but using default pixel sampler.")
-        return PatchPixelSampler(*args, **kwargs,patch_size=16)
+        return PixelSampler(*args, **kwargs)
 
     def setup_train(self):
         """Sets up the data loaders for training"""
