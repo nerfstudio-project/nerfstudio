@@ -604,6 +604,14 @@ def colmap_to_json(
     cameras = read_cameras_binary(cameras_path)
     images = read_images_binary(images_path)
 
+    # Images were renamed to frame_{i:05d}.{ext} and
+    # the filenames needs to be replaced in the transforms.json as well
+    original_filenames = [x.name for x in images.values()]
+    # Sort was used in nerfstudio.process_data.process_data_utils:get_image_filenames
+    original_filenames.sort()
+    # Build the map to the new filenames
+    filename_map = {name: f"frame_{i+1:05d}{os.path.splitext(name)[-1]}" for i, name in enumerate(original_filenames)}
+
     # Only supports one camera
     camera_params = cameras[1].params
 
@@ -619,7 +627,8 @@ def colmap_to_json(
         c2w = c2w[np.array([1, 0, 2, 3]), :]
         c2w[2, :] *= -1
 
-        name = Path(f"./images/{im_data.name}")
+        name = filename_map[im_data.name]
+        name = Path(f"./images/{name}")
 
         frame = {
             "file_path": name.as_posix(),
