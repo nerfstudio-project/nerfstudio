@@ -102,7 +102,7 @@ def get_spiral_path(
 
     times = None
     if camera.times is not None:
-        times = torch.linspace(0, 1, steps)[:,None]
+        times = torch.linspace(0, 1, steps)[:, None]
     return Cameras(
         fx=camera.fx[0],
         fy=camera.fy[0],

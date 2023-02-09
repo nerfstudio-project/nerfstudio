@@ -116,7 +116,6 @@ class TemporalGridEncodeFunc(Function):
     @staticmethod
     @custom_bwd
     def backward(ctx, grad):
-
         inputs, temporal_row_index, embeddings, offsets, dy_dx = ctx.saved_tensors
         B, D, grid_channel, C, L, S, H, gridtype = ctx.dims
         align_corners = ctx.align_corners
@@ -211,9 +210,9 @@ class TemporalGridEncoder(nn.Module):
         # allocate parameters
         offsets = []
         offset = 0
-        self.max_params = 2 ** log2_hashmap_size
+        self.max_params = 2**log2_hashmap_size
         for i in range(num_levels):
-            resolution = int(np.ceil(base_resolution * per_level_scale ** i))
+            resolution = int(np.ceil(base_resolution * per_level_scale**i))
             params_in_level = min(
                 self.max_params, (resolution if align_corners else resolution + 1) ** input_dim
             )  # limit max number
