@@ -211,9 +211,9 @@ class TemporalGridEncoder(nn.Module):
         # allocate parameters
         offsets = []
         offset = 0
-        self.max_params = 2**log2_hashmap_size
+        self.max_params = 2 ** log2_hashmap_size
         for i in range(num_levels):
-            resolution = int(np.ceil(base_resolution * per_level_scale**i))
+            resolution = int(np.ceil(base_resolution * per_level_scale ** i))
             params_in_level = min(
                 self.max_params, (resolution if align_corners else resolution + 1) ** input_dim
             )  # limit max number
@@ -336,7 +336,7 @@ class TemporalGridEncoder(nn.Module):
         """
         outputs = TemporalGridEncodeFunc.apply(
             xyz,
-            self.get_temporal_index(time[:, 0]),
+            self.get_temporal_index(time[:, 0].float()),
             self.embeddings,
             self.offsets,
             self.per_level_scale,
