@@ -696,10 +696,10 @@ class ViewerState:
                 colors=colors,
                 eps=eps,
                 reformatted_output="rgb",
-                colormap_type=self.prev_colormap_type,
-                colormap_normalize=self.prev_colormap_normalize,
-                colormap_invert=self.prev_colormap_invert,
-                colormap_range=self.prev_colormap_range,
+                colormap_type=ColormapTypes.DEFAULT,
+                colormap_normalize=False,
+                colormap_invert=False,
+                colormap_range=[0, 1],
             )
             depth_output = self._apply_colormap_with_params(
                 outputs=outputs,
