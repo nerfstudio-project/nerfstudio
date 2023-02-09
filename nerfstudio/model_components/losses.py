@@ -326,5 +326,5 @@ def robust_rgb_loss(rgb_gt,rgb_outputs,patch_size=16):
         # final_w[:,
         #         (patch_size//2-patch_size//4):(patch_size//2+patch_size//4),
         #         (patch_size//2-patch_size//4):(patch_size//2+patch_size//4)] = weight_r8[:,None,None]
-    # loss = torch.mean(residuals.squeeze()*weight_r8[:,None,None])
+    loss = torch.mean(residuals.squeeze()*weight_r8[:,None,None])
     return loss
