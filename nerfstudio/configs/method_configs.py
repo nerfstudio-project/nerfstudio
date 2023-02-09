@@ -83,13 +83,51 @@ method_configs["nerfacto"] = TrainerConfig(
     pipeline=VanillaPipelineConfig(
         datamanager=VanillaDataManagerConfig(
             dataparser=NerfstudioDataParserConfig(),
+            train_num_rays_per_batch=4096,
+            eval_num_rays_per_batch=4096,
+            camera_optimizer=CameraOptimizerConfig(
+                mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
+            ),
+        ),
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            robust=False,
+        ),
+    ),
+    optimizers={
+        "proposal_networks": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+        "fields": {
+            "optimizer": AdamOptimizerConfig(lr=1e-2, eps=1e-15),
+            "scheduler": None,
+        },
+    },
+    viewer=ViewerConfig(num_rays_per_chunk=1 << 15),
+    vis="viewer",
+)
+
+method_configs["nerfacto-robust"] = TrainerConfig(
+    method_name="nerfacto-robust",
+    steps_per_eval_batch=500,
+    steps_per_save=2000,
+    max_num_iterations=30000,
+    mixed_precision=True,
+    pipeline=VanillaPipelineConfig(
+        datamanager=VanillaDataManagerConfig(
+            dataparser=NerfstudioDataParserConfig(),
             train_num_rays_per_batch=17000,
             eval_num_rays_per_batch=4096,
             camera_optimizer=CameraOptimizerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
-        model=NerfactoModelConfig(eval_num_rays_per_chunk=1 << 15),
+        model=NerfactoModelConfig(
+            eval_num_rays_per_chunk=1 << 15,
+            robust=True,
+            patch_size=16
+        ),
     ),
     optimizers={
         "proposal_networks": {

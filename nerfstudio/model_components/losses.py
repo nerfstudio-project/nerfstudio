@@ -303,7 +303,7 @@ def depth_loss(
 
     raise NotImplementedError("Provided depth loss type not implemented.")
 
-def robust_rgb_loss(rgb_gt,rgb_outputs,patch_size=16):
+def robust_rgb_loss(rgb_gt,rgb_outputs,patch_size):
     out_patches = rgb_outputs.view(-1,1,patch_size,patch_size,3)
     gt_patches = rgb_gt.view(-1,1,patch_size,patch_size,3)
     device = rgb_outputs.device
