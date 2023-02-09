@@ -808,7 +808,7 @@ class ViewerState:
             if target_train_util is None:
                 target_train_util = 0.9
 
-        if "events" in GLOBAL_BUFFER and EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+        if EventName.TRAIN_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             train_rays_per_sec = GLOBAL_BUFFER["events"][EventName.TRAIN_RAYS_PER_SEC.value]["avg"]
         elif not is_training:
             train_rays_per_sec = (
@@ -816,7 +816,7 @@ class ViewerState:
             )
         else:
             return None, None
-        if "events" in GLOBAL_BUFFER and EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
+        if EventName.VIS_RAYS_PER_SEC.value in GLOBAL_BUFFER["events"]:
             vis_rays_per_sec = GLOBAL_BUFFER["events"][EventName.VIS_RAYS_PER_SEC.value]["avg"]
         else:
             vis_rays_per_sec = train_rays_per_sec

@@ -16,6 +16,7 @@ from nerfstudio.engine.trainer import TrainerConfig
 from nerfstudio.pipelines.base_pipeline import Pipeline
 from nerfstudio.utils import writer
 from nerfstudio.utils.eval_utils import eval_setup
+from nerfstudio.utils.writer import EventName, TimeWriter
 from nerfstudio.viewer.server import viewer_utils
 
 CONSOLE = Console(width=120)
@@ -64,11 +65,9 @@ class RunViewer:
             config.viewer, log_filename=viewer_log_path, datapath=config.pipeline.datamanager.dataparser.data
         )
 
-        # Mock writer.setup_local_writer
-        writer.GLOBAL_BUFFER["events"] = {}
-        writer.GLOBAL_BUFFER["max_buffer_size"] = 1
-        for message in banner_messages:
-            print(message)
+        # We don't need logging, but writer.GLOBAL_BUFFER needs to be populated
+        config.logging.local_writer.enable = False
+        writer.setup_local_writer(config.logging, max_iter=config.max_num_iterations, banner_messages=banner_messages)
 
         assert viewer_state and pipeline.datamanager.train_dataset
         viewer_state.init_scene(
@@ -87,14 +86,15 @@ class RunViewer:
         # NOTE: step must be > 0 otherwise the rendering would not happen
         step = 1
         num_rays_per_batch = config.pipeline.datamanager.train_num_rays_per_batch
-        try:
-            viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
-        except RuntimeError:
-            time.sleep(0.03)  # sleep to allow buffer to reset
-            assert viewer_state.vis is not None
-            viewer_state.vis["renderingState/log_errors"].write(
-                "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
-            )
+        with TimeWriter(writer, EventName.ITER_VIS_TIME) as _:
+            try:
+                viewer_state.update_scene(self, step, pipeline.model, num_rays_per_batch)
+            except RuntimeError:
+                time.sleep(0.03)  # sleep to allow buffer to reset
+                assert viewer_state.vis is not None
+                viewer_state.vis["renderingState/log_errors"].write(
+                    "Error: GPU out of memory. Reduce resolution to prevent viewer from crashing."
+                )
 
     def save_checkpoint(self, *args, **kwargs):
         """
