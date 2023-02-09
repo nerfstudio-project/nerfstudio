@@ -813,6 +813,8 @@ class ViewerState:
                 colormap_options = [ColormapTypes.DEFAULT]
             if outputs[reformatted_output].shape[-1] == 1 and outputs[reformatted_output].dtype == torch.float:
                 colormap_options = list(ColormapTypes)
+            if "rgb depth" == self.prev_output_type:
+                colormap_options = list(ColormapTypes)
             self.output_type_changed = False
             self.vis["renderingState/colormap_choice"].write(self.prev_colormap_type)
             self.vis["renderingState/colormap_options"].write(colormap_options)
