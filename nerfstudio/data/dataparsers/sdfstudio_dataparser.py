@@ -19,11 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Type
 
-import numpy as np
 import torch
-from PIL import Image
 from rich.console import Console
-from torchtyping import TensorType
 
 from nerfstudio.cameras import camera_utils
 from nerfstudio.cameras.cameras import Cameras, CameraType
@@ -36,53 +33,6 @@ from nerfstudio.data.scene_box import SceneBox
 from nerfstudio.utils.io import load_from_json
 
 CONSOLE = Console()
-
-
-def get_image(image_filename, alpha_color=None) -> TensorType["image_height", "image_width", "num_channels"]:
-    """Returns a 3 channel image.
-    Args:
-        image_idx: The image index in the dataset.
-    """
-    pil_image = Image.open(image_filename)
-    np_image = np.array(pil_image, dtype="uint8")  # shape is (h, w, 3 or 4)
-    assert len(np_image.shape) == 3
-    assert np_image.dtype == np.uint8
-    assert np_image.shape[2] in [3, 4], f"Image shape of {np_image.shape} is in correct."
-    image = torch.from_numpy(np_image.astype("float32") / 255.0)
-    if alpha_color is not None and image.shape[-1] == 4:
-        assert image.shape[-1] == 4
-        image = image[:, :, :3] * image[:, :, -1:] + alpha_color * (1.0 - image[:, :, -1:])
-    else:
-        image = image[:, :, :3]
-    return image
-
-
-def get_depths_and_normals(image_idx: int, depths, normals):
-    """function to process additional depths and normal information
-    Args:
-        image_idx: specific image index to work with
-        semantics: semantics data
-    """
-
-    # depth
-    depth = depths[image_idx]
-    # normal
-    normal = normals[image_idx]
-
-    return {"depth": depth, "normal": normal}
-
-
-def get_foreground_masks(image_idx: int, fg_masks):
-    """function to process additional foreground_masks
-    Args:
-        image_idx: specific image index to work with
-        fg_masks: foreground_masks
-    """
-
-    # sensor depth
-    fg_mask = fg_masks[image_idx]
-
-    return {"fg_mask": fg_mask}
 
 
 @dataclass
@@ -124,9 +74,9 @@ class SDFStudio(DataParser):
             indices = indices[:: self.config.skip_every_for_val_split]
 
         image_filenames = []
-        depth_images = []
-        normal_images = []
-        foreground_mask_images = []
+        depth_filenames = []
+        normal_filenames = []
+        transform = None
         fx = []
         fy = []
         cx = []
@@ -149,35 +99,6 @@ class SDFStudio(DataParser):
             cy.append(intrinsics[1, 2])
             camera_to_worlds.append(camtoworld)
 
-            if self.config.include_mono_prior:
-                assert meta["has_mono_prior"]
-                # load mono depth
-                depth = np.load(self.config.data / frame["mono_depth_path"])
-                depth_images.append(torch.from_numpy(depth).float())
-
-                # load mono normal
-                normal = np.load(self.config.data / frame["mono_normal_path"])
-
-                # transform normal to world coordinate system
-                normal = normal * 2.0 - 1.0  # omnidata output is normalized so we convert it back to normal here
-                normal = torch.from_numpy(normal).float()
-
-                rot = camtoworld[:3, :3]
-
-                normal_map = normal.reshape(3, -1)
-                normal_map = torch.nn.functional.normalize(normal_map, p=2, dim=0)
-
-                normal_map = rot @ normal_map
-                normal_map = normal_map.permute(1, 0).reshape(*normal.shape[1:], 3)
-                normal_images.append(normal_map)
-
-            if self.config.include_foreground_mask:
-                assert meta["has_foreground_mask"]
-                # load foreground mask
-                foreground_mask = np.array(Image.open(self.config.data / frame["foreground_mask"]), dtype="uint8")
-                foreground_mask = foreground_mask[..., :1]
-                foreground_mask_images.append(torch.from_numpy(foreground_mask).float() / 255.0)
-
         fx = torch.stack(fx)
         fy = torch.stack(fy)
         cx = torch.stack(cx)
@@ -193,15 +114,6 @@ class SDFStudio(DataParser):
                 method="up",
                 center_poses=False,
             )
-
-            # we should also transform normal accordingly
-            normal_images_aligned = []
-            for normal_image in normal_images:
-                h, w, _ = normal_image.shape
-                normal_image = transform[:3, :3] @ normal_image.reshape(-1, 3).permute(1, 0)
-                normal_image = normal_image.permute(1, 0).reshape(h, w, 3)
-                normal_images_aligned.append(normal_image)
-            normal_images = normal_images_aligned
 
         # scene box from meta data
         meta_scene_box = meta["scene_box"]
@@ -229,25 +141,18 @@ class SDFStudio(DataParser):
         # TODO supports downsample
         # cameras.rescale_output_resolution(scaling_factor=1.0 / self.config.downscale_factor)
 
-        if self.config.include_mono_prior:
-            additional_inputs_dict = {
-                "cues": {"func": get_depths_and_normals, "kwargs": {"depths": depth_images, "normals": normal_images}}
-            }
-        else:
-            additional_inputs_dict = {}
-
-        if self.config.include_foreground_mask:
-            additional_inputs_dict["foreground_masks"] = {
-                "func": get_foreground_masks,
-                "kwargs": {"fg_masks": foreground_mask_images},
-            }
+        assert meta["has_mono_prior"] == self.config.include_mono_prior, f"no mono prior in {self.config.data}"
 
         dataparser_outputs = DataparserOutputs(
             image_filenames=image_filenames,
             cameras=cameras,
             scene_box=scene_box,
-            additional_inputs=additional_inputs_dict,
-            depths=depth_images,
-            normals=normal_images,
+            metadata={
+                "depth_filenames": depth_filenames if len(depth_filenames) > 0 else None,
+                "normal_filenames": normal_filenames if len(normal_filenames) > 0 else None,
+                "transform": transform,
+                "camera_to_worlds": camera_to_worlds if len(camera_to_worlds) > 0 else None,
+                "include_mono_prior": self.config.include_mono_prior,
+            },
         )
         return dataparser_outputs
