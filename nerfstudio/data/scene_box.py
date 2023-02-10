@@ -32,16 +32,6 @@ class SceneBox:
     """aabb: axis-aligned bounding box.
     aabb[0] is the minimum (x,y,z) point.
     aabb[1] is the maximum (x,y,z) point."""
-    coarse_binary_gird: Optional[torch.Tensor] = None
-    """coarse binary grid computed from sparse colmap point cloud, currently only used in neuralrecon in the wild"""
-    near: Optional[float] = 0.1
-    """near plane for each image"""
-    far: Optional[float] = 6.0
-    """far plane for each image"""
-    radius: Optional[float] = 1.0
-    """radius of sphere"""
-    collider_type: Literal["box", "near_far", "sphere"] = "box"
-    """collider type for each ray, default is box"""
 
     def get_diagonal_length(self):
         """Returns the longest diagonal length."""

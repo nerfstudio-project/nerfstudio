@@ -120,10 +120,10 @@ class SDFStudio(DataParser):
         aabb = torch.tensor(meta_scene_box["aabb"], dtype=torch.float32)
         scene_box = SceneBox(
             aabb=aabb,
-            near=meta_scene_box["near"],
-            far=meta_scene_box["far"],
-            radius=meta_scene_box["radius"],
-            collider_type=meta_scene_box["collider_type"],
+            # near=meta_scene_box["near"],
+            # far=meta_scene_box["far"],
+            # radius=meta_scene_box["radius"],
+            # collider_type=meta_scene_box["collider_type"],
         )
 
         height, width = meta["height"], meta["width"]
