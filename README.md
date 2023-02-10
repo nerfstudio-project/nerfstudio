@@ -293,13 +293,13 @@ We provide the following support structures to make life easier for getting star
 If you use this library or find the documentation useful for your research, please consider citing:
 
 ```
-@misc{nerfstudio,
-      title={Nerfstudio: A Framework for Neural Radiance Field Development},
-      author={Matthew Tancik*, Ethan Weber*, Evonne Ng*, Ruilong Li, Brent Yi,
-              Terrance Wang, Alexander Kristoffersen, Jake Austin, Kamyar Salahi,
-              Abhik Ahuja, David McAllister, Angjoo Kanazawa},
-      year={2022},
-      url={https://github.com/nerfstudio-project/nerfstudio},
+@article{nerfstudio,
+    author = {Tancik, Matthew and Weber, Ethan and Ng, Evonne and Li, Ruilong and Yi,
+            Brent and Kerr, Justin and Wang, Terrance and Kristoffersen, Alexander and Austin,
+            Jake and Salahi, Kamyar and Ahuja, Abhik and McAllister, David and Kanazawa, Angjoo},
+    title = {Nerfstudio: A Modular Framework for Neural Radiance Field Development},
+    journal = {arXiv preprint arXiv:2302.04264},
+    year = {2023},
 }
 ```
 
