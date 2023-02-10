@@ -17,11 +17,10 @@ Dataset input structures.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Union
+from typing import Dict, Union
 
 import torch
 from torchtyping import TensorType
-from typing_extensions import Literal
 
 
 @dataclass
