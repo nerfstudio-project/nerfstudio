@@ -30,7 +30,7 @@ Navigating to the link at the end of the terminal will load the webviewer. If yo
 - All data configurations must go at the end. In this case, `nerfstudio-data` and all of its corresponding configurations come at the end after the model and viewer specification.
   :::
 
-## Resume from checkpoint / visualize existing run
+## Resume from checkpoint
 
 It is possible to load a pretrained model by running
 
@@ -39,6 +39,14 @@ ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstud
 ```
 
 This will automatically start training. If you do not want it to train, add `--viewer.start-train False` to your training command.
+
+## Visualize existing run
+
+Given a pretrained model checkpoint, you can start the viewer by running
+
+```bash
+ns-viewer --load-config {outputs/.../config.yml}
+```
 
 ## Exporting Results
 
