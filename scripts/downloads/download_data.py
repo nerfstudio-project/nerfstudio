@@ -329,18 +329,18 @@ class SDFstudioDemoDownload(DatasetDownload):
         target_path = str(save_dir / self.dataset_name)
         os.makedirs(target_path, exist_ok=True)
 
-        format = url[-4:]
+        file_format = url[-4:]
 
-        download_path = Path(f"{target_path}{format}")
+        download_path = Path(f"{target_path}{file_format}")
         tmp_path = str(save_dir / ".temp")
         shutil.rmtree(tmp_path, ignore_errors=True)
         os.makedirs(tmp_path, exist_ok=True)
 
         os.system(f"curl -L {url} > {download_path}")
-        if format == ".tar":
+        if file_format == ".tar":
             with tarfile.open(download_path, "r") as tar_ref:
                 tar_ref.extractall(str(tmp_path))
-        elif format == ".zip":
+        elif file_format == ".zip":
             with zipfile.ZipFile(download_path, "r") as zip_ref:
                 zip_ref.extractall(str(target_path))
             return
