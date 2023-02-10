@@ -306,7 +306,7 @@ SDFstudioCaptureName = tyro.extras.literal_type_from_choices(sdfstudio_downloads
 
 @dataclass
 class SDFstudioDemoDownload(DatasetDownload):
-    """Download the blender dataset."""
+    """Download the sdfstudio dataset."""
 
     dataset_name: SDFstudioCaptureName = "sdfstudio-demo-data"
 
