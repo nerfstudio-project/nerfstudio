@@ -116,7 +116,6 @@ class TemporalGridEncodeFunc(Function):
     @staticmethod
     @custom_bwd
     def backward(ctx, grad):
-
         inputs, temporal_row_index, embeddings, offsets, dy_dx = ctx.saved_tensors
         B, D, grid_channel, C, L, S, H, gridtype = ctx.dims
         align_corners = ctx.align_corners
@@ -336,7 +335,7 @@ class TemporalGridEncoder(nn.Module):
         """
         outputs = TemporalGridEncodeFunc.apply(
             xyz,
-            self.get_temporal_index(time[:, 0]),
+            self.get_temporal_index(time[:, 0].float()),
             self.embeddings,
             self.offsets,
             self.per_level_scale,
