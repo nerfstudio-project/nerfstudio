@@ -87,12 +87,16 @@ class SDFStudio(DataParser):
                 continue
 
             image_filename = self.config.data / frame["rgb_path"]
+            depth_filename = self.config.data / frame["mono_depth_path"]
+            normal_filename = self.config.data / frame["mono_normal_path"]
 
             intrinsics = torch.tensor(frame["intrinsics"])
             camtoworld = torch.tensor(frame["camtoworld"])
 
             # append data
             image_filenames.append(image_filename)
+            depth_filenames.append(depth_filename)
+            normal_filenames.append(normal_filename)
             fx.append(intrinsics[0, 0])
             fy.append(intrinsics[1, 1])
             cx.append(intrinsics[0, 2])
