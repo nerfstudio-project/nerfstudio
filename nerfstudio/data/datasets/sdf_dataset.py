@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Depth dataset.
+SDFStudio dataset.
 """
 
 from typing import Dict
