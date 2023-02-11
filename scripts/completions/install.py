@@ -224,7 +224,7 @@ def _update_conda_scripts(
         CONSOLE.log(f":broom: Existing completions uninstalled from {conda_path}.")
     elif mode == "install":
         # Install completions.
-        with activate_path.open("w+") as f:
+        with activate_path.open("w+", encoding="utf8") as f:
             f.write(source_lines)
         # TODO: handle also the deactivate case
         CONSOLE.log(
