@@ -29,16 +29,6 @@ ShellType = Literal["zsh", "bash"]
 CONSOLE = Console(width=120)
 HEADER_LINE = "# Source nerfstudio autocompletions."
 
-ENTRYPOINTS = [
-    "ns-install-cli",
-    "ns-process-data",
-    "ns-download-data",
-    "ns-train",
-    "ns-eval",
-    "ns-render",
-    "ns-dev-test",
-]
-
 
 def _get_all_entry_points() -> List[str]:
     entry_points = importlib_metadata.distribution("nerfstudio").entry_points
