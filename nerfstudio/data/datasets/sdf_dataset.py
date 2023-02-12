@@ -16,6 +16,7 @@
 SDFStudio dataset.
 """
 
+from pathlib import Path
 from typing import Dict
 
 import numpy as np
@@ -61,12 +62,12 @@ class SDFDataset(InputDataset):
 
         return metadata
 
-    def get_depths_and_normals(self, depth_filepath: str, normal_filename: str, camtoworld: np.ndarray):
+    def get_depths_and_normals(self, depth_filepath: Path, normal_filename: Path, camtoworld: np.ndarray):
         """function to process additional depths and normal information
         Args:
-            depth_filepath:
-            normal_filename:
-            camtoworld:
+            depth_filepath: path to depth file
+            normal_filename: path to normal file
+            camtoworld: camera to world transformation matrix
         """
 
         # load mono depth
