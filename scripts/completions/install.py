@@ -224,9 +224,10 @@ def _update_conda_scripts(
         CONSOLE.log(f":broom: Existing completions uninstalled from {conda_path}.")
     elif mode == "install":
         # Install completions.
+        activate_path.parent.mkdir(exist_ok=True, parents=True)
         with activate_path.open("w+", encoding="utf8") as f:
             f.write(source_lines)
-        # TODO: handle also the deactivate case
+        # TODO: Handle also the deactivate case.
         CONSOLE.log(
             f":person_gesturing_ok: Completions installed to {conda_path}. {_exclamation()} Reactivate the environment"
             " to try them out."
@@ -242,8 +243,7 @@ def _get_conda_path() -> Optional[pathlib.Path]:
     """
     conda_path = None
     if "CONDA_PREFIX" in os.environ:
-        # Conda is active, we will check if
-        # the Nerfstudio is installed in the conda env
+        # Conda is active, we will check if the Nerfstudio is installed in the conda env.
         distribution = importlib_metadata.distribution("nerfstudio")
         if str(distribution.locate_file("nerfstudio")).startswith(os.environ["CONDA_PREFIX"]):
             conda_path = pathlib.Path(os.environ["CONDA_PREFIX"])
@@ -271,7 +271,7 @@ def _generate_completions_files(
         if target_dir.exists():
             existing_completions |= set(target_dir.glob("*"))
 
-    # Get all entry_points
+    # Get all entry_points.
     entry_points = _get_all_entry_points()
 
     # Run generation jobs.
@@ -309,13 +309,13 @@ def main(mode: ConfigureMode = "install") -> None:
         CONSOLE.log("[bold red]$HOME is not set. Exiting.")
         return
 
-    # Get conda path if in conda environment
+    # Get conda path if in conda environment.
     conda_path = _get_conda_path()
 
     # Try to locate the user's bashrc or zshrc.
     shells_supported: List[ShellType] = list(typing_get_args(ShellType))
     if conda_path is not None:
-        # Running in conda, we have to support all shells
+        # Running in conda; we have to support all shells.
         shells_found = shells_supported
         CONSOLE.log(f":mag: Detected conda environment {conda_path}!")
     else:
@@ -351,7 +351,7 @@ def main(mode: ConfigureMode = "install") -> None:
         assert_never(mode)
 
     if conda_path is not None:
-        # In conda environment, we add the completitions activation scripts
+        # In conda environment we add the completitions activation scripts.
         _update_conda_scripts(completions_dir, mode)
     else:
         # Install or uninstall from bashrc/zshrc.
