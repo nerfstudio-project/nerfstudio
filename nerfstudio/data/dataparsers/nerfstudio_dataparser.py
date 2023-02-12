@@ -64,6 +64,7 @@ class NerfstudioDataParserConfig(DataParserConfig):
     """The percent of images to use for training. The remaining images are for eval."""
     depth_unit_scale_factor: float = 1e-3
     """Scales the depth values to meters. Default value is 0.001 for a millimeter to meter conversion."""
+    add_times: bool = False
 
 
 @dataclass
@@ -88,6 +89,7 @@ class Nerfstudio(DataParser):
         depth_filenames = []
         poses = []
         num_skipped_image_filenames = 0
+        times = []
 
         fx_fixed = "fl_x" in meta
         fy_fixed = "fl_y" in meta
@@ -160,6 +162,9 @@ class Nerfstudio(DataParser):
                 depth_filepath = PurePath(frame["depth_file_path"])
                 depth_fname = self._get_fname(depth_filepath, data_dir, downsample_folder_prefix="depths_")
                 depth_filenames.append(depth_fname)
+
+            if self.config.add_times:
+                times.append(int(fname.name[6:-4]))
 
         if num_skipped_image_filenames >= 0:
             CONSOLE.log(f"Skipping {num_skipped_image_filenames} files in dataset split {split}.")
@@ -259,17 +264,36 @@ class Nerfstudio(DataParser):
         else:
             distortion_params = torch.stack(distort, dim=0)[idx_tensor]
 
-        cameras = Cameras(
-            fx=fx,
-            fy=fy,
-            cx=cx,
-            cy=cy,
-            distortion_params=distortion_params,
-            height=height,
-            width=width,
-            camera_to_worlds=poses[:, :3, :4],
-            camera_type=camera_type,
-        )
+        if len(times) > 0:
+            times = torch.tensor(times, dtype=torch.float32) / max(times)
+            times = times[idx_tensor]
+
+            print(times)
+            cameras = Cameras(
+                fx=fx,
+                fy=fy,
+                cx=cx,
+                cy=cy,
+                distortion_params=distortion_params,
+                height=height,
+                width=width,
+                camera_to_worlds=poses[:, :3, :4],
+                camera_type=camera_type,
+                times=times,
+            )
+
+        else:
+            cameras = Cameras(
+                fx=fx,
+                fy=fy,
+                cx=cx,
+                cy=cy,
+                distortion_params=distortion_params,
+                height=height,
+                width=width,
+                camera_to_worlds=poses[:, :3, :4],
+                camera_type=camera_type,
+            )
 
         assert self.downscale_factor is not None
         cameras.rescale_output_resolution(scaling_factor=1.0 / self.downscale_factor)
