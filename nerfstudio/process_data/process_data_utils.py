@@ -46,6 +46,19 @@ CAMERA_MODELS = {
 }
 
 
+def list_images(data: Path) -> List[Path]:
+    """Lists all supported images in a directory
+
+    Args:
+        data: Path to the directory of images.
+    Returns:
+        Paths to images contained in the directory
+    """
+    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+    image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    return image_paths
+
+
 def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List[Path], int]:
     """Returns a list of image filenames in a directory.
 
@@ -55,8 +68,7 @@ def get_image_filenames(directory: Path, max_num_images: int = -1) -> Tuple[List
     Returns:
         A tuple of A list of image filenames, number of original image paths.
     """
-    allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-    image_paths = sorted([p for p in directory.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+    image_paths = list_images(directory)
     num_orig_images = len(image_paths)
 
     if max_num_images != -1 and num_orig_images > max_num_images:
@@ -240,8 +252,7 @@ def copy_images(data: Path, image_dir: Path, verbose) -> int:
         The number of images copied.
     """
     with status(msg="[bold yellow]Copying images...", spinner="bouncingBall", verbose=verbose):
-        allowed_exts = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
-        image_paths = sorted([p for p in data.glob("[!.]*") if p.suffix.lower() in allowed_exts])
+        image_paths = list_images(data)
 
         if len(image_paths) == 0:
             CONSOLE.log("[bold red]:skull: No usable images in the data folder.")

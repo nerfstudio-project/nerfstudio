@@ -24,7 +24,7 @@ from typing import Dict, Tuple, Type
 import torch
 
 from nerfstudio.cameras.rays import RayBundle
-from nerfstudio.model_components.losses import DephtLossType, depth_loss
+from nerfstudio.model_components.losses import DepthLossType, depth_loss
 from nerfstudio.models.nerfacto import NerfactoModel, NerfactoModelConfig
 from nerfstudio.utils import colormaps
 
@@ -46,7 +46,7 @@ class DepthNerfactoModelConfig(NerfactoModelConfig):
     """Starting uncertainty around depth values in meters (defaults to 0.2m)."""
     sigma_decay_rate: float = 0.99985
     """Rate of exponential decay."""
-    depth_loss_type: DephtLossType = DephtLossType.DS_NERF
+    depth_loss_type: DepthLossType = DepthLossType.DS_NERF
     """Depth loss type."""
 
 
@@ -118,7 +118,10 @@ class DepthNerfactoModel(NerfactoModel):
             far_plane=torch.max(ground_truth_depth),
         )
         images["depth"] = torch.cat([ground_truth_depth_colormap, predicted_depth_colormap], dim=1)
-        metrics["depth_mse"] = torch.nn.functional.mse_loss(outputs["depth"], ground_truth_depth)
+        depth_mask = ground_truth_depth > 0
+        metrics["depth_mse"] = torch.nn.functional.mse_loss(
+            outputs["depth"][depth_mask], ground_truth_depth[depth_mask]
+        )
         return metrics, images
 
     def _get_sigma(self):

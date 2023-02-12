@@ -28,6 +28,7 @@ from nerfstudio.process_data.process_data_utils import CAMERA_MODELS
 from nerfstudio.utils import install_checks
 
 CONSOLE = Console(width=120)
+DEFAULT_COLMAP_PATH = Path("colmap/sparse/0")
 
 
 @dataclass
@@ -74,6 +75,12 @@ class ProcessImages:
         will downscale the images by 2x, 4x, and 8x."""
     skip_colmap: bool = False
     """If True, skips COLMAP and generates transforms.json if possible."""
+    skip_image_processing: bool = False
+    """If True, skips copying and downscaling of images and only runs COLMAP if possible and enabled"""
+    colmap_model_path: Path = DEFAULT_COLMAP_PATH
+    """Optionally sets the path of the colmap model. Used only when --skip-colmap is set to True.
+       The path is relative to the output directory.
+    """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
     gpu: bool = True
@@ -83,6 +90,19 @@ class ProcessImages:
 
     def main(self) -> None:
         """Process images into a nerfstudio dataset."""
+        require_cameras_exist = False
+        colmap_model_path = self.output_dir / Path(self.colmap_model_path)
+        if self.colmap_model_path != DEFAULT_COLMAP_PATH:
+            if not self.skip_colmap:
+                CONSOLE.log("[bold red]The --colmap-model-path can only be used when --skip-colmap is not set.")
+                sys.exit(1)
+            elif not (self.output_dir / self.colmap_model_path).exists():
+                CONSOLE.log(
+                    f"[bold red]The colmap-model-path {self.output_dir / self.colmap_model_path} does not exist."
+                )
+                sys.exit(1)
+            require_cameras_exist = True
+
         install_checks.check_ffmpeg_installed()
         install_checks.check_colmap_installed()
 
@@ -92,57 +112,46 @@ class ProcessImages:
 
         summary_log = []
 
-        # Copy images to output directory
-        num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
-        summary_log.append(f"Starting with {num_frames} images")
+        # Copy and downscale images
+        if not self.skip_image_processing:
+            # Copy images to output directory
+            num_frames = process_data_utils.copy_images(self.data, image_dir=image_dir, verbose=self.verbose)
+            summary_log.append(f"Starting with {num_frames} images")
 
-        # Downscale images
-        summary_log.append(process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose))
+            # Downscale images
+            summary_log.append(
+                process_data_utils.downscale_images(image_dir, self.num_downscales, verbose=self.verbose)
+            )
+        else:
+            num_frames = len(process_data_utils.list_images(self.data))
+            if num_frames == 0:
+                CONSOLE.log("[bold red]:skull: No usable images in the data folder.")
+                sys.exit(1)
+            summary_log.append(f"Starting with {num_frames} images")
 
         # Run COLMAP
         colmap_dir = self.output_dir / "colmap"
         if not self.skip_colmap:
             colmap_dir.mkdir(parents=True, exist_ok=True)
+            colmap_model_path = colmap_dir / "sparse" / "0"
+            require_cameras_exist = True
 
-            (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
-                self.sfm_tool, self.feature_type, self.matcher_type
-            )
-
-            if sfm_tool == "colmap":
-                colmap_utils.run_colmap(
-                    image_dir=image_dir,
-                    colmap_dir=colmap_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
-                    gpu=self.gpu,
-                    verbose=self.verbose,
-                    matching_method=self.matching_method,
-                    colmap_cmd=self.colmap_cmd,
-                )
-            elif sfm_tool == "hloc":
-                hloc_utils.run_hloc(
-                    image_dir=image_dir,
-                    colmap_dir=colmap_dir,
-                    camera_model=CAMERA_MODELS[self.camera_type],
-                    verbose=self.verbose,
-                    matching_method=self.matching_method,
-                    feature_type=feature_type,
-                    matcher_type=matcher_type,
-                )
-            else:
-                CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
-                sys.exit(1)
+            self._run_colmap(image_dir, colmap_dir)
 
         # Save transforms.json
-        if (colmap_dir / "sparse" / "0" / "cameras.bin").exists():
+        if (colmap_model_path / "cameras.bin").exists():
             with CONSOLE.status("[bold yellow]Saving results to transforms.json", spinner="balloon"):
                 num_matched_frames = colmap_utils.colmap_to_json(
-                    cameras_path=colmap_dir / "sparse" / "0" / "cameras.bin",
-                    images_path=colmap_dir / "sparse" / "0" / "images.bin",
+                    cameras_path=colmap_model_path / "cameras.bin",
+                    images_path=colmap_model_path / "images.bin",
                     output_dir=self.output_dir,
                     camera_model=CAMERA_MODELS[self.camera_type],
                 )
                 summary_log.append(f"Colmap matched {num_matched_frames} images")
             summary_log.append(colmap_utils.get_matching_summary(num_frames, num_matched_frames))
+        elif require_cameras_exist:
+            CONSOLE.log(f"[bold red]Could not find existing COLMAP results ({colmap_model_path / 'cameras.bin'}).")
+            sys.exit(1)
         else:
             CONSOLE.log("[bold yellow]Warning: could not find existing COLMAP results. Not generating transforms.json")
 
@@ -151,6 +160,35 @@ class ProcessImages:
         for summary in summary_log:
             CONSOLE.print(summary, justify="center")
         CONSOLE.rule()
+
+    def _run_colmap(self, image_dir, colmap_dir):
+        (sfm_tool, feature_type, matcher_type) = process_data_utils.find_tool_feature_matcher_combination(
+            self.sfm_tool, self.feature_type, self.matcher_type
+        )
+
+        if sfm_tool == "colmap":
+            colmap_utils.run_colmap(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                gpu=self.gpu,
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+                colmap_cmd=self.colmap_cmd,
+            )
+        elif sfm_tool == "hloc":
+            hloc_utils.run_hloc(
+                image_dir=image_dir,
+                colmap_dir=colmap_dir,
+                camera_model=CAMERA_MODELS[self.camera_type],
+                verbose=self.verbose,
+                matching_method=self.matching_method,
+                feature_type=feature_type,
+                matcher_type=matcher_type,
+            )
+        else:
+            CONSOLE.log("[bold red]Invalid combination of sfm_tool, feature_type, and matcher_type, exiting")
+            sys.exit(1)
 
 
 @dataclass
@@ -699,7 +737,7 @@ class ProcessRealityCapture:
     """Process RealityCapture data into a nerfstudio dataset.
 
     This script assumes that cameras have been aligned using RealityCapture. After alignment, it is necessary to
-    export the camera poses as a `.csv` file.
+    export the camera poses as a `.csv` file using the `Internal/External camera parameters` option.
 
     This script does the following:
 

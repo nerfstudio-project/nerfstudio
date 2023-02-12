@@ -55,7 +55,7 @@ def background_color_override_context(mode: TensorType[3]) -> Generator[None, No
 
 
 class RGBRenderer(nn.Module):
-    """Standard volumetic rendering.
+    """Standard volumetric rendering.
 
     Args:
         background_color: Background color as RGB. Uses random colors if None.
@@ -165,7 +165,7 @@ class SHRenderer(nn.Module):
         """Composite samples along ray and render color image
 
         Args:
-            sh: Spherical hamonics coefficients for each sample
+            sh: Spherical harmonics coefficients for each sample
             directions: Sample direction
             weights: Weights for each sample
 
