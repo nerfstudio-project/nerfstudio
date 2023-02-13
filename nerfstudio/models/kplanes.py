@@ -40,7 +40,7 @@ from nerfstudio.field_components.field_heads import FieldHeadNames
 from nerfstudio.field_components.spatial_distortions import SceneContraction
 from nerfstudio.fields.kplanes_density_field import KPlanesDensityField
 from nerfstudio.fields.kplanes_field import KPlanesField
-from nerfstudio.model_components.losses import MSELoss
+from nerfstudio.model_components.losses import MSELoss, distortion_loss, interlevel_loss
 from nerfstudio.model_components.ray_samplers import ProposalNetworkSampler
 from nerfstudio.model_components.renderers import (
     AccumulationRenderer,
@@ -104,6 +104,10 @@ class LowrankModelConfig(ModelConfig):
     """Number of samples per ray for the nerf network."""
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
+    interlevel_loss_mult: float = 1.0
+    """Proposal loss multiplier."""
+    distortion_loss_mult: float = 0.002
+    """Distortion loss multiplier."""
 
 
 class KPlanesModel(Model):
@@ -253,7 +257,7 @@ class KPlanesModel(Model):
         return {
             "fields": field_params,
             "nn_params": nn_params,
-            "other": other_params,
+            # "other": other_params,
         }
 
     def get_outputs(self, ray_bundle: RayBundle):
@@ -298,6 +302,17 @@ class KPlanesModel(Model):
         rgb_loss = self.rgb_loss(image, outputs["rgb"])
 
         loss_dict = {"rgb_loss": rgb_loss}
+
+        if self.training:
+
+            loss_dict["distortion_loss"] = self.config.distortion_loss_mult * distortion_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
+
+            loss_dict["interlevel_loss"] = self.config.interlevel_loss_mult * interlevel_loss(
+                outputs["weights_list"], outputs["ray_samples_list"]
+            )
+
         loss_dict = misc.scale_dict(loss_dict, self.config.loss_coefficients)
         return loss_dict
 
