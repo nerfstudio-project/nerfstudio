@@ -477,7 +477,7 @@ def save_mask(
 def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
-    samples_per_im: int = 12,
+    samples_per_im: int,
 ) -> Path:
     """Generate planar projections from an equirectangular image.
 
