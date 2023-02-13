@@ -20,6 +20,7 @@ from enum import Enum
 import torch
 from torch import nn
 from torchtyping import TensorType
+from typing_extensions import Literal
 
 from nerfstudio.cameras.rays import RaySamples
 
@@ -364,33 +365,18 @@ def compute_scale_and_shift(prediction: TensorType[1, ...], target: TensorType[1
     return scale, shift
 
 
-def gradient_loss(prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor, reduction=reduction_batch_based):
-    """
-    gradient loss from omnidata repo
-    Args:
-        prediction: predicted depth map
-        target: ground truth depth map
-        mask: mask of valid pixels
-        reduction: reduction function, either reduction_batch_based or reduction_image_based
-    Returns:
-        gradient loss based on reduction function
-    """
-    M = torch.sum(mask, (1, 2))
+def reduction(loss, M, reduction_type: str):
+    if reduction_type == "batch":
+        # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
+        divisor = torch.sum(M)
+        loss = 0 if divisor == 0 else torch.sum(loss) / divisor
+    elif reduction_type == "image":
+        # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
+        valid = M.nonzero()
 
-    diff = prediction - target
-    diff = torch.mul(mask, diff)
-
-    grad_x = torch.abs(diff[:, :, 1:] - diff[:, :, :-1])
-    mask_x = torch.mul(mask[:, :, 1:], mask[:, :, :-1])
-    grad_x = torch.mul(mask_x, grad_x)
-
-    grad_y = torch.abs(diff[:, 1:, :] - diff[:, :-1, :])
-    mask_y = torch.mul(mask[:, 1:, :], mask[:, :-1, :])
-    grad_y = torch.mul(mask_y, grad_y)
-
-    image_loss = torch.sum(grad_x, (1, 2)) + torch.sum(grad_y, (1, 2))
-
-    return reduction(image_loss, M)
+        loss[valid] = loss[valid] / M[valid]
+        loss = torch.mean(loss)
+    return loss
 
 
 class MiDaSMSELoss(nn.Module):
@@ -398,11 +384,11 @@ class MiDaSMSELoss(nn.Module):
     data term from MiDaS paper
     """
 
-    def __init__(self, reduction="batch"):
+    def __init__(self, reduction_type="batch"):
         super().__init__()
 
-        assert reduction in ["batch", "image"], "reduction must be either batch or image"
-        self.reduction = reduction
+        assert reduction_type in ["batch", "image"], "reduction must be either batch or image"
+        self.reduction_type = reduction_type
         # reduction here is different from the image/batch-based reduction. This is either "mean" or "sum"
         self.mse_loss = MSELoss(reduction="none")
 
@@ -418,16 +404,7 @@ class MiDaSMSELoss(nn.Module):
         M = torch.sum(mask, (1, 2))
         image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
 
-        if self.reduction == "batch":
-            # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
-            divisor = torch.sum(M)
-            image_loss = 0 if divisor == 0 else torch.sum(image_loss) / divisor
-        elif self.reduction == "image":
-            # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
-            valid = M.nonzero()
-
-            image_loss[valid] = image_loss[valid] / M[valid]
-            image_loss = torch.mean(image_loss)
+        image_loss = reduction(image_loss, M, self.reduction_type)
 
         return image_loss
 
@@ -435,17 +412,16 @@ class MiDaSMSELoss(nn.Module):
 # losses based on https://github.com/autonomousvision/monosdf/blob/main/code/model/loss.py
 class GradientLoss(nn.Module):
     """
-    regularizer term from MiDaS paper
+    multiscale, scale-invariant gradient matching term to the disparity space.
+    This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
+    More info here https://arxiv.org/pdf/1907.01341.pdf Equation 11
     """
 
-    def __init__(self, scales=4, reduction="batch-based"):
+    def __init__(self, scales=4, reduction_type="batch"):
         super().__init__()
 
-        if reduction == "batch-based":
-            self.__reduction = reduction_batch_based
-        else:
-            self.__reduction = reduction_image_based
-
+        assert reduction_type in ["batch", "image"], "reduction must be either batch or image"
+        self.reduction_type = reduction_type
         self.__scales = scales
 
     def forward(self, prediction, target, mask):
@@ -462,14 +438,43 @@ class GradientLoss(nn.Module):
         for scale in range(self.__scales):
             step = pow(2, scale)
 
-            total += gradient_loss(
+            grad_loss = self.gradient_loss(
                 prediction[:, ::step, ::step],
                 target[:, ::step, ::step],
                 mask[:, ::step, ::step],
-                reduction=self.__reduction,
             )
+            total += grad_loss
 
         return total
+
+    def gradient_loss(self, prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
+        """
+        multiscale, scale-invariant gradient matching term to the disparity space.
+        This term biases discontinuities to be sharp and to coincide with discontinuities in the ground truth
+        More info here https://arxiv.org/pdf/1907.01341.pdf Equation 11
+        Args:
+            prediction: predicted depth map
+            target: ground truth depth map
+            reduction: reduction function, either reduction_batch_based or reduction_image_based
+        Returns:
+            gradient loss based on reduction function
+        """
+        M = torch.sum(mask, (1, 2))
+        diff = prediction - target
+        diff = torch.mul(mask, diff)
+
+        grad_x = torch.abs(diff[:, :, 1:] - diff[:, :, :-1])
+        mask_x = torch.mul(mask[:, :, 1:], mask[:, :, :-1])
+        grad_x = torch.mul(mask_x, grad_x)
+
+        grad_y = torch.abs(diff[:, 1:, :] - diff[:, :-1, :])
+        mask_y = torch.mul(mask[:, 1:, :], mask[:, :-1, :])
+        grad_y = torch.mul(mask_y, grad_y)
+
+        image_loss = torch.sum(grad_x, (1, 2)) + torch.sum(grad_y, (1, 2))
+        image_loss = reduction(image_loss, M, self.reduction_type)
+
+        return image_loss
 
 
 class ScaleAndShiftInvariantLoss(nn.Module):
@@ -479,11 +484,12 @@ class ScaleAndShiftInvariantLoss(nn.Module):
     https://arxiv.org/pdf/1907.01341.pdf
     """
 
-    def __init__(self, alpha=0.5, scales=4, reduction="batch-based"):
+    def __init__(self, alpha=0.5, scales=4, reduction_type="batch"):
         super().__init__()
+        assert reduction_type in ["batch", "image"], "reduction must be either batch or image"
 
-        self.__data_loss = MiDaSMSELoss(reduction=reduction)
-        self.__regularization_loss = GradientLoss(scales=scales, reduction=reduction)
+        self.__data_loss = MiDaSMSELoss(reduction_type=reduction_type)
+        self.__regularization_loss = GradientLoss(scales=scales, reduction_type=reduction_type)
         self.__alpha = alpha
 
         self.__prediction_ssi = None
