@@ -287,6 +287,75 @@ class PhototourismDownload(DatasetDownload):
         os.remove(download_path)
 
 
+# credit to https://autonomousvision.github.io/sdfstudio/
+# pylint: disable=line-too-long
+sdfstudio_downloads = {
+    "sdfstudio-demo-data": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/sdfstudio-demo-data.tar",
+    "dtu": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/DTU.tar",
+    "replica": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/Replica.tar",
+    "scannet": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/scannet.tar",
+    "tanks-and-temple": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/tnt_advanced.tar",
+    "tanks-and-temple-highres": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/highresTNT.tar",
+    "heritage": "https://s3.eu-central-1.amazonaws.com/avg-projects/monosdf/data/Heritage-Recon.tar",
+    "neural-rgbd-data": "http://kaldir.vc.in.tum.de/neural_rgbd/neural_rgbd_data.zip",
+    "all": None,
+}
+
+SDFstudioCaptureName = tyro.extras.literal_type_from_choices(sdfstudio_downloads.keys())
+
+
+@dataclass
+class SDFstudioDemoDownload(DatasetDownload):
+    """Download the sdfstudio dataset."""
+
+    dataset_name: SDFstudioCaptureName = "sdfstudio-demo-data"
+
+    def download(self, save_dir: Path):
+        """Download the D-NeRF dataset (https://github.com/albertpumarola/D-NeRF)."""
+        # TODO: give this code the same structure as download_nerfstudio
+
+        if self.dataset_name == "all":
+            for dataset_name in sdfstudio_downloads:
+                if dataset_name != "all":
+                    SDFstudioDemoDownload(dataset_name=dataset_name).download(save_dir)
+            return
+
+        assert (
+            self.dataset_name in sdfstudio_downloads
+        ), f"Capture name {self.dataset_name} not found in {sdfstudio_downloads.keys()}"
+
+        url = sdfstudio_downloads[self.dataset_name]
+
+        target_path = str(save_dir / self.dataset_name)
+        os.makedirs(target_path, exist_ok=True)
+
+        file_format = url[-4:]
+
+        download_path = Path(f"{target_path}{file_format}")
+        tmp_path = str(save_dir / ".temp")
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        os.makedirs(tmp_path, exist_ok=True)
+
+        os.system(f"curl -L {url} > {download_path}")
+        if file_format == ".tar":
+            with tarfile.open(download_path, "r") as tar_ref:
+                tar_ref.extractall(str(tmp_path))
+        elif file_format == ".zip":
+            with zipfile.ZipFile(download_path, "r") as zip_ref:
+                zip_ref.extractall(str(target_path))
+            return
+        else:
+            raise NotImplementedError
+
+        inner_folders = os.listdir(tmp_path)
+        assert len(inner_folders) == 1, "There is more than one folder inside this zip file."
+        folder = os.path.join(tmp_path, inner_folders[0])
+        shutil.rmtree(target_path)
+        shutil.move(folder, target_path)
+        shutil.rmtree(tmp_path)
+        os.remove(download_path)
+
+
 Commands = Union[
     Annotated[BlenderDownload, tyro.conf.subcommand(name="blender")],
     Annotated[FriendsDownload, tyro.conf.subcommand(name="friends")],
@@ -294,6 +363,7 @@ Commands = Union[
     Annotated[Record3dDownload, tyro.conf.subcommand(name="record3d")],
     Annotated[DNerfDownload, tyro.conf.subcommand(name="dnerf")],
     Annotated[PhototourismDownload, tyro.conf.subcommand(name="phototourism")],
+    Annotated[SDFstudioDemoDownload, tyro.conf.subcommand(name="sdfstudio")],
 ]
 
 

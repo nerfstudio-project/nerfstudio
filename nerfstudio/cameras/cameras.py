@@ -230,7 +230,7 @@ class Cameras(TensorDataclass):
             c_x_y: cx or cy for when h_w == None
         """
         if isinstance(h_w, int):
-            h_w = torch.Tensor([h_w]).to(torch.int64).to(self.device)
+            h_w = torch.as_tensor([h_w]).to(torch.int64).to(self.device)
         elif isinstance(h_w, torch.Tensor):
             assert not torch.is_floating_point(h_w), f"height and width tensor must be of type int, not: {h_w.dtype}"
             h_w = h_w.to(torch.int64).to(self.device)
@@ -238,7 +238,7 @@ class Cameras(TensorDataclass):
                 h_w = h_w.unsqueeze(-1)
         # assert torch.all(h_w == h_w.view(-1)[0]), "Batched cameras of different h, w will be allowed in the future."
         elif h_w is None:
-            h_w = torch.Tensor((c_x_y * 2).to(torch.int64).to(self.device))
+            h_w = torch.as_tensor((c_x_y * 2)).to(torch.int64).to(self.device)
         else:
             raise ValueError("Height must be an int, tensor, or None, received: " + str(type(h_w)))
         return h_w
