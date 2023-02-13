@@ -100,12 +100,16 @@ def get_spiral_path(
         new_c2ws.append(c2wh[:3, :4])
     new_c2ws = torch.stack(new_c2ws, dim=0)
 
+    times = None
+    if camera.times is not None:
+        times = torch.linspace(0, 1, steps)[:, None]
     return Cameras(
         fx=camera.fx[0],
         fy=camera.fy[0],
         cx=camera.cx[0],
         cy=camera.cy[0],
         camera_to_worlds=new_c2ws,
+        times=times,
     )
 
 
