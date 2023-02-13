@@ -310,11 +310,14 @@ def depth_loss(
     raise NotImplementedError("Provided depth loss type not implemented.")
 
 
-def monosdf_normal_loss(normal_pred: torch.Tensor, normal_gt: torch.Tensor) -> torch.Tensor:
-    """normal consistency loss as monosdf https://niujinshuchong.github.io/monosdf/
+def monosdf_normal_loss(normal_pred: TensorType[..., 3], normal_gt: TensorType[..., 3]) -> TensorType[0]:
+    """
+    Normal consistency loss proposed in monosdf - https://niujinshuchong.github.io/monosdf/
+    Enforces consistency between the volume rendered normal and the predicted monocular normal.
+    With both angluar and L1 loss. Eq 14 https://arxiv.org/pdf/2206.00665.pdf
     Args:
-        normal_pred (torch.Tensor): volume rendered normal
-        normal_gt (torch.Tensor): monocular normal
+        normal_pred: volume rendered normal
+        normal_gt: monocular normal
     """
     normal_gt = torch.nn.functional.normalize(normal_gt, p=2, dim=-1)
     normal_pred = torch.nn.functional.normalize(normal_pred, p=2, dim=-1)
@@ -323,10 +326,15 @@ def monosdf_normal_loss(normal_pred: torch.Tensor, normal_gt: torch.Tensor) -> t
     return l1 + cos
 
 
-# copy from MiDaS https://github.com/EPFL-VILAB/omnidata/blob/main/omnidata_tools/torch/losses/midas_loss.py#L8
-def compute_scale_and_shift(prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
+def compute_scale_and_shift(prediction: TensorType[1, ...], target: TensorType[1, ...], mask: TensorType[1, ...]):
     """
-    https://github.com/EPFL-VILAB/omnidata/blob/318a75569934737e67902f903531324d1f48ae8f/omnidata_tools/torch/losses/midas_loss.py#L8
+    More info here: https://arxiv.org/pdf/2206.00665.pdf supplementary section A2 Depth Consistency Loss
+    This function computes scale/shift required to normalizes predicted depth map,
+    to allow for using normalized depth maps as input from monocular depth estimation networks.
+    These networks are trained such that they predict normalized depth maps.
+
+    Solves for scale/shift using a least squares approach with a closed form solution:
+    Based on: https://github.com/autonomousvision/monosdf/blob/d9619e948bf3d85c6adec1a643f679e2e8e84d4b/code/model/loss.py#L7
     Args:
         prediction: predicted depth map
         target: ground truth depth map
@@ -344,68 +352,16 @@ def compute_scale_and_shift(prediction: torch.Tensor, target: torch.Tensor, mask
     b_1 = torch.sum(mask * target, (1, 2))
 
     # solution: x = A^-1 . b = [[a_11, -a_01], [-a_10, a_00]] / (a_00 * a_11 - a_01 * a_10) . b
-    x_0 = torch.zeros_like(b_0)
-    x_1 = torch.zeros_like(b_1)
+    scale = torch.zeros_like(b_0)
+    shift = torch.zeros_like(b_1)
 
     det = a_00 * a_11 - a_01 * a_01
     valid = det.nonzero()
 
-    x_0[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
-    x_1[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
+    scale[valid] = (a_11[valid] * b_0[valid] - a_01[valid] * b_1[valid]) / det[valid]
+    shift[valid] = (-a_01[valid] * b_0[valid] + a_00[valid] * b_1[valid]) / det[valid]
 
-    return x_0, x_1
-
-
-def reduction_batch_based(image_loss: torch.Tensor, M: torch.Tensor):
-    """
-    average of all valid pixels of the batch
-    Args:
-        image_loss: loss of each image
-        M: number of valid pixels of each image
-    Returns:
-        average of all valid pixels of the batch
-    """
-
-    # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
-    divisor = torch.sum(M)
-    reduction = 0 if divisor == 0 else torch.sum(image_loss) / divisor
-
-    return reduction
-
-
-def reduction_image_based(image_loss, M):
-    """
-    mean of average of valid pixels of an image
-    Args:
-        image_loss: loss of each image
-        M: number of valid pixels of each image
-    Returns:
-        mean of average of valid pixels of an image
-    """
-    # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
-    valid = M.nonzero()
-
-    image_loss[valid] = image_loss[valid] / M[valid]
-
-    return torch.mean(image_loss)
-
-
-def mse_loss(prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor, reduction=reduction_batch_based):
-    """
-    mse loss from omnidata repo
-    Args:
-        prediction: predicted depth map
-        target: ground truth depth map
-        mask: mask of valid pixels
-        reduction: reduction function, either reduction_batch_based or reduction_image_based
-    Returns:
-        mse loss based on reduction function
-    """
-    M = torch.sum(mask, (1, 2))
-    res = prediction - target
-    image_loss = torch.sum(mask * res * res, (1, 2))
-
-    return reduction(image_loss, 2 * M)
+    return scale, shift
 
 
 def gradient_loss(prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor, reduction=reduction_batch_based):
@@ -442,13 +398,13 @@ class MiDaSMSELoss(nn.Module):
     data term from MiDaS paper
     """
 
-    def __init__(self, reduction="batch-based"):
+    def __init__(self, reduction="batch"):
         super().__init__()
 
-        if reduction == "batch-based":
-            self.__reduction = reduction_batch_based
-        else:
-            self.__reduction = reduction_image_based
+        assert reduction in ["batch", "image"], "reduction must be either batch or image"
+        self.reduction = reduction
+        # reduction here is different from the image/batch-based reduction. This is either "mean" or "sum"
+        self.mse_loss = MSELoss(reduction="none")
 
     def forward(self, prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor):
         """
@@ -459,9 +415,24 @@ class MiDaSMSELoss(nn.Module):
         Returns:
             mse loss based on reduction function
         """
-        return mse_loss(prediction, target, mask, reduction=self.__reduction)
+        M = torch.sum(mask, (1, 2))
+        image_loss = torch.sum(self.mse_loss(prediction, target) * mask, (1, 2))
+
+        if self.reduction == "batch":
+            # avoid division by 0 (if sum(M) = sum(sum(mask)) = 0: sum(image_loss) = 0)
+            divisor = torch.sum(M)
+            image_loss = 0 if divisor == 0 else torch.sum(image_loss) / divisor
+        elif self.reduction == "image":
+            # avoid division by 0 (if M = sum(mask) = 0: image_loss = 0)
+            valid = M.nonzero()
+
+            image_loss[valid] = image_loss[valid] / M[valid]
+            image_loss = torch.mean(image_loss)
+
+        return image_loss
 
 
+# losses based on https://github.com/autonomousvision/monosdf/blob/main/code/model/loss.py
 class GradientLoss(nn.Module):
     """
     regularizer term from MiDaS paper
@@ -520,8 +491,8 @@ class ScaleAndShiftInvariantLoss(nn.Module):
     def forward(self, prediction, target, mask):
         """
         Args:
-            prediction: predicted depth map
-            target: ground truth depth map
+            prediction: predicted depth map (unnormalized)
+            target: ground truth depth map (normalized)
             mask: mask of valid pixels
         Returns:
             scale and shift invariant loss
