@@ -477,7 +477,7 @@ def save_mask(
 def generate_planar_projections_from_equirectangular(
     image_dir: Path,
     planar_image_size: Tuple[int, int],
-    samples_per_im: int = 16,
+    samples_per_im: int = 12,
 ) -> Path:
     """Generate planar projections from an equirectangular image.
 
@@ -489,37 +489,37 @@ def generate_planar_projections_from_equirectangular(
         The path to the planar projections directory.
     """
 
-    equi2pers = Equi2Pers(height=planar_image_size[1], width=planar_image_size[0], fov_x=fov, mode="bilinear")
     device = torch.device("cuda")
 
     fov = 77
     yaw_pitch_pairs = []
-    if samples_per_im == 10:
+    if samples_per_im == 8:
         fov = 105
         for i in np.arange(-180, 180, 90):
             yaw_pitch_pairs.append((i, 0))
-        for i in np.arange(-180, 180, 120):
+        for i in np.arange(-180, 180, 180):
             yaw_pitch_pairs.append((i, 80))
-        for i in np.arange(-180, 180, 120):
+        for i in np.arange(-180, 180, 180):
             yaw_pitch_pairs.append((i, -80))
-    elif samples_per_im == 16:
+    elif samples_per_im == 12:
         for i in np.arange(-180, 180, 60):
             yaw_pitch_pairs.append((i, 0))
-        for i in np.arange(-180, 180, 72):
+        for i in np.arange(-180, 180, 120):
             yaw_pitch_pairs.append((i, 68))
-        for i in np.arange(-180, 180, 72):
+        for i in np.arange(-180, 180, 120):
             yaw_pitch_pairs.append((i, -68))
-    elif samples_per_im == 26:
+    elif samples_per_im == 22:
         fov = 63
         for i in np.arange(-180, 180, 51.429):
             yaw_pitch_pairs.append((i, 25))
         for i in np.arange(-180, 180, 51.429):
             yaw_pitch_pairs.append((i, -25))
-        for i in np.arange(-180, 180, 60):
-            yaw_pitch_pairs.append((i, 75))
-        for i in np.arange(-180, 180, 60):
-            yaw_pitch_pairs.append((i, -75))
+        for i in np.arange(-180, 180, 90):
+            yaw_pitch_pairs.append((i, 70))
+        for i in np.arange(-180, 180, 90):
+            yaw_pitch_pairs.append((i, -70))
 
+    equi2pers = Equi2Pers(height=planar_image_size[1], width=planar_image_size[0], fov_x=fov, mode="bilinear")
     frame_dir = image_dir
     output_dir = image_dir / "planar_projections"
     output_dir.mkdir(exist_ok=True)
