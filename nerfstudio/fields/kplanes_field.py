@@ -251,7 +251,8 @@ class KPlanesField(Field):
 
         timestamps = ray_samples.times
         if timestamps is not None:
-            timestamps = timestamps[:, None].expand(-1, n_samples)[..., None]  # [n_rays, n_samples, 1]
+            # print(pts.shape, timestamps.shape)
+            # timestamps = timestamps[:, None].expand(-1, n_samples)[..., None]  # [n_rays, n_samples, 1]
             pts = torch.cat((pts, timestamps), dim=-1)  # [n_rays, n_samples, 4]
 
         pts = pts.reshape(-1, pts.shape[-1])
@@ -284,8 +285,8 @@ class KPlanesField(Field):
         if ray_samples.camera_indices is not None:
             camera_indices = ray_samples.camera_indices.squeeze()
         directions: torch.Tensor = get_normalized_directions(ray_samples.frustums.directions)
-        directions = directions.view(-1, 1, 3).expand(pts.shape).reshape(-1, 3)
-
+        # directions = directions.view(-1, 1, 3).expand(pts.shape).reshape(-1, 3)
+        directions = directions.reshape(-1, 3)
         if not self.linear_decoder:
             directions = get_normalized_directions(directions)
             encoded_directions = self.direction_encoder(directions)

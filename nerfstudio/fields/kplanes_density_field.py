@@ -14,7 +14,7 @@ from nerfstudio.fields.kplanes_field import init_grid_param, interpolate_ms_feat
 
 
 class KPlanesDensityField(Field):
-    """TensoRF Field"""
+    """K-Planes Density Field"""
 
     def __init__(
         self,
@@ -67,7 +67,7 @@ class KPlanesDensityField(Field):
 
         timestamps = ray_samples.times
         if timestamps is not None:
-            timestamps = timestamps[:, None].expand(-1, n_samples)[..., None]  # [n_rays, n_samples, 1]
+            # timestamps = timestamps[:, None].expand(-1, n_samples)[..., None]  # [n_rays, n_samples, 1]
             pts = torch.cat((pts, timestamps), dim=-1)  # [n_rays, n_samples, 4]
 
         pts = pts.reshape(-1, pts.shape[-1])
