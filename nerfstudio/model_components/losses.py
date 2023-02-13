@@ -513,6 +513,10 @@ class ScaleAndShiftInvariantLoss(nn.Module):
         return total
 
     def __get_prediction_ssi(self):
+        """
+        scale and shift invariant prediction
+        from https://arxiv.org/pdf/1907.01341.pdf equation 1
+        """
         return self.__prediction_ssi
 
     prediction_ssi = property(__get_prediction_ssi)
