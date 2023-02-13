@@ -356,6 +356,7 @@ method_configs["dreamfusion"] = DreamfusionTrainerConfig(
             distortion_loss_mult=10,
             sphere_collider=True,
             initialize_density=False,
+            random_background=True,
             interlevel_loss_mult=1.0,
             proposal_warmup=500,
             proposal_update_every=5,
