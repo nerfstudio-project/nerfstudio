@@ -83,8 +83,8 @@ class ProcessImages:
     """
     colmap_cmd: str = "colmap"
     """How to call the COLMAP executable."""
-    samples_per_image: Literal[8, 12, 22] = 12
-    """Number of samples per image to take from each equirectangular image. ONLY USED IN EQUIRECTANGULAR CAMERA_TYPE."""
+    images_per_equirect: Literal[8, 12, 22] = 12
+    """Number of samples per image to take from each equirectangular image. Used only when camera-type is equirectangular."""
     gpu: bool = True
     """If True, use GPU."""
     verbose: bool = False
@@ -115,7 +115,7 @@ class ProcessImages:
         # Generate planar projections if equirectangular
         if self.camera_type == "equirectangular":
             self.data = process_data_utils.generate_planar_projections_from_equirectangular(
-                self.data, (1200,1200), self.samples_per_image
+                self.data, (1200, 1200), self.images_per_equirect
             )
 
         summary_log = []
