@@ -17,10 +17,17 @@ python -m pip install --upgrade pip
 
 ## Dependencies
 
-Install pytorch with CUDA (this repo has been tested with CUDA 11.3) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+Note that if a pytorch version prior to 1.13 is installed, 
+it should be uninstalled first to avoid upgrade issues (e.g. with functorch)
 
 ```bash
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+pip uninstall torch torchvision functorch
+```
+
+Install pytorch 1.13.1 with CUDA (this repo has been tested with CUDA 11.7.1) and [tiny-cuda-nn](https://github.com/NVlabs/tiny-cuda-nn)
+
+```bash
+pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
 pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
 
 ```
@@ -134,8 +141,9 @@ While installing tiny-cuda, you run into: `The detected CUDA version mismatches 
 
 **Solution**:
 
-```
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
+```bash
+pip install torch torchvision functorch --extra-index-url https://download.pytorch.org/whl/cu117
+
 ```
 
  <br />
