@@ -58,16 +58,14 @@ class LowrankModelConfig(ModelConfig):
 
     _target: Type = field(default_factory=lambda: KPlanesModel)
     """target class to instantiate"""
-    grid_config: Union[str, Sequence[Dict]] = tuple(
-        [
-            to_immutable_dict(
-                {
-                    "grid_dimensions": 2,
-                    "input_coordinate_dim": 4,
-                    "output_coordinate_dim": 16,
-                    "resolution": (64, 64, 64, 150),
-                }
-            )
+    grid_config: List[Dict] = field(
+        default_factory=lambda: [
+            {
+                "grid_dimensions": 2,
+                "input_coordinate_dim": 4,
+                "output_coordinate_dim": 16,
+                "resolution": (64, 64, 64, 150),
+            },
         ]
     )
     multiscale_res: Sequence[int] = (1, 2, 4, 8)
@@ -82,10 +80,10 @@ class LowrankModelConfig(ModelConfig):
     # proposal-sampling arguments
     num_proposal_iterations: int = 2
     use_same_proposal_network: bool = False
-    proposal_net_args_list: Optional[Sequence[Dict]] = tuple(
-        [
-            to_immutable_dict({"num_input_coords": 4, "num_output_coords": 8, "resolution": (128, 128, 128, 150)}),
-            to_immutable_dict({"num_input_coords": 4, "num_output_coords": 8, "resolution": (256, 256, 256, 150)}),
+    proposal_net_args_list: List[Dict] = field(
+        default_factory=lambda: [
+            {"num_input_coords": 4, "num_output_coords": 8, "resolution": (128, 128, 128, 150)},
+            {"num_input_coords": 4, "num_output_coords": 8, "resolution": (256, 256, 256, 150)},
         ]
     )
     num_proposal_samples: Optional[Tuple[int, int]] = (256, 128)
@@ -100,12 +98,10 @@ class LowrankModelConfig(ModelConfig):
     use_appearance_embedding: bool = False
     appearance_embedding_dim: int = 0
     num_images: Optional[int] = None
-
     num_proposal_samples_per_ray: Tuple[int, ...] = (256, 96)
     """Number of samples per ray for each proposal network."""
     num_nerf_samples_per_ray: int = 48
     """Number of samples per ray for the nerf network."""
-
     loss_coefficients: Dict[str, float] = to_immutable_dict({"rgb_loss": 1.0})
     """Loss specific weights."""
 

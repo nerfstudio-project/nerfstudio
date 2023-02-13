@@ -405,7 +405,7 @@ method_configs["k-planes"] = TrainerConfig(
                 mode="SO3xR3", optimizer=AdamOptimizerConfig(lr=6e-4, eps=1e-8, weight_decay=1e-2)
             ),
         ),
-        model=LowrankModelConfig(),
+        model=LowrankModelConfig(eval_num_rays_per_chunk=1 << 15),
     ),
     optimizers={
         "fields": {
